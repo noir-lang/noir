@@ -197,27 +197,27 @@ export interface ConstantRollupData {
 }
 
 export interface BaseRollupInputs {
-  kernel_data: FixedLengthArray<PreviousKernelData, 2>;
+  kernel_data: PreviousKernelData;
   start_note_hash_tree_snapshot: AppendOnlyTreeSnapshot;
   start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
   start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
   start_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
   archive_snapshot: AppendOnlyTreeSnapshot;
-  sorted_new_nullifiers: FixedLengthArray<Field, 128>;
-  sorted_new_nullifiers_indexes: FixedLengthArray<u32, 128>;
-  low_nullifier_leaf_preimages: FixedLengthArray<NullifierLeafPreimage, 128>;
-  low_nullifier_membership_witness: FixedLengthArray<NullifierMembershipWitness, 128>;
-  new_commitments_subtree_sibling_path: FixedLengthArray<Field, 25>;
-  new_nullifiers_subtree_sibling_path: FixedLengthArray<Field, 13>;
-  public_data_writes_subtree_sibling_paths: FixedLengthArray<FixedLengthArray<Field, 36>, 2>;
-  new_contracts_subtree_sibling_path: FixedLengthArray<Field, 15>;
-  sorted_public_data_writes: FixedLengthArray<FixedLengthArray<PublicDataTreeLeaf, 16>, 2>;
-  sorted_public_data_writes_indexes: FixedLengthArray<FixedLengthArray<u32, 16>, 2>;
-  low_public_data_writes_preimages: FixedLengthArray<FixedLengthArray<PublicDataTreeLeafPreimage, 16>, 2>;
-  low_public_data_writes_witnesses: FixedLengthArray<FixedLengthArray<PublicDataMembershipWitness, 16>, 2>;
-  public_data_reads_preimages: FixedLengthArray<FixedLengthArray<PublicDataTreeLeafPreimage, 16>, 2>;
-  public_data_reads_witnesses: FixedLengthArray<FixedLengthArray<PublicDataMembershipWitness, 16>, 2>;
-  archive_root_membership_witnesses: FixedLengthArray<ArchiveRootMembershipWitness, 2>;
+  sorted_new_nullifiers: FixedLengthArray<Field, 64>;
+  sorted_new_nullifiers_indexes: FixedLengthArray<u32, 64>;
+  low_nullifier_leaf_preimages: FixedLengthArray<NullifierLeafPreimage, 64>;
+  low_nullifier_membership_witness: FixedLengthArray<NullifierMembershipWitness, 64>;
+  new_commitments_subtree_sibling_path: FixedLengthArray<Field, 26>;
+  new_nullifiers_subtree_sibling_path: FixedLengthArray<Field, 14>;
+  public_data_writes_subtree_sibling_path: FixedLengthArray<Field, 36>;
+  new_contracts_subtree_sibling_path: FixedLengthArray<Field, 16>;
+  sorted_public_data_writes: FixedLengthArray<PublicDataTreeLeaf, 16>;
+  sorted_public_data_writes_indexes: FixedLengthArray<u32, 16>;
+  low_public_data_writes_preimages: FixedLengthArray<PublicDataTreeLeafPreimage, 16>;
+  low_public_data_writes_witnesses: FixedLengthArray<PublicDataMembershipWitness, 16>;
+  public_data_reads_preimages: FixedLengthArray<PublicDataTreeLeafPreimage, 16>;
+  public_data_reads_witnesses: FixedLengthArray<PublicDataMembershipWitness, 16>;
+  archive_root_membership_witness: ArchiveRootMembershipWitness;
   constants: ConstantRollupData;
 }
 

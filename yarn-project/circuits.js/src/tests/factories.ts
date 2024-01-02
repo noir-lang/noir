@@ -30,7 +30,6 @@ import {
   FunctionData,
   FunctionSelector,
   G1AffineElement,
-  KERNELS_PER_BASE_ROLLUP,
   KernelCircuitPublicInputs,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -38,7 +37,6 @@ import {
   MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
@@ -909,7 +907,7 @@ export function makePublicDataTreeLeafPreimage(seed = 0): PublicDataTreeLeafPrei
  * @returns A base rollup inputs.
  */
 export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
-  const kernelData = makeTuple(KERNELS_PER_BASE_ROLLUP, x => makePreviousKernelData(seed + (x + 1) * 0x100));
+  const kernelData = makePreviousKernelData(seed);
 
   const startNoteHashTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x100);
   const startNullifierTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x200);
@@ -918,13 +916,13 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const startArchiveSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x500);
 
   const lowNullifierLeafPreimages = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+    MAX_NEW_NULLIFIERS_PER_TX,
     x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), BigInt(x + 0x200)),
     seed + 0x1000,
   );
 
   const lowNullifierMembershipWitness = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+    MAX_NEW_NULLIFIERS_PER_TX,
     x => makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
     seed + 0x2000,
   );
@@ -933,77 +931,44 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const newNullifiersSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x4000);
   const newContractsSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x5000);
 
-  const sortedNewNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, fr, seed + 0x6000);
-  const sortednewNullifiersIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i => i, seed + 0x7000);
+  const sortedNewNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x6000);
+  const sortednewNullifiersIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => i, seed + 0x7000);
 
   const sortedPublicDataWrites = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makePublicDataTreeLeaf, seed + 0x8000 + i * 0x100);
-    },
-    0,
-  );
-  const sortedPublicDataWritesIndexes = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    () => makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, 0),
-    0,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    makePublicDataTreeLeaf,
+    seed + 0x8000,
   );
 
+  const sortedPublicDataWritesIndexes = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, 0);
+
   const lowPublicDataWritesPreimages = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        makePublicDataTreeLeafPreimage,
-        seed + 0x8200 + i * 0x100,
-      );
-    },
-    0,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    makePublicDataTreeLeafPreimage,
+    seed + 0x8200,
   );
 
   const lowPublicDataWritesMembershipWitnesses = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
-        seed + 0x8400 + i * 0x100,
-      );
-    },
-    0,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
+    seed + 0x8400,
   );
 
-  const publicDataWritesSubtreeSiblingPaths = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x8600 + i * 0x100);
-    },
-    0,
-  );
+  const publicDataWritesSubtreeSiblingPath = makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x8600);
 
   const publicDataReadsPreimages = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, makePublicDataTreeLeafPreimage, seed + 0x8800 + i * 0x100);
-    },
-    0,
+    MAX_PUBLIC_DATA_READS_PER_TX,
+    makePublicDataTreeLeafPreimage,
+    seed + 0x8800,
   );
 
   const publicDataReadsMembershipWitnesses = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(
-        MAX_PUBLIC_DATA_READS_PER_TX,
-        i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
-        seed + 0x8a00 + i * 0x100,
-      );
-    },
-    0,
+    MAX_PUBLIC_DATA_READS_PER_TX,
+    i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
+    seed + 0x8a00,
   );
 
-  const archiveRootMembershipWitnesses = makeTuple(KERNELS_PER_BASE_ROLLUP, x =>
-    makeMembershipWitness(ARCHIVE_HEIGHT, seed + x * 0x1000 + 0x9000),
-  );
+  const archiveRootMembershipWitness = makeMembershipWitness(ARCHIVE_HEIGHT, seed + 0x9000);
 
   const constants = makeConstantBaseRollupData(0x100);
 
@@ -1025,10 +990,10 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     sortedPublicDataWritesIndexes,
     lowPublicDataWritesPreimages,
     lowPublicDataWritesMembershipWitnesses,
-    publicDataWritesSubtreeSiblingPaths,
+    publicDataWritesSubtreeSiblingPath,
     publicDataReadsPreimages,
     publicDataReadsMembershipWitnesses,
-    archiveRootMembershipWitnesses,
+    archiveRootMembershipWitness,
     constants,
   });
 }

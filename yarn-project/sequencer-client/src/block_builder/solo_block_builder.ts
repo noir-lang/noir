@@ -9,7 +9,7 @@ import {
   GlobalVariables,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
-  MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
@@ -218,8 +218,8 @@ export class SoloBlockBuilder implements BlockBuilder {
   ): Promise<[RootRollupPublicInputs, Proof]> {
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
-    if (txs.length < 4 || (txs.length & (txs.length - 1)) !== 0) {
-      throw new Error(`Length of txs for the block should be a power of two and at least four (got ${txs.length})`);
+    if (txs.length < 2 || (txs.length & (txs.length - 1)) !== 0) {
+      throw new Error(`Length of txs for the block should be a power of two and at least two (got ${txs.length})`);
     }
 
     // padArrayEnd throws if the array is already full. Otherwise it pads till we reach the required size
@@ -227,9 +227,8 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     // Run the base rollup circuits for the txs
     const baseRollupOutputs: [BaseOrMergeRollupPublicInputs, Proof][] = [];
-    for (const pair of chunk(txs, 2)) {
-      const [tx1, tx2] = pair;
-      baseRollupOutputs.push(await this.baseRollupCircuit(tx1, tx2, globalVariables));
+    for (const tx of txs) {
+      baseRollupOutputs.push(await this.baseRollupCircuit(tx, globalVariables));
     }
 
     // Run merge rollups in layers until we have only two outputs
@@ -250,12 +249,11 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   protected async baseRollupCircuit(
-    tx1: ProcessedTx,
-    tx2: ProcessedTx,
+    tx: ProcessedTx,
     globalVariables: GlobalVariables,
   ): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
-    this.debug(`Running base rollup for ${tx1.hash} ${tx2.hash}`);
-    const rollupInput = await this.buildBaseRollupInput(tx1, tx2, globalVariables);
+    this.debug(`Running base rollup for ${tx.hash}`);
+    const rollupInput = await this.buildBaseRollupInput(tx, globalVariables);
     const rollupOutput = await this.simulator.baseRollupCircuit(rollupInput);
     await this.validateTrees(rollupOutput);
     const proof = await this.prover.getBaseRollupProof(rollupInput, rollupOutput);
@@ -662,7 +660,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   // Builds the base rollup inputs, updating the contract, nullifier, and data trees in the process
-  protected async buildBaseRollupInput(left: ProcessedTx, right: ProcessedTx, globalVariables: GlobalVariables) {
+  protected async buildBaseRollupInput(tx: ProcessedTx, globalVariables: GlobalVariables) {
     // Get trees info before any changes hit
     const constants = await this.getConstantRollupData(globalVariables);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
@@ -692,8 +690,8 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     // Update the contract and note hash trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-    const newContracts = flatMap([left, right], tx => tx.data.end.newContracts.map(cd => computeContractLeaf(cd)));
-    const newCommitments = flatMap([left, right], tx => tx.data.end.newCommitments.map(x => x.toBuffer()));
+    const newContracts = tx.data.end.newContracts.map(cd => computeContractLeaf(cd));
+    const newCommitments = tx.data.end.newCommitments.map(x => x.toBuffer());
     await this.db.appendLeaves(
       MerkleTreeId.CONTRACT_TREE,
       newContracts.map(x => x.toBuffer()),
@@ -701,17 +699,13 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     await this.db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, newCommitments);
 
-    // The public data tree will be updated serially, first with the left TX and then with the right TX.
     // The read witnesses for a given TX should be generated before the writes of the same TX are applied.
     // All reads that refer to writes in the same tx are transient and can be simplified out.
-    const leftPublicDataReadsInfo = await this.getPublicDataReadsInfo(left);
-    const leftPublicDataUpdateRequestInfo = await this.processPublicDataUpdateRequests(left);
-
-    const rightPublicDataReadsInfo = await this.getPublicDataReadsInfo(right);
-    const rightPublicDataUpdateRequestInfo = await this.processPublicDataUpdateRequests(right);
+    const txPublicDataReadsInfo = await this.getPublicDataReadsInfo(tx);
+    const txPublicDataUpdateRequestInfo = await this.processPublicDataUpdateRequests(tx);
 
     // Update the nullifier tree, capturing the low nullifier info for each individual operation
-    const newNullifiers = [...left.data.end.newNullifiers, ...right.data.end.newNullifiers];
+    const newNullifiers = tx.data.end.newNullifiers;
 
     const {
       lowLeavesWitnessData: nullifierWitnessLeaves,
@@ -742,29 +736,14 @@ export class SoloBlockBuilder implements BlockBuilder {
       startNoteHashTreeSnapshot,
       startPublicDataTreeSnapshot,
       archiveSnapshot: startArchiveSnapshot,
-      sortedPublicDataWrites: [
-        leftPublicDataUpdateRequestInfo.sortedPublicDataWrites,
-        rightPublicDataUpdateRequestInfo.sortedPublicDataWrites,
-      ],
-      sortedPublicDataWritesIndexes: [
-        leftPublicDataUpdateRequestInfo.sortedPublicDataWritesIndexes,
-        rightPublicDataUpdateRequestInfo.sortedPublicDataWritesIndexes,
-      ],
-      lowPublicDataWritesPreimages: [
-        leftPublicDataUpdateRequestInfo.lowPublicDataWritesPreimages,
-        rightPublicDataUpdateRequestInfo.lowPublicDataWritesPreimages,
-      ],
-      lowPublicDataWritesMembershipWitnesses: [
-        leftPublicDataUpdateRequestInfo.lowPublicDataWritesMembershipWitnesses,
-        rightPublicDataUpdateRequestInfo.lowPublicDataWritesMembershipWitnesses,
-      ],
-      publicDataWritesSubtreeSiblingPaths: [
-        leftPublicDataUpdateRequestInfo.newPublicDataSubtreeSiblingPath,
-        rightPublicDataUpdateRequestInfo.newPublicDataSubtreeSiblingPath,
-      ],
+      sortedPublicDataWrites: txPublicDataUpdateRequestInfo.sortedPublicDataWrites,
+      sortedPublicDataWritesIndexes: txPublicDataUpdateRequestInfo.sortedPublicDataWritesIndexes,
+      lowPublicDataWritesPreimages: txPublicDataUpdateRequestInfo.lowPublicDataWritesPreimages,
+      lowPublicDataWritesMembershipWitnesses: txPublicDataUpdateRequestInfo.lowPublicDataWritesMembershipWitnesses,
+      publicDataWritesSubtreeSiblingPath: txPublicDataUpdateRequestInfo.newPublicDataSubtreeSiblingPath,
 
-      sortedNewNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i => Fr.fromBuffer(sortedNewNullifiers[i])),
-      sortednewNullifiersIndexes: makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i => sortednewNullifiersIndexes[i]),
+      sortedNewNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => Fr.fromBuffer(sortedNewNullifiers[i])),
+      sortednewNullifiersIndexes: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => sortednewNullifiersIndexes[i]),
       newCommitmentsSubtreeSiblingPath,
       newContractsSubtreeSiblingPath,
 
@@ -772,31 +751,22 @@ export class SoloBlockBuilder implements BlockBuilder {
         i < newNullifiersSubtreeSiblingPathArray.length ? newNullifiersSubtreeSiblingPathArray[i] : Fr.ZERO,
       ),
 
-      publicDataReadsPreimages: [
-        leftPublicDataReadsInfo.newPublicDataReadsPreimages,
-        rightPublicDataReadsInfo.newPublicDataReadsPreimages,
-      ],
+      publicDataReadsPreimages: txPublicDataReadsInfo.newPublicDataReadsPreimages,
 
-      publicDataReadsMembershipWitnesses: [
-        leftPublicDataReadsInfo.newPublicDataReadsWitnesses,
-        rightPublicDataReadsInfo.newPublicDataReadsWitnesses,
-      ],
+      publicDataReadsMembershipWitnesses: txPublicDataReadsInfo.newPublicDataReadsWitnesses,
 
-      lowNullifierLeafPreimages: makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i =>
+      lowNullifierLeafPreimages: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
         i < nullifierWitnessLeaves.length
           ? (nullifierWitnessLeaves[i].leafPreimage as NullifierLeafPreimage)
           : NullifierLeafPreimage.empty(),
       ),
-      lowNullifierMembershipWitness: makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i =>
+      lowNullifierMembershipWitness: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
         i < lowNullifierMembershipWitnesses.length
           ? lowNullifierMembershipWitnesses[i]
           : this.makeEmptyMembershipWitness(NULLIFIER_TREE_HEIGHT),
       ),
-      kernelData: [this.getKernelDataFor(left), this.getKernelDataFor(right)],
-      archiveRootMembershipWitnesses: [
-        await this.getHistoricalTreesMembershipWitnessFor(left),
-        await this.getHistoricalTreesMembershipWitnessFor(right),
-      ],
+      kernelData: this.getKernelDataFor(tx),
+      archiveRootMembershipWitness: await this.getHistoricalTreesMembershipWitnessFor(tx),
     });
   }
 

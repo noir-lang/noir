@@ -338,8 +338,8 @@ export class Sequencer {
     emptyTx: ProcessedTx,
     globalVariables: GlobalVariables,
   ) {
-    // Pad the txs array with empty txs to be a power of two, at least 4
-    const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 4);
+    // Pad the txs array with empty txs to be a power of two, at least 2
+    const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 2);
     const emptyTxCount = txsTargetSize - txs.length;
 
     const allTxs = [...txs, ...times(emptyTxCount, () => emptyTx)];

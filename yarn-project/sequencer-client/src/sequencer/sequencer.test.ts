@@ -101,7 +101,7 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxHashes = [...(await Tx.getHashes([tx])), ...times(3, () => TxHash.ZERO)];
+    const expectedTxHashes = [...(await Tx.getHashes([tx])), ...times(1, () => TxHash.ZERO)];
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
@@ -138,7 +138,7 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxHashes = [...(await Tx.getHashes([txs[0], txs[2]])), TxHash.ZERO, TxHash.ZERO];
+    const expectedTxHashes = await Tx.getHashes([txs[0], txs[2]]);
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),
@@ -171,7 +171,7 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxHashes = [...(await Tx.getHashes([txs[0], txs[2]])), TxHash.ZERO, TxHash.ZERO];
+    const expectedTxHashes = await Tx.getHashes([txs[0], txs[2]]);
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO),

@@ -4,8 +4,7 @@ import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 import {
   ARCHIVE_HEIGHT,
   CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-  KERNELS_PER_BASE_ROLLUP,
-  MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
@@ -98,7 +97,7 @@ export class BaseRollupInputs {
     /**
      * Data of the 2 kernels that preceded this base rollup circuit.
      */
-    public kernelData: Tuple<PreviousKernelData, typeof KERNELS_PER_BASE_ROLLUP>,
+    public kernelData: PreviousKernelData,
     /**
      * Snapshot of the note hash tree at the start of the base rollup circuit.
      */
@@ -123,23 +122,23 @@ export class BaseRollupInputs {
     /**
      * The nullifiers to be inserted in the tree, sorted high to low.
      */
-    public sortedNewNullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>,
+    public sortedNewNullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * The indexes of the sorted nullifiers to the original ones.
      */
-    public sortednewNullifiersIndexes: Tuple<UInt32, typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>,
+    public sortednewNullifiersIndexes: Tuple<UInt32, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * The nullifiers which need to be updated to perform the batch insertion of the new nullifiers.
      * See `StandardIndexedTree.batchInsert` function for more details.
      */
-    public lowNullifierLeafPreimages: Tuple<NullifierLeafPreimage, typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP>,
+    public lowNullifierLeafPreimages: Tuple<NullifierLeafPreimage, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * Membership witnesses for the nullifiers which need to be updated to perform the batch insertion of the new
      * nullifiers.
      */
     public lowNullifierMembershipWitness: Tuple<
       MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>,
-      typeof MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP
+      typeof MAX_NEW_NULLIFIERS_PER_TX
     >,
 
     /**
@@ -157,65 +156,51 @@ export class BaseRollupInputs {
     /**
      * The public data writes to be inserted in the tree, sorted high slot to low slot.
      */
-    public sortedPublicDataWrites: Tuple<
-      Tuple<PublicDataTreeLeaf, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-      typeof KERNELS_PER_BASE_ROLLUP
-    >,
+    public sortedPublicDataWrites: Tuple<PublicDataTreeLeaf, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+
     /**
      * The indexes of the sorted public data writes to the original ones.
      */
-    public sortedPublicDataWritesIndexes: Tuple<
-      Tuple<UInt32, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-      typeof KERNELS_PER_BASE_ROLLUP
-    >,
+    public sortedPublicDataWritesIndexes: Tuple<UInt32, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
     /**
      * The public data writes which need to be updated to perform the batch insertion of the new public data writes.
      * See `StandardIndexedTree.batchInsert` function for more details.
      */
     public lowPublicDataWritesPreimages: Tuple<
-      Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-      typeof KERNELS_PER_BASE_ROLLUP
+      PublicDataTreeLeafPreimage,
+      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
     /**
      * Membership witnesses for the nullifiers which need to be updated to perform the batch insertion of the new
      * nullifiers.
      */
     public lowPublicDataWritesMembershipWitnesses: Tuple<
-      Tuple<MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-      typeof KERNELS_PER_BASE_ROLLUP
+      MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
+      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
 
     /**
      * Sibling path "pointing to" where the new public data subtree should be inserted into the public data tree.
      */
-    public publicDataWritesSubtreeSiblingPaths: Tuple<
-      Tuple<Fr, typeof PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH>,
-      typeof KERNELS_PER_BASE_ROLLUP
-    >,
+    public publicDataWritesSubtreeSiblingPath: Tuple<Fr, typeof PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH>,
 
     /**
      * Preimages of leaves which are to be read by the public data reads.
      */
-    public publicDataReadsPreimages: Tuple<
-      Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
-      typeof KERNELS_PER_BASE_ROLLUP
-    >,
+    public publicDataReadsPreimages: Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
     /**
      * Sibling paths of leaves which are to be read by the public data reads.
      * Each item in the array is the sibling path that corresponds to a read request.
      */
     public publicDataReadsMembershipWitnesses: Tuple<
-      Tuple<MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
-      typeof KERNELS_PER_BASE_ROLLUP
+      MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
+      typeof MAX_PUBLIC_DATA_READS_PER_TX
     >,
 
     /**
      * Membership witnesses of blocks referred by each of the 2 kernels.
      */
-    public archiveRootMembershipWitnesses: Tuple<
-      MembershipWitness<typeof ARCHIVE_HEIGHT>,
-      typeof KERNELS_PER_BASE_ROLLUP
-    >,
+    public archiveRootMembershipWitness: MembershipWitness<typeof ARCHIVE_HEIGHT>,
     /**
      * Data which is not modified by the base rollup circuit.
      */
@@ -245,10 +230,10 @@ export class BaseRollupInputs {
       fields.sortedPublicDataWritesIndexes,
       fields.lowPublicDataWritesPreimages,
       fields.lowPublicDataWritesMembershipWitnesses,
-      fields.publicDataWritesSubtreeSiblingPaths,
+      fields.publicDataWritesSubtreeSiblingPath,
       fields.publicDataReadsPreimages,
       fields.publicDataReadsMembershipWitnesses,
-      fields.archiveRootMembershipWitnesses,
+      fields.archiveRootMembershipWitness,
       fields.constants,
     ] as const;
   }

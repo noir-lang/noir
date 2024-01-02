@@ -43,7 +43,6 @@ import {
   NewContractData,
   NullifierLeafPreimage,
   OptionallyRevealedData,
-  PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
   Point,
   PreviousKernelData,
@@ -1376,7 +1375,7 @@ export function mapPublicDataTreePreimageToNoir(preimage: PublicDataTreeLeafPrei
  */
 export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupInputsNoir {
   return {
-    kernel_data: mapTuple(inputs.kernelData, mapPreviousKernelDataToNoir),
+    kernel_data: mapPreviousKernelDataToNoir(inputs.kernelData),
     start_note_hash_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startNoteHashTreeSnapshot),
     start_nullifier_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startNullifierTreeSnapshot),
     start_contract_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startContractTreeSnapshot),
@@ -1393,67 +1392,28 @@ export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupI
     ),
     new_commitments_subtree_sibling_path: mapTuple(inputs.newCommitmentsSubtreeSiblingPath, mapFieldToNoir),
     new_nullifiers_subtree_sibling_path: mapTuple(inputs.newNullifiersSubtreeSiblingPath, mapFieldToNoir),
-    public_data_writes_subtree_sibling_paths: mapTuple(
-      inputs.publicDataWritesSubtreeSiblingPaths,
-      (txPath: Tuple<Fr, typeof PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH>) => {
-        return mapTuple(txPath, mapFieldToNoir);
-      },
-    ),
+    public_data_writes_subtree_sibling_path: mapTuple(inputs.publicDataWritesSubtreeSiblingPath, mapFieldToNoir),
     new_contracts_subtree_sibling_path: mapTuple(inputs.newContractsSubtreeSiblingPath, mapFieldToNoir),
 
-    sorted_public_data_writes: mapTuple(
-      inputs.sortedPublicDataWrites,
-      (kernelWrites: Tuple<PublicDataTreeLeaf, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>) => {
-        return mapTuple(kernelWrites, mapPublicDataTreeLeafToNoir);
-      },
-    ),
+    sorted_public_data_writes: mapTuple(inputs.sortedPublicDataWrites, mapPublicDataTreeLeafToNoir),
 
-    sorted_public_data_writes_indexes: mapTuple(
-      inputs.sortedPublicDataWritesIndexes,
-      (txIndexes: Tuple<number, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>) => {
-        return mapTuple(txIndexes, (index: number) => mapNumberToNoir(index));
-      },
-    ),
+    sorted_public_data_writes_indexes: mapTuple(inputs.sortedPublicDataWritesIndexes, mapNumberToNoir),
 
-    low_public_data_writes_preimages: mapTuple(
-      inputs.lowPublicDataWritesPreimages,
-      (txPreimages: Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>) => {
-        return mapTuple(txPreimages, mapPublicDataTreePreimageToNoir);
-      },
-    ),
+    low_public_data_writes_preimages: mapTuple(inputs.lowPublicDataWritesPreimages, mapPublicDataTreePreimageToNoir),
 
     low_public_data_writes_witnesses: mapTuple(
       inputs.lowPublicDataWritesMembershipWitnesses,
-      (
-        txWitnesses: Tuple<
-          MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
-          typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-        >,
-      ) => {
-        return mapTuple(txWitnesses, mapPublicDataMembershipWitnessToNoir);
-      },
+      mapPublicDataMembershipWitnessToNoir,
     ),
 
-    public_data_reads_preimages: mapTuple(
-      inputs.publicDataReadsPreimages,
-      (txReadsPreimages: Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_READS_PER_TX>) => {
-        return mapTuple(txReadsPreimages, mapPublicDataTreePreimageToNoir);
-      },
-    ),
+    public_data_reads_preimages: mapTuple(inputs.publicDataReadsPreimages, mapPublicDataTreePreimageToNoir),
 
     public_data_reads_witnesses: mapTuple(
       inputs.publicDataReadsMembershipWitnesses,
-      (
-        txReadsWitnesses: Tuple<MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
-      ) => {
-        return mapTuple(txReadsWitnesses, mapPublicDataMembershipWitnessToNoir);
-      },
+      mapPublicDataMembershipWitnessToNoir,
     ),
 
-    archive_root_membership_witnesses: mapTuple(
-      inputs.archiveRootMembershipWitnesses,
-      mapArchiveRootMembershipWitnessToNoir,
-    ),
+    archive_root_membership_witness: mapArchiveRootMembershipWitnessToNoir(inputs.archiveRootMembershipWitness),
     constants: mapConstantRollupDataToNoir(inputs.constants),
   };
 }

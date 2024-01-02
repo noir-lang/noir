@@ -183,18 +183,17 @@ describe('sequencer/solo_block_builder', () => {
       ),
     );
 
-    const txsLeft = [tx, await makeEmptyProcessedTx()];
-    const txsRight = [await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];
+    const txs = [tx, await makeEmptyProcessedTx()];
 
-    // Calculate what would be the tree roots after the txs from the first base rollup land and update mock circuit output
-    await updateExpectedTreesFromTxs(txsLeft);
+    // Calculate what would be the tree roots after the first tx and update mock circuit output
+    await updateExpectedTreesFromTxs([txs[0]]);
     baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     baseRollupOutputLeft.endNoteHashTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE);
     baseRollupOutputLeft.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
 
-    // Same for the two txs on the right
-    await updateExpectedTreesFromTxs(txsRight);
+    // Same for the tx on the right
+    await updateExpectedTreesFromTxs([txs[1]]);
     baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     baseRollupOutputRight.endNoteHashTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE);
@@ -214,8 +213,6 @@ describe('sequencer/solo_block_builder', () => {
     rootRollupOutput.globalVariables = globalVariables;
     await updateArchive();
     rootRollupOutput.endArchiveSnapshot = await getTreeSnapshot(MerkleTreeId.ARCHIVE);
-
-    const txs = [...txsLeft, ...txsRight];
 
     const newNullifiers = flatMap(txs, tx => tx.data.end.newNullifiers);
     const newCommitments = flatMap(txs, tx => tx.data.end.newCommitments);

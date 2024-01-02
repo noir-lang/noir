@@ -674,14 +674,14 @@ export class L2Block {
       return layers[layers.length - 1][0];
     };
 
-    const leafCount = this.newCommitments.length / (MAX_NEW_COMMITMENTS_PER_TX * 2);
+    const leafCount = this.newCommitments.length / MAX_NEW_COMMITMENTS_PER_TX;
     const leafs: Buffer[] = [];
 
     for (let i = 0; i < leafCount; i++) {
-      const commitmentsPerBase = MAX_NEW_COMMITMENTS_PER_TX * 2;
-      const nullifiersPerBase = MAX_NEW_NULLIFIERS_PER_TX * 2;
-      const publicDataUpdateRequestsPerBase = MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
-      const l2ToL1MsgsPerBase = MAX_NEW_L2_TO_L1_MSGS_PER_TX * 2;
+      const commitmentsPerBase = MAX_NEW_COMMITMENTS_PER_TX;
+      const nullifiersPerBase = MAX_NEW_NULLIFIERS_PER_TX;
+      const publicDataUpdateRequestsPerBase = MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX;
+      const l2ToL1MsgsPerBase = MAX_NEW_L2_TO_L1_MSGS_PER_TX;
       const commitmentsBuffer = Buffer.concat(
         this.newCommitments.slice(i * commitmentsPerBase, (i + 1) * commitmentsPerBase).map(x => x.toBuffer()),
       );
@@ -696,27 +696,20 @@ export class L2Block {
       const newL2ToL1MsgsBuffer = Buffer.concat(
         this.newL2ToL1Msgs.slice(i * l2ToL1MsgsPerBase, (i + 1) * l2ToL1MsgsPerBase).map(x => x.toBuffer()),
       );
-      const encryptedLogsHashKernel0 = L2Block.computeKernelLogsHash(this.newEncryptedLogs.txLogs[i * 2]);
-      const encryptedLogsHashKernel1 = L2Block.computeKernelLogsHash(this.newEncryptedLogs.txLogs[i * 2 + 1]);
+      const encryptedLogsHashKernel0 = L2Block.computeKernelLogsHash(this.newEncryptedLogs.txLogs[i]);
 
-      const unencryptedLogsHashKernel0 = L2Block.computeKernelLogsHash(this.newUnencryptedLogs.txLogs[i * 2]);
-      const unencryptedLogsHashKernel1 = L2Block.computeKernelLogsHash(this.newUnencryptedLogs.txLogs[i * 2 + 1]);
+      const unencryptedLogsHashKernel0 = L2Block.computeKernelLogsHash(this.newUnencryptedLogs.txLogs[i]);
 
       const inputValue = Buffer.concat([
         commitmentsBuffer,
         nullifiersBuffer,
         publicDataUpdateRequestsBuffer,
         newL2ToL1MsgsBuffer,
-        this.newContracts[i * 2].toBuffer(),
-        this.newContracts[i * 2 + 1].toBuffer(),
-        this.newContractData[i * 2].contractAddress.toBuffer(),
-        this.newContractData[i * 2].portalContractAddress.toBuffer32(),
-        this.newContractData[i * 2 + 1].contractAddress.toBuffer(),
-        this.newContractData[i * 2 + 1].portalContractAddress.toBuffer32(),
+        this.newContracts[i].toBuffer(),
+        this.newContractData[i].contractAddress.toBuffer(),
+        this.newContractData[i].portalContractAddress.toBuffer32(),
         encryptedLogsHashKernel0,
-        encryptedLogsHashKernel1,
         unencryptedLogsHashKernel0,
-        unencryptedLogsHashKernel1,
       ]);
       leafs.push(sha256(inputValue));
     }
