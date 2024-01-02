@@ -368,9 +368,34 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
-        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-        let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
-        Ok(outputs[0])
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        if lhs_expr == rhs_expr {
+            // x ^ x == 0
+            let zero = self.add_constant(FieldElement::zero());
+            return Ok(zero);
+        } else if lhs_expr.is_zero() {
+            // 0 ^ x == x
+            return Ok(rhs);
+        } else if rhs_expr.is_zero() {
+            // x ^ 0 == x
+            return Ok(lhs);
+        }
+
+        let bit_size = typ.bit_size();
+        if bit_size == 1 {
+            // Operands are booleans.
+            //
+            // a ^ b == a + b - 2*a*b
+            let sum = self.add_var(lhs, rhs)?;
+            let prod = self.mul_var(lhs, rhs)?;
+            self.add_mul_var(sum, -FieldElement::from(2_i128), prod)
+        } else {
+            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+            Ok(outputs[0])
+        }
     }
 
     /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
@@ -380,6 +405,18 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        if lhs_expr == rhs_expr {
+            // x & x == x
+            return Ok(lhs);
+        } else if lhs_expr.is_zero() || rhs_expr.is_zero() {
+            // x & 0 == 0 and 0 & x == 0
+            let zero = self.add_constant(FieldElement::zero());
+            return Ok(zero);
+        }
+
         let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans.
@@ -398,6 +435,16 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+        if lhs_expr.is_zero() {
+            // 0 | x == x
+            return Ok(rhs);
+        } else if rhs_expr.is_zero() {
+            // x | 0 == x
+            return Ok(lhs);
+        }
+
         let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans
@@ -413,9 +460,8 @@ impl AcirContext {
             let max = self.add_constant((1_u128 << bit_size) - 1);
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
-            let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-            self.sub_var(max, outputs[0])
+            let a_and_b = self.and_var(a, b, typ)?;
+            self.sub_var(max, a_and_b)
         }
     }
 
@@ -852,9 +898,7 @@ impl AcirContext {
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
-        let sign_sum = self.add_var(lhs_leading, rhs_leading)?;
-        let sign_prod = self.mul_var(lhs_leading, rhs_leading)?;
-        let q_sign = self.add_mul_var(sign_sum, -FieldElement::from(2_i128), sign_prod)?;
+        let q_sign = self.xor_var(lhs_leading, rhs_leading, AcirType::unsigned(1))?;
 
         let quotient = self.two_complement(q1, q_sign, bit_size)?;
         let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
