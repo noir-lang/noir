@@ -19,6 +19,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
     context: &Context,
     test_function: TestFunction,
     show_output: bool,
+    foreign_call_resolver_url: Option<&str>,
     config: &CompileOptions,
 ) -> TestStatus {
     let program = compile_no_check(context, config, test_function.get_id(), None, false);
@@ -30,7 +31,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
                 &program.circuit,
                 WitnessMap::new(),
                 blackbox_solver,
-                &mut DefaultForeignCallExecutor::new(show_output),
+                &mut DefaultForeignCallExecutor::new(show_output, foreign_call_resolver_url),
             );
             test_status_program_compile_pass(test_function, program.debug, circuit_execution)
         }

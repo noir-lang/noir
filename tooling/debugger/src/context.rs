@@ -529,7 +529,7 @@ mod tests {
             circuit,
             debug_artifact,
             initial_witness,
-            Box::new(DefaultForeignCallExecutor::new(true)),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
         );
 
         assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(0)));
@@ -623,7 +623,7 @@ mod tests {
             circuit,
             debug_artifact,
             initial_witness,
-            Box::new(DefaultForeignCallExecutor::new(true)),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
         );
 
         // set breakpoint
@@ -673,7 +673,7 @@ mod tests {
             &circuit,
             &debug_artifact,
             WitnessMap::new(),
-            Box::new(DefaultForeignCallExecutor::new(true)),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
         );
 
         assert_eq!(context.offset_opcode_location(&None, 0), (None, 0));

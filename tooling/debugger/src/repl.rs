@@ -37,7 +37,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             circuit,
             debug_artifact,
             initial_witness.clone(),
-            Box::new(DefaultForeignCallExecutor::new(true)),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
         );
         Self {
             context,
@@ -278,7 +278,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             self.circuit,
             self.debug_artifact,
             self.initial_witness.clone(),
-            Box::new(DefaultForeignCallExecutor::new(true)),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
         );
         for opcode_location in breakpoints {
             self.context.add_breakpoint(opcode_location);

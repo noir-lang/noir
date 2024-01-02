@@ -533,8 +533,19 @@ impl AcirContext {
         let lhs_data = self.vars[&lhs].clone();
         let rhs_data = self.vars[&rhs].clone();
         let result = match (lhs_data, rhs_data) {
+            // (x * 1) == (1 * x) == x
+            (AcirVarData::Const(constant), _) if constant.is_one() => rhs,
+            (_, AcirVarData::Const(constant)) if constant.is_one() => lhs,
+
+            // (x * 0) == (0 * x) == 0
+            (AcirVarData::Const(constant), _) | (_, AcirVarData::Const(constant))
+                if constant.is_zero() =>
+            {
+                self.add_constant(FieldElement::zero())
+            }
+
             (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
-                self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
+                self.add_constant(lhs_constant * rhs_constant)
             }
             (AcirVarData::Witness(witness), AcirVarData::Const(constant))
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
@@ -991,23 +1002,25 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_count: u32,
-        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         let pow_last = self.add_constant(FieldElement::from(1_u128 << (bit_count - 1)));
         let pow = self.add_constant(FieldElement::from(1_u128 << (bit_count)));
 
         // We check whether the inputs have same sign or not by computing the XOR of their bit sign
+
+        // Predicate is always active as `pow_last` is known to be non-zero.
+        let one = self.add_constant(1_u128);
         let lhs_sign = self.div_var(
             lhs,
             pow_last,
             AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
-            predicate,
+            one,
         )?;
         let rhs_sign = self.div_var(
             rhs,
             pow_last,
             AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
-            predicate,
+            one,
         )?;
         let same_sign = self.xor_var(
             lhs_sign,
@@ -1020,7 +1033,7 @@ impl AcirContext {
         let diff = self.sub_var(no_underflow, rhs)?;
 
         // We check the 'bit sign' of the difference
-        let diff_sign = self.less_than_var(diff, pow, bit_count + 1, predicate)?;
+        let diff_sign = self.less_than_var(diff, pow, bit_count + 1)?;
 
         // Then the result is simply diff_sign XOR same_sign (can be checked with a truth table)
         self.xor_var(
@@ -1037,7 +1050,6 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         max_bits: u32,
-        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         // Returns a `Witness` that is constrained to be:
         // - `1` if lhs >= rhs
@@ -1062,6 +1074,7 @@ impl AcirContext {
         //
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < FieldElement::max_num_bits());
+
         let two_max_bits = self
             .add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(max_bits as i128)));
         let diff = self.sub_var(lhs, rhs)?;
@@ -1091,13 +1104,11 @@ impl AcirContext {
         //   let k = b - a
         // - 2^{max_bits} - k == q * 2^{max_bits} + r
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
-        //
-        let (q, _) = self.euclidean_division_var(
-            comparison_evaluation,
-            two_max_bits,
-            max_bits + 1,
-            predicate,
-        )?;
+
+        // Predicate is always active as we know `two_max_bits` is always non-zero.
+        let one = self.add_constant(1_u128);
+        let (q, _) =
+            self.euclidean_division_var(comparison_evaluation, two_max_bits, max_bits + 1, one)?;
         Ok(q)
     }
 
@@ -1108,11 +1119,10 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
-        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, predicate)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
 
         let one = self.add_constant(FieldElement::one());
         self.sub_var(one, comparison) // comparison_negated
@@ -1508,7 +1518,7 @@ impl AcirContext {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
-        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, predicate)?;
+        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size)?;
         self.maybe_eq_predicate(lhs_less_than_rhs, predicate)
     }
 
