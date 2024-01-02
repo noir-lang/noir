@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build-base-nargo:
-    name: Build base docker nargo
+    name: Build base nargo docker image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
