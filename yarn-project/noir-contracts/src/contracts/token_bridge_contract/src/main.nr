@@ -19,11 +19,11 @@ contract TokenBridge {
         types::type_serialization::address_serialization::AddressSerializationMethods,
         selector::compute_selector,
     };
-    // docs:end:token_bridge_imports
 
     use dep::token_portal_content_hash_lib::{get_mint_public_content_hash, get_mint_private_content_hash, get_withdraw_content_hash};
 
     use crate::token_interface::Token;
+    // docs:end:token_bridge_imports
 
     // docs:start:token_bridge_storage_and_constructor
     // Storage structure, containing all storage, and specifying what slots they use.
@@ -148,9 +148,11 @@ contract TokenBridge {
 
     // /// Unconstrained ///
 
+    // docs:start:read_token
     unconstrained fn token() -> pub AztecAddress {
         storage.token.read()
     }
+    // docs:end:read_token
 
     #[aztec(public)]
     internal fn _initialize(token: AztecAddress) {

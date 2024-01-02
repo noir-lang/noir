@@ -10,9 +10,7 @@ Go back to your `main.nr` and paste this:
 
 #include_code exit_to_l1_public /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
 
-For this to work we will need this helper function, in `util.nr`:
-
-#include_code get_withdraw_content_hash /yarn-project/noir-contracts/src/contracts/token_portal_content_hash_lib/src/lib.nr rust
+For this to work we import the `get_withdraw_content_hash` helper function from the `token_portal_content_hash_lib`.
 
 **What’s happening here?**
 
@@ -52,6 +50,16 @@ Here we reconstruct the L2 to L1 message and check that this message exists on t
 We also use a `_withCaller` parameter to determine the appropriate party that can execute this function on behalf of the recipient. If `withCaller` is false, then anyone can call the method and hence we use address(0), otherwise only msg.sender should be able to execute. This address should match the `callerOnL1` address we passed in aztec when withdrawing from L2.
 
 We call this pattern _designed caller_ which enables a new paradigm **where we can construct other such portals that talk to the token portal and therefore create more seamless crosschain legos** between L1 and L2.
+
+Before we can compile and use the contract, we need to add two additional functions.
+
+We need a function that let's us read the token value.
+
+#include_code read_token /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
+
+And the `compute_note_hash_and_nullifier` required on every contract.
+
+#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
 
 ## Compile code
 

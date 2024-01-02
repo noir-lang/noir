@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// docs:start:contract
 pragma solidity ^0.8.0;
 
 import "@oz/token/ERC20/ERC20.sol";
@@ -10,3 +11,4 @@ contract PortalERC20 is ERC20 {
     _mint(to, amount);
   }
 }
+// docs:end:contract
