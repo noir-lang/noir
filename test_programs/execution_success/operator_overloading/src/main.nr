@@ -5,41 +5,41 @@ fn main(x: u32, y: u32) {
     let wy = Wrapper::new(y);
 
     // expected x and expected y values
-    // let ex: u32 = 3;
-    // let ey: u32 = 9;
+    let ex: u32 = 3;
+    let ey: u32 = 9;
 
-    // assert((wx + wy).inner == ex + ey);
-    // assert((wy - wx).inner == ey - ex);
-    // assert((wx * wy).inner == ex * ey);
-    // assert((wx / wy).inner == ex / ey);
-    // assert((wx % wy).inner == ex % ey);
+    assert((wx + wy).inner == ex + ey);
+    assert((wy - wx).inner == ey - ex);
+    assert((wx * wy).inner == ex * ey);
+    assert((wx / wy).inner == ex / ey);
+    assert((wx % wy).inner == ex % ey);
 
-    // assert((wx & wy).inner == (ex & ey));
-    // assert((wx | wy).inner == (ex | ey));
-    // assert((wx ^ wy).inner == (ex ^ ey));
+    assert((wx & wy).inner == (ex & ey));
+    assert((wx | wy).inner == (ex | ey));
+    assert((wx ^ wy).inner == (ex ^ ey));
 
-    // assert((wy << wx).inner == (ey << ex));
-    // assert((wy >> wx).inner == (ey >> ex));
+    assert((wy << wx).inner == (ey << ex));
+    assert((wy >> wx).inner == (ey >> ex));
 
-    // assert((wx == wy) == (ex == ey));
-    // assert((wx < wy) == (ex < ey));
-    // assert((wx <= wy) == (ex <= ey));
-    // assert((wx > wy) == (ex > ey));
-    // assert((wx >= wy) == (ex >= ey));
-    // assert(wx.cmp(wy) == ex.cmp(ey));
+    assert((wx == wy) == (ex == ey));
+    assert((wx < wy) == (ex < ey));
+    assert((wx <= wy) == (ex <= ey));
+    assert((wx > wy) == (ex > ey));
+    assert((wx >= wy) == (ex >= ey));
+    assert(wx.cmp(wy) == ex.cmp(ey));
 
-    // // Ensure operator overloading still works with more complex types 
+    // Ensure operator overloading still works with more complex types 
     let pair_ascending = Pair { x: wx, y: wy };
     let pair_descending = Pair { x: wy, y: wx };
 
-    // assert(pair_ascending != pair_descending);
+    assert(pair_ascending != pair_descending);
 
     assert(pair_ascending < pair_descending);
-    // assert(pair_ascending <= pair_descending);
+    assert(pair_ascending <= pair_descending);
     assert(pair_descending > pair_ascending);
-    // assert(pair_descending >= pair_ascending);
+    assert(pair_descending >= pair_ascending);
 
-    // assert(pair_ascending.cmp(pair_descending) == Ordering::less());
+    assert(pair_ascending.cmp(pair_descending) == Ordering::less());
 }
 
 struct Wrapper {

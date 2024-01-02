@@ -844,6 +844,20 @@ impl<'interner> TypeChecker<'interner> {
             // <= and friends are technically valid for booleans, just not very useful
             (Bool, Bool) => Ok((Bool, false)),
 
+            // Special-case == and != for arrays
+            (Array(x_size, x_type), Array(y_size, y_type))
+                if matches!(op.kind, BinaryOpKind::Equal | BinaryOpKind::NotEqual) =>
+            {
+                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
+                    expected: lhs_type.clone(),
+                    actual: rhs_type.clone(),
+                    source: Source::ArrayLen,
+                    span: op.location.span,
+                });
+
+                self.comparator_operand_type_rules(x_type, y_type, op, span)
+            }
+
             (String(x_size), String(y_size)) => {
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
                     expected: *x_size.clone(),
@@ -852,7 +866,7 @@ impl<'interner> TypeChecker<'interner> {
                     source: Source::StringLen,
                 });
 
-                Ok((Bool, true))
+                Ok((Bool, false))
             }
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
