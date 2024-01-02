@@ -1,0 +1,6 @@
+[package]
+name = "struct_equality"
+type = "bin"
+authors = [""]
+
+[dependencies]
