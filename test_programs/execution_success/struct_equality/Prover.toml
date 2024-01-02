@@ -1,4 +1,4 @@
 [x]
 bar = true
 baz = [1, 2, 3]
-foo = 4
+foo = 42
