@@ -23,7 +23,9 @@ pub enum ExpressionKind {
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     If(Box<IfExpression>),
-    Variable(Path),
+    // The optional vec here is the optional list of generics
+    // provided by the turbofish operator, if used
+    Variable(Path, Option<Vec<UnresolvedType>>),
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
@@ -37,7 +39,7 @@ pub type UnresolvedGenerics = Vec<Ident>;
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
-            ExpressionKind::Variable(path) => Some(path),
+            ExpressionKind::Variable(path, _) => Some(path),
             _ => None,
         }
     }
@@ -151,16 +153,19 @@ impl Expression {
 
     pub fn member_access_or_method_call(
         lhs: Expression,
-        (rhs, args): (Ident, Option<Vec<Expression>>),
+        (rhs, args): (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>),
         span: Span,
     ) -> Expression {
         let kind = match args {
             None => ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
-            Some(arguments) => ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: lhs,
-                method_name: rhs,
-                arguments,
-            })),
+            Some((generics, arguments)) => {
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: lhs,
+                    method_name: rhs,
+                    generics,
+                    arguments,
+                }))
+            }
         };
         Expression::new(kind, span)
     }
@@ -434,6 +439,8 @@ pub struct CallExpression {
 pub struct MethodCallExpression {
     pub object: Expression,
     pub method_name: Ident,
+    /// Method calls have an optional list of generics if the turbofish operator was used
+    pub generics: Option<Vec<UnresolvedType>>,
     pub arguments: Vec<Expression>,
 }
 
@@ -491,7 +498,14 @@ impl Display for ExpressionKind {
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
             If(if_expr) => if_expr.fmt(f),
-            Variable(path) => path.fmt(f),
+            Variable(path, generics) => {
+                if let Some(generics) = generics {
+                    let generics = vecmap(generics, ToString::to_string);
+                    write!(f, "{path}::<{}>", generics.join(", "))
+                } else {
+                    path.fmt(f)
+                }
+            }
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {

@@ -15,7 +15,9 @@ use super::types::{StructType, Type};
 /// from the definition that refers to them so there is no ambiguity with names.
 #[derive(Debug, Clone)]
 pub enum HirExpression {
-    Ident(HirIdent),
+    // The optional vec here is the optional list of generics
+    // provided by the turbofish operator, if it was used
+    Ident(HirIdent, Option<Vec<Type>>),
     Literal(HirLiteral),
     Block(HirBlockExpression),
     Prefix(HirPrefixExpression),
@@ -142,6 +144,8 @@ pub struct HirCallExpression {
 pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
+    /// Method calls have an optional list of generics provided by the turbofish operator
+    pub generics: Option<Vec<Type>>,
     pub arguments: Vec<ExprId>,
     pub location: Location,
 }
@@ -165,21 +169,21 @@ impl HirMethodCallExpression {
         method: HirMethodReference,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirExpression) {
+    ) -> (ExprId, HirExpression, Option<Vec<Type>>) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
         let expr = match method {
             HirMethodReference::FuncId(func_id) => {
                 let id = interner.function_definition_id(func_id);
-                HirExpression::Ident(HirIdent { location, id })
+                HirExpression::Ident(HirIdent { location, id }, None)
             }
             HirMethodReference::TraitMethodId(method_id) => {
                 HirExpression::TraitMethodReference(method_id)
             }
         };
         let func = interner.push_expr(expr);
-        (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
+        (func, HirExpression::Call(HirCallExpression { func, arguments, location }), self.generics)
     }
 }
 

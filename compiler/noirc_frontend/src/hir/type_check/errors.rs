@@ -115,6 +115,10 @@ pub enum TypeCheckError {
     NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
     #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
     UnneededTraitConstraint { trait_name: String, typ: Type, span: Span },
+    #[error(
+        "Expected {expected_count} generic(s) from this function, but {actual_count} were provided"
+    )]
+    IncorrectTurbofishGenericCount { expected_count: usize, actual_count: usize, span: Span },
 }
 
 impl TypeCheckError {
@@ -275,6 +279,12 @@ impl From<TypeCheckError> for Diagnostic {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
                 Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), span)
             }
+            TypeCheckError::IncorrectTurbofishGenericCount { expected_count, actual_count, span } => {
+                let expected_plural = if expected_count == 1 { "" } else { "s" };
+                let actual_plural = if actual_count == 1 { "was" } else { "were" };
+                let msg = format!("Expected {expected_count} generic{expected_plural} from this function, but {actual_count} {actual_plural} provided");
+                Diagnostic::simple_error(msg, "".into(), span)
+            },
         }
     }
 }

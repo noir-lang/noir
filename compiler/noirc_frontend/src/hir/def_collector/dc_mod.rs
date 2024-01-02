@@ -401,6 +401,7 @@ impl<'a> ModCollector<'a> {
                             is_unconstrained: false,
                             contract_function_type: None,
                             is_internal: None,
+                            generic_count: generics.len(),
                         };
 
                         let location = Location::new(name.span(), self.file_id);

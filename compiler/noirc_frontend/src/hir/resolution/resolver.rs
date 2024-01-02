@@ -1249,7 +1249,7 @@ impl<'a> Resolver<'a> {
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
-            ExpressionKind::Variable(path) => {
+            ExpressionKind::Variable(path, generics) => {
                 if let Some((hir_expr, object_type)) = self.resolve_trait_generic_path(&path) {
                     let expr_id = self.interner.push_expr(hir_expr);
                     self.interner.push_expr_location(expr_id, expr.span, self.file);
@@ -1295,7 +1295,9 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    HirExpression::Ident(hir_ident)
+                    let generics =
+                        generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+                    HirExpression::Ident(hir_ident, generics)
                 }
             }
             ExpressionKind::Prefix(prefix) => {
@@ -1331,12 +1333,20 @@ impl<'a> Resolver<'a> {
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
+
+                // Cannot verify the generic count here equals the expected count since we don't
+                // know which definition `method` refers to until it is resolved during type checking.
+                let generics = call_expr
+                    .generics
+                    .map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::MethodCall(HirMethodCallExpression {
-                    arguments,
                     method,
                     object,
+                    generics,
+                    arguments,
                     location,
                 })
             }
@@ -1761,7 +1771,7 @@ impl<'a> Resolver<'a> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let expr_id = self.interner.push_expr(HirExpression::Ident(old_value.ident));
+                let expr_id = self.interner.push_expr(HirExpression::Ident(old_value.ident, None));
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 fmt_str_idents.push(expr_id);
             } else if ident_name.parse::<usize>().is_ok() {
@@ -1874,7 +1884,7 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             let span = interner.expr_span(&rhs);
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
-        HirExpression::Ident(ident) => {
+        HirExpression::Ident(ident, _) => {
             if let Some(definition) = interner.try_definition(ident.id) {
                 if !definition.mutable {
                     return Err(ResolverError::MutableReferenceToImmutableVariable {

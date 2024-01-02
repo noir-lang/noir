@@ -18,7 +18,7 @@ use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
     fn check_if_deprecated(&mut self, expr: &ExprId) {
-        if let HirExpression::Ident(expr::HirIdent { location, id }) =
+        if let HirExpression::Ident(expr::HirIdent { location, id }, _) =
             self.interner.expression(expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -46,13 +46,24 @@ impl<'interner> TypeChecker<'interner> {
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, generics) => {
                 // An identifiers type may be forall-quantified in the case of generic functions.
                 // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
                 // We must instantiate identifiers at every call site to replace this T with a new type
                 // variable to handle generic functions.
                 let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-                let (typ, bindings) = t.instantiate(self.interner);
+                let span = self.interner.expr_span(expr_id);
+
+                let definition = self.interner.try_definition(ident.id);
+                let expected_generic_count =
+                    definition.map_or(0, |definition| match &definition.kind {
+                        DefinitionKind::Function(function) => {
+                            self.interner.function_modifiers(function).generic_count
+                        }
+                        _ => 0,
+                    });
+
+                let (typ, bindings) = self.instantiate(t, generics, expected_generic_count, span);
 
                 // Push any trait constraints required by this definition to the context
                 // to be checked later when the type of this variable is further constrained.
@@ -199,14 +210,12 @@ impl<'interner> TypeChecker<'interner> {
                             HirMethodReference::TraitMethodId(method) => Some(method.trait_id),
                         };
 
-                        let (function_id, function_call) = method_call.into_function_call(
-                            method_ref.clone(),
-                            location,
-                            self.interner,
-                        );
+                        let (function_id, function_call, generics) = method_call
+                            .into_function_call(method_ref.clone(), location, self.interner);
 
                         let span = self.interner.expr_span(expr_id);
-                        let ret = self.check_method_call(&function_id, method_ref, args, span);
+                        let ret =
+                            self.check_method_call(&function_id, method_ref, generics, args, span);
 
                         if let Some(trait_id) = trait_id {
                             self.verify_trait_constraint(&object_type, trait_id, function_id, span);
@@ -538,10 +547,12 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         function_ident_id: &ExprId,
         method_ref: HirMethodReference,
+        // The optional list of generics if the turbofish operator was used
+        generics: Option<Vec<Type>>,
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        let (fn_typ, param_len) = match method_ref {
+        let (fn_typ, param_len, expected_generic_count) = match method_ref {
             HirMethodReference::FuncId(func_id) => {
                 if func_id == FuncId::dummy_id() {
                     return Type::Error;
@@ -549,12 +560,13 @@ impl<'interner> TypeChecker<'interner> {
 
                 let func_meta = self.interner.function_meta(&func_id);
                 let param_len = func_meta.parameters.len();
-                (func_meta.typ, param_len)
+                let generic_count = self.interner.function_modifiers(&func_id).generic_count;
+                (func_meta.typ, param_len, generic_count)
             }
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-                (method.typ.clone(), method.arguments().len())
+                (method.typ.clone(), method.arguments().len(), method.generics().len())
             }
         };
 
@@ -568,11 +580,36 @@ impl<'interner> TypeChecker<'interner> {
             });
         }
 
-        let (function_type, instantiation_bindings) = fn_typ.instantiate(self.interner);
+        let (function_type, instantiation_bindings) =
+            self.instantiate(fn_typ, generics, expected_generic_count, span);
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
         self.bind_function_type(function_type, arguments, span)
+    }
+
+    fn instantiate(
+        &mut self,
+        typ: Type,
+        generics: Option<Vec<Type>>,
+        expected_generic_count: usize,
+        span: Span,
+    ) -> (Type, TypeBindings) {
+        match generics {
+            Some(generics) => {
+                if generics.len() != expected_generic_count {
+                    self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
+                        expected_count: expected_generic_count,
+                        actual_count: generics.len(),
+                        span,
+                    });
+                    typ.instantiate(self.interner)
+                } else {
+                    typ.instantiate_with(generics)
+                }
+            }
+            None => typ.instantiate(self.interner),
+        }
     }
 
     fn check_if_expr(&mut self, if_expr: &expr::HirIfExpression, expr_id: &ExprId) -> Type {

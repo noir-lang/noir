@@ -1016,9 +1016,9 @@ fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     recursive(parse_type_inner)
 }
 
-fn parse_type_inner(
-    recursive_type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+fn parse_type_inner<'a>(
+    recursive_type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     choice((
         field_type(),
         int_type(),
@@ -1096,9 +1096,9 @@ fn string_type() -> impl NoirParser<UnresolvedType> {
         .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
 }
 
-fn format_string_type(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+fn format_string_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::FormatString)
         .ignore_then(
             type_expression()
@@ -1122,22 +1122,27 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
         .map_with_span(|(_, token), span| UnresolvedTypeData::from_int_token(token).with_span(span))
 }
 
-fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn named_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     path()
         .then(generic_type_args(type_parser))
         .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args).with_span(span))
 }
 
-fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn named_trait<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
         |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
     )
 }
 
-fn generic_type_args(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<Vec<UnresolvedType>> {
+fn generic_type_args<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
     type_parser
+        .clone()
         // Without checking for a terminating ',' or '>' here we may incorrectly
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
@@ -1153,9 +1158,11 @@ fn generic_type_args(
         .map(Option::unwrap_or_default)
 }
 
-fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn array_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     just(Token::LeftBracket)
-        .ignore_then(type_parser)
+        .ignore_then(type_parser.clone())
         .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
         .then_ignore(just(Token::RightBracket))
         .map_with_span(|(element_type, size), span| {
@@ -1226,6 +1233,12 @@ where
         .map_with_span(|element, span| {
             UnresolvedTypeData::MutableReference(Box::new(element)).with_span(span)
         })
+}
+
+fn turbofish<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Option<Vec<UnresolvedType>>> + 'a {
+    just(Token::DoubleColon).ignore_then(generic_type_args(type_parser)).or_not()
 }
 
 fn expression() -> impl ExprParser {
@@ -1404,7 +1417,7 @@ where
         Call(Vec<Expression>),
         ArrayIndex(Expression),
         Cast(UnresolvedType),
-        MemberAccess((Ident, Option<Vec<Expression>>)),
+        MemberAccess((Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>)),
     }
 
     // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
@@ -1422,10 +1435,13 @@ where
         .map(UnaryRhs::Cast)
         .labelled(ParsingRuleLabel::Cast);
 
+    // A turbofish operator is optional in a method call to specify generic types
+    let turbofish = turbofish(parse_type());
+
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
         .ignore_then(field_name())
-        .then(parenthesized(expression_list(expr_parser.clone())).or_not())
+        .then(turbofish.then(parenthesized(expression_list(expr_parser.clone()))).or_not())
         .map(UnaryRhs::MemberAccess)
         .labelled(ParsingRuleLabel::FieldAccess);
 
@@ -1626,7 +1642,7 @@ fn type_expression_atom<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 
 where
     P: ExprParser + 'a,
 {
-    variable()
+    variable_no_turbofish()
         .or(literal())
         .map_with_span(Expression::new)
         .or(parenthesized(expr_parser))
@@ -1676,7 +1692,13 @@ where
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
-    path().map(ExpressionKind::Variable)
+    path()
+        .then(turbofish(parse_type()))
+        .map(|(path, generics)| ExpressionKind::Variable(path, generics))
+}
+
+fn variable_no_turbofish() -> impl NoirParser<ExpressionKind> {
+    path().map(|path| ExpressionKind::Variable(path, None))
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
@@ -1876,22 +1898,13 @@ mod test {
 
     #[test]
     fn parse_cast() {
+        let expression_nc = expression_no_constructors(expression());
         parse_all(
-            atom_or_right_unary(
-                expression(),
-                expression_no_constructors(expression()),
-                fresh_statement(),
-                true,
-            ),
+            atom_or_right_unary(expression(), expression_nc.clone(), fresh_statement(), true),
             vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(
-            atom_or_right_unary(
-                expression(),
-                expression_no_constructors(expression()),
-                fresh_statement(),
-                true,
-            ),
+            atom_or_right_unary(expression(), expression_nc, fresh_statement(), true),
             vec!["x as pub u8"],
         );
     }
@@ -2241,14 +2254,8 @@ mod test {
 
     #[test]
     fn parse_parenthesized_expression() {
-        parse_all(
-            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
-        );
-        parse_all_failing(
-            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["(x+a", "((x+a)", "(,)"],
-        );
+        parse_all(expression(), vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"]);
+        parse_all_failing(expression(), vec!["(x+a", "((x+a)", "(,)"]);
     }
 
     #[test]
@@ -2357,12 +2364,13 @@ mod test {
 
     #[test]
     fn parse_unary() {
+        let expression_nc = expression_no_constructors(expression());
         parse_all(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            term(expression(), expression_nc.clone(), fresh_statement(), true),
             vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
         );
         parse_all_failing(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            term(expression(), expression_nc, fresh_statement(), true),
             vec!["+hello", "/hello"],
         );
     }

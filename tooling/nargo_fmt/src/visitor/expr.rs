@@ -18,7 +18,194 @@ impl FmtVisitor<'_> {
         self.last_position = span.end();
     }
 
-    pub(crate) fn format_if(&self, if_expr: IfExpression) -> String {
+    pub(crate) fn format_sub_expr(&self, expression: Expression) -> String {
+        self.format_expr(expression, ExpressionType::SubExpression)
+    }
+
+    pub(crate) fn format_expr(
+        &self,
+        Expression { kind, mut span }: Expression,
+        expr_type: ExpressionType,
+    ) -> String {
+        match kind {
+            ExpressionKind::Block(block) => {
+                let mut visitor = self.fork();
+                visitor.visit_block(block, span);
+                visitor.buffer
+            }
+            ExpressionKind::Prefix(prefix) => {
+                let op = match prefix.operator {
+                    UnaryOp::Minus => "-",
+                    UnaryOp::Not => "!",
+                    UnaryOp::MutableReference => "&mut ",
+                    UnaryOp::Dereference { implicitly_added } => {
+                        if implicitly_added {
+                            ""
+                        } else {
+                            "*"
+                        }
+                    }
+                };
+
+                format!("{op}{}", self.format_sub_expr(prefix.rhs))
+            }
+            ExpressionKind::Cast(cast) => {
+                format!("{} as {}", self.format_sub_expr(cast.lhs), cast.r#type)
+            }
+            kind @ ExpressionKind::Infix(_) => {
+                let shape = self.shape();
+                rewrite::infix(self.fork(), Expression { kind, span }, shape)
+            }
+            ExpressionKind::Call(call_expr) => {
+                let args_span =
+                    self.span_before(call_expr.func.span.end()..span.end(), Token::LeftParen);
+
+                let callee = self.format_sub_expr(*call_expr.func);
+                let args = format_parens(
+                    self.config.fn_call_width.into(),
+                    self.fork(),
+                    false,
+                    call_expr.arguments,
+                    args_span,
+                );
+
+                format!("{callee}{args}")
+            }
+            ExpressionKind::MethodCall(method_call_expr) => {
+                let args_span = self.span_before(
+                    method_call_expr.method_name.span().end()..span.end(),
+                    Token::LeftParen,
+                );
+
+                let object = self.format_sub_expr(method_call_expr.object);
+                let method = method_call_expr.method_name.to_string();
+                let args = format_parens(
+                    self.config.fn_call_width.into(),
+                    self.fork(),
+                    false,
+                    method_call_expr.arguments,
+                    args_span,
+                );
+
+                format!("{object}.{method}{args}")
+            }
+            ExpressionKind::MemberAccess(member_access_expr) => {
+                let lhs_str = self.format_sub_expr(member_access_expr.lhs);
+                format!("{}.{}", lhs_str, member_access_expr.rhs)
+            }
+            ExpressionKind::Index(index_expr) => {
+                let index_span = self
+                    .span_before(index_expr.collection.span.end()..span.end(), Token::LeftBracket);
+
+                let collection = self.format_sub_expr(index_expr.collection);
+                let index = format_brackets(self.fork(), false, vec![index_expr.index], index_span);
+
+                format!("{collection}{index}")
+            }
+            ExpressionKind::Tuple(exprs) => {
+                format_parens(None, self.fork(), exprs.len() == 1, exprs, span)
+            }
+            ExpressionKind::Literal(literal) => match literal {
+                Literal::Integer(_) | Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) => {
+                    self.slice(span).to_string()
+                }
+                Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
+                    let repeated = self.format_sub_expr(*repeated_element);
+                    let length = self.format_sub_expr(*length);
+
+                    format!("[{repeated}; {length}]")
+                }
+                Literal::Array(ArrayLiteral::Standard(exprs)) => {
+                    rewrite::array(self.fork(), exprs, span)
+                }
+                Literal::Unit => "()".to_string(),
+            },
+            ExpressionKind::Parenthesized(mut sub_expr) => {
+                let remove_nested_parens = self.config.remove_nested_parens;
+
+                let mut leading;
+                let mut trailing;
+
+                loop {
+                    let leading_span = span.start() + 1..sub_expr.span.start();
+                    let trailing_span = sub_expr.span.end()..span.end() - 1;
+
+                    leading = self.format_comment(leading_span.into());
+                    trailing = self.format_comment(trailing_span.into());
+
+                    if let ExpressionKind::Parenthesized(ref sub_sub_expr) = sub_expr.kind {
+                        if remove_nested_parens && leading.is_empty() && trailing.is_empty() {
+                            span = sub_expr.span;
+                            sub_expr = sub_sub_expr.clone();
+                            continue;
+                        }
+                    }
+
+                    break;
+                }
+
+                if !leading.contains("//") && !trailing.contains("//") {
+                    let sub_expr = self.format_sub_expr(*sub_expr);
+                    format!("({leading}{sub_expr}{trailing})")
+                } else {
+                    let mut visitor = self.fork();
+
+                    let indent = visitor.indent.to_string_with_newline();
+                    visitor.indent.block_indent(self.config);
+                    let nested_indent = visitor.indent.to_string_with_newline();
+
+                    let sub_expr = visitor.format_sub_expr(*sub_expr);
+
+                    let mut result = String::new();
+                    result.push('(');
+
+                    if !leading.is_empty() {
+                        result.push_str(&nested_indent);
+                        result.push_str(&leading);
+                    }
+
+                    result.push_str(&nested_indent);
+                    result.push_str(&sub_expr);
+
+                    if !trailing.is_empty() {
+                        result.push_str(&nested_indent);
+                        result.push_str(&trailing);
+                    }
+
+                    result.push_str(&indent);
+                    result.push(')');
+
+                    result
+                }
+            }
+            ExpressionKind::Constructor(constructor) => {
+                let type_name = self.slice(span.start()..constructor.type_name.span().end());
+                let fields_span = self
+                    .span_before(constructor.type_name.span().end()..span.end(), Token::LeftBrace);
+
+                self.format_struct_lit(type_name, fields_span, *constructor)
+            }
+            ExpressionKind::If(if_expr) => {
+                let allow_single_line = expr_type == ExpressionType::SubExpression;
+
+                if allow_single_line {
+                    let mut visitor = self.fork();
+                    visitor.indent = Indent::default();
+                    if let Some(line) = visitor.format_if_single_line(*if_expr.clone()) {
+                        return line;
+                    }
+                }
+
+                self.format_if(*if_expr)
+            }
+            ExpressionKind::Lambda(_) | ExpressionKind::Variable(..) => {
+                self.slice(span).to_string()
+            }
+            ExpressionKind::Error => unreachable!(),
+        }
+    }
+
+    fn format_if(&self, if_expr: IfExpression) -> String {
         let condition_str = rewrite::sub_expr(self, self.shape(), if_expr.condition);
         let consequence_str = rewrite::sub_expr(self, self.shape(), if_expr.consequence);
 
