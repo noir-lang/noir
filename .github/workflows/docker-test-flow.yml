@@ -1,4 +1,4 @@
-name: Test github artifacts
+name: Test Nargo and JS packages
 
 on:
   push:
