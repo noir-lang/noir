@@ -1,7 +1,7 @@
 ---
 title: Nargo Installation
 description:
-  nargo is a command line tool for interacting with Noir programs. This page is a quick guide on how to install Nargo though the most common and easy method, noirup
+  nargo is a command line tool for interacting with Noir programs. This page is a quick guide on how to install Nargo through the most common and easy method, noirup
 keywords: [
    Nargo
    Noir
