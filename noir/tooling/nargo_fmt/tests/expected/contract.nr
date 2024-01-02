@@ -71,7 +71,7 @@ contract Benchmarking {
     }
 
     unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: Field,
+        contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
         preimage: [Field; VALUE_NOTE_LEN]

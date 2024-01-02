@@ -9,6 +9,7 @@ contract PriceFeed {
             public_state::PublicState,
         },
     };
+    use dep::protocol_types::address::AztecAddress;
     use crate::asset::{ASSET_SERIALIZED_LEN, Asset, AssetSerializationMethods};
 
     // Storage structure, containing all storage, and specifying what slots they use.
@@ -54,7 +55,7 @@ contract PriceFeed {
 
     // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
     unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: Field,
+        contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
         serialized_note: [Field; 0]

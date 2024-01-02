@@ -167,7 +167,7 @@ contract SlowTree {
     }
 
     unconstrained fn compute_note_hash_and_nullifier(
-        _contract_address: Field,
+        _contract_address: AztecAddress,
         _nonce: Field,
         _storage_slot: Field,
         _serialized_note: [Field; 4]

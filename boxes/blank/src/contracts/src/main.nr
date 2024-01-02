@@ -21,7 +21,7 @@ contract Blank {
     // own logic once you start working with private storage.
     // TODO: Remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented.
     unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: Field,
+        contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
         serialized_note: [Field; 0]
