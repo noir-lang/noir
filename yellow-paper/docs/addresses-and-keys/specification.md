@@ -1,5 +1,7 @@
 ---
+title: Specification
 sidebar_position: 1
+description: Specification of address format in the protocol, default privacy keys format and derivation, and nullifier derivation.
 ---
 
 $$
@@ -19,6 +21,7 @@ $$
 \gdef\address{\color{green}{address}}
 \gdef\codehash{\color{green}{code\_hash}}
 \gdef\constructorhash{\color{green}{constructor\_hash}}
+\gdef\classid{\color{green}{class\id}}
 
 
 \gdef\nskapp{\color{red}{nsk_{app}}}
@@ -44,11 +47,16 @@ $$
 
 \gdef\Ivpkappd{\color{violet}{Ivpk_{app,d}}}
 \gdef\shareableIvpkappd{\color{violet}{\widetilde{Ivpk_{app,d}}}}
+\gdef\Ivpkmd{\color{violet}{Ivpk_{m,d}}}
+\gdef\shareableIvpkmd{\color{violet}{\widetilde{Ivpk_{m,d}}}}
 
 
 \gdef\ivskappstealth{\color{red}{ivsk_{app,stealth}}}
 \gdef\Ivpkappdstealth{\color{violet}{Ivpk_{app,d,stealth}}}
 \gdef\Pkappdstealth{\color{violet}{Pk_{app,d,stealth}}}
+\gdef\ivskmstealth{\color{red}{ivsk_{m,stealth}}}
+\gdef\Ivpkmdstealth{\color{violet}{Ivpk_{m,d,stealth}}}
+\gdef\Pkmdstealth{\color{violet}{Pk_{m,d,stealth}}}
 
 \gdef\hstealth{\color{violet}{h_{stealth}}}
 
@@ -84,39 +92,25 @@ $$
 
 $$
 
-# Proposal: Aztec Keys
-
 ## Requirements for Keys
 
 :::info Disclaimer
 This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
 :::
 
-:::info Aim
-This document informally illustrates our latest thinking relating to how keys could be derived for users of Aztec.
+### Scenario
 
-Its main purpose is to bring people up-to-speed on our requirements / intentions, and to outline a partial solution that we've been considering ("partial", because it doesn't quite meet all of the requirements!).
+A common illustration in this document is Bob sending funds to Alice, by:
 
-It's by no means a finished proposal, and indeed there might be an altogether better approach.
-
-Maybe there are better hierarchical key derivation schemes that we're not aware of, that meet all of these requirements, and perhaps give even more features!
-
-Hopefully, after reading (or skim-reading) this doc, you'll be caught up on what we're aiming for, how we've been trying to get there, and the problems we're still facing.
-
-Much of this is heavily inspired by ZCash sapling & orchard keys.
-:::
-
-> Note: A common illustration in this document is Bob sending funds to Alice, by:
->
-> - creating a "note" for her;
-> - committing to the contents of that note (a "note hash");
-> - inserting that note hash into a utxo tree;
-> - encrypting the contents of that note for Alice;
-> - optionally encrypting the contents of that note for Bob's future reference;
-> - optionally deriving an additional "tag" (a.k.a. "clue") to accompany the ciphertexts for faster note discovery;
-> - broadcasting the resulting ciphertext(s) (and tag(s));
-> - optionally identifying the tags;
-> - decrypting the ciphertexts; storing the note; and some time later spending (nullifying) the note.
+- creating a "note" for her;
+- committing to the contents of that note (a "note hash");
+- inserting that note hash into a utxo tree;
+- encrypting the contents of that note for Alice;
+- optionally encrypting the contents of that note for Bob's future reference;
+- optionally deriving an additional "tag" (a.k.a. "clue") to accompany the ciphertexts for faster note discovery;
+- broadcasting the resulting ciphertext(s) (and tag(s));
+- optionally identifying the tags;
+- decrypting the ciphertexts; storing the note; and some time later spending (nullifying) the note.
 
 > Note: there is nothing to stop an app and wallet from implementing its own key derivation scheme. Nevertheless, we're designing a 'canonical' scheme that most developers and wallets can use.
 
@@ -137,25 +131,24 @@ A tx authentication secret key is arguably the most important key to keep privat
 
 - All keys must be re-derivable from a single `seed` secret.
 - Users must have the option of keeping this `seed` offline, e.g. in a hardware wallet, or on a piece of paper.
-- All master keys (for a particular user) must be linkable to a single "user identifier" for that user.
-  - Notice: we don't prescribe whether this "user identifier" must be a public key, or an "address". The below protocol suggestion has ended up with an address, but that's not to say it's required.
+- All master keys (for a particular user) must be linkable to a single address for that user.
 - For each contract, a siloed set of all secret keys MUST be derivable.
   - Reason: secret keys must be siloed, so that a malicious app circuit cannot access and emit (as an unencrypted event or as args to a public function) a user's master secret keys or the secret keys of other apps.
-- Master _secret_ keys must not be passed into an app circuit.
+- Master _secret_ keys must not be passed into an app circuit, except for precompiles.
   - Reason: a malicious app could broadcast these secret keys to the world.
 - Siloed secret keys _of other apps_ must not be passed into an app circuit.
   - Reason: a malicious app could broadcast these secret keys to the world.
 - The PXE must prevent an app from accessing master secret keys.
 - The PXE must prevent an app from accessing siloed secret keys that belong to another contract address.
   - Note: To achieve this, the PXE simulator will need to check whether the bytecode being executed (that is requesting secret keys) actually exists at the contract address.
-- There must be one and only one way to derive all (current\*) master keys, and all siloed keys, for a particular "user identifier".
+- There must be one and only one way to derive all (current\*) master keys, and all siloed keys, for a particular user address.
   - For example, a user should not be able to derive multiple different outgoing viewing keys for a single incoming viewing key (note: this was a 'bug' that was fixed between ZCash Sapling and Orchard).
-  - \*"current", alludes to the possibility that the protocol might wish to support rotating of keys, but only if one and only one set of keys is derivable as "current".
+  - \*"current", alludes to the possibility that the user might wish to support rotating keys, but only if one and only one set of keys is derivable as "current".
 - All app-siloed keys can all be deterministically linked back to the user's address, without leaking important secrets to the app.
 
-#### Some security assumptions
+#### Security assumptions
 
-- The Aztec private execution client (PXE) and the kernel circuit (a core protocol circuit) can be trusted with master secret keys (_except for_ the tx authorization secret key, whose security assumptions are abstracted-away to wallet designers).
+- The Aztec private execution client (PXE), precompiled contracts (vetted application circuits), and the kernel circuit (a core protocol circuit) can be trusted with master secret keys (_except for_ the tx authorization secret key, whose security assumptions are abstracted-away to wallet designers).
 
 ### Encryption and decryption
 
@@ -168,24 +161,16 @@ Definitions (from the point of view of a user ("yourself")):
 
 **Requirements:**
 
-- A user can derive app-siloed incoming/outgoing viewing keys.
-  - Reason: a malicious app or wallet could broadcast these secret keys to the world.
-    - Note: You might ask: "Why would a viewing SECRET key need to be passed into an app circuit at all?". It would be for use cases which need to prove attempted decryption.
-  - Reason: another reason for requiring app-siloed incoming/outgoing viewing SECRET keys relates to the "auditability" requirements further down the page: _"A user can optionally share "shareable" secret keys, to enable a 3rd party to decrypt [incoming/outgoing] data... for a single app... without leaking data for other apps"_. Without siloing the viewing secret keys, view-access data wouldn't be grantable on such a granular per-app basis.
-- Given just a user's address and/or master public keys, other users can encrypt state changes, actions, and messages to them, via some app smart contract.
-  - This implies that a _siloed_ incoming viewing _public_ key should be derivable from a _master_ viewing _public_ key.
-    - This implication gave rise to the bip-32-style non-hardened (normal) derivation of siloed incoming viewing keys below.
+- A user can derive app-siloed incoming internal and outgoing viewing keys.
+  - Reason: Allows users to share app-siloed keys to trusted 3rd parties such as auditors, scoped by app.
+  - Incoming viewing keys are not considered for siloed derivation due to the lack of a suitable public key derivation mechanism.
 - A user can encrypt a record of any actions, state changes, or messages, to _themselves_, so that they may re-sync their entire history of actions from their `seed`.
-- If Bob's keys-used-for-encryption are leaked, it doesn't leak the details of Bob's interactions with Alice.
-  - Note: I'm not sure if we want this as a requirement, given that Bob can encrypt outgoing data for himself. If Bob didn't encrypt data for himself, this would be achievable.
 
 ### Nullifier keys
 
 Derivation of a nullifier is app-specific; a nullifier is just a `field` (siloed by contract address), from the pov of the protocol.
 
 Many private application devs will choose to inject a secret "nullifier key" into a nullifier. Such a nullifier key would be tied to a user's public identifier (e.g. their address), and that identifier would be tied to the note being nullified (e.g. the note might contain that identifier). This is a common pattern in existing privacy protocols. Injecting a secret "nullifier key" in this way serves to hide what the nullifier is nullifying, and ensures the nullifier can only be derived by one person (assuming the nullifier key isn't leaked).
-
-The only alternative to this pattern is plume nullifiers, but there are tradeoffs, so we'll continue to provide support for non-plume nullifiers.
 
 > Note: not all nullifiers require injection of a secret _which is tied to a user's identity in some way_. Sometimes an app will need just need a guarantee that some value will be unique, and so will insert it into the nullifier tree.
 
@@ -218,21 +203,16 @@ Some app developers will wish to give users the option of sharing private transa
 
 - "Shareable" secret keys.
   - A user can optionally share "shareable" secret keys, to enable a 3rd party to decrypt the following data:
-    - Incoming data, across all apps
-    - Incoming data, siloed for a single app
     - Outgoing data, across all apps
     - Outgoing data, siloed for a single app
     - Incoming internal data, across all apps
     - Incoming internal data, siloed for a single app
+    - Incoming data, across all apps
+    - Incoming data, siloed for a single app, is **not** required due to lack of a suitable derivation scheme
   - Shareable nullifier key.
     - A user can optionally share a "shareable" nullifier key, which would enable a trusted 3rd party to see _when_ a particular note hash has been nullified, but would not divulge the contents of the note, or the circumstances under which the note was nullified (as such info would only be gleanable with the shareable viewing keys).
   - Given one (or many) shareable keys, a 3rd part MUST NOT be able to derive any of a user's other secret keys; be they shareable or non-shareable.
     - Further, they must not be able to derive any relationships _between_ other keys.
-
-:::danger
-We haven't managed to meet these ^^^ requirements, yet.
-:::
-
 - No impersonation.
   - The sharing of any (or all) "shareable" key(s) MUST NOT enable the trusted 3rd party to perform any actions on the network, on behalf of the user.
   - The sharing of a "shareable" outgoing viewing secret (and a "shareable" _internal_ incoming viewing key) MUST NOT enable the trusted 3rd party to emit encrypted events that could be perceived as "outgoing data" (or internal incoming data) originating from the user.
@@ -240,20 +220,6 @@ We haven't managed to meet these ^^^ requirements, yet.
   - A user can choose to only give incoming data viewing rights to a 3rd party. (Gives rise to incoming viewing keys).
   - A user can choose to only give outgoing data viewing rights to a 3rd party. (Gives rise to outgoing viewing keys).
   - A user can choose to keep interactions with themselves private and distinct from the viewability of interactions with other parties. (Gives rise to _internal_ incoming viewing keys).
-
-Nice to haves:
-
-- The ability for a user to generate multiple of a particular kind of "shareable" secret key, so that view-access can be revoked on an individual-by-individual basis.
-- The ability to revoke or rotate "shareable" secret keys, without having to deploy a fresh account contract.
-
-### Account Contract Bytecode
-
-**Requirements:**
-
-- The (current) bytecode of an account contract must be discoverable, based on the "user identifier" (probably an address).
-  - Reason: Although in 'private land', the king of the hill griefing problem prevents private account contract acir from being callable, there might still be uses where a _public_ function of an account contract might wish to be called by someone.
-- The (current) bytecode of an account contract must therefore be 'tied to' to the "user identifier".
-- The constructor arguments of an account contract must be discoverable.
 
 ### Sending funds before deployment
 
@@ -267,13 +233,8 @@ Nice to haves:
 
 **Requirements:**
 
-- [Nice to have]: A "tagging" keypair that enables faster brute-force identification of owned notes.
-  - Note: this is useful for rapid handshake discovery, but it is an optimization, and has trade-offs (such as more data to send).
-- [Nice to have]: The ability to generate a sequence of tags between Alice and Bob, in line with our latest "Tag Hopping" ideas.
-
-Considerations:
-
-- There is no enshrined tagging scheme, currently. Whether to enshrine protocol functions (to enable calls to private account contract functions) or to let apps decide on tagging schemes, is an open debate.
+- A user should be able to discover which notes belong to them, without having to trial-decrypt every single note broadcasted on chain.
+- Users should be able to opt-in to using new note discovery mechanisms as they are made available in the protocol.
 
 #### Tag Hopping
 
@@ -293,21 +254,17 @@ Given that this is our best-known approach, we include some requirements relatin
 
 ### Rotating keys
 
-This is currently being treated as 'nice to have', simply because it's difficult and causes many complexities.
+- A user should be able to rotate their set of keys, without having to deploy a new account contract.
+  - Reason: keys can be compromised, and setting up a new identity is costly, since the user needs to migrate all their assets. Rotating encryption keys allows the user to regain privacy for all subsequent interactions while keeping their identity.
+  - This requirement causes a security risk when applied to nullifier keys. If a user can rotate their nullifier key, then the nullifier for any of their notes changes, so they can re-spend any note. Rotating nullifier keys requires the nullifier public key, or at least an identifier of it, to be stored as part of the note. Alternatively, this requirement can be removed for nullifier keys, which are not allowed to be rotated.
 
-Nice to haves:
+<!-- TODO: Allow to rotate nullifier keys or not? -->
 
-- A user can rotate any of their keys, without having to deploy a new account contract.
-
-### Diversified Addresses
-
-This is a core feature of zcash keys.
-
-Requirement:
+### Diversified Keys
 
 - Alice can derive a diversified address; a random-looking address which she can (interactively) provide to Bob, so that Bob may send her funds (and general notes).
   - Reason: By having the recipient derive a distinct payment address _per counterparty_, and then interactively provide that address to the sender, means that if two counterparties collude, they won't be able to convince the other that they both interacted with the same recipient.
-- Random-looking addresses can be derived from a 'main' address, so that private -> public function calls don't reveal the true `msg_sender`. These random-looking addresses can be provably linked back to the 'main' address.
+- Random-looking addresses can be derived from a 'main' address, so that private to public function calls don't reveal the true `msg_sender`. These random-looking addresses can be provably linked back to the 'main' address.
   > Note: both diversified and stealth addresses would meet this requirement.
 - Distributing many diversified addresses must not increase the amount of time needed to scan the blockchain (they must all share a single set of viewing keys).
 
@@ -320,43 +277,6 @@ Requirement:
 - Random-looking addresses can be derived from a 'main' address, so that private -> public function calls don't reveal the true `msg_sender`. These random-looking addresses can be provably linked back to the 'main' address.
   > Note: both diversified and stealth addresses would meet this requirement.
 - Unlimited random-looking addresses can be non-interactively derived by a sender for a particular recipient, in such a way that the recipient can use one set of keys to decrypt state changes or change states which are 'owned' by that stealth address.
-
-:::note
-Problem: we can derive diversified/stealth _public keys_... but how to convert them into an _address_ (which would be important to have natural address-based semantics for managing state that is owned by a stealth/diversified address)?
-:::
-
----
-
-:::note
-There are lots of general encryption requirements which are not-yet listed here, such as preventing chosen plaintext/ciphertext attacks etc.
-:::
-
-:::note
-There are some more involved complications and considerations, which haven't all fully been considered. Relevant reading:
-
-- [Derivation of an ephemeral secret from a note plaintext](https://zips.z.cash/zip-0212) (includes commentary on an attack that can link two diversified addresses).
-- [In-band secret distribution](https://zips.z.cash/protocol/protocol.pdf) - p143 of the zcash spec.
-
-:::
-
-## Is this final?
-
-No.
-
-The 'topology' of the key derivations (i.e. the way the derivations of the keys interrelate, if you were to draw a dependency graph) is not constraint-optimized. There might be a better 'layout'.
-
-Domain separation hasn't been considered in-depth.
-
-Ephemeral key re-use needs to be considered carefully.
-
-BIP-32-inspired derivations have been stripped-back: 256-bit hash instead of 512-bit, no chain code. This will need security analysis.
-
-The requirements themselves might be adjusted (which might affect this key scheme significantly).
-
-Not all of the requirements have been met, yet:
-
-- E.g. rotation of keys
-- E.g. upgrading of bytecode
 
 ## Notation
 
@@ -385,13 +305,15 @@ Not all of the requirements have been met, yet:
 
 ## Diagrams
 
-For if you're short on time:
+<!-- TODO: Update diagrams -->
 
 ![Alt text](images/addresses-and-keys/image-5.png)
 
 The red boxes are uncertainties, which are explained later in this doc.
 
 ## Master Keys
+
+The protocol does not enforce the usage of any of the following keys, and does not enforce the keys to conform to a particular length or algorithm. Users are expected to pick a set of keys valid for the encryption and tagging precompile they choose for their account.
 
 <!-- prettier-ignore -->
 | Key | Derivation | Name | Where? | Comments |
@@ -404,83 +326,32 @@ $\ovskm$ | h(0x04, $\sk$) | outgoing viewing secret key | PXE* | The owner of th
 ||||||
 $\Npkm$ | $\nskm \cdot G$ | nullifier public key | | Only included so that other people can derive the user's address from some public information, in such a way that it's tied to the user's $\nskm$. 
 $\Tpkm$ | $\tskm \cdot G$ | tagging public key | | The "tagging" key pair can be used to flag "this ciphertext is for you", without requiring decryption. |
-$\Ivpkm$ | $\ivskm \cdot G$ | incoming viewing public key | | A 'sender' can use this public key to derive an app-siloed incoming viewing key $\Ivpkapp$, which can then be used to derive an ephemeral symmetric encryption key, to encrypt a plaintext for some recipient. The data is "incoming" from the pov of the recipient. |
 $\Ovpkm$ | $\ovskm \cdot G$ | outgoing viewing public key | | Only included so that other people can derive the user's address from some public information, in such a way that it's tied to the user's $\ovskm$. |
 
 > \*These keys could also be safely passed into the Kernel circuit, but there's no immediately obvious use, so "K" has been omitted, to make design intentions clearer.
 
+<!-- TODO: Are we having a tagging key after all? -->
+
 ## Address
 
+An address is computed as the hash of the following fields:
+
 <!-- prettier-ignore -->
-| Key | Derivation | Name | Comments |
-|---|---|---|---|
-$\constructorhash$ | h(constructor\_args, salt) | constructor hash | A commitment to the constructor arguments used when deploying the user's account contract. |
-$\codehash$ | h(bytecode, $\constructorhash$) | code hash | Binds the bytecode and constructor arguments together.
-$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | This isn't an optimized derivation. It's just one that works. |
+| Field | Type | Description |
+|----------|----------|----------|
+| version | u8 | Version identifier. Initially one, bumped for any changes to the contract instance struct. |
+| deployer_address | AztecAddress | Address of the deployer for this instance. |
+| salt | Field | User-generated pseudorandom value for uniqueness. |
+| contract_class_id | Field | Identifier of the contract class for this instance. |
+| contract_args_hash | Field | Hash of the arguments to the constructor. |
+| portal_contract_address | EthereumAddress | Optional address of the L1 portal contract. |
+| public_keys | PublicKeys | Optional struct of public keys used for encryption and nullifying by this contract. |
 
-:::warning
-
-This address derivation is "ok".
-
-We're considering making $\Ivpkm$ (the incoming viewing key) the basis of an "address" on the network, instead. This is the main piece of information a counterparty will need, in order to communicate (encrypt) the contents of new private notes.
-
-Here are some options (not an exhaustive list) of what that might look like:
-
-![Alt text](images/addresses-and-keys/image-4.png)
-
-Note: the uncertainty over whether to use hardened or non-hardened keys is discussed in a later red box in this document.
-
-Note also: this diagram is intentionally simplistic. The details are elsewhere in this doc.
-
-:::
+The `PublicKeys` struct can vary depending on the format of keys used by the address, but it is suggested it includes the master keys defined above: $\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$.
 
 ## Derive siloed keys
 
-### Incoming viewing keys
-
-:::danger Dilemma
-
-We have two seemingly conflicting requirements (at least, we haven't-yet found a way to meet both requirements, but maybe there's some cryptography out there that helps). Those conflicting requirements are (rephrased slightly):
-
-- Given just a user's address and/or master public keys, other users can encrypt state changes, actions, and messages to that user, via some app smart contract.
-  - This implies that a _siloed_ incoming viewing _public_ key should be derivable from a _master_ viewing _public_ key.
-    - This implication gave rise to the bip-32-style non-hardened (normal) derivation of siloed incoming viewing keys below.
-- A user can optionally share "shareable" secret keys, to enable a 3rd party to decrypt incoming/outgoing data _for a particular app_ (and only that app).
-
-Why are they conflicting?
-
-Well, they're conflicting in the sense that bip32 doesn't help us, at least! If we solve the first requirement by deriving siloed incoming viewing keys from master incoming viewing keys in the same way that bip-32 _non-hardened_ child keys are derived from their parent keys, then the child secret key cannot be shared with a 3rd party. That's because knowledge of a non-hardened child secret key can be used to derive the parent secret key, which would then enable all incoming viewing secret keys across all apps to be derived!
-
-The choices seem to be:
-
-- Find a hierarchical key derivation scheme that enables child public keys to be derived from parent private keys (so that "someone else" may derive "your" app-siloed incoming viewing public key).
-- Drop one of the requirements. I.e. one of:
-  - Don't enable "someone else" to derive "your" app-siloed incoming viewing public key from the master key; or
-  - Don't give users granular control, to grant view access to 3rd parties on an app-by-app basis.
-    - I.e. don't enable app-siloed viewing secret keys to be shared; instead only enable master viewing secret keys to be shared (which would give view access to all app activity).
-    - This would result in many apps having to encrypt notes using a user's master incoming viewing secret key (for the shareability), and so for those apps, there would be no use for app-siloed keys. (Bear in mind, though, that some apps might still want non-shareable, siloed viewing keys!)
-      - Note: dropping this would also conflict with another requirement: the ability to prove correct decryption within an app circuit (because apps can't be trusted with master secret keys)!
-
-Tricky!!!
-
-For now, we show an example non-hardened derivation of an app-siloed incoming viewing keypair.
-
-:::
-
-<!-- prettier-ignore -->
-| Key | Derivation | Name | Where? | Comments |
-|---|---|---|---|---|
-$\happL$ | h($\address$, app\_address) | normal siloing key for app-specific keypair derivations | | An intermediate step in a BIP-32-esque "normal" (non-hardened) child key derivation.<br />Note: the "L" is a lingering artifact carried over from the BIP-32 notation (where a 512-bit hmac output is split into a left and a right part), but notice there is no corresponding "R"; as a protocol simplification we propose to not derive BIP-32 chain codes (note: the bip32 author reflects [here](https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-October/018250.html) that _"from a cryptographic point of view... the chaincode is not needed"_.) |
-$\happiv$ | h(0x03, $\happL$) | normal siloing key for an app-specific incoming viewing keypair | | An intermediate step in a BIP-32-esque "normal" (non-hardened) child key derivation. |
-|||||
-$\ivskapp$ | $\happiv + \ivskm$ | app-siloed incoming viewing secret key | PXE*, <br />Not App |
-$\Ivpkapp$ | $\happiv \cdot G + \Ivpkm = \ivskapp \cdot G$ | app-siloed incoming viewing public key |
-
-> \*These keys could also be safely passed into the Kernel circuit, but there's no immediately obvious use, so "K" has been omitted, to make design intentions clearer.
-
 ### Nullifier keys
-
-An app-siloed outgoing viewing keypair is derived as a hardened child keypair of the master outgoing viewing keypair.
 
 <!-- prettier-ignore -->
 | Key | Derivation | Name | Where? | Comments |
@@ -489,6 +360,10 @@ $\nskapp$ | $h(\nskm, \text{app\_address})$ | app-siloed nullifier secret key | 
 $\Nkapp$ | $h(\nskapp)$ | Shareable nullifier key | PXE, K, T3P, App| If an app developer thinks some of their users might wish to have the option to enable some _trusted_ 3rd party to see when a particular user's notes are nullified, then this nullifier key might be of use. This $\Nkapp$ can be used in a nullifier's preimage, rather than $\nskapp$ in such cases, to enable said 3rd party to brute-force identify nullifications.<br />Note: this would not enable a 3rd party to view the contents of any notes; knowledge of the $\ivskapp$ / $\ovskapp$ would be needed for that.<br />Note: this is not a "public" key, since it must not be shared with the public. |
 
 See the appendix for an alternative derivation suggestion.
+
+### Incoming viewing keys
+
+The protocol does not support derivation of app-siloed incoming viewing keys.
 
 ### Outgoing viewing keys
 
@@ -499,23 +374,17 @@ An app-siloed outgoing viewing secret key is derived as a hardened child of the 
 |---|---|---|---|---|
 $\ovskapp$ | $h(\ovskm, \text{app\_address})$ |
 
-> Note: these derivations are definitely subject to change. Design considerations include:
->
-> - keeping the kernel circuit simple;
-> - making the hashing / ecc operations performed by the kernel circuit as generally applicable (non-specialised) as possible, so they may be re-used by app (todo: validate this is worthwhile);
-> - keeping the key derivation scheme simple, with few constraints.
+This is a stripped-back non-hardened derivation. Such a hardened $\ovskapp$ may enter the app circuit, but $\ovskm$ must not, so the derivation of $\ovskapp$ must only be done in a trusted precompile contract.
 
-This is a stripped-back non-hardened derivation. Such a hardened $\nskapp$ may enter the app circuit, but $\nskm$ must not, so the derivation of $\nskapp$ would need to be delegated by the app circuit to the kernel circuit (the assumption being that the kernel circuit is a core protocol circuit which can be trusted with this master secret). See [this later section](#derive-nullifier) for how such a computation would be delegated to the kernel circuit.
+### Internal incoming viewing keys
 
-## "Handshaking" (deriving a sequence of tags for tag-hopping)
+Derivation of internal incoming viewing keys is equivalent to that of outgoing viewing keys.
 
-### Deriving a sequence of tags between Alice and Bob across all apps (at the 'master key' level)
+## Handshaking for tag-hopping
 
-:::warning
+Deriving a sequence of tags for tag-hopping.
 
-This glosses over the problem of ensuring Bob always uses the next tag in the sequence, and doesn't repeat or skip tags. See Phil's docs for further discussion on this topic.
-
-:::
+### Deriving a sequence of tags between Alice and Bob across all apps
 
 For Bob to derive a shared secret for Alice:
 
@@ -524,7 +393,7 @@ For Bob to derive a shared secret for Alice:
 |---|---|---|---|
 $\esk_{hs}$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key, for handshaking | $hs$ = handshake.
 $\Epk_{hs}$ | $\esk_{hs} \cdot G$ | Ephemeral public key, for handshaking |
-$\sharedsecret_{m,tagging}^{Bob \rightarrow Alice}$ | $\esk_{hs} \cdot \Ivpkm$ | Shared secret, for tagging | Here, we're illustrating the derivation of a shared secret (for tagging) using _master_ keys.<br />App developers could instead choose to use an app-specific key $\Ivpkapp$. See the next section.
+$\sharedsecret_{m,tagging}^{Bob \rightarrow Alice}$ | $\esk_{hs} \cdot \Ivpkm$ | Shared secret, for tagging | Here, we're illustrating the derivation of a shared secret (for tagging) using _master_ keys.
 
 Having derived a Shared Secret, Bob can now share it with Alice as follows:
 
@@ -559,103 +428,44 @@ This tag can be used as the basis for note retreival schemes. Each time Bob send
 
 > The colour key isn't quite clear for $\tagg_{m,i}^{Bob \rightarrow Alice}$. It will be a publicly-broadcast piece of information, but no one should learn that it relates to Bob nor Alice (except perhaps some trusted 3rd party whom Alice has entrusted with her $\ivskm$).
 
-> TODO: Prevent spam (where a malicious user could observe the emitted tag $\tagg_{m,i}^{Bob \rightarrow Alice}$, and re-emit it many times via some other app-contract). Perhaps this could be achieved by emitting the tag as a nullifier (although this would cause state bloat).
+<!-- TODO: Prevent spam (where a malicious user could observe the emitted tag $\tagg_{m,i}^{Bob \rightarrow Alice}$, and re-emit it many times via some other app-contract). Perhaps this could be achieved by emitting the tag as a nullifier (although this would cause state bloat). -->
 
-> TODO: Bob can encrypt a record of this handshake, for himself, using his outgoing viewing key.
-
-### Deriving a sequence of tags between Alice and Bob for a single app (at the 'app key' level)
-
-For Bob to derive a shared secret for Alice:
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\esk_{hs}$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key, for handshaking | $hs$ = handshake.
-$\Epk_{hs}$ | $\esk_{hs} \cdot G$ | Ephemeral public key, for handshaking |
-$\sharedsecret_{app,tagging}^{Bob \rightarrow Alice}$ | $\esk_{hs} \cdot \Ivpkapp$ | Shared secret, for tagging | Note: derivation of an app-specific tagging secret using $\Ivpkapp$ would enable a trusted 3rd party (if entrusted with $\ivskapp$) to identify Alice's notes more quickly, by observing the resulting $\tagg_{app,i}^{Bob \rightarrow Alice}$ values which would accompany each $\ciphertext$.
-
-Having derived a Shared Secret, Bob can now share it with Alice as follows:
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\Taghs$ | $\esk_{hs} \cdot \Tpkm$ | Handshake message identification tag | Note: the tagging public key $\Tpkm$ exists as an optimization, seeking to make brute-force message identification as fast as possible. In many cases, handshakes can be performed offchain via traditional web2 means, but in the case of on-chain handshakes, we have no preferred alternative over simply brute-force attempting to reconcile every 'Handshake message identification tag'. Note: this optimization reduces the recipient's work by 1 cpu-friendly hash per message (at the cost of 255-bits to broadcast a compressed encoding of $\Taghs$). We'll need to decide whether this is the right speed/communication trade-off.<br />Note also: the _master_ tagging key $\Tpkm$ is being used in this illustration, rather than some app-specific tagging key, to make this message identification process most efficient (otherwise the user would have to re-scan all handshakes for every app they use). |
-$\esk$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key, for encryption | TODO: perhaps just one ephemeral keypair could be used? |
-$\Epk$ | $\esk \cdot G$ | Ephemeral public key, for encryption |
-$\sharedsecret_{m,header}$ | $\esk \cdot \Ivpkm$ | Shared secret, for encrypting the ciphertext header. | The _master_ incoming viewing key is used here, to enable Alice to more-easily discover which contract address to use, and hence which app-specific $\ivskapp$ to use to ultimately derive the app-specific tag. |
-$\hmencheader$ | h("?", $\sharedsecret_{m,header}$) | Incoming encryption key |
-$\ciphertextheader$ | $enc_{\hmencheader}^{\Ivpkm}$(app_address)
-$\payload$ | [$\Taghs$, $\Epk_{hs}$, $\Epk$, $\ciphertextheader$] | Payload | This can be broadcast via L1.<br />Curve points can be compressed in the payload. |
-
-Alice can identify she is the indended the handshake recipient as follows:
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\Taghs$ | $\tskm \cdot \Epk_{hs}$ | Handshake message identification tag | Alice can extract $\Taghs$ and $\Epk_{hs}$ from the $\payload$ and perform this scalar multiplication on _every_ handshake message. If the computed $\Taghs$ value matches that of the $\payload$, then the message is indented for Alice.<br />Clearly, handshake transactions will need to be identifiable as such (to save Alice time), e.g. by revealing the contract address of some canonical handshaking contract alongside the $\payload$.<br />Recall: this step is merely an optimization, to enable Alice to do a single scalar multiplication before moving on (in cases where she is not the intended recipient). |
-
-If Alice successfully identifies that she is the indended the handshake recipient, she can proceed with deriving the shared secret (for tagging) as follows:
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\sharedsecret_{m,header}$ | $\ivskm \cdot \Epk$ | Shared secret, for encrypting the ciphertext header |
-$\hmencheader$ | h("?", $\sharedsecret_{m,header}$) | Incoming encryption key |
-app_address | $decrypt_{\hmencheader}^{\ivskm}(\ciphertextheader)$ |
-$\ivskapp$ | See derivations above. Use the decrypted app_address. | app-specific  incoming viewing secret key |
-$\sharedsecret_{app,tagging}^{Bob \rightarrow Alice}$ | $\ivskapp \cdot \Epk_{hs}$ | Shared secret, for tagging |  |
-
-A sequence of tags can then be derived by both Alice and Bob as:
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\tagg_{app,i}^{Bob \rightarrow Alice}$ | $h(\sharedsecret_{app,tagging}^{Bob \rightarrow Alice}, i)$ | The i-th tag in the sequence. |  |
-
-This tag can be used as the basis for note retreival schemes. Each time Bob sends Alice a $\ciphertext$ **for this particular app**, he can attach the next unused $\tagg_{app,i}^{Bob \rightarrow Alice}$ in the sequence. Alice - who is also able to derive the next $\tagg_{app,i}^{Bob \rightarrow Alice}$ in the sequence - can make privacy-preserving calls to a server, requesting the $\ciphertext$ associated with a particular $\tagg_{app,i}^{Bob \rightarrow Alice}$.
-
-> TODO: Bob can encrypt a record of this handshake, for himself, using his outgoing viewing key.
-
-### Deriving a sequence of tags from Bob to himself across all apps (at the 'master key' level)
+### Deriving a sequence of tags from Bob to himself across all apps
 
 The benefit of Bob deriving a sequence of tags for himself, is that he can re-sync his _outgoing_ transaction data more quickly, if he ever needs to in future.
 
-There are many ways to do this:
+This can be done by either:
 
-- Copy the approach used to derive a sequence of tags between Bob and Alice (but this time do it between Bob and Bob, and use Bob's outgoing keys).
-  - This would require a small modification, since we don't have app-siloed outgoing viewing _public_ keys (merely as an attempt to simplify the protocol...)
-- Generate a very basic sequence of tags $\tagg_{app, i}^{Bob \rightarrow Bob} = h(\ovskapp, i)$ (at the app level) and $\tagg_{m, i}^{Bob \rightarrow Bob} = h(\ovskm, i)$.
+- Copying the approach used to derive a sequence of tags between Bob and Alice (but this time do it between Bob and Bob, and use Bob's outgoing keys).
+- Generating a very basic sequence of tags $\tagg_{app, i}^{Bob \rightarrow Bob} = h(\ovskapp, i)$ (at the app level) and $\tagg_{m, i}^{Bob \rightarrow Bob} = h(\ovskm, i)$.
   - Note: In the case of deriving app-specific sequences of tags, Bob might wish to also encrypt the app*address as a ciphertext header (and attach a master tag $\tagg*{m, i}^{Bob \rightarrow Bob}$), to remind himself of the apps that he should derive tags _for_.
-- Lots of other approaches.
 
-## Derive diversified address
+## Derive diversified public keys
 
-A Diversified Address can be derived from Alice's keys, to enhance Alice's transaction privacy. If Alice's counterparties' databases are compromised, it enables Alice to retain privacy from such leakages. Basically, Alice must personally derive and provide Bob and Charlie with random-looking addresses (for Alice). Because Alice is the one deriving these Diversified Addresses (they can _only_ be derived by Alice), if Bob and Charlie chose to later collude, they would not be able to convince each-other that they'd interacted with Alice.
+A diversified public key can be derived from Alice's keys, to enhance Alice's transaction privacy. If Alice's counterparties' databases are compromised, it enables Alice to retain privacy from such leakages. Diversified public keys are used for generating diversified addresses.
+
+Basically, Alice must personally derive and provide Bob and Charlie with random-looking addresses (for Alice). Because Alice is the one deriving these Diversified Addresses (they can _only_ be derived by Alice), if Bob and Charlie chose to later collude, they would not be able to convince each-other that they'd interacted with Alice.
 
 This is not to be confused with 'Stealth Addresses', which 'flip' who derives: Bob and Charlie would each derive a random-looking Stealth Address for Alice. Alice would then discover her new Stealth Addresses through decryption.
 
 > All of the key information below is Alice's
 
-Alice derives a 'diversified', app-specific incoming viewing public key, and sends it to Bob:
+Alice derives a 'diversified' incoming viewing public key, and sends it to Bob:
 
 <!-- prettier-ignore -->
 | Thing | Derivation | Name | Comments |
 |---|---|---|---|
 $\d$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ |diversifier |
 $\Gd$ | $\d \cdot G$ | diversified generator |
-$\Ivpkappd$ | $\ivskapp \cdot \Gd$ | Diversified, app-siloed incoming viewing public key |
+$\Ivpkmd$ | $\ivskm \cdot \Gd$ | Diversified incoming viewing public key |
 
-> Note: _master_ keys can also be diversified; just replace $app$ with $m$ in the above table of definitions. Some data (such as an app address) might need to be encrypted into a 'ciphertext header' with a master key (so as to enable the recipient to efficiently discover which app a ciphertext originated from, so they may then derive the correct siloed keys to use to decrypt the ciphertext).
+> Notice: when $\d = 1$, $\Ivpkmd = \Ivpkm$. Often, it will be unncessary to diversify the below data, but we keep $\d$ around for the most generality.
 
-> Notice: when $\d = 1$, $\Ivpkappd = \Ivpkapp$. Often, it will be unncessary to diversify the below data, but we keep $\d$ around for the most generality.
-
----
-
-## Derive stealth address
+## Derive stealth public keys
 
 > All of the key information below is Alice's
 
-For Bob to derive a Stealth Address for Alice, Bob derives:
+Stealth Public Keys are used for generating Stealth Addresses. For Bob to derive a Stealth Address for Alice, Bob derives:
 
 <!-- prettier-ignore -->
 | Thing | Derivation | Name | Comments |
@@ -664,9 +474,9 @@ $\d$ | Given by Alice | (Diversifier) | Remember, in most cases, $\d=1$ is suffi
 $\Gd$ | $\d \cdot G$ | (Diversified) generator | Remember, when $\d = 1$, $\Gd = G$.
 $\esk$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key |
 $\Epkd$ | $\esk \cdot \Gd$ | (Diversified) Ephemeral public key |
-$\sharedsecret_{app, stealth}$ | $\esk \cdot \Ivpkappd$ | Shared secret |
-$\hstealth$ | h("?", $\sharedsecret_{app, stealth}$) | Stealth key |
-$\Ivpkappdstealth$ | $\hstealth \cdot \Gd + \Ivpkappd$ | (Diversified) Stealth viewing public key |
+$\sharedsecret_{m, stealth}$ | $\esk \cdot \Ivpkmd$ | Shared secret |
+$\hstealth$ | h("?", $\sharedsecret_{m, stealth}$) | Stealth key |
+$\Ivpkmdstealth$ | $\hstealth \cdot \Gd + \Ivpkmd$ | (Diversified) Stealth viewing public key |
 
 Having derived a Stealth Address for Alice, Bob can now share it with Alice as follows:
 
@@ -687,12 +497,14 @@ Alice can learn about her new Stealth Address as follows. First, she would ident
 $\sharedsecret_{m,header}$ | $\ivskm \cdot \Epkd$ | Shared secret, for encrypting the ciphertext header |
 $\hmencheader$ | h("?", $\sharedsecret_{m,header}$) | Incoming encryption key |
 app_address | $decrypt_{\hmencheader}^{\ivskm}(\ciphertextheader)$ |
-$\ivskapp$ | See derivations above. Use the decrypted app_address. | app-specific  incoming viewing secret key |
+$\ivskapp$ | See derivations above. Use the decrypted app_address. | app-specific incoming viewing secret key |
 $\sharedsecret_{app, stealth}$ | $\ivskapp \cdot \Epkd$ |
 $\hstealth$ | h("?", $\sharedsecret_{app, stealth}$) |
 $\ivskappstealth$ | $\hstealth + \ivskapp$ |
 $\Ivpkappdstealth$ | $\ivskappstealth \cdot \Gd$ |
 $\Pkappdstealth$ | $\Ivpkappdstealth$ | Alias: "Alice's Stealth Public Key" |
+
+<!-- TODO: This requires app-specific incoming viewing keys, which we don't have. How do we adapt this derivation? -->
 
 ## Derive nullifier
 
@@ -729,15 +541,13 @@ $\Npkm$ | $\nskm \cdot G$ | nullifier public key |
 
 If the kernel circuit succeeds in these calculations, then the $\Nkapp$ has been validated as having a known secret key, and belonging to the $\address$.
 
-> Note: It's ugly. I don't like having to pass such a specific and obscure request to the kernel circuit. Having said that, the outgoing viewing keys also require a [very similar request](#doing-this-inside-an-app-circuit).
-
 ![Alt text](images/addresses-and-keys/image.png)
+
+See the [Appendix](#appendix) for an alternative approach.
 
 ## Encrypt and tag an incoming message
 
 Bob wants to send Alice a private message, e.g. the contents of a note, which we'll refer to as the $\plaintext$. Bob and Alice are using a "tag hopping" scheme to help with note discovery. Let's assume they've already handshaked to establish a shared secret $\sharedsecret_{m,tagging}^{Bob \rightarrow Alice}$, from which a sequence of tags $\tagg_{m,i}^{Bob \rightarrow Alice}$ can be derived.
-
-> Note: this illustration uses _master_ keys for tags, rather than app-specific keys for tags. App-specific keys for tags could be used instead, in which case a 'ciphertext header' wouldn't be needed for the 'app_address', since the address could be inferred from the tag.
 
 <!-- prettier-ignore -->
 | Thing | Derivation | Name | Comments |
@@ -757,6 +567,8 @@ $\happenc$ | h("?", $\sharedsecret_{app,enc}$) | Incoming data encryption key |
 $\ciphertext$ | $enc^{\Ivpkappdstealth}_{\happenc}(\plaintext)$ | Ciphertext |
 $\payload$ | [$\tagg_{m, i}^{Bob \rightarrow Alice}$, $\ciphertextheader$, $\ciphertext$, $\Epkdheader$, $\Epkd$] | Payload |
 
+<!-- TODO: This requires app-specific incoming viewing keys, which we don't have. How do we adapt this derivation? -->
+
 Alice can learn about her new $\payload$ as follows. First, she would identify the transaction has intended for her, either by observing $\tagg_{m, i}^{Bob \rightarrow Alice}$ on-chain herself (and then downloading the rest of the payload which accompanies the tag), or by making a privacy-preserving request to a server, to retrieve the payload which accompanies the tag. Assuming the $\payload$ has been identified as Alice's, and retrieved by Alice, we proceed.
 
 > Given that the tag in this illustration was derived from Alice's master key, the tag itself doesn't convey which app_address to use, to derive the correct app-siloed incoming viewing secret key that would enable decryption of the ciphertext. So first Alice needs to decrypt the $\ciphertextheader$ using her master key:
@@ -773,10 +585,6 @@ $\sharedsecret_{app, enc}$ | $\ivskappstealth \cdot \Epkd$ | Shared secret, for 
 $\happenc$ | h("?", $\sharedsecret_{app, enc}$) | Ciphertext encryption key |
 $\plaintext$ | $decrypt_{\happenc}^{\ivskappstealth}(\ciphertext)$ | Plaintext |
 
-## Encrypt and tag an internal incoming message
-
-TODO: describe internal key derivation
-
 ## Encrypt and tag an outgoing message
 
 Bob wants to send himself a private message (e.g. a record of the outgoing notes that he's created for other people) which we'll refer to as the $\plaintext$. Let's assume Bob has derived a sequence of tags $\tagg_{m,i}^{Bob \rightarrow Alice}$ for himself (see earlier).
@@ -786,11 +594,10 @@ Bob wants to send himself a private message (e.g. a record of the outgoing notes
 > Note: rather than copying the 'shared secret' approach of Bob sending to Alice, we can cut a corner (because Bob is the sender and recipient, and so knows his own secrets).
 
 > Note: if Bob has sent a private message to Alice, and he also wants to send himself a corresponding message:
->
 > - he can likely re-use the ephemeral keypairs for himself.
 > - he can include $\esk$ in the plaintext that he sends to himself, as a way of reducing the size of his $\ciphertext$ (since the $\esk$ will enable him to access all the information in the ciphertext that was sent to Alice).
-> - TODO: can we use a shared public key to encrypt the $\ciphertextheader$, to reduce duplicated broadcasting of encryptions of the app_address?
->   - E.g. derive a shared secret, hash it, and use that as a shared public key?
+
+<!-- TODO: can we use a shared public key to encrypt the $\ciphertextheader$, to reduce duplicated broadcasting of encryptions of the app_address? E.g. derive a shared secret, hash it, and use that as a shared public key? -->
 
 > Note: the violet symbols should actually be orange here.
 
@@ -801,7 +608,7 @@ $\d$ | Given by Alice | (Diversifier) | Remember, in most cases, $\d=1$ is suffi
 $\Gd$ | $\d \cdot G$ | (Diversified) generator | Remember, when $\d = 1$, $\Gd = G$.
 $\eskheader$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key |
 $\Epkdheader$ | $\eskheader \cdot \Gd$ | (Diversified) Ephemeral public key |
-$\hmencheader$ | h("?", $\ovskm$, $\Epkdheader$) | Header encryption key | Danger: this uses a master secret key $\ovskm$, which MUST NOT be given to an app, nor to an app circuit; it may only be given to the PXE or the Kernel circuit. See below for how we can enable an app to perform these encryption steps. | 
+$\hmencheader$ | h("?", $\ovskm$, $\Epkdheader$) | Header encryption key | This uses a master secret key $\ovskm$, which MUST NOT be given to an app nor to an app circuit. However, it can still be given to a trusted precompile, which can handle this derivation securely. | 
 $\ciphertextheader$ | $enc_{\hmencheader}$(app\_address) | Ciphertext header encryption key |  |
 |||||
 $\esk$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key |
@@ -824,31 +631,11 @@ $\ovskapp$ | See derivations above. Use the decrypted app_address. | |
 $\happenc$ | h("?", $\ovskm$, $\Epkd$) |
 $\plaintext$ | $decrypt_{\happenc}(\ciphertext)$ |
 
-> TODO: how does a user validate that they have successfully decrypted a ciphertext? Is this baked into ChaChaPoly1035, for example?
+<!-- TODO: how does a user validate that they have successfully decrypted a ciphertext? Is this baked into ChaChaPoly1035, for example? -->
 
-### Doing this inside an app circuit
+## Encrypt and tag an internal incoming message
 
-Here's how an app circuit could constrain the app-siloed outgoing viewing secret key ($\ovskapp$) to be correct:
-
-The app circuit exposes, as public inputs, an "outgoing viewing key validation request":
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-`outgoing_viewing_key_validation_request` | app_address: app_address,<br />hardened_child_sk: $\nskapp$,<br />claimed_parent_pk: $\Npkm$ |
-
-The kernel circuit can then validate the request (having been given $\ovskm$ as a private input to the kernel circuit):
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\ovskapp$ | $h(\ovskm, \text{app\_address})$ |
-$\Ovpkm$ | $\ovskm \cdot G$ | Outgoing viewing public key |
-| | | | Copy-constrain $\ovskm$ with $\ovskm$. |
-
-If the kernel circuit succeeds in these calculations, then the $\ovskapp$ has been validated as the correct app-siled secret key for $\Ovpkm$.
-
-![Alt text](images/addresses-and-keys/image-3.png)
+Internal incoming messages are handled analogously to outgoing messages, since in both cases the sender is the same as the recipient, who has access to the secret keys when encrypting and tagging the message.
 
 ## Acknowledgements
 
@@ -857,12 +644,6 @@ Much of this is inspired by the [ZCash Sapling and Orchard specs](https://zips.z
 ## Appendix
 
 ### Alternative nullifier key derivation
-
-:::note
-
-I'm less keen on this approach now, given that the requests being made to the kernel circuit for derivation of both app-siloed nullifier keys and outgoing viewing keys are very similar now. This below proposal would make the approaches quite different, which is less good, perhaps.
-
-:::
 
 This option seeks to make a minor simplification to the operations requested of the kernel circuit: instead of "a hash, a scalar mul, and a copy-constraint", it replaces the request with "two scalar muls, and a copy-constraint". The argument being, perhaps it's cleaner and a more widely useful request, that apps might wish to make to the kernel circuit under other circumstances (although the copy-constraint is still ugly and specific).
 
@@ -915,7 +696,7 @@ The _kernel_ circuit can then validate the `pokodl_request` (having been given t
 |---|---|---|---|
 $\Nkapp$ | $\nskapp \cdot H$ |
 $\Npkapp$ | $\nskapp \cdot G$ |
-| | | | Copy-constrain $\nskapp$ with $\nskapp$.<br />This constraint makes the interface to the kernel circuit a bit uglier. The `pokodl_request` now needs to convey "and constrain the discrete logs of these two pokodl requests to be equal". Ewww. |
+| | | | Copy-constrain $\nskapp$ with $\nskapp$.<br />This constraint makes the interface to the kernel circuit a bit uglier. The `pokodl_request` now needs to convey "and constrain the discrete logs of these two pokodl requests to be equal". |
 
 If the kernel circuit succeeds in these calculations, then the $\Nkapp$ has been validated as having a known secret key, and belonging to the $\address$.
 

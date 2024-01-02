@@ -4,39 +4,35 @@ sidebar_position: 1
 
 # Private Message Delivery
 
-## Requirements
-
 Maintaining the core tenet of privacy within the Aztec Network imposes a number of requirements related to the transfer of notes from one user to another. If Alice executes a function that generates a note for Bob:
 
-1. Alice will need to encrypt that note such that Bob, and only Bob is able to decrypt it.
-2. Alice will need to broadcast the encrypted note so as to make it available for Bob to retrieve.
-3. Alice will need to broadcast a 'tag' alongside the encrypted note. This tag must be identifiable by Bob's chosen [note discovery protocol](./note-discovery.md) but not identifiable by any third party.
+1. Alice will need to **encrypt** that note such that Bob, and only Bob is able to decrypt it.
+2. Alice will need to **broadcast** the encrypted note so as to make it available for Bob to retrieve.
+3. Alice will need to **broadcast a 'tag'** alongside the encrypted note. This tag must be identifiable by Bob's chosen [note discovery protocol](./note-discovery.md) but not identifiable by any third party.
 
-Fulfilling these requirements will enable users to privately identify, retrieve, decrypt and consume their application notes.
+## Requirements
+
+- **Users must be able to choose their note tagging mechanism**. We expect improved note discovery schemes to be designed over time. The protocol should be flexible enough to accommodate them and for users to opt in to using them as they become available. This flexibility should be extensible to encryption mechanisms as well as a soft requirement.
+- **Users must be able to receive notes before interacting with the network**. A user should be able to receive a note just by generating an address. It should not be necessary for them to deploy their account contract in order to receive a note.
+- **Applications must be able to safely send notes to any address**. Sending a note to an account could potentially transfer control of the call to that account, allowing the account to control whether they want to accept the note or not, and potentially bricking an application, since there is no catching exceptions in private function execution.
+- **Addresses must be as small as possible**. Addresses will be stored and broadcasted constantly in applications. Larger addresses means more data usage, which is the main driver for cost. Addresses must fit in at most 256 bits, or ideally a single field element.
+- **Total number of function calls should be minimized**. Every function call requires an additional iteration of the private kernel circuit, which adds several seconds of proving time.
+- **Encryption keys should be rotatable**. Users should be able to rotate their encryption keys in the event their private keys are compromised, so that any further interactions with apps can be private again, without having to migrate to a new account.
 
 ## Constraining Message Delivery
 
-The network will constrain:
+The protocol will allow constraining:
 
 1. The encryption of a user's note.
 2. The generation of the tag for that note.
 3. The publication of that note to the correct data availability layer.
 
-Constraining [note encryption](./encryption-and-decryption.md) and tagging will be done through protocol defined functions within a user's account contract. The advantages of this approach are:
+Each app will define whether to constrain each step in private message delivery. Encryption and tagging will be done through a set of precompiled contracts, each contract offering a different mechanism, and users will advertise their preferred mechanisms in a canonical registry.
 
-1. It enables a user to select their preferred [note discovery protocol](./note-discovery.md) and/or encryption scheme.
+The advantages of this approach are:
+
+1. It enables a user to select their preferred [note discovery protocol](./note-discovery.md) and [encryption scheme](./encryption-and-decryption.md).
 2. It ensures that notes are correctly encrypted with a user's public encryption key.
 3. It ensures that notes are correctly tagged for a user's chosen [note discovery protocol](./note-discovery.md).
 4. It provides scope for upgrading these functions or introducing new schemes as the field progresses.
-5. It protects applications from malicious account contracts providing unprovable functions.
-
-> Note: Constraining tag generation is not solely about ensuring that the generated tag is of the correct format. It is also necessary to constrain that tags are generated in the correct sequence. A tag sequence with duplicate or missing tags makes it much more difficult for the recipient to retrieve their notes. This will likely require tags to be nullified once used.
-
-Constraining publication to the correct data availability layer will be performed via a combination of the protocol circuits and the rollup contract on L1.
-
-## User Handshaking
-
-Even if Alice correctly encrypts the note she creates for Bob and generates the correct tag to go with it, how does Bob know that Alice has sent him a note? Bob's [note discovery protocol](./note-discovery.md) may require him to speculatively 'look' for notes with the tags that Alice (and his other counterparties) have generated. If Alice and Bob know each other then they can communicate out-of-protocol. But if they have no way of interacting then the network needs to provide a mechanism by which Bob can be alerted to the need to start searching for a specific sequence of tags.
-
-To facilitate this we will deploy a 'handshake' contract that can be used to create a private note for a recipient containing the sender's information (e.g. public key). It should only be necessary for a single handshake to take place between two users. The notes generated by this contract will be easy to identify enabling users to retrieve these notes, decrypt them and use the contents in any deterministic tag generation used by their chosen note discovery protocol.
-
+5. It protects applications from malicious unprovable functions.
