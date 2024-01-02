@@ -169,7 +169,7 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
+                let instructions = result.instructions().unwrap_or(vec![instruction]);
 
                 if instructions.len() > 1 {
                     // There's currently no way to pass results from one instruction in `instructions` on to the next.
