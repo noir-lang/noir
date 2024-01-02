@@ -352,7 +352,7 @@ impl std::fmt::Display for Type {
                 };
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
-            Type::Slice(element) => write!(f, "[{element}"),
+            Type::Slice(element) => write!(f, "[{element}]"),
             Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }

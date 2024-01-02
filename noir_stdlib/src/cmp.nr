@@ -74,6 +74,9 @@ struct Ordering {
 }
 
 impl Ordering {
+    // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built
+    // into the compiler, do not change these without also updating
+    // the compiler itself!
     pub fn less() -> Ordering {
         Ordering { result: 0 }
     }

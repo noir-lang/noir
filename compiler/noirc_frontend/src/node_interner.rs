@@ -113,6 +113,9 @@ pub struct NodeInterner {
     /// Holds the trait ids of the traits used for operator overloading
     operator_traits: HashMap<BinaryOpKind, TraitId>,
 
+    /// The `Ordering` type is a semi-builtin type that is the result of the comparison traits.
+    ordering_type: Option<Type>,
+
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
@@ -427,6 +430,7 @@ impl Default for NodeInterner {
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
             operator_traits: HashMap::new(),
+            ordering_type: None,
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
@@ -1393,6 +1397,15 @@ impl NodeInterner {
                 self.operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
                 self.operator_traits.insert(BinaryOpKind::Greater, trait_id);
                 self.operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
+
+                let the_trait = self.get_trait(trait_id);
+                self.ordering_type = match &the_trait.methods[0].typ {
+                    Type::Forall(_, typ) => match typ.as_ref() {
+                        Type::Function(_, return_type, _) => Some(return_type.as_ref().clone()),
+                        other => unreachable!("Expected function type for `cmp`, found {}", other),
+                    },
+                    other => unreachable!("Expected Forall type for `cmp`, found {}", other),
+                };
             }
             _ => (),
         }
@@ -1419,6 +1432,10 @@ impl NodeInterner {
         self.operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
         self.operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
         self.operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+    }
+
+    pub(crate) fn ordering_type(&self) -> Type {
+        self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
     }
 }
 

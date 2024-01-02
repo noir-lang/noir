@@ -367,7 +367,16 @@ impl<'interner> Monomorphizer<'interner> {
                     // with a method call to the appropriate trait impl method.
                     let lhs_type = self.interner.id_type(infix.lhs);
                     let args = vec![lhs_type.clone(), lhs_type];
-                    let ret = self.interner.id_type(expr);
+
+                    // If this is a comparison operator, the result is a boolean but
+                    // the actual method call returns an Ordering
+                    use crate::BinaryOpKind::*;
+                    let ret = if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
+                        self.interner.ordering_type()
+                    } else {
+                        self.interner.id_type(expr)
+                    };
+
                     let env = Box::new(Type::Unit);
                     let function_type = Type::Function(args, Box::new(ret.clone()), env);
 
@@ -1470,6 +1479,9 @@ impl<'interner> Monomorphizer<'interner> {
             // (a > b) => a.cmp(b) == Ordering::Greater
             // (a >= b) => a.cmp(b) != Ordering::Less
             Less | LessEqual | Greater | GreaterEqual => {
+                // Comparing an Ordering directly to a field value in this way takes advantage
+                // of the fact the Ordering struct contains a single Field type, and our SSA
+                // pass will automatically unpack tuple values.
                 let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
                     FieldElement::zero() // Ordering::Less
                 } else {
@@ -1481,7 +1493,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
-                let lhs = Box::new(result);
+                let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));
 
                 result = ast::Expression::Binary(ast::Binary { lhs, operator, rhs, location });
             }
