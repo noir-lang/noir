@@ -33,6 +33,7 @@ pub enum PrintableType {
         length: u64,
     },
     Function,
+    MutableReference,
 }
 
 impl PrintableType {
@@ -43,7 +44,8 @@ impl PrintableType {
             | Self::SignedInteger { .. }
             | Self::UnsignedInteger { .. }
             | Self::Boolean
-            | Self::Function => Some(1),
+            | Self::Function
+            | Self::MutableReference => Some(1),
             Self::Array { length, typ } => {
                 length.and_then(|len| {
                     typ.field_count().map(|x| x*(len as u32))
@@ -218,6 +220,9 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         (PrintableValue::Field(_), PrintableType::Function) => {
             output.push_str("<<function>>");
         }
+        (_, PrintableType::MutableReference { .. }) => {
+            output.push_str("<<mutable ref>>");
+        }
         (PrintableValue::Vec(vector), PrintableType::Array { typ, .. }) => {
             output.push('[');
             let mut values = vector.iter().peekable();
@@ -340,17 +345,16 @@ fn decode_value(
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::Boolean
-        | PrintableType::Function => {
+        | PrintableType::Function
+        | PrintableType::MutableReference => {
             let field_element = field_iterator.next().unwrap();
 
             PrintableValue::Field(field_element)
         }
         PrintableType::Array { length: None, typ } => {
-            // TODO: maybe the len is the first arg? not sure
             let length = field_iterator.next()
                 .expect("not enough data to decode variable array length")
                 .to_u128() as usize;
-            println!["FIRST ARG (LENGTH?)={length}"];
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {
                 array_elements.push(decode_value(field_iterator, typ));

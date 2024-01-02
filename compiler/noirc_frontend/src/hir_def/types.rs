@@ -1612,7 +1612,7 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
-            Type::TraitAsType(_) => unreachable!(),
+            Type::TraitAsType(_, _, _) => unreachable!(),
             Type::Tuple(types) => {
                 PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) }
             }
@@ -1620,7 +1620,7 @@ impl From<&Type> for PrintableType {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _, _) => PrintableType::Function,
-            Type::MutableReference(_) => unreachable!("cannot print &mut"),
+            Type::MutableReference(_) => PrintableType::MutableReference,
             Type::NotConstant => unreachable!(),
         }
     }
