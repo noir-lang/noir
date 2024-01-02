@@ -60,7 +60,9 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
+        .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
         .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
