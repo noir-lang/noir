@@ -486,8 +486,8 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 /// Inserts the following code:
 /// ```noir
 /// impl SomeStruct {
-///    fn selector() -> Field {
-///       aztec::oracle::compute_selector::compute_selector("SIGNATURE_PLACEHOLDER")
+///    fn selector() -> FunctionSelector {
+///       aztec::selector::compute_selector("SIGNATURE_PLACEHOLDER")
 ///    }
 /// }
 /// ```
@@ -503,13 +503,18 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
     )))]);
 
+    // Define `FunctionSelector` return type
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Make this point to aztec-nr once the issue is fixed.
+    let return_type_path = chained_path!("protocol_types", "abis", "function_selector", "FunctionSelector");
+    let return_type = FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(return_type_path, vec![])));
+
     let mut selector_fn_def = FunctionDefinition::normal(
         &ident("selector"),
         &vec![],
         &[],
         &selector_fun_body,
         &[],
-        &FunctionReturnType::Ty(make_type(UnresolvedTypeData::FieldElement)),
+        &return_type,
     );
 
     selector_fn_def.visibility = FunctionVisibility::Public;
