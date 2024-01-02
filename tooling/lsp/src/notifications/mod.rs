@@ -40,7 +40,10 @@ pub(super) fn on_did_open_text_document(
     let document_uri = params.text_document.uri;
 
     match process_noir_document(document_uri, state) {
-        Ok(_) => ControlFlow::Continue(()),
+        Ok(_) => {
+            state.open_documents_count += 1;
+            ControlFlow::Continue(())
+        }
         Err(err) => ControlFlow::Break(Err(err)),
     }
 }
@@ -91,6 +94,13 @@ pub(super) fn on_did_close_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
     state.cached_lenses.remove(&params.text_document.uri.to_string());
+
+    state.open_documents_count -= 1;
+
+    if state.open_documents_count == 0 {
+        state.cached_definitions.clear();
+    }
+
     ControlFlow::Continue(())
 }
 
@@ -130,6 +140,10 @@ fn process_noir_document(
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
+
+            let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
+
+            state.cached_definitions.insert(package_root_dir, context.def_interner.clone());
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {

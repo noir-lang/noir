@@ -25,6 +25,7 @@ use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
+    node_interner::NodeInterner,
 };
 
 use fm::FileManager;
@@ -61,8 +62,10 @@ pub struct LspState {
     root_path: Option<PathBuf>,
     client: ClientSocket,
     solver: WrapperSolver,
+    open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
+    cached_definitions: HashMap<String, NodeInterner>,
 }
 
 impl LspState {
@@ -73,6 +76,8 @@ impl LspState {
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
             cached_lenses: HashMap::new(),
+            cached_definitions: HashMap::new(),
+            open_documents_count: 0,
         }
     }
 }

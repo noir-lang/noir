@@ -29,13 +29,19 @@ fn on_goto_definition_inner(
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = workspace.members.first().unwrap();
 
+    let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
+
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
 
-    // We ignore the warnings and errors produced by compilation while resolving the definition
-    let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+    if let Some(def_interner) = _state.cached_definitions.get(&package_root_path) {
+        context.def_interner = def_interner.clone();
+    } else {
+        // We ignore the warnings and errors produced by compilation while resolving the definition
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+    }
 
     let files = context.file_manager.as_file_map();
     let file_id = context.file_manager.name_to_id(file_path.clone()).ok_or(ResponseError::new(

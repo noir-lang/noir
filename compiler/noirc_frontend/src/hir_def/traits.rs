@@ -35,7 +35,7 @@ pub struct TraitType {
 /// Represents a trait in the type system. Each instance of this struct
 /// will be shared across all Type::Trait variants that represent
 /// the same trait.
-#[derive(Debug, Eq)]
+#[derive(Clone, Debug, Eq)]
 pub struct Trait {
     /// A unique id representing this trait type. Used to check if two
     /// struct traits are equal.
