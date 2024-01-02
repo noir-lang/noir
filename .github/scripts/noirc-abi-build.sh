@@ -2,5 +2,5 @@
 set -eu
 
 cd /usr/src/noir
-./scripts/install_wasm-bindgen-new.sh
+.github/scripts/install_wasm-bindgen.sh
 yarn workspace @noir-lang/noirc_abi build
