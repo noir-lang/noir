@@ -1,9 +1,10 @@
 use std::future::Future;
 
-use crate::types::InitializeParams;
+use crate::types::{CodeLensOptions, InitializeParams};
 use async_lsp::ResponseError;
 use lsp_types::{Position, TextDocumentSyncCapability, TextDocumentSyncKind};
 use nargo_fmt::Config;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
@@ -20,15 +21,37 @@ use crate::{
 // They are not attached to the `NargoLspService` struct so they can be unit tested with only `LspState`
 // and params passed in.
 
+mod code_lens_request;
 mod goto_definition;
 mod profile_run;
 mod test_run;
 mod tests;
 
 pub(crate) use {
+    code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
     goto_definition::on_goto_definition_request, profile_run::on_profile_run_request,
     test_run::on_test_run_request, tests::on_tests_request,
 };
+
+/// LSP client will send initialization request after the server has started.
+/// [InitializeParams].`initialization_options` will contain the options sent from the client.
+#[derive(Debug, Deserialize, Serialize)]
+struct LspInitializationOptions {
+    /// Controls whether code lens is enabled by the server
+    /// By default this will be set to true (enabled).
+    #[serde(rename = "enableCodeLens", default = "default_enable_code_lens")]
+    enable_code_lens: bool,
+}
+
+fn default_enable_code_lens() -> bool {
+    true
+}
+
+impl Default for LspInitializationOptions {
+    fn default() -> Self {
+        Self { enable_code_lens: default_enable_code_lens() }
+    }
+}
 
 pub(crate) fn on_initialize(
     state: &mut LspState,
@@ -36,8 +59,19 @@ pub(crate) fn on_initialize(
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
 
-    async {
+    let initialization_options: LspInitializationOptions = params
+        .initialization_options
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_default();
+
+    async move {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
+
+        let code_lens = if initialization_options.enable_code_lens {
+            Some(CodeLensOptions { resolve_provider: Some(false) })
+        } else {
+            None
+        };
 
         let nargo = NargoCapability {
             tests: Some(NargoTestsOptions {
@@ -50,6 +84,7 @@ pub(crate) fn on_initialize(
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(text_document_sync),
+                code_lens_provider: code_lens,
                 document_formatting_provider: true,
                 nargo: Some(nargo),
                 definition_provider: Some(lsp_types::OneOf::Left(true)),
@@ -105,7 +140,9 @@ pub(crate) fn on_shutdown(
 #[cfg(test)]
 mod initialization {
     use async_lsp::ClientSocket;
-    use lsp_types::{InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind};
+    use lsp_types::{
+        CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    };
     use tokio::test;
 
     use crate::{
@@ -125,6 +162,7 @@ mod initialization {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL
                 )),
+                code_lens_provider: Some(CodeLensOptions { resolve_provider: Some(false) }),
                 document_formatting_provider: true,
                 ..
             }

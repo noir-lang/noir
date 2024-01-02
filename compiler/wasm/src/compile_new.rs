@@ -18,7 +18,9 @@ use wasm_bindgen::prelude::wasm_bindgen;
 /// then the impl block is not picked up in javascript.
 #[wasm_bindgen]
 pub struct CompilerContext {
-    context: Context,
+    // `wasm_bindgen` currently doesn't allow lifetime parameters on structs so we must use a `'static` lifetime.
+    // `Context` must then own the `FileManager` to satisfy this lifetime.
+    context: Context<'static>,
 }
 
 #[wasm_bindgen(js_name = "CrateId")]

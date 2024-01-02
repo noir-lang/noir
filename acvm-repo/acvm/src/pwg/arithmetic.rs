@@ -5,9 +5,9 @@ use acir::{
 
 use super::{insert_value, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError};
 
-/// An Arithmetic solver will take a Circuit's arithmetic opcodes with witness assignments
+/// An Expression solver will take a Circuit's assert-zero opcodes with witness assignments
 /// and create the other witness variables
-pub(super) struct ArithmeticSolver;
+pub(super) struct ExpressionSolver;
 
 #[allow(clippy::enum_variant_names)]
 pub(super) enum OpcodeStatus {
@@ -22,17 +22,17 @@ pub(crate) enum MulTerm {
     Solved(FieldElement),
 }
 
-impl ArithmeticSolver {
+impl ExpressionSolver {
     /// Derives the rest of the witness based on the initial low level variables
     pub(super) fn solve(
         initial_witness: &mut WitnessMap,
         opcode: &Expression,
     ) -> Result<(), OpcodeResolutionError> {
-        let opcode = &ArithmeticSolver::evaluate(opcode, initial_witness);
+        let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
         // Evaluate multiplication term
-        let mul_result = ArithmeticSolver::solve_mul_term(opcode, initial_witness);
+        let mul_result = ExpressionSolver::solve_mul_term(opcode, initial_witness);
         // Evaluate the fan-in terms
-        let opcode_status = ArithmeticSolver::solve_fan_in_term(opcode, initial_witness);
+        let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
 
         match (mul_result, opcode_status) {
             (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
@@ -126,7 +126,7 @@ impl ArithmeticSolver {
         }
     }
 
-    /// Returns the evaluation of the multiplication term in the arithmetic opcode
+    /// Returns the evaluation of the multiplication term in the expression
     /// If the witness values are not known, then the function returns a None
     /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another opcode
     /// XXX: What about making a mul opcode = a constant 5xy + 7 = 0 ? This is the same as the above.
@@ -135,11 +135,11 @@ impl ArithmeticSolver {
         // We are assuming it has been optimized.
         match arith_opcode.mul_terms.len() {
             0 => MulTerm::Solved(FieldElement::zero()),
-            1 => ArithmeticSolver::solve_mul_term_helper(
+            1 => ExpressionSolver::solve_mul_term_helper(
                 &arith_opcode.mul_terms[0],
                 witness_assignments,
             ),
-            _ => panic!("Mul term in the arithmetic opcode must contain either zero or one term"),
+            _ => panic!("Mul term in the assert-zero opcode must contain either zero or one term"),
         }
     }
 
@@ -186,7 +186,7 @@ impl ArithmeticSolver {
         let mut result = FieldElement::zero();
 
         for term in arith_opcode.linear_combinations.iter() {
-            let value = ArithmeticSolver::solve_fan_in_term_helper(term, witness_assignments);
+            let value = ExpressionSolver::solve_fan_in_term_helper(term, witness_assignments);
             match value {
                 Some(a) => result += a,
                 None => {
@@ -212,7 +212,7 @@ impl ArithmeticSolver {
     pub(super) fn evaluate(expr: &Expression, initial_witness: &WitnessMap) -> Expression {
         let mut result = Expression::default();
         for &(c, w1, w2) in &expr.mul_terms {
-            let mul_result = ArithmeticSolver::solve_mul_term_helper(&(c, w1, w2), initial_witness);
+            let mul_result = ExpressionSolver::solve_mul_term_helper(&(c, w1, w2), initial_witness);
             match mul_result {
                 MulTerm::OneUnknown(v, w) => {
                     if !v.is_zero() {
@@ -228,7 +228,7 @@ impl ArithmeticSolver {
             }
         }
         for &(c, w) in &expr.linear_combinations {
-            if let Some(f) = ArithmeticSolver::solve_fan_in_term_helper(&(c, w), initial_witness) {
+            if let Some(f) = ExpressionSolver::solve_fan_in_term_helper(&(c, w), initial_witness) {
                 result.q_c += f;
             } else if !c.is_zero() {
                 result.linear_combinations.push((c, w));
@@ -240,7 +240,7 @@ impl ArithmeticSolver {
 }
 
 #[test]
-fn arithmetic_smoke_test() {
+fn expression_solver_smoke_test() {
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -274,8 +274,8 @@ fn arithmetic_smoke_test() {
     values.insert(c, FieldElement::from(1_i128));
     values.insert(d, FieldElement::from(1_i128));
 
-    assert_eq!(ArithmeticSolver::solve(&mut values, &opcode_a), Ok(()));
-    assert_eq!(ArithmeticSolver::solve(&mut values, &opcode_b), Ok(()));
+    assert_eq!(ExpressionSolver::solve(&mut values, &opcode_a), Ok(()));
+    assert_eq!(ExpressionSolver::solve(&mut values, &opcode_b), Ok(()));
 
     assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4_i128));
 }

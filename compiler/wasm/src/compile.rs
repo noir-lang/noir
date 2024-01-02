@@ -7,8 +7,9 @@ use nargo::artifacts::{
     program::PreprocessedProgram,
 };
 use noirc_driver::{
-    add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    CompiledContract, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+    add_dep, compile_contract, compile_main, file_manager_with_stdlib, prepare_crate,
+    prepare_dependency, CompileOptions, CompiledContract, CompiledProgram,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -224,7 +225,7 @@ pub fn compile(
 // should be considered as immutable.
 pub(crate) fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> FileManager {
     let root = Path::new("");
-    let mut fm = FileManager::new(root);
+    let mut fm = file_manager_with_stdlib(root);
 
     for (path, source) in source_map.0 {
         fm.add_file_with_source(path.as_path(), source);
@@ -327,7 +328,7 @@ mod test {
     use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
     use std::{collections::HashMap, path::Path};
 
-    fn setup_test_context(source_map: PathToFileSourceMap) -> Context {
+    fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static> {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());

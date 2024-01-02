@@ -31,9 +31,9 @@ It is also assumed that you're not using `noir_wasm` for compilation, and instea
 
 :::info
 
-As you've read in the [explainer](../explainers/explainer-recursion.md), a recursive proof is an intermediate proof. Meaning it doesn't necessarily generate the final step that makes it verifiable in a smart contract. However, it is easy to verify within another circuit.
+As you've read in the [explainer](../explainers/explainer-recursion.md), a recursive proof is an intermediate proof. This means that it doesn't necessarily generate the final step that makes it verifiable in a smart contract. However, it is easy to verify within another circuit.
 
-While "standard" usage of NoirJS packages abstracts final proofs, it currently lacks the necessary interface to abstract away intermediate proofs. Which means these proofs need to be created by using the backend directly.
+While "standard" usage of NoirJS packages abstracts final proofs, it currently lacks the necessary interface to abstract away intermediate proofs. This means that these proofs need to be created by using the backend directly.
 
 In short:
 
@@ -53,7 +53,7 @@ For a full example on how recursive proofs work, please refer to the [noir-examp
 
 In a common NoirJS app, you need to instantiate a backend with something like `const backend = new Backend(circuit)`. Then you feed it to the `noir_js` interface.
 
-For recursiveness, this doesn't happen, and the only need for `noir_js` is only to `execute` a circuit and get its witness and return value. Everything else is not interfaced, so it needs to happen on the `backend` object.
+For recursion, this doesn't happen, and the only need for `noir_js` is only to `execute` a circuit and get its witness and return value. Everything else is not interfaced, so it needs to happen on the `backend` object.
 
 It is also recommended that you instantiate the backend with as many threads as possible, to allow for maximum concurrency:
 
@@ -82,11 +82,11 @@ const { proof, publicInputs } = await backend.generateIntermediateProof(witness)
 
 :::warning
 
-Always keep in mind what is actually happening on your development process, otherwise you'll quickly become confused about what circuit are we actually running and why!
+Always keep in mind what is actually happening on your development process, otherwise you'll quickly become confused about what circuit we are actually running and why!
 
 In this case, you can imagine that Alice (running the `main` circuit) is proving something to Bob (running the `recursive` circuit), and Bob is verifying her proof within his proof.
 
-With this in mind, it becomes clear that our intermediate proof is the one *meant to be verified within another circuit*. So it is Alice's. Actually, the only final proof in this theoretical scenario would be the last one, sent on-chain.
+With this in mind, it becomes clear that our intermediate proof is the one *meant to be verified within another circuit*, so it must be Alice's. Actually, the only final proof in this theoretical scenario would be the last one, sent on-chain.
 
 :::
 
@@ -159,7 +159,7 @@ const backends = {
 main: new BarretenbergBackend(circuits.main),
 recursive: new BarretenbergBackend(circuits.recursive)
 }
-const noirs = {
+const noir_programs = {
 main: new Noir(circuits.main, backends.main),
 recursive: new Noir(circuits.recursive, backends.recursive)
 }
@@ -169,7 +169,7 @@ This allows you to neatly call exactly the method you want without conflicting n
 
 ```js
 // Alice runs this 👇
-const { witness: mainWitness } = await noirs.main.execute(input)
+const { witness: mainWitness } = await noir_programs.main.execute(input)
 const proof = await backends.main.generateIntermediateProof(mainWitness)
 
 // Bob runs this 👇
@@ -178,7 +178,7 @@ const { proofAsFields, vkAsFields, vkHash } = await backends.main.generateInterm
     proof,
     numPublicInputs,
 );
-const recursiveProof = await noirs.recursive.generateFinalProof(recursiveInputs)
+const recursiveProof = await noir_programs.recursive.generateFinalProof(recursiveInputs)
 ```
 
 :::

@@ -372,7 +372,7 @@ impl GeneratedAcir {
     /// If `expr` is not zero, then the constraint system will
     /// fail upon verification.
     pub(crate) fn assert_is_zero(&mut self, expr: Expression) {
-        self.push_opcode(AcirOpcode::Arithmetic(expr));
+        self.push_opcode(AcirOpcode::AssertZero(expr));
     }
 
     /// Adds a constraint which ensure thats `witness` is an
@@ -456,7 +456,7 @@ impl GeneratedAcir {
 
         // Constrain the network output to out_expr
         for (b, o) in b.iter().zip(out_expr) {
-            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+            self.push_opcode(AcirOpcode::AssertZero(b - o));
         }
         Ok(())
     }

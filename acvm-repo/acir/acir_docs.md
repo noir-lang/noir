@@ -43,7 +43,7 @@ The values of the witnesses lie in the scalar field of the proving system. We wi
 
 *Remark*: The value of a partial witness is unique and fixed throughout a program execution, although in some rare cases, multiple values are possible for a same execution and witness (when there are several valid solutions to the constraints). Having multiple possible values for a witness may indicate that the circuit is not safe.
 
-*Remark*: Why do we use the term partial witnesses? It is because the proving system may create other constraints and witnesses (especially with BlackBoxFuncCall, see below). A proof refers to a full witness assignements and their constraints. ACIR opcodes and their partial witnesses are still an intermediate representation before getting the full list of constraints and witnesses. For the sake of simplicity, we will refer to witness instead of partial witness from now on.
+*Remark*: Why do we use the term partial witnesses? It is because the proving system may create other constraints and witnesses (especially with BlackBoxFuncCall, see below). A proof refers to a full witness assignments and their constraints. ACIR opcodes and their partial witnesses are still an intermediate representation before getting the full list of constraints and witnesses. For the sake of simplicity, we will refer to witness instead of partial witness from now on.
 
 
 ## ACIR Reference
@@ -55,14 +55,14 @@ Some opcodes are not constrained, which mean they will not be used by the provin
 
 Finally, some opcodes will have a predicate, whose value is 0 or 1. Its purpose is to nullify the opcode when the value is 0, so that it has no effect. Note that removing the opcode is not a solution because this modifies the circuit (the circuit being mainly the list of the opcodes). 
 
-*Remark*: Opcodes operate on witnesses, but we will see that some opcode work on Arithmetic expressions of witnesses. We call an arithmetic expression a linear combination of witnesses and/or products of two witnesses (and also a constant term). A single witness is a (simple) arithmetic expression, and conversly, an arithmetic expression can be turned into a single witness using an arithmetic opcode (see below). So basically, using witnesses or arithmetic expressions is equivalent, but the latter can avoid the creation of witness in some cases.
+*Remark*: Opcodes operate on witnesses, but we will see that some opcode work on expressions of witnesses. We call an expression a linear combination of witnesses and/or products of two witnesses (and also a constant term). A single witness is a (simple) expression, and conversely, an expression can be turned into a single witness using an assert-zero opcode (see below). So basically, using witnesses or expressions is equivalent, but the latter can avoid the creation of witness in some cases.
 
-### Arithmetic opcode
-An arithmetic opcode adds the constraint that P(w) = 0, where w=(w_1,..w_n) is a tuple of n witnesses, and P is a multi-variate polynomial of total degree at most 2.
+### AssertZero opcode
+An AssertZero opcode adds the constraint that P(w) = 0, where w=(w_1,..w_n) is a tuple of n witnesses, and P is a multi-variate polynomial of total degree at most 2.
 The coefficients ${q_M}_{i,j}, q_i,q_c$ of the polynomial are known values which define the opcode.
-A general expression of arithmetic opcode is the following: $\sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i +q_c = 0$
+A general expression of assert-zero opcode is the following: $\sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i +q_c = 0$
 
-An arithmetic opcode can be used to:
+An assert-zero opcode can be used to:
 - **express a constraint** on witnesses; for instance to express that a witness $w$ is a boolean, you can add the opcode:  $w*w-w=0$
 - or, to **compute the value** of an arithmetic operation of some inputs. For instance, to multiply two witnesses $x$ and $y$, you would use the opcode $z-x*y=0$, which would constraint $z$ to be $x*y$.
 
@@ -70,7 +70,7 @@ An arithmetic opcode can be used to:
 The solver expects that at most one witness is not known when executing the opcode.
 
 ### BlackBoxFuncCall opcode
-These opcodes represent a specific computation. Even if any computation can be done using only arithmetic opcodes, it is not always efficient. Some proving systems, and in particular the proving system from Aztec, can implement several computations more efficiently using for instance look-up tables. The BlackBoxFuncCall opcode is used to ask the proving system to handle the computation by itself.
+These opcodes represent a specific computation. Even if any computation can be done using only assert-zero opcodes, it is not always efficient. Some proving systems, and in particular the proving system from Aztec, can implement several computations more efficiently using for instance look-up tables. The BlackBoxFuncCall opcode is used to ask the proving system to handle the computation by itself.
 All black box functions takes as input a tuple (witness, num_bits), where num_bits is a constant representing the bit size of the input witness, and they have one or several witnesses as output.
 Some more advanced computations assume that the proving system has an 'embedded curve'. It is a curve that cycle with the main curve of the proving system, i.e the scalar field of the embedded curve is the base field of the main one, and vice-versa. The curves used by the proving system are dependent on the proving system (and/or its configuration). Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the embedded curve.
 
@@ -91,11 +91,11 @@ input: (witness, bit_size)
 
 **SHA256**: computes sha256 of the inputs
 - inputs are a byte array, i.e a vector of (FieldElement, 8)
-- output is a byte array of len 32, i.e a vector of 32 (FieldElement, 8), constrainted to be the sha256 of the inputs.
+- output is a byte array of len 32, i.e a vector of 32 (FieldElement, 8), constrained to be the sha256 of the inputs.
 
 **Blake2s**: computes the Blake2s hash of the inputs, as specified in https://tools.ietf.org/html/rfc7693
 - inputs are a byte array, i.e a vector of (FieldElement, 8)
-- output is a byte array of length 32, i.e a vector of 32 (FieldElement, 8), constrainted to be the blake2s of the inputs.
+- output is a byte array of length 32, i.e a vector of 32 (FieldElement, 8), constrained to be the blake2s of the inputs.
 
 
 **SchnorrVerify**: Verify a Schnorr signature over the embedded curve
@@ -114,7 +114,7 @@ The proving system decides how the message is to be hashed. Barretenberg uses Bl
 - output: 2 witnesses representing the x,y coordinates of the resulting Grumpkin point
 - domain separator: a constant public value (a field element) that you can use so that the commitment also depends on the domain separator. Noir uses 0 as domain separator.
 
-The backend should handle proper conversion between the inputs being ACIR field elements and the scalar field of the embedded curve. In the case of Aztec's Barretenberg, the latter is bigger than the ACIR field so it is straightforward. The Peredersen generators are managed by the proving system.
+The backend should handle proper conversion between the inputs being ACIR field elements and the scalar field of the embedded curve. In the case of Aztec's Barretenberg, the latter is bigger than the ACIR field so it is straightforward. The Pedersen generators are managed by the proving system.
 
 
 **PedersenHash**: Computes a Pedersen commitments of the inputs and their number, using generators of the embedded curve
@@ -163,7 +163,7 @@ $a=low+high*2^{128},$ with $low, high < 2^{128}$
 - verification_key: Vector of (FieldElement, 254) representing the verification key of the circuit being verified
 - public_inputs: Vector of (FieldElement, 254)  representing the public inputs corresponding to the proof being verified
 - key_hash: one (FieldElement, 254). It should be the hash of the verification key. Barretenberg expects the Pedersen hash of the verification key
-- input_aggregation_object: an optional vector of (FieldElement, 254). It is a blob of data specific to the proving sytem.
+- input_aggregation_object: an optional vector of (FieldElement, 254). It is a blob of data specific to the proving system.
 - output_aggregation_object: Some witnesses returned by the function, representing some data internal to the proving system.
 
 This black box function does not fully verify a proof, what it does is verifying that the key_hash is indeed a hash of verification_key, allowing the user to use the verification key as private inputs and only have the key_hash as public input, which is more performant.
@@ -179,8 +179,8 @@ This opcode is used as a hint for the solver when executing (solving) the circui
 - bytecode: assembly code representing the computation to perform within this opcode. The noir assembly specification is not part of this document.
 - predicate: an arithmetic expression that disable the opcode when it is null.
 
-Let's see an example with euclidian division.
-The normal way to compute a/b, where a and b are 8-bits integers, is to implement Euclid algorithm which computes in a loop (or recursively) modulos of the kind 'a mod b'. Doing this computation requires a lot of steps to be properly implemented in ACIR, especially the loop with a condition. However, euclidian division can be easily constrained with one arithmetic opcode: a = bq+r, assuming q is 8 bits and r<b. Since these assumptions can easily written with a few range opcodes, euclidian division can in fact be implemented with a small number of opcodes.
+Let's see an example with euclidean division.
+The normal way to compute a/b, where a and b are 8-bits integers, is to implement Euclid algorithm which computes in a loop (or recursively) modulus of the kind 'a mod b'. Doing this computation requires a lot of steps to be properly implemented in ACIR, especially the loop with a condition. However, euclidean division can be easily constrained with one assert-zero opcode: a = bq+r, assuming q is 8 bits and r<b. Since these assumptions can easily written with a few range opcodes, euclidean division can in fact be implemented with a small number of opcodes.
 
 However, in order to write these opcodes we need the result of the division which are the witness q and r. But from the constraint a=bq+r, how can the solver figure out how to solve q and r with only one equation? This is where brillig/unconstrained function come into action. We simply define a function that performs the usual Euclid algorithm to compute q and r from a and b. Since Brillig opcode does not generate constraint, it won't be provided to the proving system but simply used by the solver to compute the values of q and r.
 
