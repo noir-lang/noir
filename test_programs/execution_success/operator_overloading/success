@@ -1,0 +1,664 @@
+Initial SSA:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v3 = call f1(v0)
+    v5 = call f1(v1)
+    v7 = call f2(v5, v3, v3, v5)
+    constrain v7 == Field 2
+    return 
+}
+acir fn new f1 {
+  b0(v0: u32):
+    return v0
+}
+acir fn cmp f2 {
+  b0(v0: u32, v1: u32, v2: u32, v3: u32):
+    v5 = call f3(v0, v2)
+    v6 = allocate
+    store v5 at v6
+    v8 = load v6
+    v10 = call f5()
+    v11 = call f4(v8, v10)
+    jmpif v11 then: b1, else: b2
+  b1():
+    v13 = call f3(v1, v3)
+    store v13 at v6
+    jmp b2()
+  b2():
+    v14 = load v6
+    return v14
+}
+acir fn cmp f3 {
+  b0(v0: u32, v1: u32):
+    v3 = call f6(v0, v1)
+    return v3
+}
+acir fn eq f4 {
+  b0(v0: Field, v1: Field):
+    v2 = eq v0, v1
+    return v2
+}
+acir fn equal f5 {
+  b0():
+    return Field 1
+}
+acir fn cmp f6 {
+  b0(v0: u32, v1: u32):
+    v2 = lt v0, v1
+    jmpif v2 then: b1, else: b2
+  b1():
+    v4 = call f7()
+    jmp b3(v4)
+  b3(v11: Field):
+    return v11
+  b2():
+    v5 = lt v1, v0
+    jmpif v5 then: b4, else: b5
+  b4():
+    v7 = call f8()
+    jmp b6(v7)
+  b6(v10: Field):
+    jmp b3(v10)
+  b5():
+    v9 = call f5()
+    jmp b6(v9)
+}
+acir fn less f7 {
+  b0():
+    return Field 0
+}
+acir fn greater f8 {
+  b0():
+    return Field 2
+}
+
+After Defunctionalization:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v3 = call f1(v0)
+    v5 = call f1(v1)
+    v7 = call f2(v5, v3, v3, v5)
+    constrain v7 == Field 2
+    return 
+}
+acir fn new f1 {
+  b0(v0: u32):
+    return v0
+}
+acir fn cmp f2 {
+  b0(v0: u32, v1: u32, v2: u32, v3: u32):
+    v5 = call f3(v0, v2)
+    v6 = allocate
+    store v5 at v6
+    v8 = load v6
+    v10 = call f5()
+    v11 = call f4(v8, v10)
+    jmpif v11 then: b1, else: b2
+  b1():
+    v13 = call f3(v1, v3)
+    store v13 at v6
+    jmp b2()
+  b2():
+    v14 = load v6
+    return v14
+}
+acir fn cmp f3 {
+  b0(v0: u32, v1: u32):
+    v3 = call f6(v0, v1)
+    return v3
+}
+acir fn eq f4 {
+  b0(v0: Field, v1: Field):
+    v2 = eq v0, v1
+    return v2
+}
+acir fn equal f5 {
+  b0():
+    return Field 1
+}
+acir fn cmp f6 {
+  b0(v0: u32, v1: u32):
+    v2 = lt v0, v1
+    jmpif v2 then: b1, else: b2
+  b1():
+    v4 = call f7()
+    jmp b3(v4)
+  b3(v11: Field):
+    return v11
+  b2():
+    v5 = lt v1, v0
+    jmpif v5 then: b4, else: b5
+  b4():
+    v7 = call f8()
+    jmp b6(v7)
+  b6(v10: Field):
+    jmp b3(v10)
+  b5():
+    v9 = call f5()
+    jmp b6(v9)
+}
+acir fn less f7 {
+  b0():
+    return Field 0
+}
+acir fn greater f8 {
+  b0():
+    return Field 2
+}
+
+After Inlining:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v7 = lt v1, v0
+    jmpif v7 then: b1, else: b2
+  b1():
+    jmp b6(Field 0)
+  b6(v12: Field):
+    v17 = allocate
+    store v12 at v17
+    v18 = load v17
+    v21 = eq v18, Field 1
+    jmpif v21 then: b7, else: b8
+  b7():
+    v25 = lt v0, v1
+    jmpif v25 then: b9, else: b10
+  b9():
+    jmp b14(Field 0)
+  b14(v29: Field):
+    store v29 at v17
+    jmp b8()
+  b8():
+    v22 = load v17
+    constrain v22 == Field 2
+    return 
+  b10():
+    v26 = lt v1, v0
+    jmpif v26 then: b11, else: b12
+  b11():
+    jmp b13(Field 2)
+  b13(v28: Field):
+    jmp b14(v28)
+  b12():
+    jmp b13(Field 1)
+  b2():
+    v8 = lt v0, v1
+    jmpif v8 then: b3, else: b4
+  b3():
+    jmp b5(Field 2)
+  b5(v11: Field):
+    jmp b6(v11)
+  b4():
+    jmp b5(Field 1)
+}
+
+After Mem2Reg:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v32 = lt v1, v0
+    jmpif v32 then: b1, else: b2
+  b1():
+    jmp b6(Field 0)
+  b6(v12: Field):
+    v34 = allocate
+    store v12 at v34
+    v36 = eq v12, Field 1
+    jmpif v36 then: b7, else: b8
+  b7():
+    v37 = lt v0, v1
+    jmpif v37 then: b9, else: b10
+  b9():
+    jmp b14(Field 0)
+  b14(v29: Field):
+    store v29 at v34
+    jmp b8()
+  b8():
+    v39 = load v34
+    constrain v39 == Field 2
+    return 
+  b10():
+    v38 = lt v1, v0
+    jmpif v38 then: b11, else: b12
+  b11():
+    jmp b13(Field 2)
+  b13(v28: Field):
+    jmp b14(v28)
+  b12():
+    jmp b13(Field 1)
+  b2():
+    v33 = lt v0, v1
+    jmpif v33 then: b3, else: b4
+  b3():
+    jmp b5(Field 2)
+  b5(v11: Field):
+    jmp b6(v11)
+  b4():
+    jmp b5(Field 1)
+}
+
+After Assert Constant:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v32 = lt v1, v0
+    jmpif v32 then: b1, else: b2
+  b1():
+    jmp b6(Field 0)
+  b6(v12: Field):
+    v34 = allocate
+    store v12 at v34
+    v36 = eq v12, Field 1
+    jmpif v36 then: b7, else: b8
+  b7():
+    v37 = lt v0, v1
+    jmpif v37 then: b9, else: b10
+  b9():
+    jmp b14(Field 0)
+  b14(v29: Field):
+    store v29 at v34
+    jmp b8()
+  b8():
+    v39 = load v34
+    constrain v39 == Field 2
+    return 
+  b10():
+    v38 = lt v1, v0
+    jmpif v38 then: b11, else: b12
+  b11():
+    jmp b13(Field 2)
+  b13(v28: Field):
+    jmp b14(v28)
+  b12():
+    jmp b13(Field 1)
+  b2():
+    v33 = lt v0, v1
+    jmpif v33 then: b3, else: b4
+  b3():
+    jmp b5(Field 2)
+  b5(v11: Field):
+    jmp b6(v11)
+  b4():
+    jmp b5(Field 1)
+}
+
+After Unrolling:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v32 = lt v1, v0
+    jmpif v32 then: b1, else: b2
+  b1():
+    jmp b6(Field 0)
+  b6(v12: Field):
+    v34 = allocate
+    store v12 at v34
+    v36 = eq v12, Field 1
+    jmpif v36 then: b7, else: b8
+  b7():
+    v37 = lt v0, v1
+    jmpif v37 then: b9, else: b10
+  b9():
+    jmp b14(Field 0)
+  b14(v29: Field):
+    store v29 at v34
+    jmp b8()
+  b8():
+    v39 = load v34
+    constrain v39 == Field 2
+    return 
+  b10():
+    v38 = lt v1, v0
+    jmpif v38 then: b11, else: b12
+  b11():
+    jmp b13(Field 2)
+  b13(v28: Field):
+    jmp b14(v28)
+  b12():
+    jmp b13(Field 1)
+  b2():
+    v33 = lt v0, v1
+    jmpif v33 then: b3, else: b4
+  b3():
+    jmp b5(Field 2)
+  b5(v11: Field):
+    jmp b6(v11)
+  b4():
+    jmp b5(Field 1)
+}
+
+After Simplifying:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v32 = lt v1, v0
+    jmpif v32 then: b1, else: b2
+  b1():
+    jmp b6(Field 0)
+  b6(v12: Field):
+    v34 = allocate
+    store v12 at v34
+    v36 = eq v12, Field 1
+    jmpif v36 then: b7, else: b8
+  b7():
+    v37 = lt v0, v1
+    jmpif v37 then: b9, else: b10
+  b9():
+    jmp b14(Field 0)
+  b14(v29: Field):
+    store v29 at v34
+    jmp b8()
+  b8():
+    v39 = load v34
+    constrain v39 == Field 2
+    return 
+  b10():
+    v38 = lt v1, v0
+    jmpif v38 then: b11, else: b12
+  b11():
+    jmp b13(Field 2)
+  b13(v28: Field):
+    jmp b14(v28)
+  b12():
+    jmp b13(Field 1)
+  b2():
+    v33 = lt v0, v1
+    jmpif v33 then: b3, else: b4
+  b3():
+    jmp b5(Field 2)
+  b5(v11: Field):
+    jmp b6(v11)
+  b4():
+    jmp b5(Field 1)
+}
+
+After Mem2Reg:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v41 = lt v1, v0
+    jmpif v41 then: b1, else: b2
+  b1():
+    jmp b6(Field 0)
+  b6(v12: Field):
+    v43 = allocate
+    store v12 at v43
+    v44 = eq v12, Field 1
+    jmpif v44 then: b7, else: b8
+  b7():
+    v45 = lt v0, v1
+    jmpif v45 then: b9, else: b10
+  b9():
+    jmp b14(Field 0)
+  b14(v29: Field):
+    store v29 at v43
+    jmp b8()
+  b8():
+    v47 = load v43
+    constrain v47 == Field 2
+    return 
+  b10():
+    v46 = lt v1, v0
+    jmpif v46 then: b11, else: b12
+  b11():
+    jmp b13(Field 2)
+  b13(v28: Field):
+    jmp b14(v28)
+  b12():
+    jmp b13(Field 1)
+  b2():
+    v42 = lt v0, v1
+    jmpif v42 then: b3, else: b4
+  b3():
+    jmp b5(Field 2)
+  b5(v11: Field):
+    jmp b6(v11)
+  b4():
+    jmp b5(Field 1)
+}
+
+After Flattening:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v41 = lt v1, v0
+    enable_side_effects v41
+    v49 = not v41
+    enable_side_effects v49
+    v51 = lt v0, v1
+    v52 = mul v49, v51
+    enable_side_effects v52
+    v53 = not v51
+    v54 = mul v49, v53
+    enable_side_effects v49
+    v55 = cast v51 as Field
+    v56 = cast v53 as Field
+    v57 = mul v55, Field 2
+    v58 = add v57, v56
+    enable_side_effects u1 1
+    v59 = cast v41 as Field
+    v60 = cast v49 as Field
+    v61 = mul v60, v58
+    v62 = allocate
+    store v61 at v62
+    v63 = eq v61, Field 1
+    enable_side_effects v63
+    v64 = lt v0, v1
+    v65 = mul v63, v64
+    enable_side_effects v65
+    v66 = not v64
+    v67 = mul v63, v66
+    enable_side_effects v67
+    v68 = lt v1, v0
+    v69 = mul v67, v68
+    enable_side_effects v69
+    v70 = not v68
+    v71 = mul v67, v70
+    enable_side_effects v67
+    v72 = cast v68 as Field
+    v73 = cast v70 as Field
+    v74 = mul v72, Field 2
+    v75 = add v74, v73
+    enable_side_effects v63
+    v76 = cast v64 as Field
+    v77 = cast v66 as Field
+    v78 = mul v77, v75
+    v79 = load v62
+    store v78 at v62
+    v80 = not v63
+    store v79 at v62
+    enable_side_effects u1 1
+    v81 = cast v63 as Field
+    v82 = cast v80 as Field
+    v83 = mul v81, v78
+    v84 = mul v82, v79
+    v85 = add v83, v84
+    store v85 at v62
+    v86 = load v62
+    constrain v86 == Field 2
+    return 
+}
+
+After Mem2Reg:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v87 = lt v1, v0
+    enable_side_effects v87
+    v88 = not v87
+    enable_side_effects v88
+    v89 = lt v0, v1
+    v90 = mul v88, v89
+    enable_side_effects v90
+    v91 = not v89
+    v92 = mul v88, v91
+    enable_side_effects v88
+    v93 = cast v89 as Field
+    v94 = cast v91 as Field
+    v95 = mul v93, Field 2
+    v96 = add v95, v94
+    enable_side_effects u1 1
+    v97 = cast v87 as Field
+    v98 = cast v88 as Field
+    v99 = mul v98, v96
+    v100 = allocate
+    v101 = eq v99, Field 1
+    enable_side_effects v101
+    v102 = lt v0, v1
+    v103 = mul v101, v102
+    enable_side_effects v103
+    v104 = not v102
+    v105 = mul v101, v104
+    enable_side_effects v105
+    v106 = lt v1, v0
+    v107 = mul v105, v106
+    enable_side_effects v107
+    v108 = not v106
+    v109 = mul v105, v108
+    enable_side_effects v105
+    v110 = cast v106 as Field
+    v111 = cast v108 as Field
+    v112 = mul v110, Field 2
+    v113 = add v112, v111
+    enable_side_effects v101
+    v114 = cast v102 as Field
+    v115 = cast v104 as Field
+    v116 = mul v115, v113
+    v118 = not v101
+    enable_side_effects u1 1
+    v119 = cast v101 as Field
+    v120 = cast v118 as Field
+    v121 = mul v119, v116
+    v122 = mul v120, v99
+    v123 = add v121, v122
+    constrain v123 == Field 2
+    return 
+}
+
+After Constant Folding:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v125 = lt v1, v0
+    enable_side_effects v125
+    v126 = not v125
+    enable_side_effects v126
+    v127 = lt v0, v1
+    v128 = mul v126, v127
+    enable_side_effects v128
+    v129 = not v127
+    v130 = mul v126, v129
+    enable_side_effects v126
+    v131 = cast v127 as Field
+    v132 = cast v129 as Field
+    v133 = mul v131, Field 2
+    v134 = add v133, v132
+    enable_side_effects u1 1
+    v135 = cast v125 as Field
+    v136 = cast v126 as Field
+    v137 = mul v136, v134
+    v138 = allocate
+    v139 = eq v137, Field 1
+    enable_side_effects v139
+    v140 = mul v139, v127
+    enable_side_effects v140
+    v141 = mul v139, v129
+    enable_side_effects v141
+    v142 = mul v141, v125
+    enable_side_effects v142
+    v143 = mul v141, v126
+    enable_side_effects v141
+    v144 = mul v135, Field 2
+    v145 = add v144, v136
+    enable_side_effects v139
+    v146 = mul v132, v145
+    v147 = not v139
+    enable_side_effects u1 1
+    v148 = cast v139 as Field
+    v149 = cast v147 as Field
+    v150 = mul v148, v146
+    v151 = mul v149, v137
+    v152 = add v150, v151
+    constrain v152 == Field 2
+    return 
+}
+
+After Dead Instruction Elimination:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v125 = lt v1, v0
+    enable_side_effects v125
+    v126 = not v125
+    enable_side_effects v126
+    v127 = lt v0, v1
+    v128 = mul v126, v127
+    enable_side_effects v128
+    v129 = not v127
+    enable_side_effects v126
+    v131 = cast v127 as Field
+    v132 = cast v129 as Field
+    v133 = mul v131, Field 2
+    v134 = add v133, v132
+    enable_side_effects u1 1
+    v135 = cast v125 as Field
+    v136 = cast v126 as Field
+    v137 = mul v136, v134
+    v139 = eq v137, Field 1
+    enable_side_effects v139
+    v140 = mul v139, v127
+    enable_side_effects v140
+    v141 = mul v139, v129
+    enable_side_effects v141
+    v142 = mul v141, v125
+    enable_side_effects v142
+    enable_side_effects v141
+    v144 = mul v135, Field 2
+    v145 = add v144, v136
+    enable_side_effects v139
+    v146 = mul v132, v145
+    v147 = not v139
+    enable_side_effects u1 1
+    v148 = cast v139 as Field
+    v149 = cast v147 as Field
+    v150 = mul v148, v146
+    v151 = mul v149, v137
+    v152 = add v150, v151
+    constrain v152 == Field 2
+    return 
+}
+
+After Fill Internal Slice Dummy Data:
+acir fn main f0 {
+  b0(v0: u32, v1: u32):
+    v153 = lt v1, v0
+    enable_side_effects v153
+    v154 = not v153
+    enable_side_effects v154
+    v155 = lt v0, v1
+    v156 = mul v154, v155
+    enable_side_effects v156
+    v157 = not v155
+    enable_side_effects v154
+    v158 = cast v155 as Field
+    v159 = cast v157 as Field
+    v160 = mul v158, Field 2
+    v161 = add v160, v159
+    enable_side_effects u1 1
+    v162 = cast v153 as Field
+    v163 = cast v154 as Field
+    v164 = mul v163, v161
+    v165 = eq v164, Field 1
+    enable_side_effects v165
+    v166 = mul v165, v155
+    enable_side_effects v166
+    v167 = mul v165, v157
+    enable_side_effects v167
+    v168 = mul v167, v153
+    enable_side_effects v167
+    v169 = mul v162, Field 2
+    v170 = add v169, v163
+    enable_side_effects v165
+    v171 = mul v159, v170
+    v172 = not v165
+    enable_side_effects u1 1
+    v173 = cast v165 as Field
+    v174 = cast v172 as Field
+    v175 = mul v173, v171
+    v176 = mul v174, v164
+    v177 = add v175, v176
+    constrain v177 == Field 2
+    return 
+}
+
+[operator_overloading] Circuit witness successfully solved
