@@ -3,7 +3,7 @@ name: Test Nargo and JS packages
 on:
   push:
     branches:
-      # - 'master'
+      # - 'master' #
       - 'cache-docker-artifacts'
 
 concurrency:
