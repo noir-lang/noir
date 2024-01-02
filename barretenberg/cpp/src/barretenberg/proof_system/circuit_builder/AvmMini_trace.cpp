@@ -567,6 +567,30 @@ void AvmMiniTraceBuilder::halt()
 }
 
 /**
+ * @brief JUMP OPCODE
+ *        Jumps to a new `jmpDest`
+ *        This function must:
+ *          - Set the next program counter to the provided `jmpDest`.
+ *
+ * @param jmpDest - The destination to jump to
+ */
+void AvmMiniTraceBuilder::jump(uint32_t jmpDest)
+{
+    auto clk = mainTrace.size();
+
+    mainTrace.push_back(Row{
+        .avmMini_clk = clk,
+        .avmMini_pc = FF(pc),
+        .avmMini_internal_return_ptr = FF(internal_return_ptr),
+        .avmMini_sel_jump = FF(1),
+        .avmMini_ia = FF(jmpDest),
+    });
+
+    // Adjust parameters for the next row
+    pc = jmpDest;
+}
+
+/**
  * @brief INTERNAL_CALL OPCODE
  *        This opcode effectively jumps to a new `jmpDest` and stores the return program counter
  *        (current program counter + 1) onto a call stack.
@@ -588,7 +612,7 @@ void AvmMiniTraceBuilder::internal_call(uint32_t jmpDest)
     internal_call_stack.push(stored_pc);
 
     // Add the return location to the memory trace
-    storeInMemTrace(IntermRegister::ia, internal_return_ptr, FF(stored_pc), AvmMemoryTag::ff);
+    storeInMemTrace(IntermRegister::ib, internal_return_ptr, FF(stored_pc), AvmMemoryTag::ff);
     memory.at(internal_return_ptr) = stored_pc;
 
     mainTrace.push_back(Row{
@@ -596,10 +620,11 @@ void AvmMiniTraceBuilder::internal_call(uint32_t jmpDest)
         .avmMini_pc = FF(pc),
         .avmMini_internal_return_ptr = FF(internal_return_ptr),
         .avmMini_sel_internal_call = FF(1),
-        .avmMini_ia = stored_pc,
-        .avmMini_mem_op_a = FF(1),
-        .avmMini_rwa = FF(1),
-        .avmMini_mem_idx_a = FF(internal_return_ptr),
+        .avmMini_ia = FF(jmpDest),
+        .avmMini_ib = stored_pc,
+        .avmMini_mem_op_b = FF(1),
+        .avmMini_rwb = FF(1),
+        .avmMini_mem_idx_b = FF(internal_return_ptr),
     });
 
     // Adjust parameters for the next row

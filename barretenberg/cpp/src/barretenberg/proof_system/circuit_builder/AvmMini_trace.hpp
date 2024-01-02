@@ -60,6 +60,9 @@ class AvmMiniTraceBuilder {
     void div(uint32_t aOffset, uint32_t bOffset, uint32_t dstOffset, AvmMemoryTag inTag);
 
     // Jump to a given program counter.
+    void jump(uint32_t jmpDest);
+
+    // Jump to a given program counter; storing the return location on a call stack.
     // TODO(md): this program counter MUST be an operand to the OPCODE.
     void internal_call(uint32_t jmpDest);
 

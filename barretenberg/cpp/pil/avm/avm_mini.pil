@@ -16,6 +16,7 @@ namespace avmMini(256);
     
     pol commit sel_internal_call;
     pol commit sel_internal_return;
+    pol commit sel_jump;
     
     // Halt program execution
     pol commit sel_halt;
@@ -80,6 +81,7 @@ namespace avmMini(256);
 
     sel_internal_call * (1 - sel_internal_call) = 0;
     sel_internal_return * (1 - sel_internal_return) = 0;
+    sel_jump * (1 - sel_jump) = 0;
     sel_halt * (1 - sel_halt) = 0;
 
     op_err * (1 - op_err) = 0;
@@ -147,25 +149,32 @@ namespace avmMini(256);
     // This works in combination with op_div_err * (sel_op_div - 1) = 0;
     // Drawback is the need to paralllelize the latter.
 
+    //===== CONTROL FLOW =======================================================
+    //===== JUMP ===============================================================
+    sel_jump * (pc' - ia) = 0;
 
-    //===== CALL_RETURN ========================================================
-    // The program counter in the next row should be equal to the value loaded from the ia register
-    // This implies that a load from memory must occur at the same time
-    // Imply that we must load the return location into mem_idx_a
+    //===== INTERNAL_CALL ======================================================
+    // - The program counter in the next row should be equal to the value loaded from the ia register
+    // - We then write the return location (pc + 1) into the call stack (in memory)
     
     #[RETURN_POINTER_INCREMENT]
-    sel_internal_call * ( internal_return_ptr' - ( internal_return_ptr + 1)) = 0;
-    sel_internal_call * ( internal_return_ptr - mem_idx_a) = 0;
-    sel_internal_call * ((pc + 1) - ia) = 0;
-    
+    sel_internal_call * (internal_return_ptr' - (internal_return_ptr + 1)) = 0;
+    sel_internal_call * (internal_return_ptr - mem_idx_b) = 0;
+    sel_internal_call * (pc' - ia) = 0;
+    sel_internal_call * ((pc + 1) - ib) = 0;
+
     // TODO(md): Below relations may be removed through sub-op table lookup
-    sel_internal_call * (rwa - 1) = 0;
-    sel_internal_call * (mem_op_a - 1) = 0;
+    sel_internal_call * (rwb - 1) = 0;
+    sel_internal_call * (mem_op_b  - 1) = 0;
     
-    // We must load the memory pointer to be the  internal_return_ptr 
+    //===== INTERNAL_RETURN ===================================================
+    // - We load the memory pointer to be the internal_return_ptr 
+    // - Constrain then next program counter to be the loaded value
+    // - decrement the internal_return_ptr
+
     #[RETURN_POINTER_DECREMENT]
-    sel_internal_return * ( internal_return_ptr' - ( internal_return_ptr - 1)) = 0;
-    sel_internal_return * ( (internal_return_ptr - 1) - mem_idx_a) = 0;
+    sel_internal_return * (internal_return_ptr' - (internal_return_ptr - 1)) = 0;
+    sel_internal_return * ((internal_return_ptr - 1) - mem_idx_a) = 0;
     sel_internal_return * (pc' - ia) = 0;
 
     // TODO(md): Below relations may be removed through sub-op table lookup
@@ -173,7 +182,7 @@ namespace avmMini(256);
     sel_internal_return * (mem_op_a - 1) = 0;
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
-    pol CONTROL_FLOW_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
+    pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
     pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul);
 
     // Program counter must increment if not jumping or returning
@@ -182,7 +191,7 @@ namespace avmMini(256);
 
     // first == 0 && sel_internal_call == 0 && sel_internal_return == 0 && sel_halt == 0 ==> internal_return_ptr == internal_return_ptr'
     #[INTERNAL_RETURN_POINTER_CONSISTENCY]
-    (1 - CONTROL_FLOW_SELECTORS) * (internal_return_ptr' - internal_return_ptr) = 0; 
+    (1 - INTERNAL_CALL_STACK_SELECTORS) * (internal_return_ptr' - internal_return_ptr) = 0; 
 
     // TODO: we want to set an initial number for the reserved memory of the jump pointer
 
