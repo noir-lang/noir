@@ -6,6 +6,11 @@ contract Test {
         AztecAddress,
         EthAddress,
     };
+    // The following import is here in order to make the event macro work because the macro doesn't add the import.
+    // It doesn't add the import because in the future we will re-export all the types via aztec-nr and aztec-nr is
+    // already auto-imported by the macros.
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Remove this once the issue is fixed.
+    use dep::protocol_types;
     // docs:start:unencrypted_import
     use dep::aztec::log::emit_unencrypted_log;
     // docs:end:unencrypted_import
@@ -32,18 +37,17 @@ contract Test {
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
     use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
 
-    // TODO(benesjan) https://github.com/AztecProtocol/aztec-packages/issues/3655
-    // #[event]
-    // struct ExampleEvent {
-    //     value: Field,
-    // }
+    #[event]
+    struct ExampleEvent {
+        value: Field,
+    }
 
     struct Storage {
         example_constant: ImmutableSingleton<FieldNote, FIELD_NOTE_LEN>,
     }
 
     impl Storage {
-        fn init(context: Context) -> pub Self {
+        fn init(context: Context) -> Self {
             Storage {
                 example_constant: ImmutableSingleton::new(context, 1, FieldNoteMethods),
             }
