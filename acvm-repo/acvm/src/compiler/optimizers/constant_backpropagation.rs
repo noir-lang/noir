@@ -63,6 +63,7 @@ impl ConstantBackpropOptimizer {
                     required_witnesses.extend(
                         func_call.get_inputs_vec().into_iter().map(|func_input| func_input.witness),
                     );
+                    required_witnesses.extend(func_call.get_outputs_vec());
                 }
 
                 Opcode::MemoryInit { init, .. } => {
