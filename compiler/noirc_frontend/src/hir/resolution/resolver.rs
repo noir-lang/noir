@@ -239,9 +239,8 @@ impl<'a> Resolver<'a> {
         };
 
         let (hir_func, func_meta) = self.intern_function(NoirFunction { kind, def }, func_id);
-        let func_scope_tree = self.scopes.end_function();
-        self.check_for_unused_variables_in_scope_tree(func_scope_tree);
-
+        let _ = self.scopes.end_function();
+        // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.trait_bounds.clear();
         (hir_func, func_meta)
     }

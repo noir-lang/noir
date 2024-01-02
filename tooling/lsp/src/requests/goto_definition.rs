@@ -1,12 +1,13 @@
 use std::future::{self, Future};
 
+use crate::resolve_workspace_for_source_path;
 use crate::{types::GotoDefinitionResult, LspState};
-use async_lsp::{ErrorCode, LanguageClient, ResponseError};
+use async_lsp::{ErrorCode, ResponseError};
 use fm::codespan_files::Error;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location};
 use lsp_types::{Position, Url};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use nargo::insert_all_files_for_workspace_into_file_manager;
+use noirc_driver::file_manager_with_stdlib;
 
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
@@ -17,79 +18,55 @@ pub(crate) fn on_goto_definition_request(
 }
 
 fn on_goto_definition_inner(
-    state: &mut LspState,
+    _state: &mut LspState,
     params: GotoDefinitionParams,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    let root_path = state.root_path.as_deref().ok_or_else(|| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find project root")
-    })?;
-
     let file_path =
         params.text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let toml_path = match find_package_manifest(root_path, &file_path) {
-        Ok(toml_path) => toml_path,
-        Err(err) => {
-            let _ = state.client.log_message(lsp_types::LogMessageParams {
-                typ: lsp_types::MessageType::WARNING,
-                message: err.to_string(),
-            });
-            return Ok(None);
-        }
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let package = workspace.members.first().unwrap();
+
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
+    let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
+
+    // We ignore the warnings and errors produced by compilation while resolving the definition
+    let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+
+    let files = context.file_manager.as_file_map();
+    let file_id = context.file_manager.name_to_id(file_path.clone()).ok_or(ResponseError::new(
+        ErrorCode::REQUEST_FAILED,
+        format!("Could not find file in file manager. File path: {:?}", file_path),
+    ))?;
+
+    let byte_index =
+        position_to_byte_index(files, file_id, &params.text_document_position_params.position)
+            .map_err(|err| {
+                ResponseError::new(
+                    ErrorCode::REQUEST_FAILED,
+                    format!("Could not convert position to byte index. Error: {:?}", err),
+                )
+            })?;
+
+    let search_for_location = noirc_errors::Location {
+        file: file_id,
+        span: noirc_errors::Span::single_char(byte_index as u32),
     };
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        PackageSelection::All,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )
-    .map_err(|err| {
-        // If we found a manifest, but the workspace is invalid, we raise an error about it
-        ResponseError::new(ErrorCode::REQUEST_FAILED, err)
-    })?;
 
-    let mut definition_position = None;
+    let goto_definition_response =
+        context.get_definition_location_from(search_for_location).and_then(|found_location| {
+            let file_id = found_location.file;
+            let definition_position = to_lsp_location(files, file_id, found_location.span)?;
+            let response: GotoDefinitionResponse =
+                GotoDefinitionResponse::from(definition_position).to_owned();
+            Some(response)
+        });
 
-    for package in &workspace {
-        let (mut context, crate_id) =
-            nargo::prepare_package(package, Box::new(crate::get_non_stdlib_asset));
-
-        // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
-
-        let files = context.file_manager.as_file_map();
-        let file_id = context.file_manager.name_to_id(file_path.clone());
-
-        if let Some(file_id) = file_id {
-            let byte_index = position_to_byte_index(
-                files,
-                file_id,
-                &params.text_document_position_params.position,
-            );
-
-            if let Ok(byte_index) = byte_index {
-                let search_for_location = noirc_errors::Location {
-                    file: file_id,
-                    span: noirc_errors::Span::single_char(byte_index as u32),
-                };
-                let found_location = context.get_definition_location_from(search_for_location);
-
-                if let Some(found_location) = found_location {
-                    let file_id = found_location.file;
-                    definition_position = to_lsp_location(files, file_id, found_location.span);
-                }
-            }
-        }
-    }
-
-    if let Some(definition_position) = definition_position {
-        let response: GotoDefinitionResponse =
-            GotoDefinitionResponse::from(definition_position).to_owned();
-        Ok(Some(response))
-    } else {
-        Ok(None)
-    }
+    Ok(goto_definition_response)
 }
 
 fn to_lsp_location<'a, F>(

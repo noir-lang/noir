@@ -38,6 +38,7 @@ impl DebugInfo {
     /// The [`OpcodeLocation`]s are generated with the ACIR, but passing the ACIR through a transformation step
     /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
+    #[tracing::instrument(level = "trace", skip(self, update_map))]
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
         let old_locations = mem::take(&mut self.locations);
 

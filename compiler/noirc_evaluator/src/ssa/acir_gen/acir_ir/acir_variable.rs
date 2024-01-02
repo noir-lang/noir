@@ -368,9 +368,34 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
-        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-        let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
-        Ok(outputs[0])
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        if lhs_expr == rhs_expr {
+            // x ^ x == 0
+            let zero = self.add_constant(FieldElement::zero());
+            return Ok(zero);
+        } else if lhs_expr.is_zero() {
+            // 0 ^ x == x
+            return Ok(rhs);
+        } else if rhs_expr.is_zero() {
+            // x ^ 0 == x
+            return Ok(lhs);
+        }
+
+        let bit_size = typ.bit_size();
+        if bit_size == 1 {
+            // Operands are booleans.
+            //
+            // a ^ b == a + b - 2*a*b
+            let sum = self.add_var(lhs, rhs)?;
+            let prod = self.mul_var(lhs, rhs)?;
+            self.add_mul_var(sum, -FieldElement::from(2_i128), prod)
+        } else {
+            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+            Ok(outputs[0])
+        }
     }
 
     /// Returns an `AcirVar` that is the AND result of `lhs` & `rhs`.
@@ -380,6 +405,18 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        if lhs_expr == rhs_expr {
+            // x & x == x
+            return Ok(lhs);
+        } else if lhs_expr.is_zero() || rhs_expr.is_zero() {
+            // x & 0 == 0 and 0 & x == 0
+            let zero = self.add_constant(FieldElement::zero());
+            return Ok(zero);
+        }
+
         let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans.
@@ -398,6 +435,16 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+        if lhs_expr.is_zero() {
+            // 0 | x == x
+            return Ok(rhs);
+        } else if rhs_expr.is_zero() {
+            // x | 0 == x
+            return Ok(lhs);
+        }
+
         let bit_size = typ.bit_size();
         if bit_size == 1 {
             // Operands are booleans
@@ -413,9 +460,8 @@ impl AcirContext {
             let max = self.add_constant((1_u128 << bit_size) - 1);
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
-            let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-            self.sub_var(max, outputs[0])
+            let a_and_b = self.and_var(a, b, typ)?;
+            self.sub_var(max, a_and_b)
         }
     }
 
@@ -487,8 +533,19 @@ impl AcirContext {
         let lhs_data = self.vars[&lhs].clone();
         let rhs_data = self.vars[&rhs].clone();
         let result = match (lhs_data, rhs_data) {
+            // (x * 1) == (1 * x) == x
+            (AcirVarData::Const(constant), _) if constant.is_one() => rhs,
+            (_, AcirVarData::Const(constant)) if constant.is_one() => lhs,
+
+            // (x * 0) == (0 * x) == 0
+            (AcirVarData::Const(constant), _) | (_, AcirVarData::Const(constant))
+                if constant.is_zero() =>
+            {
+                self.add_constant(FieldElement::zero())
+            }
+
             (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
-                self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
+                self.add_constant(lhs_constant * rhs_constant)
             }
             (AcirVarData::Witness(witness), AcirVarData::Const(constant))
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
@@ -852,9 +909,7 @@ impl AcirContext {
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
-        let sign_sum = self.add_var(lhs_leading, rhs_leading)?;
-        let sign_prod = self.mul_var(lhs_leading, rhs_leading)?;
-        let q_sign = self.add_mul_var(sign_sum, -FieldElement::from(2_i128), sign_prod)?;
+        let q_sign = self.xor_var(lhs_leading, rhs_leading, AcirType::unsigned(1))?;
 
         let quotient = self.two_complement(q1, q_sign, bit_size)?;
         let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
@@ -936,6 +991,58 @@ impl AcirContext {
         Ok(remainder)
     }
 
+    /// Returns an 'AcirVar' containing the boolean value lhs<rhs, assuming lhs and rhs are signed integers of size bit_count.
+    /// Like in the unsigned case, we compute the difference diff = lhs-rhs+2^n (and we avoid underflow)
+    /// The result depends on the diff and the signs of the inputs:
+    /// If same sign, lhs<rhs <=> diff<2^n, because the 2-complement representation keeps the ordering (e.g in 8 bits -1 is 255 > -2 = 254)
+    /// If not, lhs positive => diff > 2^n
+    /// and lhs negative => diff <= 2^n => diff < 2^n (because signs are not the same, so lhs != rhs and so diff != 2^n)
+    pub(crate) fn less_than_signed(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        bit_count: u32,
+    ) -> Result<AcirVar, RuntimeError> {
+        let pow_last = self.add_constant(FieldElement::from(1_u128 << (bit_count - 1)));
+        let pow = self.add_constant(FieldElement::from(1_u128 << (bit_count)));
+
+        // We check whether the inputs have same sign or not by computing the XOR of their bit sign
+
+        // Predicate is always active as `pow_last` is known to be non-zero.
+        let one = self.add_constant(1_u128);
+        let lhs_sign = self.div_var(
+            lhs,
+            pow_last,
+            AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
+            one,
+        )?;
+        let rhs_sign = self.div_var(
+            rhs,
+            pow_last,
+            AcirType::NumericType(NumericType::Unsigned { bit_size: bit_count }),
+            one,
+        )?;
+        let same_sign = self.xor_var(
+            lhs_sign,
+            rhs_sign,
+            AcirType::NumericType(NumericType::Signed { bit_size: 1 }),
+        )?;
+
+        // We compute the input difference
+        let no_underflow = self.add_var(lhs, pow)?;
+        let diff = self.sub_var(no_underflow, rhs)?;
+
+        // We check the 'bit sign' of the difference
+        let diff_sign = self.less_than_var(diff, pow, bit_count + 1)?;
+
+        // Then the result is simply diff_sign XOR same_sign (can be checked with a truth table)
+        self.xor_var(
+            diff_sign,
+            same_sign,
+            AcirType::NumericType(NumericType::Signed { bit_size: 1 }),
+        )
+    }
+
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
     /// and `0` otherwise.
     pub(crate) fn more_than_eq_var(
@@ -943,7 +1050,6 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         max_bits: u32,
-        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         // Returns a `Witness` that is constrained to be:
         // - `1` if lhs >= rhs
@@ -968,6 +1074,7 @@ impl AcirContext {
         //
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < FieldElement::max_num_bits());
+
         let two_max_bits = self
             .add_constant(FieldElement::from(2_i128).pow(&FieldElement::from(max_bits as i128)));
         let diff = self.sub_var(lhs, rhs)?;
@@ -997,13 +1104,11 @@ impl AcirContext {
         //   let k = b - a
         // - 2^{max_bits} - k == q * 2^{max_bits} + r
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
-        //
-        let (q, _) = self.euclidean_division_var(
-            comparison_evaluation,
-            two_max_bits,
-            max_bits + 1,
-            predicate,
-        )?;
+
+        // Predicate is always active as we know `two_max_bits` is always non-zero.
+        let one = self.add_constant(1_u128);
+        let (q, _) =
+            self.euclidean_division_var(comparison_evaluation, two_max_bits, max_bits + 1, one)?;
         Ok(q)
     }
 
@@ -1014,11 +1119,10 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
-        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, predicate)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
 
         let one = self.add_constant(FieldElement::one());
         self.sub_var(one, comparison) // comparison_negated
@@ -1414,7 +1518,7 @@ impl AcirContext {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
-        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, predicate)?;
+        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size)?;
         self.maybe_eq_predicate(lhs_less_than_rhs, predicate)
     }
 
@@ -1605,28 +1709,40 @@ fn execute_brillig(
             _signature: &[u8],
             _message: &[u8],
         ) -> Result<bool, BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::SchnorrVerify))
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::SchnorrVerify,
+                "SchnorrVerify is not supported".to_string(),
+            ))
         }
         fn pedersen_commitment(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenCommitment))
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::PedersenCommitment,
+                "PedersenCommitment is not supported".to_string(),
+            ))
         }
         fn pedersen_hash(
             &self,
             _inputs: &[FieldElement],
             _domain_separator: u32,
         ) -> Result<FieldElement, BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::PedersenHash))
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::PedersenHash,
+                "PedersenHash is not supported".to_string(),
+            ))
         }
         fn fixed_base_scalar_mul(
             &self,
             _low: &FieldElement,
             _high: &FieldElement,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::FixedBaseScalarMul))
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::FixedBaseScalarMul,
+                "FixedBaseScalarMul is not supported".to_string(),
+            ))
         }
     }
 

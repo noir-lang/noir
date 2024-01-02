@@ -21,7 +21,6 @@ mod test {
     use crate::hir::Context;
     use crate::node_interner::{NodeInterner, StmtId};
 
-    use crate::graph::CrateGraph;
     use crate::hir::def_collector::dc_crate::DefCollector;
     use crate::hir_def::expr::HirExpression;
     use crate::hir_def::stmt::HirStatement;
@@ -48,23 +47,12 @@ mod test {
         });
     }
 
-    /// Many of the tests in this file have odd unused variable warnings which do not occur
-    /// when running an identical program using `nargo execute`. They're filtered out of the
-    /// errors returned by `get_errors` for now.
-    pub(crate) fn remove_unused_variable_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
-        errors.retain(|(error, _)| {
-            !matches!(error, CompilationError::ResolverError(ResolverError::UnusedVariable { .. }))
-        });
-    }
-
     pub(crate) fn get_program(
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
-        let fm = FileManager::new(root, Box::new(|path| std::fs::read_to_string(path)));
-        //let fm = FileManager::new(root,  Box::new(get_non_stdlib_asset));
-        let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let fm = FileManager::new(root);
+        let mut context = Context::new(fm);
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
         let (program, parser_errors) = parse_program(src);
@@ -97,9 +85,7 @@ mod test {
     }
 
     pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-        let (_program, _context, mut errors) = get_program(src);
-        remove_unused_variable_warnings(&mut errors);
-        errors
+        get_program(src).2
     }
 
     #[test]
@@ -797,7 +783,7 @@ mod test {
             }
         "#;
 
-        let (_, _, errors) = get_program(src);
+        let errors = get_program_errors(src);
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         // It should be regarding the unused variable
         match &errors[0].0 {
@@ -874,7 +860,7 @@ mod test {
             }
         "#;
 
-        let (_, _, errors) = get_program(src);
+        let errors = get_program_errors(src);
         assert!(errors.len() == 3, "Expected 3 errors, got: {:?}", errors);
 
         // Errors are:

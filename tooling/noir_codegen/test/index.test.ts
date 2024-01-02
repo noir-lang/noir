@@ -2,11 +2,17 @@ import { expect } from 'chai';
 import { assert_lt, MyStruct, u64 } from './codegen/index.js';
 
 it('codegens a callable function', async () => {
+  const my_struct = { foo: true, bar: ['12345', '12345', '12345'] };
+
   const [sum, constant, struct]: [u64, u64, MyStruct] = await assert_lt(
     '2',
     '3',
     [0, 0, 0, 0, 0],
-    { foo: true, bar: ['12345', '12345', '12345'] },
+    {
+      foo: my_struct,
+      bar: [my_struct, my_struct, my_struct],
+      baz: '64',
+    },
     '12345',
   );
 
