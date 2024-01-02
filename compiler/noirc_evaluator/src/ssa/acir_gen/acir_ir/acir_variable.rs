@@ -530,8 +530,19 @@ impl AcirContext {
         let lhs_data = self.vars[&lhs].clone();
         let rhs_data = self.vars[&rhs].clone();
         let result = match (lhs_data, rhs_data) {
+            // (x * 1) == (1 * x) == x
+            (AcirVarData::Const(constant), _) if constant.is_one() => rhs,
+            (_, AcirVarData::Const(constant)) if constant.is_one() => lhs,
+
+            // (x * 0) == (0 * x) == 0
+            (AcirVarData::Const(constant), _) | (_, AcirVarData::Const(constant))
+                if constant.is_zero() =>
+            {
+                self.add_constant(FieldElement::zero())
+            }
+
             (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
-                self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
+                self.add_constant(lhs_constant * rhs_constant)
             }
             (AcirVarData::Witness(witness), AcirVarData::Const(constant))
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
