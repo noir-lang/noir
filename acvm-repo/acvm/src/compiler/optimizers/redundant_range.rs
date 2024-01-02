@@ -63,12 +63,11 @@ impl RangeOptimizer {
                         if witness_value.is_zero() {
                             Some((witness, 0))
                         } else {
-                        // We subtract off 1 bit from the implied witness value to give the weakest range constraint
-                        // which would be stricter than the constraint imposed by this opcode.
-                        let implied_range_constraint_bits = witness_value.num_bits() - 1;
-                        Some((witness, implied_range_constraint_bits))
+                            // We subtract off 1 bit from the implied witness value to give the weakest range constraint
+                            // which would be stricter than the constraint imposed by this opcode.
+                            let implied_range_constraint_bits = witness_value.num_bits() - 1;
+                            Some((witness, implied_range_constraint_bits))
                         }
-                      
                     } else {
                         None
                     }
