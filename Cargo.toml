@@ -28,36 +28,35 @@ members = [
     "acvm-repo/acir",
     "acvm-repo/acvm",
     "acvm-repo/acvm_js",
-    "acvm-repo/stdlib",
     "acvm-repo/brillig",
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
-    "acvm-repo/barretenberg_blackbox_solver",
+    "acvm-repo/bn254_blackbox_solver",
 ]
 default-members = ["tooling/nargo_cli"]
 resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.20.0"
+version = "0.22.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.71.1"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.37.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.37.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.37.0", path = "acvm-repo/acvm" }
-stdlib = { version = "0.37.0", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
-brillig = { version = "0.37.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.37.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.37.0", path = "acvm-repo/blackbox_solver", default-features = false }
-barretenberg_blackbox_solver = { version = "0.37.0", path = "acvm-repo/barretenberg_blackbox_solver", default-features = false }
+acir_field = { version = "0.38.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.38.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.38.0", path = "acvm-repo/acvm" }
+stdlib = { version = "0.37.1", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
+brillig = { version = "0.38.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.38.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.38.0", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "0.38.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 arena = { path = "compiler/utils/arena" }
@@ -94,6 +93,8 @@ gloo-utils = { version = "0.1", features = ["serde"] }
 js-sys = "0.3.62"
 getrandom = "0.2"
 
+# Debugger
+dap = "0.4.1-alpha1"
 
 cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive", "env"] }
@@ -120,10 +121,12 @@ const_format = "0.2.30"
 num-bigint = "0.4"
 num-traits = "0.2"
 similar-asserts = "1.5.0"
-log = "0.4.17"
 tempfile = "3.6.0"
+jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
 
 tracing = "0.1.40"
+tracing-web = "0.1.3"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.

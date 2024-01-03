@@ -10,8 +10,8 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
-use self::{arithmetic::ArithmeticSolver, directives::solve_directives, memory_op::MemoryOpSolver};
-use crate::{BlackBoxFunctionSolver, Language};
+use self::{arithmetic::ExpressionSolver, directives::solve_directives, memory_op::MemoryOpSolver};
+use crate::BlackBoxFunctionSolver;
 
 use thiserror::Error;
 
@@ -69,8 +69,8 @@ pub enum StepResult<'a, B: BlackBoxFunctionSolver> {
 // The most common being that one of its input has not been
 // assigned a value.
 //
-// TODO: ExpressionHasTooManyUnknowns is specific for arithmetic expressions
-// TODO: we could have a error enum for arithmetic failure cases in that module
+// TODO: ExpressionHasTooManyUnknowns is specific for expression solver
+// TODO: we could have a error enum for expression solver failure cases in that module
 // TODO that can be converted into an OpcodeNotSolvable or OpcodeResolutionError enum
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum OpcodeNotSolvable {
@@ -104,8 +104,6 @@ impl std::fmt::Display for ErrorLocation {
 pub enum OpcodeResolutionError {
     #[error("Cannot solve opcode: {0}")]
     OpcodeNotSolvable(#[from] OpcodeNotSolvable),
-    #[error("Backend does not currently support the {0} opcode. ACVM does not currently have a fallback for this opcode.")]
-    UnsupportedBlackBoxFunc(BlackBoxFunc),
     #[error("Cannot satisfy constraint")]
     UnsatisfiedConstrain { opcode_location: ErrorLocation },
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
@@ -121,9 +119,6 @@ impl From<BlackBoxResolutionError> for OpcodeResolutionError {
         match value {
             BlackBoxResolutionError::Failed(func, reason) => {
                 OpcodeResolutionError::BlackBoxFunctionFailed(func, reason)
-            }
-            BlackBoxResolutionError::Unsupported(func) => {
-                OpcodeResolutionError::UnsupportedBlackBoxFunc(func)
             }
         }
     }
@@ -258,7 +253,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         let opcode = &self.opcodes[self.instruction_pointer];
 
         let resolution = match opcode {
-            Opcode::Arithmetic(expr) => ArithmeticSolver::solve(&mut self.witness_map, expr),
+            Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
             Opcode::BlackBoxFuncCall(bb_func) => {
                 blackbox::solve(self.backend, &mut self.witness_map, bb_func)
             }
@@ -402,7 +397,7 @@ pub fn get_value(
     expr: &Expression,
     initial_witness: &WitnessMap,
 ) -> Result<FieldElement, OpcodeResolutionError> {
-    let expr = ArithmeticSolver::evaluate(expr, initial_witness);
+    let expr = ExpressionSolver::evaluate(expr, initial_witness);
     match expr.to_const() {
         Some(value) => Ok(value),
         None => Err(OpcodeResolutionError::OpcodeNotSolvable(
@@ -448,32 +443,5 @@ fn any_witness_from_expression(expr: &Expression) -> Option<Witness> {
         }
     } else {
         Some(expr.linear_combinations[0].1)
-    }
-}
-
-#[deprecated(
-    note = "For backwards compatibility, this method allows you to derive _sensible_ defaults for opcode support based on the np language. \n Backends should simply specify what they support."
-)]
-// This is set to match the previous functionality that we had
-// Where we could deduce what opcodes were supported
-// by knowing the np complete language
-pub fn default_is_opcode_supported(language: Language) -> fn(&Opcode) -> bool {
-    // R1CS does not support any of the opcode except Arithmetic by default.
-    // The compiler will replace those that it can -- ie range, xor, and
-    fn r1cs_is_supported(opcode: &Opcode) -> bool {
-        matches!(opcode, Opcode::Arithmetic(_))
-    }
-
-    // PLONK supports most of the opcodes by default
-    // The ones which are not supported, the acvm compiler will
-    // attempt to transform into supported opcodes. If these are also not available
-    // then a compiler error will be emitted.
-    fn plonk_is_supported(_opcode: &Opcode) -> bool {
-        true
-    }
-
-    match language {
-        Language::R1CS => r1cs_is_supported,
-        Language::PLONKCSat { .. } => plonk_is_supported,
     }
 }

@@ -6,7 +6,7 @@ use acir::{
     FieldElement,
 };
 
-use super::{arithmetic::ArithmeticSolver, get_value, insert_value, witness_to_value};
+use super::{arithmetic::ExpressionSolver, get_value, insert_value, witness_to_value};
 use super::{ErrorLocation, OpcodeResolutionError};
 
 type MemoryIndex = u32;
@@ -75,7 +75,7 @@ impl MemoryOpSolver {
         //
         // In read operations, this corresponds to the witness index at which the value from memory will be written.
         // In write operations, this corresponds to the expression which will be written to memory.
-        let value = ArithmeticSolver::evaluate(&op.value, initial_witness);
+        let value = ExpressionSolver::evaluate(&op.value, initial_witness);
 
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();

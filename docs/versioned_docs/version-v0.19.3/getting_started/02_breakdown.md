@@ -39,7 +39,7 @@ Example Nargo.toml:
 
 ```toml
 [package]
-name = "noirstarter"
+name = "noir_starter'"
 type = "bin"
 authors = ["Alice"]
 compiler_version = "0.9.0"

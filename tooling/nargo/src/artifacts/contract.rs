@@ -14,8 +14,6 @@ pub struct PreprocessedContract {
     pub noir_version: String,
     /// The name of the contract.
     pub name: String,
-    /// The identifier of the proving backend which this contract has been compiled for.
-    pub backend: String,
     /// Each of the contract's functions are compiled into a separate program stored in this `Vec`.
     pub functions: Vec<PreprocessedContractFunction>,
     /// All the events defined inside the contract scope.

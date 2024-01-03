@@ -156,6 +156,7 @@ impl AcirValue {
 }
 
 impl Ssa {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn into_acir(
         self,
         brillig: Brillig,
@@ -1569,12 +1570,12 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self.acir_context.less_than_var(
-                lhs,
-                rhs,
-                bit_count,
-                self.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Lt => match binary_type {
+                AcirType::NumericType(NumericType::Signed { .. }) => {
+                    self.acir_context.less_than_signed(lhs, rhs, bit_count)
+                }
+                _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
+            },
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
@@ -2135,19 +2136,11 @@ impl Context {
                     let current_index = self.acir_context.add_constant(i);
 
                     // Check that we are above the lower bound of the insertion index
-                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(
-                        current_index,
-                        flat_user_index,
-                        64,
-                        self.current_side_effects_enabled_var,
-                    )?;
+                    let greater_eq_than_idx =
+                        self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
                     // Check that we are below the upper bound of the insertion index
-                    let less_than_idx = self.acir_context.less_than_var(
-                        current_index,
-                        max_flat_user_index,
-                        64,
-                        self.current_side_effects_enabled_var,
-                    )?;
+                    let less_than_idx =
+                        self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?;
 
                     // Read from the original slice the value we want to insert into our new slice.
                     // We need to make sure that we read the previous element when our current index is greater than insertion index.
@@ -2322,7 +2315,6 @@ impl Context {
                             current_index,
                             flat_user_index,
                             64,
-                            self.current_side_effects_enabled_var,
                         )?;
 
                         let shifted_value_pred =
