@@ -274,9 +274,9 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
 
 pub(crate) fn preprocess_program(program: CompiledProgram) -> CompileResult {
     let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug],
-        file_map: program.file_map,
-        warnings: program.warnings,
+        debug_symbols: vec![program.debug.clone()],
+        file_map: program.file_map.clone(),
+        warnings: program.warnings.clone(),
     };
 
     CompileResult::Program { program: program.into(), debug: debug_artifact }
