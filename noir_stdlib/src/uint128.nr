@@ -5,6 +5,23 @@ struct U128 {
     hi: Field,
 }
 
+trait Add {
+    fn add(self, other: Self) -> Self;
+}
+trait Sub {
+    fn sub(self, other: Self) -> Self;
+}
+trait Mul {
+    fn mul(self, other: Self) -> Self;
+}
+trait Div {
+    fn div(self, other: Self) -> Self;
+}
+trait Eq {
+    fn eq(self, other: Self) -> bool;
+}
+
+
 impl U128 {
 
     pub fn new(lo: u64, hi: u64) -> U128 {
@@ -90,8 +107,42 @@ impl U128 {
             
         } as Field
     }
+   
+    pub fn less_than(self: Self, b: U128) -> bool {
+        if self.hi == b.hi {
+            self.lo as u64 < b.lo as u64
+        } else {
+            self.hi as u64 < b.hi as u64
+        }
+    }
 
+    unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
+        if self.less_than(b) {
+            (U128::new(0, 0), self)
+        } else {
+            //TODO check if this can overflow?
+            let (q,r) = self.unconstrained_div(b.mul(U128::new(2,0)));
+            if r.less_than(b) {
+                (q.mul(U128::new(2,0)), r)
+            } else {
+                (q.mul(U128::new(2,0)).add(U128::new(1,0)), r.sub(b))
+            }
 
+        }  
+    }
+
+    pub fn from_integer<T>(i: T) -> U128 {
+        let f = crate::as_field(i);
+        let lo = f as u64 as Field;
+        let hi = (f-lo ) / pow64;
+        U128 {
+            lo,
+            hi,
+        }
+    }
+}
+
+impl Add for U128 {
     pub fn add(self: Self, b: U128) -> U128 {
         let low = self.lo + b.lo;
         let lo = low as u64 as Field;
@@ -104,7 +155,9 @@ impl U128 {
             hi,
         }
     }
+}
 
+impl Sub for U128 {
     pub fn sub(self: Self, b: U128) -> U128 {
         let low = pow64 + self.lo - b.lo;
         let lo = low as u64 as Field;
@@ -117,7 +170,9 @@ impl U128 {
             hi,
         }
     }
+}
 
+impl Mul for U128 {
     pub fn mul(self: Self, b: U128) -> U128 {
         assert(self.hi*b.hi == 0, "attempt to multiply with overflow");
         let low = self.lo*b.lo;
@@ -135,36 +190,21 @@ impl U128 {
             hi,
         }
     }
-   
-    pub fn less_than(self: Self, b: U128) -> bool {
-        if self.hi == b.hi {
-            self.lo as u64 < b.lo as u64
-        } else {
-            self.hi as u64 < b.hi as u64
-        }
-    }
+}
 
-    pub fn div(self: Self, b: U128) -> (U128, U128) {
+impl Div for U128 {
+    pub fn div(self: Self, b: U128) -> U128 {
         let (q,r) = self.unconstrained_div(b);
         let a = b.mul(q).add(r);
         assert(self.lo == a.lo);
         assert(self.hi == a.hi);
         assert(r.less_than(b));
-        (q,r)
+        q
     }
+}
 
-    unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
-        if self.less_than(b) {
-            (U128::new(0, 0), self)
-        } else {
-            //TODO check if this can overflow?
-            let (q,r) = self.unconstrained_div(b.mul(U128::new(2,0)));
-            if r.less_than(b) {
-                (q.mul(U128::new(2,0)), r)
-            } else {
-                (q.mul(U128::new(2,0)).add(U128::new(1,0)), r.sub(b))
-            }
-
-        }  
+impl Eq for U128 {
+    pub fn eq(self: Self, b: U128) -> bool {
+        (self.lo == b.lo) & (self.hi == b.hi)
     }
 }
