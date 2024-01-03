@@ -1,16 +1,20 @@
+use nargo::errors::CompileError;
+use noirc_errors::FileDiagnostic;
+use rayon::prelude::*;
+
 use fm::FileManager;
-use iter_extended::vecmap;
+use iter_extended::try_vecmap;
 use nargo::artifacts::program::PreprocessedProgram;
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::compile_no_check;
-use noirc_driver::file_manager_with_stdlib;
-use noirc_driver::CompileOptions;
-use noirc_driver::CompiledProgram;
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{
+    compile_no_check, file_manager_with_stdlib, CompileOptions, CompiledProgram,
+    NOIR_ARTIFACT_VERSION_STRING,
+};
+
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
@@ -20,6 +24,7 @@ use crate::errors::CliError;
 
 use super::check_cmd::check_crate_and_report_errors;
 
+use super::compile_cmd::report_errors;
 use super::fs::program::save_program_to_file;
 use super::NargoConfig;
 
@@ -60,14 +65,12 @@ pub(crate) fn run(
     let library_packages: Vec<_> =
         workspace.into_iter().filter(|package| package.is_library()).collect();
 
-    compile_program(
-        &workspace_file_manager,
-        &workspace,
-        library_packages[0],
-        &args.compile_options,
-    )?;
-
-    Ok(())
+    library_packages
+        .par_iter()
+        .map(|package| {
+            compile_program(&workspace_file_manager, &workspace, package, &args.compile_options)
+        })
+        .collect()
 }
 
 fn compile_program(
@@ -87,13 +90,23 @@ fn compile_program(
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
-    let exported_programs =
-        vecmap(exported_functions, |(function_name, function_id)| -> (String, CompiledProgram) {
+    let exported_programs = try_vecmap(
+        exported_functions,
+        |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
+            // TODO: We should to refactor how to deal with compilation errors to avoid this.
             let program = compile_no_check(&context, compile_options, function_id, None, false)
-                .expect("heyooo");
+                .map_err(|error| vec![FileDiagnostic::from(error)]);
 
-            (function_name, program)
-        });
+            let program = report_errors(
+                program.map(|program| (program, Vec::new())),
+                file_manager,
+                compile_options.deny_warnings,
+                compile_options.silence_warnings,
+            )?;
+
+            Ok((function_name, program))
+        },
+    )?;
 
     let export_dir = workspace.target_directory_path().parent().unwrap().join("export");
     for (function_name, program) in exported_programs {
