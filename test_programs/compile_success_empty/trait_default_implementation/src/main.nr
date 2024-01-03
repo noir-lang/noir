@@ -1,12 +1,11 @@
 use dep::std;
 
-trait Default {
-    fn default(x: Field, y: Field) -> Self;
+trait MyDefault {
+    fn my_default(x: Field, y: Field) -> Self;
 
     fn method2(x: Field) -> Field {
-	x
+	    x
     }
-
 }
 
 struct Foo {
@@ -14,8 +13,8 @@ struct Foo {
     array: [Field; 2],
 }
 
-impl Default for Foo {
-    fn default(x: Field,y: Field) -> Self {
+impl MyDefault for Foo {
+    fn my_default(x: Field,y: Field) -> Self {
         Self { bar: x, array: [x,y] }
     }
 }

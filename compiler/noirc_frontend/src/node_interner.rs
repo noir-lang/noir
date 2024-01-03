@@ -21,8 +21,8 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
-    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
+    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -109,6 +109,12 @@ pub struct NodeInterner {
     /// an Assumed (but verified) impl. In this case the monomorphizer should have
     /// the context to get the concrete type of the object and select the correct impl itself.
     selected_trait_implementations: HashMap<ExprId, TraitImplKind>,
+
+    /// Holds the trait ids of the traits used for operator overloading
+    operator_traits: HashMap<BinaryOpKind, TraitId>,
+
+    /// The `Ordering` type is a semi-builtin type that is the result of the comparison traits.
+    ordering_type: Option<Type>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -423,6 +429,8 @@ impl Default for NodeInterner {
             trait_implementations: Vec::new(),
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
+            operator_traits: HashMap::new(),
+            ordering_type: None,
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
@@ -1254,13 +1262,12 @@ impl NodeInterner {
     /// Tags the given identifier with the selected trait_impl so that monomorphization
     /// can later recover which impl was selected, or alternatively see if it needs to
     /// decide which impl to select (because the impl was Assumed).
-    pub fn select_impl_for_ident(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
+    pub fn select_impl_for_expression(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Retrieves the impl selected for a given IdentId during name resolution.
-    /// From type checking and on, the "ident" referred to is changed to a TraitMethodReference node.
-    pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
+    /// Retrieves the impl selected for a given ExprId during name resolution.
+    pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
@@ -1294,7 +1301,6 @@ impl NodeInterner {
             }
             HirExpression::Constructor(expr) => {
                 let struct_type = &expr.r#type.borrow();
-
                 Some(struct_type.location)
             }
             HirExpression::MemberAccess(expr_member_access) => {
@@ -1331,6 +1337,91 @@ impl NodeInterner {
         field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
             Location::new(found_field_name.span(), struct_type.location.file)
         })
+    }
+
+    /// Retrieves the trait id for a given binary operator.
+    /// All binary operators correspond to a trait - although multiple may correspond
+    /// to the same trait (such as `==` and `!=`).
+    /// `self.operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
+        let trait_id = self.operator_traits[&operator];
+
+        // Assume that the operator's method to be overloaded is the first method of the trait.
+        TraitMethodId { trait_id, method_index: 0 }
+    }
+
+    /// Add the given trait as an operator trait if its name matches one of the
+    /// operator trait names (Add, Sub, ...).
+    pub fn try_add_operator_trait(&mut self, trait_id: TraitId) {
+        let the_trait = self.get_trait(trait_id);
+
+        let operator = match the_trait.name.0.contents.as_str() {
+            "Add" => BinaryOpKind::Add,
+            "Sub" => BinaryOpKind::Subtract,
+            "Mul" => BinaryOpKind::Multiply,
+            "Div" => BinaryOpKind::Divide,
+            "Rem" => BinaryOpKind::Modulo,
+            "Eq" => BinaryOpKind::Equal,
+            "Ord" => BinaryOpKind::Less,
+            "BitAnd" => BinaryOpKind::And,
+            "BitOr" => BinaryOpKind::Or,
+            "BitXor" => BinaryOpKind::Xor,
+            "Shl" => BinaryOpKind::ShiftLeft,
+            "Shr" => BinaryOpKind::ShiftRight,
+            _ => return,
+        };
+
+        self.operator_traits.insert(operator, trait_id);
+
+        // Some operators also require we insert a matching entry for related operators
+        match operator {
+            BinaryOpKind::Equal => {
+                self.operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
+            }
+            BinaryOpKind::Less => {
+                self.operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
+                self.operator_traits.insert(BinaryOpKind::Greater, trait_id);
+                self.operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
+
+                let the_trait = self.get_trait(trait_id);
+                self.ordering_type = match &the_trait.methods[0].typ {
+                    Type::Forall(_, typ) => match typ.as_ref() {
+                        Type::Function(_, return_type, _) => Some(return_type.as_ref().clone()),
+                        other => unreachable!("Expected function type for `cmp`, found {}", other),
+                    },
+                    other => unreachable!("Expected Forall type for `cmp`, found {}", other),
+                };
+            }
+            _ => (),
+        }
+    }
+
+    /// This function is needed when creating a NodeInterner for testing so that calls
+    /// to `get_operator_trait` do not panic when the stdlib isn't present.
+    #[cfg(test)]
+    pub fn populate_dummy_operator_traits(&mut self) {
+        let dummy_trait = TraitId(ModuleId::dummy_id());
+        self.operator_traits.insert(BinaryOpKind::Add, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Less, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::And, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Or, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+    }
+
+    pub(crate) fn ordering_type(&self) -> Type {
+        self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
     }
 }
 
