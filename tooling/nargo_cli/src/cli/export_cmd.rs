@@ -1,10 +1,13 @@
+use fm::FileManager;
 use iter_extended::vecmap;
 use nargo::artifacts::program::PreprocessedProgram;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::compile_no_check;
+use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::CompileOptions;
 use noirc_driver::CompiledProgram;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
@@ -51,20 +54,29 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     let library_packages: Vec<_> =
         workspace.into_iter().filter(|package| package.is_library()).collect();
 
-    compile_program(&workspace, library_packages[0], &args.compile_options)?;
+    compile_program(
+        &workspace_file_manager,
+        &workspace,
+        library_packages[0],
+        &args.compile_options,
+    )?;
 
     Ok(())
 }
 
 fn compile_program(
+    file_manager: &FileManager,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (mut context, crate_id) = prepare_package(package);
+    let (mut context, crate_id) = prepare_package(file_manager, package);
     check_crate_and_report_errors(
         &mut context,
         crate_id,
