@@ -1,4 +1,4 @@
-use crate::ops::{Add, Sub, Mul, Div};
+use crate::ops::{Add, Sub, Mul, Div, Rem};
 use crate::cmp::{Eq, Ord, Ordering};
 
 global pow64 : Field = 18446744073709551616; //2^64;
@@ -182,6 +182,16 @@ impl Div for U128 {
         assert_eq(self, a);
         assert(r < b);
         q
+    }
+}
+
+impl Rem for U128 {
+    pub fn rem(self: Self, b: U128) -> U128 {
+        let (q,r) = self.unconstrained_div(b);
+        let a = b * q + r;
+        assert_eq(self, a);
+        assert(r < b);
+        r
     }
 }
 
