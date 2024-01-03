@@ -99,11 +99,12 @@ impl U128 {
             (U128::new(0, 0), self)
         } else {
             //TODO check if this can overflow?
-            let (q,r) = self.unconstrained_div(b.mul(U128::new(2,0)));
+            let (q,r) = self.unconstrained_div(b * U128::new(2,0));
+            let q_mul_2 = q * U128::new(2,0);
             if r < b {
-                (q.mul(U128::new(2,0)), r)
+                (q_mul_2, r)
             } else {
-                (q.mul(U128::new(2,0)).add(U128::new(1,0)), r.sub(b))
+                (q_mul_2 + U128::new(1,0), r - b)
             }
 
         }  
@@ -112,7 +113,7 @@ impl U128 {
     pub fn from_integer<T>(i: T) -> U128 {
         let f = crate::as_field(i);
         let lo = f as u64 as Field;
-        let hi = (f-lo ) / pow64;
+        let hi = (f-lo) / pow64;
         U128 {
             lo,
             hi,
@@ -177,10 +178,9 @@ impl Mul for U128 {
 impl Div for U128 {
     pub fn div(self: Self, b: U128) -> U128 {
         let (q,r) = self.unconstrained_div(b);
-        let a = b.mul(q).add(r);
-        assert(self.lo == a.lo);
-        assert(self.hi == a.hi);
-        assert(r.cmp(b) == Ordering::less());
+        let a = b * q + r;
+        assert_eq(self, a);
+        assert(r < b);
         q
     }
 }
