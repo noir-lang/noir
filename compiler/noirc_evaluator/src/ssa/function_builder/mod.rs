@@ -230,6 +230,25 @@ impl FunctionBuilder {
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
+        fn get_type_size(typ: &Type) -> u32 {
+            match typ {
+                Type::Numeric(NumericType::NativeField) => FieldElement::max_num_bits(),
+                Type::Numeric(
+                    NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size },
+                ) => *bit_size,
+                _ => unreachable!("Should only be called with primitive types"),
+            }
+        }
+
+        let incoming_type = self.type_of_value(value);
+        let incoming_type_size = get_type_size(&incoming_type);
+        let target_type_size = get_type_size(&typ);
+        let value = if target_type_size < incoming_type_size {
+            self.insert_truncate(value, target_type_size, incoming_type_size)
+        } else {
+            value
+        };
+
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
