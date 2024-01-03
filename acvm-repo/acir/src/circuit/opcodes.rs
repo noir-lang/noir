@@ -13,7 +13,7 @@ pub use memory_operation::{BlockId, MemOp};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Opcode {
-    Arithmetic(Expression),
+    AssertZero(Expression),
     /// Calls to "gadgets" which rely on backends implementing support for specialized constraints.
     ///
     /// Often used for exposing more efficient implementations of SNARK-unfriendly computations.  
@@ -36,7 +36,7 @@ pub enum Opcode {
 impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::Arithmetic(expr) => {
+            Opcode::AssertZero(expr) => {
                 write!(f, "EXPR [ ")?;
                 for i in &expr.mul_terms {
                     write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;

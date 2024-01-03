@@ -8,8 +8,8 @@ use context::SharedContext;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::{
-    monomorphization::ast::{self, Binary, Expression, Program},
-    BinaryOpKind, Visibility,
+    monomorphization::ast::{self, Expression, Program},
+    Visibility,
 };
 
 use crate::{
@@ -653,24 +653,10 @@ impl<'a> FunctionContext<'a> {
         location: Location,
         assert_message: Option<String>,
     ) -> Result<Values, RuntimeError> {
-        match expr {
-            // If we're constraining an equality to be true then constrain the two sides directly.
-            Expression::Binary(Binary { lhs, operator: BinaryOpKind::Equal, rhs, .. }) => {
-                let lhs = self.codegen_non_tuple_expression(lhs)?;
-                let rhs = self.codegen_non_tuple_expression(rhs)?;
-                self.builder.set_location(location).insert_constrain(lhs, rhs, assert_message);
-            }
+        let expr = self.codegen_non_tuple_expression(expr)?;
+        let true_literal = self.builder.numeric_constant(true, Type::bool());
+        self.builder.set_location(location).insert_constrain(expr, true_literal, assert_message);
 
-            _ => {
-                let expr = self.codegen_non_tuple_expression(expr)?;
-                let true_literal = self.builder.numeric_constant(true, Type::bool());
-                self.builder.set_location(location).insert_constrain(
-                    expr,
-                    true_literal,
-                    assert_message,
-                );
-            }
-        }
         Ok(Self::unit_value())
     }
 

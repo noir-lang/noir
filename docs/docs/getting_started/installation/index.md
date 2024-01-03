@@ -1,7 +1,7 @@
 ---
 title: Nargo Installation
 description:
-  nargo is a command line tool for interacting with Noir programs. This page is a quick guide on how to install Nargo though the most common and easy method, noirup
+  nargo is a command line tool for interacting with Noir programs. This page is a quick guide on how to install Nargo through the most common and easy method, noirup
 keywords: [
    Nargo
    Noir
@@ -41,5 +41,5 @@ noirup
 Done. That's it. You should have the latest version working. You can check with `nargo --version`.
 
 You can also install nightlies, specific versions
-or branches, check out the [noirup repository](https://github.com/noir-lang/noirup) for more
+or branches. Check out the [noirup repository](https://github.com/noir-lang/noirup) for more
 information.

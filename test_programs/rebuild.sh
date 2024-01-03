@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 process_dir() {
@@ -14,7 +14,7 @@ process_dir() {
     if [ -d ./target/ ]; then
       rm -r ./target/
     fi
-    cargo run compile --only-acir && cargo run execute witness
+    nargo compile --only-acir && nargo execute witness
 
     if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
       rm -r "$current_dir/acir_artifacts/$dir_name/target"

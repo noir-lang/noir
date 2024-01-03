@@ -14,6 +14,7 @@ mod backend_cmd;
 mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
+mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
 mod export_cmd;
@@ -77,6 +78,8 @@ enum NargoCommand {
     Test(test_cmd::TestCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
+    #[command(hide = true)]
+    Dap(dap_cmd::DapCommand),
 }
 
 pub(crate) fn start_cli() -> eyre::Result<()> {
@@ -94,6 +97,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             | NargoCommand::Init(_)
             | NargoCommand::Lsp(_)
             | NargoCommand::Backend(_)
+            | NargoCommand::Dap(_)
     ) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
@@ -116,6 +120,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Backend(args) => backend_cmd::run(args),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
+        NargoCommand::Dap(args) => dap_cmd::run(&backend, args, config),
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 

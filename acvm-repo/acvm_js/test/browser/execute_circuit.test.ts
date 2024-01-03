@@ -53,7 +53,7 @@ it('successfully processes simple brillig foreign call opcodes', async () => {
   expect(observedInputs).to.be.deep.eq(oracleCallInputs);
 
   // If incorrect value is written into circuit then execution should halt due to unsatisfied constraint in
-  // arithmetic opcode. Nevertheless, check that returned value was inserted correctly.
+  // assert-zero opcode. Nevertheless, check that returned value was inserted correctly.
   expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
 });
 
@@ -79,7 +79,7 @@ it('successfully processes complex brillig foreign call opcodes', async () => {
   expect(observedInputs).to.be.deep.eq(oracleCallInputs);
 
   // If incorrect value is written into circuit then execution should halt due to unsatisfied constraint in
-  // arithmetic opcode. Nevertheless, check that returned value was inserted correctly.
+  // assert-zero opcode. Nevertheless, check that returned value was inserted correctly.
   expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
 });
 

@@ -1,15 +1,19 @@
 use acvm::acir::native_types::WitnessMap;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::ops::DefaultForeignCallExecutor;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_bin_package;
@@ -38,6 +42,10 @@ pub(crate) struct ExecuteCommand {
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// JSON RPC url to solve oracle calls
+    #[clap(long)]
+    oracle_resolver: Option<String>,
 }
 
 pub(crate) fn run(
@@ -56,13 +64,25 @@ pub(crate) fn run(
     )?;
     let target_dir = &workspace.target_directory_path();
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     let expression_width = backend.get_backend_info_or_default();
     for package in &workspace {
-        let compiled_program =
-            compile_bin_package(&workspace, package, &args.compile_options, expression_width)?;
+        let compiled_program = compile_bin_package(
+            &workspace_file_manager,
+            &workspace,
+            package,
+            &args.compile_options,
+            expression_width,
+        )?;
 
-        let (return_value, solved_witness) =
-            execute_program_and_decode(compiled_program, package, &args.prover_name)?;
+        let (return_value, solved_witness) = execute_program_and_decode(
+            compiled_program,
+            package,
+            &args.prover_name,
+            args.oracle_resolver.as_deref(),
+        )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
         if let Some(return_value) = return_value {
@@ -81,11 +101,12 @@ fn execute_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
+    foreign_call_resolver_url: Option<&str>,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let solved_witness = execute_program(&program, &inputs_map)?;
+    let solved_witness = execute_program(&program, &inputs_map, foreign_call_resolver_url)?;
     let public_abi = program.abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
@@ -95,9 +116,9 @@ fn execute_program_and_decode(
 pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
+    foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessMap, CliError> {
-    #[allow(deprecated)]
-    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
+    let blackbox_solver = Bn254BlackBoxSolver::new();
 
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
@@ -105,7 +126,7 @@ pub(crate) fn execute_program(
         &compiled_program.circuit,
         initial_witness,
         &blackbox_solver,
-        &mut DefaultForeignCallExecutor::new(true),
+        &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     );
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),

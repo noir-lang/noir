@@ -2,11 +2,14 @@ use std::future::{self, Future};
 
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
+    insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
     prepare_package,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
@@ -47,10 +50,13 @@ fn on_test_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(package) => {
-            let (mut context, crate_id) = prepare_package(package);
+            let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
             if check_crate(&mut context, crate_id, false, false).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
@@ -72,8 +78,14 @@ fn on_test_run_request_inner(
                 )
             })?;
 
-            let test_result =
-                run_test(&state.solver, &context, test_function, false, &CompileOptions::default());
+            let test_result = run_test(
+                &state.solver,
+                &context,
+                test_function,
+                false,
+                None,
+                &CompileOptions::default(),
+            );
             let result = match test_result {
                 TestStatus::Pass => NargoTestRunResult {
                     id: params.id.clone(),

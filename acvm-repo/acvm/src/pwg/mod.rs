@@ -10,7 +10,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
-use self::{arithmetic::ArithmeticSolver, directives::solve_directives, memory_op::MemoryOpSolver};
+use self::{arithmetic::ExpressionSolver, directives::solve_directives, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
 
 use thiserror::Error;
@@ -69,8 +69,8 @@ pub enum StepResult<'a, B: BlackBoxFunctionSolver> {
 // The most common being that one of its input has not been
 // assigned a value.
 //
-// TODO: ExpressionHasTooManyUnknowns is specific for arithmetic expressions
-// TODO: we could have a error enum for arithmetic failure cases in that module
+// TODO: ExpressionHasTooManyUnknowns is specific for expression solver
+// TODO: we could have a error enum for expression solver failure cases in that module
 // TODO that can be converted into an OpcodeNotSolvable or OpcodeResolutionError enum
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum OpcodeNotSolvable {
@@ -253,7 +253,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         let opcode = &self.opcodes[self.instruction_pointer];
 
         let resolution = match opcode {
-            Opcode::Arithmetic(expr) => ArithmeticSolver::solve(&mut self.witness_map, expr),
+            Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
             Opcode::BlackBoxFuncCall(bb_func) => {
                 blackbox::solve(self.backend, &mut self.witness_map, bb_func)
             }
@@ -397,7 +397,7 @@ pub fn get_value(
     expr: &Expression,
     initial_witness: &WitnessMap,
 ) -> Result<FieldElement, OpcodeResolutionError> {
-    let expr = ArithmeticSolver::evaluate(expr, initial_witness);
+    let expr = ExpressionSolver::evaluate(expr, initial_witness);
     match expr.to_const() {
         Some(value) => Ok(value),
         None => Err(OpcodeResolutionError::OpcodeNotSolvable(

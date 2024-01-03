@@ -64,7 +64,9 @@ So, they use zero-knowledge proofs. Alice tries to guess Bob's number, and Bob w
 
 This ZK proof can go on a smart contract, revealing the winner and even giving prizes. However, this means every turn needs to be verified on-chain. This incurs some cost and waiting time that may simply make the game too expensive or time-consuming to be worth it.
 
-So, Alice started thinking: "what if Bob generates his proof, and instead of sending it on-chain, I verify it *within* my own proof before playing my own turn?". She can then generate a proof that she verified his proof, and so on.
+As a solution, Alice proposes the following: "what if Bob generates his proof, and instead of sending it on-chain, I verify it *within* my own proof before playing my own turn?". 
+
+She can then generate a proof that she verified his proof, and so on.
 
 ```md
       Did you fail?  <--------------------------
@@ -86,7 +88,7 @@ Generate proof of that                 /
 
 Charlie is a concerned citizen, and wants to be sure his vote in an election is accounted for. He votes with a ZK proof, but he has no way of knowing that his ZK proof was included in the total vote count!
 
-So, the tallier puts all the votes in a merkle tree, and everyone can also prove the verification of two proofs within one proof, as such:
+If the vote collector puts all of the votes into a [Merkle tree](https://en.wikipedia.org/wiki/Merkle_tree), everyone can prove the verification of two proofs within one proof, as such:
 
 ```md
                     abcd
@@ -104,7 +106,7 @@ Doing this recursively allows us to arrive on a final proof `abcd` which if true
 
 Daniel has a big circuit and a big headache. A part of his circuit is a setup phase that finishes with some assertions that need to be made. But that section alone takes most of the proving time, and is largely independent of the rest of the circuit.
 
-He could find it more efficient to generate a proof for that setup phase separately, and verifying it in his actual business logic section of the circuit. This will allow for parallelization of both proofs, which results in a considerable speedup.
+He might find it more efficient to generate a proof for that setup phase separately, and verify that proof recursively in the actual business logic section of his circuit. This will allow for parallelization of both proofs, which results in a considerable speedup.
 
 ## What params do I need
 
@@ -149,7 +151,7 @@ In such a situation, and assuming Alice is first, she would skip the first part 
 
 ### Aggregating proofs
 
-In some one-way interaction situations, recursiveness would allow for aggregation of simple proofs that don't need to be immediately verified on-chain or elsewhere.
+In some one-way interaction situations, recursion would allow for aggregation of simple proofs that don't need to be immediately verified on-chain or elsewhere.
 
 To give a practical example, a barman wouldn't need to verify a "proof-of-age" on-chain every time he serves alcohol to a customer. Instead, the architecture would comprise two circuits:
 
