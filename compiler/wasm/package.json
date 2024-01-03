@@ -6,7 +6,7 @@
   "version": "0.22.0",
   "license": "(MIT OR Apache-2.0)",
   "main": "dist/main.js",
-  "types": "./dist/types/index.d.cts",
+  "types": "./dist/types/src/index.d.cts",
   "exports": {
     "node": "./dist/node/main.js",
     "default": "./dist/web/main.mjs",

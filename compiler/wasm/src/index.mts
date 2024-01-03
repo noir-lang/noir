@@ -9,8 +9,9 @@ async function compile(fileManager: FileManager, projectPath?: string, logFn?: L
     debugLogFn = logFn;
   }
 
-  const esm = await import('../build/esm');
-  await esm.default;
+  const esm = await import(/* webpackMode: "eager" */ '../build/esm');
+  await esm.default();
+
   const compiler = await NoirWasmCompiler.new(
     fileManager,
     projectPath ?? fileManager.getDataDir(),

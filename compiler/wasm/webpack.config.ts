@@ -11,10 +11,6 @@ const config: webpack.Configuration = {
   },
   mode: 'development',
   devtool: 'source-map',
-  experiments: {
-    asyncWebAssembly: true,
-    syncWebAssembly: true,
-  },
   optimization: {
     minimize: false,
   },
@@ -33,24 +29,20 @@ const webConfig: webpack.Configuration = {
   name: 'web',
   entry: './src/index.mts',
   ...config,
-  experiments: {
-    ...config.experiments,
-    outputModule: true,
-  },
+  experiments: { asyncWebAssembly: true, outputModule: true },
   output: {
     filename: 'main.mjs',
     ...config.output,
     path: resolve(__dirname, 'dist/web'),
     library: {
-      type: 'window',
+      type: 'module',
     },
-    libraryTarget: 'module',
   },
   plugins: [
     new WasmPackPlugin({
       crateDirectory: resolve(__dirname),
       outDir: resolve(__dirname, './build/esm'),
-      extraArgs: '--target bundler',
+      extraArgs: '--target web',
       forceMode: 'production',
     }),
     new HtmlWebpackPlugin({
@@ -78,7 +70,7 @@ const webConfig: webpack.Configuration = {
       },
       {
         test: /\.wasm$/,
-        type: 'webassembly/async',
+        type: 'asset/inline',
       },
     ],
   },
