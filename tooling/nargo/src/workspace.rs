@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    constants::{CONTRACT_DIR, PROOFS_DIR, TARGET_DIR},
+    constants::{CONTRACT_DIR, EXPORT_DIR, PROOFS_DIR, TARGET_DIR},
     package::Package,
 };
 
@@ -39,6 +39,10 @@ impl Workspace {
 
     pub fn target_directory_path(&self) -> PathBuf {
         self.root_dir.join(TARGET_DIR)
+    }
+
+    pub fn export_directory_path(&self) -> PathBuf {
+        self.root_dir.join(EXPORT_DIR)
     }
 }
 

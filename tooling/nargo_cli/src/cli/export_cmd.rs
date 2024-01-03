@@ -108,7 +108,7 @@ fn compile_program(
         },
     )?;
 
-    let export_dir = workspace.target_directory_path().parent().unwrap().join("export");
+    let export_dir = workspace.export_directory_path();
     for (function_name, program) in exported_programs {
         let preprocessed_program = PreprocessedProgram {
             hash: program.hash,
