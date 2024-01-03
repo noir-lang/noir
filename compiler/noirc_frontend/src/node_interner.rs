@@ -1326,34 +1326,17 @@ impl NodeInterner {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
-        let found_ident = self.nodes.get(expr_lhs.into())?;
-
-        let ident = match found_ident {
-            Node::Expression(HirExpression::Ident(ident)) => ident,
+        let lhs_self_struct = match self.id_type(expr_lhs) {
+            Type::Struct(struct_type, _) => struct_type,
             _ => return None,
         };
 
-        let definition_info = self.definition(ident.id);
-
-        let local_id = match definition_info.kind {
-            DefinitionKind::Local(Some(local_id)) => local_id,
-            _ => return None,
-        };
-
-        let constructor_expression = match self.nodes.get(local_id.into()) {
-            Some(Node::Expression(HirExpression::Constructor(constructor_expression))) => {
-                constructor_expression
-            }
-            _ => return None,
-        };
-
-        let struct_type = constructor_expression.r#type.borrow();
+        let struct_type = lhs_self_struct.borrow();
         let field_names = struct_type.field_names();
 
-        match field_names.iter().find(|field_name| field_name.0 == expr_rhs.0) {
-            Some(found) => Some(Location::new(found.span(), struct_type.location.file)),
-            None => None,
-        }
+        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
+            Location::new(found_field_name.span(), struct_type.location.file)
+        })
     }
 
     /// Retrieves the trait id for a given binary operator.
