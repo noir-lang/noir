@@ -21,13 +21,11 @@ use fm::codespan_files as files;
 use lsp_types::CodeLens;
 use nargo::workspace::Workspace;
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::{Context, FunctionNameMatch},
 };
-
-use fm::FileManager;
 
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
@@ -223,14 +221,14 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
 /// in order to offer code lenses to the user
 fn prepare_source(source: String) -> (Context<'static>, CrateId) {
     let root = Path::new("");
-    let mut file_manager = FileManager::new(root);
-    let root_file_id = file_manager.add_file_with_source(Path::new("main.nr"), source).expect(
+    let file_name = Path::new("main.nr");
+    let mut file_manager = file_manager_with_stdlib(root);
+    file_manager.add_file_with_source(file_name, source).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
 
     let mut context = Context::new(file_manager);
-
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+    let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)
 }

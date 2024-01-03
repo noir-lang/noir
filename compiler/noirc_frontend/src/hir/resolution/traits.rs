@@ -52,6 +52,13 @@ pub(crate) fn resolve_traits(
         context.def_interner.update_trait(trait_id, |trait_def| {
             trait_def.set_methods(methods);
         });
+
+        // This check needs to be after the trait's methods are set since
+        // the interner may set `interner.ordering_type` based on the result type
+        // of the Cmp trait, if this is it.
+        if crate_id.is_stdlib() {
+            context.def_interner.try_add_operator_trait(trait_id);
+        }
     }
     res
 }
