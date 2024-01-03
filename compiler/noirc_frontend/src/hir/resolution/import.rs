@@ -1,4 +1,3 @@
-use iter_extended::partition_results;
 use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::graph::CrateId;
@@ -51,29 +50,27 @@ impl From<PathResolutionError> for CustomDiagnostic {
     }
 }
 
-pub fn resolve_imports(
+pub fn resolve_import(
     crate_id: CrateId,
-    imports_to_resolve: Vec<ImportDirective>,
+    import_directive: ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> (Vec<ResolvedImport>, Vec<(PathResolutionError, LocalModuleId)>) {
+) -> Result<ResolvedImport, (PathResolutionError, LocalModuleId)> {
     let def_map = &def_maps[&crate_id];
 
-    partition_results(imports_to_resolve, |import_directive| {
-        let allow_contracts =
-            allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
+    let allow_contracts =
+        allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
-        let module_scope = import_directive.module_id;
-        let resolved_namespace =
-            resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
-                .map_err(|error| (error, module_scope))?;
+    let module_scope = import_directive.module_id;
+    let resolved_namespace =
+        resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
+            .map_err(|error| (error, module_scope))?;
 
-        let name = resolve_path_name(&import_directive);
-        Ok(ResolvedImport {
-            name,
-            resolved_namespace,
-            module_scope,
-            is_prelude: import_directive.is_prelude,
-        })
+    let name = resolve_path_name(&import_directive);
+    Ok(ResolvedImport {
+        name,
+        resolved_namespace,
+        module_scope,
+        is_prelude: import_directive.is_prelude,
     })
 }
 

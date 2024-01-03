@@ -4,7 +4,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 
-use crate::hir::resolution::import::{resolve_imports, ImportDirective};
+use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
@@ -261,37 +261,31 @@ impl DefCollector {
 
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in def_collector.collected_imports {
-            let (resolved, unresolved_imports) =
-                resolve_imports(crate_id, vec![collected_import], &context.def_maps);
+            match resolve_import(crate_id, collected_import, &context.def_maps) {
+                Ok(resolved_import) => {
+                    // Populate module namespaces according to the imports used
+                    let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
-            {
-                let current_def_map = context.def_maps.get(&crate_id).unwrap();
-                errors.extend(vecmap(unresolved_imports, |(error, module_id)| {
+                    let name = resolved_import.name;
+                    for ns in resolved_import.resolved_namespace.iter_defs() {
+                        let result = current_def_map.modules[resolved_import.module_scope.0]
+                            .import(name.clone(), ns, resolved_import.is_prelude);
+
+                        if let Err((first_def, second_def)) = result {
+                            let err = DefCollectorErrorKind::Duplicate {
+                                typ: DuplicateType::Import,
+                                first_def,
+                                second_def,
+                            };
+                            errors.push((err.into(), root_file_id));
+                        }
+                    }
+                }
+                Err((error, module_id)) => {
+                    let current_def_map = context.def_maps.get(&crate_id).unwrap();
                     let file_id = current_def_map.file_id(module_id);
                     let error = DefCollectorErrorKind::PathResolutionError(error);
-                    (error.into(), file_id)
-                }));
-            };
-
-            // Populate module namespaces according to the imports used
-            let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-            for resolved_import in resolved {
-                let name = resolved_import.name;
-                for ns in resolved_import.resolved_namespace.iter_defs() {
-                    let result = current_def_map.modules[resolved_import.module_scope.0].import(
-                        name.clone(),
-                        ns,
-                        resolved_import.is_prelude,
-                    );
-
-                    if let Err((first_def, second_def)) = result {
-                        let err = DefCollectorErrorKind::Duplicate {
-                            typ: DuplicateType::Import,
-                            first_def,
-                            second_def,
-                        };
-                        errors.push((err.into(), root_file_id));
-                    }
+                    errors.push((error.into(), file_id));
                 }
             }
         }
