@@ -25,7 +25,7 @@ slug: /
 
 Noir is a Domain Specific Language for SNARK proving systems. It has been designed to use any ACIR compatible proving system.
 
-It's design choices are influenced heavily by Rust and focuses on a simple, familiar syntax.
+Its design choices are influenced heavily by Rust and focuses on a simple, familiar syntax.
 
 ## Who is Noir for?
 
