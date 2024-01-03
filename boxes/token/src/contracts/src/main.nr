@@ -29,9 +29,11 @@ contract Token {
                 bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
                 address_serialization::{AddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
         },
-        selector::compute_selector,
     };
-    use dep::protocol_types::address::AztecAddress;
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::AztecAddress,
+    };
 
     // docs:start:import_authwit
     use dep::authwit::{
@@ -123,7 +125,7 @@ contract Token {
     // docs:start:constructor
     #[aztec(private)]
     fn constructor(admin: AztecAddress) {
-        let selector = compute_selector("_initialize((Field))");
+        let selector = FunctionSelector::from_signature("_initialize((Field))");
         context.call_public_function(context.this_address(), selector, [admin.to_field()]);
     }
     // docs:end:constructor
@@ -268,7 +270,7 @@ contract Token {
 
         storage.balances.at(from).sub(SafeU120::new(amount));
 
-        let selector = compute_selector("_increase_public_balance((Field),Field)");
+        let selector = FunctionSelector::from_signature("_increase_public_balance((Field),Field)");
         let _void = context.call_public_function(context.this_address(), selector, [to.to_field(), amount]);
     }
     // docs:end:unshield
@@ -303,7 +305,7 @@ contract Token {
 
         storage.balances.at(from).sub(SafeU120::new(amount));
 
-        let selector = compute_selector("_reduce_total_supply(Field)");
+        let selector = FunctionSelector::from_signature("_reduce_total_supply(Field)");
         let _void = context.call_public_function(context.this_address(), selector, [amount]);
     }
     // docs:end:burn

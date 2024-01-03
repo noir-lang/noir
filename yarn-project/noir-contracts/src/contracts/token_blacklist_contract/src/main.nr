@@ -17,7 +17,10 @@ contract TokenBlacklist {
     use dep::std::option::Option;
 
     use dep::safe_math::SafeU120;
-    use dep::protocol_types::address::AztecAddress;
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::AztecAddress,
+    };
     use dep::aztec::{
         note::{
             note_getter_options::NoteGetterOptions,
@@ -32,7 +35,6 @@ contract TokenBlacklist {
             bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
             address_serialization::{AddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
         },
-        selector::compute_selector,
     };
 
     use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
@@ -110,7 +112,7 @@ contract TokenBlacklist {
         let mut slow_note = FieldNote::new(slow_updates_contract.to_field());
         storage.slow_update.initialize(&mut slow_note, Option::none(), false);
         // docs:end:constructor
-        let selector = compute_selector("_initialize((Field),(Field))");
+        let selector = FunctionSelector::from_signature("_initialize((Field),(Field))");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -133,7 +135,7 @@ contract TokenBlacklist {
         // docs:end:get_and_update_private
         context.call_public_function(
             context.this_address(),
-            compute_selector("_init_slow_tree((Field))"),
+            FunctionSelector::from_signature("_init_slow_tree((Field))"),
             [context.msg_sender().to_field()]
         );
     }
@@ -305,7 +307,7 @@ contract TokenBlacklist {
 
         storage.balances.at(from).sub(SafeU120::new(amount));
 
-        let selector = compute_selector("_increase_public_balance((Field),Field)");
+        let selector = FunctionSelector::from_signature("_increase_public_balance((Field),Field)");
         context.call_public_function(context.this_address(), selector, [to.to_field(), amount]);
     }
 
@@ -344,7 +346,7 @@ contract TokenBlacklist {
 
         storage.balances.at(from).sub(SafeU120::new(amount));
 
-        let selector = compute_selector("_reduce_total_supply(Field)");
+        let selector = FunctionSelector::from_signature("_reduce_total_supply(Field)");
         context.call_public_function(context.this_address(), selector, [amount]);
     }
 

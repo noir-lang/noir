@@ -1,8 +1,9 @@
-use dep::protocol_types::address::AztecAddress;
-use dep::aztec::{
-  context::{ PrivateContext, PublicContext, Context },
-  selector::compute_selector,
+use dep::protocol_types::{
+    abis::function_selector::FunctionSelector,
+    address::AztecAddress,
 };
+
+use dep::aztec::context::{PrivateContext, PublicContext, Context};
 
 struct SlowMap {
   address: AztecAddress,
@@ -16,14 +17,14 @@ impl SlowMap {
   pub fn initialize(self: Self, context: PublicContext) {
     context.call_public_function_no_args(
       self.address,
-      compute_selector("initialize()")
+      FunctionSelector::from_signature("initialize()")
     );
   }
 
   pub fn read_at_pub(self: Self, context: PublicContext, index: Field) -> Field {
     let _return_values = context.call_public_function(
       self.address,
-      compute_selector("read_at_pub(Field)"),
+      FunctionSelector::from_signature("read_at_pub(Field)"),
       [index]
     );
     _return_values[0]
@@ -32,7 +33,7 @@ impl SlowMap {
   pub fn read_at(self: Self, context: &mut PrivateContext, index: Field) -> Field {
     let _return_values = context.call_private_function(
       self.address,
-      compute_selector("read_at(Field)"),
+      FunctionSelector::from_signature("read_at(Field)"),
       [index]
     );
     _return_values[0]
@@ -41,7 +42,7 @@ impl SlowMap {
   pub fn update_at_private(self: Self, context: &mut PrivateContext, index: Field, new_value: Field) {
     context.call_private_function(
       self.address,
-      compute_selector("update_at_private(Field,Field)"),
+      FunctionSelector::from_signature("update_at_private(Field,Field)"),
       [index, new_value]
     );
   }

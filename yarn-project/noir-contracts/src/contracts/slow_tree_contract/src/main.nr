@@ -6,7 +6,10 @@ mod types;
 // https://github.com/AztecProtocol/aztec-packages/issues/1291
 // This is made as a separate contract for one thing mainly. Making it simpler to use.
 contract SlowTree {
-    use dep::protocol_types::address::AztecAddress;
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::AztecAddress,
+    };
     use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,
@@ -19,7 +22,6 @@ contract SlowTree {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        selector::compute_selector,
         state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::field_serialization::{
             FieldSerializationMethods, FIELD_SERIALIZED_LEN,
@@ -87,7 +89,7 @@ contract SlowTree {
         assert(index == p.index, "Index does not match expected");
 
         let expected_root = compute_merkle_root(p.value, p.index, p.sibling_path);
-        let selector = compute_selector("_assert_current_root(Field,Field)");
+        let selector = FunctionSelector::from_signature("_assert_current_root(Field,Field)");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -124,7 +126,7 @@ contract SlowTree {
         let after_root = compute_merkle_root(p.after.value, p.index, p.after.sibling_path);
         let new_after_root = compute_merkle_root(p.new_value, p.index, p.after.sibling_path);
 
-        let selector = compute_selector("_update(Field,Field,Field,Field,Field,Field)");
+        let selector = FunctionSelector::from_signature("_update(Field,Field,Field,Field,Field,Field)");
         context.call_public_function(
             context.this_address(),
             selector,

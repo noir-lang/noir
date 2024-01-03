@@ -11,12 +11,14 @@ mod interfaces;
 // - A way to repay all debt at once
 // - Liquidations
 contract Lending {
-    use dep::protocol_types::address::AztecAddress;
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::AztecAddress,
+    };
     use dep::safe_math::SafeU120;
     use dep::std::option::Option;
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
-        selector::compute_selector,
         state_vars::{
             map::Map,
             public_state::PublicState,
@@ -166,7 +168,7 @@ contract Lending {
         let on_behalf_of = compute_identifier(secret, on_behalf_of, context.msg_sender().to_field());
         let _res = Token::at(collateral_asset).unshield(&mut context, from, context.this_address(), amount, nonce);
         // _deposit(on_behalf_of, amount, collateral_asset)
-        let selector = compute_selector("_deposit((Field),Field,(Field))");
+        let selector = FunctionSelector::from_signature("_deposit((Field),Field,(Field))");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -183,7 +185,7 @@ contract Lending {
             amount,
             nonce
         );
-        let selector = compute_selector("_deposit((Field),Field,(Field))");
+        let selector = FunctionSelector::from_signature("_deposit((Field),Field,(Field))");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -206,7 +208,7 @@ contract Lending {
     #[aztec(private)]
     fn withdraw_private(secret: Field, to: AztecAddress, amount: Field) {
         let on_behalf_of = compute_identifier(secret, 0, context.msg_sender().to_field());
-        let selector = compute_selector("_withdraw((Field),(Field),Field)");
+        let selector = FunctionSelector::from_signature("_withdraw((Field),(Field),Field)");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -216,7 +218,7 @@ contract Lending {
 
     #[aztec(public)]
     fn withdraw_public(to: AztecAddress, amount: Field) {
-        let selector = compute_selector("_withdraw((Field),(Field),Field)");
+        let selector = FunctionSelector::from_signature("_withdraw((Field),(Field),Field)");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -258,7 +260,7 @@ contract Lending {
     #[aztec(private)]
     fn borrow_private(secret: Field, to: AztecAddress, amount: Field) {
         let on_behalf_of = compute_identifier(secret, 0, context.msg_sender().to_field());
-        let selector = compute_selector("_borrow((Field),(Field),Field)");
+        let selector = FunctionSelector::from_signature("_borrow((Field),(Field),Field)");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -268,7 +270,7 @@ contract Lending {
 
     #[aztec(public)]
     fn borrow_public(to: AztecAddress, amount: Field) {
-        let selector = compute_selector("_borrow((Field),(Field),Field)");
+        let selector = FunctionSelector::from_signature("_borrow((Field),(Field),Field)");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -308,7 +310,7 @@ contract Lending {
     ) {
         let on_behalf_of = compute_identifier(secret, on_behalf_of, context.msg_sender().to_field());
         let _res = Token::at(stable_coin).burn(&mut context, from, amount, nonce);
-        let selector = compute_selector("_repay((Field),Field,(Field))");
+        let selector = FunctionSelector::from_signature("_repay((Field),Field,(Field))");
         context.call_public_function(
             context.this_address(),
             selector,
@@ -319,7 +321,7 @@ contract Lending {
     #[aztec(public)]
     fn repay_public(amount: Field, nonce: Field, owner: AztecAddress, stable_coin: AztecAddress) {
         Token::at(stable_coin).burn_public(context, context.msg_sender(), amount, nonce);
-        let selector = compute_selector("_repay((Field),Field,(Field))");
+        let selector = FunctionSelector::from_signature("_repay((Field),Field,(Field))");
         context.call_public_function(
             context.this_address(),
             selector,

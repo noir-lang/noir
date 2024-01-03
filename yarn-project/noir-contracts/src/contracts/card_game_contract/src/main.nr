@@ -3,6 +3,7 @@ mod game;
 
 contract CardGame {
     use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
         address::AztecAddress,
         constants::MAX_NOTES_PER_PAGE,
     };
@@ -33,7 +34,6 @@ contract CardGame {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        selector::compute_selector
     };
 
     use crate::cards::{
@@ -128,7 +128,7 @@ contract CardGame {
         collection.remove_cards(cards, player);
         let mut game_deck = storage.game_decks.at(game as Field).at(player.to_field());
         let _added_to_game_deck = game_deck.add_cards(cards, player);
-        let selector = compute_selector("on_game_joined(u32,(Field),u32)");
+        let selector = FunctionSelector::from_signature("on_game_joined(u32,(Field),u32)");
         let strength = compute_deck_strength(cards);
         context.call_public_function(
             context.this_address(),
@@ -163,7 +163,7 @@ contract CardGame {
         let mut game_deck = storage.game_decks.at(game as Field).at(player.to_field());
         game_deck.remove_cards([card], player);
 
-        let selector = compute_selector("on_card_played(u32,(Field),Field)");
+        let selector = FunctionSelector::from_signature("on_card_played(u32,(Field),Field)");
         // docs:start:call_public_function
         context.call_public_function(
             context.this_address(),
@@ -195,7 +195,7 @@ contract CardGame {
         let mut collection = storage.collections.at(player.to_field());
         let _inserted_cards = collection.add_cards(cards, player);
 
-        let selector = compute_selector("on_cards_claimed(u32,(Field),Field)");
+        let selector = FunctionSelector::from_signature("on_cards_claimed(u32,(Field),Field)");
         context.call_public_function(
             context.this_address(),
             selector,

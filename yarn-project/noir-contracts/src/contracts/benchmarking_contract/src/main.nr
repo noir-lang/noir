@@ -13,13 +13,15 @@ contract Benchmarking {
     use dep::aztec::{
         context::{Context},
         note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        selector::compute_selector,
         log::emit_unencrypted_log,
         state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
     };
 
-    use dep::protocol_types::address::AztecAddress;
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::AztecAddress,
+    };
 
     struct Storage {
         notes: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
@@ -66,7 +68,7 @@ contract Benchmarking {
         storage.balances.at(owner.to_field()).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
-            compute_selector("broadcast((Field))"),
+            FunctionSelector::from_signature("broadcast((Field))"),
             [owner.to_field()]
         );
     }

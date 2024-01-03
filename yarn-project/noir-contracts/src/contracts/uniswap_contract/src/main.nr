@@ -6,9 +6,12 @@ mod util;
 // Has two separate flows for private and public respectively
 // Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
 contract Uniswap {
-    use dep::protocol_types::address::{
-        AztecAddress,
-        EthAddress,
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::{
+            AztecAddress,
+            EthAddress,
+        },
     };
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
@@ -20,7 +23,6 @@ contract Uniswap {
         types::type_serialization::field_serialization::{
             FieldSerializationMethods, FIELD_SERIALIZED_LEN,
         },
-        selector::compute_selector,
     };
 
     use dep::authwit::auth::{IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_authwit_message_hash};
@@ -94,7 +96,7 @@ contract Uniswap {
         // Approve bridge to burn this contract's funds and exit to L1 Uniswap Portal
         let _void = context.call_public_function(
             context.this_address(),
-            compute_selector("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"),
+            FunctionSelector::from_signature("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"),
             [input_asset.to_field(), input_asset_bridge.to_field(), input_amount]
         );
 
@@ -149,7 +151,7 @@ contract Uniswap {
         // we can't directly use `input_asset_bridge.token` because that is a public method and public can't return data to private
         context.call_public_function(
             context.this_address(),
-            compute_selector("_assert_token_is_same((Field),(Field))"),
+            FunctionSelector::from_signature("_assert_token_is_same((Field),(Field))"),
             [input_asset.to_field(), input_asset_bridge.to_field()]
         );
 
@@ -165,7 +167,7 @@ contract Uniswap {
         // Approve bridge to burn this contract's funds and exit to L1 Uniswap Portal
         context.call_public_function(
             context.this_address(),
-            compute_selector("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"),
+            FunctionSelector::from_signature("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"),
             [input_asset.to_field(), input_asset_bridge.to_field(), input_amount]
         );
 
@@ -218,7 +220,7 @@ contract Uniswap {
     internal fn _approve_bridge_and_exit_input_asset_to_L1(token: AztecAddress, token_bridge: AztecAddress, amount: Field) {
         // approve bridge to burn this contract's funds (required when exiting on L1, as it burns funds on L2):
         let nonce_for_burn_approval = storage.nonce_for_burn_approval.read();
-        let selector = compute_selector("burn_public((Field),Field,Field)");
+        let selector = FunctionSelector::from_signature("burn_public((Field),Field,Field)");
         let message_hash = compute_authwit_message_hash(
             token_bridge,
             token,

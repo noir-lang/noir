@@ -1,6 +1,7 @@
 // A demonstration of inclusion and non-inclusion proofs.
 contract InclusionProofs {
     use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
         address::{
             AztecAddress,
             EthAddress,
@@ -13,7 +14,6 @@ contract InclusionProofs {
             set::Set,
             public_state::PublicState,
         },
-        selector::compute_selector,
         types::{
             type_serialization::field_serialization::FieldSerializationMethods,
         },
@@ -75,7 +75,7 @@ contract InclusionProofs {
 
     #[aztec(private)]
     fn constructor(public_value: Field) {
-        let selector = compute_selector("_initialize(Field)");
+        let selector = FunctionSelector::from_signature("_initialize(Field)");
         context.call_public_function(context.this_address(), selector, [public_value]);
     }
 

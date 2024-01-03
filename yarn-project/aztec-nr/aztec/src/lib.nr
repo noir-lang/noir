@@ -6,7 +6,6 @@ mod log;
 mod messaging;
 mod note;
 mod oracle;
-mod selector;
 mod state_vars;
 mod types;
 mod utils;

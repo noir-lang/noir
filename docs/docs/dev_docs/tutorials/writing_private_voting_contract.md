@@ -71,7 +71,7 @@ We are using various utils within the Aztec library:
 
 * `context` - exposes things such as the contract address, msg_sender, etc
 * `oracle::get_secret_key` - get your secret key to help us create a randomized nullifier
-* `selector::compute_selector` - compute a function selector so we can call functions from other functions
+* `FunctionSelector::from_signature` - compute a function selector from signature so we can call functions from other functions
 * `state_vars::{ map::Map, public_state::PublicState, }` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicState to hold our public values that we mentioned earlier
 * `types::type_serialization::{..}` - various serialization methods for defining how to use these types
 * `types::address::{AztecAddress},` - our admin will be held as an address
@@ -113,7 +113,7 @@ Therefore our constructor must call a public function by using `context.call_pub
 
 `context.call_public_function()` takes three arguments:
 1. The contract address whose method we want to call
-2. The selector of the function to call (we can use `compute_selector()` for this)
+2. The selector of the function to call (we can use `FunctionSelector::from_signature(...)` for this)
 3. The arguments of the function (we pass the `admin`)
 
 We now need to write the `_initialize()` function:

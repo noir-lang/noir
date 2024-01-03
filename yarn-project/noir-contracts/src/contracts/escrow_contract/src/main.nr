@@ -2,7 +2,10 @@
 contract Escrow {
     use dep::std::option::Option;
 
-    use dep::protocol_types::address::AztecAddress;
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::AztecAddress,
+    };
 
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
@@ -12,7 +15,6 @@ contract Escrow {
             utils as note_utils,
         },
         oracle::get_public_key::get_public_key,
-        selector::compute_selector,
         state_vars::set::Set,
     };
 
@@ -59,7 +61,7 @@ contract Escrow {
         let notes = storage.owners.get_notes(options);
         assert(notes[0].is_some(), "Sender is not an owner.");
 
-        let selector = compute_selector("transfer((Field),(Field),Field,Field)");
+        let selector = FunctionSelector::from_signature("transfer((Field),(Field),Field,Field)");
         let _callStackItem = context.call_private_function(
             token,
             selector,

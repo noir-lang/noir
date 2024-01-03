@@ -7,9 +7,12 @@ mod token_interface;
 // Bridge has to be set as a minter on the token before it can be used
 
 contract TokenBridge {
-    use dep::protocol_types::address::{
-        AztecAddress,
-        EthAddress,
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::{
+            AztecAddress,
+            EthAddress,
+        },
     };
 
     use dep::aztec::{
@@ -17,7 +20,6 @@ contract TokenBridge {
         hash::{compute_secret_hash},
         state_vars::{public_state::PublicState},
         types::type_serialization::address_serialization::AddressSerializationMethods,
-        selector::compute_selector,
     };
 
     use dep::token_portal_content_hash_lib::{get_mint_public_content_hash, get_mint_private_content_hash, get_withdraw_content_hash};
@@ -46,7 +48,7 @@ contract TokenBridge {
     // Constructs the contract.
     #[aztec(private)]
     fn constructor(token: AztecAddress) {
-        let selector = compute_selector("_initialize((Field))");
+        let selector = FunctionSelector::from_signature("_initialize((Field))");
         context.call_public_function(context.this_address(), selector, [token.to_field()]);
     }
     // docs:end:token_bridge_storage_and_constructor
@@ -104,7 +106,7 @@ contract TokenBridge {
         // Since the secret_hash is passed, no secret is leaked.
         context.call_public_function(
             context.this_address(),
-            compute_selector("_call_mint_on_token(Field,Field)"),
+            FunctionSelector::from_signature("_call_mint_on_token(Field,Field)"),
             [amount, secret_hash_for_redeeming_minted_notes]
         );
     }
@@ -129,7 +131,7 @@ contract TokenBridge {
         // Assert that user provided token address is same as seen in storage.
         context.call_public_function(
             context.this_address(),
-            compute_selector("_assert_token_is_same((Field))"),
+            FunctionSelector::from_signature("_assert_token_is_same((Field))"),
             [token.to_field()]
         );
         // docs:end:call_assert_token_is_same

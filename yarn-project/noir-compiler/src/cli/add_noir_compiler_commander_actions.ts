@@ -40,10 +40,10 @@ export function addNoirCompilerCommanderActions(program: Command, log: LogFn = (
     .option('--artifacts <path>', 'Folder containing the compiled artifacts, relative to the project path', 'target')
     .option(
       '-o, --outdir <path>',
-      'Output folder for the generated noir interfaces, relative to the project path',
+      'Output folder for the generated typescript interfaces, relative to the project path',
       'interfaces',
     )
-    .description('Generates Noir interfaces from the artifacts in the given project')
+    .description('Generates typescript interfaces from the artifacts in the given project')
 
     .action(async (projectPath: string, options) => {
       const { generateTypescriptInterface } = await import('./generate_typescript_interface.js');

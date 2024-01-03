@@ -4,9 +4,11 @@ use dep::aztec::context::{
 };
 
 use crate::asset::Asset;
-use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
-use dep::protocol_types::address::AztecAddress;
-use dep::aztec::selector::compute_selector;
+use dep::protocol_types::{
+    abis::function_selector::FunctionSelector,
+    address::AztecAddress,
+    constants::RETURN_VALUES_LENGTH,
+};
 
 struct PriceFeed {
   address: AztecAddress,
@@ -20,7 +22,7 @@ impl PriceFeed {
   pub fn get_price(self: Self, context: PublicContext) -> u120 {
     let return_values = context.call_public_function(
       self.address, 
-      compute_selector("get_price(Field)"),
+      FunctionSelector::from_signature("get_price(Field)"),
       [0]
     );
 
@@ -40,7 +42,7 @@ impl Token {
   pub fn transfer_public(self: Self, context: PublicContext, from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
     context.call_public_function(
       self.address,
-      compute_selector("transfer_public((Field),(Field),Field,Field)"),
+      FunctionSelector::from_signature("transfer_public((Field),(Field),Field,Field)"),
       [from.to_field(), to.to_field(), amount, nonce]
     );
   }
@@ -48,7 +50,7 @@ impl Token {
   pub fn mint_public(self: Self, context: PublicContext, to: AztecAddress, amount: Field) {
     context.call_public_function(
       self.address,
-      compute_selector("mint_public((Field),Field)"),
+      FunctionSelector::from_signature("mint_public((Field),Field)"),
       [to.to_field(), amount]
     );
   }
@@ -56,7 +58,7 @@ impl Token {
   pub fn burn_public(self: Self, context: PublicContext, from: AztecAddress, amount: Field, nonce: Field) {
     context.call_public_function(
       self.address,
-      compute_selector("burn_public((Field),Field,Field)"),
+      FunctionSelector::from_signature("burn_public((Field),Field,Field)"),
       [from.to_field(), amount, nonce]
     );
   }
@@ -65,7 +67,7 @@ impl Token {
   pub fn unshield(self: Self, context: &mut PrivateContext, from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
     context.call_private_function(
       self.address,
-      compute_selector("unshield((Field),(Field),Field,Field)"),
+      FunctionSelector::from_signature("unshield((Field),(Field),Field,Field)"),
       [from.to_field(), to.to_field(), amount, nonce]
     )
   }
@@ -73,7 +75,7 @@ impl Token {
   pub fn burn(self: Self, context: &mut PrivateContext, from: AztecAddress, amount: Field, nonce: Field) -> [Field; RETURN_VALUES_LENGTH] {
     context.call_private_function(
       self.address,
-      compute_selector("burn((Field),Field,Field)"),
+      FunctionSelector::from_signature("burn((Field),Field,Field)"),
       [from.to_field(), amount, nonce]
     )
   }
@@ -91,7 +93,7 @@ impl Lending {
   pub fn update_accumulator(self: Self, context: PublicContext) -> Asset {
     let return_values = context.call_public_function_no_args(
       self.address,
-      compute_selector("update_accumulator()"),
+      FunctionSelector::from_signature("update_accumulator()"),
     );
 
     Asset {

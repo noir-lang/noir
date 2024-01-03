@@ -5,12 +5,14 @@ contract Child {
     use dep::aztec::{
         abi::CallContext,
         context::{PrivateContext, PublicContext, Context},
-        selector::compute_selector,
         log::emit_unencrypted_log,
         state_vars::public_state::PublicState,
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
     };
-    use dep::protocol_types::address::AztecAddress;
+    use dep::protocol_types::{
+        abis::function_selector::FunctionSelector,
+        address::AztecAddress,
+    };
 
     struct Storage {
         current_value: PublicState<Field, FIELD_SERIALIZED_LEN>,
@@ -93,7 +95,7 @@ contract Child {
 
     #[aztec(public)]
     fn setValueTwiceWithNestedFirst() {
-        let pubSetValueSelector = compute_selector("pubSetValue(Field)");
+        let pubSetValueSelector = FunctionSelector::from_signature("pubSetValue(Field)");
         let _ret = context.call_public_function(context.this_address(), pubSetValueSelector, [10]);
 
         storage.current_value.write(20);
@@ -105,7 +107,7 @@ contract Child {
         storage.current_value.write(20);
         emit_unencrypted_log(&mut context, 20);
 
-        let pubSetValueSelector = compute_selector("pubSetValue(Field)");
+        let pubSetValueSelector = FunctionSelector::from_signature("pubSetValue(Field)");
         let _ret = context.call_public_function(context.this_address(), pubSetValueSelector, [10]);
     }
 
