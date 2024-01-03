@@ -1210,7 +1210,6 @@ impl<'interner> TypeChecker<'interner> {
     ) {
         let the_trait = self.interner.get_trait(trait_method_id.trait_id);
 
-        // The first (and only) method of each operator trait should be the operator method
         let method = &the_trait.methods[trait_method_id.method_index];
         let (method_type, mut bindings) = method.typ.instantiate(self.interner);
 
