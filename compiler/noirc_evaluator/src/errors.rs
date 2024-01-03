@@ -106,7 +106,7 @@ pub enum InternalError {
     #[error("ICE: Undeclared AcirVar")]
     UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
-    UnExpected { expected: String, found: String, call_stack: CallStack },
+    Unexpected { expected: String, found: String, call_stack: CallStack },
 }
 
 impl RuntimeError {
@@ -119,7 +119,7 @@ impl RuntimeError {
                 | InternalError::MissingArg { call_stack, .. }
                 | InternalError::NotAConstant { call_stack, .. }
                 | InternalError::UndeclaredAcirVar { call_stack }
-                | InternalError::UnExpected { call_stack, .. },
+                | InternalError::Unexpected { call_stack, .. },
             )
             | RuntimeError::FailedConstraint { call_stack, .. }
             | RuntimeError::IndexOutOfBounds { call_stack, .. }
