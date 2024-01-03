@@ -3,10 +3,9 @@ use std::path::Path;
 use acvm::ExpressionWidth;
 use fm::FileManager;
 use iter_extended::vecmap;
-use nargo::artifacts::contract::PreprocessedContract;
-use nargo::artifacts::contract::PreprocessedContractFunction;
+use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
 use nargo::artifacts::debug::DebugArtifact;
-use nargo::artifacts::program::PreprocessedProgram;
+use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::CompileError;
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
@@ -239,12 +238,7 @@ fn save_program(
     circuit_dir: &Path,
     only_acir_opt: bool,
 ) {
-    let preprocessed_program = PreprocessedProgram {
-        hash: program.hash,
-        abi: program.abi,
-        noir_version: program.noir_version,
-        bytecode: program.circuit,
-    };
+    let preprocessed_program = ProgramArtifact::from(program.clone());
     if only_acir_opt {
         only_acir(&preprocessed_program, circuit_dir);
     } else {
@@ -263,7 +257,7 @@ fn save_program(
 fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
     // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
     // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
-    // are compiled via nargo-core and then the PreprocessedContract is constructed here.
+    // are compiled via nargo-core and then the ContractArtifact is constructed here.
     // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
@@ -271,7 +265,7 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         warnings: contract.warnings,
     };
 
-    let preprocessed_functions = vecmap(contract.functions, |func| PreprocessedContractFunction {
+    let preprocessed_functions = vecmap(contract.functions, |func| ContractFunctionArtifact {
         name: func.name,
         function_type: func.function_type,
         is_internal: func.is_internal,
@@ -279,7 +273,7 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         bytecode: func.bytecode,
     });
 
-    let preprocessed_contract = PreprocessedContract {
+    let preprocessed_contract = ContractArtifact {
         noir_version: contract.noir_version,
         name: contract.name,
         functions: preprocessed_functions,
