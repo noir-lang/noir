@@ -2,9 +2,7 @@ use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::node_interner::{
-    DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
-};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
 use super::stmt::HirPattern;
