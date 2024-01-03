@@ -17,7 +17,7 @@ pub enum LexerErrorKind {
     InvalidIntegerLiteral { span: Span, found: String },
     #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
-    #[error("Integer type is larger than the maximum supported size of u127")]
+    #[error("Integer type is larger than the maximum supported size of u128")]
     TooManyBits { span: Span, max: u32, got: u32 },
     #[error("Logical and used instead of bitwise and")]
     LogicalAnd { span: Span },

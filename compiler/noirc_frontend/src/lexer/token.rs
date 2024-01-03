@@ -326,6 +326,10 @@ impl IntType {
 
         let max_bits = FieldElement::max_num_bits() / 2;
 
+        if !is_signed && str_as_u32 == 128 {
+            return Ok(Some(Token::Ident("U128".to_string())));
+        }
+
         if str_as_u32 > max_bits {
             return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
         }
