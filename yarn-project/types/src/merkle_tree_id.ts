@@ -1,5 +1,6 @@
 /**
  * Defines the possible Merkle tree IDs.
+ * NOTE: If you change this, update get_membership_witness.nr as well.
  */
 export enum MerkleTreeId {
   CONTRACT_TREE = 0,
