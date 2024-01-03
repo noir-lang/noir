@@ -1,5 +1,4 @@
 use crate::types::point::Point;
-use crate::address::compute_address;
 use dep::protocol_types::address::AztecAddress;
 
 #[oracle(getPublicKeyAndPartialAddress)]
@@ -15,7 +14,7 @@ pub fn get_public_key(address: AztecAddress) -> Point {
     let pub_key_y = result[1];
     let partial_address = result[2];
 
-    let calculated_address = compute_address(pub_key_x, pub_key_y, partial_address);
+    let calculated_address = AztecAddress::compute(pub_key_x, pub_key_y, partial_address);
     assert(calculated_address.eq(address));
 
     Point::new(pub_key_x, pub_key_y)

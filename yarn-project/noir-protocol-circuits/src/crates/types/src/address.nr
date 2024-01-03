@@ -1,4 +1,8 @@
-use crate::utils;
+use crate::{
+    constants::GENERATOR_INDEX__CONTRACT_ADDRESS,
+    hash::pedersen_hash,
+    utils,
+};
 
 // Aztec address
 struct AztecAddress {
@@ -22,6 +26,15 @@ impl AztecAddress {
         Self {
             inner : field
         }
+    }
+
+    pub fn compute(pub_key_x: Field, pub_key_y: Field, partial_address: Field) -> AztecAddress {
+        AztecAddress::from_field(
+            pedersen_hash(
+                [pub_key_x, pub_key_y, partial_address],
+                GENERATOR_INDEX__CONTRACT_ADDRESS
+            )
+        )
     }
 
     pub fn to_field(self) -> Field {
