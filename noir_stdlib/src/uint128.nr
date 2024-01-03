@@ -1,4 +1,5 @@
-use crate::ops::{Add, Sub, Mul, Div, Eq};
+use crate::ops::{Add, Sub, Mul, Div};
+use crate::cmp::{Eq, Ord, Ordering};
 
 global pow64 : Field = 18446744073709551616; //2^64;
 
@@ -92,22 +93,14 @@ impl U128 {
             
         } as Field
     }
-   
-    pub fn less_than(self: Self, b: U128) -> bool {
-        if self.hi == b.hi {
-            self.lo as u64 < b.lo as u64
-        } else {
-            self.hi as u64 < b.hi as u64
-        }
-    }
 
     unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
-        if self.less_than(b) {
+        if self < b {
             (U128::new(0, 0), self)
         } else {
             //TODO check if this can overflow?
             let (q,r) = self.unconstrained_div(b.mul(U128::new(2,0)));
-            if r.less_than(b) {
+            if r < b {
                 (q.mul(U128::new(2,0)), r)
             } else {
                 (q.mul(U128::new(2,0)).add(U128::new(1,0)), r.sub(b))
@@ -187,7 +180,7 @@ impl Div for U128 {
         let a = b.mul(q).add(r);
         assert(self.lo == a.lo);
         assert(self.hi == a.hi);
-        assert(r.less_than(b));
+        assert(r.cmp(b) == Ordering::less());
         q
     }
 }
@@ -195,5 +188,18 @@ impl Div for U128 {
 impl Eq for U128 {
     pub fn eq(self: Self, b: U128) -> bool {
         (self.lo == b.lo) & (self.hi == b.hi)
+    }
+}
+
+impl Ord for U128 {
+    fn cmp(self, other: Self) -> Ordering {
+        let hi_ordering = (self.hi as u64).cmp((other.hi as u64));
+        let lo_ordering = (self.lo as u64).cmp((other.lo as u64));
+        
+        if hi_ordering == Ordering::equal() {
+            lo_ordering
+        } else {
+            hi_ordering
+        }
     }
 }
