@@ -1,20 +1,23 @@
-// TODO: change this to be called Grumpkin Point
-struct Point {
+global GRUMPKIN_POINT_SERIALIZED_LEN: Field = 2;
+
+struct GrumpkinPoint {
     x: Field,
     y: Field,
 }
 
-global POINT_SERIALIZED_LEN: Field = 2;
+impl GrumpkinPoint {
+    pub fn new(x: Field, y: Field) -> Self {
+        Self { x, y }
+    }
 
-impl Point {
     pub fn zero() -> Self {
-        Point {
+        Self {
             x: 0,
             y: 0,
         }
     }
 
-    fn serialize(self) -> [Field; POINT_SERIALIZED_LEN] {
+    fn serialize(self) -> [Field; GRUMPKIN_POINT_SERIALIZED_LEN] {
         [self.x, self.y]
     }
 

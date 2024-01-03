@@ -1,5 +1,10 @@
-use dep::protocol_types::constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL};
-use dep::protocol_types::address::AztecAddress;
+use dep::protocol_types::{
+    address::AztecAddress,
+    constants::{
+        MAX_NOTES_PER_PAGE,
+        MAX_READ_REQUESTS_PER_CALL,
+    },
+};
 use dep::aztec::{
     context::{PrivateContext, PublicContext, Context},
     note::{
@@ -9,7 +14,6 @@ use dep::aztec::{
     },
     oracle::get_secret_key::get_secret_key,
     state_vars::set::Set,
-    types::point::Point,
 };
 use dep::std;
 use dep::std::{
@@ -88,7 +92,10 @@ struct Deck {
     set: Set<ValueNote, VALUE_NOTE_LEN>,
 }
 
-pub fn filter_cards<N>(notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL], desired_cards: [Card; N]) -> [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] {
+pub fn filter_cards<N>(
+    notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL],
+    desired_cards: [Card; N]
+) -> [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] {
     let mut selected = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
 
     let mut found = [false; N];
@@ -210,8 +217,10 @@ pub fn get_pack_cards(seed: Field, owner: AztecAddress) -> [Card; PACK_CARDS] {
 }
 
 pub fn compute_deck_strength<N>(cards: [Card; N]) -> Field {
-    cards.fold(0,
+    cards.fold(
+        0,
         |acc, card: Card| {
         acc + card.strength as Field
-    })
+    }
+    )
 }

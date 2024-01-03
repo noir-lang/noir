@@ -6,12 +6,12 @@ mod read_requests;
 
 use crate::address::AztecAddress;
 use crate::abis::block_header::BlockHeader;
-use crate::point::Point;
+use crate::grumpkin_point::GrumpkinPoint;
 use crate::tests::fixtures;
 
 global MSG_SENDER = AztecAddress { inner: 27 };
 
-global DEPLOYER_PUBLIC_KEY = Point { x: 123456789, y: 123456789 };
+global DEPLOYER_PUBLIC_KEY = GrumpkinPoint { x: 123456789, y: 123456789 };
 
 global BLOCK_HEADER = BlockHeader {
     note_hash_tree_root: fixtures::note_hash_tree::ROOT,

@@ -1,6 +1,5 @@
 use crate::address::{AztecAddress, EthAddress};
 use crate::mocked::VerificationKey;
-use crate::point::Point;
 use crate::abis::function_selector::FunctionSelector;
 use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::abis::new_contract_data::NewContractData as ContractLeafPreimage;
@@ -248,26 +247,6 @@ pub fn compute_logs_hash(previous_log_hash : [Field;2], current_log_hash : [Fiel
         U128::from_field(current_log_hash[0]),
         U128::from_field(current_log_hash[1])
     ])
-}
-
-pub fn compute_partial_address(contract_address_salt : Field, function_tree_root : Field, constructor_hash : Field) -> Field {
-    pedersen_hash([
-        // TODO why the zeroes?
-        0,
-        0,
-        contract_address_salt,
-        function_tree_root,
-        constructor_hash
-    ], GENERATOR_INDEX__PARTIAL_ADDRESS)
-}
-
-pub fn compute_contract_address_from_partial(point : Point, partial_address : Field) -> AztecAddress {
-    let field = pedersen_hash([
-        point.x,
-        point.y,
-        partial_address
-    ], GENERATOR_INDEX__CONTRACT_ADDRESS);
-    AztecAddress::from_field(field)
 }
 
 pub fn compute_commitment_nonce(first_nullifier : Field, commitment_index : Field) -> Field {

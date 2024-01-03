@@ -6,7 +6,7 @@ contract InclusionProofs {
             AztecAddress,
             EthAddress,
         },
-        point::Point,
+        grumpkin_point::GrumpkinPoint,
     };
     use dep::aztec::{
         state_vars::{
@@ -211,7 +211,7 @@ contract InclusionProofs {
     //       contract's aztec address instead of just the address.
     #[aztec(private)]
     fn test_contract_inclusion_proof(
-        deployer_public_key: Point,
+        deployer_public_key: GrumpkinPoint,
         contract_address_salt: Field,
         function_tree_root: Field,
         constructor_hash: Field,

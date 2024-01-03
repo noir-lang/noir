@@ -4,11 +4,11 @@ use crate::constants::{
     GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA,
 };
 use crate::hash::pedersen_hash;
-use crate::point::Point;
+use crate::grumpkin_point::GrumpkinPoint;
 
 // docs:start:contract-deployment-data
 struct ContractDeploymentData {
-    deployer_public_key : Point,
+    deployer_public_key : GrumpkinPoint,
     constructor_vk_hash : Field,
     function_tree_root : Field,
     contract_address_salt : Field,
