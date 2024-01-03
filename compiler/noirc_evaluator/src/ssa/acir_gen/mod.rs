@@ -302,7 +302,7 @@ impl Context {
                     let len = if matches!(typ, Type::Array(_, _)) {
                         typ.flattened_size()
                     } else {
-                        return Err(InternalError::UnExpected {
+                        return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
                             found: format!("Instead got {:?}", typ),
                             call_stack: self.acir_context.get_call_stack(),
@@ -640,7 +640,7 @@ impl Context {
             Instruction::ArrayGet { array, index } => (array, index, None),
             Instruction::ArraySet { array, index, value, .. } => (array, index, Some(value)),
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "Instruction should be an ArrayGet or ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
@@ -697,7 +697,7 @@ impl Context {
 
         match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::InternalError(InternalError::UnExpected {
+                return Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
                     call_stack: self.acir_context.get_call_stack(),
@@ -788,7 +788,7 @@ impl Context {
                 let slice_sizes = if store_type.contains_slice_element() {
                     self.compute_slice_sizes(store, None, dfg);
                     self.slice_sizes.get(&store).cloned().ok_or_else(|| {
-                        InternalError::UnExpected {
+                        InternalError::Unexpected {
                             expected: "Store value should have slice sizes computed".to_owned(),
                             found: "Missing key in slice sizes map".to_owned(),
                             call_stack: self.acir_context.get_call_stack(),
@@ -1013,7 +1013,7 @@ impl Context {
         let array = match dfg[instruction] {
             Instruction::ArraySet { array, .. } => array,
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "Instruction should be an ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
@@ -1235,7 +1235,7 @@ impl Context {
                                 }
                             }
                             _ => {
-                                return Err(InternalError::UnExpected {
+                                return Err(InternalError::Unexpected {
                                     expected: "AcirValue::DynamicArray or AcirValue::Array"
                                         .to_owned(),
                                     found: format!("{:?}", array_acir_value),
@@ -1246,7 +1246,7 @@ impl Context {
                         }
                     }
                     _ => {
-                        return Err(InternalError::UnExpected {
+                        return Err(InternalError::Unexpected {
                             expected: "array or instruction".to_owned(),
                             found: format!("{:?}", &dfg[array_id]),
                             call_stack: self.acir_context.get_call_stack(),
@@ -1256,7 +1256,7 @@ impl Context {
                 };
             }
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "array or slice".to_owned(),
                     found: array_typ.to_string(),
                     call_stack: self.acir_context.get_call_stack(),
@@ -1513,12 +1513,12 @@ impl Context {
     ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => Ok(acir_var),
-            AcirValue::Array(array) => Err(InternalError::UnExpected {
+            AcirValue::Array(array) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: format!("{array:?}"),
                 call_stack: self.acir_context.get_call_stack(),
             }),
-            AcirValue::DynamicArray(_) => Err(InternalError::UnExpected {
+            AcirValue::DynamicArray(_) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),
                 call_stack: self.acir_context.get_call_stack(),
