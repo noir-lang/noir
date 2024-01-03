@@ -23,6 +23,11 @@ fn is_empty(value : Field) -> bool {
     value == 0
 }
 
+pub fn is_empty_struct_array<T, N>(array : [T; N],
+    is_empty: fn (T)-> bool) -> bool {
+    array.all(|elem| is_empty(elem))
+}
+
 // Replace it with `array_to_bounded_vec` when trait is available.
 pub fn struct_array_to_bounded_vec<T, N>(array: [T; N], is_empty_item: fn (T)->bool, empty_item: T) -> BoundedVec<T, N> {
     let mut len = 0;

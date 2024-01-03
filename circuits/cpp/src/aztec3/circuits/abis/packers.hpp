@@ -27,7 +27,6 @@ struct ConstantsPacker {
                  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
                  MAX_PUBLIC_DATA_READS_PER_CALL,
                  MAX_READ_REQUESTS_PER_CALL,
-                 MAX_PENDING_READ_REQUESTS_PER_CALL,
                  MAX_NEW_COMMITMENTS_PER_TX,
                  MAX_NEW_NULLIFIERS_PER_TX,
                  MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
@@ -37,8 +36,7 @@ struct ConstantsPacker {
                  MAX_PUBLIC_DATA_READS_PER_TX,
                  MAX_NEW_CONTRACTS_PER_TX,
                  MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
-                 MAX_READ_REQUESTS_PER_TX,
-                 MAX_PENDING_READ_REQUESTS_PER_TX),
+                 MAX_READ_REQUESTS_PER_TX),
              NVP(NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
                  NUM_UNENCRYPTED_LOGS_HASHES_PER_TX,
                  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
@@ -132,6 +130,7 @@ struct GeneratorIndexPacker {
         int GLOBAL_VARIABLES = GeneratorIndex::GLOBAL_VARIABLES;
         int PARTIAL_ADDRESS = GeneratorIndex::PARTIAL_ADDRESS;
         int BLOCK_HASH = GeneratorIndex::BLOCK_HASH;
+        int SIDE_EFFECT = GeneratorIndex::SIDE_EFFECT;
         int TX_REQUEST = GeneratorIndex::TX_REQUEST;
         int SIGNATURE_PAYLOAD = GeneratorIndex::SIGNATURE_PAYLOAD;
         int VK = GeneratorIndex::VK;
@@ -170,6 +169,7 @@ struct GeneratorIndexPacker {
                  GLOBAL_VARIABLES,
                  PARTIAL_ADDRESS,
                  BLOCK_HASH,
+                 SIDE_EFFECT,
                  TX_REQUEST,
                  SIGNATURE_PAYLOAD,
                  VK,

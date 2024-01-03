@@ -61,11 +61,12 @@ impl PublicCallStackItem {
         request_public_inputs.call_context = public_inputs.call_context;
         request_public_inputs.args_hash = public_inputs.args_hash;
 
-        PublicCallStackItem {
+        let call_stack_item = PublicCallStackItem {
             contract_address: self.contract_address,
             function_data: self.function_data,
             is_execution_request: true,
             public_inputs: request_public_inputs,
-        }
+        };
+        call_stack_item
     }
 }

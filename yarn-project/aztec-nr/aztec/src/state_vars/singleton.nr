@@ -3,7 +3,6 @@ use dep::std::option::Option;
 use dep::protocol_types::{
     address::AztecAddress,
     constants::{
-        EMPTY_NULLIFIED_COMMITMENT,
         GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
     },
     hash::pedersen_hash,
@@ -24,8 +23,10 @@ use crate::oracle::{
 pub fn compute_singleton_initialization_nullifier(storage_slot: Field, owner: Option<AztecAddress>) -> Field {
     if owner.is_some() {
         let secret = get_secret_key(owner.unwrap_unchecked());
-        pedersen_hash([storage_slot, secret.low, secret.high],
-            GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
+        pedersen_hash(
+            [storage_slot, secret.low, secret.high],
+            GENERATOR_INDEX__INITIALIZATION_NULLIFIER
+        )
     } else {
         pedersen_hash([storage_slot], GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
     }
@@ -77,7 +78,7 @@ impl<Note, N> Singleton<Note, N> {
         // Nullify the storage slot.
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
         let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
-        context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
+        context.push_new_nullifier(nullifier, 0);
 
         create_note(context, self.storage_slot, note, self.note_interface, broadcast);
     }

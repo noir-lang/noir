@@ -33,6 +33,8 @@ import {
   RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
+  SideEffect,
+  SideEffectLinkedToNoteHash,
   VK_TREE_HEIGHT,
   VerificationKey,
   makeTuple,
@@ -169,8 +171,8 @@ export class SoloBlockBuilder implements BlockBuilder {
       endL1ToL2MessagesTreeSnapshot,
       startArchiveSnapshot,
       endArchiveSnapshot,
-      newCommitments,
-      newNullifiers,
+      newCommitments: newCommitments.map((c: SideEffect) => c.value),
+      newNullifiers: newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value),
       newL2ToL1Msgs,
       newContracts,
       newContractData,
@@ -691,7 +693,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     // Update the contract and note hash trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
     const newContracts = tx.data.end.newContracts.map(cd => computeContractLeaf(cd));
-    const newCommitments = tx.data.end.newCommitments.map(x => x.toBuffer());
+    const newCommitments = tx.data.end.newCommitments.map(x => x.value.toBuffer());
     await this.db.appendLeaves(
       MerkleTreeId.CONTRACT_TREE,
       newContracts.map(x => x.toBuffer()),
@@ -714,7 +716,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       sortedNewLeavesIndexes: sortednewNullifiersIndexes,
     } = await this.db.batchInsert(
       MerkleTreeId.NULLIFIER_TREE,
-      newNullifiers.map(fr => fr.toBuffer()),
+      newNullifiers.map(sideEffectLinkedToNoteHash => sideEffectLinkedToNoteHash.value.toBuffer()),
       NULLIFIER_SUBTREE_HEIGHT,
     );
     if (nullifierWitnessLeaves === undefined) {

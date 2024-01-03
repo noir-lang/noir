@@ -10,6 +10,7 @@ use crate::abis::function_selector::FunctionSelector;
 use crate::hash::{compute_l2_to_l1_hash, sha256_to_field};
 use crate::abis::call_stack_item::PublicCallStackItem;
 use crate::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
+use crate::abis::side_effect::SideEffect;
 
 #[test]
 fn compute_complete_address() {
@@ -101,11 +102,14 @@ fn compute_call_stack_item_request() {
     let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_internal: false, is_private: false, is_constructor: false };
 
     let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
-    public_inputs.new_commitments[0] = 1;
+    public_inputs.new_commitments[0] = SideEffect{
+        value: 1,
+        counter: 0,
+        };
 
     let call_stack_item = PublicCallStackItem { contract_address, public_inputs, is_execution_request: true, function_data };
 
-    assert_eq(call_stack_item.hash(), 0x1d51d7758d792c9cd6edd8e8ec5f1f9fb1f974abc1af6bb4cf9f2328ef306c96);
+    assert_eq(call_stack_item.hash(), 0x0edc0b5221e098c129545ba693368cddc0e6950bb11baa4595b310fc1fa24b5f);
 }
 
 #[test]
@@ -114,9 +118,12 @@ fn compute_call_stack_item() {
     let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_internal: false, is_private: false, is_constructor: false };
 
     let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
-    public_inputs.new_commitments[0] = 1;
+    public_inputs.new_commitments[0] = SideEffect{
+        value: 1,
+        counter: 0,
+        };
 
     let call_stack_item = PublicCallStackItem { contract_address, public_inputs, is_execution_request: false, function_data };
 
-    assert_eq(call_stack_item.hash(), 0x0a370c67b66e30901470c11a199764a914fc0fcfbc737ed03153079b2765813a);
+    assert_eq(call_stack_item.hash(), 0x10e265bf51be6945c10e526a86a928810429ac2d34c5fcda469245f0bb56abf6);
 }

@@ -155,7 +155,7 @@ export class Tx {
     if (!firstNullifier) {
       throw new Error(`Cannot get tx hash since first nullifier is missing`);
     }
-    return Promise.resolve(new TxHash(firstNullifier.toBuffer()));
+    return Promise.resolve(new TxHash(firstNullifier.value.toBuffer()));
   }
 
   /** Returns stats about this tx. */

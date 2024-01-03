@@ -199,6 +199,7 @@ export class PublicExecutionContext extends TypedOracle {
       isContractDeployment: false,
       isDelegateCall: false,
       isStaticCall: false,
+      startSideEffectCounter: Fr.ZERO,
     });
 
     const nestedExecution: PublicExecution = {

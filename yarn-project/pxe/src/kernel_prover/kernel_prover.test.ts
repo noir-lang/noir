@@ -10,6 +10,7 @@ import {
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   ReadRequestMembershipWitness,
+  SideEffect,
   TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -51,7 +52,10 @@ describe('Kernel Prover', () => {
     const publicInputs = PrivateCircuitPublicInputs.empty();
     publicInputs.newCommitments = makeTuple(
       MAX_NEW_COMMITMENTS_PER_CALL,
-      i => (i < newNoteIndices.length ? generateFakeCommitment(notesAndSlots[newNoteIndices[i]]) : Fr.ZERO),
+      i =>
+        i < newNoteIndices.length
+          ? new SideEffect(generateFakeCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO)
+          : SideEffect.empty(),
       0,
     );
     const functionData = FunctionData.empty();
@@ -66,7 +70,6 @@ describe('Kernel Prover', () => {
       readRequestPartialWitnesses: Array.from({ length: MAX_READ_REQUESTS_PER_CALL }, () =>
         ReadRequestMembershipWitness.emptyTransient(),
       ),
-      // pendingReadRequests: Array.from({ length: MAX_PENDING_READ_REQUESTS_PER_CALL }, () => Fr.ZERO),
       returnValues: [],
       acir: Buffer.alloc(0),
       partialWitness: new Map(),
@@ -78,9 +81,11 @@ describe('Kernel Prover', () => {
 
   const createProofOutput = (newNoteIndices: number[]) => {
     const publicInputs = KernelCircuitPublicInputs.empty();
-    const commitments = newNoteIndices.map(idx => generateFakeSiloedCommitment(notesAndSlots[idx]));
+    const commitments = newNoteIndices.map(
+      idx => new SideEffect(generateFakeSiloedCommitment(notesAndSlots[idx]), Fr.ZERO),
+    );
     // TODO(AD) FIXME(AD) This cast is bad. Why is this not the correct length when this is called?
-    publicInputs.end.newCommitments = commitments as Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>;
+    publicInputs.end.newCommitments = commitments as Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_TX>;
     return {
       publicInputs,
       proof: makeEmptyProof(),
@@ -120,7 +125,7 @@ describe('Kernel Prover', () => {
 
     proofCreator = mock<ProofCreator>();
     proofCreator.getSiloedCommitments.mockImplementation(publicInputs =>
-      Promise.resolve(publicInputs.newCommitments.map(createFakeSiloedCommitment)),
+      Promise.resolve(publicInputs.newCommitments.map(com => createFakeSiloedCommitment(com.value))),
     );
     proofCreator.createProofInit.mockResolvedValue(createProofOutput([]));
     proofCreator.createProofInner.mockResolvedValue(createProofOutput([]));

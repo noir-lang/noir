@@ -4,6 +4,7 @@ use crate::abis::function_selector::FunctionSelector;
 use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::abis::new_contract_data::NewContractData as ContractLeafPreimage;
 use crate::abis::function_data::FunctionData;
+use crate::abis::side_effect::{SideEffect};
 use crate::utils::uint128::U128;
 use crate::utils::uint256::U256;
 use crate::utils::bounded_vec::BoundedVec;
@@ -263,13 +264,16 @@ pub fn compute_unique_siloed_commitment(nonce: Field, siloed_commitment: Field) 
     ], GENERATOR_INDEX__UNIQUE_COMMITMENT)
 }
 
-pub fn compute_unique_siloed_commitments<N>(first_nullifier: Field, siloed_commitments: [Field; N]) -> [Field; N] {
-    let mut unique_siloed_commitments = [0; N];
+pub fn compute_unique_siloed_commitments<N>(first_nullifier: Field, siloed_commitments: [SideEffect; N]) -> [SideEffect; N] {
+    let mut unique_siloed_commitments = [SideEffect::empty(); N];
     for i in 0..N {
         let siloed_commitment = siloed_commitments[i];
-        if siloed_commitment != 0 {
+        if siloed_commitment.value != 0 {
             let nonce = compute_commitment_nonce(first_nullifier, i);
-            unique_siloed_commitments[i] = compute_unique_siloed_commitment(nonce, siloed_commitment);
+            unique_siloed_commitments[i] = SideEffect {
+                value: compute_unique_siloed_commitment(nonce, siloed_commitment.value),
+                counter: siloed_commitment.counter
+                };
         }
     }
     unique_siloed_commitments

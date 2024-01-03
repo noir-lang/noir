@@ -16,6 +16,8 @@ import {
   PublicDataTreeLeaf,
   PublicDataUpdateRequest,
   RootRollupPublicInputs,
+  SideEffect,
+  SideEffectLinkedToNoteHash,
   makeTuple,
   range,
 } from '@aztec/circuits.js';
@@ -24,6 +26,8 @@ import {
   fr,
   makeBaseOrMergeRollupPublicInputs,
   makeNewContractData,
+  makeNewSideEffect,
+  makeNewSideEffectLinkedToNoteHash,
   makePrivateKernelPublicInputsFinal,
   makeProof,
   makePublicCallRequest,
@@ -125,14 +129,14 @@ describe('sequencer/solo_block_builder', () => {
   const updateExpectedTreesFromTxs = async (txs: ProcessedTx[]) => {
     const newContracts = flatMap(txs, tx => tx.data.end.newContracts.map(n => computeContractLeaf(n)));
     for (const [tree, leaves] of [
-      [MerkleTreeId.NOTE_HASH_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
+      [MerkleTreeId.NOTE_HASH_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.value.toBuffer()))],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
     ] as const) {
       await expectsDb.appendLeaves(tree, leaves);
     }
     await expectsDb.batchInsert(
       MerkleTreeId.NULLIFIER_TREE,
-      flatMap(txs, tx => tx.data.end.newNullifiers.map(x => x.toBuffer())),
+      flatMap(txs, tx => tx.data.end.newNullifiers.map(x => x.value.toBuffer())),
       NULLIFIER_SUBTREE_HEIGHT,
     );
     for (const tx of txs) {
@@ -242,8 +246,8 @@ describe('sequencer/solo_block_builder', () => {
       endL1ToL2MessagesTreeSnapshot: rootRollupOutput.endL1ToL2MessagesTreeSnapshot,
       startArchiveSnapshot: rootRollupOutput.startArchiveSnapshot,
       endArchiveSnapshot: rootRollupOutput.endArchiveSnapshot,
-      newCommitments,
-      newNullifiers,
+      newCommitments: newCommitments.map((sideeffect: SideEffect) => sideeffect.value),
+      newNullifiers: newNullifiers.map((sideeffect: SideEffectLinkedToNoteHash) => sideeffect.value),
       newContracts,
       newContractData,
       newPublicDataWrites,
@@ -312,9 +316,14 @@ describe('sequencer/solo_block_builder', () => {
 
       const processedTx = await makeProcessedTx(tx, kernelOutput, makeProof());
 
-      processedTx.data.end.newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100);
-      processedTx.data.end.newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200);
-      processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = Fr.ZERO;
+      processedTx.data.end.newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, makeNewSideEffect, seed + 0x100);
+      processedTx.data.end.newNullifiers = makeTuple(
+        MAX_NEW_NULLIFIERS_PER_TX,
+        makeNewSideEffectLinkedToNoteHash,
+        seed + 0x200,
+      );
+      processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = SideEffectLinkedToNoteHash.empty();
+
       processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
       processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
       processedTx.data.end.encryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.encryptedLogs));
@@ -395,11 +404,15 @@ describe('sequencer/solo_block_builder', () => {
 
       // new added values
       const tx = await makeEmptyProcessedTx();
-      tx.data.end.newNullifiers[0] = new Fr(
-        10336601644835972678500657502133589897705389664587188571002640950065546264856n,
+      tx.data.end.newNullifiers[0] = new SideEffectLinkedToNoteHash(
+        new Fr(10336601644835972678500657502133589897705389664587188571002640950065546264856n),
+        Fr.ZERO,
+        Fr.ZERO,
       );
-      tx.data.end.newNullifiers[1] = new Fr(
-        17490072961923661940560522096125238013953043065748521735636170028491723851741n,
+      tx.data.end.newNullifiers[1] = new SideEffectLinkedToNoteHash(
+        new Fr(17490072961923661940560522096125238013953043065748521735636170028491723851741n),
+        Fr.ZERO,
+        Fr.ZERO,
       );
 
       const txs = [tx, await makeEmptyProcessedTx(), await makeEmptyProcessedTx(), await makeEmptyProcessedTx()];

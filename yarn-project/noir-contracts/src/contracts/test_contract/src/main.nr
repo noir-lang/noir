@@ -1,7 +1,6 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
     use dep::std::option::Option;
-    use dep::protocol_types::constants::EMPTY_NULLIFIED_COMMITMENT;
     use dep::protocol_types::address::{
         AztecAddress,
         EthAddress,
@@ -134,13 +133,13 @@ contract Test {
         let note = DummyNote::new(amount, secret_hash);
 
         // Public oracle call to emit new commitment.
-        context.push_new_nullifier(note.get_commitment(), EMPTY_NULLIFIED_COMMITMENT);
+        context.push_new_nullifier(note.get_commitment(), 0);
     }
 
     // Forcefully emits a nullifier (for testing purposes)
     #[aztec(private)]
     fn emit_nullifier(nullifier: Field) {
-        context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
+        context.push_new_nullifier(nullifier, 0);
     }
 
     #[aztec(private)]

@@ -32,6 +32,7 @@ use dep::types::constants::{
 use dep::types::abis::previous_kernel_data::PreviousKernelData;
 use dep::types::abis::membership_witness::{NullifierMembershipWitness, PublicDataMembershipWitness, MembershipWitness};
 use dep::types::abis::membership_witness::ArchiveRootMembershipWitness;
+use dep::types::abis::side_effect::{SideEffect, SideEffectLinkedToNoteHash};
 use dep::types::abis::nullifier_leaf_preimage::NullifierLeafPreimage;
 
 struct BaseRollupInputs {
@@ -166,13 +167,13 @@ impl BaseRollupInputs {
     // TODO(Kev): This should say calculate_commitments_subtree_root
     // Cpp code says calculate_commitments_subtree, so I'm leaving it as is for now
     fn calculate_commitments_subtree(self) -> Field {
-        calculate_subtree(self.kernel_data.public_inputs.end.new_commitments)
+        calculate_subtree(self.kernel_data.public_inputs.end.new_commitments.map(|c: SideEffect| c.value))
     }
 
     fn check_nullifier_tree_non_membership_and_insert_to_tree(self) -> AppendOnlyTreeSnapshot {
         crate::indexed_tree::batch_insert(
             self.start_nullifier_tree_snapshot,
-            self.kernel_data.public_inputs.end.new_nullifiers,
+            self.kernel_data.public_inputs.end.new_nullifiers.map(|nullifier: SideEffectLinkedToNoteHash| nullifier.value),
             self.sorted_new_nullifiers,
             self.sorted_new_nullifiers_indexes,
             self.new_nullifiers_subtree_sibling_path,
@@ -274,12 +275,12 @@ impl BaseRollupInputs {
         let mut offset = 0;
 
         for j in 0..MAX_NEW_COMMITMENTS_PER_TX {
-            calldata_hash_inputs[offset + j] = new_commitments[j];
+            calldata_hash_inputs[offset + j] = new_commitments[j].value;
         }
         offset += MAX_NEW_COMMITMENTS_PER_TX ;
 
         for j in 0..MAX_NEW_NULLIFIERS_PER_TX {
-            calldata_hash_inputs[offset + j] = new_nullifiers[j];
+            calldata_hash_inputs[offset + j] = new_nullifiers[j].value;
         }
         offset += MAX_NEW_NULLIFIERS_PER_TX ;
 
@@ -601,6 +602,7 @@ mod tests {
         abis::public_data_read::PublicDataRead,
         abis::public_data_update_request::PublicDataUpdateRequest,
         abis::previous_kernel_data::PreviousKernelData,
+        abis::side_effect::SideEffect,
         tests::previous_kernel_data_builder::PreviousKernelDataBuilder,
         address::{AztecAddress, EthAddress},
         utils::bounded_vec::BoundedVec,
@@ -795,7 +797,7 @@ mod tests {
 
                     let low_index = self.new_nullifiers.get_unchecked(original_index as Field).existing_index;
 
-                    kernel_data.public_inputs.end.new_nullifiers[original_index] = new_nullifier;
+                    kernel_data.public_inputs.end.new_nullifiers[original_index].value = new_nullifier;
 
                     let mut low_preimage = pre_existing_nullifiers[low_index];
                     low_nullifier_leaf_preimages[i] = low_preimage;
@@ -1014,7 +1016,10 @@ mod tests {
         let new_commitments = [27, 28, 29, 30, 31, 32];
         let mut new_commitments_vec = builder.kernel_data.end.new_commitments;
         for i in 0..new_commitments.len() {
-            new_commitments_vec.push(new_commitments[i]);
+            new_commitments_vec.push(SideEffect{
+                value: new_commitments[i],
+                counter: 0,
+                });
         }
         builder.kernel_data.end.new_commitments = new_commitments_vec;
         let mut expected_commitments_tree = NonEmptyMerkleTree::new(

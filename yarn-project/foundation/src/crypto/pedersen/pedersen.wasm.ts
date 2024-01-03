@@ -6,7 +6,7 @@ import { BarretenbergSync, Fr } from '@aztec/bb.js';
  */
 export function pedersenCommit(input: Buffer[]) {
   if (!input.every(i => i.length <= 32)) {
-    throw new Error('All input buffers must be <= 32 bytes.');
+    throw new Error('All Pedersen Commit input buffers must be <= 32 bytes.');
   }
   input = input.map(i => (i.length < 32 ? Buffer.concat([Buffer.alloc(32 - i.length, 0), i]) : i));
   const point = BarretenbergSync.getSingleton().pedersenCommit(input.map(i => new Fr(i)));
@@ -21,7 +21,7 @@ export function pedersenCommit(input: Buffer[]) {
  */
 export function pedersenHash(input: Buffer[], index = 0) {
   if (!input.every(i => i.length <= 32)) {
-    throw new Error('All input buffers must be <= 32 bytes.');
+    throw new Error('All Pedersen Hash input buffers must be <= 32 bytes.');
   }
   input = input.map(i => (i.length < 32 ? Buffer.concat([Buffer.alloc(32 - i.length, 0), i]) : i));
   return Buffer.from(

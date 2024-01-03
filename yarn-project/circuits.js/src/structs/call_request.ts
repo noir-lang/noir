@@ -83,10 +83,24 @@ export class CallRequest {
      * The call context of the contract calling the function.
      */
     public callerContext: CallerContext,
+    /**
+     * The call context of the contract calling the function.
+     */
+    public startSideEffectCounter: Fr,
+    /**
+     * The call context of the contract calling the function.
+     */
+    public endSideEffectCounter: Fr,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.hash, this.callerContractAddress, this.callerContext);
+    return serializeToBuffer(
+      this.hash,
+      this.callerContractAddress,
+      this.callerContext,
+      this.startSideEffectCounter,
+      this.endSideEffectCounter,
+    );
   }
 
   /**
@@ -96,11 +110,23 @@ export class CallRequest {
    */
   public static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new CallRequest(Fr.fromBuffer(reader), reader.readObject(AztecAddress), reader.readObject(CallerContext));
+    return new CallRequest(
+      Fr.fromBuffer(reader),
+      reader.readObject(AztecAddress),
+      reader.readObject(CallerContext),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+    );
   }
 
   isEmpty() {
-    return this.hash.isZero() && this.callerContractAddress.isZero() && this.callerContext.isEmpty();
+    return (
+      this.hash.isZero() &&
+      this.callerContractAddress.isZero() &&
+      this.callerContext.isEmpty() &&
+      this.startSideEffectCounter.isZero() &&
+      this.endSideEffectCounter.isZero()
+    );
   }
 
   /**
@@ -108,14 +134,16 @@ export class CallRequest {
    * @returns A new instance of CallRequest with zero hash, caller contract address and caller context.
    */
   public static empty() {
-    return new CallRequest(Fr.ZERO, AztecAddress.ZERO, CallerContext.empty());
+    return new CallRequest(Fr.ZERO, AztecAddress.ZERO, CallerContext.empty(), Fr.ZERO, Fr.ZERO);
   }
 
   equals(callRequest: CallRequest) {
     return (
       callRequest.hash.equals(this.hash) &&
       callRequest.callerContractAddress.equals(this.callerContractAddress) &&
-      callRequest.callerContext.equals(this.callerContext)
+      callRequest.callerContext.equals(this.callerContext) &&
+      callRequest.startSideEffectCounter.equals(this.startSideEffectCounter) &&
+      callRequest.endSideEffectCounter.equals(this.endSideEffectCounter)
     );
   }
 }

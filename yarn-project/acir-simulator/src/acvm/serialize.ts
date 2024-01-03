@@ -81,6 +81,7 @@ export function toACVMCallContext(callContext: CallContext): ACVMField[] {
     toACVMField(callContext.isDelegateCall),
     toACVMField(callContext.isStaticCall),
     toACVMField(callContext.isContractDeployment),
+    toACVMField(callContext.startSideEffectCounter),
   ];
 }
 
@@ -142,14 +143,13 @@ export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): AC
     toACVMField(publicInputs.argsHash),
 
     ...publicInputs.returnValues.map(toACVMField),
-    ...publicInputs.readRequests.map(toACVMField),
-    ...publicInputs.pendingReadRequests.map(toACVMField),
-    ...publicInputs.newCommitments.map(toACVMField),
-    ...publicInputs.newNullifiers.map(toACVMField),
-    ...publicInputs.nullifiedCommitments.map(toACVMField),
+    ...publicInputs.readRequests.flatMap(x => x.toFieldArray()).map(toACVMField),
+    ...publicInputs.newCommitments.flatMap(x => x.toFieldArray()).map(toACVMField),
+    ...publicInputs.newNullifiers.flatMap(x => x.toFieldArray()).map(toACVMField),
     ...publicInputs.privateCallStackHashes.map(toACVMField),
     ...publicInputs.publicCallStackHashes.map(toACVMField),
     ...publicInputs.newL2ToL1Msgs.map(toACVMField),
+    toACVMField(publicInputs.endSideEffectCounter),
     ...publicInputs.encryptedLogsHash.map(toACVMField),
     ...publicInputs.unencryptedLogsHash.map(toACVMField),
 

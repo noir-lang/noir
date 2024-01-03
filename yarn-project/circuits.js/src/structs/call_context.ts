@@ -47,6 +47,10 @@ export class CallContext {
      * Determines whether the call is a contract deployment.
      */
     public isContractDeployment: boolean,
+    /**
+     * The start side effect counter for this call context.
+     */
+    public startSideEffectCounter: Fr,
   ) {
     this.portalContractAddress =
       portalContractAddress instanceof EthAddress ? portalContractAddress : EthAddress.fromField(portalContractAddress);
@@ -65,6 +69,7 @@ export class CallContext {
       false,
       false,
       false,
+      Fr.ZERO,
     );
   }
 
@@ -73,7 +78,8 @@ export class CallContext {
       this.msgSender.isZero() &&
       this.storageContractAddress.isZero() &&
       this.portalContractAddress.isZero() &&
-      this.functionSelector.isEmpty()
+      this.functionSelector.isEmpty() &&
+      this.startSideEffectCounter.isZero()
     );
   }
 
@@ -90,6 +96,7 @@ export class CallContext {
       fields.isDelegateCall,
       fields.isStaticCall,
       fields.isContractDeployment,
+      fields.startSideEffectCounter,
     ] as const;
   }
 
@@ -116,6 +123,7 @@ export class CallContext {
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readBoolean(),
+      reader.readObject(Fr),
     );
   }
 
@@ -127,7 +135,8 @@ export class CallContext {
       callContext.functionSelector.equals(this.functionSelector) &&
       callContext.isDelegateCall === this.isDelegateCall &&
       callContext.isStaticCall === this.isStaticCall &&
-      callContext.isContractDeployment === this.isContractDeployment
+      callContext.isContractDeployment === this.isContractDeployment &&
+      callContext.startSideEffectCounter === this.startSideEffectCounter
     );
   }
 }
