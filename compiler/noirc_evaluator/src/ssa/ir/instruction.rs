@@ -1170,7 +1170,8 @@ pub(crate) enum SimplifyResult {
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
 
-    /// Replace this function with an simpler but equivalent instruction.
+    /// Replace this function with a set of simpler but equivalent instructions.
+    /// This is currently only to be used for [`Instruction::Constrain`].
     SimplifiedToInstructionMultiple(Vec<Instruction>),
 
     /// Remove the instruction, it is unnecessary
