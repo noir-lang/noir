@@ -2,18 +2,21 @@
 
 #include "../bigfield/bigfield.hpp"
 #include "../byte_array/byte_array.hpp"
-#include "../field/field.hpp"
-#include "barretenberg/ecc/curves/bn254/g1.hpp"
-
 #include "../circuit_builders/circuit_builders_fwd.hpp"
+#include "../field/field.hpp"
 #include "../memory/rom_table.hpp"
 #include "../memory/twin_rom_table.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 
-namespace proof_system::plonk {
-namespace stdlib {
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/707) If using a a circuit builder with Goblin, which is
+// designed to have efficient barretenberg::g1 operations, a developer might accidentally write inefficient circuits
+// using biggroup functions that do not use the OpQueue. We use this concept to prevent compilation of such functions.
+template <typename Builder, typename NativeGroup>
+concept IsNotGoblinInefficiencyTrap = !(IsGoblinBuilder<Builder> && std::same_as<NativeGroup, barretenberg::g1>);
+
+namespace proof_system::plonk::stdlib {
 
 // ( ͡° ͜ʖ ͡°)
 template <class Builder, class Fq, class Fr, class NativeGroup> class element {
@@ -154,14 +157,22 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
      * We can chain repeated point additions together, where we only require 2 non-native field multiplications per
      * point addition, instead of 3
      **/
-    static chain_add_accumulator chain_add_start(const element& p1, const element& p2);
-    static chain_add_accumulator chain_add(const element& p1, const chain_add_accumulator& accumulator);
-    static element chain_add_end(const chain_add_accumulator& accumulator);
+    static chain_add_accumulator chain_add_start(const element& p1, const element& p2)
+        requires(IsNotGoblinInefficiencyTrap<Builder, NativeGroup>);
+    static chain_add_accumulator chain_add(const element& p1, const chain_add_accumulator& accumulator)
+        requires(IsNotGoblinInefficiencyTrap<Builder, NativeGroup>);
+    static element chain_add_end(const chain_add_accumulator& accumulator)
+        requires(IsNotGoblinInefficiencyTrap<Builder, NativeGroup>);
 
-    element montgomery_ladder(const element& other) const;
-    element montgomery_ladder(const chain_add_accumulator& accumulator);
-    element multiple_montgomery_ladder(const std::vector<chain_add_accumulator>& to_add) const;
-    element quadruple_and_add(const std::vector<element>& to_add) const;
+    element montgomery_ladder(const element& other) const
+        requires(IsNotGoblinInefficiencyTrap<Builder, NativeGroup>);
+    element montgomery_ladder(const chain_add_accumulator& accumulator)
+        requires(IsNotGoblinInefficiencyTrap<Builder, NativeGroup>);
+    element multiple_montgomery_ladder(const std::vector<chain_add_accumulator>& to_add) const
+        requires(IsNotGoblinInefficiencyTrap<Builder, NativeGroup>);
+
+    element quadruple_and_add(const std::vector<element>& to_add) const
+        requires(IsNotGoblinInefficiencyTrap<Builder, NativeGroup>);
 
     typename NativeGroup::affine_element get_value() const
     {
@@ -179,6 +190,9 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,
                              const size_t max_num_bits = 0);
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/707) max_num_bits is unused; could implement and use
+    // this to optimize other operations.
     static element goblin_batch_mul(const std::vector<element>& points,
                                     const std::vector<Fr>& scalars,
                                     const size_t max_num_bits = 0);
@@ -196,6 +210,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     // i.e. for the bn254 curve, the template param is `typename = void`
     // for any other curve, there is no template param
     template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, barretenberg::g1>::value>>
+        requires(IsNotGoblinBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
     static element bn254_endo_batch_mul(const std::vector<element>& big_points,
                                         const std::vector<Fr>& big_scalars,
                                         const std::vector<element>& small_points,
@@ -203,6 +218,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
                                         const size_t max_num_small_bits);
 
     template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, barretenberg::g1>::value>>
+        requires(IsNotGoblinBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
     static element bn254_endo_batch_mul_with_generator(const std::vector<element>& big_points,
                                                        const std::vector<Fr>& big_scalars,
                                                        const std::vector<element>& small_points,
@@ -889,8 +905,7 @@ inline std::ostream& operator<<(std::ostream& os, element<C, Fq, Fr, G> const& v
 {
     return os << "{ " << v.x << " , " << v.y << " }";
 }
-} // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace proof_system::plonk::stdlib
 
 #include "biggroup_batch_mul.hpp"
 #include "biggroup_bn254.hpp"
