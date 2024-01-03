@@ -1295,8 +1295,6 @@ impl NodeInterner {
             HirExpression::Constructor(expr) => {
                 let struct_type = &expr.r#type.borrow();
 
-                eprintln!("\n -> Resolve Constructor {struct_type:?}\n");
-
                 Some(struct_type.location)
             }
             HirExpression::MemberAccess(expr_member_access) => {
@@ -1322,43 +1320,6 @@ impl NodeInterner {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
-        let lhs_found_ident = self.nodes.get(expr_lhs.into())?;
-
-        let ident = match lhs_found_ident {
-            Node::Expression(HirExpression::Ident(ident)) => ident,
-            _ => return None,
-        };
-
-        let definition_info = self.definition(ident.id);
-
-        let local_id = match definition_info.kind {
-            DefinitionKind::Local(Some(local_id)) => local_id,
-            DefinitionKind::Local(None) => {
-                return self.handle_struct_member_access_for_self(expr_lhs, expr_rhs)
-            }
-            _ => return None,
-        };
-
-        let constructor_expression = match self.nodes.get(local_id.into()) {
-            Some(Node::Expression(HirExpression::Constructor(constructor_expression))) => {
-                constructor_expression
-            }
-            _ => return None,
-        };
-
-        let struct_type = constructor_expression.r#type.borrow();
-        let field_names = struct_type.field_names();
-
-        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
-            Location::new(found_field_name.span(), struct_type.location.file)
-        })
-    }
-
-    fn handle_struct_member_access_for_self(
-        &self,
-        expr_lhs: &ExprId,
-        expr_rhs: &Ident,
-    ) -> Option<Location> {
         let lhs_self_struct = match self.id_type(expr_lhs) {
             Type::Struct(struct_type, _) => struct_type,
             _ => return None,
