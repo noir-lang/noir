@@ -26,7 +26,6 @@ wasm-bindgen-futures.workspace = true
 console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
 js-sys.workspace = true 
-tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-web.workspace = true
 

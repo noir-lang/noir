@@ -57,7 +57,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             circuit,
             debug_artifact,
             initial_witness,
-            Box::new(DefaultForeignCallExecutor::new(true)),
+            Box::new(DefaultForeignCallExecutor::new(true, None)),
         );
         Self {
             server,

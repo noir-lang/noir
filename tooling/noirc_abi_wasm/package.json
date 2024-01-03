@@ -1,10 +1,19 @@
 {
   "name": "@noir-lang/noirc_abi",
-  "collaborators": [
+  "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
   "version": "0.22.0",
   "license": "(MIT OR Apache-2.0)",
+  "homepage": "https://noir-lang.org/",
+  "repository": {
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "tooling/noirc_abi_wasm",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
+  },
   "files": [
     "nodejs",
     "web",
@@ -17,10 +26,6 @@
   "types": "./web/noirc_abi_wasm.d.ts",
   "module": "./web/noirc_abi_wasm.js",
   "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/noir-lang/noir.git"
-  },
   "scripts": {
     "build": "bash ./build.sh",
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
