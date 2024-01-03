@@ -72,7 +72,7 @@ We need to define some imports.
 
 Write this within your contract at the top
 
-#include_code imports /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
+#include_code imports /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
 `context::{PrivateContext, Context}`
 
@@ -96,11 +96,11 @@ This allows us to store our counter in a way that acts as an integer, abstractin
 
 In this step, we will initiate a `Storage` struct to store balances in a private way. The vast majority Aztec.nr smart contracts will need this.
 
-#include_code storage_struct /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
+#include_code storage_struct /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
 We are only storing one variable - `counts` as a `Map` of `EasyPrivateUint`. This means our `count` will act as a private integer, and we can map it to an address.
 
-#include_code storage_init /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
+#include_code storage_init /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
 This `init` method is creating and initializing a `Storage` instance. This instance includes a `Map` named `counters`. Each entry in this `Map` represents an account's counter.
 
@@ -110,7 +110,7 @@ Now we’ve got a mechanism for storing our private state, we can start using it
 
 Let’s create a `constructor` method to run on deployment that assigns an initial supply of tokens to a specified owner. In the constructor we created in the first step, write this:
 
-#include_code constructor /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
+#include_code constructor /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
 This function accesses the counts from storage. Then it assigns the passed initial counter to the `owner`'s counter privately using `at().add()`.
 
@@ -120,7 +120,7 @@ We have annotated this and other functions with `#[aztec(private)]` which are AB
 
 Now let’s implement the `increment` function we defined in the first step.
 
-#include_code increment /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
+#include_code increment /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
 The `increment` function works very similarly to the `constructor`, but instead directly adds 1 to the counter rather than passing in an initial count parameter.
 
@@ -130,7 +130,7 @@ Because our counters are private, the network can't directly verify if a note wa
 
 Add a new function into your contract as shown below:
 
-#include_code nullifier /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
+#include_code nullifier /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
 Here, we're computing both the note hash and the nullifier. The nullifier computation uses Aztec’s `compute_note_hash_and_nullifier` function, which takes details about the note's attributes eg contract address, nonce, storage slot, and preimage.
 
@@ -138,7 +138,7 @@ Here, we're computing both the note hash and the nullifier. The nullifier comput
 
 The last thing we need to implement is the function in order to retrieve a counter. In the `getCounter` we defined in the first step, write this:
 
-#include_code get_counter /yarn-project/noir-contracts/src/contracts/counter_contract/src/main.nr rust
+#include_code get_counter /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
 This function is `unconstrained` which allows us to fetch data from storage without a transaction. We retrieve a reference to the `owner`'s `counter` from the `counters` Map. The `get_balance` function then operates on the owner's counter. This yields a private counter that only the private key owner can decrypt.
 

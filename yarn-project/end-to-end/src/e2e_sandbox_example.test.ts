@@ -12,7 +12,7 @@ import {
   getSchnorrAccount,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 
 import { format } from 'util';
 

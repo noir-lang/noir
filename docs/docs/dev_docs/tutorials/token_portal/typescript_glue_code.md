@@ -33,7 +33,7 @@ In `utils.ts`, put:
 ```typescript
 import * as fs from "fs";
 import { AztecAddress, EthAddress, TxStatus, Wallet } from "@aztec/aztec.js";
-import { TokenContract } from "@aztec/noir-contracts/types";
+import { TokenContract } from "@aztec/noir-contracts/Token";
 import {
   Account,
   Chain,
@@ -88,7 +88,8 @@ Open `cross_chain_messaging.test.ts` and paste the initial description of the te
 ```typescript
 import { expect, jest} from '@jest/globals'
 import { AccountWallet, AztecAddress, DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, getSandboxAccountsWallets, waitForSandbox } from '@aztec/aztec.js';
-import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
+import { TokenBridgeContract } from '@aztec/noir-contracts/TokenBridge';
 
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 import { delay } from './fixtures/utils.js';

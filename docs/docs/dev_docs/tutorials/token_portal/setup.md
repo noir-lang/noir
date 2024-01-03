@@ -62,7 +62,7 @@ type = "contract"
 
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="aztec-packages-v0.16.9", directory="yarn-project/noir-contracts/src/contracts/token_portal_content_hash_lib" }
+token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="aztec-packages-v0.16.9", directory="yarn-project/noir-contracts/contracts/token_portal_content_hash_lib" }
 protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
 ```
 

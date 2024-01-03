@@ -11,7 +11,7 @@ import {
 } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
-import { UniswapContract } from '@aztec/noir-contracts/types';
+import { UniswapContract } from '@aztec/noir-contracts/Uniswap';
 
 import { jest } from '@jest/globals';
 import { Chain, HttpTransport, PublicClient, getContract, parseEther } from 'viem';

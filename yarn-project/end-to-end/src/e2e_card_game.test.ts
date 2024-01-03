@@ -7,7 +7,7 @@ import {
   deployInitialSandboxAccounts,
   getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
-import { CardGameContract } from '@aztec/noir-contracts/types';
+import { CardGameContract } from '@aztec/noir-contracts/CardGame';
 
 import { setup } from './fixtures/utils.js';
 

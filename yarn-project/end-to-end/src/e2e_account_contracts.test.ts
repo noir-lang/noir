@@ -11,7 +11,7 @@ import {
   SingleKeyAccountContract,
   Wallet,
 } from '@aztec/aztec.js';
-import { ChildContract } from '@aztec/noir-contracts/types';
+import { ChildContract } from '@aztec/noir-contracts/Child';
 
 import { randomBytes } from 'crypto';
 

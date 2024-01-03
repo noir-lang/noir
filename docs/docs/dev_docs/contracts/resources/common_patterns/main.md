@@ -57,9 +57,9 @@ contract Bridge {
         amount: Field,
     ) -> Field {
         ...
-    #include_code call_assert_token_is_same /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr raw
+    #include_code call_assert_token_is_same /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
     }
-    #include_code assert_token_is_same /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr raw
+    #include_code assert_token_is_same /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
 }
 ```
 :::danger
@@ -102,11 +102,11 @@ Hence, it's necessary to add a "randomness" field to your note to prevent such a
 Currently, if you have storage defined, the compiler will error if you don't have a `compute_note_hash_and_nullifier()` defined. Without this, the PXE can't process encrypted events and discover your notes.
 
 If your contract doesn't have anything to do with notes (e.g. operates solely in the public domain), you can do the following:
-#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 Otherwise, you need this method to help the PXE with processing your notes. In our [demo token contract](../../../tutorials/writing_token_contract.md#compute_note_hash_and_nullifier), we work with 2 kinds of notes: `ValueNote` and `TransparentNote`. Hence this method must define how to work with both:
 
-#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### L1 -- L2 interactions
 Refer to [Token Portal tutorial on bridging tokens between L1 and L2](../../../tutorials/token_portal/main.md) and/or [Uniswap tutorial that shows how to swap on L1 using funds on L2](../../../tutorials/uniswap/main.md). Both examples show how to:

@@ -11,6 +11,7 @@
 **/Dockerfile*
 **/*.tsbuildinfo
 
-noir-contracts/src/types
-noir-contracts/src/artifacts
+./aztec.js/src/account_contract/artifacts
+
+noir-contracts/src
 noir-contracts/target

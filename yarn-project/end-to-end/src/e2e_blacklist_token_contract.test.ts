@@ -15,7 +15,7 @@ import {
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { Pedersen, SparseTree, newTree } from '@aztec/merkle-tree';
-import { SlowTreeContract, TokenBlacklistContract, TokenContract } from '@aztec/noir-contracts/types';
+import { SlowTreeContract, TokenBlacklistContract, TokenContract } from '@aztec/noir-contracts';
 
 import { jest } from '@jest/globals';
 import levelup from 'levelup';

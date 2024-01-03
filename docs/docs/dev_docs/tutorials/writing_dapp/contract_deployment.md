@@ -26,11 +26,11 @@ safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#incl
 
 Last, copy-paste the code from the `Token` contract into `contracts/token/main.nr`:
 
-#include_code token_all yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code token_all yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### Helper files
 
-The `Token` contract also requires some helper files. You can view the files [here](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/yarn-project/noir-contracts/src/contracts/token_contract/src). Copy the `types.nr` and the `types` folder into `contracts/token/src`.
+The `Token` contract also requires some helper files. You can view the files [here](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/yarn-project/noir-contracts/contracts/token_contract/src). Copy the `types.nr` and the `types` folder into `contracts/token/src`.
 
 ## Compile your contract
 

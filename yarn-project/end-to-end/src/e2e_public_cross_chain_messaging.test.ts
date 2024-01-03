@@ -8,7 +8,8 @@ import {
   computeAuthWitMessageHash,
   sleep,
 } from '@aztec/aztec.js';
-import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
+import { TokenBridgeContract } from '@aztec/noir-contracts/TokenBridge';
 
 import { setup } from './fixtures/utils.js';
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';

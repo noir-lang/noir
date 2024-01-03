@@ -1,56 +1,46 @@
-import { LogFn } from '@aztec/foundation/log';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
+import path from 'path';
 
-import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises';
-import path, { resolve } from 'path';
-
-import { generateTypescriptContractInterface } from '../index.js';
-import { isContractArtifact } from '../utils.js';
+import { generateContractArtifact } from '../contract-interface-gen/abi.js';
+import { generateTypescriptContractInterface } from '../contract-interface-gen/contractTypescript.js';
 
 /**
- * Registers a 'typescript' command on the given commander program that generates typescript interface out of an ABI.
- * @param program - Commander program.
- * @param log - Optional logging function.
- * @returns The program with the command registered.
+ *
  */
-export async function generateTypescriptInterface(
-  projectPath: string,
-  options: {
-    /* eslint-disable jsdoc/require-jsdoc */
-    outdir: string;
-    /* eslint-disable jsdoc/require-jsdoc */
-    artifacts: string;
-  },
-  log: LogFn,
-) {
-  const { outdir, artifacts } = options;
-  if (typeof projectPath !== 'string') {
-    throw new Error(`Missing project path argument`);
-  }
-  const currentDir = process.cwd();
+export function generateTypescriptInterface(outputPath: string, fileOrDirPath: string, includeDebug = false) {
+  const stats = statSync(fileOrDirPath);
 
-  const artifactsDir = resolve(projectPath, artifacts);
-  for (const artifactsDirItem of await readdir(artifactsDir)) {
-    const artifactPath = resolve(artifactsDir, artifactsDirItem);
-    if ((await stat(artifactPath)).isFile() && artifactPath.endsWith('.json')) {
-      const contract = JSON.parse((await readFile(artifactPath)).toString());
-      if (!isContractArtifact(contract)) {
-        continue;
-      }
-      const tsPath = resolve(projectPath, outdir, `${contract.name}.ts`);
-      log(`Writing ${contract.name} typescript interface to ${path.relative(currentDir, tsPath)}`);
-      let relativeArtifactPath = path.relative(path.dirname(tsPath), artifactPath);
-      if (relativeArtifactPath === `${contract.name}.json`) {
-        // relative path edge case, prepending ./ for local import - the above logic just does
-        // `${contract.name}.json`, which is not a valid import for a file in the same directory
-        relativeArtifactPath = `./${contract.name}.json`;
-      }
-      try {
-        const tsWrapper = generateTypescriptContractInterface(contract, relativeArtifactPath);
-        await mkdir(path.dirname(tsPath), { recursive: true });
-        await writeFile(tsPath, tsWrapper);
-      } catch (err) {
-        log(`Error generating interface for ${artifactPath}: ${err}`);
-      }
+  if (stats.isDirectory()) {
+    const files = readdirSync(fileOrDirPath).filter(file => file.endsWith('.json') && !file.startsWith('debug_'));
+    for (const file of files) {
+      const fullPath = path.join(fileOrDirPath, file);
+      generateTypescriptInterfaceFromNoirAbi(outputPath, fullPath, includeDebug);
     }
+  } else if (stats.isFile()) {
+    generateTypescriptInterfaceFromNoirAbi(outputPath, fileOrDirPath, includeDebug);
   }
+}
+
+/**
+ *
+ */
+function generateTypescriptInterfaceFromNoirAbi(outputPath: string, noirAbiPath: string, includeDebug: boolean) {
+  const contract = JSON.parse(readFileSync(noirAbiPath, 'utf8'));
+  const noirDebugPath = includeDebug ? getDebugFilePath(noirAbiPath) : undefined;
+  const debug = noirDebugPath ? JSON.parse(readFileSync(noirDebugPath, 'utf8')) : undefined;
+  const aztecAbi = generateContractArtifact({ contract, debug });
+  const tsWrapper = generateTypescriptContractInterface(aztecAbi, `./${aztecAbi.name}.json`);
+  mkdirSync(outputPath, { recursive: true });
+  writeFileSync(`${outputPath}/${aztecAbi.name}.ts`, tsWrapper);
+  writeFileSync(`${outputPath}/${aztecAbi.name}.json`, JSON.stringify(aztecAbi, undefined, 2));
+}
+
+/**
+ *
+ */
+function getDebugFilePath(filePath: string) {
+  const dirname = path.dirname(filePath);
+  const basename = path.basename(filePath);
+  const result = path.join(dirname, 'debug_' + basename);
+  return existsSync(result) ? result : undefined;
 }

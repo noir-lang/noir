@@ -25,7 +25,7 @@ For the sake of simplicity, we will hardcode the signing public key into the con
 
 Let's start with the account contract itself in Aztec.nr. Create [a new Aztec.nr contract project](../contracts/main.md) that will contain a file with the code for the account contract, with a hardcoded public key:
 
-#include_code contract yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
+#include_code contract yarn-project/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
 :::info
 You can use [the Aztec CLI](../cli/main.md) to generate a new keypair if you want to use a different one:
@@ -53,7 +53,7 @@ Using the `AccountActions` module and the `EntrypointPayload` struct is not mand
 
 The `AccountActions` module provides default implementations for most of the account contract methods needed, but it requires a function for validating an auth witness. In this function you will customize how your account validates an action: whether it is using a specific signature scheme, a multi-party approval, a password, etc.
 
-#include_code is-valid yarn-project/noir-contracts/src/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
+#include_code is-valid yarn-project/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
 For our account contract, we will take the hash of the action to authorize, request the corresponding auth witness from the oracle, and validate it against our hardcoded public key. If the signature is correct, we authorize the action.
 

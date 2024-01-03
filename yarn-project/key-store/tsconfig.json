@@ -7,13 +7,13 @@
   },
   "references": [
     {
-      "path": "../kv-store"
-    },
-    {
       "path": "../circuits.js"
     },
     {
       "path": "../foundation"
+    },
+    {
+      "path": "../kv-store"
     },
     {
       "path": "../types"

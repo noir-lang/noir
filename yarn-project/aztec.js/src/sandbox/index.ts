@@ -2,8 +2,6 @@ import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
 import { PXE } from '@aztec/types';
 
-import zip from 'lodash.zip';
-
 import { getSchnorrAccount } from '../account_manager/index.js';
 import { createPXEClient } from '../pxe_client.js';
 import { AccountWalletWithPrivateKey } from '../wallet/index.js';
@@ -27,8 +25,8 @@ export const { PXE_URL = 'http://localhost:8080' } = process.env;
  */
 export function getSandboxAccountsWallets(pxe: PXE): Promise<AccountWalletWithPrivateKey[]> {
   return Promise.all(
-    zip(INITIAL_SANDBOX_ENCRYPTION_KEYS, INITIAL_SANDBOX_SIGNING_KEYS, INITIAL_SANDBOX_SALTS).map(
-      ([encryptionKey, signingKey, salt]) => getSchnorrAccount(pxe, encryptionKey!, signingKey!, salt).getWallet(),
+    INITIAL_SANDBOX_ENCRYPTION_KEYS.map((encryptionKey, i) =>
+      getSchnorrAccount(pxe, encryptionKey!, INITIAL_SANDBOX_SIGNING_KEYS[i]!, INITIAL_SANDBOX_SALTS[i]).getWallet(),
     ),
   );
 }

@@ -161,7 +161,7 @@ If you want more accounts, you can find instructions in the [Account creation se
 
 ## Deploy a contract
 
-Now that we have our accounts loaded, let's move on to deploy our pre-compiled token smart contract. You can find the full code for the contract [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/token_contract/src). Add this to `index.ts` below the code you added earlier:
+Now that we have our accounts loaded, let's move on to deploy our pre-compiled token smart contract. You can find the full code for the contract [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/token_contract/src). Add this to `index.ts` below the code you added earlier:
 
 #include_code Deployment /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
 

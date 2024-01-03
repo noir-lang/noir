@@ -8,7 +8,8 @@
     "./barretenberg": "./dest/barretenberg/index.js",
     "./factories": "./dest/tests/factories.js",
     "./utils": "./dest/utils/index.js",
-    "./types": "./dest/types/index.js"
+    "./types": "./dest/types/index.js",
+    "./constants": "./dest/constants.gen.js"
   },
   "typedocOptions": {
     "entryPoints": [

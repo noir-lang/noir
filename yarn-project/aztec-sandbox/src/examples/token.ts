@@ -8,7 +8,7 @@ import {
   getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 import { ExtendedNote } from '@aztec/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');

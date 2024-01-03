@@ -8,12 +8,6 @@
   "references": [
     {
       "path": "../aztec.js"
-    },
-    {
-      "path": "../foundation"
-    },
-    {
-      "path": "../noir-compiler"
     }
   ],
   "include": [

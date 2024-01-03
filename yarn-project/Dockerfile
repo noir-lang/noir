@@ -9,9 +9,13 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base as builder
 # Copy in the entire workspace.
 COPY . .
 
-RUN yarn workspace @aztec/foundation build
+# This is actually our code generation tool. Needed to build contract typescript wrappers.
 RUN yarn workspace @aztec/noir-compiler build
-RUN yarn workspace @aztec/noir-contracts noir:build:all
+# Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
+RUN yarn workspace @aztec/noir-contracts build:contracts
+# We need to build aztec.js as it needs to copy in account contracts from noir-contracts.
+# TODO: Contracts should not be baked into aztec.js.
+RUN yarn workspace @aztec/aztec.js build
 RUN yarn workspace @aztec/noir-protocol-circuits noir:build
 RUN yarn tsc -b
 

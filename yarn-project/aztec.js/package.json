@@ -23,11 +23,12 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "build": "yarn clean && tsc -b && webpack",
+    "build": "yarn clean && yarn build:copy-contracts && tsc -b && webpack",
+    "build:copy-contracts": "mkdir ./src/account_contract/artifacts && cp ../noir-contracts/src/SchnorrAccount.json ../noir-contracts/src/EcdsaAccount.json ../noir-contracts/src/SchnorrSingleKeyAccount.json ./src/account_contract/artifacts",
     "build:web": "webpack",
     "build:dev": "tsc -b --watch",
     "build:ts": "tsc -b",
-    "clean": "rm -rf ./dest .tsbuildinfo",
+    "clean": "rm -rf ./dest .tsbuildinfo ./src/account_contract/artifacts",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
@@ -51,7 +52,6 @@
     "@aztec/types": "workspace:^",
     "lodash.every": "^4.6.0",
     "lodash.partition": "^4.6.0",
-    "lodash.zip": "^4.2.0",
     "tslib": "^2.4.0"
   },
   "devDependencies": {
@@ -59,7 +59,6 @@
     "@types/jest": "^29.5.0",
     "@types/lodash.every": "^4.6.7",
     "@types/lodash.partition": "^4.6.0",
-    "@types/lodash.zip": "^4.2.7",
     "@types/node": "^18.7.23",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.0",

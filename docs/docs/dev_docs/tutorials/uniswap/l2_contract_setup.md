@@ -8,7 +8,7 @@ In this step, we will set up the storage struct for our Uniswap contract and def
 
 Our main contract will live inside `uniswap/src/main.nr`. In `main.nr`, paste this initial setup code:
 
-#include_code uniswap_setup yarn-project/noir-contracts/src/contracts/uniswap_contract/src/main.nr rust
+#include_code uniswap_setup yarn-project/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 
 **What’s happening here?**
 
@@ -19,7 +19,7 @@ To ensure there are no collisions (i.e. when the contract wants to approve the b
 ## Building the approval flow
 Next, paste this function:
 
-#include_code authwit_uniswap_get yarn-project/noir-contracts/src/contracts/uniswap_contract/src/main.nr rust
+#include_code authwit_uniswap_get yarn-project/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 
 In this function, the token contract calls the Uniswap contract to check if Uniswap has indeed done the approval. The token contract expects a `is_valid()` function to exit for private approvals and `is_valid_public()` for public approvals. If the action is indeed approved, it expects that the contract would return the function selector for `is_valid()`  in both cases. The Aztec.nr library exposes this constant for ease of use. The token contract also emits a nullifier for this message so that this approval (with the nonce) can’t be used again.
 
@@ -27,7 +27,7 @@ This is similar to the [Authwit flow](../../contracts/resources/common_patterns/
 
 However we don't have a function that actually creates the approved message and stores the action. This method should be responsible for creating the approval and then calling the token bridge to withdraw the funds to L1:
 
-#include_code authwit_uniswap_set yarn-project/noir-contracts/src/contracts/uniswap_contract/src/main.nr rust
+#include_code authwit_uniswap_set yarn-project/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 
 Notice how the nonce also gets incremented.
 

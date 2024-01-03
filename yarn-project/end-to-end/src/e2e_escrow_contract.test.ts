@@ -16,8 +16,8 @@ import {
   generatePublicKey,
   getContractDeploymentInfo,
 } from '@aztec/aztec.js';
-import { EscrowContractArtifact } from '@aztec/noir-contracts/artifacts';
-import { EscrowContract, TokenContract } from '@aztec/noir-contracts/types';
+import { EscrowContract, EscrowContractArtifact } from '@aztec/noir-contracts/Escrow';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 
 import { setup } from './fixtures/utils.js';
 

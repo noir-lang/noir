@@ -1,4 +1,4 @@
-import { FUNCTION_TREE_HEIGHT } from '@aztec/circuits.js';
+import { FUNCTION_TREE_HEIGHT } from '@aztec/circuits.js/constants';
 import { ContractArtifact, DebugMetadata, FunctionArtifact, FunctionType } from '@aztec/foundation/abi';
 
 import { deflate } from 'pako';

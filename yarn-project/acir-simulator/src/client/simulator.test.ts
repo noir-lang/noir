@@ -4,7 +4,7 @@ import { ABIParameterVisibility } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
-import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
+import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 import { Note } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';

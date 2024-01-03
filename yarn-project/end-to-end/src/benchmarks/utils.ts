@@ -10,7 +10,7 @@ import {
   retryUntil,
   sleep,
 } from '@aztec/aztec.js';
-import { BenchmarkingContract } from '@aztec/noir-contracts/types';
+import { BenchmarkingContract } from '@aztec/noir-contracts/Benchmarking';
 import { PXEService, createPXEService } from '@aztec/pxe';
 
 import { mkdirpSync } from 'fs-extra';

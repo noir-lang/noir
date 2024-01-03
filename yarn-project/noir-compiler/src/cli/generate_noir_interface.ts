@@ -1,47 +1,33 @@
-import { LogFn } from '@aztec/foundation/log';
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
+import path from 'path';
 
-import { mkdir, readFile, readdir, stat, writeFile } from 'fs/promises';
-import path, { resolve } from 'path';
-
-import { generateNoirContractInterface } from '../index.js';
-import { isContractArtifact } from '../utils.js';
+import { generateContractArtifact } from '../contract-interface-gen/abi.js';
+import { generateNoirContractInterface } from '../contract-interface-gen/noir.js';
 
 /**
  *
  */
-export async function generateNoirInterface(
-  projectPath: string,
-  options: {
-    // eslint-disable-next-line jsdoc/require-jsdoc
-    outdir: string;
-    // eslint-disable-next-line jsdoc/require-jsdoc
-    artifacts: string;
-  },
-  log: LogFn,
-) {
-  const { outdir, artifacts } = options;
-  if (typeof projectPath !== 'string') {
-    throw new Error(`Missing project path argument`);
-  }
-  const currentDir = process.cwd();
+export function generateNoirInterface(outputPath: string, fileOrDirPath: string) {
+  const stats = statSync(fileOrDirPath);
 
-  const artifactsDir = resolve(projectPath, artifacts);
-  for (const artifactsDirItem of await readdir(artifactsDir)) {
-    const artifactPath = resolve(artifactsDir, artifactsDirItem);
-    if ((await stat(artifactPath)).isFile() && artifactPath.endsWith('.json')) {
-      const contract = JSON.parse((await readFile(artifactPath)).toString());
-      if (!isContractArtifact(contract)) {
-        continue;
-      }
-      const interfacePath = resolve(projectPath, outdir, `${contract.name}_interface.nr`);
-      log(`Writing ${contract.name} Noir external interface to ${path.relative(currentDir, interfacePath)}`);
-      try {
-        const noirInterface = generateNoirContractInterface(contract);
-        await mkdir(path.dirname(interfacePath), { recursive: true });
-        await writeFile(interfacePath, noirInterface);
-      } catch (err) {
-        log(`Error generating interface for ${artifactPath}: ${err}`);
-      }
+  if (stats.isDirectory()) {
+    const files = readdirSync(fileOrDirPath).filter(file => file.endsWith('.json') && !file.startsWith('debug_'));
+    for (const file of files) {
+      const fullPath = path.join(fileOrDirPath, file);
+      generateNoirInterfaceFromNoirAbi(outputPath, fullPath);
     }
+  } else if (stats.isFile()) {
+    generateNoirInterfaceFromNoirAbi(outputPath, fileOrDirPath);
   }
+}
+
+/**
+ *
+ */
+export function generateNoirInterfaceFromNoirAbi(outputPath: string, noirAbiPath: string) {
+  const contract = JSON.parse(readFileSync(noirAbiPath, 'utf8'));
+  const aztecAbi = generateContractArtifact({ contract });
+  const noirContract = generateNoirContractInterface(aztecAbi);
+  mkdirSync(outputPath, { recursive: true });
+  writeFileSync(`${outputPath}/${aztecAbi.name}.nr`, noirContract);
 }

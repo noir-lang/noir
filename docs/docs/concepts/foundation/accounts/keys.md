@@ -12,7 +12,7 @@ Since Aztec implements full [signature abstraction](./main.md), signing keys dep
 
 This is a snippet of our Schnorr Account contract implementation, which uses Schnorr signatures for authentication:
 
-#include_code entrypoint /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
+#include_code entrypoint /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
 
 Still, different accounts may use different signing schemes, may require multi-factor authentication, or _may not even use signing keys_ and instead rely on other authentication mechanisms. Read [how to write an account contract](../../../dev_docs/wallets/writing_an_account_contract.md) for a full example of how to manage authentication.
 

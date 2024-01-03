@@ -166,6 +166,7 @@ boxes:
   buildDir: boxes
   dependencies:
     - aztec-sandbox
+    - noir
   runDependencies:
     - aztec-sandbox
 

@@ -12,7 +12,8 @@ import {
   getContractDeploymentInfo,
   isContractDeployed,
 } from '@aztec/aztec.js';
-import { TestContractArtifact, TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
+import { TestContractArtifact } from '@aztec/noir-contracts/Test';
+import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 import { SequencerClient } from '@aztec/sequencer-client';
 
 import { setup } from './fixtures/utils.js';

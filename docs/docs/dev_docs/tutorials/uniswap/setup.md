@@ -64,7 +64,7 @@ cd uniswap/src && touch util.nr && touch interfaces.nr
 
 Inside `interfaces.nr` paste this:
 
-#include_code interfaces yarn-project/noir-contracts/src/contracts/uniswap_contract/src/interfaces.nr rust
+#include_code interfaces yarn-project/noir-contracts/contracts/uniswap_contract/src/interfaces.nr rust
 
 This creates interfaces for the `Token` contract and `TokenBridge` contract
 

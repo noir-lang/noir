@@ -2,7 +2,7 @@ import { ABIParameterVisibility, FunctionArtifact } from './abi.js';
 import { decodeFunctionSignature, decodeFunctionSignatureWithParameterNames } from './decoder.js';
 
 describe('abi/decoder', () => {
-  // Copied from yarn-project/noir-contracts/src/contracts/test_contract/target/Test.json
+  // Copied from yarn-project/noir-contracts/contracts/test_contract/target/Test.json
   const abi = {
     name: 'testCodeGen',
     parameters: [

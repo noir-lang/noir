@@ -6,7 +6,7 @@ From the description of [storage slot in concepts](./../../../../concepts/founda
 
 For the case of the example, we will look at what is inserted into the note hashes tree when adding a note in the Token contract. Specifically, we are looking at the last part of the `transfer` function:
 
-#include_code increase_private_balance yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code increase_private_balance yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 This function is creating a new note and inserting it into the balance set of the recipient `to`. Recall that to ensure privacy, only the note commitment is really inserted into the note hashes tree. To share the contents of the note with `to` the contract can emit an encrypted log (which this one does), or it can require an out-of-band data transfer sharing the information. Below, we will walk through the steps of how the note commitment is computed and inserted into the tree. For this, we don't care about the encrypted log, so we are going to ignore that part of the function call for now. 
 
@@ -51,7 +51,7 @@ siloed_note_hash = H(contract_address, H(H(map_slot, to), H(amount, to, randomne
 
 Where the `map_slot` is the slot specified in `Storage::init`, recall:
 
-#include_code storage_balances_init yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_balances_init yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 And `to` is the actor who receives the note, `amount` of the note and `randomness` is the randomness used to make the note hiding. Without the `randomness` the note could just as well be plaintext (computational cost of a preimage attack would be trivial in such a case).
 

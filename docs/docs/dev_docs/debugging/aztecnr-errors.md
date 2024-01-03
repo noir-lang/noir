@@ -20,7 +20,7 @@ Any smart contract that works with storage must include a [`compute_note_hash_an
 
 This is an example of this function in the token contract:
 
-#include_code compute_note_hash_and_nullifier yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 This error may also show if the `compute_note_hash_and_nullifier` function is not correct or sits outside of the contract.
 

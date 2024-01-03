@@ -1,6 +1,7 @@
 import { LogFn } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
+import { dirname } from 'path';
 
 /**
  * CLI options for configuring behavior
@@ -20,6 +21,15 @@ interface Options {
  *
  */
 export function addNoirCompilerCommanderActions(program: Command, log: LogFn = () => {}) {
+  // addCompileCommanderAction(program, log);
+  addGenerateTypescriptCommanderAction(program, log);
+  addGenerateNoirInterfaceCommanderAction(program, log);
+}
+
+/**
+ *
+ */
+export function addCompileCommanderAction(program: Command, log: LogFn = () => {}) {
   program
     .command('compile')
     .argument('<project-path>', 'Path to the bin or Aztec.nr project to compile')
@@ -33,35 +43,35 @@ export function addNoirCompilerCommanderActions(program: Command, log: LogFn = (
       const { compileNoir } = await import('./compile_noir.js');
       await compileNoir(projectPath, options, log);
     });
+}
 
+/**
+ *
+ */
+export function addGenerateTypescriptCommanderAction(program: Command, _: LogFn = () => {}) {
   program
     .command('generate-typescript')
-    .argument('<project-path>', 'Path to the noir project')
-    .option('--artifacts <path>', 'Folder containing the compiled artifacts, relative to the project path', 'target')
-    .option(
-      '-o, --outdir <path>',
-      'Output folder for the generated typescript interfaces, relative to the project path',
-      'interfaces',
-    )
-    .description('Generates typescript interfaces from the artifacts in the given project')
-
-    .action(async (projectPath: string, options) => {
+    .argument('<noir-abi-path>', 'Path to the Noir ABI or project dir.')
+    .option('-o, --outdir <path>', 'Output folder for the generated typescript.')
+    .option('-d, --debug', 'Include debug info.')
+    .description('Generates TypeScript interface from the given abi.')
+    .action(async (noirAbiPath: string, { debug, outdir }) => {
       const { generateTypescriptInterface } = await import('./generate_typescript_interface.js');
-      await generateTypescriptInterface(projectPath, options, log);
+      generateTypescriptInterface(outdir || dirname(noirAbiPath), noirAbiPath, debug);
     });
+}
 
+/**
+ *
+ */
+export function addGenerateNoirInterfaceCommanderAction(program: Command, _: LogFn = () => {}) {
   return program
     .command('generate-noir-interface')
-    .argument('<project-path>', 'Path to the noir project')
-    .option('--artifacts <path>', 'Folder containing the compiled artifacts, relative to the project path', 'target')
-    .option(
-      '-o, --outdir <path>',
-      'Output folder for the generated noir interfaces, relative to the project path',
-      'interfaces',
-    )
+    .argument('<noir-abi-path>', 'Path to the Noir ABI or project dir.')
+    .option('-o, --outdir <path>', 'Output folder for the generated noir.')
     .description('Generates Noir interfaces from the artifacts in the given project')
-    .action(async (projectPath: string, options) => {
+    .action(async (noirAbiPath: string, { outdir }) => {
       const { generateNoirInterface } = await import('./generate_noir_interface.js');
-      await generateNoirInterface(projectPath, options, log);
+      generateNoirInterface(outdir || dirname(noirAbiPath), noirAbiPath);
     });
 }

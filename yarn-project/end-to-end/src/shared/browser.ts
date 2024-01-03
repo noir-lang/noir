@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import * as AztecJs from '@aztec/aztec.js';
-import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
+import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 
 import { Server } from 'http';
 import Koa from 'koa';
