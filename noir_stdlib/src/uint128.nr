@@ -1,26 +1,11 @@
-global pow64 : Field = 18446744073709551616;  //2^64;
+use crate::ops::{Add, Sub, Mul, Div, Eq};
+
+global pow64 : Field = 18446744073709551616; //2^64;
 
 struct U128 {
     lo: Field,
     hi: Field,
 }
-
-trait Add {
-    fn add(self, other: Self) -> Self;
-}
-trait Sub {
-    fn sub(self, other: Self) -> Self;
-}
-trait Mul {
-    fn mul(self, other: Self) -> Self;
-}
-trait Div {
-    fn div(self, other: Self) -> Self;
-}
-trait Eq {
-    fn eq(self, other: Self) -> bool;
-}
-
 
 impl U128 {
 
