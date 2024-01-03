@@ -1,4 +1,4 @@
-use crate::ops::{Add, Sub, Mul, Div, Rem};
+use crate::ops::{Add, Sub, Mul, Div, Rem, BitOr, BitAnd, BitXor};
 use crate::cmp::{Eq, Ord, Ordering};
 
 global pow64 : Field = 18446744073709551616; //2^64;
@@ -210,6 +210,33 @@ impl Ord for U128 {
             lo_ordering
         } else {
             hi_ordering
+        }
+    }
+}
+
+impl BitOr for U128 { 
+    fn bitor(self, other: U128) -> U128 {
+        U128 {
+            lo: ((self.lo as u64) | (other.lo as u64)) as Field,
+            hi: ((self.hi as u64) | (other.hi as u64))as Field
+        }
+    }
+}
+
+impl BitAnd for U128 {
+    fn bitand(self, other: U128) -> U128 { 
+        U128 {
+            lo: ((self.lo as u64) & (other.lo as u64)) as Field,
+            hi: ((self.hi as u64) & (other.hi as u64)) as Field
+        }
+    }
+}
+
+impl BitXor for U128 {
+    fn bitxor(self, other: U128) -> U128 { 
+        U128 {
+            lo: ((self.lo as u64) ^ (other.lo as u64)) as Field,
+            hi: ((self.hi as u64) ^ (other.hi as u64)) as Field
         }
     }
 }
