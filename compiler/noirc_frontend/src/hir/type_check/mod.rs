@@ -241,7 +241,7 @@ mod test {
         function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
-    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId};
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TraitMethodId};
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -286,7 +286,8 @@ mod test {
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
         let trait_id = TraitId(ModuleId::dummy_id());
-        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id, trait_id };
+        let trait_method_id = TraitMethodId { trait_id, method_index: 0 };
+        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id, trait_method_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 

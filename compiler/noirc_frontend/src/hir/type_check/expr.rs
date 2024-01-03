@@ -140,9 +140,9 @@ impl<'interner> TypeChecker<'interner> {
                 match self.infix_operand_type_rules(&lhs_type, operator, &rhs_type, span) {
                     Ok((typ, use_impl)) => {
                         if use_impl {
-                            let trait_id = infix_expr.trait_id;
-                            self.verify_trait_constraint(&lhs_type, trait_id, *expr_id, span);
-                            self.typecheck_operator_method(*expr_id, trait_id, &lhs_type, span);
+                            let id = infix_expr.trait_method_id;
+                            self.verify_trait_constraint(&lhs_type, id.trait_id, *expr_id, span);
+                            self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
                         }
                         typ
                     }
@@ -1204,14 +1204,14 @@ impl<'interner> TypeChecker<'interner> {
     fn typecheck_operator_method(
         &mut self,
         expr_id: ExprId,
-        trait_id: TraitId,
+        trait_method_id: TraitMethodId,
         object_type: &Type,
         span: Span,
     ) {
-        let the_trait = self.interner.get_trait(trait_id);
+        let the_trait = self.interner.get_trait(trait_method_id.trait_id);
 
         // The first (and only) method of each operator trait should be the operator method
-        let method = &the_trait.methods[0];
+        let method = &the_trait.methods[trait_method_id.method_index];
         let (method_type, mut bindings) = method.typ.instantiate(self.interner);
 
         match method_type {
@@ -1234,7 +1234,7 @@ impl<'interner> TypeChecker<'interner> {
         // referenced by the selected trait impl, if one has yet to be selected.
         let impl_kind = self.interner.get_selected_impl_for_expression(expr_id);
         if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
-            let the_trait = self.interner.get_trait(trait_id);
+            let the_trait = self.interner.get_trait(trait_method_id.trait_id);
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
                 the_trait.self_type_typevar_id,

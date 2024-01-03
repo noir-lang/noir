@@ -3,7 +3,7 @@ use fm::FileId;
 use noirc_errors::Location;
 
 use crate::node_interner::{
-    DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitMethodId,
+    DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
 };
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
@@ -104,9 +104,11 @@ pub struct HirInfixExpression {
     pub operator: HirBinaryOp,
     pub rhs: ExprId,
 
-    /// The trait id for the operator trait that corresponds to this operator.
-    /// For derived operators like `!=`, this will lead to the derived trait (Eq in this case).
-    pub trait_id: TraitId,
+    /// The trait method id for the operator trait method that corresponds to this operator.
+    /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
+    /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
+    /// after the call to `Eq::eq` to get the result of the `!=` operator.
+    pub trait_method_id: TraitMethodId,
 }
 
 /// This is always a struct field access `my_struct.field`

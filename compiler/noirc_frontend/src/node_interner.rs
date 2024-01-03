@@ -1361,8 +1361,11 @@ impl NodeInterner {
     /// to the same trait (such as `==` and `!=`).
     /// `self.operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
-    pub fn get_operator_trait(&self, operator: BinaryOpKind) -> TraitId {
-        self.operator_traits[&operator]
+    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
+        let trait_id = self.operator_traits[&operator];
+
+        // Assume that the operator's method to be overloaded is the first method of the trait.
+        TraitMethodId { trait_id, method_index: 0 }
     }
 
     /// Add the given trait as an operator trait if its name matches one of the
