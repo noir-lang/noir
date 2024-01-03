@@ -149,7 +149,8 @@
         "vecmap",
         "wasi",
         "Weierstraß",
-        "zshell"
+        "zshell",
+        "barebones"
     ],
     "ignorePaths": [
         "./**/node_modules/**"
