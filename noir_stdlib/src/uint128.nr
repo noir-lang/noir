@@ -140,6 +140,10 @@ impl U128 {
             hi,
         }
     }
+
+    pub fn to_integer<T>(self) -> T {
+        crate::from_field(self.lo+self.hi*pow64)
+    }
 }
 
 impl Add for U128 {

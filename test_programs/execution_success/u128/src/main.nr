@@ -30,6 +30,6 @@ fn main(mut x: u32, y: u32, z: u32, big_int: u128, hexa : str<7>) {
 
     let small_int = u128::from_integer(x);
     assert(small_int.lo == x as Field);
-    assert(small_int.hi == 0);
+    assert(x == small_int.to_integer());
 }
 
