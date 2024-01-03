@@ -687,7 +687,6 @@ jobs:
         run: |
           /usr/src/noir/.github/scripts/integration-test.sh
 
-
   tests-end:
     name: End
     runs-on: ubuntu-latest
@@ -695,10 +694,13 @@ jobs:
     needs: 
       - test-nargo
       - test-noirc-abi
+      - test-noirc-abi-browser
       - test-noir-wasm
+      - test-noir-wasm-browser
       - test-integration
       - test-noir_codegen
       - test-acvm_js
+      - test-acvm_js-browser
       - test-barretenberg-backend
       - test-noir_js
     
