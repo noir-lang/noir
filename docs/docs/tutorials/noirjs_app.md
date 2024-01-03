@@ -166,7 +166,7 @@ document.getElementById('submitGuess').addEventListener('click', async () => {
 
 ```
 
-The display function doesn't do much. We're simply manipulating our website to see stuff happening. For example, if the proof fails, it will simply log a broken heart. Ooohh 😢
+The display function doesn't do much. We're simply manipulating our website to see stuff happening. For example, if the proof fails, it will simply log a broken heart 😢
 
 As for the `setup` function, it's just a sad reminder that dealing with `wasm` on the browser is not as easy as it should. Just copy, paste, and forget.
 
