@@ -380,6 +380,7 @@ impl<'interner> Monomorphizer<'interner> {
                     let env = Box::new(Type::Unit);
                     let function_type = Type::Function(args, Box::new(ret.clone()), env);
 
+                    // We assume that the first method in the trait definition implements the operator being overloaded.
                     let method = TraitMethodId { trait_id: infix.trait_id, method_index: 0 };
                     let func = self.resolve_trait_method_reference(expr, function_type, method);
                     self.create_operator_impl_call(func, lhs, infix.operator, rhs, ret, location)
