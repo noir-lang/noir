@@ -1,4 +1,3 @@
-mod nullifier_leaf_preimage;
 mod public_data_tree_leaf;
 mod append_only_tree_snapshot;
 mod global_variables;

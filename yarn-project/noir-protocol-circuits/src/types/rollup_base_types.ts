@@ -148,8 +148,8 @@ export interface AppendOnlyTreeSnapshot {
 }
 
 export interface NullifierLeafPreimage {
-  leaf_value: Field;
-  next_value: Field;
+  nullifier: Field;
+  next_nullifier: Field;
   next_index: u32;
 }
 

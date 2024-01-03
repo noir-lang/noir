@@ -1300,8 +1300,8 @@ export function mapNullifierLeafPreimageToNoir(
   nullifierLeafPreimage: NullifierLeafPreimage,
 ): NullifierLeafPreimageNoir {
   return {
-    leaf_value: mapFieldToNoir(nullifierLeafPreimage.nullifier),
-    next_value: mapFieldToNoir(nullifierLeafPreimage.nextNullifier),
+    nullifier: mapFieldToNoir(nullifierLeafPreimage.nullifier),
+    next_nullifier: mapFieldToNoir(nullifierLeafPreimage.nextNullifier),
     next_index: mapNumberToNoir(Number(nullifierLeafPreimage.nextIndex)),
   };
 }
