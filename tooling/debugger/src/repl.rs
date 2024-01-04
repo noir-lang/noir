@@ -65,6 +65,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                         );
                     }
                 }
+
                 print_source_code_location(self.debug_artifact, &location);
             }
         }
