@@ -63,13 +63,14 @@ At this point in the tutorial, your folder structure should look like this:
     │   └── main.nr
     └── target
         └── circuit.json
-If you want to explore Nargo, feel free to go on a side-quest now and follow the steps in the [getting started](../getting_started/create_a_project.md) guide. However, we want our app to run on the browser, so we can use Vite. Feel free to use [other frameworks](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#boilerplates).
+```
 
 :::
 
 ### Node and Vite
 
-If you want to explore Nargo, feel free to go on a side-quest now and follow the steps in the [getting started](../getting_started/create_a_project.md) guide. However, we want our app to run on the browser, so we need Vite.
+If you want to explore Nargo, feel free to go on a side-quest now and follow the steps in the
+[getting started](../getting_started/create_a_project) guide. However, we want our app to run on the browser, so we need Vite.
 
 Vite is a powerful tool to generate static websites. While it provides all kinds of features, let's just go barebones with some good old vanilla JS.
 
