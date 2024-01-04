@@ -1,6 +1,7 @@
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use im::Vector;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -10,7 +11,7 @@ use crate::ssa::{
         dfg::{CallStack, DataFlowGraph},
         instruction::Intrinsic,
         map::Id,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
@@ -242,7 +243,34 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::FromField => {
-            let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap().remove(0));
+            let incoming_type = Type::field();
+            let target_type = ctrl_typevars.unwrap().remove(0);
+
+            fn get_type_size(typ: &Type) -> u32 {
+                match typ {
+                    Type::Numeric(NumericType::NativeField) => FieldElement::max_num_bits(),
+                    Type::Numeric(
+                        NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size },
+                    ) => *bit_size,
+                    _ => unreachable!("Should only be called with primitive types"),
+                }
+            }
+
+            let truncate = Instruction::Truncate {
+                value: arguments[0],
+                bit_size: get_type_size(&target_type),
+                max_bit_size: get_type_size(&incoming_type),
+            };
+            let truncated_value = dfg
+                .insert_instruction_and_results(
+                    truncate,
+                    block,
+                    Some(vec![incoming_type]),
+                    Vector::default(), // needs a callstack
+                )
+                .first();
+
+            let instruction = Instruction::Cast(truncated_value, target_type);
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
     }
