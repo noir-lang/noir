@@ -69,7 +69,6 @@ mod affine {
     }
 
     impl Eq for Point {
-        // Check for equality
         fn eq(self, p: Self) -> bool {
              let Self {x: x1, y: y1} = self;
             let Self {x: x2, y: y2} = p;
