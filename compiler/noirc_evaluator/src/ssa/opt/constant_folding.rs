@@ -294,16 +294,18 @@ mod test {
     fn instruction_deduplication() {
         // fn main f0 {
         //   b0(v0: Field):
-        //     v1 = cast v0 as u32
-        //     v2 = cast v0 as u32
-        //     constrain v1 v2
+        //     v1 = truncate v0 to 32 bits, max_bit_size: 254
+        //     v2 = cast v1 as u32
+        //     v3 = truncate v0 to 32 bits, max_bit_size: 254
+        //     v4 = cast v3 as u32
+        //     constrain v2 v4
         // }
         //
-        // After constructing this IR, we run constant folding which should replace the second cast
+        // After constructing this IR, we run constant folding which should replace the second truncation and cast
         // with a reference to the results to the first. This then allows us to optimize away
         // the constrain instruction as both inputs are known to be equal.
         //
-        // The first cast instruction is retained and will be removed in the dead instruction elimination pass.
+        // The first truncation and cast instructions are retained and will be removed in the dead instruction elimination pass.
         let main_id = Id::test_new(0);
 
         // Compiling main
@@ -317,21 +319,28 @@ mod test {
         let mut ssa = builder.finish();
         let main = ssa.main_mut();
         let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 3);
+        assert_eq!(instructions.len(), 5);
 
         // Expected output:
         //
         // fn main f0 {
         //   b0(v0: Field):
-        //     v1 = cast v0 as u32
+        //     v1 = truncate v0 to 32 bits, max_bit_size: 254
+        //     v2 = cast v1 as u32
         // }
         let ssa = ssa.fold_constants();
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
 
-        assert_eq!(instructions.len(), 1);
-        let instruction = &main.dfg[instructions[0]];
+        assert_eq!(instructions.len(), 2);
 
-        assert_eq!(instruction, &Instruction::Cast(ValueId::test_new(0), Type::unsigned(32)));
+        assert_eq!(
+            &main.dfg[instructions[0]],
+            &Instruction::Truncate { value: v0, bit_size: 32, max_bit_size: 254 }
+        );
+        assert_eq!(
+            &main.dfg[instructions[1]],
+            &Instruction::Cast(ValueId::test_new(5), Type::unsigned(32))
+        );
     }
 }
