@@ -257,7 +257,6 @@ mod curvegroup {
     }
 
     impl Eq for Point {
-        // Check for equality
         fn eq(self, p: Self) -> bool {
             let Self {x: x1, y: y1, t: _t1, z: z1} = self;
             let Self {x: x2, y: y2, t: _t2, z:z2} = p;
