@@ -74,7 +74,6 @@ mod affine {
     }
 
     impl Eq for Point {
-        // Check for equality
         fn eq(self, p: Self) -> bool {
             (self.infty & p.infty) | (!self.infty & !p.infty & (self.x == p.x) & (self.y == p.y))
         }
