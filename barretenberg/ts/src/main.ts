@@ -73,7 +73,7 @@ async function init(bytecodePath: string, crsPath: string, subgroupSizeOverride 
 
 async function initGoblin(bytecodePath: string, crsPath: string) {
   // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): remove this subgroup size hack
-  const hardcodedGrumpkinSubgroupSizeHack = 32768;
+  const hardcodedGrumpkinSubgroupSizeHack = 262144;
   const initData = await init(bytecodePath, crsPath, hardcodedGrumpkinSubgroupSizeHack);
   const { api } = initData;
 

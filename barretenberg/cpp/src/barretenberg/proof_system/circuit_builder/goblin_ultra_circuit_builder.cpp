@@ -246,6 +246,14 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::populate_ecc_op_wire
     num_ecc_op_gates += 2;
 };
 
+template <typename FF> void GoblinUltraCircuitBuilder_<FF>::set_goblin_ecc_op_code_constant_variables()
+{
+    null_op_idx = this->zero_idx;
+    add_accum_op_idx = this->put_constant_variable(FF(EccOpCode::ADD_ACCUM));
+    mul_accum_op_idx = this->put_constant_variable(FF(EccOpCode::MUL_ACCUM));
+    equality_op_idx = this->put_constant_variable(FF(EccOpCode::EQUALITY));
+}
+
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in)
 {

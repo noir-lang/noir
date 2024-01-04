@@ -52,17 +52,18 @@ acir_proofs::AcirComposer init(acir_format::acir_format& constraint_system)
 
 void init_reference_strings()
 {
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): Don't hardcode subgroup size
-    size_t subgroup_size = 32768;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): Don't hardcode subgroup size. Currently set to
+    // max circuit size present in acir tests suite.
+    size_t hardcoded_subgroup_size_hack = 262144;
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/811) reduce duplication with above
     // Must +1!
-    auto g1_data = get_bn254_g1_data(CRS_PATH, subgroup_size + 1);
+    auto g1_data = get_bn254_g1_data(CRS_PATH, hardcoded_subgroup_size_hack + 1);
     auto g2_data = get_bn254_g2_data(CRS_PATH);
     srs::init_crs_factory(g1_data, g2_data);
 
     // Must +1!
-    auto grumpkin_g1_data = get_grumpkin_g1_data(CRS_PATH, subgroup_size + 1);
+    auto grumpkin_g1_data = get_grumpkin_g1_data(CRS_PATH, hardcoded_subgroup_size_hack + 1);
     srs::init_grumpkin_crs_factory(grumpkin_g1_data);
 }
 
@@ -145,23 +146,18 @@ bool proveAndVerifyGoblin(const std::string& bytecodePath,
                           const std::string& witnessPath,
                           [[maybe_unused]] bool recursive)
 {
-    info("Construct constraint_system and witness.");
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
 
     init_reference_strings();
 
-    info("Construct goblin circuit from constraint system and witness.");
     acir_proofs::AcirComposer acir_composer;
     acir_composer.create_goblin_circuit(constraint_system, witness);
 
-    info("Construct goblin proof.");
     auto proof = acir_composer.create_goblin_proof();
 
-    info("verify_goblin_proof.");
     auto verified = acir_composer.verify_goblin_proof(proof);
 
-    vinfo("verified: ", verified);
     return verified;
 }
 

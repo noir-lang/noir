@@ -169,14 +169,11 @@ class Goblin {
         auto instance = composer.create_instance(circuit_builder);
         auto prover = composer.create_prover(instance);
         auto ultra_proof = prover.construct_proof();
-        instance_inspector::inspect_instance(instance);
 
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): no merge prover for now since we're not
         // mocking the first set of ecc ops
         // // Construct and store the merge proof to be recursively verified on the next call to accumulate
-        // info("create_merge_prover");
         // auto merge_prover = composer.create_merge_prover(op_queue);
-        // info("merge_prover.construct_proof()");
         // merge_proof = merge_prover.construct_proof();
 
         // if (!merge_proof_exists) {
@@ -190,7 +187,6 @@ class Goblin {
     // ACIRHACK
     Proof prove_for_acir()
     {
-        info("Goblin.prove(): op_queue size = ", op_queue->ultra_ops[0].size());
         Proof proof;
 
         proof.merge_proof = std::move(merge_proof);
@@ -216,9 +212,7 @@ class Goblin {
     {
         // ACIRHACK
         // MergeVerifier merge_verifier;
-        // info("constructed merge_verifier");
         // bool merge_verified = merge_verifier.verify_proof(proof.merge_proof);
-        // info("verified merge proof. result: ", merge_verified);
 
         auto eccvm_verifier = eccvm_composer->create_verifier(*eccvm_builder);
         bool eccvm_verified = eccvm_verifier.verify_proof(proof.eccvm_proof);
@@ -235,17 +229,21 @@ class Goblin {
     // ACIRHACK
     std::vector<uint8_t> construct_proof(GoblinUltraCircuitBuilder& builder)
     {
-        info("goblin: construct_proof");
+        // Construct a GUH proof
         accumulate_for_acir(builder);
-        info("accumulate complete.");
-        std::vector<uint8_t> goblin_proof = prove_for_acir().to_buffer();
-        std::vector<uint8_t> result(accumulator.proof.proof_data.size() + goblin_proof.size());
+
+        std::vector<uint8_t> result(accumulator.proof.proof_data.size());
 
         const auto insert = [&result](const std::vector<uint8_t>& buf) {
             result.insert(result.end(), buf.begin(), buf.end());
         };
+
         insert(accumulator.proof.proof_data);
-        insert(goblin_proof);
+
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/819): Skip ECCVM/Translator proof for now
+        // std::vector<uint8_t> goblin_proof = prove_for_acir().to_buffer();
+        // insert(goblin_proof);
+
         return result;
     }
 
@@ -256,15 +254,13 @@ class Goblin {
         const auto extract_final_kernel_proof = [&]([[maybe_unused]] auto& input_proof) { return accumulator.proof; };
 
         GoblinUltraVerifier verifier{ accumulator.verification_key };
-        info("constructed GUH verifier");
         bool verified = verifier.verify_proof(extract_final_kernel_proof(proof));
-        info("                           verified GUH proof; result: ", verified);
 
-        const auto extract_goblin_proof = [&]([[maybe_unused]] auto& input_proof) { return proof_; };
-        auto goblin_proof = extract_goblin_proof(proof);
-        info("extracted goblin proof");
-        verified = verified && verify_for_acir(goblin_proof);
-        info("verified goblin proof");
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/819): Skip ECCVM/Translator verification for now
+        // const auto extract_goblin_proof = [&]([[maybe_unused]] auto& input_proof) { return proof_; };
+        // auto goblin_proof = extract_goblin_proof(proof);
+        // verified = verified && verify_for_acir(goblin_proof);
+
         return verified;
     }
 };

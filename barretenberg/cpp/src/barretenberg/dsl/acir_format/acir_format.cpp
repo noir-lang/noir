@@ -154,7 +154,9 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for UGH for now since we're not yet
     // dealing with proper recursion
     if constexpr (IsGoblinBuilder<Builder>) {
-        info("WARNING: this circuit contains recursion_constraints!");
+        if (constraint_system.recursion_constraints.size() > 0) {
+            info("WARNING: this circuit contains recursion_constraints!");
+        }
     } else {
         // These are set and modified whenever we encounter a recursion opcode
         //
@@ -272,36 +274,6 @@ void create_circuit_with_witness(Builder& builder, acir_format const& constraint
     build_constraints(builder, constraint_system, true);
 }
 
-/**
- * @brief Apply an offset to the indices stored in the wires
- * @details This method is needed due to the following: Noir constructs "wires" as indices into a "witness" vector.
- * This is analogous to the wires and variables vectors in bberg builders. Were it not for the addition of constant
- * variables in the constructors of a builder (e.g. zero), we would simply have noir.wires = builder.wires and
- * noir.witness = builder.variables. To account for k-many constant variables in the first entries of the variables
- * array, we have something like variables = variables.append(noir.witness). Accordingly, the indices in noir.wires
- * have to be incremented to account for the offset at which noir.wires was placed into variables.
- *
- * @tparam Builder
- * @param builder
- */
-template <typename Builder> void apply_wire_index_offset(Builder& builder)
-{
-    // For now, noir has a hard coded witness index offset = 1. Once this is removed, this pre-applied offset goes
-    // away
-    const uint32_t pre_applied_noir_offset = 1;
-    auto offset = static_cast<uint32_t>(builder.num_vars_added_in_constructor - pre_applied_noir_offset);
-    info("Applying offset = ", offset);
-
-    // Apply the offset to the indices stored the wires that were generated from acir. (Do not apply the offset to
-    // those values that were added in the builder constructor).
-    size_t start_index = builder.num_vars_added_in_constructor;
-    for (auto& wire : builder.wires) {
-        for (size_t idx = start_index; idx < wire.size(); ++idx) {
-            wire[idx] += offset;
-        }
-    }
-}
-
 template UltraCircuitBuilder create_circuit<UltraCircuitBuilder>(const acir_format& constraint_system,
                                                                  size_t size_hint);
 template void create_circuit_with_witness<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
@@ -310,7 +282,6 @@ template void create_circuit_with_witness<UltraCircuitBuilder>(UltraCircuitBuild
 template void create_circuit_with_witness<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
                                                                      acir_format const& constraint_system,
                                                                      WitnessVector const& witness);
-template void apply_wire_index_offset<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder);
-template void apply_wire_index_offset<UltraCircuitBuilder>(UltraCircuitBuilder& builder);
+template void build_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder&, acir_format const&, bool);
 
 } // namespace acir_format

@@ -30,11 +30,37 @@ void inspect_instance(auto& prover_instance)
         }
     }
     if (zero_polys.empty()) {
-        info("\nDebug Utility: All prover polynomials are non-zero.");
+        info("\nInstance Inspector: All prover polynomials are non-zero.");
     } else {
-        info("\nDebug Utility: The following prover polynomials are identically zero: ");
+        info("\nInstance Inspector: The following prover polynomials are identically zero: ");
         for (const std::string& label : zero_polys) {
             info("\t", label);
+        }
+    }
+    info();
+}
+
+/**
+ * @brief Print some useful info about polys related to the databus lookup relation
+ *
+ * @param prover_instance
+ */
+void print_databus_info(auto& prover_instance)
+{
+    info("\nInstance Inspector: Printing databus gate info.");
+    auto& prover_polys = prover_instance->prover_polynomials;
+    for (size_t idx = 0; idx < prover_instance->proving_key->circuit_size; ++idx) {
+        if (prover_polys.q_busread[idx] == 1) {
+            info("idx = ", idx);
+            info("q_busread = ", prover_polys.q_busread[idx]);
+            info("w_l = ", prover_polys.w_l[idx]);
+            info("w_r = ", prover_polys.w_r[idx]);
+        }
+        if (prover_polys.calldata_read_counts[idx] > 0) {
+            info("idx = ", idx);
+            info("read_counts = ", prover_polys.calldata_read_counts[idx]);
+            info("calldata = ", prover_polys.calldata[idx]);
+            info("databus_id = ", prover_polys.databus_id[idx]);
         }
     }
     info();
