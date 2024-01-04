@@ -266,6 +266,8 @@ impl Context {
 
         let code = self.gen_brillig_for(main_func, &brillig)?;
 
+        // We specifically do not attempt execution of the brillig code being generated as this can result in it being
+        // replaced with constraints on witnesses to the program outputs.
         let output_values = self.acir_context.brillig(
             self.current_side_effects_enabled_var,
             code,

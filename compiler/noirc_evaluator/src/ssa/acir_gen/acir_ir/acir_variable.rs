@@ -1332,6 +1332,9 @@ impl AcirContext {
 
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
+        //
+        // We do _not_ want to do this in the situation where the `main` function is unconstrained, as if execution succeeds
+        // the entire program will be replaced with witness constraints to its outputs.
         if attempt_execution {
             if let Some(brillig_outputs) =
                 self.execute_brillig(&generated_brillig.byte_code, &b_inputs, &outputs)
