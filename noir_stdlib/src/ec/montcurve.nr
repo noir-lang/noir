@@ -277,7 +277,6 @@ mod curvegroup {
     }
 
     impl Eq for Point {
-        // Check for equality
         fn eq(self, p: Self) -> bool {
              (self.z == p.z) | (((self.x * self.z) == (p.x * p.z)) & ((self.y * self.z) == (p.y * p.z)))
         }
