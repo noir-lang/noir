@@ -7,6 +7,8 @@ mod affine {
     use crate::ec::safe_inverse;
     use crate::ec::is_square;
     use crate::ec::sqrt;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
@@ -184,6 +186,8 @@ mod curvegroup {
     // Points are represented by three-dimensional Jacobian coordinates.
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
     use crate::ec::swcurve::affine;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6

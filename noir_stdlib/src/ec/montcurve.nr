@@ -12,6 +12,8 @@ mod affine {
     use crate::ec::safe_inverse;
     use crate::ec::sqrt;
     use crate::ec::ZETA;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
         j: Field,
@@ -221,6 +223,7 @@ mod curvegroup {
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
     use crate::ec::tecurve::curvegroup::Curve as TECurve;
     use crate::ec::tecurve::curvegroup::Point as TEPoint;
+    use crate::cmp::Eq;
 
     struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
         j: Field,
