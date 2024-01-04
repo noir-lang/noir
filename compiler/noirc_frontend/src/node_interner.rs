@@ -1434,6 +1434,11 @@ impl NodeInterner {
         self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
     }
 
+    /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
+    /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
+    ///
+    /// Example:
+    /// impl Foo for Bar { ... } -> trait Foo { ... }
     fn try_resolve_trait_impl_location(&self, location: Location) -> Option<Location> {
         self.trait_implementations
             .iter()
