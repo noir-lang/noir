@@ -236,10 +236,7 @@ impl Instruction {
                 // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
                 bin.operator != BinaryOp::Div
             }
-            Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
-
-            // Unclear why this instruction causes problems.
-            Truncate { .. } => false,
+            Cast(_, _) | Truncate { .. } | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
 
             // These either have side-effects or interact with memory
             Constrain(..)
