@@ -23,11 +23,13 @@ Before we start, we want to make sure we have Node and Nargo installed.
 
 We start by opening a terminal and executing `node --version`. If we don't get an output like `v20.10.0`, that means node is not installed. Let's do that by following the handy [nvm guide](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script).
 
-As for `Nargo`, we can follow the the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just run this on a terminal:
+As for `Nargo`, we can follow the the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
 
 ```sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 ```
+
+Easy enough. Onwards!
 
 ## Our project
 
@@ -37,11 +39,17 @@ In fact, it's so simple that it comes nicely packaged in `nargo`. Let's do that!
 
 ### Nargo
 
-Run `nargo new circuit`.
+Run:
+
+```nargo new circuit```
 
 And... That's about it. Your program is ready to be compiled and run.
 
-To compile, let's `cd` into the `circuit` folder to enter our project, and call `nargo compile`. This compiles our circuit into `json` format and add it to a new `target` folder.
+To compile, let's `cd` into the `circuit` folder to enter our project, and call:
+
+```nargo compile```
+
+This compiles our circuit into `json` format and add it to a new `target` folder.
 
 :::info
 
@@ -55,7 +63,7 @@ At this point in the tutorial, your folder structure should look like this:
     │   └── main.nr
     └── target
         └── circuit.json
-```
+If you want to explore Nargo, feel free to go on a side-quest now and follow the steps in the [getting started](../getting_started/create_a_project.md) guide. However, we want our app to run on the browser, so we can use Vite. Feel free to use [other frameworks](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#boilerplates).
 
 :::
 
