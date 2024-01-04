@@ -20,6 +20,7 @@ fn main(
     assert(my_struct.foo.foo);
     assert(string == "12345");
 
+    print(x);
     assert(x < y);
     (x + y, 3, my_struct.foo)
 }
