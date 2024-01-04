@@ -1,6 +1,6 @@
 use crate::compile::{
-    file_manager_with_source_map, preprocess_contract, preprocess_program, JsCompileResult,
-    PathToFileSourceMap,
+    file_manager_with_source_map, generate_contract_artifact, generate_program_artifact,
+    JsCompileResult, PathToFileSourceMap,
 };
 use crate::errors::{CompileError, JsCompileError};
 use noirc_driver::{
@@ -108,7 +108,7 @@ impl CompilerContext {
 
         let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
 
-        let compile_output = preprocess_program(optimized_program);
+        let compile_output = generate_program_artifact(optimized_program);
         Ok(JsCompileResult::new(compile_output))
     }
 
@@ -133,7 +133,7 @@ impl CompilerContext {
 
         let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
 
-        let compile_output = preprocess_contract(optimized_contract);
+        let compile_output = generate_contract_artifact(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
     }
 }

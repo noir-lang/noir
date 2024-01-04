@@ -195,7 +195,7 @@ pub fn compile(
 
         let optimized_contract = nargo::ops::optimize_contract(compiled_contract, expression_width);
 
-        let compile_output = preprocess_contract(optimized_contract);
+        let compile_output = generate_contract_artifact(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
@@ -210,7 +210,7 @@ pub fn compile(
 
         let optimized_program = nargo::ops::optimize_program(compiled_program, expression_width);
 
-        let compile_output = preprocess_program(optimized_program);
+        let compile_output = generate_program_artifact(optimized_program);
         Ok(JsCompileResult::new(compile_output))
     }
 }
@@ -272,7 +272,7 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
     prepare_dependency(context, &path_to_lib)
 }
 
-pub(crate) fn preprocess_program(program: CompiledProgram) -> CompileResult {
+pub(crate) fn generate_program_artifact(program: CompiledProgram) -> CompileResult {
     let debug_artifact = DebugArtifact {
         debug_symbols: vec![program.debug.clone()],
         file_map: program.file_map.clone(),
@@ -282,8 +282,7 @@ pub(crate) fn preprocess_program(program: CompiledProgram) -> CompileResult {
     CompileResult::Program { program: program.into(), debug: debug_artifact }
 }
 
-// TODO: This method should not be doing so much, most of this should be done in nargo or the driver
-pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
+pub(crate) fn generate_contract_artifact(contract: CompiledContract) -> CompileResult {
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
         file_map: contract.file_map,
