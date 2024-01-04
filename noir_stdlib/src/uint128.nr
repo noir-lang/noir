@@ -1,4 +1,4 @@
-use crate::ops::{Add, Sub, Mul, Div, Rem, BitOr, BitAnd, BitXor};
+use crate::ops::{Add, Sub, Mul, Div, Rem, BitOr, BitAnd, BitXor, Shl, Shr};
 use crate::cmp::{Eq, Ord, Ordering};
 
 global pow64 : Field = 18446744073709551616; //2^64;
@@ -123,6 +123,22 @@ impl U128 {
     pub fn to_integer<T>(self) -> T {
         crate::from_field(self.lo+self.hi*pow64)
     }
+
+    fn wrapping_mul(self: Self, b: U128) -> U128 {
+        let low = self.lo*b.lo;
+        let lo = low as u64 as Field;
+        let carry = (low - lo) / pow64;
+        let high = if crate::field::modulus_num_bits() as u32 > 196 {
+            (self.lo+self.hi)*(b.lo+b.hi) - low + carry
+        } else {
+            self.lo*b.hi + self.hi*b.lo + carry
+        };
+        let hi = high as u64 as Field;
+        U128 {
+            lo,
+            hi,
+        }
+    }
 }
 
 impl Add for U128 {
@@ -239,4 +255,34 @@ impl BitXor for U128 {
             hi: ((self.hi as u64) ^ (other.hi as u64)) as Field
         }
     }
+}
+
+impl Shl for u128 { 
+    fn shl(self, other: u128) -> u128 { 
+        assert(other < u128::new(128,0), "attempt to shift left with overflow");
+        let exp_bits = other.lo.to_be_bits(7);
+
+        let mut r: Field = 2;
+        let mut y: Field = 1;
+        for i in 1..8 {
+            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            r *= r;
+        }
+        self.wrapping_mul(u128::from_integer(y))
+    } 
+}
+
+impl Shr for u128 { 
+    fn shr(self, other: u128) -> u128 { 
+        assert(other < u128::new(128,0), "attempt to shift right with overflow");
+        let exp_bits = other.lo.to_be_bits(7);
+
+        let mut r: Field = 2;
+        let mut y: Field = 1;
+        for i in 1..8 {
+            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            r *= r;
+        }
+        self / u128::from_integer(y)
+    } 
 }
