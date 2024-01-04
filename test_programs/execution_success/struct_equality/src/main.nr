@@ -1,8 +1,6 @@
 // This test demonstrates how SSA optimizations breaks down a struct equality assertion
 // to assert directly on the struct's fields rather than using a predicate.
 
-use dep::std::ops::Eq;
-
 struct MyStruct {
     foo: Field,
     bar: bool,
