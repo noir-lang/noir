@@ -95,6 +95,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             | NargoCommand::Lsp(_)
             | NargoCommand::Backend(_)
             | NargoCommand::Dap(_)
+            | NargoCommand::Fmt(_)
     ) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
