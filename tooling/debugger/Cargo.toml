@@ -21,3 +21,6 @@ dap.workspace = true
 easy-repl = "0.2.1"
 owo-colors = "3"
 serde_json.workspace = true
+
+[dev_dependencies]
+tempfile.workspace = true

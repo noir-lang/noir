@@ -136,11 +136,21 @@ impl<'interner> TypeChecker<'interner> {
                 let rhs_span = self.interner.expr_span(&infix_expr.rhs);
                 let span = lhs_span.merge(rhs_span);
 
-                self.infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type, span)
-                    .unwrap_or_else(|error| {
+                let operator = &infix_expr.operator;
+                match self.infix_operand_type_rules(&lhs_type, operator, &rhs_type, span) {
+                    Ok((typ, use_impl)) => {
+                        if use_impl {
+                            let id = infix_expr.trait_method_id;
+                            self.verify_trait_constraint(&lhs_type, id.trait_id, *expr_id, span);
+                            self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
+                        }
+                        typ
+                    }
+                    Err(error) => {
                         self.errors.push(error);
                         Type::Error
-                    })
+                    }
+                }
             }
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
@@ -294,7 +304,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 // We must also remember to apply these substitutions to the object_type
                 // referenced by the selected trait impl, if one has yet to be selected.
-                let impl_kind = self.interner.get_selected_impl_for_ident(*expr_id);
+                let impl_kind = self.interner.get_selected_impl_for_expression(*expr_id);
                 if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
                     let the_trait = self.interner.get_trait(method.trait_id);
                     let object_type = object_type.substitute(&bindings);
@@ -302,8 +312,10 @@ impl<'interner> TypeChecker<'interner> {
                         the_trait.self_type_typevar_id,
                         (the_trait.self_type_typevar.clone(), object_type.clone()),
                     );
-                    self.interner
-                        .select_impl_for_ident(*expr_id, TraitImplKind::Assumed { object_type });
+                    self.interner.select_impl_for_expression(
+                        *expr_id,
+                        TraitImplKind::Assumed { object_type },
+                    );
                 }
 
                 self.interner.store_instantiation_bindings(*expr_id, bindings);
@@ -323,7 +335,7 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
     ) {
         match self.interner.lookup_trait_implementation(object_type, trait_id) {
-            Ok(impl_kind) => self.interner.select_impl_for_ident(function_ident_id, impl_kind),
+            Ok(impl_kind) => self.interner.select_impl_for_expression(function_ident_id, impl_kind),
             Err(erroring_constraints) => {
                 // Don't show any errors where try_get_trait returns None.
                 // This can happen if a trait is used that was never declared.
@@ -753,19 +765,22 @@ impl<'interner> TypeChecker<'interner> {
         None
     }
 
+    // Given a binary comparison operator and another type. This method will produce the output type
+    // and a boolean indicating whether to use the trait impl corresponding to the operator
+    // or not. A value of false indicates the caller to use a primitive operation for this
+    // operator, while a true value indicates a user-provided trait impl is required.
     fn comparator_operand_type_rules(
         &mut self,
         lhs_type: &Type,
         rhs_type: &Type,
         op: &HirBinaryOp,
         span: Span,
-    ) -> Result<Type, TypeCheckError> {
-        use crate::BinaryOpKind::{Equal, NotEqual};
+    ) -> Result<(Type, bool), TypeCheckError> {
         use Type::*;
 
         match (lhs_type, rhs_type) {
             // Avoid reporting errors multiple times
-            (Error, _) | (_, Error) => Ok(Bool),
+            (Error, _) | (_, Error) => Ok((Bool, false)),
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
@@ -791,7 +806,7 @@ impl<'interner> TypeChecker<'interner> {
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);
-                    Ok(Bool)
+                    Ok((Bool, false))
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
                         expected: lhs_type.clone(),
@@ -816,36 +831,23 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     });
                 }
-                Ok(Bool)
-            }
-            (Integer(..), FieldElement) | (FieldElement, Integer(..)) => {
-                Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })
-            }
-            (Integer(..), typ) | (typ, Integer(..)) => {
-                Err(TypeCheckError::IntegerTypeMismatch { typ: typ.clone(), span })
+                Ok((Bool, false))
             }
             (FieldElement, FieldElement) => {
                 if op.kind.is_valid_for_field_type() {
-                    Ok(Bool)
+                    Ok((Bool, false))
                 } else {
                     Err(TypeCheckError::FieldComparison { span })
                 }
             }
 
             // <= and friends are technically valid for booleans, just not very useful
-            (Bool, Bool) => Ok(Bool),
+            (Bool, Bool) => Ok((Bool, false)),
 
             // Special-case == and != for arrays
             (Array(x_size, x_type), Array(y_size, y_type))
-                if matches!(op.kind, Equal | NotEqual) =>
+                if matches!(op.kind, BinaryOpKind::Equal | BinaryOpKind::NotEqual) =>
             {
-                self.unify(x_type, y_type, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::ArrayElements,
-                    span: op.location.span,
-                });
-
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs_type.clone(),
                     actual: rhs_type.clone(),
@@ -853,19 +855,9 @@ impl<'interner> TypeChecker<'interner> {
                     span: op.location.span,
                 });
 
-                Ok(Bool)
+                self.comparator_operand_type_rules(x_type, y_type, op, span)
             }
-            (lhs @ NamedGeneric(binding_a, _), rhs @ NamedGeneric(binding_b, _)) => {
-                if binding_a == binding_b {
-                    return Ok(Bool);
-                }
-                Err(TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs.clone(),
-                    actual: rhs.clone(),
-                    source: Source::Comparison,
-                    span,
-                })
-            }
+
             (String(x_size), String(y_size)) => {
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
                     expected: *x_size.clone(),
@@ -874,14 +866,17 @@ impl<'interner> TypeChecker<'interner> {
                     source: Source::StringLen,
                 });
 
-                Ok(Bool)
+                Ok((Bool, false))
             }
-            (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                expected: lhs.clone(),
-                actual: rhs.clone(),
-                source: Source::Comparison,
-                span,
-            }),
+            (lhs, rhs) => {
+                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
+                    expected: lhs.clone(),
+                    actual: rhs.clone(),
+                    span: op.location.span,
+                    source: Source::Binary,
+                });
+                Ok((Bool, true))
+            }
         }
     }
 
@@ -1041,13 +1036,16 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     // Given a binary operator and another type. This method will produce the output type
+    // and a boolean indicating whether to use the trait impl corresponding to the operator
+    // or not. A value of false indicates the caller to use a primitive operation for this
+    // operator, while a true value indicates a user-provided trait impl is required.
     fn infix_operand_type_rules(
         &mut self,
         lhs_type: &Type,
         op: &HirBinaryOp,
         rhs_type: &Type,
         span: Span,
-    ) -> Result<Type, TypeCheckError> {
+    ) -> Result<(Type, bool), TypeCheckError> {
         if op.kind.is_comparator() {
             return self.comparator_operand_type_rules(lhs_type, rhs_type, op, span);
         }
@@ -1055,7 +1053,7 @@ impl<'interner> TypeChecker<'interner> {
         use Type::*;
         match (lhs_type, rhs_type) {
             // An error type on either side will always return an error
-            (Error, _) | (_, Error) => Ok(Error),
+            (Error, _) | (_, Error) => Ok((Error, false)),
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
@@ -1096,7 +1094,7 @@ impl<'interner> TypeChecker<'interner> {
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);
-                    Ok(other.clone())
+                    Ok((other.clone(), false))
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
                         expected: lhs_type.clone(),
@@ -1121,25 +1119,8 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     });
                 }
-                Ok(Integer(*sign_x, *bit_width_x))
+                Ok((Integer(*sign_x, *bit_width_x), false))
             }
-            (Integer(..), FieldElement) | (FieldElement, Integer(..)) => {
-                Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })
-            }
-            (Integer(..), typ) | (typ, Integer(..)) => {
-                Err(TypeCheckError::IntegerTypeMismatch { typ: typ.clone(), span })
-            }
-            // These types are not supported in binary operations
-            (Array(..), _) | (_, Array(..)) => {
-                Err(TypeCheckError::InvalidInfixOp { kind: "Arrays", span })
-            }
-            (Struct(..), _) | (_, Struct(..)) => {
-                Err(TypeCheckError::InvalidInfixOp { kind: "Structs", span })
-            }
-            (Tuple(_), _) | (_, Tuple(_)) => {
-                Err(TypeCheckError::InvalidInfixOp { kind: "Tuples", span })
-            }
-
             // The result of two Fields is always a witness
             (FieldElement, FieldElement) => {
                 if op.is_bitwise() {
@@ -1148,17 +1129,20 @@ impl<'interner> TypeChecker<'interner> {
                 if op.is_modulo() {
                     return Err(TypeCheckError::FieldModulo { span });
                 }
-                Ok(FieldElement)
+                Ok((FieldElement, false))
             }
 
-            (Bool, Bool) => Ok(Bool),
+            (Bool, Bool) => Ok((Bool, false)),
 
-            (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                expected: lhs.clone(),
-                actual: rhs.clone(),
-                source: Source::BinOp(op.kind),
-                span,
-            }),
+            (lhs, rhs) => {
+                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
+                    expected: lhs.clone(),
+                    actual: rhs.clone(),
+                    span: op.location.span,
+                    source: Source::Binary,
+                });
+                Ok((lhs.clone(), true))
+            }
         }
     }
 
@@ -1209,6 +1193,57 @@ impl<'interner> TypeChecker<'interner> {
                 element_type
             }
         }
+    }
+
+    /// Prerequisite: verify_trait_constraint of the operator's trait constraint.
+    ///
+    /// Although by this point the operator is expected to already have a trait impl,
+    /// we still need to match the operator's type against the method's instantiated type
+    /// to ensure the instantiation bindings are correct and the monomorphizer can
+    /// re-apply the needed bindings.
+    fn typecheck_operator_method(
+        &mut self,
+        expr_id: ExprId,
+        trait_method_id: TraitMethodId,
+        object_type: &Type,
+        span: Span,
+    ) {
+        let the_trait = self.interner.get_trait(trait_method_id.trait_id);
+
+        let method = &the_trait.methods[trait_method_id.method_index];
+        let (method_type, mut bindings) = method.typ.instantiate(self.interner);
+
+        match method_type {
+            Type::Function(args, _, _) => {
+                // We can cheat a bit and match against only the object type here since no operator
+                // overload uses other generic parameters or return types aside from the object type.
+                let expected_object_type = &args[0];
+                self.unify(object_type, expected_object_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: expected_object_type.to_string(),
+                    expr_typ: object_type.to_string(),
+                    expr_span: span,
+                });
+            }
+            other => {
+                unreachable!("Expected operator method to have a function type, but found {other}")
+            }
+        }
+
+        // We must also remember to apply these substitutions to the object_type
+        // referenced by the selected trait impl, if one has yet to be selected.
+        let impl_kind = self.interner.get_selected_impl_for_expression(expr_id);
+        if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
+            let the_trait = self.interner.get_trait(trait_method_id.trait_id);
+            let object_type = object_type.substitute(&bindings);
+            bindings.insert(
+                the_trait.self_type_typevar_id,
+                (the_trait.self_type_typevar.clone(), object_type.clone()),
+            );
+            self.interner
+                .select_impl_for_expression(expr_id, TraitImplKind::Assumed { object_type });
+        }
+
+        self.interner.store_instantiation_bindings(expr_id, bindings);
     }
 }
 

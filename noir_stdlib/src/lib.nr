@@ -19,6 +19,7 @@ mod compat;
 mod option;
 mod string;
 mod test;
+mod cmp;
 mod ops;
 mod default;
 mod prelude;

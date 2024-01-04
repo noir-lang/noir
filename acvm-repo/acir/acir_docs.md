@@ -6,14 +6,14 @@ This document describes the purpose of ACIR, what it is and how ACIR programs ca
 ## Introduction
 The purpose of ACIR is to make the link between a generic proving system, such as Aztec's Barretenberg, and a frontend, such as Noir, which describes user-specific computations.
 
-More precisely, Noir is a programming language for zero-knowledge proofs (ZKP) which allows users to write programs in an intuitive way using a high-level language close to Rust syntax. Noir is able to generate a proof of execution of a Noir program, using an external proving system. However, proving systems uses specific low-level constrain-based languages. Similarly, frontends have their own internal representation in order to represent user programs.
+More precisely, Noir is a programming language for zero-knowledge proofs (ZKP) which allows users to write programs in an intuitive way using a high-level language close to Rust syntax. Noir is able to generate a proof of execution of a Noir program, using an external proving system. However, proving systems use specific low-level constrain-based languages. Similarly, frontends have their own internal representation in order to represent user programs.
 
 The goal of ACIR is to provide a generic open-source intermediate representation close to proving system 'languages', but agnostic to a specific proving system, that can be used both by proving system as well as a target for frontends. So, at the end of the day, an ACIR program is just another representation of a program, dedicated to proving systems.
 
 ## Abstract Circuit Intermediate Representation
 ACIR stands for abstract circuit intermediate representation:
 - **abstract circuit**: circuits are a simple computation model where basic computation units, named gates, are connected with wires. Data flows through the wires while gates compute output wires based on their input. More formally, they are directed acyclic graphs (DAG) where the vertices are the gates and the edges are the wires. Due to the immutability nature of the wires (their value does not change during an execution), they are well suited for describing computations for ZKPs. Furthermore, we do not lose any expressiveness when using a circuit as it is well known that any bounded computation can be translated into an arithmetic circuit (i.e a circuit with only addition and multiplication gates).
-The term abstract here simply mean that we do not refer to an actual physical circuit (such as an electronic circuit). Furthermore, we will not exactly use the circuit model, but another model even better suited to ZKPs, the constraint model (see below).
+The term abstract here simply means that we do not refer to an actual physical circuit (such as an electronic circuit). Furthermore, we will not exactly use the circuit model, but another model even better suited to ZKPs, the constraint model (see below).
 - **intermediate representation**: The ACIR representation is intermediate because it lies between a frontend and its proving system. ACIR bytecode makes the link between noir compiler output and the proving system backend input.
 
 ## The constraint model
@@ -32,13 +32,13 @@ For instance, if input_wire_1 and input_wire_2 values are supplied as 3 and 8, t
 In summary, the workflow is the following:
 1. user program -> (compilation) ACIR, a list of opcodes which constrain (partial) witnesses
 2. user inputs + ACIR -> (execution/solving) assign values to all the (partial) witnesses 
-3. witness assignement + ACIR -> (proving system) proof
+3. witness assignment + ACIR -> (proving system) proof
 
 
 Although the ordering of opcode does not matter in theory, since a system of equations is not dependent on its ordering, in practice it matters a lot for the solving (i.e the performance of the execution). ACIR opcodes **must be ordered** so that each opcode can be resolved one after the other.
 
 
-The values of the witnesses lie in the scalar field of the proving system. We will refer to it as FieldElement or ACIR field. The proving system need the values of all the partial witnesses and all the constraints in order to generate a proof.
+The values of the witnesses lie in the scalar field of the proving system. We will refer to it as FieldElement or ACIR field. The proving system needs the values of all the partial witnesses and all the constraints in order to generate a proof.
 
 
 *Remark*: The value of a partial witness is unique and fixed throughout a program execution, although in some rare cases, multiple values are possible for a same execution and witness (when there are several valid solutions to the constraints). Having multiple possible values for a witness may indicate that the circuit is not safe.
@@ -51,7 +51,7 @@ We assume here that the proving system is Barretenberg. Some parameters may slig
 
 Some opcodes have inputs and outputs, which means that the output is constrained to be the result of the opcode computation from the inputs. The solver expects that all inputs are known when solving such opcodes.
 
-Some opcodes are not constrained, which mean they will not be used by the proving system and are only used by the solver.
+Some opcodes are not constrained, which means they will not be used by the proving system and are only used by the solver.
 
 Finally, some opcodes will have a predicate, whose value is 0 or 1. Its purpose is to nullify the opcode when the value is 0, so that it has no effect. Note that removing the opcode is not a solution because this modifies the circuit (the circuit being mainly the list of the opcodes). 
 
@@ -71,7 +71,7 @@ The solver expects that at most one witness is not known when executing the opco
 
 ### BlackBoxFuncCall opcode
 These opcodes represent a specific computation. Even if any computation can be done using only assert-zero opcodes, it is not always efficient. Some proving systems, and in particular the proving system from Aztec, can implement several computations more efficiently using for instance look-up tables. The BlackBoxFuncCall opcode is used to ask the proving system to handle the computation by itself.
-All black box functions takes as input a tuple (witness, num_bits), where num_bits is a constant representing the bit size of the input witness, and they have one or several witnesses as output.
+All black box functions take as input a tuple (witness, num_bits), where num_bits is a constant representing the bit size of the input witness, and they have one or several witnesses as output.
 Some more advanced computations assume that the proving system has an 'embedded curve'. It is a curve that cycle with the main curve of the proving system, i.e the scalar field of the embedded curve is the base field of the main one, and vice-versa. The curves used by the proving system are dependent on the proving system (and/or its configuration). Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the embedded curve.
 
 The black box functions supported by ACIR are:

@@ -24,7 +24,7 @@ fn test_add() {
 }
 ```
 
-Running `nargo test` will test that the `test_add` function can be executed while satisfying the all
+Running `nargo test` will test that the `test_add` function can be executed while satisfying all
 the constraints which allows you to test that add returns the expected values. Test functions can't
 have any arguments currently.
 
