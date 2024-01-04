@@ -2,7 +2,7 @@ use dep::std::option::Option;
 use dep::protocol_types::{
     address::AztecAddress,
 };
-    
+
 use crate::context::{PrivateContext, Context};
 use crate::note::{
     lifecycle::create_note,

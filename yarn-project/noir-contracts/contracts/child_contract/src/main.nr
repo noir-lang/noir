@@ -40,7 +40,9 @@ contract Child {
     }
 
     fn check_sender(call_context: CallContext) {
-        assert(call_context.msg_sender.eq(call_context.storage_contract_address), "Sender must be this contract");
+        assert(
+            call_context.msg_sender.eq(call_context.storage_contract_address), "Sender must be this contract"
+        );
     }
 
     // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values. 
@@ -112,7 +114,12 @@ contract Child {
     }
 
     // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: AztecAddress, nonce: Field, storage_slot: Field, serialized_note: [Field; 0]) -> pub [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: AztecAddress,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; 0]
+    ) -> pub [Field; 4] {
         [0, 0, 0, 0]
     }
 }

@@ -69,7 +69,12 @@ impl PublicKeyNote {
 }
 
 fn deserialize(serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
-    PublicKeyNote { x: serialized_note[0], y: serialized_note[1], owner: AztecAddress::from_field(serialized_note[2]), header: NoteHeader::empty() }
+    PublicKeyNote {
+        x: serialized_note[0],
+        y: serialized_note[1],
+        owner: AztecAddress::from_field(serialized_note[2]),
+        header: NoteHeader::empty()
+    }
 }
 
 fn serialize(note: PublicKeyNote) -> [Field; PUBLIC_KEY_NOTE_LEN] {

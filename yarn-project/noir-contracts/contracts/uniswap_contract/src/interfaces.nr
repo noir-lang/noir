@@ -1,5 +1,5 @@
 // docs:start:interfaces
-    use dep::protocol_types::{
+use dep::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::{
           AztecAddress,

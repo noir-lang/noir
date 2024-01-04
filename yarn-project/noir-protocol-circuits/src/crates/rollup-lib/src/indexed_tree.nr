@@ -3,7 +3,12 @@ use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 
 use dep::types::abis::membership_witness::MembershipWitness;
 
-fn check_permutation<T, N>(original_array: [T; N], sorted_array: [T; N], indexes: [u32; N], is_equal: fn (T, T) -> bool) {
+fn check_permutation<T, N>(
+    original_array: [T; N],
+    sorted_array: [T; N],
+    indexes: [u32; N],
+    is_equal: fn(T, T) -> bool
+) {
     let mut seen_value = [false; N];
     for i in 0..N {
         let index = indexes[i];
@@ -16,7 +21,7 @@ fn check_permutation<T, N>(original_array: [T; N], sorted_array: [T; N], indexes
 }
 
 #[test]
-fn check_permutation_basic_test(){
+fn check_permutation_basic_test() {
     let original_array = [1, 2, 3];
     let sorted_array = [3, 1, 2];
     let indexes = [2, 0, 1];
@@ -25,7 +30,7 @@ fn check_permutation_basic_test(){
 }
 
 #[test(should_fail_with = "Duplicated index")]
-fn check_permutation_duplicated_index(){
+fn check_permutation_duplicated_index() {
     let original_array = [0, 1, 0];
     let sorted_array = [1, 0, 0];
     let indexes = [1, 0, 0];
@@ -34,7 +39,7 @@ fn check_permutation_duplicated_index(){
 }
 
 #[test(should_fail_with = "Invalid index")]
-fn check_permutation_invalid_index(){
+fn check_permutation_invalid_index() {
     let original_array = [0, 1, 2];
     let sorted_array = [1, 0, 0];
     let indexes = [1, 0, 2];
@@ -43,24 +48,29 @@ fn check_permutation_invalid_index(){
 }
 
 pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight, TreeHeight>(
-    start_snapshot: AppendOnlyTreeSnapshot, 
+    start_snapshot: AppendOnlyTreeSnapshot,
     values_to_insert: [Value; SubtreeWidth],
     sorted_values: [Value; SubtreeWidth],
     sorted_values_indexes: [u32; SubtreeWidth],
     new_subtree_sibling_path: [Field; SiblingPathLength],
     low_leaf_preimages: [Leaf; SubtreeWidth],
     low_leaf_membership_witnesses: [MembershipWitness<TreeHeight>; SubtreeWidth],
-    is_equal: fn (Value, Value) -> bool,
-    is_empty_value: fn (Value) -> bool,
-    hash_leaf: fn (Leaf) -> Field,
+    is_equal: fn(Value, Value) -> bool,
+    is_empty_value: fn(Value) -> bool,
+    hash_leaf: fn(Leaf) -> Field,
     is_valid_low_leaf: fn(Leaf, Value) -> bool,
     update_low_leaf: fn(Leaf, Value, u32) -> Leaf,
-    build_insertion_leaf: fn (Value, Leaf) -> Leaf,
+    build_insertion_leaf: fn(Value, Leaf) -> Leaf,
     _subtree_height: [Field; SubtreeHeight],
-    _tree_height: [Field; TreeHeight],
+    _tree_height: [Field; TreeHeight]
 ) -> AppendOnlyTreeSnapshot {
     // A permutation to the values is provided to make the insertion use only one insertion strategy
-    check_permutation(values_to_insert, sorted_values, sorted_values_indexes, is_equal);
+    check_permutation(
+        values_to_insert,
+        sorted_values,
+        sorted_values_indexes,
+        is_equal
+    );
 
     // Now, update the existing leaves with the new leaves
     let mut current_tree_root = start_snapshot.root;
@@ -72,7 +82,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
         if !is_empty_value(value) {
             let low_leaf_preimage = low_leaf_preimages[i];
             let witness = low_leaf_membership_witnesses[i];
-            
+
             assert(is_valid_low_leaf(low_leaf_preimage, value), "Invalid low leaf");
 
             // perform membership check for the low leaf against the original root
@@ -80,17 +90,17 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
                 hash_leaf(low_leaf_preimage),
                 witness.leaf_index,
                 witness.sibling_path,
-                current_tree_root,
+                current_tree_root
             );
 
             let value_index = sorted_values_indexes[i];
 
             // Calculate the new value of the low_leaf
-            let updated_low_leaf = update_low_leaf(low_leaf_preimage, value, start_insertion_index+value_index);
+            let updated_low_leaf = update_low_leaf(low_leaf_preimage, value, start_insertion_index + value_index);
 
             current_tree_root = crate::components::root_from_sibling_path(
                 hash_leaf(updated_low_leaf), witness.leaf_index, witness.sibling_path);
-            
+
             insertion_subtree[value_index] = build_insertion_leaf(value, low_leaf_preimage);
         }
     }
@@ -102,7 +112,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
         empty_subtree_root,
         leaf_index_subtree_depth as Field,
         new_subtree_sibling_path,
-        current_tree_root,
+        current_tree_root
     );
 
     // Create new subtree to insert into the whole indexed tree
@@ -113,9 +123,6 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     let subtree_index = start_insertion_index >> (SubtreeHeight as u32);
     let new_root = crate::components::root_from_sibling_path(subtree_root, subtree_index as Field, new_subtree_sibling_path);
 
-    AppendOnlyTreeSnapshot {
-        root: new_root,
-        next_available_leaf_index: start_insertion_index + (values_to_insert.len() as u32),
-    }
+    AppendOnlyTreeSnapshot { root: new_root, next_available_leaf_index: start_insertion_index + (values_to_insert.len() as u32) }
 }
 

@@ -10,7 +10,6 @@ struct FunctionData {
     is_constructor : bool,
 }
 
-
 impl FunctionData {
     // A field is ~256 bits
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3057): Since, function data can fit into a Field,

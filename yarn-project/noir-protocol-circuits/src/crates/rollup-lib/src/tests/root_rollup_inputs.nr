@@ -22,7 +22,9 @@ pub fn compute_l1_l2_empty_snapshot() -> (AppendOnlyTreeSnapshot, [Field; L1_TO_
         new_l1_to_l2_messages_tree_root_sibling_path[i] = zero_hashes[index];
     }
 
-    (AppendOnlyTreeSnapshot{ root: zero_hashes[zero_hashes.len() - 1], next_available_leaf_index: 0 }, new_l1_to_l2_messages_tree_root_sibling_path)
+    (
+        AppendOnlyTreeSnapshot { root: zero_hashes[zero_hashes.len() - 1], next_available_leaf_index: 0 }, new_l1_to_l2_messages_tree_root_sibling_path
+    )
 }
 
 pub fn compute_archive_snapshot() -> (AppendOnlyTreeSnapshot, [Field; ARCHIVE_HEIGHT]) {
@@ -31,9 +33,10 @@ pub fn compute_archive_snapshot() -> (AppendOnlyTreeSnapshot, [Field; ARCHIVE_HE
     for i in 1..ARCHIVE_HEIGHT {
         sibling_path[i] = zero_hashes[i-1];
     }
-    (AppendOnlyTreeSnapshot { root: zero_hashes[zero_hashes.len() - 1], next_available_leaf_index: 0 }, sibling_path)
+    (
+        AppendOnlyTreeSnapshot { root: zero_hashes[zero_hashes.len() - 1], next_available_leaf_index: 0 }, sibling_path
+    )
 }
-
 
 pub fn default_root_rollup_inputs() -> RootRollupInputs {
     let mut inputs: RootRollupInputs = dep::std::unsafe::zeroed();

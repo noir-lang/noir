@@ -33,7 +33,6 @@ struct PublicDataTreeLeaf {
     value: Field,
 }
 
-
 impl PublicDataTreeLeaf {
     pub fn default() -> Self {
         Self {

@@ -9,7 +9,6 @@ use dep::types::{
 };
 use dep::types::mocked::AggregationObject;
 
-
 struct RootRollupPublicInputs {
     // All below are shared between the base and merge rollups
     end_aggregation_object : AggregationObject,

@@ -34,7 +34,10 @@ impl Sort {
     }
 }
 
-fn return_all_notes<Note, N>(notes: [Option<Note>; MAX_READ_REQUESTS_PER_CALL], _p: Field) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
+fn return_all_notes<Note, N>(
+    notes: [Option<Note>; MAX_READ_REQUESTS_PER_CALL],
+    _p: Field
+) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
     notes
 }
 

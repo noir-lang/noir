@@ -15,7 +15,13 @@ pub fn compute_identifier(secret: Field, on_behalf_of: Field, self: Field) -> Fi
     }
 }
 
-pub fn covered_by_collateral(price: u120, loan_to_value: u120, collateral: u120, increase: u120, decrease: u120) -> u120 {
+pub fn covered_by_collateral(
+    price: u120,
+    loan_to_value: u120,
+    collateral: u120,
+    increase: u120,
+    decrease: u120
+) -> u120 {
     let price_precision = SafeU120 { value: 1000000000 };
     let ltv_precision = SafeU120 { value: 10000 };
 
@@ -34,7 +40,12 @@ struct DebtReturn {
     static_debt: u120,
 }
 
-pub fn debt_updates(interest_accumulator: u120, static_debt: u120, increase: u120, decrease: u120) -> DebtReturn {
+pub fn debt_updates(
+    interest_accumulator: u120,
+    static_debt: u120,
+    increase: u120,
+    decrease: u120
+) -> DebtReturn {
     assert(interest_accumulator > 0);
     let accumulator_precision = SafeU120 { value: 1000000000 };
 

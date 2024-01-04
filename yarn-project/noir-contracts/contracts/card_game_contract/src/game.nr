@@ -33,8 +33,16 @@ global GAME_SERIALIZED_LEN: Field = 15;
 
 fn deserializeGame(fields: [Field; GAME_SERIALIZED_LEN]) -> Game {
     let players = [
-        PlayerEntry { address: AztecAddress::from_field(fields[0]), deck_strength: fields[1] as u32, points: fields[2] as u120 },
-        PlayerEntry { address: AztecAddress::from_field(fields[3]), deck_strength: fields[4] as u32, points: fields[5] as u120 }
+        PlayerEntry {
+            address: AztecAddress::from_field(fields[0]),
+            deck_strength: fields[1] as u32,
+            points: fields[2] as u120
+        },
+        PlayerEntry {
+            address: AztecAddress::from_field(fields[3]),
+            deck_strength: fields[4] as u32,
+            points: fields[5] as u120
+        }
     ];
     let rounds_cards = [
         Card::from_field(fields[6]), Card::from_field(fields[7]),

@@ -24,22 +24,24 @@ contract ImportTest {
     #[aztec(private)]
     fn main(target: AztecAddress) -> Field {
         let test_contract_instance = TestPrivateContextInterface::at(target);
-        let return_values = test_contract_instance.test_code_gen(&mut context,
+        let return_values = test_contract_instance.test_code_gen(
+            &mut context,
             1,
             true,
             1 as u32,
             [1, 2],
             AStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
             ADeepStructTestCodeGenStruct {
-                a_field: 1,
-                a_bool: true,
-                a_note: ANoteADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
-                many_notes: [
-                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
-                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
-                    ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 }
-                ]
-            });
+            a_field: 1,
+            a_bool: true,
+            a_note: ANoteADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
+            many_notes: [
+                ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
+                ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 },
+                ManyNotesADeepStructTestCodeGenStruct { amount: 1, secret_hash: 2 }
+            ]
+        }
+        );
 
         return_values[0]
     }

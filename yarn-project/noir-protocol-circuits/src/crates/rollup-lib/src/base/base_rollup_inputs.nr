@@ -1016,10 +1016,7 @@ mod tests {
         let new_commitments = [27, 28, 29, 30, 31, 32];
         let mut new_commitments_vec = builder.kernel_data.end.new_commitments;
         for i in 0..new_commitments.len() {
-            new_commitments_vec.push(SideEffect{
-                value: new_commitments[i],
-                counter: 0,
-                });
+            new_commitments_vec.push(SideEffect { value: new_commitments[i], counter: 0 });
         }
         builder.kernel_data.end.new_commitments = new_commitments_vec;
         let mut expected_commitments_tree = NonEmptyMerkleTree::new(

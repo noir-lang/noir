@@ -7,19 +7,29 @@ use dep::aztec::note::note_getter_options::{NoteGetterOptions, Sort, SortOrder};
 use dep::std::option::Option;
 
 // docs:start:state_vars-NoteGetterOptionsSelectSortOffset
-pub fn create_account_card_getter_options(account: AztecAddress, offset: u32) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
+pub fn create_account_card_getter_options(
+    account: AztecAddress,
+    offset: u32
+) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
     NoteGetterOptions::new().select(2, account.to_field()).sort(0, SortOrder.DESC).set_offset(offset)
 }
 // docs:end:state_vars-NoteGetterOptionsSelectSortOffset
 
 // docs:start:state_vars-NoteGetterOptionsMultiSelects
-pub fn create_exact_card_getter_options(points: u8, secret: Field, account: AztecAddress) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
+pub fn create_exact_card_getter_options(
+    points: u8,
+    secret: Field,
+    account: AztecAddress
+) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
     NoteGetterOptions::new().select(0, points as Field).select(1, secret).select(2, account.to_field())
 }
 // docs:end:state_vars-NoteGetterOptionsMultiSelects
 
 // docs:start:state_vars-OptionFilter
-pub fn filter_min_points(cards: [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL], min_points: u8) -> [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL] {
+pub fn filter_min_points(
+    cards: [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL],
+    min_points: u8
+) -> [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL] {
     let mut selected_cards = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let mut num_selected = 0;
     for i in 0..cards.len() {
