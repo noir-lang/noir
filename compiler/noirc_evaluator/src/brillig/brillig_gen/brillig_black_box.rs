@@ -109,7 +109,7 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: EcdsaSecp256k1 expects four array arguments and one register result"
+                    "ICE: EcdsaSecp256r1 expects four array arguments and one register result"
                 )
             }
         }
