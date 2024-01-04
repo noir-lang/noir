@@ -1271,10 +1271,16 @@ impl NodeInterner {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
 
+    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
+    /// Returns [None] when definition is not found.
+    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
+        self.find_location_index(location).and_then(|index| self.resolve_location(index))
+    }
+
     /// For a given [Index] we return [Location] to which we resolved to
     /// We currently return None for features not yet implemented
     /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
-    pub(crate) fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
+    fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
         let node = self.nodes.get(index.into())?;
 
         match node {
