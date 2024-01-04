@@ -143,8 +143,6 @@ fn process_noir_document(
 
             let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
 
-            state.cached_definitions.insert(package_root_dir, context.def_interner.clone());
-
             // We don't add test headings for a package if it contains no `#[test]` functions
             if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
                 let _ = state.client.notify::<notification::NargoUpdateTests>(NargoPackageTests {
@@ -161,6 +159,8 @@ fn process_noir_document(
                 Some(&file_path),
             );
             state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
+
+            state.cached_definitions.insert(package_root_dir, context.def_interner);
 
             let fm = &context.file_manager;
             let files = fm.as_file_map();

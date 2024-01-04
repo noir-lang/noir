@@ -36,11 +36,13 @@ fn on_goto_definition_inner(
 
     let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
 
+    let interner;
     if let Some(def_interner) = _state.cached_definitions.get(&package_root_path) {
-        context.def_interner = def_interner.clone();
+        interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
         let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+        interner = &context.def_interner;
     }
 
     let files = context.file_manager.as_file_map();
@@ -48,7 +50,6 @@ fn on_goto_definition_inner(
         ErrorCode::REQUEST_FAILED,
         format!("Could not find file in file manager. File path: {:?}", file_path),
     ))?;
-
     let byte_index =
         position_to_byte_index(files, file_id, &params.text_document_position_params.position)
             .map_err(|err| {
@@ -64,7 +65,7 @@ fn on_goto_definition_inner(
     };
 
     let goto_definition_response =
-        context.get_definition_location_from(search_for_location).and_then(|found_location| {
+        interner.get_definition_location_from(search_for_location).and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(files, file_id, found_location.span)?;
             let response: GotoDefinitionResponse =
