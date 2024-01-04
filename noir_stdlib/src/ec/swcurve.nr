@@ -28,15 +28,6 @@ mod affine {
             Self {x, y, infty: false}
         }
 
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1, infty: inf1} = self;
-            let Self {x: x2, y: y2, infty: inf2} = p;
-
-            (inf1 & inf2)
-                | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
-        }
-
         // Check if zero
         pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
@@ -62,6 +53,17 @@ mod affine {
         fn negate(self) -> Self {
             let Self {x, y, infty} = self;
             Self {x, y: 0-y, infty}
+        }
+    }
+
+    impl Eq for Point {
+        // Check for equality
+        fn eq(self, p: Self) -> bool {
+             let Self {x: x1, y: y1, infty: inf1} = self;
+            let Self {x: x2, y: y2, infty: inf2} = p;
+
+            (inf1 & inf2)
+                | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
         }
     }
 
@@ -203,14 +205,6 @@ mod curvegroup {
             Self {x, y, z}
         }
 
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1, z: z1} = self;
-            let Self {x: x2, y: y2, z: z2} = p;
-
-            ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2*z2 == x2*z1*z1) & (y1*z2*z2*z2 == y2*z1*z1*z1))
-        }
-
         // Check if zero
         pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
@@ -237,6 +231,16 @@ mod curvegroup {
         fn negate(self) -> Self {
             let Self {x, y, z} = self;
             Self {x, y: 0-y, z}
+        }
+    }
+
+    impl Eq for Point {
+        // Check for equality
+        fn eq(self, p: Self) -> bool {
+               let Self {x: x1, y: y1, z: z1} = self;
+            let Self {x: x2, y: y2, z: z2} = p;
+
+            ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2*z2 == x2*z1*z1) & (y1*z2*z2*z2 == y2*z1*z1*z1))
         }
     }
 

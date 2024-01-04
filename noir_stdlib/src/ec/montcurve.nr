@@ -32,11 +32,6 @@ mod affine {
             Self {x, y, infty: false}
         }
 
-        // Check for equality
-        fn eq(self, p: Self) -> bool {
-            (self.infty & p.infty) | (!self.infty & !p.infty & (self.x == p.x) & (self.y == p.y))
-        }
-
         // Check if zero
         pub fn is_zero(self) -> bool {
             self.infty
@@ -73,6 +68,13 @@ mod affine {
             } else {
                 TEPoint::new(x/y, (x-1)/(x+1))
             }
+        }
+    }
+
+    impl Eq for Point {
+        // Check for equality
+        fn eq(self, p: Self) -> bool {
+            (self.infty & p.infty) | (!self.infty & !p.infty & (self.x == p.x) & (self.y == p.y))
         }
     }
 
@@ -239,11 +241,6 @@ mod curvegroup {
             Self {x, y, z}
         }
 
-        // Check for equality
-        fn eq(self, p: Self) -> bool {
-            (self.z == p.z) | (((self.x * self.z) == (p.x * p.z)) & ((self.y * self.z) == (p.y * p.z)))
-        }
-
         // Check if zero
         pub fn is_zero(self) -> bool {
             self.z == 0
@@ -274,6 +271,13 @@ mod curvegroup {
         // Map into equivalent Twisted Edwards curve
         fn into_tecurve(self) -> TEPoint {
             self.into_affine().into_tecurve().into_group()
+        }
+    }
+
+    impl Eq for Point {
+        // Check for equality
+        fn eq(self, p: Self) -> bool {
+             (self.z == p.z) | (((self.x * self.z) == (p.x * p.z)) & ((self.y * self.z) == (p.y * p.z)))
         }
     }
 

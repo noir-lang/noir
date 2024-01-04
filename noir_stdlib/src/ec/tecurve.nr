@@ -29,14 +29,6 @@ mod affine {
             Self { x, y }
         }
 
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1} = self;
-            let Self {x: x2, y: y2} = p;
-
-            (x1 == x2) & (y1 == y2)
-        }
-
         // Check if zero
         pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
@@ -71,6 +63,16 @@ mod affine {
 
                 MPoint::new(x0,y0)
             }
+        }
+    }
+
+    impl Eq for Point {
+        // Check for equality
+        fn eq(self, p: Self) -> bool {
+             let Self {x: x1, y: y1} = self;
+            let Self {x: x2, y: y2} = p;
+
+            (x1 == x2) & (y1 == y2)
         }
     }
 
@@ -220,14 +222,6 @@ mod curvegroup {
             Self {x, y, t, z}
         }
 
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1, t: _t1, z: z1} = self;
-            let Self {x: x2, y: y2, t: _t2, z:z2} = p;
-
-            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
-        }
-
         // Check if zero
         pub fn is_zero(self) -> bool {
             let Self {x, y, t, z} = self;
@@ -256,6 +250,16 @@ mod curvegroup {
         // Map into prime-order subgroup of equivalent Montgomery curve
         fn into_montcurve(self) -> MPoint {
             self.into_affine().into_montcurve().into_group()
+        }
+    }
+
+    impl Eq for Point {
+        // Check for equality
+        fn eq(self, p: Self) -> bool {
+            let Self {x: x1, y: y1, t: _t1, z: z1} = self;
+            let Self {x: x2, y: y2, t: _t2, z:z2} = p;
+
+            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
         }
     }
 
