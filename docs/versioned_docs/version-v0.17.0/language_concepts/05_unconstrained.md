@@ -7,7 +7,7 @@ keywords: [Noir programming language, unconstrained, open]
 
 <!-- Source material for much of this page comes from here: https://github.com/noir-lang/acvm-docs/blob/main/docs/brillig/00_intro.md -->
 
-Unconstrained functions are functions which do not constrain any of the included computation and allow for non-determinisitic computation.
+Unconstrained functions are functions which do not constrain any of the included computation and allow for non-deterministic computation.
 
 ## Why?
 

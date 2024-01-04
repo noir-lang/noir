@@ -23,6 +23,7 @@ serde_json.workspace = true
 tower.workspace = true
 async-lsp = { workspace = true, features = ["omni-trait"] }
 serde_with = "3.2.0"
+thiserror.workspace = true
 fm.workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]

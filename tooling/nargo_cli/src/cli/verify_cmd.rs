@@ -7,11 +7,14 @@ use crate::{backends::Backend, errors::CliError};
 
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_frontend::graph::CrateName;
 
 /// Given a proof and a program, verify whether the proof is valid
@@ -48,10 +51,18 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     let expression_width = backend.get_backend_info()?;
     for package in &workspace {
-        let program =
-            compile_bin_package(&workspace, package, &args.compile_options, expression_width)?;
+        let program = compile_bin_package(
+            &workspace_file_manager,
+            &workspace,
+            package,
+            &args.compile_options,
+            expression_width,
+        )?;
 
         verify_package(backend, &workspace, package, program, &args.verifier_name)?;
     }

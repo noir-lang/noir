@@ -1,15 +1,19 @@
 use std::path::PathBuf;
 
 use acvm::acir::native_types::WitnessMap;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_frontend::graph::CrateName;
 
 use super::compile_cmd::compile_bin_package;
@@ -51,6 +55,9 @@ pub(crate) fn run(
     let target_dir = &workspace.target_directory_path();
     let expression_width = backend.get_backend_info()?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
             "No matching binary packages found in workspace. Only binary packages can be debugged."
@@ -58,8 +65,13 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let compiled_program =
-        compile_bin_package(&workspace, package, &args.compile_options, expression_width)?;
+    let compiled_program = compile_bin_package(
+        &workspace_file_manager,
+        &workspace,
+        package,
+        &args.compile_options,
+        expression_width,
+    )?;
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }
@@ -123,8 +135,7 @@ pub(crate) fn debug_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<Option<WitnessMap>, CliError> {
-    #[allow(deprecated)]
-    let blackbox_solver = barretenberg_blackbox_solver::BarretenbergSolver::new();
+    let blackbox_solver = Bn254BlackBoxSolver::new();
 
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 

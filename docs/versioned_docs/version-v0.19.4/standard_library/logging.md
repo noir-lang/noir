@@ -22,7 +22,7 @@ implementation of rust's `println!` macro, this construct can be useful for debu
 
 You can print the output of println statements in your Noir code by using the `nargo execute` command or the `--show-output` flag when using `nargo test` (provided there are println statements in your tests).
 
-It is recommended to use `nargo execute` if you want to debug failing constrains with `println` statements. This is due to every input in a test being a constant rather than a witness, so we issue an error during compilation while we only print during execution (which comes after compilation). `println` will not work for failed constraints caught at compile time.
+It is recommended to use `nargo execute` if you want to debug failing constraints with `println` statements. This is due to every input in a test being a constant rather than a witness, so we issue an error during compilation while we only print during execution (which comes after compilation). `println` will not work for failed constraints caught at compile time.
 
 The `println` statement is unconstrained, so it works for outputting integers, fields, strings, and even structs or expressions. For example:
 

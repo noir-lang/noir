@@ -94,7 +94,7 @@ This async method generates a witness and a proof given an object as input.
 ### Syntax
 
 ```js
-async generateFinalproof(input)
+async generateFinalProof(input)
 ```
 
 ### Parameters

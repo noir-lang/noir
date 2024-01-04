@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 import type { Config } from '@docusaurus/types';
 
 const { themes } = require('prism-react-renderer');
@@ -47,6 +48,9 @@ export default {
   ],
 
   themeConfig: {
+    colorMode: {
+      respectPrefersColorScheme: true,
+    },
     navbar: {
       logo: {
         alt: 'Noir Logo',

@@ -45,9 +45,9 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
 
-      - name: Publish barretenberg_blackbox_solver
+      - name: Publish bn254_blackbox_solver
         run: |
-          cargo publish --package barretenberg_blackbox_solver
+          cargo publish --package bn254_blackbox_solver
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
 
