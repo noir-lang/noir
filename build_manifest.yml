@@ -104,6 +104,10 @@ barretenberg-acir-tests-bb.js:
     - bb.js
     - noir-compile-acir-tests
 
+barretenberg-docs:
+  buildDir: barretenberg/cpp
+  dockerfile: docs/Dockerfile
+
 l1-contracts:
   buildDir: l1-contracts
 

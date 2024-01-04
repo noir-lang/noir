@@ -192,6 +192,21 @@ jobs:
           name: "Build"
           command: cond_spot_run_build barretenberg-x86_64-linux-clang-sol 32
 
+  barretenberg-docs:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build barretenberg docs"
+          command: build barretenberg-docs
+      - run:
+          name: "Deploy barretenberg docs"
+          command: |
+            barretenberg/cpp/docs/deploy_doxygen.sh
+
   barretenberg-stdlib-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1091,6 +1106,7 @@ workflows:
             - barretenberg-x86_64-linux-clang-assert
             - noir-compile-acir-tests
           <<: *defaults
+      - barretenberg-docs: *defaults
       - bb-js:
           requires:
             - barretenberg-wasm-linux-clang

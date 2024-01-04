@@ -21,3 +21,6 @@
 !scripts/strip-wasm.sh
 !./.clang-format
 !./format.sh
+
+# Doxygen stuff.
+!docs
