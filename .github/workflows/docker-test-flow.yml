@@ -132,8 +132,9 @@ jobs:
         password: ${{ secrets.github_token }}
     steps:
       - name: Build
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-wasm-build.sh
+          ./.github/scripts/noir-wasm-build.sh
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
