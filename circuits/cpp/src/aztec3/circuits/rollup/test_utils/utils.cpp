@@ -175,7 +175,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
         kernel_data[i].public_inputs.constants.block_header.nullifier_tree_root = nullifier_tree.root();
         kernel_data[i].public_inputs.constants.block_header.nullifier_tree_root = nullifier_tree.root();
         kernel_data[i].public_inputs.constants.block_header.contract_tree_root = contract_tree.root();
-        kernel_data[i].public_inputs.constants.block_header.l1_to_l2_messages_tree_root = l1_to_l2_msg_tree.root();
+        kernel_data[i].public_inputs.constants.block_header.l1_to_l2_message_tree_root = l1_to_l2_msg_tree.root();
         kernel_data[i].public_inputs.constants.block_header.archive_root = archive.root();
         kernel_data[i].public_inputs.constants.block_header.public_data_tree_root = public_data_tree.root();
         kernel_data[i].public_inputs.constants.block_header.global_variables_hash = prev_global_variables_hash;
@@ -226,14 +226,14 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
     MemoryStore contract_tree_store;
     MerkleTree contract_tree = MerkleTree(contract_tree_store, CONTRACT_TREE_HEIGHT);
     MemoryStore l1_to_l2_messages_store;
-    MerkleTree l1_to_l2_messages_tree = MerkleTree(l1_to_l2_messages_store, L1_TO_L2_MSG_TREE_HEIGHT);
+    MerkleTree l1_to_l2_message_tree = MerkleTree(l1_to_l2_messages_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
     MemoryStore public_data_tree_store;
     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
 
     return base_rollup_inputs_from_kernels(
-        std::move(kernel_data), note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+        std::move(kernel_data), note_hash_tree, contract_tree, public_data_tree, l1_to_l2_message_tree);
 }
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
@@ -246,7 +246,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
     MemoryStore contract_tree_store;
     MerkleTree contract_tree = MerkleTree(contract_tree_store, CONTRACT_TREE_HEIGHT);
     MemoryStore l1_to_l2_messages_store;
-    MerkleTree l1_to_l2_messages_tree = MerkleTree(l1_to_l2_messages_store, L1_TO_L2_MSG_TREE_HEIGHT);
+    MerkleTree l1_to_l2_message_tree = MerkleTree(l1_to_l2_messages_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
     MemoryStore public_data_tree_store;
     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
@@ -258,7 +258,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
                                            nullifier_tree,
                                            contract_tree,
                                            public_data_tree,
-                                           l1_to_l2_messages_tree);
+                                           l1_to_l2_message_tree);
 }
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
@@ -411,8 +411,8 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
     RootRollupInputs rootRollupInputs = {
         .previous_rollup_data = get_previous_rollup_data(builder, std::move(kernel_data)),
         .new_l1_to_l2_messages = l1_to_l2_messages,
-        .new_l1_to_l2_messages_tree_root_sibling_path = l1_to_l2_tree_sibling_path,
-        .start_l1_to_l2_messages_tree_snapshot = start_l1_to_l2_msg_tree_snapshot,
+        .new_l1_to_l2_message_tree_root_sibling_path = l1_to_l2_tree_sibling_path,
+        .start_l1_to_l2_message_tree_snapshot = start_l1_to_l2_msg_tree_snapshot,
         .start_archive_snapshot = start_archive_snapshot,
         .new_archive_sibling_path = archive_sibling_path,
     };

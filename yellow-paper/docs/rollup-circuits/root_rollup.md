@@ -46,11 +46,11 @@ class GlobalVariables {
 
 class Header {
     last_archive: Snapshot
-    content_hash: Fr[2]
+    body_hash: Fr[2]
     state: StateReference
     global_variables: GlobalVariables
 }
-Header *.. Body : content_hash
+Header *.. Body : body_hash
 Header *-- StateReference : state
 Header *-- GlobalVariables : global_variables
 
@@ -186,7 +186,7 @@ def RootRollupCircuit(
 
     header = Header(
         last_archive = left.inputs.constants.last_archive,
-        content_hash = SHA256(txs_hash | out_hash | SHA256(l1_to_l2_msgs)),
+        body_hash = SHA256(txs_hash | out_hash | SHA256(l1_to_l2_msgs)),
         state = StateReference(
             l1_to_l2_message_tree = l1_to_l2_msg_tree,
             partial = right.inputs.end,

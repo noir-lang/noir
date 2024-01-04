@@ -84,7 +84,7 @@ export class L2Block {
     /**
      * The tree snapshot of the L2 message tree at the start of the rollup.
      */
-    public startL1ToL2MessagesTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
      * The tree snapshot of the archive at the start of the rollup.
      */
@@ -108,7 +108,7 @@ export class L2Block {
     /**
      * The tree snapshot of the L2 message tree at the end of the rollup.
      */
-    public endL1ToL2MessagesTreeSnapshot: AppendOnlyTreeSnapshot,
+    public endL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
     /**
      * The tree snapshot of the archive at the end of the rollup.
      */
@@ -215,13 +215,13 @@ export class L2Block {
         startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
         startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
         startPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-        startL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
+        startL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
         startArchiveSnapshot: makeAppendOnlyTreeSnapshot(0),
         endNoteHashTreeSnapshot: makeAppendOnlyTreeSnapshot(newCommitments.length),
         endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(newNullifiers.length),
         endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(newContracts.length),
         endPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot(0),
-        endL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot(1),
+        endL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot(1),
         endArchiveSnapshot: makeAppendOnlyTreeSnapshot(1),
         newCommitments,
         newNullifiers,
@@ -275,7 +275,7 @@ export class L2Block {
       /**
        * The tree snapshot of the L2 message tree at the start of the rollup.
        */
-      startL1ToL2MessagesTreeSnapshot: AppendOnlyTreeSnapshot;
+      startL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot;
       /**
        * The tree snapshot of the archive at the start of the rollup.
        */
@@ -299,7 +299,7 @@ export class L2Block {
       /**
        * The tree snapshot of the L2 message tree at the end of the rollup.
        */
-      endL1ToL2MessagesTreeSnapshot: AppendOnlyTreeSnapshot;
+      endL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot;
       /**
        * The tree snapshot of the archive at the end of the rollup.
        */
@@ -351,13 +351,13 @@ export class L2Block {
       fields.startNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
       fields.startPublicDataTreeSnapshot,
-      fields.startL1ToL2MessagesTreeSnapshot,
+      fields.startL1ToL2MessageTreeSnapshot,
       fields.startArchiveSnapshot,
       fields.endNoteHashTreeSnapshot,
       fields.endNullifierTreeSnapshot,
       fields.endContractTreeSnapshot,
       fields.endPublicDataTreeSnapshot,
-      fields.endL1ToL2MessagesTreeSnapshot,
+      fields.endL1ToL2MessageTreeSnapshot,
       fields.endArchiveSnapshot,
       fields.newCommitments,
       fields.newNullifiers,
@@ -386,13 +386,13 @@ export class L2Block {
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
       this.startPublicDataTreeSnapshot,
-      this.startL1ToL2MessagesTreeSnapshot,
+      this.startL1ToL2MessageTreeSnapshot,
       this.startArchiveSnapshot,
       this.endNoteHashTreeSnapshot,
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
       this.endPublicDataTreeSnapshot,
-      this.endL1ToL2MessagesTreeSnapshot,
+      this.endL1ToL2MessageTreeSnapshot,
       this.endArchiveSnapshot,
       this.newCommitments.length,
       this.newCommitments,
@@ -448,13 +448,13 @@ export class L2Block {
     const startNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startPublicDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
-    const startL1ToL2MessagesTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const startL1ToL2MessageTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const startArchiveSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endNoteHashTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endPublicDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
-    const endL1ToL2MessagesTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endL1ToL2MessageTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const endArchiveSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
     const newCommitments = reader.readVector(Fr);
     const newNullifiers = reader.readVector(Fr);
@@ -472,13 +472,13 @@ export class L2Block {
       startNullifierTreeSnapshot,
       startContractTreeSnapshot,
       startPublicDataTreeSnapshot,
-      startL1ToL2MessagesTreeSnapshot: startL1ToL2MessagesTreeSnapshot,
+      startL1ToL2MessageTreeSnapshot: startL1ToL2MessageTreeSnapshot,
       startArchiveSnapshot,
       endNoteHashTreeSnapshot,
       endNullifierTreeSnapshot,
       endContractTreeSnapshot,
       endPublicDataTreeSnapshot,
-      endL1ToL2MessagesTreeSnapshot,
+      endL1ToL2MessageTreeSnapshot,
       endArchiveSnapshot,
       newCommitments,
       newNullifiers,
@@ -588,13 +588,13 @@ export class L2Block {
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
       this.startPublicDataTreeSnapshot,
-      this.startL1ToL2MessagesTreeSnapshot,
+      this.startL1ToL2MessageTreeSnapshot,
       this.startArchiveSnapshot,
       this.endNoteHashTreeSnapshot,
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
       this.endPublicDataTreeSnapshot,
-      this.endL1ToL2MessagesTreeSnapshot,
+      this.endL1ToL2MessageTreeSnapshot,
       this.endArchiveSnapshot,
       this.getCalldataHash(),
       this.getL1ToL2MessagesHash(),
@@ -614,7 +614,7 @@ export class L2Block {
       this.startNullifierTreeSnapshot,
       this.startContractTreeSnapshot,
       this.startPublicDataTreeSnapshot,
-      this.startL1ToL2MessagesTreeSnapshot,
+      this.startL1ToL2MessageTreeSnapshot,
       this.startArchiveSnapshot,
     );
     return sha256(inputValue);
@@ -631,7 +631,7 @@ export class L2Block {
       this.endNullifierTreeSnapshot,
       this.endContractTreeSnapshot,
       this.endPublicDataTreeSnapshot,
-      this.endL1ToL2MessagesTreeSnapshot,
+      this.endL1ToL2MessageTreeSnapshot,
       this.endArchiveSnapshot,
     );
     return sha256(inputValue);
@@ -835,14 +835,14 @@ export class L2Block {
       `startNullifierTreeSnapshot: ${inspectTreeSnapshot(this.startNullifierTreeSnapshot)}`,
       `startContractTreeSnapshot: ${inspectTreeSnapshot(this.startContractTreeSnapshot)}`,
       `startPublicDataTreeSnapshot: ${this.startPublicDataTreeSnapshot.toString()}`,
-      `startL1ToL2MessagesTreeSnapshot: ${inspectTreeSnapshot(this.startL1ToL2MessagesTreeSnapshot)}`,
+      `startL1ToL2MessageTreeSnapshot: ${inspectTreeSnapshot(this.startL1ToL2MessageTreeSnapshot)}`,
       `startArchiveSnapshot: ${inspectTreeSnapshot(this.startArchiveSnapshot)}`,
       `endNoteHashTreeSnapshot: ${inspectTreeSnapshot(this.endNoteHashTreeSnapshot)}`,
       `endNullifierTreeSnapshot: ${inspectTreeSnapshot(this.endNullifierTreeSnapshot)}`,
       `endContractTreeSnapshot: ${inspectTreeSnapshot(this.endContractTreeSnapshot)}`,
       `endPublicDataTreeSnapshot: ${this.endPublicDataTreeSnapshot.toString()}`,
       `endPublicDataTreeSnapshot: ${this.endPublicDataTreeSnapshot.toString()}`,
-      `endL1ToL2MessagesTreeSnapshot: ${inspectTreeSnapshot(this.endL1ToL2MessagesTreeSnapshot)}`,
+      `endL1ToL2MessageTreeSnapshot: ${inspectTreeSnapshot(this.endL1ToL2MessageTreeSnapshot)}`,
       `endArchiveSnapshot: ${inspectTreeSnapshot(this.endArchiveSnapshot)}`,
       `newCommitments: ${inspectFrArray(this.newCommitments)}`,
       `newNullifiers: ${inspectFrArray(this.newNullifiers)}`,

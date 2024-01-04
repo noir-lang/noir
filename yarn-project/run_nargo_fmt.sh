@@ -3,7 +3,7 @@
 # Note: This script formats the files multiple times when the given project is included in a workspace.
 #       Tackling this became a time sink, so I decided to leave it as is for now.
 
-set -eu
+set -e
 
 # We set the executable path as if we were in CI
 nargo_executable="/usr/src/noir/target/release/nargo"

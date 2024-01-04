@@ -25,7 +25,7 @@ describe('Synchronizer', () => {
       [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot,
       [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,
       [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot,
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: blockHeader.l1ToL2MessagesTreeRoot,
+      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: blockHeader.l1ToL2MessageTreeRoot,
       [MerkleTreeId.ARCHIVE]: blockHeader.archiveRoot,
     };
 

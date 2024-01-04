@@ -81,7 +81,7 @@ export interface BlockHeader {
   note_hash_tree_root: Field;
   nullifier_tree_root: Field;
   contract_tree_root: Field;
-  l1_to_l2_messages_tree_root: Field;
+  l1_to_l2_message_tree_root: Field;
   archive_root: Field;
   public_data_tree_root: Field;
   global_variables_hash: Field;

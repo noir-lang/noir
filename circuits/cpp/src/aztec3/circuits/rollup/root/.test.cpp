@@ -167,8 +167,8 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     MemoryStore contract_tree_store;
     MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
 
-    MemoryStore l1_to_l2_messages_tree_store;
-    MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+    MemoryStore l1_to_l2_message_tree_store;
+    MerkleTree l1_to_l2_message_tree(l1_to_l2_message_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
     MemoryStore public_store;
     MerkleTree public_data_tree(public_store, PUBLIC_DATA_TREE_HEIGHT);
@@ -190,7 +190,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
                                                             note_hash_tree.root(),
                                                             nullifier_tree.root(),
                                                             contract_tree.root(),
-                                                            l1_to_l2_messages_tree.root(),
+                                                            l1_to_l2_message_tree.root(),
                                                             public_data_tree.root());
     archive.update_element(0, start_block_hash);
     AppendOnlyTreeSnapshot<NT> start_archive_snapshot = { .root = archive.root(), .next_available_leaf_index = 1 };
@@ -227,12 +227,12 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     kernels[2].public_inputs.end.new_contracts[0] = new_contract;
 
     // l1 to l2 messages snapshot
-    AppendOnlyTreeSnapshot<NT> const start_l1_to_l2_messages_tree_snapshot = { .root = l1_to_l2_messages_tree.root(),
-                                                                               .next_available_leaf_index = 0 };
+    AppendOnlyTreeSnapshot<NT> const start_l1_to_l2_message_tree_snapshot = { .root = l1_to_l2_message_tree.root(),
+                                                                              .next_available_leaf_index = 0 };
 
-    // Create 16 empty l1 to l2 messages, and update the l1_to_l2 messages tree
+    // Create 16 empty l1 to l2 messages, and update the l1_to_l2 message tree
     for (size_t i = 0; i < l1_to_l2_messages.size(); i++) {
-        l1_to_l2_messages_tree.update_element(i, l1_to_l2_messages[i]);
+        l1_to_l2_message_tree.update_element(i, l1_to_l2_messages[i]);
     }
 
     // Get the block hash after.
@@ -240,15 +240,15 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
                                                           note_hash_tree.root(),
                                                           nullifier_tree.root(),
                                                           contract_tree.root(),
-                                                          l1_to_l2_messages_tree.root(),
+                                                          l1_to_l2_message_tree.root(),
                                                           public_data_tree.root());
     archive.update_element(1, end_block_hash);
     AppendOnlyTreeSnapshot<NT> end_archive_snapshot = { .root = archive.root(), .next_available_leaf_index = 2 };
 
     // Compute the end snapshot
-    AppendOnlyTreeSnapshot<NT> const end_l1_to_l2_messages_tree_snapshot = { .root = l1_to_l2_messages_tree.root(),
-                                                                             .next_available_leaf_index =
-                                                                                 NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP };
+    AppendOnlyTreeSnapshot<NT> const end_l1_to_l2_message_tree_snapshot = { .root = l1_to_l2_message_tree.root(),
+                                                                            .next_available_leaf_index =
+                                                                                NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP };
 
     RootRollupInputs rootRollupInputs = get_root_rollup_inputs(builder, kernels, l1_to_l2_messages);
     RootRollupPublicInputs outputs =
@@ -282,13 +282,13 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 
     // @todo @LHerskind: Check nullifier trees
 
-    // Check l1 to l2 messages trees
-    ASSERT_EQ(outputs.start_l1_to_l2_messages_tree_snapshot, start_l1_to_l2_messages_tree_snapshot);
+    // Check l1 to l2 message trees
+    ASSERT_EQ(outputs.start_l1_to_l2_message_tree_snapshot, start_l1_to_l2_message_tree_snapshot);
     ASSERT_EQ(outputs.start_contract_tree_snapshot,
               rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_contract_tree_snapshot,
               rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot);
-    ASSERT_EQ(outputs.end_l1_to_l2_messages_tree_snapshot, end_l1_to_l2_messages_tree_snapshot);
+    ASSERT_EQ(outputs.end_l1_to_l2_message_tree_snapshot, end_l1_to_l2_message_tree_snapshot);
 
     ASSERT_EQ(outputs.start_archive_snapshot, start_archive_snapshot);
     ASSERT_EQ(outputs.end_archive_snapshot, end_archive_snapshot);

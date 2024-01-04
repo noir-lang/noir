@@ -42,7 +42,7 @@ export type CurrentTreeRoots = {
   /** Contract data tree root. */
   contractDataTreeRoot: Buffer;
   /** L1 to L2 Messages data tree root. */
-  l1Tol2MessagesTreeRoot: Buffer;
+  l1Tol2MessageTreeRoot: Buffer;
   /** Nullifier data tree root. */
   nullifierTreeRoot: Buffer;
   /** Archive root. */

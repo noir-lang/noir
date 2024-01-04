@@ -116,7 +116,7 @@ export class SimulatorOracle implements DBOracle {
    *
    * @param msgKey - The key of the message to be retrieved
    * @returns A promise that resolves to the message data, a sibling path and the
-   *          index of the message in the l1ToL2MessagesTree
+   *          index of the message in the l1ToL2MessageTree
    */
   async getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs> {
     const messageAndIndex = await this.stateInfoProvider.getL1ToL2MessageAndIndex(msgKey);

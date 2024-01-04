@@ -105,7 +105,7 @@ class StateTransitioner:
 
     def body_available(
         self,
-        content_hash: Fr, 
+        body_hash: Fr, 
         txs_hash: Fr, 
         l1_to_l2_msgs: Fr[], 
         l2_to_l1_msgs: Fr[]
@@ -113,7 +113,7 @@ class StateTransitioner:
         assert self.registry.availability_oracle.is_available(txs_hash)
         in_hash = SHA256(pad(l1_to_l2_msgs))
         out_hash = MerkleTree(pad(l2_to_l1_msgs), SHA256)
-        return content_hash == SHA256(txs_hash, out_hash, in_hash)
+        return body_hash == SHA256(txs_hash, out_hash, in_hash)
     )
 
     def validate_header(

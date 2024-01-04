@@ -224,7 +224,7 @@ KernelCircuitPublicInputs {
           "type": "Buffer",
         },
       },
-      "l1ToL2MessagesTreeRoot": Fr {
+      "l1ToL2MessageTreeRoot": Fr {
         "asBigInt": 11033938207523021649122316027295742559227608161317650429835019071130941169536n,
         "asBuffer": {
           "data": [
@@ -32748,7 +32748,7 @@ KernelCircuitPublicInputs {
           "type": "Buffer",
         },
       },
-      "l1ToL2MessagesTreeRoot": Fr {
+      "l1ToL2MessageTreeRoot": Fr {
         "asBigInt": 11033938207523021649122316027295742559227608161317650429835019071130941169536n,
         "asBuffer": {
           "data": [
@@ -65272,7 +65272,7 @@ KernelCircuitPublicInputsFinal {
           "type": "Buffer",
         },
       },
-      "l1ToL2MessagesTreeRoot": Fr {
+      "l1ToL2MessageTreeRoot": Fr {
         "asBigInt": 11033938207523021649122316027295742559227608161317650429835019071130941169536n,
         "asBuffer": {
           "data": [

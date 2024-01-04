@@ -327,10 +327,10 @@ Click on an instruction name to jump to its section.
 </tr>
 <tr>
 	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-msgsroot'/><Markdown>[`MSGSROOT`](#isa-section-msgsroot)</Markdown></td>
-	<td><Markdown>Get the historical l1-to-l2 messages tree root as of the specified block number.</Markdown></td>
+	<td><Markdown>Get the historical l1-to-l2 message tree root as of the specified block number.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].l1_to_l2_messages_tree_root`
+		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].l1_to_l2_message_tree_root`
 	}</CodeBlock></td>
 </tr>
 <tr>
@@ -1186,7 +1186,7 @@ Get the historical contracts tree root as of the specified block number.
 [![](./images/bit-formats/CONTRACTSROOT.png)](./images/bit-formats/CONTRACTSROOT.png)
 
 ### <a id='isa-section-msgsroot'/>`MSGSROOT` (0x27)
-Get the historical l1-to-l2 messages tree root as of the specified block number.
+Get the historical l1-to-l2 message tree root as of the specified block number.
 
 [See in table.](#isa-table-msgsroot)
 
@@ -1196,7 +1196,7 @@ Get the historical l1-to-l2 messages tree root as of the specified block number.
 - **Args**: 
 	- **blockNumOffset**: memory offset of the block number input
 	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].l1_to_l2_messages_tree_root`
+- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].l1_to_l2_message_tree_root`
 - **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 88
 

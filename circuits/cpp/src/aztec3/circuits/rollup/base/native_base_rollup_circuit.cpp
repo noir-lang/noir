@@ -145,14 +145,14 @@ void perform_archive_membership_checks(DummyBuilder& builder, BaseRollupInputs c
         auto note_hash_tree_root = historical_block.note_hash_tree_root;
         auto nullifier_tree_root = historical_block.nullifier_tree_root;
         auto contract_tree_root = historical_block.contract_tree_root;
-        auto l1_to_l2_messages_tree_root = historical_block.l1_to_l2_messages_tree_root;
+        auto l1_to_l2_message_tree_root = historical_block.l1_to_l2_message_tree_root;
         auto public_data_tree_root = historical_block.public_data_tree_root;
 
         auto previous_block_hash = compute_block_hash<NT>(historical_block.global_variables_hash,
                                                           note_hash_tree_root,
                                                           nullifier_tree_root,
                                                           contract_tree_root,
-                                                          l1_to_l2_messages_tree_root,
+                                                          l1_to_l2_message_tree_root,
                                                           public_data_tree_root);
 
         abis::MembershipWitness<NT, ARCHIVE_HEIGHT> const historical_root_witness =

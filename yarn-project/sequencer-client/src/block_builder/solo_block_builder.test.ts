@@ -150,9 +150,9 @@ describe('sequencer/solo_block_builder', () => {
     }
   };
 
-  const updateL1ToL2MessagesTree = async (l1ToL2Messages: Fr[]) => {
+  const updateL1ToL2MessageTree = async (l1ToL2Messages: Fr[]) => {
     const asBuffer = l1ToL2Messages.map(m => m.toBuffer());
-    await expectsDb.appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, asBuffer);
+    await expectsDb.appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, asBuffer);
   };
 
   const updateArchive = async () => {
@@ -161,7 +161,7 @@ describe('sequencer/solo_block_builder', () => {
       rootRollupOutput.endNoteHashTreeSnapshot.root,
       rootRollupOutput.endNullifierTreeSnapshot.root,
       rootRollupOutput.endContractTreeSnapshot.root,
-      rootRollupOutput.endL1ToL2MessagesTreeSnapshot.root,
+      rootRollupOutput.endL1ToL2MessageTreeSnapshot.root,
       rootRollupOutput.endPublicDataTreeSnapshot.root,
     );
     await expectsDb.appendLeaves(MerkleTreeId.ARCHIVE, [blockHash.toBuffer()]);
@@ -205,13 +205,13 @@ describe('sequencer/solo_block_builder', () => {
 
     // Update l1 to l2 data tree
     // And update the root trees now to create proper output to the root rollup circuit
-    await updateL1ToL2MessagesTree(mockL1ToL2Messages);
+    await updateL1ToL2MessageTree(mockL1ToL2Messages);
     rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     rootRollupOutput.endNoteHashTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE);
     rootRollupOutput.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
 
-    rootRollupOutput.endL1ToL2MessagesTreeSnapshot = await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE);
+    rootRollupOutput.endL1ToL2MessageTreeSnapshot = await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE);
 
     // Calculate block hash
     rootRollupOutput.globalVariables = globalVariables;
@@ -242,8 +242,8 @@ describe('sequencer/solo_block_builder', () => {
       endContractTreeSnapshot: rootRollupOutput.endContractTreeSnapshot,
       startPublicDataTreeSnapshot: rootRollupOutput.startPublicDataTreeSnapshot,
       endPublicDataTreeSnapshot: rootRollupOutput.endPublicDataTreeSnapshot,
-      startL1ToL2MessagesTreeSnapshot: rootRollupOutput.startL1ToL2MessagesTreeSnapshot,
-      endL1ToL2MessagesTreeSnapshot: rootRollupOutput.endL1ToL2MessagesTreeSnapshot,
+      startL1ToL2MessageTreeSnapshot: rootRollupOutput.startL1ToL2MessageTreeSnapshot,
+      endL1ToL2MessageTreeSnapshot: rootRollupOutput.endL1ToL2MessageTreeSnapshot,
       startArchiveSnapshot: rootRollupOutput.startArchiveSnapshot,
       endArchiveSnapshot: rootRollupOutput.endArchiveSnapshot,
       newCommitments: newCommitments.map((sideeffect: SideEffect) => sideeffect.value),

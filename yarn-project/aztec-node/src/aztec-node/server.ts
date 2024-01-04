@@ -371,7 +371,7 @@ export class AztecNodeService implements AztecNode {
    */
   public async getL1ToL2MessageAndIndex(messageKey: Fr): Promise<L1ToL2MessageAndIndex> {
     // todo: #697 - make this one lookup.
-    const index = (await this.findLeafIndex('latest', MerkleTreeId.L1_TO_L2_MESSAGES_TREE, messageKey))!;
+    const index = (await this.findLeafIndex('latest', MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageKey))!;
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
     return Promise.resolve(new L1ToL2MessageAndIndex(index, message));
   }
@@ -387,7 +387,7 @@ export class AztecNodeService implements AztecNode {
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     const committedDb = await this.#getWorldState(blockNumber);
-    return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, leafIndex);
+    return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, leafIndex);
   }
 
   /**
@@ -536,11 +536,11 @@ export class AztecNodeService implements AztecNode {
     const committedDb = await this.#getWorldState('latest');
     const getTreeRoot = async (id: MerkleTreeId) => Fr.fromBuffer((await committedDb.getTreeInfo(id)).root);
 
-    const [noteHashTree, nullifierTree, contractTree, l1ToL2MessagesTree, archive, publicDataTree] = await Promise.all([
+    const [noteHashTree, nullifierTree, contractTree, l1ToL2MessageTree, archive, publicDataTree] = await Promise.all([
       getTreeRoot(MerkleTreeId.NOTE_HASH_TREE),
       getTreeRoot(MerkleTreeId.NULLIFIER_TREE),
       getTreeRoot(MerkleTreeId.CONTRACT_TREE),
-      getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
+      getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE),
       getTreeRoot(MerkleTreeId.ARCHIVE),
       getTreeRoot(MerkleTreeId.PUBLIC_DATA_TREE),
     ]);
@@ -550,7 +550,7 @@ export class AztecNodeService implements AztecNode {
       [MerkleTreeId.NOTE_HASH_TREE]: noteHashTree,
       [MerkleTreeId.NULLIFIER_TREE]: nullifierTree,
       [MerkleTreeId.PUBLIC_DATA_TREE]: publicDataTree,
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: l1ToL2MessagesTree,
+      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: l1ToL2MessageTree,
       [MerkleTreeId.ARCHIVE]: archive,
     };
   }
@@ -567,7 +567,7 @@ export class AztecNodeService implements AztecNode {
       roots[MerkleTreeId.NOTE_HASH_TREE],
       roots[MerkleTreeId.NULLIFIER_TREE],
       roots[MerkleTreeId.CONTRACT_TREE],
-      roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE],
       roots[MerkleTreeId.ARCHIVE],
       Fr.ZERO, // TODO(#3441)
       roots[MerkleTreeId.PUBLIC_DATA_TREE],

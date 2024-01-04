@@ -123,7 +123,7 @@ export class ViewDataOracle extends TypedOracle {
       block.endNoteHashTreeSnapshot.root,
       block.endNullifierTreeSnapshot.root,
       block.endContractTreeSnapshot.root,
-      block.endL1ToL2MessagesTreeSnapshot.root,
+      block.endL1ToL2MessageTreeSnapshot.root,
       block.endArchiveSnapshot.root,
       new Fr(0), // TODO(#3441) privateKernelVkTreeRoot is not present in L2Block and it's not yet populated in noir
       block.endPublicDataTreeSnapshot.root,
@@ -241,7 +241,7 @@ export class ViewDataOracle extends TypedOracle {
    */
   public async getL1ToL2Message(msgKey: Fr) {
     const message = await this.db.getL1ToL2Message(msgKey);
-    return { ...message, root: this.blockHeader.l1ToL2MessagesTreeRoot };
+    return { ...message, root: this.blockHeader.l1ToL2MessageTreeRoot };
   }
 
   /**

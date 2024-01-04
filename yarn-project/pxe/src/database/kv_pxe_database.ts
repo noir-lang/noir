@@ -186,7 +186,7 @@ export class KVPxeDatabase implements PxeDatabase {
     return {
       [MerkleTreeId.ARCHIVE]: Fr.fromString(roots[MerkleTreeId.ARCHIVE]),
       [MerkleTreeId.CONTRACT_TREE]: Fr.fromString(roots[MerkleTreeId.CONTRACT_TREE].toString()),
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: Fr.fromString(roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE].toString()),
+      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: Fr.fromString(roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE].toString()),
       [MerkleTreeId.NOTE_HASH_TREE]: Fr.fromString(roots[MerkleTreeId.NOTE_HASH_TREE].toString()),
       [MerkleTreeId.PUBLIC_DATA_TREE]: Fr.fromString(roots[MerkleTreeId.PUBLIC_DATA_TREE].toString()),
       [MerkleTreeId.NULLIFIER_TREE]: Fr.fromString(roots[MerkleTreeId.NULLIFIER_TREE].toString()),
@@ -201,7 +201,7 @@ export class KVPxeDatabase implements PxeDatabase {
         [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot.toString(),
         [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot.toString(),
         [MerkleTreeId.CONTRACT_TREE]: blockHeader.contractTreeRoot.toString(),
-        [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: blockHeader.l1ToL2MessagesTreeRoot.toString(),
+        [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: blockHeader.l1ToL2MessageTreeRoot.toString(),
         [MerkleTreeId.ARCHIVE]: blockHeader.archiveRoot.toString(),
         [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot.toString(),
       },
@@ -222,7 +222,7 @@ export class KVPxeDatabase implements PxeDatabase {
       Fr.fromString(value.roots[MerkleTreeId.NOTE_HASH_TREE]),
       Fr.fromString(value.roots[MerkleTreeId.NULLIFIER_TREE]),
       Fr.fromString(value.roots[MerkleTreeId.CONTRACT_TREE]),
-      Fr.fromString(value.roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE]),
+      Fr.fromString(value.roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE]),
       Fr.fromString(value.roots[MerkleTreeId.ARCHIVE]),
       Fr.ZERO, // todo: private kernel vk tree root
       Fr.fromString(value.roots[MerkleTreeId.PUBLIC_DATA_TREE]),

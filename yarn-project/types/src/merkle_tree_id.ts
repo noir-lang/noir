@@ -7,7 +7,7 @@ export enum MerkleTreeId {
   NULLIFIER_TREE = 1,
   NOTE_HASH_TREE = 2,
   PUBLIC_DATA_TREE = 3,
-  L1_TO_L2_MESSAGES_TREE = 4,
+  L1_TO_L2_MESSAGE_TREE = 4,
   ARCHIVE = 5,
 }
 

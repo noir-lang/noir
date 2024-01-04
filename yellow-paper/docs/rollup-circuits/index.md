@@ -120,11 +120,11 @@ class GlobalVariables {
 
 class Header {
     last_archive: Snapshot
-    content_hash: Fr[2]
+    body_hash: Fr[2]
     state: StateReference
     global_variables: GlobalVariables
 }
-Header *.. Body : content_hash
+Header *.. Body : body_hash
 Header *-- StateReference : state
 Header *-- GlobalVariables : global_variables
 
@@ -372,11 +372,11 @@ graph LR
 ```
 
 #### State availability
-To ensure that state is made available, we could broadcast all of a block's input data as public inputs of the final root rollup proof, but a proof with so many public inputs would be very expensive to verify onchain. Instead we reduce the proof's public inputs by committing to the block's body by iteratively computing a `TxsHash` and `OutHash` at each rollup circuit iteration. AT the final iteration a `content_hash` is computed committing to the complete body.
+To ensure that state is made available, we could broadcast all of a block's input data as public inputs of the final root rollup proof, but a proof with so many public inputs would be very expensive to verify onchain. Instead we reduce the proof's public inputs by committing to the block's body by iteratively computing a `TxsHash` and `OutHash` at each rollup circuit iteration. AT the final iteration a `body_hash` is computed committing to the complete body.
 
-To check that this body is published an Aztec node can reconstruct the `content_hash` from available data. Since we define finality as the point where the block is validated and included in the state of the [validating light node](./../contracts/index.md), we can define a block as being "available" if the validating light node can reconstruct the commitment `content_hash`.
+To check that this body is published an Aztec node can reconstruct the `body_hash` from available data. Since we define finality as the point where the block is validated and included in the state of the [validating light node](./../contracts/index.md), we can define a block as being "available" if the validating light node can reconstruct the commitment `body_hash`.
 
-Since we strive to minimize the compute requirements to prove blocks, we amortize the commitment cost across the full tree. We can do so by building merkle trees of partial "commitments", whose roots are ultimately computed in the final root rollup circuit. The `content_hash` is then computed from the roots of these trees, together with incoming messages.
+Since we strive to minimize the compute requirements to prove blocks, we amortize the commitment cost across the full tree. We can do so by building merkle trees of partial "commitments", whose roots are ultimately computed in the final root rollup circuit. The `body_hash` is then computed from the roots of these trees, together with incoming messages.
 Below, we outline the `TxsHash` merkle tree that is based on the `TxEffect`s and a `OutHash` which is based on the `l2_to_l1_msgs` (cross-chain messages) for each transaction. While the `TxsHash` implicitly includes the `l2_to_l1_msgs` we construct it separately since the `l2_to_l1_msgs` must be available to the L1 contract directly and not just proven available. This is not a concern when using L1 calldata as the data layer, but is a concern when using alternative data layers such as [Celestia](https://celestia.org/) or [Blobs](https://eips.ethereum.org/EIPS/eip-4844).
 
 ```mermaid
@@ -448,10 +448,10 @@ graph BT
     K7 --> B3
 ```
 
- The roots of these trees, together with incoming messages, makes up the `content_hash`. 
+ The roots of these trees, together with incoming messages, makes up the `body_hash`. 
 ```mermaid
 graph BT
-    R[content_hash]
+    R[body_hash]
     M0[TxsHash]
     M1[OutHash]
     M2[InHash]
@@ -465,7 +465,7 @@ graph BT
 ```
 
 ```python
-def content_hash(body: Body):
+def body_hash(body: Body):
     txs_hash = merkle_tree(body.txs, SHA256).root
     out_hash = merkle_tree([tx.l1_to_l2_msgs for tx in body.txs], SHA256).root
     in_hash = SHA256(body.l1_to_l2_messages)

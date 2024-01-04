@@ -222,7 +222,7 @@ impl PrivateContext {
     ) 
     // docs:end:context_consume_l1_to_l2_message
     {
-        let nullifier = process_l1_to_l2_message(self.block_header.l1_to_l2_messages_tree_root, self.this_address(), self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
+        let nullifier = process_l1_to_l2_message(self.block_header.l1_to_l2_message_tree_root, self.this_address(), self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
         self.push_new_nullifier(nullifier, 0)
@@ -310,7 +310,7 @@ impl PrivateContext {
                     note_hash_tree_root : reader.read(),
                     nullifier_tree_root : reader.read(),
                     contract_tree_root : reader.read(),
-                    l1_to_l2_messages_tree_root : reader.read(),
+                    l1_to_l2_message_tree_root : reader.read(),
                     archive_root : reader.read(),
                     public_data_tree_root: reader.read(),
                     global_variables_hash: reader.read(),
@@ -579,7 +579,7 @@ impl PublicContext {
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
     pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field) {
         let this = (*self).this_address();
-        let nullifier = process_l1_to_l2_message(self.block_header.l1_to_l2_messages_tree_root, this, self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
+        let nullifier = process_l1_to_l2_message(self.block_header.l1_to_l2_message_tree_root, this, self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
         self.push_new_nullifier(nullifier, 0)

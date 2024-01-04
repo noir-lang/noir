@@ -38,11 +38,11 @@ class GlobalVariables {
 
 class Header {
     last_archive: Snapshot
-    content_hash: Fr[2]
+    body_hash: Fr[2]
     state: StateReference
     global_variables: GlobalVariables
 }
-Header *.. Body : content_hash
+Header *.. Body : body_hash
 Header *-- StateReference : state
 Header *-- GlobalVariables : global_variables
 

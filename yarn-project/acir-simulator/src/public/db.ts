@@ -66,7 +66,7 @@ export interface PublicContractsDB {
   getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined>;
 }
 
-/** Database interface for providing access to commitment tree and l1 to l2 messages tree (append only data trees). */
+/** Database interface for providing access to commitment tree and l1 to l2 message tree (append only data trees). */
 export interface CommitmentsDB {
   /**
    * Gets a confirmed L1 to L2 message for the given message key.

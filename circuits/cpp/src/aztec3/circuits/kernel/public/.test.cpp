@@ -332,7 +332,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .note_hash_tree_root = ++seed,
         .nullifier_tree_root = ++seed,
         .contract_tree_root = ++seed,
-        .l1_to_l2_messages_tree_root = ++seed,
+        .l1_to_l2_message_tree_root = ++seed,
         .archive_root = ++seed,
         .private_kernel_vk_tree_root = ++seed,
         .public_data_tree_root = ++seed,
@@ -372,7 +372,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     [[maybe_unused]] BlockHeader<NT> const historical_tree_roots = {
         .note_hash_tree_root = 1000,
         .contract_tree_root = 2000,
-        .l1_to_l2_messages_tree_root = 3000,
+        .l1_to_l2_message_tree_root = 3000,
         .private_kernel_vk_tree_root = 4000,
     };
 
