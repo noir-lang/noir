@@ -1,6 +1,7 @@
 mod context;
 mod dap;
 mod repl;
+mod source_code_printer;
 
 use std::io::{Read, Write};
 
