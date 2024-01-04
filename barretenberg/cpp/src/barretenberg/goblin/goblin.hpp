@@ -1,7 +1,6 @@
 #pragma once
 
 #include "barretenberg/eccvm/eccvm_composer.hpp"
-#include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
@@ -63,6 +62,7 @@ class Goblin {
     using ECCVMFlavor = proof_system::honk::flavor::ECCVM;
     using ECCVMBuilder = proof_system::ECCVMCircuitBuilder<ECCVMFlavor>;
     using ECCVMComposer = proof_system::honk::ECCVMComposer;
+    using ECCVMProver = proof_system::honk::ECCVMProver_<ECCVMFlavor>;
     using TranslatorBuilder = proof_system::GoblinTranslatorCircuitBuilder;
     using TranslatorComposer = proof_system::honk::GoblinTranslatorComposer;
     using RecursiveMergeVerifier =
@@ -72,6 +72,7 @@ class Goblin {
     std::shared_ptr<OpQueue> op_queue = std::make_shared<OpQueue>();
 
     HonkProof merge_proof;
+    Proof goblin_proof;
 
     // on the first call to accumulate there is no merge proof to verify
     bool merge_proof_exists{ false };
@@ -81,6 +82,7 @@ class Goblin {
     std::unique_ptr<ECCVMBuilder> eccvm_builder;
     std::unique_ptr<TranslatorBuilder> translator_builder;
     std::unique_ptr<ECCVMComposer> eccvm_composer;
+    std::unique_ptr<ECCVMProver> eccvm_prover;
     std::unique_ptr<TranslatorComposer> translator_composer;
 
     AccumulationOutput accumulator; // ACIRHACK
@@ -117,25 +119,31 @@ class Goblin {
         return { ultra_proof, instance->verification_key };
     };
 
-    Proof prove()
+    void prove_eccvm()
     {
-        Proof proof;
-
-        proof.merge_proof = std::move(merge_proof);
+        goblin_proof.merge_proof = std::move(merge_proof);
 
         eccvm_builder = std::make_unique<ECCVMBuilder>(op_queue);
         eccvm_composer = std::make_unique<ECCVMComposer>();
-        auto eccvm_prover = eccvm_composer->create_prover(*eccvm_builder);
-        proof.eccvm_proof = eccvm_prover.construct_proof();
-        proof.translation_evaluations = eccvm_prover.translation_evaluations;
+        eccvm_prover = std::make_unique<ECCVMProver>(eccvm_composer->create_prover(*eccvm_builder));
+        goblin_proof.eccvm_proof = eccvm_prover->construct_proof();
+        goblin_proof.translation_evaluations = eccvm_prover->translation_evaluations;
+    };
 
+    void prove_translator()
+    {
         translator_builder = std::make_unique<TranslatorBuilder>(
-            eccvm_prover.translation_batching_challenge_v, eccvm_prover.evaluation_challenge_x, op_queue);
+            eccvm_prover->translation_batching_challenge_v, eccvm_prover->evaluation_challenge_x, op_queue);
         translator_composer = std::make_unique<TranslatorComposer>();
-        auto translator_prover = translator_composer->create_prover(*translator_builder, eccvm_prover.transcript);
-        proof.translator_proof = translator_prover.construct_proof();
+        auto translator_prover = translator_composer->create_prover(*translator_builder, eccvm_prover->transcript);
+        goblin_proof.translator_proof = translator_prover.construct_proof();
+    };
 
-        return proof;
+    Proof prove()
+    {
+        prove_eccvm();
+        prove_translator();
+        return goblin_proof;
     };
 
     bool verify(const Proof& proof)

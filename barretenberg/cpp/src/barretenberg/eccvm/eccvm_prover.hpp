@@ -30,17 +30,17 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
                           const std::shared_ptr<PCSCommitmentKey>& commitment_key,
                           const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
-    void execute_preamble_round();
-    void execute_wire_commitments_round();
-    void execute_log_derivative_commitments_round();
-    void execute_grand_product_computation_round();
-    void execute_relation_check_rounds();
-    void execute_univariatization_round();
-    void execute_pcs_evaluation_round();
-    void execute_shplonk_batched_quotient_round();
-    void execute_shplonk_partial_evaluation_round();
-    void execute_final_pcs_round();
-    void execute_transcript_consistency_univariate_opening_round();
+    BBERG_PROFILE void execute_preamble_round();
+    BBERG_PROFILE void execute_wire_commitments_round();
+    BBERG_PROFILE void execute_log_derivative_commitments_round();
+    BBERG_PROFILE void execute_grand_product_computation_round();
+    BBERG_PROFILE void execute_relation_check_rounds();
+    BBERG_PROFILE void execute_univariatization_round();
+    BBERG_PROFILE void execute_pcs_evaluation_round();
+    BBERG_PROFILE void execute_shplonk_batched_quotient_round();
+    BBERG_PROFILE void execute_shplonk_partial_evaluation_round();
+    BBERG_PROFILE void execute_final_pcs_round();
+    BBERG_PROFILE void execute_transcript_consistency_univariate_opening_round();
 
     plonk::proof& export_proof();
     plonk::proof& construct_proof();

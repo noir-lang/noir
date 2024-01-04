@@ -2,11 +2,13 @@
 
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/flavor/goblin_ultra.hpp"
+#include "barretenberg/goblin/goblin.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/srs/global_crs.hpp"
+#include "barretenberg/stdlib/recursion/honk/verifier/ultra_recursive_verifier.hpp"
 
 namespace barretenberg {
-class GoblinTestingUtils {
+class GoblinMockCircuits {
   public:
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
@@ -16,12 +18,15 @@ class GoblinTestingUtils {
     using OpQueue = proof_system::ECCOpQueue;
     using GoblinUltraBuilder = proof_system::GoblinUltraCircuitBuilder;
     using Flavor = proof_system::honk::flavor::GoblinUltra;
+    using RecursiveFlavor = proof_system::honk::flavor::GoblinUltraRecursive;
+    using RecursiveVerifier = proof_system::plonk::stdlib::recursion::honk::GoblinRecursiveVerifier;
+    using KernelInput = Goblin::AccumulationOutput;
     static constexpr size_t NUM_OP_QUEUE_COLUMNS = Flavor::NUM_WIRES;
 
-    static void construct_arithmetic_circuit(GoblinUltraBuilder& builder)
+    static void construct_arithmetic_circuit(GoblinUltraBuilder& builder, size_t num_gates = 1)
     {
         // Add some arithmetic gates that utilize public inputs
-        for (size_t i = 0; i < 10; ++i) {
+        for (size_t i = 0; i < num_gates; ++i) {
             FF a = FF::random_element();
             FF b = FF::random_element();
             FF c = FF::random_element();
@@ -99,6 +104,26 @@ class GoblinTestingUtils {
         builder.queue_ecc_eq(); // should be eq and reset
 
         construct_arithmetic_circuit(builder);
+    }
+
+    /**
+     * @brief Construct a mock kernel circuit
+     * @details This circuit contains (1) some basic/arbitrary arithmetic gates, (2) a genuine recursive verification of
+     * the proof provided as input. It does not contain any other real kernel logic.
+     *
+     * @param builder
+     * @param kernel_input A proof to be recursively verified and the corresponding native verification key
+     */
+    static void construct_mock_kernel_circuit(GoblinUltraBuilder& builder, KernelInput& kernel_input)
+    {
+        // Generic operations e.g. state updates (just arith gates for now)
+        GoblinMockCircuits::construct_arithmetic_circuit(builder, /*num_gates=*/1 << 4);
+
+        // Execute recursive aggregation of previous kernel proof
+        RecursiveVerifier verifier{ &builder, kernel_input.verification_key };
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/801): Aggregation
+        auto pairing_points = verifier.verify_proof(kernel_input.proof); // app function proof
+        pairing_points = verifier.verify_proof(kernel_input.proof);      // previous kernel proof
     }
 };
 } // namespace barretenberg

@@ -16,6 +16,7 @@ template <typename Flavor> class UltraVerifier_ {
   public:
     explicit UltraVerifier_(const std::shared_ptr<Transcript>& transcript,
                             const std::shared_ptr<VerificationKey>& verifier_key = nullptr);
+
     explicit UltraVerifier_(const std::shared_ptr<VerificationKey>& verifier_key);
     UltraVerifier_(UltraVerifier_&& other);
 
