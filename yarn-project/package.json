@@ -6,7 +6,7 @@
     "prepare": "node ./yarn-project-base/scripts/update_package_jsons.mjs && yarn workspaces foreach run prepare && workspaces-to-typescript-project-references --tsconfigPath tsconfig.json && prettier -w */tsconfig.json",
     "prepare:check": "node ./yarn-project-base/scripts/update_package_jsons.mjs --check && workspaces-to-typescript-project-references --check --tsconfigPath tsconfig.json",
     "docs": "typedoc --out docs/dist && cd docs && yarn serve",
-    "formatting": "FORCE_COLOR=true yarn workspaces foreach -p -j unlimited -v run formatting",
+    "formatting": "./run_nargo_fmt.sh --check && FORCE_COLOR=true yarn workspaces foreach -p -j unlimited -v run formatting",
     "formatting:fix": "./run_nargo_fmt.sh && FORCE_COLOR=true yarn workspaces foreach -p -v run formatting:fix",
     "lint": "yarn eslint --cache --ignore-pattern l1-artifacts .",
     "format": "yarn prettier --cache -w .",
