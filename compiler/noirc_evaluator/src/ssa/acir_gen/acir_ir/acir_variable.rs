@@ -454,14 +454,11 @@ impl AcirContext {
             self.sub_var(sum, mul)
         } else {
             // Implement OR in terms of AND
-            // max - ((max - a) AND (max -b))
-            // Subtracting from max flips the bits, so this is effectively:
-            // (NOT a) NAND (NOT b)
-            let max = self.add_constant((1_u128 << bit_size) - 1);
-            let a = self.sub_var(max, lhs)?;
-            let b = self.sub_var(max, rhs)?;
-            let a_and_b = self.and_var(a, b, typ)?;
-            self.sub_var(max, a_and_b)
+            // (NOT a) NAND (NOT b) => a OR b
+            let a = self.not_var(lhs, typ.clone())?;
+            let b = self.not_var(rhs, typ.clone())?;
+            let a_and_b = self.and_var(a, b, typ.clone())?;
+            self.not_var(a_and_b, typ)
         }
     }
 
