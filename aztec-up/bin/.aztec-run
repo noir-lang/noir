@@ -78,8 +78,6 @@ for env in ${ENV_VARS_TO_INJECT:-}; do
   fi
 done
 
-# Volumes to pass to the container.
-
 docker run \
   -ti \
   --rm \
