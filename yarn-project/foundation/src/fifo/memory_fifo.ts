@@ -91,9 +91,9 @@ export class MemoryFifo<T> {
 
   /**
    * Process items from the queue using a provided handler function.
-   * The function iterates over items in the queue, invoking the handler for each item until the queue is empty or flushing.
+   * The function iterates over items in the queue, invoking the handler for each item until the queue is empty and flushing.
    * If the handler throws an error, it will be caught and logged as 'Queue handler exception:', but the iteration will continue.
-   * The process function returns a promise that resolves when there are no more items in the queue or the queue is flushing.
+   * The process function returns a promise that resolves when there are no more items in the queue and the queue is flushing.
    *
    * @param handler - A function that takes an item of type T and returns a Promise<void> after processing the item.
    * @returns A Promise<void> that resolves when the queue is finished processing.
