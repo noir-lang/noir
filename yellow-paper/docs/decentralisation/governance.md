@@ -45,24 +45,19 @@ In addition to the current rollup implementation deciding to propose a vote, tok
 
 In a worst case scenario, the rollup's sequencer set could be malicious and censor potentially honest upgrade proposals from going through. In this scenario, there needs to be the ability to add a proposal "to the queue" via the token locking mechanism articulated above which is guaranteed to be executed when the previous vote completes. 
 
+#### Quorum 
+For any proposal to be considered valid and ready for voting, there must be a quorum of voting power eligible to participate. The purpose of this is to ensure that the network cannot be upgraded without a minimum of participation, keeping the governance more protected from takeover at genesis.
+
+The exact amount of voting power required is to be determined through modelling, but we expect that around 5% of total supply. Assuming that 20% of the supply is circulating at launch and that 25% of this is staked towards the initial instance, this would allow the initial instance to reach quorum on its own.
+
 ### Voting
 
 #### Participation
 Aztec's governance voting occurs within the governance contract, and the tokens being utilized must be "locked within governance" i.e., non-transferable. 
     
-Any token holder is able to directly vote via an interaction with the governance contract. Specifically, this includes those with locked, non-circulating tokens.
+Any token holder is able to directly vote via an interaction with the governance contract. Specifically, this includes those with locked, non-circulating tokens. The "ballot" is a simple yes/no/abstain vote on a proposal, and the amount of tokens being voted with. Note that this allows the same actor to vote multiple times, and even vote both yes and no with shares of their power. This allows for a more nuanced vote for contracts that control power for multiple users, such as a DAO, a rollup instance or a portal.
 
 The current canonical rollup can choose to implement its internal voting however it would like, with the weight of the tokens staked in that instance. This is likely to be a majority of voting weight, which we can reliably assume will vote each time. Generally this addresses the problems of low token holder participation! In the initial instance, we envision a version of the Empire Stakes back, where sequencers are voting during part of their block proposal phases. Not all sequencers will win a block proposal/election during the time period of the vote, this leads it to being a randomized sampling of the current sequencer set.
-
-:::danger
-Question: how to implement the votes? 
-
-Option 1 - The initial instance's version of the Empire Stakes back could be implemented on a per sequencer vote, where the governance contract see's and calculates each individual vote. 
-
-Option 2 - Alternatively the voting could be implemented on a rollup wide basis, where the current rollup calculates the results & votes with the weight of the entire rollup in a singular call to the governance contract. 
-
-@Lasse has some opinions 
-:::
 
 #### Exiting 
 The duration of the token lock depends on the action a user participated in. Tokens that have been locked to vote "yes" to changing the canonical instance are locked within the governance contract until the "upgrade" has been performed *or* when the voting period ends without the proposal gaining sufficient traction to reach quorum.
@@ -72,21 +67,14 @@ Tokens whose power did not vote "yes" are free to leave whenever they chose. Thi
 Rollup instances themselves will need to deposit their stake into the governance, in order to earn rewards and participate within the vote. Further, they can apply their own enter/exit delays on top of the governance contract's. For example to ensure stability of the sequencer set over short timeframes, if using $AZTC stake as a requirement for sequencing, they may wish to impose longer entry and exit queues.
 
 #### Results
+A vote is defined as passing if a majority of the voting weight votes "yes" to the proposal.
+
 If the vote fails, there is no action needed.
 
-If the vote passes, and a new rollup has been determined to be the next canonical instance, it will become canonical in the amount of days defined within the vote's timelock. It is likely there are defined limitations around this parameter, e.g.,it must be a 3-30 day timelock. This is explained more in the timing section below. At this block height, portals that desire to follow governance should start referencing the new canonical instance to ensure as many bridged assets are backed on the latest version as possible.
+If the vote passes, and a new rollup has been determined to be the next canonical instance, it will become canonical in the amount of days defined within the vote's timelock. It is likely there are defined limitations around this parameter, e.g., it must be a 3-30 day timelock. This is explained more in the timing section below. At this block height, portals that desire to follow governance should start referencing the new canonical instance to ensure as many bridged assets are backed on the latest version as possible.
 
 :::danger
-Question: what is needed to pass a vote? 
-
-Current thinking is that it should likely be the amount expected to be held in the initial instance of the rollup, e.g. 20% circulating & 25% of that is staked -> 5% of total supply, so locked tokens do not need to participate whatsoever in a happy path upgrade to v1.
-
-:::warning
-This needs to be clarified.
-:::
-
-:::danger
-Lasse: note that if the portals follow the governance registry blindly, they assume that new inbox/outbox will always be backwards compatible
+Portals that blindly follow governance inherently assume that the new inbox/outbox will always be backwards compatible. If it is not, it might break the portals.
 :::
 
 ### Timing
@@ -98,14 +86,10 @@ After setup has completed, there is a 7-30 day (TBD) period during which votes c
 
 #### Phase 3 - Execution Delay (Timelock) 
 
-If a vote passes, there is a timelocked period before it becomes the new canonical rollup. This specific time period must be more than a minimum, e.g., 3 days, but is defined by the current rollup and in v1 may be controlled by both the sequencers in a happy path, and an emergency security council in a worst case scenario (articulated [below](#Emergency-mode)). In a typical happy path scenario, we suggest this is at least 30 days, and in an emergency, the shortest period possible.
+If a vote passes, there is a timelocked period before it becomes the new canonical rollup. This specific time period must be more than a minimum, e.g., 3 days, but is defined by the current rollup and in v1 may be controlled by both the sequencers in a happy path, and an emergency security council in a worst case scenario (articulated [below](#Emergency-mode)). In a typical happy path scenario, we suggest this is at least 30 days, and in an emergency, the shortest period possible. A maximum period may also be defined, e.g., 60 days to ensure that the network cannot be kept from upgrading by having a delay of 200 years.
 
 :::info
 It is worth acknowledging that this configurability on upgrade delay windows will likely be flagged on L2 beat as a "medium" centralization risk, due to the ability to quickly upgrade the software (e.g., a vacation attack). Explicitly this decision could cause us to be labeled a "stage 1" rather than "stage 2" rollup. However, if a vote is reasonably long, then it should be fine as you can argue that the "upgrade period" is the aggregate of all 3 periods.
-:::
-
-:::danger
-Lasse: We need to also include a maximum value, such that you cannot brick upgrades because you are still to execute the current one, but it is 200 years in the future.
 :::
 
 ### Diagrams
@@ -121,20 +105,20 @@ participant Version Registry as Governance
 participant Next Rollup
 participant Anyone
 
-Current Canonical Rollup ->> Version Registry: proposeCanonicalRollup(nextAddress)
+Current Canonical Rollup ->> Version Registry: proposeCanonicalRollup(nextRollup)
 loop Voting
     loop Canonical Rollup Voting
-        Sequencers ->> Current Canonical Rollup: canonicalVote(nextAddress, yes | no, amount)
+        Sequencers ->> Current Canonical Rollup: canonicalVote(yes | no | abstain, amount)
         Current Canonical Rollup --> Current Canonical Rollup: Count votes
     end
-    Current Canonical Rollup ->> Version Registry: publishVoteResult(yes | no | abstain)
-    Anyone ->> Version Registry: addVote(yes | no | abstain)
+    Current Canonical Rollup ->> Version Registry: publishVoteResult(yes | no | abstain, amount)
+    Anyone ->> Version Registry: addVote(yes | no | abstain, amount)
     Version Registry --> Version Registry: Count votes
 end
 Note right of Version Registry: Vote passed!
-Version Registry ->> Version Registry: markPendingCanonical(nextAddress)
+Version Registry ->> Version Registry: markPendingCanonical(nextRollup)
 Note right of Version Registry: Wait at least 30 days!
-Next Rollup ->> Version Registry: markCanonical(nextAddress)
+Next Rollup ->> Version Registry: markCanonical(nextRollup)
 Sequencers ->> Next Rollup: Proposing new blocks here!
 ```
 
@@ -150,16 +134,16 @@ participant Version Registry as Governance
 participant Next Rollup
 participant Anyone
 
-Anyone ->> Version Registry: lockTokensAndVote(1% of total supply, nextAddress)
+Anyone ->> Version Registry: lockTokensAndVote(1% of total supply, nextRollup)
 loop Voting
-    Anyone ->> Version Registry: addVote(yes | no | abstain)
+    Anyone ->> Version Registry: addVote(yes | no | abstain, amount)
     Version Registry --> Version Registry: Count votes
 end
 Note right of Version Registry: Vote passed!
-Version Registry ->> Version Registry: markPendingCanonical(nextAddress)
+Version Registry ->> Version Registry: markPendingCanonical(nextRollup)
 Note right of Version Registry: Wait at least 30 days!
 Note left of Sequencers: Upgrade to new client
-Next Rollup ->> Version Registry: markCanonical(nextAddress)
+Next Rollup ->> Version Registry: markCanonical(nextRollup)
 Sequencers ->> Next Rollup: Proposing new blocks here!
 ```
 
@@ -181,24 +165,24 @@ participant Version Registry as Governance
 participant Next Rollup
 participant Anyone
 
-Current Canonical Rollup ->> Version Registry: proposeCanonicalRollup(nextAddress)
-Note right of Version Registry: Vote starts in N days, e.g.,7
+Current Canonical Rollup ->> Version Registry: proposeCanonicalRollup(nextRollup)
+Note right of Version Registry: Vote starts in N days, e.g., 7
 Anyone ->> Version Registry: delegateTo(otherAddress)
 Anyone ->> Current Canonical Rollup: delegateTo()
 Note right of Version Registry: Must be delegated before vote starts 
 loop Voting
     loop Canonical Rollup Voting
-        Sequencers ->> Current Canonical Rollup: canonicalVote(nextAddress, yes | no, amount)
+        Sequencers ->> Current Canonical Rollup: canonicalVote(yes | no | abstain, amount)
         Current Canonical Rollup --> Current Canonical Rollup: Count votes
     end
-    Current Canonical Rollup ->> Version Registry: publishVoteResult(yes | no | abstain)
-    Anyone ->> Version Registry: addVote(yes | no | abstain)
+    Current Canonical Rollup ->> Version Registry: publishVoteResult(yes | no | abstain, amount)
+    Anyone ->> Version Registry: addVote(yes | no | abstain, amount)
     Version Registry --> Version Registry: Count votes
 end
 Note right of Version Registry: Vote passed!
-Version Registry ->> Version Registry: markPendingCanonical(nextAddress)
+Version Registry ->> Version Registry: markPendingCanonical(nextRollup)
 Note right of Version Registry: Wait at least 30 days!
-Next Rollup ->> Version Registry: markCanonical(nextAddress)
+Next Rollup ->> Version Registry: markCanonical(nextRollup)
 Sequencers ->> Next Rollup: Proposing new blocks here!
 ```
 
@@ -208,7 +192,7 @@ Emergency mode is proposed to be introduced to the initial instance "v0" or "v1"
 ![Emergency Mode Image](../decentralisation/images/Aztec-Governance-Summary-4.png)
 
 #### Unpausing by default
-In the first instance, it's expected that this security council can _only_ pause the rollup instance, not make any other changes to the instance's functionality. It is important that after N days (e.g.,180), or after another rollup has been marked canonical and Y days (e.g.,60), this rollup _must_ become unpaused eventually - otherwise it's practically bricked from the perspective of those users choosing immutable portals, and could leave funds or other things belonging to users (e.g., identity credentials or something wacky) permanently inside of it. The same is true for all future instances that have pause functionalities.
+In the first instance, it's expected that this security council can _only_ pause the rollup instance, not make any other changes to the instance's functionality. It is important that after N days (e.g., 180), or after another rollup has been marked canonical and Y days (e.g., 60), this rollup _must_ become unpaused eventually - otherwise it's practically bricked from the perspective of those users choosing immutable portals, and could leave funds or other things belonging to users (e.g., identity credentials or something wacky) permanently inside of it. The same is true for all future instances that have pause functionalities.
 
 #### Removing the emergency mode
 The emergency mode articulated here may be implemented as part of the next instance of Aztec - "v1" or whatever it ends up being called, when mainnet blocks are enabled. The current sequencer set on v0 (the initial instance) would then need to vote as outlined above on marking this new deployment as the "canonical v1" or predecessor to the initial instance. This would then have all of the portal contracts follow v1, which may or may not have other [training wheels](https://discourse.aztec.network/t/aztec-upgrade-training-wheels/641). If the community wishes, they can always deploy a new instance of the rollup which removes the emergency mode and therefore the pause-only multisig.
