@@ -29,20 +29,27 @@ fn on_goto_definition_inner(
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = workspace.members.first().unwrap();
 
+    let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
+
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
 
-    // We ignore the warnings and errors produced by compilation while resolving the definition
-    let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+    let interner;
+    if let Some(def_interner) = _state.cached_definitions.get(&package_root_path) {
+        interner = def_interner;
+    } else {
+        // We ignore the warnings and errors produced by compilation while resolving the definition
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+        interner = &context.def_interner;
+    }
 
     let files = context.file_manager.as_file_map();
     let file_id = context.file_manager.name_to_id(file_path.clone()).ok_or(ResponseError::new(
         ErrorCode::REQUEST_FAILED,
         format!("Could not find file in file manager. File path: {:?}", file_path),
     ))?;
-
     let byte_index =
         position_to_byte_index(files, file_id, &params.text_document_position_params.position)
             .map_err(|err| {
@@ -58,7 +65,7 @@ fn on_goto_definition_inner(
     };
 
     let goto_definition_response =
-        context.get_definition_location_from(search_for_location).and_then(|found_location| {
+        interner.get_definition_location_from(search_for_location).and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(files, file_id, found_location.span)?;
             let response: GotoDefinitionResponse =
