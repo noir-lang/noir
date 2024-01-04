@@ -82,7 +82,7 @@ pub fn initialize_end_values(
     circuit_outputs.end.encrypted_logs_hash = start.encrypted_logs_hash;
     circuit_outputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
 
-    circuit_outputs.end.new_contracts = struct_array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::default());
+    circuit_outputs.end.new_contracts = struct_array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::empty());
 }
 
 fn perform_static_call_checks(public_call: PublicCallData) {

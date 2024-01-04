@@ -1,4 +1,5 @@
 use dep::protocol_types::address::AztecAddress;
+use dep::protocol_types::traits::Empty;
 
 struct NoteHeader {
     contract_address: AztecAddress,
@@ -9,12 +10,14 @@ struct NoteHeader {
     is_transient: bool,
 }
 
+impl Empty for NoteHeader {
+    fn empty() -> Self {
+        NoteHeader { contract_address: AztecAddress::zero(), nonce: 0, storage_slot: 0, is_transient: false }
+    }
+}
+
 impl NoteHeader {
     pub fn new(contract_address: AztecAddress, nonce: Field, storage_slot: Field) -> Self {
         NoteHeader { contract_address, nonce, storage_slot, is_transient: false }
-    }
-
-    pub fn empty() -> Self {
-        NoteHeader { contract_address: AztecAddress::zero(), nonce: 0, storage_slot: 0, is_transient: false }
     }
 }

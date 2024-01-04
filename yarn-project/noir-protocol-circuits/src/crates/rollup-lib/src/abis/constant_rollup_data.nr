@@ -1,5 +1,6 @@
 use crate::abis::global_variables::GlobalVariables;
 use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
+use dep::std::ops::Eq;
 
 struct ConstantRollupData {
     // The very latest roots as at the very beginning of the entire rollup:
@@ -14,8 +15,8 @@ struct ConstantRollupData {
     global_variables : GlobalVariables,
 }
 
-impl ConstantRollupData {
-    pub fn eq(self, other : ConstantRollupData) -> bool {
+impl Eq for ConstantRollupData {
+    fn eq(self, other : ConstantRollupData) -> bool {
         self.archive_snapshot.eq(other.archive_snapshot) &
         self.global_variables.eq(other.global_variables) &
         (self.private_kernel_vk_tree_root == other.private_kernel_vk_tree_root) &

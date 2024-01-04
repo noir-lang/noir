@@ -130,7 +130,7 @@ pub fn initialize_end_values(
     public_inputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
 
     public_inputs.end.optionally_revealed_data = start.optionally_revealed_data;
-    public_inputs.end.new_contracts = struct_array_to_bounded_vec(start.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::default());
+    public_inputs.end.new_contracts = struct_array_to_bounded_vec(start.new_contracts, |ncd: NewContractData| ncd.is_empty(), NewContractData::empty());
 }
 
 fn perform_static_call_checks(private_call: PrivateCallData) {

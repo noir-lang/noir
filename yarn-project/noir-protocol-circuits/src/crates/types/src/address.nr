@@ -7,22 +7,32 @@ use crate::{
     utils,
     grumpkin_point::GrumpkinPoint,
 };
+use dep::std::ops::Eq;
+use crate::traits::Empty;
 
 // Aztec address
 struct AztecAddress {
     inner : Field
 }
 
+impl Eq for AztecAddress {
+    fn eq(self, other : Self) -> bool {
+        self.to_field() == other.to_field()
+    }
+}
+
+impl Empty for AztecAddress {
+    fn empty() -> Self {
+        Self {
+            inner : 0
+        }
+    }
+}
+
 impl AztecAddress {
     pub fn zero() -> Self {
         Self {
             inner: 0
-        }
-    }
-
-    pub fn default() -> Self {
-        Self {
-            inner : 0
         }
     }
 
@@ -60,10 +70,6 @@ impl AztecAddress {
         }
     }
 
-    pub fn eq(self, other : Self) -> bool {
-        self.to_field() == other.to_field()
-    }
-
     pub fn serialize(self: Self) -> [Field; 1] {
         [self.inner]
     }
@@ -79,16 +85,24 @@ struct EthAddress{
     inner : Field
 }
 
+impl Eq for EthAddress {
+    fn eq(self, other : Self) -> bool {
+        self.to_field() == other.to_field()
+    }
+}
+
+impl Empty for EthAddress {
+    fn empty() -> Self {
+        Self {
+            inner : 0
+        }
+    }
+}
+
 impl EthAddress{
     pub fn zero() -> Self {
         Self {
             inner: 0
-        }
-    }
-
-    pub fn default() -> Self {
-        Self {
-            inner : 0
         }
     }
 
@@ -115,10 +129,6 @@ impl EthAddress{
         Self {
             inner : result
         }
-    }
-
-    pub fn eq(self, other : Self) -> bool {
-        self.to_field() == other.to_field()
     }
 
     pub fn serialize(self: Self) -> [Field; 1] {

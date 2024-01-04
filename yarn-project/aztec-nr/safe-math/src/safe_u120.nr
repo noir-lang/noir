@@ -1,5 +1,16 @@
+use dep::std::ops::Eq;
+
 struct SafeU120 {
     value: u120,
+}
+
+impl Eq for SafeU120 {
+    fn eq(
+        self: Self,
+        other: Self
+    ) -> bool {
+        self.value == other.value
+    }
 }
 
 impl SafeU120 {
@@ -32,13 +43,6 @@ impl SafeU120 {
         self: Self,
     ) -> bool {
         self.value == 0
-    }
-
-    pub fn eq(
-        self: Self,
-        other: Self
-    ) -> bool {
-        self.value == other.value
     }
 
     pub fn lt(self: Self, other: Self) -> bool {

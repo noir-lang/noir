@@ -438,7 +438,7 @@ fn insert_public_data_update_requests(
         |write: PublicDataTreeLeaf, low_preimage: PublicDataTreeLeafPreimage| { // Build insertion leaf
             let is_update = low_preimage.slot == write.slot;
             if is_update {
-                PublicDataTreeLeafPreimage::default()
+                PublicDataTreeLeafPreimage::empty()
             }else {
                 PublicDataTreeLeafPreimage {
                     slot: write.slot,
@@ -706,7 +706,7 @@ mod tests {
                     );
                 }
             } else {
-                sorted_public_data_writes[i] = PublicDataTreeLeaf::default();
+                sorted_public_data_writes[i] = PublicDataTreeLeaf::empty();
                 sorted_public_data_writes_indexes[i] = i as u32;
             }
         }
@@ -1089,7 +1089,7 @@ mod tests {
         };
 
         builder.new_nullifiers.push(NullifierInsertion { existing_index: 0, value: 1 });
-        let mut tree_nullifiers = [NullifierLeafPreimage::default(); MAX_NEW_NULLIFIERS_PER_TX * 2];
+        let mut tree_nullifiers = [NullifierLeafPreimage::empty(); MAX_NEW_NULLIFIERS_PER_TX * 2];
         tree_nullifiers[0] = NullifierLeafPreimage {
             nullifier : 0,
             next_nullifier : 1,
@@ -1139,7 +1139,7 @@ mod tests {
         }
 
         let output = builder.execute();
-        let mut tree_nullifiers = [NullifierLeafPreimage::default(); MAX_NEW_NULLIFIERS_PER_TX * 2];
+        let mut tree_nullifiers = [NullifierLeafPreimage::empty(); MAX_NEW_NULLIFIERS_PER_TX * 2];
         tree_nullifiers[0] = builder.pre_existing_nullifiers[0];
 
         tree_nullifiers[1] = NullifierLeafPreimage {

@@ -5,6 +5,7 @@ use crate::{
     },
     hash::pedersen_hash,
 };
+use crate::traits::Empty;
 
 // docs:start:block-header
 struct BlockHeader {
@@ -17,6 +18,12 @@ struct BlockHeader {
     global_variables_hash: Field,
 }
 // docs:end:block-header
+
+impl Empty for BlockHeader {
+    fn empty() -> Self {
+        BlockHeader::deserialize([0; BLOCK_HEADER_LENGTH])
+    }
+}
 
 impl BlockHeader {
     pub fn assert_is_zero(self) {
@@ -76,9 +83,5 @@ impl BlockHeader {
             self.l1_to_l2_message_tree_root,
             self.public_data_tree_root,
         ], GENERATOR_INDEX__BLOCK_HASH)
-    }
-
-    pub fn empty() -> Self {
-        BlockHeader::deserialize([0; BLOCK_HEADER_LENGTH])
     }
 }

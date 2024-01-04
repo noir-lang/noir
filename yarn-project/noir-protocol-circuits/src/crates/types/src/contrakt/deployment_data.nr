@@ -5,6 +5,7 @@ use crate::constants::{
 };
 use crate::hash::pedersen_hash;
 use crate::grumpkin_point::GrumpkinPoint;
+use crate::traits::Hash;
 
 // docs:start:contract-deployment-data
 struct ContractDeploymentData {
@@ -15,6 +16,12 @@ struct ContractDeploymentData {
     portal_contract_address : EthAddress,
 }
 // docs:end:contract-deployment-data
+
+impl Hash for ContractDeploymentData {
+    fn hash(self) -> Field {
+        pedersen_hash(self.serialize(), GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)
+    }
+}
 
 impl ContractDeploymentData {
     fn serialize(self) -> [Field; CONTRACT_DEPLOYMENT_DATA_LENGTH] {
@@ -36,7 +43,4 @@ impl ContractDeploymentData {
         self.portal_contract_address.assert_is_zero();
     }
 
-    fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)
-    }
 }

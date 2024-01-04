@@ -1,4 +1,6 @@
 use dep::types::constants::GENERATOR_INDEX__GLOBAL_VARIABLES;
+use dep::std::ops::Eq;
+use dep::types::traits::Hash;
 
 struct GlobalVariables {
     chain_id : Field,
@@ -7,9 +9,17 @@ struct GlobalVariables {
     timestamp : Field,
 }
 
-impl GlobalVariables {
+impl Eq for GlobalVariables {
+    fn eq(self, other : GlobalVariables) -> bool {
+        (self.chain_id == other.chain_id) &
+        (self.version == other.version) &
+        (self.block_number == other.block_number) &
+        (self.timestamp == other.timestamp)
+    }
+}
 
-    pub fn hash(self) -> Field {
+impl Hash for GlobalVariables {
+    fn hash(self) -> Field {
         dep::std::hash::pedersen_hash_with_separator([
             self.chain_id, 
             self.version, 
@@ -18,12 +28,5 @@ impl GlobalVariables {
             ],
             GENERATOR_INDEX__GLOBAL_VARIABLES,
             )
-    }
-
-    pub fn eq(self, other : GlobalVariables) -> bool {
-        (self.chain_id == other.chain_id) &
-        (self.version == other.version) &
-        (self.block_number == other.block_number) &
-        (self.timestamp == other.timestamp)
     }
 }

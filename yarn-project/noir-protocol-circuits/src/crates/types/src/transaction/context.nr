@@ -1,5 +1,6 @@
 use crate::constants::GENERATOR_INDEX__TX_CONTEXT;
 use crate::contrakt::deployment_data::ContractDeploymentData;
+use crate::traits::Hash;
 
 struct TxContext {
     is_fee_payment_tx : bool,
@@ -12,7 +13,7 @@ struct TxContext {
     version : Field,
 }
 
-impl TxContext {
+impl Hash for TxContext {
     fn hash(self) -> Field {
         dep::std::hash::pedersen_hash_with_separator([
             self.is_fee_payment_tx as Field,

@@ -1,5 +1,6 @@
 use crate::abis::function_selector::FunctionSelector;
 use crate::constants::GENERATOR_INDEX__FUNCTION_LEAF;
+use crate::traits::Hash;
 
 struct FunctionLeafPreimage {
     selector : FunctionSelector,
@@ -9,7 +10,7 @@ struct FunctionLeafPreimage {
     acir_hash : Field
 }
 
-impl FunctionLeafPreimage {
+impl Hash for FunctionLeafPreimage {
     fn hash(self) -> Field {
         dep::std::hash::pedersen_hash_with_separator([
             self.selector.to_field(),

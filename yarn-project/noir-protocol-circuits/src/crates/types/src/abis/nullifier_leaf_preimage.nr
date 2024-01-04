@@ -1,30 +1,36 @@
 global NULLIFIER_LEAF_PREIMAGE_LENGTH: Field = 3;
 
+use crate::traits::{Empty, Hash};
+
 struct NullifierLeafPreimage {
     nullifier : Field,
     next_nullifier :Field,
     next_index : u32,
 }
 
-impl NullifierLeafPreimage {
-    pub fn default() -> Self {
+impl Empty for NullifierLeafPreimage {
+    fn empty() -> Self {
         Self {
             nullifier : 0,
             next_nullifier : 0,
             next_index : 0,
         }
     }
+}
 
-    pub fn is_empty(self) -> bool {
-        (self.nullifier == 0) & (self.next_nullifier == 0) & (self.next_index == 0)
-    }
-
-    pub fn hash(self) -> Field {
+impl Hash for NullifierLeafPreimage {
+    fn hash(self) -> Field {
         if self.is_empty() {
             0
         } else {
             dep::std::hash::pedersen_hash(self.serialize())
         }
+    }
+}
+
+impl NullifierLeafPreimage {
+    pub fn is_empty(self) -> bool {
+        (self.nullifier == 0) & (self.next_nullifier == 0) & (self.next_index == 0)
     }
 
     pub fn serialize(self) -> [Field; NULLIFIER_LEAF_PREIMAGE_LENGTH] {

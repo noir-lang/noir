@@ -1,5 +1,7 @@
 use crate::address::{AztecAddress, EthAddress};
 use crate::constants::GENERATOR_INDEX__CONTRACT_LEAF;
+use dep::std::ops::Eq;
+use crate::traits::{Empty, Hash};
 
 struct NewContractData {
     contract_address: AztecAddress,
@@ -7,28 +9,26 @@ struct NewContractData {
     function_tree_root: Field,
 }
 
-impl NewContractData {
-    pub fn is_empty(self) -> bool {
-        (self.contract_address.to_field() == 0) & 
-        (self.portal_contract_address.to_field() == 0) & 
-        (self.function_tree_root ==0)
-    }
-
-    pub fn eq(self, data: NewContractData) -> bool {
+impl Eq for NewContractData {
+    fn eq(self, data: NewContractData) -> bool {
         data.contract_address.eq(self.contract_address)
             & data.portal_contract_address.eq(self.portal_contract_address)
             & (data.function_tree_root == self.function_tree_root)
     }
+}
 
-    pub fn default() -> Self {
+impl Empty for NewContractData {
+    fn empty() -> Self {
         Self {
-            contract_address : AztecAddress::default(),
-            portal_contract_address : EthAddress::default(),
+            contract_address : AztecAddress::empty(),
+            portal_contract_address : EthAddress::empty(),
             function_tree_root : 0,
         }
     }
+}
 
-    pub fn hash(self) -> Field {
+impl Hash for NewContractData {
+    fn hash(self) -> Field {
         if self.is_empty() {
             0 // We want to return 0 here since the contract_address is zero
         } else {
@@ -39,4 +39,13 @@ impl NewContractData {
             ], GENERATOR_INDEX__CONTRACT_LEAF)
         }
     }
+}
+
+impl NewContractData {
+    pub fn is_empty(self) -> bool {
+        (self.contract_address.to_field() == 0) & 
+        (self.portal_contract_address.to_field() == 0) & 
+        (self.function_tree_root ==0)
+    }
+
 }

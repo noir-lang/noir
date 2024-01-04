@@ -1,10 +1,17 @@
 use crate::utils::field::field_from_bytes;
+use dep::std::ops::Eq;
 
 global SELECTOR_SIZE = 4;
 
 struct FunctionSelector {
     // 1st 4-bytes of abi-encoding of function.
     inner: u32,
+}
+
+impl Eq for FunctionSelector {
+    fn eq(self, function_selector: FunctionSelector) -> bool {
+        function_selector.inner == self.inner
+    }
 }
 
 impl FunctionSelector {
@@ -38,10 +45,6 @@ impl FunctionSelector {
 
     pub fn zero() -> Self {
         Self { inner: 0 }
-    }
-
-    pub fn eq(self, function_selector: FunctionSelector) -> bool {
-        function_selector.inner == self.inner
     }
 
     pub fn serialize(self: Self) -> [Field; 1] {

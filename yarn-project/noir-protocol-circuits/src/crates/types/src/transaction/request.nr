@@ -2,6 +2,7 @@ use crate::constants::GENERATOR_INDEX__TX_REQUEST;
 use crate::address::AztecAddress;
 use crate::transaction::context::TxContext;
 use crate::abis::function_data::FunctionData;
+use crate::traits::Hash;
 
 struct TxRequest {
     origin : AztecAddress,
@@ -10,7 +11,7 @@ struct TxRequest {
     function_data : FunctionData
 }
 
-impl TxRequest {
+impl Hash for TxRequest {
     fn hash(self) -> Field {
         dep::std::hash::pedersen_hash_with_separator([
             self.origin.to_field(),

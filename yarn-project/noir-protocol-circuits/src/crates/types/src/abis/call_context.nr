@@ -7,6 +7,8 @@ use crate::{
     },
     hash::pedersen_hash,
 };
+use dep::std::ops::Eq;
+use crate::traits::Hash;
 
 // docs:start:call-context
 struct CallContext {
@@ -24,6 +26,26 @@ struct CallContext {
 }
 // docs:end:call-context
 
+impl Eq for CallContext {
+    fn eq(self, call_context: CallContext) -> bool {
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
+        call_context.msg_sender.eq(self.msg_sender)
+            & call_context.storage_contract_address.eq(self.storage_contract_address)
+            & call_context.portal_contract_address.eq(self.portal_contract_address)
+            & call_context.function_selector.eq(self.function_selector)
+            & (call_context.is_delegate_call == self.is_delegate_call)
+            & (call_context.is_static_call == self.is_static_call)
+            & (call_context.is_contract_deployment == self.is_contract_deployment)
+            & (call_context.start_side_effect_counter == self.start_side_effect_counter)
+    }
+}
+
+impl Hash for CallContext {
+    fn hash(self) -> Field {
+        pedersen_hash(self.serialize(), GENERATOR_INDEX__CALL_CONTEXT)
+    }
+}
+
 impl CallContext {
     fn serialize(self) -> [Field; CALL_CONTEXT_LENGTH] {
         [
@@ -38,10 +60,6 @@ impl CallContext {
         ]
     }
 
-    fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__CALL_CONTEXT)
-    }
-
     fn assert_is_zero(self) {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
         assert(self.msg_sender.to_field() == 0);
@@ -52,17 +70,5 @@ impl CallContext {
         assert(self.is_static_call == false);
         assert(self.is_contract_deployment == false);
         assert(self.start_side_effect_counter == 0);
-    }
-
-    fn eq(self, call_context: CallContext) -> bool {
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
-        call_context.msg_sender.eq(self.msg_sender)
-            & call_context.storage_contract_address.eq(self.storage_contract_address)
-            & call_context.portal_contract_address.eq(self.portal_contract_address)
-            & call_context.function_selector.eq(self.function_selector)
-            & (call_context.is_delegate_call == self.is_delegate_call)
-            & (call_context.is_static_call == self.is_static_call)
-            & (call_context.is_contract_deployment == self.is_contract_deployment)
-            & (call_context.start_side_effect_counter == self.start_side_effect_counter)
     }
 }
