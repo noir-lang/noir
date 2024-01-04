@@ -172,15 +172,15 @@ fn compile_program(
     let program_artifact_path = workspace.package_build_path(package);
     let mut debug_artifact_path = program_artifact_path.clone();
     debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
-    let cached_program = if let (Ok(preprocessed_program), Ok(mut debug_artifact)) = (
+    let cached_program = if let (Ok(program_artifact), Ok(mut debug_artifact)) = (
         read_program_from_file(program_artifact_path),
         read_debug_artifact_from_file(debug_artifact_path),
     ) {
         Some(CompiledProgram {
-            hash: preprocessed_program.hash,
-            circuit: preprocessed_program.bytecode,
-            abi: preprocessed_program.abi,
-            noir_version: preprocessed_program.noir_version,
+            hash: program_artifact.hash,
+            circuit: program_artifact.bytecode,
+            abi: program_artifact.abi,
+            noir_version: program_artifact.noir_version,
             debug: debug_artifact.debug_symbols.remove(0),
             file_map: debug_artifact.file_map,
             warnings: debug_artifact.warnings,
@@ -238,11 +238,11 @@ fn save_program(
     circuit_dir: &Path,
     only_acir_opt: bool,
 ) {
-    let preprocessed_program = ProgramArtifact::from(program.clone());
+    let program_artifact = ProgramArtifact::from(program.clone());
     if only_acir_opt {
-        only_acir(&preprocessed_program, circuit_dir);
+        only_acir(&program_artifact, circuit_dir);
     } else {
-        save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
+        save_program_to_file(&program_artifact, &package.name, circuit_dir);
     }
 
     let debug_artifact = DebugArtifact {
@@ -265,7 +265,7 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         warnings: contract.warnings,
     };
 
-    let preprocessed_functions = vecmap(contract.functions, |func| ContractFunctionArtifact {
+    let functions = vecmap(contract.functions, |func| ContractFunctionArtifact {
         name: func.name,
         function_type: func.function_type,
         is_internal: func.is_internal,
@@ -273,22 +273,22 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         bytecode: func.bytecode,
     });
 
-    let preprocessed_contract = ContractArtifact {
+    let contract_artifact = ContractArtifact {
         noir_version: contract.noir_version,
         name: contract.name,
-        functions: preprocessed_functions,
+        functions,
         events: contract.events,
     };
 
     save_contract_to_file(
-        &preprocessed_contract,
-        &format!("{}-{}", package.name, preprocessed_contract.name),
+        &contract_artifact,
+        &format!("{}-{}", package.name, contract_artifact.name),
         circuit_dir,
     );
 
     save_debug_artifact_to_file(
         &debug_artifact,
-        &format!("{}-{}", package.name, preprocessed_contract.name),
+        &format!("{}-{}", package.name, contract_artifact.name),
         circuit_dir,
     );
 }

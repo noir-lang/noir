@@ -289,17 +289,16 @@ pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
         file_map: contract.file_map,
         warnings: contract.warnings,
     };
-    let preprocessed_functions =
-        contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
+    let functions = contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
 
-    let preprocessed_contract = ContractArtifact {
+    let contract_artifact = ContractArtifact {
         noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
-        functions: preprocessed_functions,
+        functions,
         events: contract.events,
     };
 
-    CompileResult::Contract { contract: preprocessed_contract, debug: debug_artifact }
+    CompileResult::Contract { contract: contract_artifact, debug: debug_artifact }
 }
 
 #[cfg(test)]

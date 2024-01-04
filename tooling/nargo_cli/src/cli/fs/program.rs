@@ -11,22 +11,22 @@ use crate::errors::FilesystemError;
 use super::{create_named_dir, write_to_file};
 
 pub(crate) fn save_program_to_file<P: AsRef<Path>>(
-    compiled_program: &ProgramArtifact,
+    program_artifact: &ProgramArtifact,
     crate_name: &CrateName,
     circuit_dir: P,
 ) -> PathBuf {
     let circuit_name: String = crate_name.into();
-    save_build_artifact_to_file(compiled_program, &circuit_name, circuit_dir)
+    save_build_artifact_to_file(program_artifact, &circuit_name, circuit_dir)
 }
 
 /// Writes the bytecode as acir.gz
 pub(crate) fn only_acir<P: AsRef<Path>>(
-    compiled_program: &ProgramArtifact,
+    program_artifact: &ProgramArtifact,
     circuit_dir: P,
 ) -> PathBuf {
     create_named_dir(circuit_dir.as_ref(), "target");
     let circuit_path = circuit_dir.as_ref().join("acir").with_extension("gz");
-    let bytes = Circuit::serialize_circuit(&compiled_program.bytecode);
+    let bytes = Circuit::serialize_circuit(&program_artifact.bytecode);
     write_to_file(&bytes, &circuit_path);
 
     circuit_path
