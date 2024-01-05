@@ -29,9 +29,6 @@ describe('noir-compiler', () => {
     const nargoArtifact = await getPrecompiledSource(contractExpectedArtifact);
     nargoArtifact.functions.sort((a, b) => a.name.localeCompare(b.name));
     const [noirWasmArtifact] = await compile(fm, '/circuits/deps_testing');
-    console.log(noirWasmArtifact);
-    console.log('---------');
-    console.log(nargoArtifact);
     if (!('contract' in noirWasmArtifact)) {
       throw new Error('Compilation failed');
     }
