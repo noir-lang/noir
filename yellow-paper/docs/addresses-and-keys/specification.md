@@ -633,6 +633,28 @@ $\plaintext$ | $decrypt_{\happenc}(\ciphertext)$ |
 
 <!-- TODO: how does a user validate that they have successfully decrypted a ciphertext? Is this baked into ChaChaPoly1035, for example? -->
 
+### Doing this inside an app circuit
+
+Here's how an app circuit could constrain the app-siloed outgoing viewing secret key ($\ovskapp$) to be correct:
+
+The app circuit exposes, as public inputs, an "outgoing viewing key validation request":
+
+<!-- prettier-ignore -->
+| Thing | Derivation | Name | Comments |
+|---|---|---|---|
+`outgoing_viewing_key_validation_request` | app_address: app_address,<br />hardened_child_sk: $\nskapp$,<br />claimed_parent_pk: $\Npkm$ |
+
+The kernel circuit can then validate the request (having been given $\ovskm$ as a private input to the kernel circuit):
+
+<!-- prettier-ignore -->
+| Thing | Derivation | Name | Comments |
+|---|---|---|---|
+$\ovskapp$ | $h(\ovskm, \text{app\_address})$ |
+$\Ovpkm$ | $\ovskm \cdot G$ | Outgoing viewing public key |
+| | | | Copy-constrain $\ovskm$ with $\ovskm$. |
+
+If the kernel circuit succeeds in these calculations, then the $\ovskapp$ has been validated as the correct app-siled secret key for $\Ovpkm$.
+
 ## Encrypt and tag an internal incoming message
 
 Internal incoming messages are handled analogously to outgoing messages, since in both cases the sender is the same as the recipient, who has access to the secret keys when encrypting and tagging the message.
@@ -640,64 +662,3 @@ Internal incoming messages are handled analogously to outgoing messages, since i
 ## Acknowledgements
 
 Much of this is inspired by the [ZCash Sapling and Orchard specs](https://zips.z.cash/protocol/protocol.pdf).
-
-## Appendix
-
-### Alternative nullifier key derivation
-
-This option seeks to make a minor simplification to the operations requested of the kernel circuit: instead of "a hash, a scalar mul, and a copy-constraint", it replaces the request with "two scalar muls, and a copy-constraint". The argument being, perhaps it's cleaner and a more widely useful request, that apps might wish to make to the kernel circuit under other circumstances (although the copy-constraint is still ugly and specific).
-
-<!-- prettier-ignore -->
-| Key | Derivation | Name | Where? | Comments |
-|---|---|---|---|---|
-$\happL$ | h($\address$, app\_address) | normal siloing key for app-specific keypair derivations | | An intermediate step in a BIP-32-esque "normal" (non-hardened) child key derivation.<br />Note: the "L" is a lingering artifact carried over from the BIP-32 notation (where a 512-bit hmac output is split into a left and a right part), but notice there is no corresponding "R"; as a protocol simplification we do not derive BIP-32 chain codes.  |
-$\happn$ | h(0x01, $\happL$) | normal siloing key for an app-specific nullifier keypair | | An intermediate step in a BIP-32-esque "normal" (non-hardened) child key derivation. |
-||||||
-$\nskapp$ | $\happn + \nskm$ | normal (non-hardened) app-siloed nullifier secret key | PXE, K, <br />Not App |
-$\Npkapp$ | $\happn \cdot G + \Npkm = \nskapp \cdot G$ | normal (non-hardened) app-siloed nullifier public key |
-$\Nkapp$ | $\nskapp \cdot H$ | | PXE, K, App, T3P| For some point $H$ which is independent from $G$. TODO: validate that this is safe. |
-
-### Doing this inside an app circuit
-
-Let's assume a developer wants a nullifier of a note to be derived as:
-
-`nullifier = h(note_hash, nullifier_key);`
-
-... where the `nullifier_key` ($\Nkapp$) belongs to the 'owner' of the note, and where the 'owner' is some $\address$.
-
-Here's how an app circuit could constrain the nullifier key to be correct:
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\happL$ | h($\address$, app\_address) | normal siloing key for app-specific keypair derivations | | An intermediate step in a BIP-32-esque "normal" (non-hardened) child key derivation.<br />Note: the "L" is a lingering artifact carried over from the BIP-32 notation (where a 512-bit hmac output is split into a left and a right part), but notice there is no corresponding "R"; as a protocol simplification we do not derive BIP-32 chain codes.  |
-$\happn$ | h(0x01, $\happL$) | normal siloing key for an app-specific nullifier keypair | | An intermediate step in a BIP-32-esque "normal" (non-hardened) child key derivation. |
-||||
-$\Npkapp$ | $\happn \cdot G + \Npkm$ | normal (non-hardened) app-siloed nullifier public key |
-||||
-`nullifier` | h(note_hash, $\Nkapp$) | | $\Nkapp$ is exposed as a public input, and linked to the $\Npkapp$ via the kernel circuit. |
-$\address$ | h($\Npkm$, $\Tpkm$, $\Ivpkm$, $\Ovpkm$, $\codehash$) | address | Proof that the $\Npkm$ belongs to the note owner's $\address$.<br />This isn't an optimized derivation. It's just one that works. |
-
-> Recall an important point: the app circuit MUST NOT be given $\nskm$ nor $\nskapp$ in this option. Since $\nskapp$ is a normal (non-hardened) child, $\nskm$ could be reverse-derived by a malicious circuit. The linking of $\nskapp$ to $\Npkm$ is therefore deferred to the kernel circuit (which can be trusted moreso than an app).<br />Recall also: $\Nkapp$ is used (instead of $\nskapp$) solely as a way of giving the user the option of sharing $\Nkapp$ with a trusted 3rd party, to give them the ability to view when a note has been nullified.
-
-The app circuit exposes, as public inputs, a "proof of knowledge of discrete log, request":
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-`pokodl_request` | [{<br />&nbsp;Anti_log: $\Nkapp$,<br />&nbsp;Base: $H$<br />},{<br />&nbsp;Anti_log: $\Npkapp$,<br />&nbsp;Base: $G$<br />}] | Proof of knowledge of discrete log, request. |
-
-> Recall: $log_{base}(anti\_logarithm) = logarithm$ (TODO: this terminology might be confusing, especially since we're using additive notation).
-
-The _kernel_ circuit can then validate the `pokodl_request` (having been given the requested logarithms (in this case $\nskapp$ twice) as private inputs):
-
-<!-- prettier-ignore -->
-| Thing | Derivation | Name | Comments |
-|---|---|---|---|
-$\Nkapp$ | $\nskapp \cdot H$ |
-$\Npkapp$ | $\nskapp \cdot G$ |
-| | | | Copy-constrain $\nskapp$ with $\nskapp$.<br />This constraint makes the interface to the kernel circuit a bit uglier. The `pokodl_request` now needs to convey "and constrain the discrete logs of these two pokodl requests to be equal". |
-
-If the kernel circuit succeeds in these calculations, then the $\Nkapp$ has been validated as having a known secret key, and belonging to the $\address$.
-
-![Alt text](images/addresses-and-keys/image-1.png)
