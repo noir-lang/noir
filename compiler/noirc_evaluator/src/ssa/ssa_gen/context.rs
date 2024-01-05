@@ -665,6 +665,31 @@ impl<'a> FunctionContext<'a> {
         reshaped_return_values
     }
 
+    /// Inserts a cast instruction at the end of the current block and returns the results
+    /// of the cast.
+    ///
+    /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
+    pub(super) fn insert_safe_cast(
+        &mut self,
+        value: ValueId,
+        typ: Type,
+        location: Location,
+    ) -> Result<Values, RuntimeError> {
+        self.builder.set_location(location);
+
+        // To ensure that `value` is a valid `typ`, we insert an `Instruction::Truncate` instruction beforehand if
+        // we're narrowing the type size.
+        let incoming_type_size = self.builder.type_of_value(value).bit_size();
+        let target_type_size = typ.bit_size();
+        let truncated_value = if target_type_size < incoming_type_size {
+            self.builder.insert_truncate(value, target_type_size, incoming_type_size)
+        } else {
+            value
+        };
+
+        Ok(self.builder.insert_cast(truncated_value, typ).into())
+    }
+
     /// Create a const offset of an address for an array load or store
     pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
         if offset != 0 {

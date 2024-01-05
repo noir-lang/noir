@@ -230,14 +230,6 @@ impl FunctionBuilder {
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
-        let incoming_type_size = self.type_of_value(value).bit_size();
-        let target_type_size = typ.bit_size();
-        let value = if target_type_size < incoming_type_size {
-            self.insert_truncate(value, target_type_size, incoming_type_size)
-        } else {
-            value
-        };
-
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 

@@ -434,8 +434,8 @@ impl<'a> FunctionContext<'a> {
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
         let lhs = self.codegen_non_tuple_expression(&cast.lhs)?;
         let typ = Self::convert_non_tuple_type(&cast.r#type);
-        self.builder.set_location(cast.location);
-        Ok(self.builder.insert_cast(lhs, typ).into())
+
+        self.insert_safe_cast(lhs, typ, cast.location)
     }
 
     /// Codegens a for loop, creating three new blocks in the process.
