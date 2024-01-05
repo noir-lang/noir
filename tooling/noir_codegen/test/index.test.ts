@@ -1,10 +1,12 @@
 import { expect } from 'chai';
-import { assert_lt, MyStruct, u64, ForeignCallHandler } from './codegen/index.js';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore File is codegenned at test time.
+import { exported_function_foo, MyStruct, u64, ForeignCallHandler } from './codegen/index.js';
 
 it('codegens a callable function', async () => {
   const my_struct = { foo: true, bar: ['12345', '12345', '12345'] };
 
-  const [sum, constant, struct]: [u64, u64, MyStruct] = await assert_lt(
+  const [sum, constant, struct]: [u64, u64, MyStruct] = await exported_function_foo(
     '2',
     '3',
     [0, 0, 0, 0, 0],
@@ -35,7 +37,7 @@ it('allows passing a custom foreign call handler', async () => {
 
   const my_struct = { foo: true, bar: ['12345', '12345', '12345'] };
 
-  const [sum, constant, struct]: [u64, u64, MyStruct] = await assert_lt(
+  const [sum, constant, struct]: [u64, u64, MyStruct] = await exported_function_foo(
     '2',
     '3',
     [0, 0, 0, 0, 0],

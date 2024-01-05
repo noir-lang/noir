@@ -194,6 +194,19 @@ impl Context<'_> {
             .collect()
     }
 
+    pub fn get_all_exported_functions_in_crate(&self, crate_id: &CrateId) -> Vec<(String, FuncId)> {
+        let interner = &self.def_interner;
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        def_map
+            .get_all_exported_functions(interner)
+            .map(|function_id| {
+                let function_name = self.function_name(&function_id).to_owned();
+                (function_name, function_id)
+            })
+            .collect()
+    }
+
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
     pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
         self.def_map(crate_id)
