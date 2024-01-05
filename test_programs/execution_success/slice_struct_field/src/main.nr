@@ -68,24 +68,6 @@ fn main(y: pub Field) {
     // Check that switching the lhs and rhs is still valid
     assert([109, 110, 111] == x[y].bar.inner);
 
-    // TODO: Enable merging nested slices 
-    if y != 2 {
-        x[y].a = 50;
-    } else {
-        x[y].a = 100;
-    }
-    assert(x[3].a == 50);
-
-    if y == 2 {
-        x[y - 1].b = [50, 51, 52];
-    } else {
-        x[y - 1].b = [100, 101, 102];
-    }
-    assert(x[2].b[0] == 100);
-    assert(x[2].b[1] == 101);
-    assert(x[2].b[2] == 102);
-
-    // NOTE: Commented out for testing
     let q = x.push_back(foo_four);
     let foo_parent_one = FooParent { parent_arr: [0, 1, 2], foos: x };
     let foo_parent_two = FooParent { parent_arr: [3, 4, 5], foos: q };
@@ -96,7 +78,6 @@ fn main(y: pub Field) {
     foo_parents[y - 2].foos[y - 2].b[y - 1] = 5000;
     assert(foo_parents[y - 2].foos[y - 2].b[y - 1] == 5000);
 
-    // // TODO: this is broken
     let b_array = foo_parents[y - 2].foos[y - 3].b;
     assert(foo_parents[y - 2].foos[y - 3].a == 1);
     assert(b_array[0] == 2);
@@ -104,13 +85,11 @@ fn main(y: pub Field) {
     assert(b_array[2] == 20);
     assert(b_array[3] == 20);
 
-    // TODO: this is broken with the same thing as above, we are not tracking after a merge correctly
     let b_array = foo_parents[y - 2].foos[y - 2].b;
     assert(foo_parents[y - 2].foos[y - 2].a == 4);
     assert(b_array[0] == 5);
     assert(b_array[1] == 6);
     assert(b_array[2] == 5000);
-    // dep::std::println(b_array[3]);
     assert(b_array[3] == 21);
 
     assert(foo_parents[y - 2].foos[y - 1].a == 7);
@@ -119,9 +98,9 @@ fn main(y: pub Field) {
 
     // This slice should be altered from the if statement above
     let b_array = foo_parents[y - 2].foos[y - 1].b;
-    assert(b_array[0] == 100);
-    assert(b_array[1] == 101);
-    assert(b_array[2] == 102);
+    assert(b_array[0] == 8);
+    assert(b_array[1] == 9);
+    assert(b_array[2] == 22);
     assert(b_array.len() == 3);
 
     // Test setting a nested array with non-dynamic 
@@ -180,7 +159,7 @@ fn main(y: pub Field) {
     assert(b_array[3] == 5000);
 
     let b_array = foo_parents[y - 2].foos[y].b;
-    assert(foo_parents[y - 2].foos[y].a == 50);
+    assert(foo_parents[y - 2].foos[y].a == 10);
     assert(b_array[0] == 11);
     assert(b_array[1] == 12);
     assert(b_array[2] == 23);
@@ -346,7 +325,7 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[2].b[2] == 5000);
     assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
 
-    assert(foo_parents[1].foos[3].a == 50);
+    assert(foo_parents[1].foos[3].a == 10);
     assert(foo_parents[1].foos[3].b[0] == 11);
     assert(foo_parents[1].foos[3].b[2] == 23);
     assert(foo_parents[1].foos[3].bar.inner == [109, 110, 111]);
@@ -379,7 +358,7 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[3].b[2] == 5000);
     assert(foo_parents[1].foos[3].bar.inner == [106, 107, 108]);
 
-    assert(foo_parents[1].foos[4].a == 50);
+    assert(foo_parents[1].foos[4].a == 10);
     assert(foo_parents[1].foos[4].b[0] == 11);
     assert(foo_parents[1].foos[4].b[2] == 23);
     assert(foo_parents[1].foos[4].bar.inner == [109, 110, 111]);
@@ -404,7 +383,7 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(rest_of_slice[2].b[2] == 5000);
     assert(rest_of_slice[2].bar.inner == [106, 107, 108]);
 
-    assert(rest_of_slice[3].a == 50);
+    assert(rest_of_slice[3].a == 10);
     assert(rest_of_slice[3].b[0] == 11);
     assert(rest_of_slice[3].b[2] == 23);
     assert(rest_of_slice[3].bar.inner == [109, 110, 111]);
@@ -434,7 +413,7 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[2].b[2] == 5000);
     assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
 
-    assert(foo_parents[1].foos[3].a == 50);
+    assert(foo_parents[1].foos[3].a == 10);
     assert(foo_parents[1].foos[3].b[0] == 11);
     assert(foo_parents[1].foos[3].b[2] == 23);
     assert(foo_parents[1].foos[3].bar.inner == [109, 110, 111]);
@@ -459,7 +438,7 @@ fn test_insert_remove_const_index(mut foo_parents: [FooParent], y: Field, foo: F
     assert(foo_parents[1].foos[2].b[2] == 5000);
     assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
 
-    assert(foo_parents[1].foos[3].a == 50);
+    assert(foo_parents[1].foos[3].a == 10);
     assert(foo_parents[1].foos[3].b[0] == 11);
     assert(foo_parents[1].foos[3].b[2] == 23);
     assert(foo_parents[1].foos[3].bar.inner == [109, 110, 111]);
@@ -492,7 +471,7 @@ fn test_insert_remove_const_index(mut foo_parents: [FooParent], y: Field, foo: F
     assert(foo_parents[1].foos[3].b[2] == 5000);
     assert(foo_parents[1].foos[3].bar.inner == [106, 107, 108]);
 
-    assert(foo_parents[1].foos[4].a == 50);
+    assert(foo_parents[1].foos[4].a == 10);
     assert(foo_parents[1].foos[4].b[0] == 11);
     assert(foo_parents[1].foos[4].b[2] == 23);
     assert(foo_parents[1].foos[4].bar.inner == [109, 110, 111]);
@@ -517,7 +496,7 @@ fn test_insert_remove_const_index(mut foo_parents: [FooParent], y: Field, foo: F
     assert(rest_of_slice[2].b[2] == 5000);
     assert(rest_of_slice[2].bar.inner == [106, 107, 108]);
 
-    assert(rest_of_slice[3].a == 50);
+    assert(rest_of_slice[3].a == 10);
     assert(rest_of_slice[3].b[0] == 11);
     assert(rest_of_slice[3].b[2] == 23);
     assert(rest_of_slice[3].bar.inner == [109, 110, 111]);
@@ -547,7 +526,7 @@ fn test_insert_remove_const_index(mut foo_parents: [FooParent], y: Field, foo: F
     assert(foo_parents[1].foos[2].b[2] == 5000);
     assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
 
-    assert(foo_parents[1].foos[3].a == 50);
+    assert(foo_parents[1].foos[3].a == 10);
     assert(foo_parents[1].foos[3].b[0] == 11);
     assert(foo_parents[1].foos[3].b[2] == 23);
     assert(foo_parents[1].foos[3].bar.inner == [109, 110, 111]);

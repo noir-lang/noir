@@ -2150,14 +2150,6 @@ impl Context {
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
 
                 let new_slice_val = AcirValue::Array(new_slice);
-                // TODO: change this as we have an AcirValue::Array that read in from a flat dynamic array
-                // that does not maintain the type structure we expect
-                // let mut results = vec![
-                //     AcirValue::Var(new_slice_length, AcirType::field()),
-                //     AcirValue::Array(new_slice),
-                // ];
-                // results.append(&mut popped_elements);
-
 
                 let result_block_id = self.block_id(&result_ids[1]);
                 self.initialize_array(

@@ -663,7 +663,6 @@ impl<'f> Context<'f> {
 
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let argument_type = self.inserter.function.dfg.type_of_value(value);
-                    dbg!(argument_type.clone());
                     let casted_condition = self.insert_instruction(
                         Instruction::Cast(condition, argument_type),
                         call_stack.clone(),
