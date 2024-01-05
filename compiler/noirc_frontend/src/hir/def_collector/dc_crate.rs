@@ -20,8 +20,7 @@ use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, Type
 use crate::parser::{ParserError, SortedModule};
 use crate::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType,
+    NoirTypeAlias, Path, PathKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -490,7 +489,8 @@ pub(crate) fn check_methods_signatures(
             let mut typecheck_errors = Vec::new();
             let impl_method = resolver.interner.function_meta(func_id);
 
-            let (impl_function_type, mut impl_instantiation_bindings) = impl_method.typ.instantiate(resolver.interner);
+            let (impl_function_type, mut impl_instantiation_bindings) =
+                impl_method.typ.instantiate(resolver.interner);
 
             let impl_method_generic_count =
                 impl_method.typ.generic_count() - trait_impl_generic_count;
@@ -520,8 +520,8 @@ pub(crate) fn check_methods_signatures(
                         expected_typ: expected.to_string(),
                         expr_typ: impl_function_type.to_string(),
                         expr_span: impl_method.location.span,
-                    })
-                },
+                    });
+                }
             }
 
             resulting_methods.push(*func_id);

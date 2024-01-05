@@ -1,7 +1,8 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
-    rc::Rc, borrow::Cow,
+    rc::Rc,
 };
 
 use crate::{
@@ -1361,14 +1362,12 @@ impl Type {
             // This is neede for monomorphizing trait impl methods.
             match type_bindings.get(&binding.0) {
                 Some((_, binding)) => binding.clone(),
-                None => {
-                    match &*binding.borrow() {
-                        TypeBinding::Bound(binding) => binding.substitute(type_bindings),
-                        TypeBinding::Unbound(id) => match type_bindings.get(id) {
-                            Some((_, binding)) => binding.clone(),
-                            None => self.clone(),
-                        },
-                    }
+                None => match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.substitute(type_bindings),
+                    TypeBinding::Unbound(id) => match type_bindings.get(id) {
+                        Some((_, binding)) => binding.clone(),
+                        None => self.clone(),
+                    },
                 },
             }
         };

@@ -284,7 +284,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
 
-                for (field, typ) in fields.into_iter().zip(tuple_field_types) {
+                for (field, typ) in fields.iter().zip(tuple_field_types) {
                     self.parameter(field, &typ, new_params);
                 }
             }
@@ -292,7 +292,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let struct_field_types = unwrap_struct_type(typ);
                 assert_eq!(struct_field_types.len(), fields.len());
 
-                let mut fields = btree_map(fields, |(name, field)| (name.0.contents.clone(), field));
+                let mut fields =
+                    btree_map(fields, |(name, field)| (name.0.contents.clone(), field));
 
                 // Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
@@ -1512,7 +1513,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// is needed to apply the generics from the trait method to the impl method. Without this,
     /// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
     /// the correct type bindings during monomorphization.
-    fn perform_impl_bindings(&self, trait_method: Option<TraitMethodId>, impl_method: node_interner::FuncId) -> TypeBindings {
+    fn perform_impl_bindings(
+        &self,
+        trait_method: Option<TraitMethodId>,
+        impl_method: node_interner::FuncId,
+    ) -> TypeBindings {
         let mut bindings = TypeBindings::new();
 
         if let Some(trait_method) = trait_method {
@@ -1522,12 +1527,16 @@ impl<'interner> Monomorphizer<'interner> {
 
             // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
             // with the same internal id and binding.
-            let (generics, impl_method_type) = self.interner.function_meta(&impl_method).typ.unwrap_forall();
+            let (generics, impl_method_type) =
+                self.interner.function_meta(&impl_method).typ.unwrap_forall();
 
             // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
-            let type_bindings = generics.iter().map(|(id, var)| {
-                (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
-            }).collect();
+            let type_bindings = generics
+                .iter()
+                .map(|(id, var)| {
+                    (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+                })
+                .collect();
 
             let impl_method_type = impl_method_type.substitute(&type_bindings);
 

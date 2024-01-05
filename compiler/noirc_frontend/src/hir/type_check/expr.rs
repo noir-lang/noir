@@ -190,7 +190,8 @@ impl<'interner> TypeChecker<'interner> {
                                 // Automatically add `&mut` if the method expects a mutable reference and
                                 // the object is not already one.
                                 if *func_id != FuncId::dummy_id() {
-                                    let function_type = self.interner.function_meta(func_id).typ.clone();
+                                    let function_type =
+                                        self.interner.function_meta(func_id).typ.clone();
                                     self.try_add_mutable_reference_to_object(
                                         &mut method_call,
                                         &function_type,
