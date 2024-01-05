@@ -1,7 +1,6 @@
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
-use im::Vector;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -32,6 +31,7 @@ pub(super) fn simplify_call(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
+    call_stack: &CallStack,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
@@ -256,7 +256,7 @@ pub(super) fn simplify_call(
                     truncate,
                     block,
                     Some(vec![incoming_type]),
-                    Vector::default(), // needs a callstack
+                    call_stack.clone(),
                 )
                 .first();
 

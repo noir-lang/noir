@@ -405,6 +405,7 @@ impl Instruction {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
+        call_stack: &CallStack,
     ) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
@@ -548,7 +549,7 @@ impl Instruction {
                 }
             }
             Instruction::Call { func, arguments } => {
-                simplify_call(*func, arguments, dfg, block, ctrl_typevars)
+                simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
             }
             Instruction::EnableSideEffects { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
