@@ -288,7 +288,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let struct_field_types = unwrap_struct_type(typ);
                 assert_eq!(struct_field_types.len(), fields.len());
 
-                let mut fields = btree_map(fields, |(name, field)| (name.0.contents.clone(), field));
+                let mut fields =
+                    btree_map(fields, |(name, field)| (name.0.contents.clone(), field));
 
                 // Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
