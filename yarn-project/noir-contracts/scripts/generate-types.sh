@@ -14,7 +14,7 @@ for ABI in $(find target -maxdepth 1 -type f ! -name 'debug_*' -name '*.json'); 
   DEBUG_INFO="$(dirname $ABI)/debug_$(basename $ABI)"
 
   echo "Creating types for $CONTRACT in $ABI..."
-  node --no-warnings ../noir-compiler/dest/cli.js generate-typescript -o $OUT_DIR -d $ABI
+  node --no-warnings ../noir-compiler/dest/cli.js codegen -o $OUT_DIR -d --ts $ABI
 
   # Add contract import/export to index.ts.
   echo "export * from './${CONTRACT}.js';" >> $INDEX

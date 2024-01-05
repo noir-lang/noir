@@ -1,9 +1,6 @@
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
-import {
-  addGenerateNoirInterfaceCommanderAction,
-  addGenerateTypescriptCommanderAction,
-} from '@aztec/noir-compiler/cli';
+import { addCodegenCommanderAction } from '@aztec/noir-compiler/cli';
 
 import { Command, Option } from 'commander';
 import { lookup } from 'dns/promises';
@@ -493,8 +490,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       await update(projectPath, contract, rpcUrl, aztecVersion, log);
     });
 
-  addGenerateTypescriptCommanderAction(program, log);
-  addGenerateNoirInterfaceCommanderAction(program, log);
+  addCodegenCommanderAction(program, log);
 
   return program;
 }

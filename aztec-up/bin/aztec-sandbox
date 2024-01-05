@@ -5,7 +5,7 @@ set -euo pipefail
 CMD="docker compose"
 $CMD &>/dev/null || CMD="docker-compose"
 
-ARGS="-f ~/.aztec/docker-compose.yml -p sandbox"
+ARGS="-f $HOME/.aztec/docker-compose.yml -p sandbox"
 
 # Function to be executed when SIGINT is received.
 cleanup() {
