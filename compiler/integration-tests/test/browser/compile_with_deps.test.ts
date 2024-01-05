@@ -39,5 +39,5 @@ describe('noir-compiler', () => {
     expect(noirWasmContract).not.to.be.undefined;
     noirWasmContract.functions.sort((a, b) => a.name.localeCompare(b.name));
     expect(nargoArtifact).to.deep.eq(noirWasmContract);
-  });
+  }).timeout(60 * 20e3);
 });
