@@ -4,7 +4,6 @@ use rayon::prelude::*;
 
 use fm::FileManager;
 use iter_extended::try_vecmap;
-use nargo::artifacts::program::PreprocessedProgram;
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::prepare_package;
@@ -115,14 +114,7 @@ fn compile_exported_functions(
 
     let export_dir = workspace.export_directory_path();
     for (function_name, program) in exported_programs {
-        let preprocessed_program = PreprocessedProgram {
-            hash: program.hash,
-            abi: program.abi,
-            noir_version: program.noir_version,
-            bytecode: program.circuit,
-        };
-
-        save_program_to_file(&preprocessed_program, &function_name.parse().unwrap(), &export_dir);
+        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir);
     }
     Ok(())
 }
