@@ -236,7 +236,10 @@ impl Instruction {
                 // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
                 bin.operator != BinaryOp::Div
             }
-            Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+            Cast(_, _) | Not(_) => true,
+            
+            // These are not pure when working with nested slices
+            ArrayGet { .. } | ArraySet { .. } => false,
 
             // Unclear why this instruction causes problems.
             Truncate { .. } => false,
@@ -509,6 +512,7 @@ impl Instruction {
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }

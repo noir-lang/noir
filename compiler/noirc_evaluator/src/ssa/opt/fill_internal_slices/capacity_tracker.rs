@@ -1,8 +1,9 @@
+
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    instruction::{Instruction, InstructionId, Intrinsic},
+    instruction::{Instruction, InstructionId, Intrinsic, TerminatorInstruction},
     types::Type,
-    value::{Value, ValueId},
+    value::{Value, ValueId}, basic_block::BasicBlockId,
 };
 
 use fxhash::FxHashMap as HashMap;
@@ -45,7 +46,7 @@ impl<'a> SliceCapacityTracker<'a> {
         // let results = self.inserter.function.dfg.instruction_results(instruction_id);
         // let instruction = &self.dfg[instruction_id];
         match instruction {
-            Instruction::ArrayGet { array, .. } => {
+            Instruction::ArrayGet { array, index } => {
                 let array_typ = self.dfg.type_of_value(*array);
                 let array_value = &self.dfg[*array];
                 // If we have an SSA value containing nested slices we should mark it
@@ -73,8 +74,16 @@ impl<'a> SliceCapacityTracker<'a> {
                             let inner_slice = slice_sizes.get(&slice_value).unwrap_or_else(|| {
                                 panic!("ICE: should have inner slice set for {slice_value}")
                             });
-                            slice_sizes.insert(results[0], inner_slice.clone());
-                            if slice_value != results[0] {
+                            let previous_res_size = slice_sizes.get(&results[0]);
+                            if let Some(previous_res_size) = previous_res_size {
+                                if inner_slice.0 > previous_res_size.0 {
+                                    slice_sizes.insert(results[0], inner_slice.clone());
+                                }
+                            } else {
+                                slice_sizes.insert(results[0], inner_slice.clone());
+                            }
+                            let resolved_result = self.resolve_slice_value(results[0]);
+                            if resolved_result != slice_value {
                                 self.mapped_slice_values.insert(slice_value, results[0]);
                             }
                         }
@@ -108,7 +117,14 @@ impl<'a> SliceCapacityTracker<'a> {
 
                     slice_sizes.insert(results[0], inner_sizes);
 
-                    self.mapped_slice_values.insert(*array, results[0]);
+                    if let Some(fetched_val) = self.mapped_slice_values.get(&results[0]) {
+                        if *fetched_val != *array {
+                            self.mapped_slice_values.insert(*array, results[0]);
+                        } 
+                    } else if *array != results[0] {
+                        self.mapped_slice_values.insert(*array, results[0]);
+                    }
+
                     self.slice_parents.insert(results[0], *array);
                 }
             }
@@ -148,8 +164,14 @@ impl<'a> SliceCapacityTracker<'a> {
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
 
-                                self.mapped_slice_values
-                                    .insert(slice_contents, results[result_index]);
+                                if let Some(fetched_val) = self.mapped_slice_values.get(&results[result_index]) {
+                                    if *fetched_val != slice_contents {
+                                        self.mapped_slice_values.insert(slice_contents, results[result_index]);
+                                    } 
+                                } else if slice_contents != results[result_index] {
+                                    self.mapped_slice_values.insert(slice_contents, results[result_index]);
+                                }
+
                                 self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
@@ -163,8 +185,15 @@ impl<'a> SliceCapacityTracker<'a> {
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
 
-                                self.mapped_slice_values
-                                    .insert(slice_contents, results[result_index]);
+                                if let Some(fetched_val) = self.mapped_slice_values.get(&results[result_index]) {
+                                    if *fetched_val != slice_contents {
+                                        dbg!(slice_contents == results[0]);
+                                        self.mapped_slice_values.insert(slice_contents, results[result_index]);
+                                    } 
+                                } else if slice_contents != results[result_index] {
+                                    self.mapped_slice_values.insert(slice_contents, results[result_index]);
+                                }
+
                                 self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
@@ -177,19 +206,30 @@ impl<'a> SliceCapacityTracker<'a> {
                 if value_typ.contains_slice_element() {
                     self.compute_slice_sizes(*value, slice_sizes);
 
-                    if let Some(inner_sizes) = slice_sizes.get(value) {
-                        let inner_sizes = inner_sizes.clone();
-                        slice_sizes.insert(*address, inner_sizes);
-                    }
+                    let mut inner_sizes = slice_sizes.get(value).unwrap_or_else(|| {
+                        panic!("ICE: should have inner slice set for value {value} being stored at {address}")
+                    }).clone();
+
+                    if let Some(previous_store) = slice_sizes.get(address) {
+                        inner_sizes.1.append(&mut previous_store.1.clone());
+                    } 
+
+                    slice_sizes.insert(*address, inner_sizes);
                 }
             }
             Instruction::Load { address } => {
                 let load_typ = self.dfg.type_of_value(*address);
                 if load_typ.contains_slice_element() {
-                    if let Some(inner_sizes) = slice_sizes.get(address) {
-                        let inner_sizes = inner_sizes.clone();
-                        slice_sizes.insert(results[0], inner_sizes);
+                    let result = results[0];
+                    let mut inner_sizes = slice_sizes.get(address).unwrap_or_else(|| {
+                        panic!("ICE: should have inner slice set at addres {address} being loaded into {result}")
+                    }).clone();
+
+                    if let Some(previous_load_value) = slice_sizes.get(&result) {
+                        inner_sizes.1.append(&mut previous_load_value.1.clone());
                     }
+
+                    slice_sizes.insert(result, inner_sizes);
                 }
             }
             _ => {}
@@ -200,7 +240,7 @@ impl<'a> SliceCapacityTracker<'a> {
     // The method also automatically computes the given max slice size
     // at each depth of the recursive type.
     // For example if we had a next slice
-    fn compute_slice_sizes(
+    pub(crate) fn compute_slice_sizes(
         &self,
         array_id: ValueId,
         slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
@@ -238,6 +278,17 @@ impl<'a> SliceCapacityTracker<'a> {
         }
     }
 
+    /// Resolves a ValueId representing a slice's contents to its updated value.
+    /// If there is no resolved value for the supplied value, the value which
+    /// was passed to the method is returned.
+    fn resolve_slice_value(&self, array_id: ValueId) -> ValueId {
+        let val = match self.mapped_slice_values.get(&array_id) {
+            Some(value) => self.resolve_slice_value(*value),
+            None => array_id,
+        };
+        val
+    }
+
     pub(crate) fn constant_nested_slices(&mut self) -> Vec<ValueId> {
         std::mem::take(&mut self.slice_values)
     }
@@ -250,3 +301,4 @@ impl<'a> SliceCapacityTracker<'a> {
         std::mem::take(&mut self.mapped_slice_values)
     }
 }
+

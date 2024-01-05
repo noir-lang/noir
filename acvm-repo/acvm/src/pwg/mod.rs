@@ -269,7 +269,15 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             }
             Opcode::MemoryOp { block_id, op, predicate } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
-                solver.solve_memory_op(op, &mut self.witness_map, predicate)
+                // dbg!(block_id.0);
+                let res = solver.solve_memory_op(op, &mut self.witness_map, predicate);
+                match res {
+                    Ok(_) => {},
+                    Err(_) => {
+                        dbg!(block_id.0);
+                    } 
+                }
+                res
             }
             Opcode::Brillig(_) => match self.solve_brillig_opcode() {
                 Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),

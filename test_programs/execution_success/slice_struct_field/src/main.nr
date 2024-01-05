@@ -28,7 +28,7 @@ fn main(y: pub Field) {
     let mut x = [foo_one, foo_two];
     x = x.push_back(foo_three);
     x = x.push_back(foo_four);
-    
+
     assert(x[y - 3].a == 1);
     let struct_slice = x[y - 3].b;
     for i in 0..4 {
@@ -75,7 +75,7 @@ fn main(y: pub Field) {
         x[y].a = 100;
     }
     assert(x[3].a == 50);
-    
+
     if y == 2 {
         x[y - 1].b = [50, 51, 52];
     } else {
@@ -91,7 +91,7 @@ fn main(y: pub Field) {
     let foo_parent_two = FooParent { parent_arr: [3, 4, 5], foos: q };
     let mut foo_parents = [foo_parent_one];
     foo_parents = foo_parents.push_back(foo_parent_two);
-    
+
     assert(foo_parents[y - 2].foos[y - 2].b[y - 1] == 21);
     foo_parents[y - 2].foos[y - 2].b[y - 1] = 5000;
     assert(foo_parents[y - 2].foos[y - 2].b[y - 1] == 5000);
@@ -119,7 +119,6 @@ fn main(y: pub Field) {
 
     // This slice should be altered from the if statement above
     let b_array = foo_parents[y - 2].foos[y - 1].b;
-    // dep::std::println(b_array[0]);
     assert(b_array[0] == 100);
     assert(b_array[1] == 101);
     assert(b_array[2] == 102);
@@ -172,7 +171,7 @@ fn main(y: pub Field) {
     assert(foo_parents[y - 2].foos.len() == 9);
 
     foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_back(foo_four);
-    assert(foo_parents[y - 2].foos.len() == 10); 
+    assert(foo_parents[y - 2].foos.len() == 10);
 
     let b_array = foo_parents[y - 2].foos[y - 1].b;
     assert(b_array[0] == 11);
@@ -257,6 +256,7 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(last_foo.b[1] == 15);
     assert(last_foo.b[2] == 16);
     assert(last_foo.bar.inner == [109, 110, 111]);
+    assert(foo_parents[1].foos[2].b.len() == 7);
 
     foo_parents[y - 2].foos = foo_parents[y - 2].foos.push_front(foo);
     assert(foo_parents[1].foos.len() == 6);
@@ -264,6 +264,23 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[0].b[0] == 14);
     assert(foo_parents[1].foos[0].b[1] == 15);
     assert(foo_parents[1].foos[0].b[2] == 16);
+    assert(foo_parents[1].foos[0].bar.inner == [109, 110, 111]);
+    assert(foo_parents[1].foos[3].b.len() == 7);
+
+    assert(foo_parents[1].foos[1].a == 1);
+    assert(foo_parents[1].foos[1].b[0] == 2);
+    assert(foo_parents[1].foos[1].b[1] == 3);
+    assert(foo_parents[1].foos[1].b[2] == 20);
+    assert(foo_parents[1].foos[1].b[3] == 20);
+    assert(foo_parents[1].foos[1].bar.inner == [100, 101, 102]);
+
+    assert(foo_parents[1].foos[2].a == 4);
+    assert(foo_parents[1].foos[2].b[0] == 5);
+    assert(foo_parents[1].foos[2].b[1] == 6);
+    assert(foo_parents[1].foos[2].b[2] == 5000);
+    assert(foo_parents[1].foos[2].b[3] == 21);
+    assert(foo_parents[1].foos[2].bar.inner == [103, 104, 105]);
+
     assert(foo_parents[1].foos[5].a == 10);
     assert(foo_parents[1].foos[5].b.len() == 3);
     assert(foo_parents[1].foos[5].b[0] == 11);
@@ -274,6 +291,22 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[1].bar.inner == [100, 101, 102]);
 
     let (first_foo, rest_of_slice) = foo_parents[y - 2].foos.pop_front();
+    // Test whether we can operate on the returned slice directly before setting it to another value
+    assert(rest_of_slice[0].a == 1);
+    assert(rest_of_slice[0].b.len() == 4);
+    assert(rest_of_slice[0].b[0] == 2);
+    assert(rest_of_slice[0].b[1] == 3);
+    assert(rest_of_slice[0].b[2] == 20);
+    assert(rest_of_slice[0].b[3] == 20);
+    assert(rest_of_slice[0].bar.inner == [100, 101, 102]);
+
+    assert(rest_of_slice[1].a == 4);
+    assert(rest_of_slice[1].b.len() == 4);
+    assert(rest_of_slice[1].b[0] == 5);
+    assert(rest_of_slice[1].b[1] == 6);
+    assert(rest_of_slice[1].b[2] == 5000);
+    assert(rest_of_slice[1].b[3] == 21);
+    assert(rest_of_slice[1].bar.inner == [103, 104, 105]);
 
     foo_parents[y - 2].foos = rest_of_slice;
     assert(first_foo.a == 40);
@@ -288,6 +321,14 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[0].b[2] == 20);
     assert(foo_parents[1].foos[0].b[3] == 20);
     assert(foo_parents[1].foos[0].bar.inner == [100, 101, 102]);
+
+    assert(foo_parents[1].foos[1].a == 4);
+    assert(foo_parents[1].foos[1].b.len() == 4);
+    assert(foo_parents[1].foos[1].b[0] == 5);
+    assert(foo_parents[1].foos[1].b[1] == 6);
+    assert(foo_parents[1].foos[1].b[2] == 5000);
+    assert(foo_parents[1].foos[1].b[3] == 21);
+    assert(foo_parents[1].foos[1].bar.inner == [103, 104, 105]);
 
     test_insert_remove_const_index(foo_parents, y, foo);
 
@@ -349,6 +390,29 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
 
     let (rest_of_slice, removed_elem) = foo_parents[y - 2].foos.remove(y - 1);
+
+    // Test whether we can operate on the returned slice directly before setting it to another value
+    assert(rest_of_slice[1].a == 4);
+    assert(rest_of_slice[1].b[0] == 5);
+    assert(rest_of_slice[1].b[1] == 6);
+    assert(rest_of_slice[1].b[2] == 5000);
+    assert(rest_of_slice[1].b[3] == 21);
+    assert(rest_of_slice[1].bar.inner == [103, 104, 105]);
+
+    assert(rest_of_slice[2].a == 50);
+    assert(rest_of_slice[2].b[0] == 5);
+    assert(rest_of_slice[2].b[2] == 5000);
+    assert(rest_of_slice[2].bar.inner == [106, 107, 108]);
+
+    assert(rest_of_slice[3].a == 50);
+    assert(rest_of_slice[3].b[0] == 11);
+    assert(rest_of_slice[3].b[2] == 23);
+    assert(rest_of_slice[3].bar.inner == [109, 110, 111]);
+
+    assert(rest_of_slice[4].b[0] == 11);
+    assert(rest_of_slice[4].b[2] == 23);
+    assert(rest_of_slice[4].bar.inner == [109, 110, 111]);
+
     foo_parents[1].foos = rest_of_slice;
 
     // Check that the accurate element was removed
@@ -369,7 +433,7 @@ fn test_complex_intrinsic_nested_slices(mut foo_parents: [FooParent], y: Field) 
     assert(foo_parents[1].foos[2].b[0] == 5);
     assert(foo_parents[1].foos[2].b[2] == 5000);
     assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
-    
+
     assert(foo_parents[1].foos[3].a == 50);
     assert(foo_parents[1].foos[3].b[0] == 11);
     assert(foo_parents[1].foos[3].b[2] == 23);
@@ -439,6 +503,29 @@ fn test_insert_remove_const_index(mut foo_parents: [FooParent], y: Field, foo: F
     assert(foo_parents[1].foos[5].bar.inner == [109, 110, 111]);
 
     let (rest_of_slice, removed_elem) = foo_parents[y - 2].foos.remove(2);
+
+    // Test whether we can operate on the returned slice directly before setting it to another value
+    assert(rest_of_slice[1].a == 4);
+    assert(rest_of_slice[1].b[0] == 5);
+    assert(rest_of_slice[1].b[1] == 6);
+    assert(rest_of_slice[1].b[2] == 5000);
+    assert(rest_of_slice[1].b[3] == 21);
+    assert(rest_of_slice[1].bar.inner == [103, 104, 105]);
+
+    assert(rest_of_slice[2].a == 50);
+    assert(rest_of_slice[2].b[0] == 5);
+    assert(rest_of_slice[2].b[2] == 5000);
+    assert(rest_of_slice[2].bar.inner == [106, 107, 108]);
+
+    assert(rest_of_slice[3].a == 50);
+    assert(rest_of_slice[3].b[0] == 11);
+    assert(rest_of_slice[3].b[2] == 23);
+    assert(rest_of_slice[3].bar.inner == [109, 110, 111]);
+
+    assert(rest_of_slice[4].b[0] == 11);
+    assert(rest_of_slice[4].b[2] == 23);
+    assert(rest_of_slice[4].bar.inner == [109, 110, 111]);
+
     foo_parents[1].foos = rest_of_slice;
 
     // Check that the accurate element was removed
@@ -459,7 +546,7 @@ fn test_insert_remove_const_index(mut foo_parents: [FooParent], y: Field, foo: F
     assert(foo_parents[1].foos[2].b[0] == 5);
     assert(foo_parents[1].foos[2].b[2] == 5000);
     assert(foo_parents[1].foos[2].bar.inner == [106, 107, 108]);
-    
+
     assert(foo_parents[1].foos[3].a == 50);
     assert(foo_parents[1].foos[3].b[0] == 11);
     assert(foo_parents[1].foos[3].b[2] == 23);

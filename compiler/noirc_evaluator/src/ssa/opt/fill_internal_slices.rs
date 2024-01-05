@@ -48,7 +48,7 @@ use crate::ssa::{
         dfg::CallStack,
         function::{Function, RuntimeType},
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId, Intrinsic},
+        instruction::{Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
@@ -99,6 +99,9 @@ struct Context<'f> {
 
     // Values containing nested slices to be replaced
     slice_values: Vec<ValueId>,
+
+    // This is set after collecting information from all instructions
+    nested_max: Option<usize>,
 }
 
 impl<'f> Context<'f> {
@@ -112,6 +115,7 @@ impl<'f> Context<'f> {
             mapped_slice_values: HashMap::default(),
             slice_parents: HashMap::default(),
             slice_values: Vec::new(),
+            nested_max: None,
         }
     }
 
@@ -144,9 +148,32 @@ impl<'f> Context<'f> {
         self.mapped_slice_values = capacity_tracker.slice_values_map();
         self.slice_parents = capacity_tracker.slice_parents_map();
 
+        // Compute slice nested max
+        // TODO: This can be optimized to better track the nested max only when necessary
+        // Here we assume the nested max throughout the program
+        let mut nested_max = 0;
+        for (slice_value, size_and_children) in slice_sizes.iter() {
+
+            let typ = self.inserter.function.dfg.type_of_value(*slice_value);
+            let depth = Self::compute_nested_slice_depth(&typ);
+
+            let mut max_sizes = Vec::new();
+            max_sizes.resize(depth, 0);
+    
+            max_sizes[0] = size_and_children.0;
+            self.compute_slice_max_sizes(*slice_value, &slice_sizes, &mut max_sizes, 1);
+
+            for size in max_sizes[1..].iter() {
+                if *size > nested_max {
+                    nested_max = *size;
+                }
+            }
+        }
+        self.nested_max = Some(nested_max);
+
         // Add back every instruction with the updated nested slices.
-        for instruction in instructions {
-            self.push_updated_instruction(instruction, &slice_sizes, block);
+        for instruction in instructions.iter() {
+            self.push_updated_instruction(*instruction, &slice_sizes, block);
         }
 
         self.inserter.map_terminator_in_place(block);
@@ -162,7 +189,7 @@ impl<'f> Context<'f> {
             Instruction::ArrayGet { array, .. } | Instruction::ArraySet { array, .. } => {
                 if self.slice_values.contains(array) {
                     let (new_array_op_instr, call_stack) =
-                        self.get_updated_array_op_instr(*array, slice_sizes, instruction);
+                        self.get_updated_array_op_instr(*array, instruction);
                     self.inserter.push_instruction_value(
                         new_array_op_instr,
                         instruction,
@@ -173,7 +200,7 @@ impl<'f> Context<'f> {
                     self.inserter.push_instruction(instruction, block);
                 }
             }
-            Instruction::Call { func: _, arguments } => {
+            Instruction::Call { func, arguments } => {
                 let mut args_to_replace = Vec::new();
                 for (i, arg) in arguments.iter().enumerate() {
                     let element_typ = self.inserter.function.dfg.type_of_value(*arg);
@@ -184,24 +211,12 @@ impl<'f> Context<'f> {
                 if args_to_replace.is_empty() {
                     self.inserter.push_instruction(instruction, block);
                 } else {
-                    // Using the original slice is ok to do as during collection of slice information
-                    // we guarantee that only the arguments to slice intrinsic calls can be replaced.
-                    let slice_contents = arguments[1];
-
                     let element_typ = self.inserter.function.dfg.type_of_value(arguments[1]);
-                    let elem_depth = Self::compute_nested_slice_depth(&element_typ);
-
-                    let mut max_sizes = Vec::new();
-                    max_sizes.resize(elem_depth, 0);
-                    // We want the max for the parent of the argument
-                    let parent = self.resolve_slice_parent(slice_contents);
-                    self.compute_slice_max_sizes(parent, slice_sizes, &mut max_sizes, 0);
-
+                    
                     for (index, arg) in args_to_replace {
                         let element_typ = self.inserter.function.dfg.type_of_value(arg);
-                        max_sizes.remove(0);
                         let new_array =
-                            self.attach_slice_dummies(&element_typ, Some(arg), false, &max_sizes);
+                            self.attach_slice_dummies(&element_typ, Some(arg), false, &[]);
 
                         let instruction_id = instruction;
                         let (instruction, call_stack) =
@@ -234,26 +249,11 @@ impl<'f> Context<'f> {
     fn get_updated_array_op_instr(
         &mut self,
         array_id: ValueId,
-        slice_sizes: &HashMap<ValueId, (usize, Vec<ValueId>)>,
         instruction: InstructionId,
     ) -> (Instruction, CallStack) {
-        let mapped_slice_value = self.resolve_slice_value(array_id);
-
-        let (current_size, _) = slice_sizes
-            .get(&mapped_slice_value)
-            .unwrap_or_else(|| panic!("should have slice sizes: {mapped_slice_value}"));
-
-        let mut max_sizes = Vec::new();
-
         let typ = self.inserter.function.dfg.type_of_value(array_id);
-        let depth = Self::compute_nested_slice_depth(&typ);
-        max_sizes.resize(depth, 0);
-
-        max_sizes[0] = *current_size;
-        self.compute_slice_max_sizes(array_id, slice_sizes, &mut max_sizes, 1);
-        // dbg!(max_sizes.clone());
-        let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &max_sizes);
-
+        
+        let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &[]);
         let instruction_id = instruction;
         let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
         let new_array_op_instr = match instruction {
@@ -299,13 +299,12 @@ impl<'f> Context<'f> {
                 }
             }
             Type::Slice(element_types) => {
-                let (current_size, max_sizes) =
-                    max_sizes.split_first().expect("ICE: Missing internal slice max size");
-                let mut max_size = *current_size;
-                if let Some(value) = value {
+                let mut max_size = self.nested_max.expect("ICE: should have nested max when attaching slice dummy data");
+
+                if let Some(value_id) = value {
                     let mut slice = im::Vector::new();
 
-                    let value = self.inserter.function.dfg[value].clone();
+                    let value = self.inserter.function.dfg[value_id].clone();
                     let array = match value {
                         Value::Array { array, .. } => array,
                         _ => {
@@ -316,6 +315,7 @@ impl<'f> Context<'f> {
                     if is_parent_slice {
                         max_size = array.len() / element_types.len();
                     }
+                    
                     for i in 0..max_size {
                         for (element_index, element_type) in element_types.iter().enumerate() {
                             let index_usize = i * element_types.len() + element_index;
@@ -392,10 +392,23 @@ impl<'f> Context<'f> {
     /// The depth follows the recursive type structure of a slice.
     fn compute_nested_slice_depth(typ: &Type) -> usize {
         let mut depth = 0;
-        if let Type::Slice(element_types) = typ {
-            depth += 1;
-            for typ in element_types.as_ref() {
-                depth += Self::compute_nested_slice_depth(typ);
+        match typ {
+            Type::Slice(element_types) => {
+                depth += 1;
+                for typ in element_types.as_ref() {
+                    depth += Self::compute_nested_slice_depth(typ);
+                }
+            }
+            Type::Reference(element) => {
+                depth += Self::compute_nested_slice_depth(element);
+            }
+            Type::Array(element_types, _) => {
+                for typ in element_types.as_ref() {
+                    depth += Self::compute_nested_slice_depth(typ);
+                }
+            }
+            _ => {
+                // Do nothing
             }
         }
         depth

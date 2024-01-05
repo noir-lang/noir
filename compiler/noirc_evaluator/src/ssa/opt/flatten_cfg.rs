@@ -157,6 +157,8 @@ pub(crate) mod value_merger;
 
 use value_merger::ValueMerger;
 
+use super::fill_internal_slices::capacity_tracker;
+
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
     /// single block containing all instructions and no more control-flow.
@@ -202,6 +204,7 @@ struct Context<'f> {
     slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct Store {
     old_value: ValueId,
     new_value: ValueId,
@@ -253,6 +256,16 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
+        // As recursively flatten inner blocks, we need to track the slice information
+        // for the outer block before we start recursively inlining 
+        let outer_block_instructions = self.inserter.function.dfg[block].instructions();
+        let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        for instruction in outer_block_instructions {
+            let results = self.inserter.function.dfg.instruction_results(*instruction);
+            let instruction = &self.inserter.function.dfg[*instruction];
+            capacity_tracker.collect_slice_information(instruction, &mut self.slice_sizes, results.to_vec())
+        }
+
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let old_condition = *condition;
@@ -468,6 +481,15 @@ impl<'f> Context<'f> {
         });
 
         let block = self.inserter.function.entry_block();
+
+        dbg!(args.clone());
+        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+
+        for (then_arg, else_arg) in args.iter() {
+            capacity_tracker.compute_slice_sizes(*then_arg, &mut self.slice_sizes);
+            capacity_tracker.compute_slice_sizes(*else_arg, &mut self.slice_sizes);
+        }
+
         let mut value_merger =
             ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
 
@@ -537,6 +559,16 @@ impl<'f> Context<'f> {
                     .insert(address, Store { old_value: *old_value, new_value: value });
             }
         }
+
+        // Collect any potential slice information on the stores we are merging
+        for (address, (_, _, _)) in &new_map {
+            let value = new_values[address];
+            let address = *address;
+            let instruction = Instruction::Store { address, value };
+
+            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+            capacity_tracker.collect_slice_information(&instruction, &mut self.slice_sizes, vec![]);
+        }
     }
 
     fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
@@ -547,6 +579,11 @@ impl<'f> Context<'f> {
                 let load = Instruction::Load { address };
                 let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
                 let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+
+                let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+                // Need this or else we will be missing slice stores that we wish to merge
+                let store = Instruction::Store { address: old_value, value: new_value };
+                capacity_tracker.collect_slice_information(&store, &mut self.slice_sizes, vec![]);
 
                 self.store_values.insert(address, Store { old_value, new_value });
             }
@@ -568,15 +605,12 @@ impl<'f> Context<'f> {
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
 
-        // let mut slice_sizes = std::mem::take(&mut self.slice_sizes);
         for instruction in instructions.iter() {
             let results = self.push_instruction(*instruction);
             let (instruction, _) = self.inserter.map_instruction(*instruction);
             let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
             capacity_tracker.collect_slice_information(&instruction, &mut self.slice_sizes, results);
         }
-
-        // std::mem::swap(&mut self.slice_sizes, &mut slice_sizes);
 
         self.handle_terminator(destination)
     }
@@ -736,6 +770,7 @@ impl<'f> Context<'f> {
         for (address, store) in &then_branch.store_values {
             let address = *address;
             let value = store.old_value;
+
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
         }
     }

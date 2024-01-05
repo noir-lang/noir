@@ -56,6 +56,8 @@ pub(crate) fn optimize_into_acir(
         // and this pass is missed, slice merging will fail inside of flattening.
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
+        // .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
+
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
@@ -69,6 +71,7 @@ pub(crate) fn optimize_into_acir(
     let ssa = ssa_builder
         .run_pass(Ssa::fill_internal_slices, "After Fill Internal Slice Dummy Data:")
         .finish();
+    // let ssa = ssa_builder.finish();
 
     let last_array_uses = ssa.find_last_array_uses();
     ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
