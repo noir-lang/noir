@@ -370,7 +370,7 @@ pub(crate) fn resolve_trait_impls(
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let interner = &mut context.def_interner;
-    let mut all_methods = Vec::<(FileId, FuncId)>::new();
+    let mut methods = Vec::<(FileId, FuncId)>::new();
 
     for trait_impl in traits {
         let unresolved_type = trait_impl.object_type;
@@ -460,9 +460,9 @@ pub(crate) fn resolve_trait_impls(
                 errors.push((error.into(), prev_file));
             }
 
-            all_methods.append(&mut impl_methods);
+            methods.append(&mut impl_methods);
         }
     }
 
-    all_methods
+    methods
 }
