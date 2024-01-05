@@ -144,9 +144,9 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
-        value::{Value, ValueId},
+        value::ValueId,
     },
     opt::fill_internal_slices::capacity_tracker::SliceCapacityTracker,
     ssa_gen::Ssa,
@@ -156,8 +156,6 @@ mod branch_analysis;
 pub(crate) mod value_merger;
 
 use value_merger::ValueMerger;
-
-use super::fill_internal_slices::capacity_tracker;
 
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
@@ -257,7 +255,7 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        // As recursively flatten inner blocks, we need to track the slice information
+        // As we recursively flatten inner blocks, we need to track the slice information
         // for the outer block before we start recursively inlining
         let outer_block_instructions = self.inserter.function.dfg[block].instructions();
         let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
@@ -268,7 +266,7 @@ impl<'f> Context<'f> {
                 instruction,
                 &mut self.slice_sizes,
                 results.to_vec(),
-            )
+            );
         }
 
         match self.inserter.function.dfg[block].unwrap_terminator() {

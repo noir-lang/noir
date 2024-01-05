@@ -1,7 +1,6 @@
 use crate::ssa::ir::{
-    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
-    instruction::{Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+    instruction::{Instruction, Intrinsic},
     types::Type,
     value::{Value, ValueId},
 };
@@ -46,7 +45,7 @@ impl<'a> SliceCapacityTracker<'a> {
         // let results = self.inserter.function.dfg.instruction_results(instruction_id);
         // let instruction = &self.dfg[instruction_id];
         match instruction {
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, .. } => {
                 let array_typ = self.dfg.type_of_value(*array);
                 let array_value = &self.dfg[*array];
                 // If we have an SSA value containing nested slices we should mark it

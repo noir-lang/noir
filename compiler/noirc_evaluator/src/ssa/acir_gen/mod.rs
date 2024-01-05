@@ -33,7 +33,7 @@ use acvm::{
     FieldElement,
 };
 use fxhash::FxHashMap as HashMap;
-use im::{vector, Vector};
+use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
@@ -683,7 +683,7 @@ impl Context {
     ) -> Result<bool, RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
         let value_type = dfg.type_of_value(array_id);
-        let (Type::Array(element_types, _) | Type::Slice(element_types)) = &value_type else {
+        let (Type::Array(_, _) | Type::Slice(_)) = &value_type else {
             unreachable!("ICE: expected array or slice type");
         };
 
@@ -727,23 +727,24 @@ impl Context {
                                 }
                                 None => {
                                     if index >= array_size {
-                                        let results = dfg.instruction_results(instruction);
-                                        let res_typ = dfg.type_of_value(results[0]);
+                                        // let results = dfg.instruction_results(instruction);
+                                        // let res_typ = dfg.type_of_value(results[0]);
 
-                                        if res_typ.contains_slice_element() {
-                                            self.compute_slice_sizes(array_id, None, dfg);
+                                        // if res_typ.contains_slice_element() {
+                                        //     self.compute_slice_sizes(array_id, None, dfg);
 
-                                            let slice_sizes = self
-                                                .slice_sizes
-                                                .get(&array_id)
-                                                .expect("ICE: Array with slices should have associated slice sizes");
+                                        //     let slice_sizes = self
+                                        //         .slice_sizes
+                                        //         .get(&array_id)
+                                        //         .expect("ICE: Array with slices should have associated slice sizes");
 
-                                            let slice_sizes = slice_sizes[1..].to_vec();
+                                        //     let slice_sizes = slice_sizes[1..].to_vec();
 
-                                            self.construct_dummy_array_value(&res_typ, &slice_sizes)
-                                        } else {
-                                            self.construct_dummy_array_value(&res_typ, &[])
-                                        }
+                                        //     self.construct_dummy_array_value(&res_typ, &slice_sizes)
+                                        // } else {
+                                        //     self.construct_dummy_array_value(&res_typ, &[])
+                                        // }
+                                        self.construct_dummy_slice_value(instruction, dfg, array_id)
                                     } else {
                                         array[index].clone()
                                     }
@@ -759,25 +760,16 @@ impl Context {
                         self.define_result(dfg, instruction, array[index].clone());
                         return Ok(true);
                     }
-                    // If there is a predicate and the index is out of range for a slice we should still directly create dummy data
-                    else {
+                    // If there is a non constant predicate and the index is out of range for a slice we should still directly create dummy data
+                    // These situations should only happen during flattening of slices when the same slice after an if statement
+                    // would have different lengths depending upon the condition
+                    else if index >= array_size
+                        && value_type.contains_slice_element()
+                        && store_value.is_none()
+                    {
                         if index >= array_size {
-                            let results = dfg.instruction_results(instruction);
-                            let res_typ = dfg.type_of_value(results[0]);
-
-                            let value = if res_typ.contains_slice_element() {
-                                self.compute_slice_sizes(array_id, None, dfg);
-
-                                let slice_sizes = self.slice_sizes.get(&array_id).expect(
-                                    "ICE: Array with slices should have associated slice sizes",
-                                );
-
-                                let slice_sizes = slice_sizes[1..].to_vec();
-
-                                self.construct_dummy_array_value(&res_typ, &slice_sizes)
-                            } else {
-                                self.construct_dummy_array_value(&res_typ, &[])
-                            };
+                            let value =
+                                self.construct_dummy_slice_value(instruction, dfg, array_id);
 
                             self.define_result(dfg, instruction, value);
                             return Ok(true);
@@ -802,22 +794,7 @@ impl Context {
                     };
 
                     if index >= len {
-                        let results = dfg.instruction_results(instruction);
-                        let res_typ = dfg.type_of_value(results[0]);
-
-                        let value = if res_typ.contains_slice_element() {
-                            self.compute_slice_sizes(array_id, None, dfg);
-
-                            let slice_sizes = self.slice_sizes.get(&array_id).expect(
-                                "ICE: Array with slices should have associated slice sizes",
-                            );
-
-                            let slice_sizes = slice_sizes[1..].to_vec();
-
-                            self.construct_dummy_array_value(&res_typ, &slice_sizes)
-                        } else {
-                            self.construct_dummy_array_value(&res_typ, &[])
-                        };
+                        let value = self.construct_dummy_slice_value(instruction, dfg, array_id);
 
                         self.define_result(dfg, instruction, value);
                         return Ok(true);
@@ -1076,6 +1053,30 @@ impl Context {
                 Ok(AcirValue::Array(values))
             }
             _ => unreachable!("ICE - expected an array or slice"),
+        }
+    }
+
+    fn construct_dummy_slice_value(
+        &mut self,
+        instruction: InstructionId,
+        dfg: &DataFlowGraph,
+        array_id: ValueId,
+    ) -> AcirValue {
+        let results = dfg.instruction_results(instruction);
+        let res_typ = dfg.type_of_value(results[0]);
+        if res_typ.contains_slice_element() {
+            self.compute_slice_sizes(array_id, None, dfg);
+
+            let slice_sizes = self
+                .slice_sizes
+                .get(&array_id)
+                .expect("ICE: Array with slices should have associated slice sizes");
+
+            let slice_sizes = slice_sizes[1..].to_vec();
+
+            self.construct_dummy_array_value(&res_typ, &slice_sizes)
+        } else {
+            self.construct_dummy_array_value(&res_typ, &[])
         }
     }
 
@@ -1975,7 +1976,6 @@ impl Context {
                 // The dummy data is either attached during SSA gen or in this match case for non-nested slices.
                 // These values can then be accessed due to the increased dynamic slice length.
                 for elem in elements_to_push {
-                    let elem_typ = dfg.type_of_value(*elem);
                     let element = self.convert_value(*elem, dfg);
                     self.array_set_value(&element, result_block_id, &mut var_index)?;
                 }
@@ -2190,7 +2190,6 @@ impl Context {
                     self.check_array_is_initialized(arguments[1], dfg)?;
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let new_slice_size = Self::flattened_value_size(&slice);
 
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;

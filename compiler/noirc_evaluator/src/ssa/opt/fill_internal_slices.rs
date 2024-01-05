@@ -48,7 +48,7 @@ use crate::ssa::{
         dfg::CallStack,
         function::{Function, RuntimeType},
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        instruction::{Instruction, InstructionId},
         post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
@@ -173,18 +173,13 @@ impl<'f> Context<'f> {
 
         // Add back every instruction with the updated nested slices.
         for instruction in instructions.iter() {
-            self.push_updated_instruction(*instruction, &slice_sizes, block);
+            self.push_updated_instruction(*instruction, block);
         }
 
         self.inserter.map_terminator_in_place(block);
     }
 
-    fn push_updated_instruction(
-        &mut self,
-        instruction: InstructionId,
-        slice_sizes: &HashMap<ValueId, (usize, Vec<ValueId>)>,
-        block: BasicBlockId,
-    ) {
+    fn push_updated_instruction(&mut self, instruction: InstructionId, block: BasicBlockId) {
         match &self.inserter.function.dfg[instruction] {
             Instruction::ArrayGet { array, .. } | Instruction::ArraySet { array, .. } => {
                 if self.slice_values.contains(array) {
@@ -200,7 +195,7 @@ impl<'f> Context<'f> {
                     self.inserter.push_instruction(instruction, block);
                 }
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { arguments, .. } => {
                 let mut args_to_replace = Vec::new();
                 for (i, arg) in arguments.iter().enumerate() {
                     let element_typ = self.inserter.function.dfg.type_of_value(*arg);
@@ -211,12 +206,9 @@ impl<'f> Context<'f> {
                 if args_to_replace.is_empty() {
                     self.inserter.push_instruction(instruction, block);
                 } else {
-                    let element_typ = self.inserter.function.dfg.type_of_value(arguments[1]);
-
                     for (index, arg) in args_to_replace {
                         let element_typ = self.inserter.function.dfg.type_of_value(arg);
-                        let new_array =
-                            self.attach_slice_dummies(&element_typ, Some(arg), false, &[]);
+                        let new_array = self.attach_slice_dummies(&element_typ, Some(arg), false);
 
                         let instruction_id = instruction;
                         let (instruction, call_stack) =
@@ -253,7 +245,7 @@ impl<'f> Context<'f> {
     ) -> (Instruction, CallStack) {
         let typ = self.inserter.function.dfg.type_of_value(array_id);
 
-        let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &[]);
+        let new_array = self.attach_slice_dummies(&typ, Some(array_id), true);
         let instruction_id = instruction;
         let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
         let new_array_op_instr = match instruction {
@@ -274,7 +266,6 @@ impl<'f> Context<'f> {
         typ: &Type,
         value: Option<ValueId>,
         is_parent_slice: bool,
-        max_sizes: &[usize],
     ) -> ValueId {
         match typ {
             Type::Numeric(_) => {
@@ -292,7 +283,7 @@ impl<'f> Context<'f> {
                     let mut array = im::Vector::new();
                     for _ in 0..*len {
                         for typ in element_types.iter() {
-                            array.push_back(self.attach_slice_dummies(typ, None, false, max_sizes));
+                            array.push_back(self.attach_slice_dummies(typ, None, false));
                         }
                     }
                     self.inserter.function.dfg.make_array(array, typ.clone())
@@ -328,7 +319,6 @@ impl<'f> Context<'f> {
                                 element_type,
                                 maybe_value,
                                 false,
-                                max_sizes,
                             ));
                         }
                     }
@@ -338,7 +328,7 @@ impl<'f> Context<'f> {
                     let mut slice = im::Vector::new();
                     for _ in 0..max_size {
                         for typ in element_types.iter() {
-                            slice.push_back(self.attach_slice_dummies(typ, None, false, max_sizes));
+                            slice.push_back(self.attach_slice_dummies(typ, None, false));
                         }
                     }
                     self.inserter.function.dfg.make_array(slice, typ.clone())

@@ -215,30 +215,27 @@ impl<'a> ValueMerger<'a> {
                             .first()
                     };
 
-                    match element_type {
-                        Type::Slice(_) => {
-                            let inner_sizes = self
-                                .slice_sizes
-                                .get_mut(&array)
-                                .unwrap_or_else(|| panic!("should have slice sizes"));
+                    if let Type::Slice(_) = element_type {
+                        let inner_sizes = self
+                            .slice_sizes
+                            .get_mut(&array)
+                            .unwrap_or_else(|| panic!("should have slice sizes"));
 
-                            let inner_sizes_iter = inner_sizes.1.clone();
-                            for slice_value in inner_sizes_iter {
-                                let inner_slice =
-                                    self.slice_sizes.get(&slice_value).unwrap_or_else(|| {
-                                        panic!("ICE: should have inner slice set for {slice_value}")
-                                    });
-                                let previous_res_size = self.slice_sizes.get(&res);
-                                if let Some(previous_res_size) = previous_res_size {
-                                    if inner_slice.0 > previous_res_size.0 {
-                                        self.slice_sizes.insert(res, inner_slice.clone());
-                                    }
-                                } else {
+                        let inner_sizes_iter = inner_sizes.1.clone();
+                        for slice_value in inner_sizes_iter {
+                            let inner_slice =
+                                self.slice_sizes.get(&slice_value).unwrap_or_else(|| {
+                                    panic!("ICE: should have inner slice set for {slice_value}")
+                                });
+                            let previous_res_size = self.slice_sizes.get(&res);
+                            if let Some(previous_res_size) = previous_res_size {
+                                if inner_slice.0 > previous_res_size.0 {
                                     self.slice_sizes.insert(res, inner_slice.clone());
                                 }
+                            } else {
+                                self.slice_sizes.insert(res, inner_slice.clone());
                             }
                         }
-                        _ => {}
                     }
 
                     res
