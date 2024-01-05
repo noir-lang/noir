@@ -308,17 +308,19 @@ class MergeRollupInputs {
 MergeRollupInputs *-- ChildRollupData: left
 MergeRollupInputs *-- ChildRollupData: right
 
+
 class RootRollupInputs { 
-    l1_to_l2_msgs_tree: Snapshot
     l1_to_l2_msgs: List~Fr~
     l1_to_l2_msgs_sibling_path: List~Fr~
-
+    parent: Header,
+    parent_sibling_path: List~Fr~
     archive_sibling_path: List~Fr~
     left: ChildRollupData
     right: ChildRollupData
 }
 RootRollupInputs *-- ChildRollupData: left
 RootRollupInputs *-- ChildRollupData: right
+RootRollupInputs *-- Header : parent
 
 
 class RootRollupPublicInputs {
@@ -428,7 +430,7 @@ graph BT
     K2[l2_to_l1_msgs 1.0]
     K3[l2_to_l1_msgs 1.1]
     K4[l2_to_l1_msgs 2.0]
-    K5[TxEffect 2.1]
+    K5[l2_to_l1_msgs 2.1]
     K6[l2_to_l1_msgs 3.0]
     K7[l2_to_l1_msgs 3.1]
 
