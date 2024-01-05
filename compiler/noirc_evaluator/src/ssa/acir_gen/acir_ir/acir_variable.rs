@@ -1503,10 +1503,7 @@ impl AcirContext {
                     self.initialize_array_inner(witnesses, value)?;
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, element_type_sizes }) => {
-                dbg!(block_id.0);
-                dbg!(len);
-                dbg!(input.clone());
+            AcirValue::DynamicArray(_) => {
                 unreachable!("Dynamic array should already be initialized");
             }
         }
