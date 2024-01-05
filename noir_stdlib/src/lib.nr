@@ -19,6 +19,9 @@ mod compat;
 mod option;
 mod string;
 mod test;
+mod cmp;
+mod ops;
+mod default;
 mod prelude;
 
 // Oracle calls are required to be wrapped in an unconstrained function

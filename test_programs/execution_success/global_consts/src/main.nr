@@ -55,17 +55,17 @@ fn main(
     let t: [Field; T_LEN] = [N, M];
     assert(t[1] == 32);
 
-    assert(15 == mysubmodule::my_helper());
+    assert(15 == my_submodule::my_helper());
 
-    let add_submodules_N = mysubmodule::N + foo::bar::N;
+    let add_submodules_N = my_submodule::N + foo::bar::N;
     assert(15 == add_submodules_N);
-    let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
+    let add_from_bar_N = my_submodule::N + foo::bar::from_bar(1);
     assert(15 == add_from_bar_N);
-    // Example showing an array filled with (mysubmodule::N + 2) 0's
-    let sugared = [0; mysubmodule::N + 2];
-    assert(sugared[mysubmodule::N + 1] == 0);
+    // Example showing an array filled with (my_submodule::N + 2) 0's
+    let sugared = [0; my_submodule::N + 2];
+    assert(sugared[my_submodule::N + 1] == 0);
 
-    let arr: [Field; mysubmodule::N] = [N; 10];
+    let arr: [Field; my_submodule::N] = [N; 10];
     assert((arr[0] == 5) & (arr[9] == 5));
 
     foo::from_foo(d);
@@ -80,7 +80,7 @@ fn arrays_neq(a: [Field; M], b: [Field; M]) {
     assert(a != b);
 }
 
-mod mysubmodule {
+mod my_submodule {
     global N: Field = 10;
     global L: Field = 50;
 

@@ -3,15 +3,16 @@ use std::io::Write;
 use std::path::Path;
 
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
+use acvm::ExpressionWidth;
 use acvm::FieldElement;
-use acvm::Language;
 use tempfile::tempdir;
+use tracing::warn;
 
 use crate::cli::{
     GatesCommand, InfoCommand, ProofAsFieldsCommand, ProveCommand, VerifyCommand,
     VkAsFieldsCommand, WriteVkCommand,
 };
-use crate::{Backend, BackendError, BackendOpcodeSupport};
+use crate::{Backend, BackendError};
 
 impl Backend {
     pub fn get_exact_circuit_size(&self, circuit: &Circuit) -> Result<u32, BackendError> {
@@ -30,24 +31,26 @@ impl Backend {
             .run(binary_path)
     }
 
-    pub fn get_backend_info(&self) -> Result<(Language, BackendOpcodeSupport), BackendError> {
+    pub fn get_backend_info(&self) -> Result<ExpressionWidth, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
         InfoCommand { crs_path: self.crs_directory() }.run(binary_path)
     }
 
-    /// If we cannot get a valid backend, returns the default backend which supports all the opcodes
-    /// and uses Plonk with width 3
+    /// If we cannot get a valid backend, returns `ExpressionWidth::Bound { width: 3 }``
     /// The function also prints a message saying we could not find a backend
-    pub fn get_backend_info_or_default(&self) -> (Language, BackendOpcodeSupport) {
-        if let Ok(backend_info) = self.get_backend_info() {
-            (backend_info.0, backend_info.1)
+    pub fn get_backend_info_or_default(&self) -> ExpressionWidth {
+        if let Ok(expression_width) = self.get_backend_info() {
+            expression_width
         } else {
-            log::warn!("No valid backend found, defaulting to Plonk with width 3 and all opcodes supported");
-            (Language::PLONKCSat { width: 3 }, BackendOpcodeSupport::all())
+            warn!(
+                "No valid backend found, ExpressionWidth defaulting to Bounded with a width of 3"
+            );
+            ExpressionWidth::Bounded { width: 3 }
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn prove(
         &self,
         circuit: &Circuit,
@@ -88,6 +91,7 @@ impl Backend {
         Ok(proof)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn verify(
         &self,
         proof: &[u8],

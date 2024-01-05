@@ -2,6 +2,7 @@ use ark_ff::PrimeField;
 use ark_ff::Zero;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
@@ -125,8 +126,8 @@ impl<'de, T: ark_ff::PrimeField> Deserialize<'de> for FieldElement<T> {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = <&str>::deserialize(deserializer)?;
-        match Self::from_hex(s) {
+        let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
+        match Self::from_hex(&s) {
             Some(value) => Ok(value),
             None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {s}",))),
         }

@@ -6,14 +6,25 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build-dependencies]
+build-data.workspace = true
 
 [dependencies]
 acvm.workspace = true
 nargo.workspace = true
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
+noirc_driver.workspace = true
+fm.workspace = true
 thiserror.workspace = true
 codespan-reporting.workspace = true
+dap.workspace = true
 easy-repl = "0.2.1"
 owo-colors = "3"
+serde_json.workspace = true
+
+[dev-dependencies]
+assert_cmd = "2.0.12"
+rexpect = "0.5.0"
+test-binary = "3.0.1"
+tempfile.workspace = true

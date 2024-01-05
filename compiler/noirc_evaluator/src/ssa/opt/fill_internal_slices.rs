@@ -64,6 +64,7 @@ use self::capacity_tracker::SliceCapacityTracker;
 pub(crate) mod capacity_tracker;
 
 impl Ssa {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fill_internal_slices(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             // This pass is only necessary for generating ACIR and thus we should not

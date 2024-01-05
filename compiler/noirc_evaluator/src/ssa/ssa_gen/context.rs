@@ -326,8 +326,8 @@ impl<'a> FunctionContext<'a> {
                         self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
                         self.builder.insert_cast(result, result_type)
                     }
-                    BinaryOpKind::ShiftLeft => {
-                        unreachable!("shift is not supported for signed integer")
+                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
+                        self.check_shift_overflow(result, rhs, bit_size, location, true)
                     }
                     _ => unreachable!("operator {} should not overflow", operator),
                 }
@@ -343,16 +343,17 @@ impl<'a> FunctionContext<'a> {
 
                 if operator == BinaryOpKind::Multiply && bit_size == 1 {
                     result
-                } else if operator == BinaryOpKind::ShiftLeft {
-                    self.check_left_shift_overflow(result, rhs, bit_size, location)
+                } else if operator == BinaryOpKind::ShiftLeft
+                    || operator == BinaryOpKind::ShiftRight
+                {
+                    self.check_shift_overflow(result, rhs, bit_size, location, false)
                 } else {
                     let message = format!("attempt to {} with overflow", op_name);
-                    let range_constraint = Instruction::RangeCheck {
-                        value: result,
-                        max_bit_size: bit_size,
-                        assert_message: Some(message),
-                    };
-                    self.builder.set_location(location).insert_instruction(range_constraint, None);
+                    self.builder.set_location(location).insert_range_check(
+                        result,
+                        bit_size,
+                        Some(message),
+                    );
                     result
                 }
             }
@@ -360,26 +361,44 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Overflow checks for shift-left
-    /// We use Rust behavior for shift left:
+    /// Overflow checks for bit-shift
+    /// We use Rust behavior for bit-shift:
     /// If rhs is more or equal than the bit size, then we overflow
-    /// If not, we do not overflow and shift left with 0 when bits are falling out of the bit size
-    fn check_left_shift_overflow(
+    /// If not, we do not overflow and shift with 0 when bits are falling out of the bit size
+    fn check_shift_overflow(
         &mut self,
         result: ValueId,
         rhs: ValueId,
         bit_size: u32,
         location: Location,
+        is_signed: bool,
     ) -> ValueId {
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
+        let rhs =
+            if is_signed { self.builder.insert_cast(rhs, Type::unsigned(bit_size)) } else { rhs };
+        // Bit-shift with a negative number is an overflow
+        if is_signed {
+            // We compute the sign of rhs.
+            let half_width = self.builder.numeric_constant(
+                FieldElement::from(2_i128.pow(bit_size - 1)),
+                Type::unsigned(bit_size),
+            );
+            let sign = self.builder.insert_binary(rhs, BinaryOp::Lt, half_width);
+            self.builder.set_location(location).insert_constrain(
+                sign,
+                one,
+                Some("attempt to bit-shift with overflow".to_string()),
+            );
+        }
+
         let max = self
             .builder
             .numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(bit_size));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
-        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
         self.builder.set_location(location).insert_constrain(
             overflow,
             one,
-            Some("attempt to left shift with overflow".to_owned()),
+            Some("attempt to bit-shift with overflow".to_owned()),
         );
         self.builder.insert_truncate(result, bit_size, bit_size + 1)
     }
@@ -444,12 +463,11 @@ impl<'a> FunctionContext<'a> {
                 let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
                 // It must not already overflow the bit_size
                 let message = "attempt to multiply with overflow".to_string();
-                let size_overflow = Instruction::RangeCheck {
-                    value: product_field,
-                    max_bit_size: bit_size,
-                    assert_message: Some(message.clone()),
-                };
-                self.builder.set_location(location).insert_instruction(size_overflow, None);
+                self.builder.set_location(location).insert_range_check(
+                    product_field,
+                    bit_size,
+                    Some(message.clone()),
+                );
                 let product = self.builder.insert_cast(product_field, Type::unsigned(bit_size));
 
                 // Then we check the signed product fits in a signed integer of bit_size-bits
@@ -466,7 +484,6 @@ impl<'a> FunctionContext<'a> {
                     Some(message),
                 );
             }
-            BinaryOpKind::ShiftLeft => unreachable!("shift is not supported for signed integer"),
             _ => unreachable!("operator {} should not overflow", operator),
         }
     }
@@ -482,19 +499,26 @@ impl<'a> FunctionContext<'a> {
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
+        let result_type = self.builder.type_of_value(lhs);
         let mut result = match operator {
             BinaryOpKind::ShiftLeft => {
-                let result_type = self.builder.current_function.dfg.type_of_value(lhs);
                 let bit_size = match result_type {
                     Type::Numeric(NumericType::Signed { bit_size })
                     | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                    _ => unreachable!("ICE: Truncation attempted on non-integer"),
+                    _ => unreachable!("ICE: left-shift attempted on non-integer"),
                 };
                 self.builder.insert_wrapping_shift_left(lhs, rhs, bit_size)
             }
-            BinaryOpKind::ShiftRight => self.builder.insert_shift_right(lhs, rhs),
+            BinaryOpKind::ShiftRight => {
+                let bit_size = match result_type {
+                    Type::Numeric(NumericType::Signed { bit_size })
+                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
+                    _ => unreachable!("ICE: right-shift attempted on non-integer"),
+                };
+                self.builder.insert_shift_right(lhs, rhs, bit_size)
+            }
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
-                if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>
+                if matches!(result_type, Type::Array(..)) =>
             {
                 return self.insert_array_equality(lhs, operator, rhs, location)
             }

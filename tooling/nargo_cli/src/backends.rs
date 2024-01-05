@@ -7,7 +7,7 @@ fn active_backend_file_path() -> PathBuf {
     backends_directory().join(".selected_backend")
 }
 
-pub(crate) const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
+pub(crate) use backend_interface::ACVM_BACKEND_BARRETENBERG;
 
 pub(crate) fn clear_active_backend() {
     let active_backend_file = active_backend_file_path();

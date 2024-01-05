@@ -52,6 +52,7 @@ struct DefunctionalizationContext {
 }
 
 impl Ssa {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn defunctionalize(mut self) -> Ssa {
         // Find all functions used as value that share the same signature
         let variants = find_variants(&self);

@@ -21,8 +21,8 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAliasType,
-    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
+    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -109,6 +109,12 @@ pub struct NodeInterner {
     /// an Assumed (but verified) impl. In this case the monomorphizer should have
     /// the context to get the concrete type of the object and select the correct impl itself.
     selected_trait_implementations: HashMap<ExprId, TraitImplKind>,
+
+    /// Holds the trait ids of the traits used for operator overloading
+    operator_traits: HashMap<BinaryOpKind, TraitId>,
+
+    /// The `Ordering` type is a semi-builtin type that is the result of the comparison traits.
+    ordering_type: Option<Type>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -423,6 +429,8 @@ impl Default for NodeInterner {
             trait_implementations: Vec::new(),
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
+            operator_traits: HashMap::new(),
+            ordering_type: None,
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
@@ -460,6 +468,7 @@ impl NodeInterner {
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
     /// of each items [Span]
+    #[tracing::instrument(skip(self))]
     pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
@@ -489,28 +498,31 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
         let self_type_typevar_id = self.next_type_variable_id();
 
-        self.traits.insert(
-            type_id,
-            Trait::new(
-                type_id,
-                typ.trait_def.name.clone(),
-                typ.crate_id,
-                typ.trait_def.span,
-                vecmap(&typ.trait_def.generics, |_| {
-                    // Temporary type variable ids before the trait is resolved to its actual ids.
-                    // This lets us record how many arguments the type expects so that other types
-                    // can refer to it with generic arguments before the generic parameters themselves
-                    // are resolved.
-                    let id = TypeVariableId(0);
-                    (id, TypeVariable::unbound(id))
-                }),
-                self_type_typevar_id,
-                TypeVariable::unbound(self_type_typevar_id),
-            ),
-        );
+        let new_trait = Trait {
+            id: type_id,
+            name: unresolved_trait.trait_def.name.clone(),
+            crate_id: unresolved_trait.crate_id,
+            location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
+            generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
+                // Temporary type variable ids before the trait is resolved to its actual ids.
+                // This lets us record how many arguments the type expects so that other types
+                // can refer to it with generic arguments before the generic parameters themselves
+                // are resolved.
+                let id = TypeVariableId(0);
+                (id, TypeVariable::unbound(id))
+            }),
+            self_type_typevar_id,
+            self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
+            methods: Vec::new(),
+            method_ids: unresolved_trait.method_ids.clone(),
+            constants: Vec::new(),
+            types: Vec::new(),
+        };
+
+        self.traits.insert(type_id, new_trait);
     }
 
     pub fn new_struct(
@@ -1131,6 +1143,7 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
+    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
@@ -1251,21 +1264,27 @@ impl NodeInterner {
     /// Tags the given identifier with the selected trait_impl so that monomorphization
     /// can later recover which impl was selected, or alternatively see if it needs to
     /// decide which impl to select (because the impl was Assumed).
-    pub fn select_impl_for_ident(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
+    pub fn select_impl_for_expression(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Tags the given identifier with the selected trait_impl so that monomorphization
-    /// can later recover which impl was selected, or alternatively see if it needs to
-    /// decide which (because the impl was Assumed).
-    pub fn get_selected_impl_for_ident(&self, ident_id: ExprId) -> Option<TraitImplKind> {
+    /// Retrieves the impl selected for a given ExprId during name resolution.
+    pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
+    }
+
+    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
+    /// Returns [None] when definition is not found.
+    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
+        self.find_location_index(location)
+            .and_then(|index| self.resolve_location(index))
+            .or_else(|| self.try_resolve_trait_impl_location(location))
     }
 
     /// For a given [Index] we return [Location] to which we resolved to
     /// We currently return None for features not yet implemented
     /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
-    pub(crate) fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
+    fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
         let node = self.nodes.get(index.into())?;
 
         match node {
@@ -1290,8 +1309,147 @@ impl NodeInterner {
                     _ => None,
                 }
             }
+            HirExpression::Constructor(expr) => {
+                let struct_type = &expr.r#type.borrow();
+                Some(struct_type.location)
+            }
+            HirExpression::MemberAccess(expr_member_access) => {
+                self.resolve_struct_member_access(expr_member_access)
+            }
+            HirExpression::Call(expr_call) => {
+                let func = expr_call.func;
+                self.resolve_location(func)
+            }
+
             _ => None,
         }
+    }
+
+    /// Resolves the [Location] of the definition for a given [crate::hir_def::expr::HirMemberAccess]
+    /// This is used to resolve the location of a struct member access.
+    /// For example, in the expression `foo.bar` we want to resolve the location of `bar`
+    /// to the location of the definition of `bar` in the struct `foo`.
+    fn resolve_struct_member_access(
+        &self,
+        expr_member_access: &crate::hir_def::expr::HirMemberAccess,
+    ) -> Option<Location> {
+        let expr_lhs = &expr_member_access.lhs;
+        let expr_rhs = &expr_member_access.rhs;
+
+        let lhs_self_struct = match self.id_type(expr_lhs) {
+            Type::Struct(struct_type, _) => struct_type,
+            _ => return None,
+        };
+
+        let struct_type = lhs_self_struct.borrow();
+        let field_names = struct_type.field_names();
+
+        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
+            Location::new(found_field_name.span(), struct_type.location.file)
+        })
+    }
+
+    /// Retrieves the trait id for a given binary operator.
+    /// All binary operators correspond to a trait - although multiple may correspond
+    /// to the same trait (such as `==` and `!=`).
+    /// `self.operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
+        let trait_id = self.operator_traits[&operator];
+
+        // Assume that the operator's method to be overloaded is the first method of the trait.
+        TraitMethodId { trait_id, method_index: 0 }
+    }
+
+    /// Add the given trait as an operator trait if its name matches one of the
+    /// operator trait names (Add, Sub, ...).
+    pub fn try_add_operator_trait(&mut self, trait_id: TraitId) {
+        let the_trait = self.get_trait(trait_id);
+
+        let operator = match the_trait.name.0.contents.as_str() {
+            "Add" => BinaryOpKind::Add,
+            "Sub" => BinaryOpKind::Subtract,
+            "Mul" => BinaryOpKind::Multiply,
+            "Div" => BinaryOpKind::Divide,
+            "Rem" => BinaryOpKind::Modulo,
+            "Eq" => BinaryOpKind::Equal,
+            "Ord" => BinaryOpKind::Less,
+            "BitAnd" => BinaryOpKind::And,
+            "BitOr" => BinaryOpKind::Or,
+            "BitXor" => BinaryOpKind::Xor,
+            "Shl" => BinaryOpKind::ShiftLeft,
+            "Shr" => BinaryOpKind::ShiftRight,
+            _ => return,
+        };
+
+        self.operator_traits.insert(operator, trait_id);
+
+        // Some operators also require we insert a matching entry for related operators
+        match operator {
+            BinaryOpKind::Equal => {
+                self.operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
+            }
+            BinaryOpKind::Less => {
+                self.operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
+                self.operator_traits.insert(BinaryOpKind::Greater, trait_id);
+                self.operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
+
+                let the_trait = self.get_trait(trait_id);
+                self.ordering_type = match &the_trait.methods[0].typ {
+                    Type::Forall(_, typ) => match typ.as_ref() {
+                        Type::Function(_, return_type, _) => Some(return_type.as_ref().clone()),
+                        other => unreachable!("Expected function type for `cmp`, found {}", other),
+                    },
+                    other => unreachable!("Expected Forall type for `cmp`, found {}", other),
+                };
+            }
+            _ => (),
+        }
+    }
+
+    /// This function is needed when creating a NodeInterner for testing so that calls
+    /// to `get_operator_trait` do not panic when the stdlib isn't present.
+    #[cfg(test)]
+    pub fn populate_dummy_operator_traits(&mut self) {
+        let dummy_trait = TraitId(ModuleId::dummy_id());
+        self.operator_traits.insert(BinaryOpKind::Add, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Less, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::And, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Or, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
+        self.operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+    }
+
+    pub(crate) fn ordering_type(&self) -> Type {
+        self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
+    }
+
+    /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
+    /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
+    ///
+    /// Example:
+    /// impl Foo for Bar { ... } -> trait Foo { ... }
+    fn try_resolve_trait_impl_location(&self, location: Location) -> Option<Location> {
+        self.trait_implementations
+            .iter()
+            .find(|shared_trait_impl| {
+                let trait_impl = shared_trait_impl.borrow();
+                trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
+            })
+            .and_then(|shared_trait_impl| {
+                let trait_impl = shared_trait_impl.borrow();
+                self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
+            })
     }
 }
 
