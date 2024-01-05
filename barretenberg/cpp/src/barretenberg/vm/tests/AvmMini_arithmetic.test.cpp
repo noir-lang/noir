@@ -1,9 +1,4 @@
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/proof_system/circuit_builder/AvmMini_helper.hpp"
-#include "barretenberg/proof_system/circuit_builder/AvmMini_trace.hpp"
-#include "barretenberg/sumcheck/sumcheck_round.hpp"
+#include "barretenberg/vm/avm_trace/AvmMini_helper.hpp"
 #include "barretenberg/vm/generated/AvmMini_composer.hpp"
 #include "barretenberg/vm/generated/AvmMini_prover.hpp"
 #include "barretenberg/vm/generated/AvmMini_verifier.hpp"
@@ -15,9 +10,8 @@
 #include <string>
 #include <vector>
 
-using namespace proof_system;
-
 namespace tests_avm {
+using namespace avm_trace;
 
 class AvmMiniArithmeticTests : public ::testing::Test {
   public:
@@ -62,11 +56,11 @@ class AvmMiniArithmeticNegativeTests : public AvmMiniArithmeticTests {};
 TEST_F(AvmMiniArithmeticTests, additionFF)
 {
     // trace_builder
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
     //                             Memory layout:    [37,4,11,0,0,0,....]
     trace_builder.add(0, 1, 4, AvmMemoryTag::ff); // [37,4,11,0,41,0,....]
-    trace_builder.returnOP(0, 5);
+    trace_builder.return_op(0, 5);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the addition selector
@@ -79,17 +73,17 @@ TEST_F(AvmMiniArithmeticTests, additionFF)
     EXPECT_EQ(row->avmMini_mem_op_c, FF(1));
     EXPECT_EQ(row->avmMini_rwc, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Test on basic subtraction over finite field type.
 TEST_F(AvmMiniArithmeticTests, subtractionFF)
 {
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 8, 4, 17 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 8, 4, 17 });
 
     //                             Memory layout:    [8,4,17,0,0,0,....]
     trace_builder.sub(2, 0, 1, AvmMemoryTag::ff); // [8,9,17,0,0,0....]
-    trace_builder.returnOP(0, 3);
+    trace_builder.return_op(0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the subtraction selector
@@ -102,17 +96,17 @@ TEST_F(AvmMiniArithmeticTests, subtractionFF)
     EXPECT_EQ(row->avmMini_mem_op_c, FF(1));
     EXPECT_EQ(row->avmMini_rwc, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Test on basic multiplication over finite field type.
 TEST_F(AvmMiniArithmeticTests, multiplicationFF)
 {
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 5, 0, 20 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 5, 0, 20 });
 
     //                             Memory layout:    [5,0,20,0,0,0,....]
     trace_builder.mul(2, 0, 1, AvmMemoryTag::ff); // [5,100,20,0,0,0....]
-    trace_builder.returnOP(0, 3);
+    trace_builder.return_op(0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the multiplication selector
@@ -125,17 +119,17 @@ TEST_F(AvmMiniArithmeticTests, multiplicationFF)
     EXPECT_EQ(row->avmMini_mem_op_c, FF(1));
     EXPECT_EQ(row->avmMini_rwc, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Test on multiplication by zero over finite field type.
 TEST_F(AvmMiniArithmeticTests, multiplicationByZeroFF)
 {
-    trace_builder.callDataCopy(0, 1, 0, std::vector<FF>{ 127 });
+    trace_builder.call_data_copy(0, 1, 0, std::vector<FF>{ 127 });
 
     //                             Memory layout:    [127,0,0,0,0,0,....]
     trace_builder.mul(0, 1, 2, AvmMemoryTag::ff); // [127,0,0,0,0,0....]
-    trace_builder.returnOP(0, 3);
+    trace_builder.return_op(0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the multiplication selector
@@ -148,17 +142,17 @@ TEST_F(AvmMiniArithmeticTests, multiplicationByZeroFF)
     EXPECT_EQ(row->avmMini_mem_op_c, FF(1));
     EXPECT_EQ(row->avmMini_rwc, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Test on basic division over finite field type.
 TEST_F(AvmMiniArithmeticTests, divisionFF)
 {
-    trace_builder.callDataCopy(0, 2, 0, std::vector<FF>{ 15, 315 });
+    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 15, 315 });
 
     //                             Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.div(1, 0, 2, AvmMemoryTag::ff); // [15,315,21,0,0,0....]
-    trace_builder.returnOP(0, 3);
+    trace_builder.return_op(0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the division selector
@@ -171,17 +165,17 @@ TEST_F(AvmMiniArithmeticTests, divisionFF)
     EXPECT_EQ(row->avmMini_mem_op_c, FF(1));
     EXPECT_EQ(row->avmMini_rwc, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Test on division with zero numerator over finite field type.
 TEST_F(AvmMiniArithmeticTests, divisionNumeratorZeroFF)
 {
-    trace_builder.callDataCopy(0, 1, 0, std::vector<FF>{ 15 });
+    trace_builder.call_data_copy(0, 1, 0, std::vector<FF>{ 15 });
 
     //                             Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.div(1, 0, 0, AvmMemoryTag::ff); // [0,0,0,0,0,0....]
-    trace_builder.returnOP(0, 3);
+    trace_builder.return_op(0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the division selector
@@ -194,14 +188,14 @@ TEST_F(AvmMiniArithmeticTests, divisionNumeratorZeroFF)
     EXPECT_EQ(row->avmMini_mem_op_c, FF(1));
     EXPECT_EQ(row->avmMini_rwc, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Test on division by zero over finite field type.
 // We check that the operator error flag is raised.
 TEST_F(AvmMiniArithmeticTests, divisionByZeroErrorFF)
 {
-    trace_builder.callDataCopy(0, 1, 0, std::vector<FF>{ 15 });
+    trace_builder.call_data_copy(0, 1, 0, std::vector<FF>{ 15 });
 
     //                             Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.div(0, 1, 2, AvmMemoryTag::ff); // [15,0,0,0,0,0....]
@@ -219,7 +213,7 @@ TEST_F(AvmMiniArithmeticTests, divisionByZeroErrorFF)
     EXPECT_EQ(row->avmMini_rwc, FF(1));
     EXPECT_EQ(row->avmMini_op_err, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Test on division of zero by zero over finite field type.
@@ -242,7 +236,7 @@ TEST_F(AvmMiniArithmeticTests, divisionZeroByZeroErrorFF)
     EXPECT_EQ(row->avmMini_rwc, FF(1));
     EXPECT_EQ(row->avmMini_op_err, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 // Testing an execution of the different arithmetic opcodes over finite field
@@ -251,7 +245,7 @@ TEST_F(AvmMiniArithmeticTests, divisionZeroByZeroErrorFF)
 // No check on the evaluation is performed here.
 TEST_F(AvmMiniArithmeticTests, arithmeticFFWithError)
 {
-    trace_builder.callDataCopy(0, 3, 2, std::vector<FF>{ 45, 23, 12 });
+    trace_builder.call_data_copy(0, 3, 2, std::vector<FF>{ 45, 23, 12 });
 
     //                             Memory layout:    [0,0,45,23,12,0,0,0,....]
     trace_builder.add(2, 3, 4, AvmMemoryTag::ff); // [0,0,45,23,68,0,0,0,....]
@@ -267,7 +261,7 @@ TEST_F(AvmMiniArithmeticTests, arithmeticFFWithError)
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 /******************************************************************************
@@ -294,68 +288,68 @@ TEST_F(AvmMiniArithmeticTests, arithmeticFFWithError)
 // Test on basic incorrect addition over finite field type.
 TEST_F(AvmMiniArithmeticNegativeTests, additionFF)
 {
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
     //                             Memory layout:    [37,4,11,0,0,0,....]
     trace_builder.add(0, 1, 4, AvmMemoryTag::ff); // [37,4,11,0,41,0,....]
     auto trace = trace_builder.finalize();
 
-    auto selectRow = [](Row r) { return r.avmMini_sel_op_add == FF(1); };
-    mutateIcInTrace(trace, std::move(selectRow), FF(40));
+    auto select_row = [](Row r) { return r.avmMini_sel_op_add == FF(1); };
+    mutate_ic_in_trace(trace, std::move(select_row), FF(40));
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_ADDITION_FF");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_ADDITION_FF");
 }
 
 // Test on basic incorrect subtraction over finite field type.
 TEST_F(AvmMiniArithmeticNegativeTests, subtractionFF)
 {
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 8, 4, 17 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 8, 4, 17 });
 
     //                             Memory layout:    [8,4,17,0,0,0,....]
     trace_builder.sub(2, 0, 1, AvmMemoryTag::ff); // [8,9,17,0,0,0....]
     auto trace = trace_builder.finalize();
 
-    auto selectRow = [](Row r) { return r.avmMini_sel_op_sub == FF(1); };
-    mutateIcInTrace(trace, std::move(selectRow), FF(-9));
+    auto select_row = [](Row r) { return r.avmMini_sel_op_sub == FF(1); };
+    mutate_ic_in_trace(trace, std::move(select_row), FF(-9));
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_SUBTRACTION_FF");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_SUBTRACTION_FF");
 }
 
 // Test on basic incorrect multiplication over finite field type.
 TEST_F(AvmMiniArithmeticNegativeTests, multiplicationFF)
 {
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 5, 0, 20 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 5, 0, 20 });
 
     //                             Memory layout:    [5,0,20,0,0,0,....]
     trace_builder.mul(2, 0, 1, AvmMemoryTag::ff); // [5,100,20,0,0,0....]
     auto trace = trace_builder.finalize();
 
-    auto selectRow = [](Row r) { return r.avmMini_sel_op_mul == FF(1); };
-    mutateIcInTrace(trace, std::move(selectRow), FF(1000));
+    auto select_row = [](Row r) { return r.avmMini_sel_op_mul == FF(1); };
+    mutate_ic_in_trace(trace, std::move(select_row), FF(1000));
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_MULTIPLICATION_FF");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_MULTIPLICATION_FF");
 }
 
 // Test on basic incorrect division over finite field type.
 TEST_F(AvmMiniArithmeticNegativeTests, divisionFF)
 {
-    trace_builder.callDataCopy(0, 2, 0, std::vector<FF>{ 15, 315 });
+    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 15, 315 });
 
     //                             Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.div(1, 0, 2, AvmMemoryTag::ff); // [15,315,21,0,0,0....]
     auto trace = trace_builder.finalize();
 
-    auto selectRow = [](Row r) { return r.avmMini_sel_op_div == FF(1); };
-    mutateIcInTrace(trace, std::move(selectRow), FF(0));
+    auto select_row = [](Row r) { return r.avmMini_sel_op_div == FF(1); };
+    mutate_ic_in_trace(trace, std::move(select_row), FF(0));
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_DIVISION_FF");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_DIVISION_FF");
 }
 
 // Test where division is not by zero but an operation error is wrongly raised
 // in the trace.
 TEST_F(AvmMiniArithmeticNegativeTests, divisionNoZeroButErrorFF)
 {
-    trace_builder.callDataCopy(0, 2, 0, std::vector<FF>{ 15, 315 });
+    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 15, 315 });
 
     //                             Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.div(1, 0, 2, AvmMemoryTag::ff); // [15,315,21,0,0,0....]
@@ -370,17 +364,17 @@ TEST_F(AvmMiniArithmeticNegativeTests, divisionNoZeroButErrorFF)
     trace[index].avmMini_op_err = FF(1);
     auto trace2 = trace;
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_DIVISION_ZERO_ERR1");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_DIVISION_ZERO_ERR1");
 
     // Even more malicious, one makes the first relation passes by setting the inverse to zero.
     trace2[index].avmMini_inv = FF(0);
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace2)), "SUBOP_DIVISION_ZERO_ERR2");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace2)), "SUBOP_DIVISION_ZERO_ERR2");
 }
 
 // Test with division by zero occurs and no error is raised (remove error flag)
 TEST_F(AvmMiniArithmeticNegativeTests, divisionByZeroNoErrorFF)
 {
-    trace_builder.callDataCopy(0, 1, 0, std::vector<FF>{ 15 });
+    trace_builder.call_data_copy(0, 1, 0, std::vector<FF>{ 15 });
 
     //                             Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.div(0, 1, 2, AvmMemoryTag::ff); // [15,0,0,0,0,0....]
@@ -393,7 +387,7 @@ TEST_F(AvmMiniArithmeticNegativeTests, divisionByZeroNoErrorFF)
     // Remove the operator error flag
     row->avmMini_op_err = FF(0);
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_DIVISION_FF");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_DIVISION_FF");
 }
 
 // Test with division of zero by zero occurs and no error is raised (remove error flag)
@@ -409,18 +403,18 @@ TEST_F(AvmMiniArithmeticNegativeTests, divisionZeroByZeroNoErrorFF)
     // Remove the operator error flag
     row->avmMini_op_err = FF(0);
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_DIVISION_ZERO_ERR1");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_DIVISION_ZERO_ERR1");
 }
 
 // Test that error flag cannot be raised for a non-relevant operation such as
 // the addition, subtraction, multiplication.
 TEST_F(AvmMiniArithmeticNegativeTests, operationWithErrorFlagFF)
 {
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
     //                             Memory layout:    [37,4,11,0,0,0,....]
     trace_builder.add(0, 1, 4, AvmMemoryTag::ff); // [37,4,11,0,41,0,....]
-    trace_builder.returnOP(0, 5);
+    trace_builder.return_op(0, 5);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the addition selector
@@ -429,15 +423,15 @@ TEST_F(AvmMiniArithmeticNegativeTests, operationWithErrorFlagFF)
     // Activate the operator error
     row->avmMini_op_err = FF(1);
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
 
     trace_builder.reset();
 
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 8, 4, 17 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 8, 4, 17 });
 
     //                             Memory layout:    [8,4,17,0,0,0,....]
     trace_builder.sub(2, 0, 1, AvmMemoryTag::ff); // [8,9,17,0,0,0....]
-    trace_builder.returnOP(0, 3);
+    trace_builder.return_op(0, 3);
     trace = trace_builder.finalize();
 
     // Find the first row enabling the subtraction selector
@@ -446,15 +440,15 @@ TEST_F(AvmMiniArithmeticNegativeTests, operationWithErrorFlagFF)
     // Activate the operator error
     row->avmMini_op_err = FF(1);
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
 
     trace_builder.reset();
 
-    trace_builder.callDataCopy(0, 3, 0, std::vector<FF>{ 5, 0, 20 });
+    trace_builder.call_data_copy(0, 3, 0, std::vector<FF>{ 5, 0, 20 });
 
     //                             Memory layout:    [5,0,20,0,0,0,....]
     trace_builder.mul(2, 0, 1, AvmMemoryTag::ff); // [5,100,20,0,0,0....]
-    trace_builder.returnOP(0, 3);
+    trace_builder.return_op(0, 3);
     trace = trace_builder.finalize();
 
     // Find the first row enabling the multiplication selector
@@ -463,7 +457,7 @@ TEST_F(AvmMiniArithmeticNegativeTests, operationWithErrorFlagFF)
     // Activate the operator error
     row->avmMini_op_err = FF(1);
 
-    EXPECT_THROW_WITH_MESSAGE(validateTraceProof(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
 }
 
 } // namespace tests_avm

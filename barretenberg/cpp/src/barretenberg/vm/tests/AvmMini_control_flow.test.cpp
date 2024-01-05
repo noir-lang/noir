@@ -1,8 +1,4 @@
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/proof_system/circuit_builder/AvmMini_helper.hpp"
-#include "barretenberg/proof_system/circuit_builder/AvmMini_trace.hpp"
+#include "barretenberg/vm/avm_trace/AvmMini_helper.hpp"
 #include "barretenberg/vm/generated/AvmMini_composer.hpp"
 #include "barretenberg/vm/generated/AvmMini_prover.hpp"
 #include "barretenberg/vm/generated/AvmMini_verifier.hpp"
@@ -14,9 +10,8 @@
 #include <string>
 #include <vector>
 
-using namespace proof_system;
-
 namespace tests_avm {
+using namespace avm_trace;
 
 class AvmMiniControlFlowTests : public ::testing::Test {
   public:
@@ -73,7 +68,7 @@ TEST_F(AvmMiniControlFlowTests, simpleCall)
         EXPECT_EQ(halt_row->avmMini_pc, FF(CALL_ADDRESS));
         EXPECT_EQ(halt_row->avmMini_internal_return_ptr, FF(AvmMiniTraceBuilder::CALLSTACK_OFFSET + 1));
     }
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 TEST_F(AvmMiniControlFlowTests, simpleJump)
@@ -106,7 +101,7 @@ TEST_F(AvmMiniControlFlowTests, simpleJump)
         EXPECT_TRUE(halt_row != trace.end());
         EXPECT_EQ(halt_row->avmMini_pc, FF(JUMP_ADDRESS));
     }
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 TEST_F(AvmMiniControlFlowTests, simpleCallAndReturn)
@@ -156,7 +151,7 @@ TEST_F(AvmMiniControlFlowTests, simpleCallAndReturn)
         EXPECT_EQ(halt_row->avmMini_pc, FF(RETURN_ADDRESS));
     }
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 
 TEST_F(AvmMiniControlFlowTests, multipleCallsAndReturns)
@@ -298,6 +293,6 @@ TEST_F(AvmMiniControlFlowTests, multipleCallsAndReturns)
     EXPECT_TRUE(halt_row != trace.end());
     EXPECT_EQ(halt_row->avmMini_pc, FF(1));
 
-    validateTraceProof(std::move(trace));
+    validate_trace_proof(std::move(trace));
 }
 } // namespace tests_avm

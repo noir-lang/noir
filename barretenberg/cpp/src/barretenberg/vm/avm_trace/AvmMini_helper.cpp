@@ -1,11 +1,6 @@
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/proof_system/circuit_builder/circuit_builder_base.hpp"
+#include "AvmMini_helper.hpp"
 
-#include "./AvmMini_helper.hpp"
-#include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/relations/generated/AvmMini/avm_mini.hpp"
-
-namespace proof_system {
+namespace avm_trace {
 
 /**
  * @brief Routine to log some slice of a trace of the AVM. Used to debug or in some unit tests.
@@ -70,4 +65,4 @@ void log_avmMini_trace(std::vector<Row> const& trace, size_t beg, size_t end)
     }
 }
 
-} // namespace proof_system
+} // namespace avm_trace

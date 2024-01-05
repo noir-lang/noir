@@ -1,6 +1,6 @@
 #pragma once
 
-#include "barretenberg/proof_system/circuit_builder/AvmMini_trace.hpp"
+#include "barretenberg/vm/avm_trace/AvmMini_trace.hpp"
 
 #define EXPECT_THROW_WITH_MESSAGE(code, expectedMessage)                                                               \
     try {                                                                                                              \
@@ -13,7 +13,7 @@
 
 namespace tests_avm {
 
-void validateTraceProof(std::vector<Row>&& trace);
-void mutateIcInTrace(std::vector<Row>& trace, std::function<bool(Row)>&& selectRow, FF const& newValue);
+void validate_trace_proof(std::vector<Row>&& trace);
+void mutate_ic_in_trace(std::vector<Row>& trace, std::function<bool(Row)>&& selectRow, FF const& newValue);
 
 } // namespace tests_avm
