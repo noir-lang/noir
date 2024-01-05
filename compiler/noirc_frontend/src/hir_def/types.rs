@@ -1352,6 +1352,32 @@ impl Type {
     /// given bindings if found. If a type variable is not found within
     /// the given TypeBindings, it is unchanged.
     pub fn substitute(&self, type_bindings: &TypeBindings) -> Type {
+        self.substitute_helper(type_bindings, false)
+    }
+
+    /// Forcibly substitute any type variables found within this type with the
+    /// given bindings if found. If a type variable is not found within
+    /// the given TypeBindings, it is unchanged.
+    ///
+    /// Compared to `substitute`, this function will also substitute any type variables
+    /// from type_bindings, even if they are bound in `self`. Since this can undo previous
+    /// bindings, this function should be avoided unless necessary. Currently, it is only
+    /// needed when handling bindings between trait methods and their corresponding impl
+    /// method during monomorphization.
+    pub fn force_substitute(&self, type_bindings: &TypeBindings) -> Type {
+        self.substitute_helper(type_bindings, true)
+    }
+
+    /// This helper function only differs in the additional parameter which, if set,
+    /// allows substitutions on already-bound type variables. This should be `false`
+    /// for most uses, but is currently needed during monomorphization when instantiating
+    /// trait functions to shed any previous bindings from recursive parent calls to the
+    /// same trait.
+    fn substitute_helper(
+        &self,
+        type_bindings: &TypeBindings,
+        substitute_bound_typevars: bool,
+    ) -> Type {
         if type_bindings.is_empty() {
             return self.clone();
         }
@@ -1361,9 +1387,11 @@ impl Type {
             // type variables that have already been bound over.
             // This is neede for monomorphizing trait impl methods.
             match type_bindings.get(&binding.0) {
-                Some((_, binding)) => binding.clone(),
-                None => match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.substitute(type_bindings),
+                Some((_, binding)) if substitute_bound_typevars => binding.clone(),
+                _ => match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        binding.substitute_helper(type_bindings, substitute_bound_typevars)
+                    }
                     TypeBinding::Unbound(id) => match type_bindings.get(id) {
                         Some((_, binding)) => binding.clone(),
                         None => self.clone(),
@@ -1374,50 +1402,56 @@ impl Type {
 
         match self {
             Type::Array(size, element) => {
-                let size = Box::new(size.substitute(type_bindings));
-                let element = Box::new(element.substitute(type_bindings));
-                Type::Array(size, element)
+                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
+                let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::Array(Box::new(size), Box::new(element))
             }
             Type::String(size) => {
-                let size = Box::new(size.substitute(type_bindings));
-                Type::String(size)
+                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::String(Box::new(size))
             }
             Type::FmtString(size, fields) => {
-                let size = Box::new(size.substitute(type_bindings));
-                let fields = Box::new(fields.substitute(type_bindings));
-                Type::FmtString(size, fields)
+                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
+                let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::FmtString(Box::new(size), Box::new(fields))
             }
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 substitute_binding(binding)
             }
-            // Do not substitute fields, it can lead to infinite recursion
+            // Do not substitute_helper fields, it ca, substitute_bound_typevarsn lead to infinite recursion
             // and we should not match fields when type checking anyway.
             Type::Struct(fields, args) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
                 Type::Struct(fields.clone(), args)
             }
             Type::Tuple(fields) => {
-                let fields = vecmap(fields, |field| field.substitute(type_bindings));
+                let fields = vecmap(fields, |field| {
+                    field.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
                 Type::Tuple(fields)
             }
             Type::Forall(typevars, typ) => {
-                // Trying to substitute a variable defined within a nested Forall
+                // Trying to substitute_helper a variable de, substitute_bound_typevarsfined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
                 for (var, _) in typevars {
                     assert!(!type_bindings.contains_key(var));
                 }
-                let typ = Box::new(typ.substitute(type_bindings));
+                let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Forall(typevars.clone(), typ)
             }
             Type::Function(args, ret, env) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
-                let ret = Box::new(ret.substitute(type_bindings));
-                let env = Box::new(env.substitute(type_bindings));
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
+                let ret = Box::new(ret.substitute_helper(type_bindings, substitute_bound_typevars));
+                let env = Box::new(env.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Function(args, ret, env)
             }
-            Type::MutableReference(element) => {
-                Type::MutableReference(Box::new(element.substitute(type_bindings)))
-            }
+            Type::MutableReference(element) => Type::MutableReference(Box::new(
+                element.substitute_helper(type_bindings, substitute_bound_typevars),
+            )),
 
             Type::FieldElement
             | Type::Integer(_, _)

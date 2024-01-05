@@ -26,8 +26,8 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
-    Visibility,
+    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableId, TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -1530,15 +1530,13 @@ impl<'interner> Monomorphizer<'interner> {
             let (generics, impl_method_type) =
                 self.interner.function_meta(&impl_method).typ.unwrap_forall();
 
-            // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
-            let type_bindings = generics
-                .iter()
-                .map(|(id, var)| {
-                    (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
-                })
-                .collect();
+            let replace_type_variable = |(id, var): &(TypeVariableId, TypeVariable)| {
+                (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+            };
 
-            let impl_method_type = impl_method_type.substitute(&type_bindings);
+            // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
+            let type_bindings = generics.iter().map(replace_type_variable).collect();
+            let impl_method_type = impl_method_type.force_substitute(&type_bindings);
 
             trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {
                 unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
