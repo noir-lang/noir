@@ -435,7 +435,7 @@ impl<'a> FunctionContext<'a> {
         let lhs = self.codegen_non_tuple_expression(&cast.lhs)?;
         let typ = Self::convert_non_tuple_type(&cast.r#type);
 
-        self.insert_safe_cast(lhs, typ, cast.location)
+        Ok(self.insert_safe_cast(lhs, typ, cast.location).into())
     }
 
     /// Codegens a for loop, creating three new blocks in the process.
