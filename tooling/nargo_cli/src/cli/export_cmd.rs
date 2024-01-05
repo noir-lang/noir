@@ -68,12 +68,17 @@ pub(crate) fn run(
     library_packages
         .par_iter()
         .map(|package| {
-            compile_program(&workspace_file_manager, &workspace, package, &args.compile_options)
+            compile_exported_functions(
+                &workspace_file_manager,
+                &workspace,
+                package,
+                &args.compile_options,
+            )
         })
         .collect()
 }
 
-fn compile_program(
+fn compile_exported_functions(
     file_manager: &FileManager,
     workspace: &Workspace,
     package: &Package,
