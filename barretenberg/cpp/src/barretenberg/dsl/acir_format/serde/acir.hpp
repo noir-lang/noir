@@ -102,15 +102,6 @@ struct BlackBoxFuncCall {
         static PedersenHash bincodeDeserialize(std::vector<uint8_t>);
     };
 
-    struct HashToField128Security {
-        std::vector<Circuit::FunctionInput> inputs;
-        Circuit::Witness output;
-
-        friend bool operator==(const HashToField128Security&, const HashToField128Security&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HashToField128Security bincodeDeserialize(std::vector<uint8_t>);
-    };
-
     struct EcdsaSecp256k1 {
         std::vector<Circuit::FunctionInput> public_key_x;
         std::vector<Circuit::FunctionInput> public_key_y;
@@ -185,7 +176,6 @@ struct BlackBoxFuncCall {
                  SchnorrVerify,
                  PedersenCommitment,
                  PedersenHash,
-                 HashToField128Security,
                  EcdsaSecp256k1,
                  EcdsaSecp256r1,
                  FixedBaseScalarMul,
@@ -423,15 +413,6 @@ struct BlackBoxOp {
         static Keccak256 bincodeDeserialize(std::vector<uint8_t>);
     };
 
-    struct HashToField128Security {
-        Circuit::HeapVector message;
-        Circuit::RegisterIndex output;
-
-        friend bool operator==(const HashToField128Security&, const HashToField128Security&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HashToField128Security bincodeDeserialize(std::vector<uint8_t>);
-    };
-
     struct EcdsaSecp256k1 {
         Circuit::HeapVector hashed_msg;
         Circuit::HeapArray public_key_x;
@@ -501,7 +482,6 @@ struct BlackBoxOp {
     std::variant<Sha256,
                  Blake2s,
                  Keccak256,
-                 HashToField128Security,
                  EcdsaSecp256k1,
                  EcdsaSecp256r1,
                  SchnorrVerify,
@@ -2237,60 +2217,6 @@ Circuit::BlackBoxFuncCall::PedersenHash serde::Deserializable<Circuit::BlackBoxF
 
 namespace Circuit {
 
-inline bool operator==(const BlackBoxFuncCall::HashToField128Security& lhs,
-                       const BlackBoxFuncCall::HashToField128Security& rhs)
-{
-    if (!(lhs.inputs == rhs.inputs)) {
-        return false;
-    }
-    if (!(lhs.output == rhs.output)) {
-        return false;
-    }
-    return true;
-}
-
-inline std::vector<uint8_t> BlackBoxFuncCall::HashToField128Security::bincodeSerialize() const
-{
-    auto serializer = serde::BincodeSerializer();
-    serde::Serializable<BlackBoxFuncCall::HashToField128Security>::serialize(*this, serializer);
-    return std::move(serializer).bytes();
-}
-
-inline BlackBoxFuncCall::HashToField128Security BlackBoxFuncCall::HashToField128Security::bincodeDeserialize(
-    std::vector<uint8_t> input)
-{
-    auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<BlackBoxFuncCall::HashToField128Security>::deserialize(deserializer);
-    if (deserializer.get_buffer_offset() < input.size()) {
-        throw_or_abort("Some input bytes were not read");
-    }
-    return value;
-}
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::BlackBoxFuncCall::HashToField128Security>::serialize(
-    const Circuit::BlackBoxFuncCall::HashToField128Security& obj, Serializer& serializer)
-{
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Circuit::BlackBoxFuncCall::HashToField128Security serde::Deserializable<
-    Circuit::BlackBoxFuncCall::HashToField128Security>::deserialize(Deserializer& deserializer)
-{
-    Circuit::BlackBoxFuncCall::HashToField128Security obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Circuit {
-
 inline bool operator==(const BlackBoxFuncCall::EcdsaSecp256k1& lhs, const BlackBoxFuncCall::EcdsaSecp256k1& rhs)
 {
     if (!(lhs.public_key_x == rhs.public_key_x)) {
@@ -2867,59 +2793,6 @@ Circuit::BlackBoxOp::Keccak256 serde::Deserializable<Circuit::BlackBoxOp::Keccak
     Deserializer& deserializer)
 {
     Circuit::BlackBoxOp::Keccak256 obj;
-    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Circuit {
-
-inline bool operator==(const BlackBoxOp::HashToField128Security& lhs, const BlackBoxOp::HashToField128Security& rhs)
-{
-    if (!(lhs.message == rhs.message)) {
-        return false;
-    }
-    if (!(lhs.output == rhs.output)) {
-        return false;
-    }
-    return true;
-}
-
-inline std::vector<uint8_t> BlackBoxOp::HashToField128Security::bincodeSerialize() const
-{
-    auto serializer = serde::BincodeSerializer();
-    serde::Serializable<BlackBoxOp::HashToField128Security>::serialize(*this, serializer);
-    return std::move(serializer).bytes();
-}
-
-inline BlackBoxOp::HashToField128Security BlackBoxOp::HashToField128Security::bincodeDeserialize(
-    std::vector<uint8_t> input)
-{
-    auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<BlackBoxOp::HashToField128Security>::deserialize(deserializer);
-    if (deserializer.get_buffer_offset() < input.size()) {
-        throw_or_abort("Some input bytes were not read");
-    }
-    return value;
-}
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::BlackBoxOp::HashToField128Security>::serialize(
-    const Circuit::BlackBoxOp::HashToField128Security& obj, Serializer& serializer)
-{
-    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Circuit::BlackBoxOp::HashToField128Security serde::Deserializable<
-    Circuit::BlackBoxOp::HashToField128Security>::deserialize(Deserializer& deserializer)
-{
-    Circuit::BlackBoxOp::HashToField128Security obj;
     obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;

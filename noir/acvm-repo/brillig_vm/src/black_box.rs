@@ -1,8 +1,8 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
-    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, hash_to_field_128_security, keccak256,
-    sha256, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256,
+    BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
 use crate::{Memory, Registers};
@@ -62,13 +62,6 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             let message = to_u8_vec(read_heap_vector(memory, registers, message));
             let bytes = keccak256(message.as_slice())?;
             memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
-            Ok(())
-        }
-        BlackBoxOp::HashToField128Security { message, output } => {
-            let field = hash_to_field_128_security(&to_u8_vec(read_heap_vector(
-                memory, registers, message,
-            )))?;
-            registers.set(*output, field.into());
             Ok(())
         }
         BlackBoxOp::EcdsaSecp256k1 {

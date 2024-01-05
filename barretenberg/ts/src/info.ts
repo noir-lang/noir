@@ -15,7 +15,6 @@ export const acvmInfoJson = {
     'schnorr_verify',
     'pedersen',
     'pedersen_hash',
-    'hash_to_field_128_security',
     'ecdsa_secp256k1',
     'ecdsa_secp256r1',
     'fixed_base_scalar_mul',

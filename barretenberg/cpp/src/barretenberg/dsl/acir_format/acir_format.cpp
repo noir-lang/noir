@@ -141,11 +141,6 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
         create_fixed_base_constraint(builder, constraint);
     }
 
-    // Add hash to field constraints
-    for (const auto& constraint : constraint_system.hash_to_field_constraints) {
-        create_hash_to_field_constraints(builder, constraint);
-    }
-
     // Add block constraints
     for (const auto& constraint : constraint_system.block_constraints) {
         create_block_constraints(builder, constraint, has_valid_witness_assignments);
