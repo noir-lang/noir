@@ -207,14 +207,6 @@ impl Context<'_> {
             .collect()
     }
 
-    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
-    /// Returns [None] when definition is not found.
-    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
-        let interner = &self.def_interner;
-
-        interner.get_definition_location_from(location)
-    }
-
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
     pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
         self.def_map(crate_id)
