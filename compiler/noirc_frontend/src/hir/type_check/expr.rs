@@ -190,10 +190,10 @@ impl<'interner> TypeChecker<'interner> {
                                 // Automatically add `&mut` if the method expects a mutable reference and
                                 // the object is not already one.
                                 if *func_id != FuncId::dummy_id() {
-                                    let func_meta = self.interner.function_meta(func_id);
+                                    let function_type = self.interner.function_meta(func_id).typ.clone();
                                     self.try_add_mutable_reference_to_object(
                                         &mut method_call,
-                                        &func_meta.typ,
+                                        &function_type,
                                         &mut args,
                                     );
                                 }
@@ -561,7 +561,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 let func_meta = self.interner.function_meta(&func_id);
                 let param_len = func_meta.parameters.len();
-                (func_meta.typ, param_len)
+                (func_meta.typ.clone(), param_len)
             }
             HirMethodReference::TraitMethodId(method) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
@@ -916,7 +916,7 @@ impl<'interner> TypeChecker<'interner> {
                     &self.current_function.expect("unexpected method outside a function"),
                 );
 
-                for constraint in func_meta.trait_constraints {
+                for constraint in &func_meta.trait_constraints {
                     if *object_type == constraint.typ {
                         if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
                             for (method_index, method) in the_trait.methods.iter().enumerate() {

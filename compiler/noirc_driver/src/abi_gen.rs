@@ -33,7 +33,7 @@ pub(super) fn compute_function_abi(
 ) -> (Vec<AbiParameter>, Option<AbiType>) {
     let func_meta = context.def_interner.function_meta(func_id);
 
-    let (parameters, return_type) = func_meta.into_function_signature();
+    let (parameters, return_type) = func_meta.function_signature();
     let parameters = into_abi_params(context, parameters);
     let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
     (parameters, return_type)
