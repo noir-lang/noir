@@ -1,4 +1,6 @@
 import { expect } from 'chai';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore File is codegenned at test time.
 import { exported_function_foo, MyStruct, u64, ForeignCallHandler } from './codegen/index.js';
 
 it('codegens a callable function', async () => {
