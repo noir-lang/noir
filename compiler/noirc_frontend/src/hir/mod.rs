@@ -152,7 +152,7 @@ impl Context<'_> {
         None
     }
 
-    pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
+    pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
         self.def_interner.function_meta(func_id)
     }
 

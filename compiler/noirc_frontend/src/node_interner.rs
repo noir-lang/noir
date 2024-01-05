@@ -767,12 +767,12 @@ impl NodeInterner {
     }
 
     /// Returns the interned meta data corresponding to `func_id`
-    pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
-        self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
+    pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
+        self.func_meta.get(func_id).expect("ice: all function ids should have metadata")
     }
 
-    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<FuncMeta> {
-        self.func_meta.get(func_id).cloned()
+    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
+        self.func_meta.get(func_id)
     }
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {

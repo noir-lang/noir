@@ -370,7 +370,7 @@ pub(crate) fn resolve_trait_impls(
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let interner = &mut context.def_interner;
-    let mut methods = Vec::<(FileId, FuncId)>::new();
+    let mut all_methods = Vec::<(FileId, FuncId)>::new();
 
     for trait_impl in traits {
         let unresolved_type = trait_impl.object_type;
@@ -419,7 +419,7 @@ pub(crate) fn resolve_trait_impls(
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            check_methods_signatures(
+            let methods = check_methods_signatures(
                 &mut new_resolver,
                 &impl_methods,
                 trait_id,
@@ -439,7 +439,7 @@ pub(crate) fn resolve_trait_impls(
                 trait_id,
                 file: trait_impl.file_id,
                 where_clause,
-                methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
+                methods,
             });
 
             if let Err((prev_span, prev_file)) = interner.add_trait_implementation(
@@ -460,9 +460,9 @@ pub(crate) fn resolve_trait_impls(
                 errors.push((error.into(), prev_file));
             }
 
-            methods.append(&mut impl_methods);
+            all_methods.append(&mut impl_methods);
         }
     }
 
-    methods
+    all_methods
 }
