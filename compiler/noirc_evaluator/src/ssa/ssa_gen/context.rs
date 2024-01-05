@@ -349,12 +349,11 @@ impl<'a> FunctionContext<'a> {
                     self.check_shift_overflow(result, rhs, bit_size, location, false)
                 } else {
                     let message = format!("attempt to {} with overflow", op_name);
-                    let range_constraint = Instruction::RangeCheck {
-                        value: result,
-                        max_bit_size: bit_size,
-                        assert_message: Some(message),
-                    };
-                    self.builder.set_location(location).insert_instruction(range_constraint, None);
+                    self.builder.set_location(location).insert_range_check(
+                        result,
+                        bit_size,
+                        Some(message),
+                    );
                     result
                 }
             }
@@ -464,12 +463,11 @@ impl<'a> FunctionContext<'a> {
                 let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
                 // It must not already overflow the bit_size
                 let message = "attempt to multiply with overflow".to_string();
-                let size_overflow = Instruction::RangeCheck {
-                    value: product_field,
-                    max_bit_size: bit_size,
-                    assert_message: Some(message.clone()),
-                };
-                self.builder.set_location(location).insert_instruction(size_overflow, None);
+                self.builder.set_location(location).insert_range_check(
+                    product_field,
+                    bit_size,
+                    Some(message.clone()),
+                );
                 let product = self.builder.insert_cast(product_field, Type::unsigned(bit_size));
 
                 // Then we check the signed product fits in a signed integer of bit_size-bits
