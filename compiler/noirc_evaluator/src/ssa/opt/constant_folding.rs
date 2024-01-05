@@ -323,7 +323,7 @@ mod test {
         //
         // fn main f0 {
         //   b0(v0: u16):
-        //     v1 = cast v1 as u32
+        //     v1 = cast v0 as u32
         // }
         let ssa = ssa.fold_constants();
         let main = ssa.main();
