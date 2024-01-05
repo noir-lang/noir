@@ -25,7 +25,6 @@ impl MemoryOpSolver {
         value: FieldElement,
     ) -> Result<(), OpcodeResolutionError> {
         if index >= self.block_len {
-            dbg!("got a write");
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
@@ -37,13 +36,11 @@ impl MemoryOpSolver {
     }
 
     fn read_memory_index(&self, index: MemoryIndex) -> Result<FieldElement, OpcodeResolutionError> {
-        self.block_value.get(&index).copied().ok_or_else( || {
-            dbg!("GOT A READ");
-            OpcodeResolutionError::IndexOutOfBounds {
+        self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
             index,
             array_size: self.block_len,
-        } })
+        })
     }
 
     /// Set the block_value from a MemoryInit opcode

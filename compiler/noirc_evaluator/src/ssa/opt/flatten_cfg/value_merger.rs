@@ -205,8 +205,7 @@ impl<'a> ValueMerger<'a> {
                         self.make_slice_dummy_data(element_type)
                     } else {
                         let get = Instruction::ArrayGet { array, index };
-                        self
-                            .dfg
+                        self.dfg
                             .insert_instruction_and_results(
                                 get,
                                 self.block,
@@ -225,9 +224,10 @@ impl<'a> ValueMerger<'a> {
 
                             let inner_sizes_iter = inner_sizes.1.clone();
                             for slice_value in inner_sizes_iter {
-                                let inner_slice = self.slice_sizes.get(&slice_value).unwrap_or_else(|| {
-                                    panic!("ICE: should have inner slice set for {slice_value}")
-                                });
+                                let inner_slice =
+                                    self.slice_sizes.get(&slice_value).unwrap_or_else(|| {
+                                        panic!("ICE: should have inner slice set for {slice_value}")
+                                    });
                                 let previous_res_size = self.slice_sizes.get(&res);
                                 if let Some(previous_res_size) = previous_res_size {
                                     if inner_slice.0 > previous_res_size.0 {

@@ -33,7 +33,7 @@ use acvm::{
     FieldElement,
 };
 use fxhash::FxHashMap as HashMap;
-use im::{Vector, vector};
+use im::{vector, Vector};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
@@ -709,7 +709,7 @@ impl Context {
                             });
                         }
                     };
-                    
+
                     if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                         // Report the error if side effects are enabled.
                         if index >= array_size && !matches!(value_type, Type::Slice(_)) {
@@ -719,8 +719,7 @@ impl Context {
                                 array_size,
                                 call_stack,
                             });
-                        } 
-                        else {
+                        } else {
                             let value = match store_value {
                                 Some(store_value) => {
                                     let store_value = self.convert_value(store_value, dfg);
@@ -759,7 +758,7 @@ impl Context {
                     else if index < array_size && store_value.is_none() {
                         self.define_result(dfg, instruction, array[index].clone());
                         return Ok(true);
-                    } 
+                    }
                     // If there is a predicate and the index is out of range for a slice we should still directly create dummy data
                     else {
                         if index >= array_size {
@@ -769,10 +768,9 @@ impl Context {
                             let value = if res_typ.contains_slice_element() {
                                 self.compute_slice_sizes(array_id, None, dfg);
 
-                                let slice_sizes = self
-                                    .slice_sizes
-                                    .get(&array_id)
-                                    .expect("ICE: Array with slices should have associated slice sizes");
+                                let slice_sizes = self.slice_sizes.get(&array_id).expect(
+                                    "ICE: Array with slices should have associated slice sizes",
+                                );
 
                                 let slice_sizes = slice_sizes[1..].to_vec();
 
@@ -782,9 +780,9 @@ impl Context {
                             };
 
                             self.define_result(dfg, instruction, value);
-                            return Ok(true)
+                            return Ok(true);
                         } else {
-                            return Ok(false)
+                            return Ok(false);
                         }
                     }
                 }
@@ -803,31 +801,30 @@ impl Context {
                         }
                     };
 
-                        if index >= len {
-                            let results = dfg.instruction_results(instruction);
-                            let res_typ = dfg.type_of_value(results[0]);
+                    if index >= len {
+                        let results = dfg.instruction_results(instruction);
+                        let res_typ = dfg.type_of_value(results[0]);
 
-                            let value = if res_typ.contains_slice_element() {
-                                self.compute_slice_sizes(array_id, None, dfg);
-    
-                                let slice_sizes = self
-                                    .slice_sizes
-                                    .get(&array_id)
-                                    .expect("ICE: Array with slices should have associated slice sizes");
-    
-                                let slice_sizes = slice_sizes[1..].to_vec();
-    
-                                self.construct_dummy_array_value(&res_typ, &slice_sizes)
-                            } else {
-                                self.construct_dummy_array_value(&res_typ, &[])
-                            };
-    
-                            self.define_result(dfg, instruction, value);
-                            return Ok(true)
-                        } 
+                        let value = if res_typ.contains_slice_element() {
+                            self.compute_slice_sizes(array_id, None, dfg);
+
+                            let slice_sizes = self.slice_sizes.get(&array_id).expect(
+                                "ICE: Array with slices should have associated slice sizes",
+                            );
+
+                            let slice_sizes = slice_sizes[1..].to_vec();
+
+                            self.construct_dummy_array_value(&res_typ, &slice_sizes)
+                        } else {
+                            self.construct_dummy_array_value(&res_typ, &[])
+                        };
+
+                        self.define_result(dfg, instruction, value);
+                        return Ok(true);
+                    }
                 }
-                
-                return Ok(false)
+
+                return Ok(false);
             }
         };
 
@@ -1082,11 +1079,7 @@ impl Context {
         }
     }
 
-    fn construct_dummy_array_value(
-        &mut self,
-        ssa_type: &Type,
-        slice_sizes: &[usize],
-    ) -> AcirValue {
+    fn construct_dummy_array_value(&mut self, ssa_type: &Type, slice_sizes: &[usize]) -> AcirValue {
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 let zero = self.acir_context.add_constant(FieldElement::zero());
@@ -1112,8 +1105,7 @@ impl Context {
 
                 for _ in 0..*current_size {
                     for typ in element_types.as_ref() {
-                        values
-                            .push_back(self.construct_dummy_array_value(typ, new_sizes));
+                        values.push_back(self.construct_dummy_array_value(typ, new_sizes));
                     }
                 }
                 AcirValue::Array(values)
@@ -1477,7 +1469,7 @@ impl Context {
         if !can_omit_element_sizes_array(array_typ) {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
-  
+
             let predicate_index =
                 self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
 
@@ -2004,7 +1996,8 @@ impl Context {
                     element_type_sizes,
                 });
 
-                let inner_sizes = self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
+                let inner_sizes =
+                    self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
                 let inner_sizes = inner_sizes.clone();
                 self.slice_sizes.insert(result_ids[1], inner_sizes);
 
@@ -2082,7 +2075,8 @@ impl Context {
                     element_type_sizes,
                 });
 
-                let inner_sizes = self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
+                let inner_sizes =
+                    self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
                 let inner_sizes = inner_sizes.clone();
                 self.slice_sizes.insert(result_ids[1], inner_sizes);
 
@@ -2177,13 +2171,12 @@ impl Context {
                     len: new_slice_size,
                     element_type_sizes,
                 });
-                let mut results = vec![
-                    AcirValue::Var(new_slice_length, AcirType::field()),
-                    result_slice,
-                ];
+                let mut results =
+                    vec![AcirValue::Var(new_slice_length, AcirType::field()), result_slice];
                 results.append(&mut popped_elements);
 
-                let inner_sizes = self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
+                let inner_sizes =
+                    self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
                 let inner_sizes = inner_sizes.clone();
                 self.slice_sizes.insert(result_ids[1], inner_sizes);
 
@@ -2255,7 +2248,10 @@ impl Context {
                 popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
 
                 let zero = self.acir_context.add_constant(FieldElement::zero());
-                let dummy_elements = Vector::from(vec![AcirValue::Var(zero, AcirType::field()); popped_elements_size]);
+                let dummy_elements = Vector::from(vec![
+                    AcirValue::Var(zero, AcirType::field());
+                    popped_elements_size
+                ]);
                 new_slice.append(dummy_elements);
                 let new_slice_val = AcirValue::Array(new_slice);
                 let new_slice_size = Self::flattened_value_size(&new_slice_val);
@@ -2270,8 +2266,8 @@ impl Context {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        // Do not supply the ACIR value here as we do not maintain the type structure 
-                        // inside of `new_slice_val` which is a flat dynamic array. 
+                        // Do not supply the ACIR value here as we do not maintain the type structure
+                        // inside of `new_slice_val` which is a flat dynamic array.
                         // We differ from the other slice intrinsics here as the result of a pop front can continue
                         // to be used throughout a program and thus we do not want to change its type array.
                         None,
@@ -2288,7 +2284,8 @@ impl Context {
                 });
                 popped_elements.push(result_slice);
 
-                let inner_sizes = self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
+                let inner_sizes =
+                    self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
                 let inner_sizes = inner_sizes.clone();
                 self.slice_sizes.insert(result_ids[result_ids.len() - 1], inner_sizes);
 
@@ -2422,7 +2419,8 @@ impl Context {
                     element_type_sizes,
                 });
 
-                let inner_sizes = self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
+                let inner_sizes =
+                    self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
                 let inner_sizes = inner_sizes.clone();
                 self.slice_sizes.insert(result_ids[1], inner_sizes);
 
@@ -2570,7 +2568,8 @@ impl Context {
                 let mut result = vec![AcirValue::Var(new_slice_length, AcirType::field()), result];
                 result.append(&mut popped_elements);
 
-                let inner_sizes = self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
+                let inner_sizes =
+                    self.slice_sizes.get(&slice_contents).expect("ICE: expected slice sizes");
                 let inner_sizes = inner_sizes.clone();
                 self.slice_sizes.insert(result_ids[1], inner_sizes);
 

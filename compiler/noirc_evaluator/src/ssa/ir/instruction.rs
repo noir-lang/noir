@@ -237,7 +237,7 @@ impl Instruction {
                 bin.operator != BinaryOp::Div
             }
             Cast(_, _) | Not(_) => true,
-            
+
             // These are not pure when working with nested slices
             ArrayGet { .. } | ArraySet { .. } => false,
 

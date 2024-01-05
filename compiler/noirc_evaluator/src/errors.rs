@@ -156,7 +156,6 @@ impl RuntimeError {
             }
             _ => {
                 let message = self.to_string();
-                dbg!(message.clone());
                 let location =
                     self.call_stack().back().expect("Expected RuntimeError to have a location");
 

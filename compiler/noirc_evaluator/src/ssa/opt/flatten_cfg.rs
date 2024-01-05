@@ -258,13 +258,17 @@ impl<'f> Context<'f> {
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
         // As recursively flatten inner blocks, we need to track the slice information
-        // for the outer block before we start recursively inlining 
+        // for the outer block before we start recursively inlining
         let outer_block_instructions = self.inserter.function.dfg[block].instructions();
         let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
         for instruction in outer_block_instructions {
             let results = self.inserter.function.dfg.instruction_results(*instruction);
             let instruction = &self.inserter.function.dfg[*instruction];
-            capacity_tracker.collect_slice_information(instruction, &mut self.slice_sizes, results.to_vec())
+            capacity_tracker.collect_slice_information(
+                instruction,
+                &mut self.slice_sizes,
+                results.to_vec(),
+            )
         }
 
         match self.inserter.function.dfg[block].unwrap_terminator() {
@@ -610,7 +614,11 @@ impl<'f> Context<'f> {
             let results = self.push_instruction(*instruction);
             let (instruction, _) = self.inserter.map_instruction(*instruction);
             let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-            capacity_tracker.collect_slice_information(&instruction, &mut self.slice_sizes, results);
+            capacity_tracker.collect_slice_information(
+                &instruction,
+                &mut self.slice_sizes,
+                results,
+            );
         }
 
         self.handle_terminator(destination)

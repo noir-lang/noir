@@ -82,8 +82,6 @@ pub(crate) struct DataFlowGraph {
     locations: HashMap<InstructionId, CallStack>,
 
     pub(crate) data_bus: DataBus,
-
-    slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
 pub(crate) type CallStack = im::Vector<Location>;
@@ -518,13 +516,6 @@ impl<'dfg> InsertInstructionResult<'dfg> {
             InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
             InsertInstructionResult::Results(_, results) => results.len(),
             InsertInstructionResult::InstructionRemoved => 0,
-        }
-    }
-
-    pub(crate) fn instruction_id(self) -> Option<InstructionId> {
-        match self {
-            InsertInstructionResult::Results(instruction, _) => Some(instruction),
-            _ => None,
         }
     }
 }

@@ -1,9 +1,9 @@
-
 use crate::ssa::ir::{
+    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     instruction::{Instruction, InstructionId, Intrinsic, TerminatorInstruction},
     types::Type,
-    value::{Value, ValueId}, basic_block::BasicBlockId,
+    value::{Value, ValueId},
 };
 
 use fxhash::FxHashMap as HashMap;
@@ -120,7 +120,7 @@ impl<'a> SliceCapacityTracker<'a> {
                     if let Some(fetched_val) = self.mapped_slice_values.get(&results[0]) {
                         if *fetched_val != *array {
                             self.mapped_slice_values.insert(*array, results[0]);
-                        } 
+                        }
                     } else if *array != results[0] {
                         self.mapped_slice_values.insert(*array, results[0]);
                     }
@@ -164,12 +164,16 @@ impl<'a> SliceCapacityTracker<'a> {
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
 
-                                if let Some(fetched_val) = self.mapped_slice_values.get(&results[result_index]) {
+                                if let Some(fetched_val) =
+                                    self.mapped_slice_values.get(&results[result_index])
+                                {
                                     if *fetched_val != slice_contents {
-                                        self.mapped_slice_values.insert(slice_contents, results[result_index]);
-                                    } 
+                                        self.mapped_slice_values
+                                            .insert(slice_contents, results[result_index]);
+                                    }
                                 } else if slice_contents != results[result_index] {
-                                    self.mapped_slice_values.insert(slice_contents, results[result_index]);
+                                    self.mapped_slice_values
+                                        .insert(slice_contents, results[result_index]);
                                 }
 
                                 self.slice_parents.insert(results[result_index], slice_contents);
@@ -185,13 +189,17 @@ impl<'a> SliceCapacityTracker<'a> {
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
 
-                                if let Some(fetched_val) = self.mapped_slice_values.get(&results[result_index]) {
+                                if let Some(fetched_val) =
+                                    self.mapped_slice_values.get(&results[result_index])
+                                {
                                     if *fetched_val != slice_contents {
                                         dbg!(slice_contents == results[0]);
-                                        self.mapped_slice_values.insert(slice_contents, results[result_index]);
-                                    } 
+                                        self.mapped_slice_values
+                                            .insert(slice_contents, results[result_index]);
+                                    }
                                 } else if slice_contents != results[result_index] {
-                                    self.mapped_slice_values.insert(slice_contents, results[result_index]);
+                                    self.mapped_slice_values
+                                        .insert(slice_contents, results[result_index]);
                                 }
 
                                 self.slice_parents.insert(results[result_index], slice_contents);
@@ -212,7 +220,7 @@ impl<'a> SliceCapacityTracker<'a> {
 
                     if let Some(previous_store) = slice_sizes.get(address) {
                         inner_sizes.1.append(&mut previous_store.1.clone());
-                    } 
+                    }
 
                     slice_sizes.insert(*address, inner_sizes);
                 }
@@ -301,4 +309,3 @@ impl<'a> SliceCapacityTracker<'a> {
         std::mem::take(&mut self.mapped_slice_values)
     }
 }
-

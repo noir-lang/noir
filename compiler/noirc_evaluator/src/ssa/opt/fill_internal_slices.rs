@@ -154,13 +154,12 @@ impl<'f> Context<'f> {
         // Here we assume the nested max throughout the program
         let mut nested_max = 0;
         for (slice_value, size_and_children) in slice_sizes.iter() {
-
             let typ = self.inserter.function.dfg.type_of_value(*slice_value);
             let depth = Self::compute_nested_slice_depth(&typ);
 
             let mut max_sizes = Vec::new();
             max_sizes.resize(depth, 0);
-    
+
             max_sizes[0] = size_and_children.0;
             self.compute_slice_max_sizes(*slice_value, &slice_sizes, &mut max_sizes, 1);
 
@@ -213,7 +212,7 @@ impl<'f> Context<'f> {
                     self.inserter.push_instruction(instruction, block);
                 } else {
                     let element_typ = self.inserter.function.dfg.type_of_value(arguments[1]);
-                    
+
                     for (index, arg) in args_to_replace {
                         let element_typ = self.inserter.function.dfg.type_of_value(arg);
                         let new_array =
@@ -253,7 +252,7 @@ impl<'f> Context<'f> {
         instruction: InstructionId,
     ) -> (Instruction, CallStack) {
         let typ = self.inserter.function.dfg.type_of_value(array_id);
-        
+
         let new_array = self.attach_slice_dummies(&typ, Some(array_id), true, &[]);
         let instruction_id = instruction;
         let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
@@ -300,7 +299,9 @@ impl<'f> Context<'f> {
                 }
             }
             Type::Slice(element_types) => {
-                let mut max_size = self.nested_max.expect("ICE: should have nested max when attaching slice dummy data");
+                let mut max_size = self
+                    .nested_max
+                    .expect("ICE: should have nested max when attaching slice dummy data");
 
                 if let Some(value_id) = value {
                     let mut slice = im::Vector::new();
@@ -316,7 +317,7 @@ impl<'f> Context<'f> {
                     if is_parent_slice {
                         max_size = array.len() / element_types.len();
                     }
-                    
+
                     for i in 0..max_size {
                         for (element_index, element_type) in element_types.iter().enumerate() {
                             let index_usize = i * element_types.len() + element_index;
