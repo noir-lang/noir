@@ -12,7 +12,7 @@ pub(crate) fn parse_semver_compatible_version(version: &str) -> Result<Version, 
 
 // Check that all of the packages in the workspace are compatible with the current compiler version
 pub(crate) fn semver_check_workspace(
-    workspace: Workspace,
+    workspace: &Workspace,
     current_compiler_version: String,
 ) -> Result<(), ManifestError> {
     let version = parse_semver_compatible_version(&current_compiler_version)

@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     hir::type_check::TypeCheckError,
-    node_interner::{ExprId, NodeInterner, TypeAliasId},
+    node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -14,10 +14,7 @@ use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, Ident, Signedness};
 
-use super::{
-    expr::{HirCallExpression, HirExpression, HirIdent},
-    traits::Trait,
-};
+use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
@@ -65,7 +62,10 @@ pub enum Type {
     /// different argument types each time.
     TypeVariable(TypeVariable, TypeVariableKind),
 
-    TraitAsType(Trait),
+    /// `impl Trait` when used in a type position.
+    /// These are only matched based on the TraitId. The trait name paramer is only
+    /// used for displaying error messages using the name of the trait.
+    TraitAsType(TraitId, /*name:*/ Rc<String>),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -132,7 +132,7 @@ impl Type {
             Type::FmtString(_, _)
             | Type::Unit
             | Type::TypeVariable(_, _)
-            | Type::TraitAsType(_)
+            | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _)
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
@@ -575,7 +575,7 @@ impl Type {
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
             | Type::Forall(_, _)
-            | Type::TraitAsType(_) => false,
+            | Type::TraitAsType(..) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -714,8 +714,8 @@ impl std::fmt::Display for Type {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(tr) => {
-                write!(f, "impl {}", tr.name)
+            Type::TraitAsType(_id, name) => {
+                write!(f, "impl {}", name)
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -1279,7 +1279,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::TraitAsType(_)
+            | Type::TraitAsType(..)
             | Type::Constant(_)
             | Type::NotConstant
             | Type::Error => (),
@@ -1372,7 +1372,6 @@ impl Type {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
             }
-            Type::TraitAsType(_) => todo!(),
             Type::Forall(typevars, typ) => {
                 // Trying to substitute a variable defined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
@@ -1396,6 +1395,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
+            | Type::TraitAsType(..)
             | Type::Error
             | Type::NotConstant
             | Type::Unit => self.clone(),
@@ -1412,7 +1412,6 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::TraitAsType(_) => todo!(),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
@@ -1435,6 +1434,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
+            | Type::TraitAsType(..)
             | Type::Error
             | Type::NotConstant
             | Type::Unit => false,
@@ -1482,7 +1482,7 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(_)
+            TraitAsType(..)
             | FieldElement
             | Integer(_, _)
             | Bool
@@ -1590,7 +1590,7 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
-            Type::TraitAsType(_) => unreachable!(),
+            Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),

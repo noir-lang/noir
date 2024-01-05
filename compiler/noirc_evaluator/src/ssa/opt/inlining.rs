@@ -36,6 +36,7 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(mut self) -> Ssa {
         self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
             let new_function = InlineContext::new(&self, entry_point).inline_all(&self);

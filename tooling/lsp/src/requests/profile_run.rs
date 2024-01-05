@@ -3,11 +3,13 @@ use std::{
     future::{self, Future},
 };
 
-use acvm::{acir::circuit::Opcode, Language};
+use acvm::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::artifacts::debug::DebugArtifact;
+use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_errors::{debug_info::OpCodesCount, Location};
 
 use crate::{
@@ -48,6 +50,9 @@ fn on_profile_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(_package) => {
@@ -57,16 +62,14 @@ fn on_profile_run_request_inner(
                 .cloned()
                 .partition(|package| package.is_binary());
 
-            // # TODO(#3504): Consider how to incorporate Backend relevant information in wider context.
-            let is_opcode_supported = |_opcode: &Opcode| true;
-            let np_language = Language::PLONKCSat { width: 3 };
+            let expression_width = ExpressionWidth::Bounded { width: 3 };
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
+                &workspace_file_manager,
                 &workspace,
                 &binary_packages,
                 &contract_packages,
-                np_language,
-                is_opcode_supported,
+                expression_width,
                 &CompileOptions::default(),
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;

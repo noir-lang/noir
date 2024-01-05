@@ -24,6 +24,27 @@ mod semver;
 pub use errors::ManifestError;
 use git::clone_git_repo;
 
+/// Searches for a `Nargo.toml` file in the current directory and all parent directories.
+/// For example, if the current directory is `/workspace/package/src`, then this function
+/// will search for a `Nargo.toml` file in
+/// * `/workspace/package/src`,
+/// * `/workspace/package`,
+/// * `/workspace`.
+///
+/// Returns the [PathBuf] of the `Nargo.toml` file if found, otherwise returns None.
+///
+/// It will return innermost `Nargo.toml` file, which is the one closest to the current directory.
+/// For example, if the current directory is `/workspace/package/src`, then this function
+/// will return the `Nargo.toml` file in `/workspace/package/Nargo.toml`
+pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
+    for path in current_path.ancestors() {
+        if let Ok(toml_path) = get_package_manifest(path) {
+            return Some(toml_path);
+        }
+    }
+    None
+}
+
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
@@ -99,7 +120,11 @@ struct PackageConfig {
 }
 
 impl PackageConfig {
-    fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
+    fn resolve_to_package(
+        &self,
+        root_dir: &Path,
+        processed: &mut Vec<String>,
+    ) -> Result<Package, ManifestError> {
         let name: CrateName = if let Some(name) = &self.package.name {
             name.parse().map_err(|_| ManifestError::InvalidPackageName {
                 toml: root_dir.join("Nargo.toml"),
@@ -115,7 +140,7 @@ impl PackageConfig {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),
             })?;
-            let resolved_dep = dep_config.resolve_to_dependency(root_dir)?;
+            let resolved_dep = dep_config.resolve_to_dependency(root_dir, processed)?;
 
             dependencies.insert(name, resolved_dep);
         }
@@ -249,7 +274,6 @@ struct PackageMetadata {
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
     compiler_version: Option<String>,
-    backend: Option<String>,
     license: Option<String>,
 }
 
@@ -263,7 +287,11 @@ enum DependencyConfig {
 }
 
 impl DependencyConfig {
-    fn resolve_to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
+    fn resolve_to_dependency(
+        &self,
+        pkg_root: &Path,
+        processed: &mut Vec<String>,
+    ) -> Result<Dependency, ManifestError> {
         let dep = match self {
             Self::Github { git, tag, directory } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
@@ -280,13 +308,13 @@ impl DependencyConfig {
                     dir_path
                 };
                 let toml_path = project_path.join("Nargo.toml");
-                let package = resolve_package_from_toml(&toml_path)?;
+                let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Remote { package }
             }
             Self::Path { path } => {
                 let dir_path = pkg_root.join(path);
                 let toml_path = dir_path.join("Nargo.toml");
-                let package = resolve_package_from_toml(&toml_path)?;
+                let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Local { package }
             }
         };
@@ -305,9 +333,10 @@ fn toml_to_workspace(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
+    let mut resolved = Vec::new();
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
-            let member = package_config.resolve_to_package(&nargo_toml.root_dir)?;
+            let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
                     return Err(ManifestError::MissingSelectedPackage(member.name))
@@ -325,7 +354,7 @@ fn toml_to_workspace(
             for (index, member_path) in workspace_config.members.into_iter().enumerate() {
                 let package_root_dir = nargo_toml.root_dir.join(&member_path);
                 let package_toml_path = package_root_dir.join("Nargo.toml");
-                let member = resolve_package_from_toml(&package_toml_path)?;
+                let member = resolve_package_from_toml(&package_toml_path, &mut resolved)?;
 
                 match &package_selection {
                     PackageSelection::Selected(selected_name) => {
@@ -382,17 +411,43 @@ fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
 }
 
 /// Resolves a Nargo.toml file into a `Package` struct as defined by our `nargo` core.
-fn resolve_package_from_toml(toml_path: &Path) -> Result<Package, ManifestError> {
+fn resolve_package_from_toml(
+    toml_path: &Path,
+    processed: &mut Vec<String>,
+) -> Result<Package, ManifestError> {
+    // Checks for cyclic dependencies
+    let str_path = toml_path.to_str().expect("ICE - path is empty");
+    if processed.contains(&str_path.to_string()) {
+        let mut cycle = false;
+        let mut message = String::new();
+        for toml in processed {
+            cycle = cycle || toml == str_path;
+            if cycle {
+                message += &format!("{} referencing ", toml);
+            }
+        }
+        message += str_path;
+        return Err(ManifestError::CyclicDependency { cycle: message });
+    }
+    // Adds the package to the set of resolved packages
+    if let Some(str) = toml_path.to_str() {
+        processed.push(str.to_string());
+    }
+
     let nargo_toml = read_toml(toml_path)?;
 
-    match nargo_toml.config {
+    let result = match nargo_toml.config {
         Config::Package { package_config } => {
-            package_config.resolve_to_package(&nargo_toml.root_dir)
+            package_config.resolve_to_package(&nargo_toml.root_dir, processed)
         }
         Config::Workspace { .. } => {
             Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
         }
-    }
+    };
+    let pos =
+        processed.iter().position(|toml| toml == str_path).expect("added package must be here");
+    processed.remove(pos);
+    result
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -411,7 +466,7 @@ pub fn resolve_workspace_from_toml(
     let nargo_toml = read_toml(toml_path)?;
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
     if let Some(current_compiler_version) = current_compiler_version {
-        semver::semver_check_workspace(workspace.clone(), current_compiler_version)?;
+        semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }
     Ok(workspace)
 }

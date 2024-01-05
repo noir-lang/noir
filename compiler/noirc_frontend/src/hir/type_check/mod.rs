@@ -101,8 +101,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(t) = &declared_return_type {
-            if interner.lookup_trait_implementation(&function_last_type, t.id).is_err() {
+        if let Type::TraitAsType(trait_id, _) = &declared_return_type {
+            if interner.lookup_trait_implementation(&function_last_type, *trait_id).is_err() {
                 let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type,
@@ -241,7 +241,7 @@ mod test {
         function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
-    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TraitMethodId};
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -254,6 +254,7 @@ mod test {
     #[test]
     fn basic_let() {
         let mut interner = NodeInterner::default();
+        interner.populate_dummy_operator_traits();
 
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
@@ -284,7 +285,9 @@ mod test {
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
-        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
+        let trait_id = TraitId(ModuleId::dummy_id());
+        let trait_method_id = TraitMethodId { trait_id, method_index: 0 };
+        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id, trait_method_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
@@ -469,6 +472,7 @@ mod test {
     ) {
         let (program, errors) = parse_program(src);
         let mut interner = NodeInterner::default();
+        interner.populate_dummy_operator_traits();
 
         assert_eq!(
             errors.len(),

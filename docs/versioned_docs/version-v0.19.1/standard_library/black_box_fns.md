@@ -43,4 +43,4 @@ Here is a list of the current black box functions that are supported by UltraPlo
 
 Most black box functions are included as part of the Noir standard library, however `AND`, `XOR` and `RANGE` are used as part of the Noir language syntax. For instance, using the bitwise operator `&` will invoke the `AND` black box function. To ensure compatibility across backends, the ACVM has fallback implementations of `AND`, `XOR` and `RANGE` defined in its standard library which it can seamlessly fallback to if the backend doesn't support them.
 
-You can view the black box functions defined in the ACVM code [here](https://github.com/noir-lang/acvm/blob/acir-v0.12.0/acir/src/circuit/black_box_functions.rs).
+You can view the black box functions defined in the ACVM code [here](https://github.com/noir-lang/noir/blob/master/acvm-repo/acir/src/circuit/black_box_functions.rs).

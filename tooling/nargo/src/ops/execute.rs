@@ -7,6 +7,7 @@ use crate::NargoError;
 
 use super::foreign_calls::ForeignCallExecutor;
 
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
     circuit: &Circuit,
     initial_witness: WitnessMap,
@@ -54,6 +55,5 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
         }
     }
 
-    let solved_witness = acvm.finalize();
-    Ok(solved_witness)
+    Ok(acvm.finalize())
 }

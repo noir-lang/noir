@@ -1,8 +1,5 @@
 //! Black box functions are ACIR opcodes which rely on backends implementing support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were implemented in more basic constraints.
-//!
-//! It is possible to fallback to less efficient implementations written in ACIR in some cases.
-//! These are implemented inside the ACVM stdlib.
 
 use serde::{Deserialize, Serialize};
 #[cfg(test)]
@@ -64,7 +61,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::SHA256 => "sha256",
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
-            BlackBoxFunc::PedersenCommitment => "pedersen",
+            BlackBoxFunc::PedersenCommitment => "pedersen_commitment",
             BlackBoxFunc::PedersenHash => "pedersen_hash",
             BlackBoxFunc::HashToField128Security => "hash_to_field_128_security",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
@@ -82,7 +79,7 @@ impl BlackBoxFunc {
             "sha256" => Some(BlackBoxFunc::SHA256),
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
-            "pedersen" => Some(BlackBoxFunc::PedersenCommitment),
+            "pedersen_commitment" => Some(BlackBoxFunc::PedersenCommitment),
             "pedersen_hash" => Some(BlackBoxFunc::PedersenHash),
             "hash_to_field_128_security" => Some(BlackBoxFunc::HashToField128Security),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),

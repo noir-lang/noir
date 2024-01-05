@@ -20,4 +20,4 @@ pub const PKG_FILE: &str = "Nargo.toml";
 /// The extension for files containing circuit proofs.
 pub const PROOF_EXT: &str = "proof";
 /// The extension for files containing proof witnesses.
-pub const WITNESS_EXT: &str = "tr";
+pub const WITNESS_EXT: &str = "gz";

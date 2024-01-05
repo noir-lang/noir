@@ -27,7 +27,7 @@ use js_witness_map::JsWitnessMap;
 #[wasm_bindgen(typescript_custom_section)]
 const INPUT_MAP: &'static str = r#"
 export type Field = string | number | boolean;
-export type InputValue = Field | Field[] | InputMap;
+export type InputValue = Field | InputMap | (Field | InputMap)[];
 export type InputMap = { [key: string]: InputValue };
 "#;
 

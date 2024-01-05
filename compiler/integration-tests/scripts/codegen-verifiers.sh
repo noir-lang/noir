@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 self_path=$(dirname "$(readlink -f "$0")")
 

@@ -277,7 +277,7 @@ mod tests {
         let circuit = Circuit {
             current_witness_index: 0,
             opcodes: vec![
-                Opcode::Arithmetic(crate::native_types::Expression {
+                Opcode::AssertZero(crate::native_types::Expression {
                     mul_terms: vec![],
                     linear_combinations: vec![],
                     q_c: FieldElement::from(8u128),

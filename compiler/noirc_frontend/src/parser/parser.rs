@@ -414,7 +414,12 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|(((name, generics), where_clause), items), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
+            if !generics.is_empty() {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExperimentalFeature("Generic traits"),
+                    span,
+                ));
+            }
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
         })
 }
@@ -437,7 +442,13 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then(parse_type())
         .then(optional_default_value())
         .then_ignore(just(Token::Semicolon))
-        .map(|((name, typ), default_value)| TraitItem::Constant { name, typ, default_value })
+        .validate(|((name, typ), default_value), span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated constants"),
+                span,
+            ));
+            TraitItem::Constant { name, typ, default_value }
+        })
 }
 
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
@@ -544,10 +555,15 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
 
 /// trait_type_declaration: 'type' ident generics
 fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Semicolon))
-        .map(|name| TraitItem::Type { name })
+    keyword(Keyword::Type).ignore_then(ident()).then_ignore(just(Token::Semicolon)).validate(
+        |name, span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Associated types"),
+                span,
+            ));
+            TraitItem::Type { name }
+        },
+    )
 }
 
 /// Parses a non-trait implementation, adding a set of methods to a type.
@@ -581,11 +597,10 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::LeftBrace))
         .then(trait_implementation_body())
         .then_ignore(just(Token::RightBrace))
-        .validate(|args, span, emit| {
+        .map(|args| {
             let ((other_args, where_clause), items) = args;
             let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
 
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
@@ -616,12 +631,10 @@ fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
         trait_bounds: Vec<TraitBound>,
     }
 
-    let constraints = parse_type().then_ignore(just(Token::Colon)).then(trait_bounds()).validate(
-        |(typ, trait_bounds), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            MultiTraitConstraint { typ, trait_bounds }
-        },
-    );
+    let constraints = parse_type()
+        .then_ignore(just(Token::Colon))
+        .then(trait_bounds())
+        .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
 
     keyword(Keyword::Where)
         .ignore_then(constraints.separated_by(just(Token::Comma)))
@@ -1106,14 +1119,7 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
                 Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
-        .validate(|(_, token), span, emit| {
-            let typ = UnresolvedTypeData::from_int_token(token).with_span(span);
-            if let UnresolvedTypeData::Integer(crate::Signedness::Signed, _) = &typ.typ {
-                let reason = ParserErrorReason::ExperimentalFeature("Signed integer types");
-                emit(ParserError::with_reason(reason, span));
-            }
-            typ
-        })
+        .map_with_span(|(_, token), span| UnresolvedTypeData::from_int_token(token).with_span(span))
 }
 
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {

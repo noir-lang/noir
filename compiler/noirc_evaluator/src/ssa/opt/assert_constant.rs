@@ -21,6 +21,7 @@ impl Ssa {
     /// seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
     /// since we must go through every instruction to find all references to `assert_constant`
     /// while loop unrolling only touches blocks with loops in them.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_assert_constant(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             for block in function.reachable_blocks() {

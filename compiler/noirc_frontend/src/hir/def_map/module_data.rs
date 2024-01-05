@@ -41,6 +41,10 @@ impl ModuleData {
         }
     }
 
+    pub(crate) fn scope(&self) -> &ItemScope {
+        &self.scope
+    }
+
     fn declare(
         &mut self,
         name: Ident,
@@ -104,8 +108,13 @@ impl ModuleData {
         self.scope.find_func_with_name(name)
     }
 
-    pub fn import(&mut self, name: Ident, id: ModuleDefId) -> Result<(), (Ident, Ident)> {
-        self.scope.add_item_to_namespace(name, id, None)
+    pub fn import(
+        &mut self,
+        name: Ident,
+        id: ModuleDefId,
+        is_prelude: bool,
+    ) -> Result<(), (Ident, Ident)> {
+        self.scope.add_item_to_namespace(name, id, None, is_prelude)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {
@@ -113,12 +122,12 @@ impl ModuleData {
     }
 
     pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.types().values().flat_map(|a| a.values().map(|(id, _)| *id))
+        self.definitions.types().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
     }
 
     /// Return an iterator over all definitions defined within this module,
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.values().values().flat_map(|a| a.values().map(|(id, _)| *id))
+        self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
     }
 }
