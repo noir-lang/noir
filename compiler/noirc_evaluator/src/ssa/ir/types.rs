@@ -19,6 +19,7 @@ pub enum NumericType {
 }
 
 impl NumericType {
+    /// Returns the bit size of the provided numeric type.
     pub(crate) fn bit_size(self: &NumericType) -> u32 {
         match self {
             NumericType::NativeField => FieldElement::max_num_bits(),
