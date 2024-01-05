@@ -27,7 +27,7 @@ use super::compile_cmd::report_errors;
 use super::fs::program::save_program_to_file;
 use super::NargoConfig;
 
-/// Compile the program and its secret execution trace into ACIR format
+/// Exports functions marked with #[export] attribute
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExportCommand {
     /// The name of the package to compile
