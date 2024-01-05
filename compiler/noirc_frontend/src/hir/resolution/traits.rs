@@ -419,7 +419,7 @@ pub(crate) fn resolve_trait_impls(
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            let methods = check_methods_signatures(
+            check_methods_signatures(
                 &mut new_resolver,
                 &impl_methods,
                 trait_id,
@@ -439,7 +439,7 @@ pub(crate) fn resolve_trait_impls(
                 trait_id,
                 file: trait_impl.file_id,
                 where_clause,
-                methods,
+                methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
             });
 
             if let Err((prev_span, prev_file)) = interner.add_trait_implementation(

@@ -20,7 +20,8 @@ use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, Type
 use crate::parser::{ParserError, SortedModule};
 use crate::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    NoirTypeAlias, Path, PathKind, Type, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -461,7 +462,7 @@ pub(crate) fn check_methods_signatures(
     trait_id: TraitId,
     trait_impl_generic_count: usize,
     errors: &mut Vec<(CompilationError, FileId)>,
-) -> Vec<FuncId> {
+) {
     let self_type = resolver.get_self_type().expect("trait impl must have a Self type").clone();
 
     // Temporarily bind the trait's Self type to self_type so we can type check
@@ -471,7 +472,6 @@ pub(crate) fn check_methods_signatures(
     // Temporarily take the trait's methods so we can use both them and a mutable reference
     // to the interner within the loop.
     let trait_methods = std::mem::take(&mut the_trait.methods);
-    let mut resulting_methods = Vec::with_capacity(impl_methods.len());
 
     for (file_id, func_id) in impl_methods {
         let func_name = resolver.interner.function_name(func_id).to_owned();
@@ -485,8 +485,7 @@ pub(crate) fn check_methods_signatures(
             let mut typecheck_errors = Vec::new();
             let impl_method = resolver.interner.function_meta(func_id);
 
-            let (impl_function_type, mut impl_instantiation_bindings) =
-                impl_method.typ.instantiate(resolver.interner);
+            let (impl_function_type, _) = impl_method.typ.instantiate(resolver.interner);
 
             let impl_method_generic_count =
                 impl_method.typ.generic_count() - trait_impl_generic_count;
@@ -506,66 +505,51 @@ pub(crate) fn check_methods_signatures(
                 errors.push((error.into(), *file_id));
             }
 
-            // Unwrap the `forall` to get the raw, uninstantiated function type
-            let expected = trait_method.typ.as_monotype();
+            if let Type::Function(impl_params, _, _) = impl_function_type {
+                if trait_method.arguments().len() == impl_params.len() {
+                    // Check the parameters of the impl method against the parameters of the trait method
+                    let args = trait_method.arguments().iter();
+                    let args_and_params = args.zip(&impl_params).zip(&impl_method.parameters.0);
 
-            match expected.try_unify(&impl_function_type, &mut impl_instantiation_bindings) {
-                Ok(()) => (),
-                Err(crate::UnificationError) => {
-                    typecheck_errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: expected.to_string(),
-                        expr_typ: impl_function_type.to_string(),
-                        expr_span: impl_method.location.span,
-                    });
+                    for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
+                        args_and_params.enumerate()
+                    {
+                        expected.unify(actual, &mut typecheck_errors, || {
+                            TypeCheckError::TraitMethodParameterTypeMismatch {
+                                method_name: func_name.to_string(),
+                                expected_typ: expected.to_string(),
+                                actual_typ: actual.to_string(),
+                                parameter_span: hir_pattern.span(),
+                                parameter_index: parameter_index + 1,
+                            }
+                        });
+                    }
+                } else {
+                    let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
+                        actual_num_parameters: impl_method.parameters.0.len(),
+                        expected_num_parameters: trait_method.arguments().len(),
+                        trait_name: resolver.interner.get_trait(trait_id).name.to_string(),
+                        method_name: func_name.to_string(),
+                        span: impl_method.location.span,
+                    };
+                    errors.push((error.into(), *file_id));
                 }
             }
 
-            resulting_methods.push(*func_id);
-
-            // if let Type::Function(impl_params, _, _) = impl_function_type {
-            //     if trait_method.arguments().len() == impl_params.len() {
-            //         // Check the parameters of the impl method against the parameters of the trait method
-            //         let args = trait_method.arguments().iter();
-            //         let args_and_params = args.zip(&impl_params).zip(&impl_method.parameters.0);
-
-            //         for (parameter_index, ((expected, actual), (hir_pattern, _, _))) in
-            //             args_and_params.enumerate()
-            //         {
-            //             expected.unify(actual, &mut typecheck_errors, || {
-            //                 TypeCheckError::TraitMethodParameterTypeMismatch {
-            //                     method_name: func_name.to_string(),
-            //                     expected_typ: expected.to_string(),
-            //                     actual_typ: actual.to_string(),
-            //                     parameter_span: hir_pattern.span(),
-            //                     parameter_index: parameter_index + 1,
-            //                 }
-            //             });
-            //         }
-            //     } else {
-            //         let error = DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-            //             actual_num_parameters: impl_method.parameters.0.len(),
-            //             expected_num_parameters: trait_method.arguments().len(),
-            //             trait_name: resolver.interner.get_trait(trait_id).name.to_string(),
-            //             method_name: func_name.to_string(),
-            //             span: impl_method.location.span,
-            //         };
-            //         errors.push((error.into(), *file_id));
-            //     }
-            // }
-
             // Check that impl method return type matches trait return type:
-            // let resolved_return_type =
-            //     resolver.resolve_type(impl_method.return_type.get_type().into_owned());
+            let resolved_return_type =
+                resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
-            // // TODO: This is not right since it may bind generic return types
-            // trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
-            //     let ret_type_span = impl_method.return_type.get_type().span;
-            //     let expr_span = ret_type_span.expect("return type must always have a span");
+            // TODO: This is not right since it may bind generic return types
+            trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
+                let impl_method = resolver.interner.function_meta(func_id);
+                let ret_type_span = impl_method.return_type.get_type().span;
+                let expr_span = ret_type_span.expect("return type must always have a span");
 
-            //     let expected_typ = trait_method.return_type().to_string();
-            //     let expr_typ = impl_method.return_type().to_string();
-            //     TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
-            // });
+                let expected_typ = trait_method.return_type().to_string();
+                let expr_typ = impl_method.return_type().to_string();
+                TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
+            });
 
             errors.extend(typecheck_errors.iter().cloned().map(|e| (e.into(), *file_id)));
         }
@@ -574,5 +558,4 @@ pub(crate) fn check_methods_signatures(
     let the_trait = resolver.interner.get_trait_mut(trait_id);
     the_trait.set_methods(trait_methods);
     the_trait.self_type_typevar.unbind(the_trait.self_type_typevar_id);
-    resulting_methods
 }
