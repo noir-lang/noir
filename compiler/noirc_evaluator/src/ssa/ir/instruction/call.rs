@@ -11,7 +11,7 @@ use crate::ssa::{
         dfg::{CallStack, DataFlowGraph},
         instruction::Intrinsic,
         map::Id,
-        types::{NumericType, Type},
+        types::Type,
         value::{Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
@@ -246,20 +246,10 @@ pub(super) fn simplify_call(
             let incoming_type = Type::field();
             let target_type = ctrl_typevars.unwrap().remove(0);
 
-            fn get_type_size(typ: &Type) -> u32 {
-                match typ {
-                    Type::Numeric(NumericType::NativeField) => FieldElement::max_num_bits(),
-                    Type::Numeric(
-                        NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size },
-                    ) => *bit_size,
-                    _ => unreachable!("Should only be called with primitive types"),
-                }
-            }
-
             let truncate = Instruction::Truncate {
                 value: arguments[0],
-                bit_size: get_type_size(&target_type),
-                max_bit_size: get_type_size(&incoming_type),
+                bit_size: target_type.bit_size(),
+                max_bit_size: incoming_type.bit_size(),
             };
             let truncated_value = dfg
                 .insert_instruction_and_results(
