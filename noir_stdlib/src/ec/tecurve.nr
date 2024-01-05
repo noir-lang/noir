@@ -9,6 +9,8 @@ mod affine {
     use crate::ec::montcurve::affine::Point as MPoint;
     use crate::ec::swcurve::affine::Curve as SWCurve;
     use crate::ec::swcurve::affine::Point as SWPoint;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation ax^2 + y^2 = 1 + dx^2y^2
@@ -27,14 +29,6 @@ mod affine {
         // Point constructor
         pub fn new(x: Field, y: Field) -> Self {
             Self { x, y }
-        }
-
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1} = self;
-            let Self {x: x2, y: y2} = p;
-
-            (x1 == x2) & (y1 == y2)
         }
 
         // Check if zero
@@ -71,6 +65,15 @@ mod affine {
 
                 MPoint::new(x0,y0)
             }
+        }
+    }
+
+    impl Eq for Point {
+        fn eq(self, p: Self) -> bool {
+             let Self {x: x1, y: y1} = self;
+            let Self {x: x2, y: y2} = p;
+
+            (x1 == x2) & (y1 == y2)
         }
     }
 
@@ -198,6 +201,8 @@ mod curvegroup {
     use crate::ec::montcurve::curvegroup::Point as MPoint;
     use crate::ec::swcurve::curvegroup::Curve as SWCurve;
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Twisted Edwards curve
         // Coefficients in defining equation a(x^2 + y^2)z^2 = z^4 + dx^2y^2
@@ -218,14 +223,6 @@ mod curvegroup {
         // Point constructor
         pub fn new(x: Field, y: Field, t: Field, z: Field) -> Self {
             Self {x, y, t, z}
-        }
-
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1, t: _t1, z: z1} = self;
-            let Self {x: x2, y: y2, t: _t2, z:z2} = p;
-
-            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
         }
 
         // Check if zero
@@ -256,6 +253,15 @@ mod curvegroup {
         // Map into prime-order subgroup of equivalent Montgomery curve
         fn into_montcurve(self) -> MPoint {
             self.into_affine().into_montcurve().into_group()
+        }
+    }
+
+    impl Eq for Point {
+        fn eq(self, p: Self) -> bool {
+            let Self {x: x1, y: y1, t: _t1, z: z1} = self;
+            let Self {x: x2, y: y2, t: _t2, z:z2} = p;
+
+            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
         }
     }
 
