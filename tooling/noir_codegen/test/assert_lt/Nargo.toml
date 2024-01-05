@@ -1,5 +1,5 @@
 [package]
 name = "assert_lt"
-type = "bin"
+type = "lib"
 authors = [""]
 [dependencies]
