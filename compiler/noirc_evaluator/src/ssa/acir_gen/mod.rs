@@ -727,23 +727,6 @@ impl Context {
                                 }
                                 None => {
                                     if index >= array_size {
-                                        // let results = dfg.instruction_results(instruction);
-                                        // let res_typ = dfg.type_of_value(results[0]);
-
-                                        // if res_typ.contains_slice_element() {
-                                        //     self.compute_slice_sizes(array_id, None, dfg);
-
-                                        //     let slice_sizes = self
-                                        //         .slice_sizes
-                                        //         .get(&array_id)
-                                        //         .expect("ICE: Array with slices should have associated slice sizes");
-
-                                        //     let slice_sizes = slice_sizes[1..].to_vec();
-
-                                        //     self.construct_dummy_array_value(&res_typ, &slice_sizes)
-                                        // } else {
-                                        //     self.construct_dummy_array_value(&res_typ, &[])
-                                        // }
                                         self.construct_dummy_slice_value(instruction, dfg, array_id)
                                     } else {
                                         array[index].clone()
