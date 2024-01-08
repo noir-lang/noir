@@ -28,6 +28,15 @@ pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 #[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir))]
 pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
+    // Track original acir opcode positions throughout the transformation passes of the compilation
+    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
+    let acir_opcode_positions = (0..acir.opcodes.len()).collect();
+
+    if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::Brillig(_)) {
+        info!("Program is fully unconstrained, skipping optimization pass");
+        return (acir, acir_opcode_positions);
+    }
+
     info!("Number of opcodes before: {}", acir.opcodes.len());
 
     // General optimizer pass
@@ -43,10 +52,6 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
         })
         .collect();
     let acir = Circuit { opcodes, ..acir };
-
-    // Track original acir opcode positions throughout the transformation passes of the compilation
-    // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
-    let acir_opcode_positions = (0..acir.opcodes.len()).collect();
 
     // Unused memory optimization pass
     let memory_optimizer = UnusedMemoryOptimizer::new(acir);
