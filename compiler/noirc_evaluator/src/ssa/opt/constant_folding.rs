@@ -280,11 +280,11 @@ mod test {
 
         let return_value_id = match entry_block.unwrap_terminator() {
             TerminatorInstruction::Return { return_values, .. } => return_values[0],
-            _ => unreachable!(),
+            _ => unreachable!("Should have terminator instruction"),
         };
         let return_element = match &main.dfg[return_value_id] {
             Value::Array { array, .. } => array[0],
-            _ => unreachable!(),
+            _ => unreachable!("Return type should be array"),
         };
         // The return element is expected to refer to the new add instruction result.
         assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
