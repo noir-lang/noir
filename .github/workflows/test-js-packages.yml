@@ -60,7 +60,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: x86_64-unknown-linux-gnu
+          key: noir-wasm
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
