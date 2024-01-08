@@ -32,8 +32,3 @@ getrandom = { workspace = true, features = ["js"] }
 
 [build-dependencies]
 build-data.workspace = true
-
-# `wasm-opt` is on by default in for the release profile, but it can be
-# disabled by setting it to `false`
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = false

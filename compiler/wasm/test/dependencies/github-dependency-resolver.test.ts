@@ -14,9 +14,8 @@ import {
 } from '../../src/noir/dependencies/github-dependency-resolver';
 import { GitDependencyConfig } from '../../src/types/noir_package_config';
 import Sinon, { SinonStub } from 'sinon';
-import { expect } from 'chai';
+import chai, { expect } from 'chai';
 import forEach from 'mocha-each';
-import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import AdmZip from 'adm-zip';
 

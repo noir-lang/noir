@@ -1,18 +1,18 @@
-type noirGitDependencySchema = {
+type NoirGitDependencySchema = {
   git: string;
   tag: string;
   directory?: string;
 };
 
-type noirLocalDependencySchema = {
+type NoirLocalDependencySchema = {
   path: string;
 };
 
-type noirPackageType = 'lib' | 'contract' | 'bin';
-type noirPackageConfigSchema = {
+type NoirPackageType = 'lib' | 'contract' | 'bin';
+type NoirPackageConfigSchema = {
   package: {
     name: string;
-    type: noirPackageType;
+    type: NoirPackageType;
     entry?: string;
     description?: string;
     authors?: string[];
@@ -26,17 +26,17 @@ type noirPackageConfigSchema = {
 /**
  * Noir package configuration.
  */
-export type PackageConfig = noirPackageConfigSchema;
+export type PackageConfig = NoirPackageConfigSchema;
 
 /**
  * A remote package dependency.
  */
-export type GitDependencyConfig = noirGitDependencySchema;
+export type GitDependencyConfig = NoirGitDependencySchema;
 
 /**
  * A local package dependency.
  */
-export type LocalDependencyConfig = noirLocalDependencySchema;
+export type LocalDependencyConfig = NoirLocalDependencySchema;
 
 /**
  * A package dependency.

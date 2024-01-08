@@ -30,9 +30,9 @@
   "scripts": {
     "build": "webpack",
     "test": "yarn test:build_fixtures && yarn test:node",
-    "test:build_fixtures": "cd test/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../../",
-    "test:node": "NODE_NO_WARNINGS=1 $(yarn bin mocha) --config ./.mocharc.json",
-    "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target public/fixtures/noir-contract/target",
+    "test:build_fixtures": "./build-fixtures.sh",
+    "test:node": "NODE_NO_WARNINGS=1 mocha --config ./.mocharc.json",
+    "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
@@ -45,6 +45,7 @@
     "@types/chai": "^4",
     "@types/mocha": "^10.0.6",
     "@types/mocha-each": "^2",
+    "@types/node": "^20.10.5",
     "@types/path-browserify": "^1",
     "@types/readable-stream": "^4",
     "@types/sinon": "^17",
@@ -53,7 +54,6 @@
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
     "adm-zip": "^0.5.0",
-    "assert": "^2.1.0",
     "browserify-fs": "^1.0.0",
     "chai": "^4.3.10",
     "copy-webpack-plugin": "^11.0.0",
@@ -61,7 +61,6 @@
     "memfs": "^4.6.0",
     "mocha": "^10.2.0",
     "mocha-each": "^2.0.1",
-    "pako": "^2.1.0",
     "path-browserify": "^1.0.1",
     "process": "^0.11.10",
     "readable-stream": "^4.4.2",
@@ -73,8 +72,5 @@
     "url": "^0.11.3",
     "webpack": "^5.49.0",
     "webpack-cli": "^4.7.2"
-  },
-  "dependencies": {
-    "@types/node": "^20.10.5"
   }
 }
