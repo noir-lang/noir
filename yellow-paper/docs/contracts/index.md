@@ -18,14 +18,14 @@ The purpose of the L1 contracts are simple:
 When presented with a new [`ProvenBlock`](../rollup-circuits/root_rollup.md) and its proof, an Aztec node can be convinced of its validity if the proof passes and the `Header.last_archive` matches the `archive` of the node (archive here represents a root of [archive tree](../state/archive.md)). The `archive` used as public input is the archive after the new header is inserted (see [root rollup](./../rollup-circuits/root_rollup.md)).
 
 ```python
-def process(block: ProvenBlock, archive: Fr, proof: Proof):
-    assert self.archive == header.last_archive
-    assert proof.verify(header, archive)
-    assert self.inbox.consume(block.l1_to_l2_msgs)
-    for tx in block.body.txs:
-        assert self.outbox.insert(tx.l2_to_l1_msgs)
+def process(block: ProvenBlock, proof: Proof):
+    assert self.archive == block.header.last_archive
+    assert proof.verify(block.header, block.archive)
+    assert self.inbox.consume(block.body.l1_to_l2_msgs)
+    for tx_effect in block.body.tx_effects:
+        assert self.outbox.insert(tx_effect.l2_to_l1_msgs)
     
-    self.archive = archive
+    self.archive = block.archive
 ```
 
 While the `ProvenBlock` must be published and available for nodes to build the state of the rollup, we can build the validating light node (the contract) such that as long as the node can be *convinced*  that the data is available we can progress the state. This means our light node can be built to only require a subset of the `ProvenBlock` to be published to Ethereum L1 and use a different data availability layer for most of the block body. Namely, we need the cross-chain messages to be published to L1, but the rest of the block body can be published to a different data availability layer.
