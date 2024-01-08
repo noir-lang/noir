@@ -39,6 +39,10 @@ pub enum BlackBoxFuncCall {
         inputs: Vec<FunctionInput>,
         outputs: Vec<Witness>,
     },
+    Blake3 {
+        inputs: Vec<FunctionInput>,
+        outputs: Vec<Witness>,
+    },
     SchnorrVerify {
         public_key_x: FunctionInput,
         public_key_y: FunctionInput,
@@ -54,12 +58,6 @@ pub enum BlackBoxFuncCall {
     PedersenHash {
         inputs: Vec<FunctionInput>,
         domain_separator: u32,
-        output: Witness,
-    },
-    // 128 here specifies that this function
-    // should have 128 bits of security
-    HashToField128Security {
-        inputs: Vec<FunctionInput>,
         output: Witness,
     },
     EcdsaSecp256k1 {
@@ -92,6 +90,10 @@ pub enum BlackBoxFuncCall {
         /// is more than the number of bytes in the input,
         /// then an error is returned.
         var_message_size: FunctionInput,
+        outputs: Vec<Witness>,
+    },
+    Keccakf1600 {
+        inputs: Vec<FunctionInput>,
         outputs: Vec<Witness>,
     },
     RecursiveAggregation {
@@ -127,15 +129,16 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
             BlackBoxFuncCall::SHA256 { .. } => BlackBoxFunc::SHA256,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
+            BlackBoxFuncCall::Blake3 { .. } => BlackBoxFunc::Blake3,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
             BlackBoxFuncCall::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
             BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
-            BlackBoxFuncCall::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
             BlackBoxFuncCall::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
             BlackBoxFuncCall::Keccak256 { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccak256VariableLength { .. } => BlackBoxFunc::Keccak256,
+            BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } => BlackBoxFunc::RecursiveAggregation,
         }
     }
@@ -148,10 +151,11 @@ impl BlackBoxFuncCall {
         match self {
             BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
+            | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
+            | BlackBoxFuncCall::Keccakf1600 { inputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
-            | BlackBoxFuncCall::PedersenHash { inputs, .. }
-            | BlackBoxFuncCall::HashToField128Security { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::PedersenHash { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
@@ -238,13 +242,14 @@ impl BlackBoxFuncCall {
         match self {
             BlackBoxFuncCall::SHA256 { outputs, .. }
             | BlackBoxFuncCall::Blake2s { outputs, .. }
+            | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
+            | BlackBoxFuncCall::Keccakf1600 { outputs, .. }
             | BlackBoxFuncCall::RecursiveAggregation {
                 output_aggregation_object: outputs, ..
             } => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
-            | BlackBoxFuncCall::HashToField128Security { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
             | BlackBoxFuncCall::PedersenHash { output, .. }
