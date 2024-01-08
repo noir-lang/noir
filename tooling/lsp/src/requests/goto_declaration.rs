@@ -1,27 +1,29 @@
 use std::future::{self, Future};
 
 use crate::resolve_workspace_for_source_path;
-use crate::{types::GotoDefinitionResult, LspState};
+use crate::types::GotoDeclarationResult;
+use crate::LspState;
 use async_lsp::{ErrorCode, ResponseError};
 
-use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
+use lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse};
+
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use noirc_driver::file_manager_with_stdlib;
 
 use super::{position_to_byte_index, to_lsp_location};
 
-pub(crate) fn on_goto_definition_request(
+pub(crate) fn on_goto_declaration_request(
     state: &mut LspState,
-    params: GotoDefinitionParams,
-) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
+    params: GotoDeclarationParams,
+) -> impl Future<Output = Result<GotoDeclarationResult, ResponseError>> {
     let result = on_goto_definition_inner(state, params);
     future::ready(result)
 }
 
 fn on_goto_definition_inner(
     _state: &mut LspState,
-    params: GotoDefinitionParams,
-) -> Result<GotoDefinitionResult, ResponseError> {
+    params: GotoDeclarationParams,
+) -> Result<GotoDeclarationResult, ResponseError> {
     let file_path =
         params.text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
@@ -69,71 +71,10 @@ fn on_goto_definition_inner(
         interner.get_definition_location_from(search_for_location).and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(files, file_id, found_location.span)?;
-            let response: GotoDefinitionResponse =
-                GotoDefinitionResponse::from(definition_position).to_owned();
+            let response: GotoDeclarationResponse =
+                GotoDeclarationResponse::from(definition_position).to_owned();
             Some(response)
         });
 
     Ok(goto_definition_response)
-}
-
-#[cfg(test)]
-mod goto_definition_tests {
-
-    use async_lsp::ClientSocket;
-    use lsp_types::{Position, Url};
-    use tokio::test;
-
-    use crate::solver::MockBackend;
-
-    use super::*;
-
-    #[test]
-    async fn test_on_goto_definition() {
-        let client = ClientSocket::new_closed();
-        let solver = MockBackend;
-        let mut state = LspState::new(&client, solver);
-
-        let root_path = std::env::current_dir()
-            .unwrap()
-            .join("../../test_programs/execution_success/7_function")
-            .canonicalize()
-            .expect("Could not resolve root path");
-        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
-            .expect("Could not convert text document path to URI");
-        let root_uri = Some(
-            Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"),
-        );
-
-        #[allow(deprecated)]
-        let initialize_params = lsp_types::InitializeParams {
-            process_id: Default::default(),
-            root_path: None,
-            root_uri,
-            initialization_options: None,
-            capabilities: Default::default(),
-            trace: Some(lsp_types::TraceValue::Verbose),
-            workspace_folders: None,
-            client_info: None,
-            locale: None,
-        };
-        let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
-            .await
-            .expect("Could not initialize LSP server");
-
-        let params = GotoDefinitionParams {
-            text_document_position_params: lsp_types::TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-                position: Position { line: 95, character: 5 },
-            },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-        };
-
-        let response = on_goto_definition_request(&mut state, params)
-            .await
-            .expect("Could execute on_goto_definition_request");
-
-        assert!(&response.is_some());
-    }
 }

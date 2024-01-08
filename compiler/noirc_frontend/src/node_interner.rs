@@ -1143,7 +1143,6 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
-    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
@@ -1279,6 +1278,7 @@ impl NodeInterner {
         self.find_location_index(location)
             .and_then(|index| self.resolve_location(index))
             .or_else(|| self.try_resolve_trait_impl_location(location))
+            .or_else(|| self.try_resolve_trait_method_declaration(location))
     }
 
     /// For a given [Index] we return [Location] to which we resolved to
@@ -1449,6 +1449,22 @@ impl NodeInterner {
             .and_then(|shared_trait_impl| {
                 let trait_impl = shared_trait_impl.borrow();
                 self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
+            })
+    }
+
+    fn try_resolve_trait_method_declaration(&self, location: Location) -> Option<Location> {
+        self.func_meta
+            .iter()
+            .find(|(_, func_meta)| func_meta.location.contains(&location))
+            .and_then(|(func_id, _func_meta)| {
+                let (_, trait_id) = self.get_function_trait(func_id)?;
+
+                self.traits
+                    .get(&trait_id)?
+                    .methods
+                    .iter()
+                    .find(|method| method.name.0.contents == self.function_name(func_id))
+                    .map(|method| method.location)
             })
     }
 }
