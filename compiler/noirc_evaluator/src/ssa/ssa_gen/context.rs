@@ -684,13 +684,11 @@ impl<'a> FunctionContext<'a> {
         // we're narrowing the type size.
         let incoming_type_size = self.builder.type_of_value(value).bit_size();
         let target_type_size = typ.bit_size();
-        let truncated_value = if target_type_size < incoming_type_size {
-            self.builder.insert_truncate(value, target_type_size, incoming_type_size)
-        } else {
-            value
-        };
+        if target_type_size < incoming_type_size {
+            value = self.builder.insert_truncate(value, target_type_size, incoming_type_size);
+        }
 
-        self.builder.insert_cast(truncated_value, typ)
+        self.builder.insert_cast(value, typ)
     }
 
     /// Create a const offset of an address for an array load or store
