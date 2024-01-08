@@ -20,7 +20,7 @@ use std::{
 use crate::{
     hir_def::{
         expr::*,
-        function::{FuncMeta, FunctionSignature, Parameters},
+        function::{FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -106,14 +106,14 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
+    let meta = interner.function_meta(&main);
 
     Program::new(
         functions,
         function_sig,
-        return_distinctness,
+        meta.return_distinctness,
         monomorphizer.return_location,
-        return_visibility,
+        meta.return_visibility,
     )
 }
 
@@ -217,7 +217,7 @@ impl<'interner> Monomorphizer<'interner> {
                 },
             );
         let main_meta = self.interner.function_meta(&main_id);
-        main_meta.into_function_signature()
+        main_meta.function_signature()
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
@@ -237,7 +237,7 @@ impl<'interner> Monomorphizer<'interner> {
             _ => meta.return_type(),
         });
 
-        let parameters = self.parameters(meta.parameters);
+        let parameters = self.parameters(&meta.parameters);
 
         let body = self.expr(body_expr_id);
         let unconstrained = modifiers.is_unconstrained
@@ -254,17 +254,17 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
-    fn parameters(&mut self, params: Parameters) -> Vec<(ast::LocalId, bool, String, ast::Type)> {
+    fn parameters(&mut self, params: &Parameters) -> Vec<(ast::LocalId, bool, String, ast::Type)> {
         let mut new_params = Vec::with_capacity(params.len());
-        for parameter in params {
-            self.parameter(parameter.0, &parameter.1, &mut new_params);
+        for (parameter, typ, _) in &params.0 {
+            self.parameter(parameter, typ, &mut new_params);
         }
         new_params
     }
 
     fn parameter(
         &mut self,
-        param: HirPattern,
+        param: &HirPattern,
         typ: &HirType,
         new_params: &mut Vec<(ast::LocalId, bool, String, ast::Type)>,
     ) {
@@ -276,11 +276,11 @@ impl<'interner> Monomorphizer<'interner> {
                 new_params.push((new_id, definition.mutable, name, self.convert_type(typ)));
                 self.define_local(ident.id, new_id);
             }
-            HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),
+            HirPattern::Mutable(pattern, _) => self.parameter(pattern, typ, new_params),
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
 
-                for (field, typ) in fields.into_iter().zip(tuple_field_types) {
+                for (field, typ) in fields.iter().zip(tuple_field_types) {
                     self.parameter(field, &typ, new_params);
                 }
             }
@@ -288,7 +288,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let struct_field_types = unwrap_struct_type(typ);
                 assert_eq!(struct_field_types.len(), fields.len());
 
-                let mut fields = btree_map(fields, |(name, field)| (name.0.contents, field));
+                let mut fields =
+                    btree_map(fields, |(name, field)| (name.0.contents.clone(), field));
 
                 // Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
@@ -1183,7 +1184,7 @@ impl<'interner> Monomorphizer<'interner> {
         let parameters =
             vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
-        let parameters = self.parameters(parameters);
+        let parameters = self.parameters(&parameters);
         let body = self.expr(lambda.body);
 
         let id = self.next_function_id();
@@ -1234,7 +1235,7 @@ impl<'interner> Monomorphizer<'interner> {
         let parameters =
             vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
-        let mut converted_parameters = self.parameters(parameters);
+        let mut converted_parameters = self.parameters(&parameters);
 
         let id = self.next_function_id();
         let name = lambda_name.to_owned();

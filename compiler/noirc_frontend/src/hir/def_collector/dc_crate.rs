@@ -542,6 +542,7 @@ pub(crate) fn check_methods_signatures(
 
             // TODO: This is not right since it may bind generic return types
             trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
+                let impl_method = resolver.interner.function_meta(func_id);
                 let ret_type_span = impl_method.return_type.get_type().span;
                 let expr_span = ret_type_span.expect("return type must always have a span");
 
