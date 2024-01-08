@@ -674,7 +674,7 @@ impl<'a> FunctionContext<'a> {
     /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(
         &mut self,
-        value: ValueId,
+        mut value: ValueId,
         typ: Type,
         location: Location,
     ) -> ValueId {
