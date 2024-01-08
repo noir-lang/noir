@@ -1,6 +1,7 @@
 #include "keccak.hpp"
 #include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
+#include "barretenberg/stdlib/primitives/logic/logic.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 namespace proof_system::plonk {
 namespace stdlib {
@@ -721,6 +722,92 @@ std::vector<field_t<Builder>> keccak<Builder>::format_input_lanes(byte_array_ct&
     return lanes;
 }
 
+// Returns the keccak f1600 permutation of the input state
+// We first convert the state into 'extended' representation, along with the 'twisted' state
+// and then we call keccakf1600() with this keccak 'internal state'
+// Finally, we convert back the state from the extented representation
+template <typename Builder>
+std::array<field_t<Builder>, keccak<Builder>::NUM_KECCAK_LANES> keccak<Builder>::permutation_opcode(
+    std::array<field_t<Builder>, NUM_KECCAK_LANES> state, Builder* ctx)
+{
+    std::vector<field_t<Builder>> converted_buffer(NUM_KECCAK_LANES);
+    std::vector<field_t<Builder>> msb_buffer(NUM_KECCAK_LANES);
+    // populate keccak_state, convert our 64-bit lanes into an extended base-11 representation
+    keccak_state internal;
+    internal.context = ctx;
+    for (size_t i = 0; i < state.size(); ++i) {
+        const auto accumulators = plookup_read<Builder>::get_lookup_accumulators(KECCAK_FORMAT_INPUT, state[i]);
+        internal.state[i] = accumulators[ColumnIdx::C2][0];
+        internal.state_msb[i] = accumulators[ColumnIdx::C3][accumulators[ColumnIdx::C3].size() - 1];
+    }
+    compute_twisted_state(internal);
+    keccakf1600(internal);
+    // we convert back to the normal lanes
+    return extended_2_normal(internal);
+}
+
+// This function is similar to sponge_absorb()
+// but it uses permutation_opcode() instead of calling directly keccakf1600().
+// As a result, this function is less efficient and should only be used to test permutation_opcode()
+template <typename Builder>
+void keccak<Builder>::sponge_absorb_with_permutation_opcode(keccak_state& internal,
+                                                            std::vector<field_t<Builder>>& input_buffer,
+                                                            const size_t input_size)
+{
+    // populate keccak_state
+    const size_t num_blocks = input_size / (BLOCK_SIZE / 8);
+    for (size_t i = 0; i < num_blocks; ++i) {
+        if (i == 0) {
+            for (size_t j = 0; j < LIMBS_PER_BLOCK; ++j) {
+                internal.state[j] = input_buffer[j];
+            }
+            for (size_t j = LIMBS_PER_BLOCK; j < NUM_KECCAK_LANES; ++j) {
+                internal.state[j] = witness_ct::create_constant_witness(internal.context, 0);
+            }
+        } else {
+            for (size_t j = 0; j < LIMBS_PER_BLOCK; ++j) {
+                internal.state[j] = stdlib::logic<Builder>::create_logic_constraint(
+                    internal.state[j], input_buffer[i * LIMBS_PER_BLOCK + j], 64, true);
+            }
+        }
+        internal.state = permutation_opcode(internal.state, internal.context);
+    }
+}
+
+// This function computes the keccak hash, like the hash() function
+// but it uses permutation_opcode() instead of calling directly keccakf1600().
+// As a result, this function is less efficient and should only be used to test permutation_opcode()
+template <typename Builder>
+stdlib::byte_array<Builder> keccak<Builder>::hash_using_permutation_opcode(byte_array_ct& input,
+                                                                           const uint32_ct& num_bytes)
+{
+    auto ctx = input.get_context();
+
+    ASSERT(uint256_t(num_bytes.get_value()) == input.size());
+
+    if (ctx == nullptr) {
+        // if buffer is constant compute hash and return w/o creating constraints
+        byte_array_ct output(nullptr, 32);
+        const std::vector<uint8_t> result = hash_native(input.get_value());
+        for (size_t i = 0; i < 32; ++i) {
+            output.set_byte(i, result[i]);
+        }
+        return output;
+    }
+
+    // convert the input byte array into 64-bit keccak lanes (+ apply padding)
+    auto formatted_slices = format_input_lanes(input, num_bytes);
+
+    keccak_state internal;
+    internal.context = ctx;
+    uint32_ct num_blocks_with_data = (num_bytes + BLOCK_SIZE) / BLOCK_SIZE;
+    sponge_absorb_with_permutation_opcode(internal, formatted_slices, formatted_slices.size());
+
+    auto result = sponge_squeeze_for_permutation_opcode(internal.state, ctx);
+
+    return result;
+}
+
 template <typename Builder>
 stdlib::byte_array<Builder> keccak<Builder>::hash(byte_array_ct& input, const uint32_ct& num_bytes)
 {
@@ -762,6 +849,46 @@ stdlib::byte_array<Builder> keccak<Builder>::hash(byte_array_ct& input, const ui
     return result;
 }
 
+// Convert the 'extended' representation of the internal Keccak state into the usual array of 64 bits lanes
+template <typename Builder>
+std::array<field_t<Builder>, keccak<Builder>::NUM_KECCAK_LANES> keccak<Builder>::extended_2_normal(
+    keccak_state& internal)
+{
+    std::array<field_t<Builder>, NUM_KECCAK_LANES> conversion;
+
+    // Each hash limb represents a little-endian integer. Need to reverse bytes before we write into the output array
+    for (size_t i = 0; i < internal.state.size(); ++i) {
+        field_ct output_limb = plookup_read<Builder>::read_from_1_to_2_table(KECCAK_FORMAT_OUTPUT, internal.state[i]);
+        conversion[i] = output_limb;
+    }
+
+    return conversion;
+}
+
+// This function is the same as sponge_squeeze, except that it does not convert
+// from extended representation and assumes the input has already being converted
+template <typename Builder>
+stdlib::byte_array<Builder> keccak<Builder>::sponge_squeeze_for_permutation_opcode(
+    std::array<field_t<Builder>, NUM_KECCAK_LANES> lanes, Builder* context)
+{
+    byte_array_ct result(context);
+
+    // Each hash limb represents a little-endian integer. Need to reverse bytes before we write into the output array
+    for (size_t i = 0; i < 4; ++i) {
+        byte_array_ct limb_bytes(lanes[i], 8);
+        byte_array_ct little_endian_limb_bytes(context, 8);
+        little_endian_limb_bytes.set_byte(0, limb_bytes[7]);
+        little_endian_limb_bytes.set_byte(1, limb_bytes[6]);
+        little_endian_limb_bytes.set_byte(2, limb_bytes[5]);
+        little_endian_limb_bytes.set_byte(3, limb_bytes[4]);
+        little_endian_limb_bytes.set_byte(4, limb_bytes[3]);
+        little_endian_limb_bytes.set_byte(5, limb_bytes[2]);
+        little_endian_limb_bytes.set_byte(6, limb_bytes[1]);
+        little_endian_limb_bytes.set_byte(7, limb_bytes[0]);
+        result.write(little_endian_limb_bytes);
+    }
+    return result;
+}
 INSTANTIATE_STDLIB_ULTRA_TYPE(keccak)
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -269,3 +269,46 @@ TEST(stdlib_keccak, test_variable_length_nonzero_input_greater_than_byte_array_s
     bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
+
+TEST(stdlib_keccak, test_permutation_opcode_single_block)
+{
+    Builder builder = Builder();
+    std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
+    std::vector<uint8_t> input_v(input.begin(), input.end());
+
+    byte_array input_arr(&builder, input_v);
+    byte_array output =
+        stdlib::keccak<Builder>::hash_using_permutation_opcode(input_arr, static_cast<uint32_t>(input.size()));
+
+    std::vector<uint8_t> expected = stdlib::keccak<Builder>::hash_native(input_v);
+
+    EXPECT_EQ(output.get_value(), expected);
+
+    builder.print_num_gates();
+
+    bool proof_result = builder.check_circuit();
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_keccak, test_permutation_opcode_double_block)
+{
+    Builder builder = Builder();
+    std::string input = "";
+    for (size_t i = 0; i < 200; ++i) {
+        input += "a";
+    }
+    std::vector<uint8_t> input_v(input.begin(), input.end());
+
+    byte_array input_arr(&builder, input_v);
+    byte_array output =
+        stdlib::keccak<Builder>::hash_using_permutation_opcode(input_arr, static_cast<uint32_t>(input.size()));
+
+    std::vector<uint8_t> expected = stdlib::keccak<Builder>::hash_native(input_v);
+
+    EXPECT_EQ(output.get_value(), expected);
+
+    builder.print_num_gates();
+
+    bool proof_result = builder.check_circuit();
+    EXPECT_EQ(proof_result, true);
+}

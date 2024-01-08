@@ -155,6 +155,7 @@ impl GeneratedAcir {
             BlackBoxFunc::Blake2s => {
                 BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
             }
+            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 { inputs: inputs[0].clone(), outputs },
             BlackBoxFunc::SchnorrVerify => {
                 BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: inputs[0][0],
@@ -221,6 +222,9 @@ impl GeneratedAcir {
                     var_message_size,
                     outputs,
                 }
+            }
+            BlackBoxFunc::Keccakf1600 => {
+                BlackBoxFuncCall::Keccakf1600 { inputs: inputs[0].clone(), outputs }
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let has_previous_aggregation = self.opcodes.iter().any(|op| {
@@ -569,8 +573,11 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3
         | BlackBoxFunc::PedersenCommitment
         | BlackBoxFunc::PedersenHash => None,
+
+        BlackBoxFunc::Keccakf1600 => Some(25),
 
         // Can only apply a range constraint to one
         // witness at a time.
@@ -597,7 +604,11 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // or the operation.
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
         // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
+        BlackBoxFunc::Keccak256
+        | BlackBoxFunc::SHA256
+        | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3 => Some(32),
+        BlackBoxFunc::Keccakf1600 => Some(25),
         // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),
         // Pedersen hash returns a field
