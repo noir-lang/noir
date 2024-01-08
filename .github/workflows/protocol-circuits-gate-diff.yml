@@ -8,12 +8,46 @@ on:
 
 jobs:
   compare_protocol_circuits_gates:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      - name: Install bleeding edge cmake
+        run: |
+          sudo apt -y remove --purge cmake
+          sudo snap install cmake --classic
+
+      - name: Create Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install ninja-build
+
+      - name: Install Clang16
+        run: |
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          tar -xvf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          sudo cp clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/bin/* /usr/local/bin/
+          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/include/* /usr/local/include/
+          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
+          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            barretenberg/cpp/build
+            barretenberg/cpp/build-wasm
+            barretenberg/cpp/build-threads
+          key: ${{ runner.os }}-bb-build
+
+      - name: Compile Barretenberg
+        run: |
+          cd barretenberg/cpp
+
+          cmake --preset default -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_BUILD_TYPE=RelWithAssert -DTARGET_ARCH=westmere
+          cmake --build --preset default --target bb
 
       - name: Install noirup
         run: |
@@ -48,6 +82,9 @@ jobs:
         run: |
           nargo info --json > protocol_circuits_report.json
           mv protocol_circuits_report.json ../../../protocol_circuits_report.json
+        env: 
+          NARGO_BACKEND_PATH: ../../../barretenberg/cpp/build/bin/bb
+
       - name: Compare gates reports
         id: gates_diff
         uses: TomAFrench/noir-gates-diff@e7cf131b7e7f044c01615f93f0b855f65ddc02d4
