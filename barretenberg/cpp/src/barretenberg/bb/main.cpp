@@ -43,10 +43,6 @@ acir_proofs::AcirComposer init(acir_format::acir_format& constraint_system)
     auto bn254_g2_data = get_bn254_g2_data(CRS_PATH);
     srs::init_crs_factory(bn254_g1_data, bn254_g2_data);
 
-    // Must +1!
-    auto grumpkin_g1_data = get_grumpkin_g1_data(CRS_PATH, subgroup_size + 1);
-    srs::init_grumpkin_crs_factory(grumpkin_g1_data);
-
     return acir_composer;
 }
 
@@ -203,7 +199,8 @@ void prove(const std::string& bytecodePath,
 void gateCount(const std::string& bytecodePath)
 {
     auto constraint_system = get_constraint_system(bytecodePath);
-    auto acir_composer = init(constraint_system);
+    acir_proofs::AcirComposer acir_composer(0, verbose);
+    acir_composer.create_circuit(constraint_system);
     auto gate_count = acir_composer.get_total_circuit_size();
 
     writeUint64AsRawBytesToStdout(static_cast<uint64_t>(gate_count));
