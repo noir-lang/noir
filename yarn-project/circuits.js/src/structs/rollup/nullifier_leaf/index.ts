@@ -45,9 +45,13 @@ export class NullifierLeafPreimage implements IndexedTreeLeafPreimage {
   toHashInputs(): Buffer[] {
     return [
       Buffer.from(this.nullifier.toBuffer()),
-      Buffer.from(toBufferBE(this.nextIndex, 32)),
       Buffer.from(this.nextNullifier.toBuffer()),
+      Buffer.from(toBufferBE(this.nextIndex, 32)),
     ];
+  }
+
+  toFieldArray(): Fr[] {
+    return this.toHashInputs().map(buf => Fr.fromBuffer(buf));
   }
 
   clone(): NullifierLeafPreimage {
@@ -60,8 +64,8 @@ export class NullifierLeafPreimage implements IndexedTreeLeafPreimage {
 
   static fromBuffer(buf: Buffer): NullifierLeafPreimage {
     const nullifier = Fr.fromBuffer(buf.subarray(0, 32));
-    const nextIndex = toBigIntBE(buf.subarray(32, 64));
-    const nextNullifier = Fr.fromBuffer(buf.subarray(64, 96));
+    const nextNullifier = Fr.fromBuffer(buf.subarray(32, 64));
+    const nextIndex = toBigIntBE(buf.subarray(64, 96));
     return new NullifierLeafPreimage(nullifier, nextNullifier, nextIndex);
   }
 

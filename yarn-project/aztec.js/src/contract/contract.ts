@@ -3,9 +3,9 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Point } from '@aztec/foundation/fields';
 import { PublicKey } from '@aztec/types';
 
-import { DeployMethod } from '../contract_deployer/deploy_method.js';
-import { Wallet } from '../wallet/index.js';
+import { Wallet } from '../account/index.js';
 import { ContractBase } from './contract_base.js';
+import { DeployMethod } from './deploy_method.js';
 
 /**
  * The Contract class represents a contract and provides utility methods for interacting with it.
@@ -43,7 +43,8 @@ export class Contract extends ContractBase {
    * @param args - Arguments for the constructor.
    */
   public static deploy(wallet: Wallet, artifact: ContractArtifact, args: any[]) {
-    return new DeployMethod(Point.ZERO, wallet, artifact, args);
+    const postDeployCtor = (address: AztecAddress, wallet: Wallet) => Contract.at(address, artifact, wallet);
+    return new DeployMethod(Point.ZERO, wallet, artifact, postDeployCtor, args);
   }
 
   /**
@@ -54,6 +55,7 @@ export class Contract extends ContractBase {
    * @param args - Arguments for the constructor.
    */
   public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, artifact: ContractArtifact, args: any[]) {
-    return new DeployMethod(publicKey, wallet, artifact, args);
+    const postDeployCtor = (address: AztecAddress, wallet: Wallet) => Contract.at(address, artifact, wallet);
+    return new DeployMethod(publicKey, wallet, artifact, postDeployCtor, args);
   }
 }

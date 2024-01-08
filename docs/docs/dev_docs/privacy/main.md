@@ -55,13 +55,15 @@ If a public function sends a message to be consumed by a private function, the a
 
 Information about the nature of a transaction can be leaked based on the timing of that transaction.
 
-If a transaction is executed at 8am GMT, it's much less likely to have been made by someone in the USA. That's information, right there.
+If a transaction is executed at 8am GMT, it's much less likely to have been made by someone in the USA. 
 
 If there's a spike in transactions on the last day of every month, those might be salaries.
 
+These minor details are information that can disclose much more information about a user than the user might otherwise expect.
+
 Suppose that every time Alice sends Bob a private token, 1 minute later a transaction is always submitted to the tx pool with the same kind of 'fingerprint'. Alice might deduce that these transactions are automated reactions by Bob. (Here, 'fingerprint' is an intentionally vague term. It could be a public function call, or a private tx proof with a particular number of nonzero public inputs, or some other discernible pattern that Alice sees).
 
-Tl;dr: app developers should think about the _timing_ of user transactions, and how this might leak information.
+TL;DR: app developers should think about the _timing_ of user transactions, and how this might leak information.
 
 ### Function Fingerprints and Tx Fingerprints
 
@@ -99,7 +101,7 @@ Ethereum has a notion of a 'full node' which keeps-up with the blockchain and st
 
 This pattern is likely to develop in Aztec as well, except there's a problem: privacy. If a privacy-seeking user makes a query to a 3rd-party 'full node', that user might leak data about who they are; about their historical network activity; or about their future intentions. One solution to this problem is "always run a full node", but pragmatically, not everyone will. To protect less-advanced users' privacy, research is underway to explore how a privacy-seeking user may request and receive data from a 3rd-party node without revealing what that data is, nor who is making the request.
 
-App developers should be aware of this avenue for private data leakage. **Whenever an app requests information from a node, the entity running that node is unlikely be your user!**
+App developers should be aware of this avenue for private data leakage. **Whenever an app requests information from a node, the entity running that node is unlikely to be your user!**
 
 #### What kind of queries can be leaky?
 
@@ -119,7 +121,7 @@ But if a user is not running their own node, they would need to query the very-l
 
 We're researching cryptographic ways to enable users to retrieve sibling paths from 3rd-parties without revealing leaf indices.
 
-> \* Note: due to the non-uniformity of Aztec transactions, the 'privacy set' of a transaction might not be the entire set of transactions that came before. See here (LINK).
+> \* Note: due to the non-uniformity of Aztec transactions, the 'privacy set' of a transaction might not be the entire set of transactions that came before.
 
 ##### Any query
 

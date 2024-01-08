@@ -42,7 +42,9 @@ pub fn calculate_subtree<N>(leaves: [Field; N]) -> Field {
 // Would be good if we could use width since the compute_subtree
 // algorithm uses depth.
 pub fn calculate_empty_tree_root(depth: Field) -> Field {
-    if depth == 1 {
+    if depth == 0 {
+        0
+    } else if depth == 1 {
         0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed
     } else if depth == 2 {
         0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550
@@ -63,7 +65,7 @@ pub fn calculate_empty_tree_root(depth: Field) -> Field {
     } else if depth == 10 {
         0x00c5ae2526e665e2c7c698c11a06098b7159f720606d50e7660deb55758b0b02
     } else {
-        assert(false, "depth should be between 1 and 10");
+        assert(false, "depth should be between 0 and 10");
         0
     }
 }
@@ -82,6 +84,8 @@ fn test_merkle_root_interop_test() {
 
 #[test]
 fn test_empty_subroot() {
+    assert(calculate_empty_tree_root(0) == 0);
+
     let expected_empty_root_2 = calculate_subtree([0; 2]);
     assert(calculate_empty_tree_root(1) == expected_empty_root_2);
 

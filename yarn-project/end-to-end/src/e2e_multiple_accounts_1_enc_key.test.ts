@@ -1,3 +1,5 @@
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
 import {
   AztecAddress,
   AztecNode,
@@ -12,10 +14,8 @@ import {
   Wallet,
   computeMessageSecretHash,
   generatePublicKey,
-  getSandboxAccountsWallets,
-  getSchnorrAccount,
 } from '@aztec/aztec.js';
-import { TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 

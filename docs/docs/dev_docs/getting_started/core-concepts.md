@@ -29,7 +29,7 @@ The PXE is unaware of the Public VM. And the Public VM is unaware of the PXE. Th
 
 You can call a public function from a private function by using `context.call_public_function`, like this:
 
-#include_code call_public_function yarn-project/noir-contracts/src/contracts/card_game_contract/src/main.nr rust
+#include_code call_public_function yarn-project/noir-contracts/contracts/card_game_contract/src/main.nr rust
 
 You cannot call a private function from a public function, but you can use a slow updates tree to read historical public state and stage writes to public state from a private function. 
 
@@ -54,11 +54,11 @@ Currently, when writing Aztec.nr smart contracts, you will need to define two th
 
 The storage struct looks like this:
 
-#include_code storage_struct yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_struct yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 The storage impl block looks like this:
 
-#include_code storage_init yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_init yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 The `init` function must declare the storage struct with an instantiation defining how variables are accessed and manipulated. Each variable must be given a storage slot, which can be anything except 0.
 

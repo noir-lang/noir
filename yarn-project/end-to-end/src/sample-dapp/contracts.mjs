@@ -1,5 +1,5 @@
 import { AztecAddress, Contract } from '@aztec/aztec.js';
-import { TokenContractArtifact } from '@aztec/noir-contracts/artifacts';
+import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 
 import { readFileSync } from 'fs';
 

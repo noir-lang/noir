@@ -3,6 +3,7 @@
 #include "barretenberg/plonk/transcript/transcript_wrappers.hpp"
 #include "barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp"
 #include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
+#include <cstddef>
 
 namespace acir_format {
 
@@ -28,11 +29,14 @@ void generate_dummy_proof() {}
  *       We would either need a separate ACIR opcode where inner_proof_contains_recursive_proof = true,
  *       or we need non-witness data to be provided as metadata in the ACIR opcode
  */
-void create_recursion_constraints(Builder& builder,
-                                  const RecursionConstraint& input,
-                                  bool has_valid_witness_assignments)
+std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recursion_constraints(
+    Builder& builder,
+    const RecursionConstraint& input,
+    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object,
+    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
+    bool has_valid_witness_assignments)
 {
-    const auto& nested_aggregation_indices = input.nested_aggregation_object;
+    const auto& nested_aggregation_indices = nested_aggregation_object;
     bool nested_aggregation_indices_all_zero = true;
     for (const auto& idx : nested_aggregation_indices) {
         nested_aggregation_indices_all_zero &= (idx == 0);
@@ -46,8 +50,12 @@ void create_recursion_constraints(Builder& builder,
         const std::vector<fr> dummy_key = export_dummy_key_in_recursion_format(
             PolynomialManifest(Builder::CIRCUIT_TYPE), inner_proof_contains_recursive_proof);
         const auto manifest = Composer::create_manifest(input.public_inputs.size());
-        const std::vector<barretenberg::fr> dummy_proof =
+        std::vector<barretenberg::fr> dummy_proof =
             export_dummy_transcript_in_recursion_format(manifest, inner_proof_contains_recursive_proof);
+
+        // Remove the public inputs from the dummy proof
+        dummy_proof.erase(dummy_proof.begin(),
+                          dummy_proof.begin() + static_cast<std::ptrdiff_t>(input.public_inputs.size()));
         for (size_t i = 0; i < input.proof.size(); ++i) {
             const auto proof_field_idx = input.proof[i];
             // if we do NOT have a witness assignment (i.e. are just building the proving/verification keys),
@@ -73,7 +81,7 @@ void create_recursion_constraints(Builder& builder,
     // Construct an in-circuit representation of the verification key.
     // For now, the v-key is a circuit constant and is fixed for the circuit.
     // (We may need a separate recursion opcode for this to vary, or add more config witnesses to this opcode)
-    const auto& aggregation_input = input.input_aggregation_object;
+    const auto& aggregation_input = input_aggregation_object;
     aggregation_state_ct previous_aggregation;
 
     // If we have previously recursively verified proofs, `is_aggregation_object_nonzero = true`
@@ -112,7 +120,13 @@ void create_recursion_constraints(Builder& builder,
     }
 
     std::vector<field_ct> proof_fields;
-    proof_fields.reserve(input.proof.size());
+    // Prepend the public inputs to the proof fields because this is how the
+    // core barretenberg library processes proofs (with the public inputs first and not separated)
+    proof_fields.reserve(input.proof.size() + input.public_inputs.size());
+    for (const auto& idx : input.public_inputs) {
+        auto field = field_ct::from_witness_index(&builder, idx);
+        proof_fields.emplace_back(field);
+    }
     for (const auto& idx : input.proof) {
         auto field = field_ct::from_witness_index(&builder, idx);
         proof_fields.emplace_back(field);
@@ -122,6 +136,7 @@ void create_recursion_constraints(Builder& builder,
     std::shared_ptr<verification_key_ct> vkey = verification_key_ct::from_field_elements(
         &builder, key_fields, inner_proof_contains_recursive_proof, nested_aggregation_indices);
     vkey->program_width = noir_recursive_settings::program_width;
+
     Transcript_ct transcript(&builder, manifest, proof_fields, input.public_inputs.size());
     aggregation_state_ct result = proof_system::plonk::stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
         &builder, vkey, transcript, previous_aggregation);
@@ -136,12 +151,14 @@ void create_recursion_constraints(Builder& builder,
         result.public_inputs[i].assert_equal(field_ct::from_witness_index(&builder, input.public_inputs[i]));
     }
 
-    // Assign the recursive proof outputs to `output_aggregation_object`
-    for (size_t i = 0; i < result.proof_witness_indices.size(); ++i) {
-        const auto lhs = field_ct::from_witness_index(&builder, result.proof_witness_indices[i]);
-        const auto rhs = field_ct::from_witness_index(&builder, input.output_aggregation_object[i]);
-        lhs.assert_equal(rhs);
-    }
+    // We want to return an array, so just copy the vector into the array
+    ASSERT(result.proof_witness_indices.size() == RecursionConstraint::AGGREGATION_OBJECT_SIZE);
+    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> resulting_output_aggregation_object;
+    std::copy(result.proof_witness_indices.begin(),
+              result.proof_witness_indices.begin() + RecursionConstraint::AGGREGATION_OBJECT_SIZE,
+              resulting_output_aggregation_object.begin());
+
+    return resulting_output_aggregation_object;
 }
 
 /**
@@ -335,6 +352,13 @@ std::vector<barretenberg::fr> export_dummy_transcript_in_recursion_format(const 
         }
     }
     return fields;
+}
+
+size_t recursion_proof_size_without_public_inputs()
+{
+    const auto manifest = Composer::create_manifest(0);
+    auto dummy_transcript = export_dummy_transcript_in_recursion_format(manifest, false);
+    return dummy_transcript.size();
 }
 
 G1AsFields export_g1_affine_element_as_fields(const barretenberg::g1::affine_element& group_element)

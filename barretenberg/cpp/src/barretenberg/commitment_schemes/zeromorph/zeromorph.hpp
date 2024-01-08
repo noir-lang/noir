@@ -692,7 +692,16 @@ template <typename Curve> class ZeroMorphVerifier_ {
                                          concatenation_group_commitments);
 
         // Compute commitment C_{\zeta,Z}
-        auto C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
+        Commitment C_zeta_Z;
+        if constexpr (Curve::is_stdlib_type) {
+            // Express operation as a batch_mul in order to use Goblinization if available
+            auto builder = rho.get_context();
+            std::vector<FF> scalars = { FF(builder, 1), z_challenge };
+            std::vector<Commitment> points = { C_zeta_x, C_Z_x };
+            C_zeta_Z = Commitment::batch_mul(points, scalars);
+        } else {
+            C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
+        }
 
         // Receive proof commitment \pi
         auto C_pi = transcript->template receive_from_prover<Commitment>("ZM:PI");
@@ -702,7 +711,17 @@ template <typename Curve> class ZeroMorphVerifier_ {
         // e(C_{\zeta,Z}, [1]_2) = e(pi, [X - x]_2). This can be rearranged (e.g. see the plonk paper) as
         // e(C_{\zeta,Z} - x*pi, [1]_2) * e(-pi, [X]_2) = 1, or
         // e(P_0, [1]_2) * e(P_1, [X]_2) = 1
-        auto P0 = C_zeta_Z + C_pi * x_challenge;
+        Commitment P0;
+        if constexpr (Curve::is_stdlib_type) {
+            // Express operation as a batch_mul in order to use Goblinization if available
+            auto builder = rho.get_context();
+            std::vector<FF> scalars = { FF(builder, 1), x_challenge };
+            std::vector<Commitment> points = { C_zeta_Z, C_pi };
+            P0 = Commitment::batch_mul(points, scalars);
+        } else {
+            P0 = C_zeta_Z + C_pi * x_challenge;
+        }
+
         auto P1 = -C_pi;
 
         return { P0, P1 };

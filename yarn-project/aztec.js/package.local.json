@@ -1,8 +1,9 @@
 {
   "scripts": {
-    "build": "yarn clean && tsc -b && webpack",
+    "build": "yarn clean && yarn build:copy-contracts && tsc -b && webpack",
     "build:web": "webpack",
     "build:dev": "tsc -b --watch",
-    "build:ts": "tsc -b"
+    "build:ts": "tsc -b",
+    "clean": "rm -rf ./dest .tsbuildinfo ./src/account_contract/artifacts"
   }
 }

@@ -18,6 +18,7 @@ struct LogicConstraint {
     MSGPACK_FIELDS(a, b, result, num_bits, is_xor_gate);
 };
 
+template <typename Builder>
 void create_logic_gate(Builder& builder, uint32_t a, uint32_t b, uint32_t result, size_t num_bits, bool is_xor_gate);
 
 void xor_gate(Builder& builder, uint32_t a, uint32_t b, uint32_t result);

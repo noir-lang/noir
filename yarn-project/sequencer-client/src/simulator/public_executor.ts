@@ -147,8 +147,8 @@ export class WorldStateDB implements CommitmentsDB {
   public async getL1ToL2Message(messageKey: Fr): Promise<MessageLoadOracleInputs> {
     // todo: #697 - make this one lookup.
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
-    const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, messageKey.toBuffer()))!;
-    const siblingPath = await this.db.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, index);
+    const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageKey.toBuffer()))!;
+    const siblingPath = await this.db.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, index);
 
     return {
       message: message.toFieldArray(),

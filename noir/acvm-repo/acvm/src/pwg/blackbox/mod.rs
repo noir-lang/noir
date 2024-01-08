@@ -19,7 +19,7 @@ mod signature;
 
 use fixed_base_scalar_mul::fixed_base_scalar_mul;
 // Hash functions should eventually be exposed for external consumers.
-use hash::{solve_generic_256_hash_opcode, solve_hash_to_field};
+use hash::solve_generic_256_hash_opcode;
 use logic::{and, xor};
 use pedersen::pedersen;
 use range::solve_range_opcode;
@@ -100,9 +100,6 @@ pub(crate) fn solve(
                 keccak256,
                 bb_func.get_black_box_func(),
             )
-        }
-        BlackBoxFuncCall::HashToField128Security { inputs, output } => {
-            solve_hash_to_field(initial_witness, inputs, output)
         }
         BlackBoxFuncCall::SchnorrVerify {
             public_key_x,

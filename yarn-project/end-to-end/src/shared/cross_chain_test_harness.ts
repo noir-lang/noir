@@ -21,7 +21,8 @@ import {
   TokenPortalAbi,
   TokenPortalBytecode,
 } from '@aztec/l1-artifacts';
-import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
+import { TokenBridgeContract } from '@aztec/noir-contracts/TokenBridge';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract, getFunctionSelector } from 'viem';
 

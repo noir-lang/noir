@@ -21,17 +21,33 @@ We'll need to [install and run the Sandbox](../../cli/sandbox-reference.md#insta
 Create a new file `src/index.test.mjs` with the imports we'll be using and an empty test suite to begin with:
 
 ```js
-import { Contract, createAccount } from "@aztec/aztec.js";
-import TokenContractArtifact from "../contracts/token/target/Token.json" assert { type: "json" };
+import {
+  Contract,
+  ExtendedNote,
+  Fr,
+  Note,
+  computeMessageSecretHash,
+  createAccount,
+  createPXEClient,
+  waitForSandbox,
+} from "@aztec/aztec.js";
+import { TokenContractArtifact } from "@aztec/noir-contracts/Token";
 
-describe("token", () => {});
+const {
+  PXE_URL = "http://localhost:8080",
+  ETHEREUM_HOST = "http://localhost:8545",
+} = process.env;
+
+describe("token contract", () => {});
 ```
 
-Let's set up our test suite. We'll start [a new Sandbox instance within the test](../testing.md#running-sandbox-in-the-nodejs-process), create two fresh accounts to test with, and deploy an instance of our contract. The `aztec-sandbox` and `aztec.js` provide the helper functions we need to do this:
+Let's set up our test suite. We'll make sure the Sandbox is running, create two fresh accounts to test with, and deploy an instance of our contract. `aztec.js` provides the helper functions we need to do this:
 
 #include_code setup yarn-project/end-to-end/src/sample-dapp/index.test.mjs javascript
 
-Note that, since we are starting a new Sandbox instance, we need to `stop` it in the test suite teardown. Also, even though the Sandbox runs within our tests, we still need a running Ethereum development node. Make sure you are running [Anvil](https://book.getfoundry.sh/anvil/), [Hardhat Network](https://hardhat.org/hardhat-network/docs/overview), or [Ganache](https://trufflesuite.com/ganache/) along with your tests.
+:::tip
+Instead of creating new accounts in our test suite, we can use the ones already initialized by the Sandbox upon startup. This can provide a speed boost to your tests setup. However, bear in mind that you may accidentally introduce an interdependency across test suites by reusing the same accounts. Read more [here](../testing.md#using-sandbox-initial-accounts).
+:::
 
 ## Writing our test
 
@@ -43,7 +59,7 @@ In this example, we assert that the `recipient`'s balance is increased by the am
 
 ## Running our tests
 
-With a local Ethereum development node running in port 8545, we can run our `jest` tests using `yarn`. The quirky syntax is due to [jest limitations in ESM support](https://jestjs.io/docs/ecmascript-modules), as well as not picking up `mjs` file by default:
+We can run our `jest` tests using `yarn`. The quirky syntax is due to [jest limitations in ESM support](https://jestjs.io/docs/ecmascript-modules), as well as not picking up `mjs` file by default:
 
 ```sh
 yarn node --experimental-vm-modules $(yarn bin jest) --testRegex '.*\.test\.mjs$'

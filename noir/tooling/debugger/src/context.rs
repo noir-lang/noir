@@ -321,221 +321,218 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
 }
 
 #[cfg(test)]
-struct StubbedSolver;
+mod tests {
+    use super::*;
+    use crate::context::{DebugCommandResult, DebugContext};
 
-#[cfg(test)]
-impl BlackBoxFunctionSolver for StubbedSolver {
-    fn schnorr_verify(
-        &self,
-        _public_key_x: &FieldElement,
-        _public_key_y: &FieldElement,
-        _signature: &[u8],
-        _message: &[u8],
-    ) -> Result<bool, acvm::BlackBoxResolutionError> {
-        unimplemented!();
-    }
-
-    fn pedersen_commitment(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
-        unimplemented!();
-    }
-
-    fn pedersen_hash(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<FieldElement, acvm::BlackBoxResolutionError> {
-        unimplemented!();
-    }
-
-    fn fixed_base_scalar_mul(
-        &self,
-        _low: &FieldElement,
-        _high: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
-        unimplemented!();
-    }
-}
-
-#[cfg(test)]
-#[test]
-fn test_resolve_foreign_calls_stepping_into_brillig() {
+    use acvm::{
+        acir::{
+            circuit::brillig::{Brillig, BrilligInputs, BrilligOutputs},
+            native_types::Expression,
+        },
+        brillig_vm::brillig::{
+            BinaryFieldOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory,
+        },
+    };
+    use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor};
     use std::collections::BTreeMap;
 
-    use acvm::acir::{
-        brillig::{Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory},
-        circuit::brillig::{Brillig, BrilligInputs},
-        native_types::Expression,
-    };
+    struct StubbedSolver;
 
-    use nargo::ops::DefaultForeignCallExecutor;
+    impl BlackBoxFunctionSolver for StubbedSolver {
+        fn schnorr_verify(
+            &self,
+            _public_key_x: &FieldElement,
+            _public_key_y: &FieldElement,
+            _signature: &[u8],
+            _message: &[u8],
+        ) -> Result<bool, acvm::BlackBoxResolutionError> {
+            unimplemented!();
+        }
 
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
-    let w_x = Witness(1);
+        fn pedersen_commitment(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
+            unimplemented!();
+        }
 
-    let blackbox_solver = &StubbedSolver;
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, acvm::BlackBoxResolutionError> {
+            unimplemented!();
+        }
 
-    let brillig_opcodes = Brillig {
-        inputs: vec![BrilligInputs::Single(Expression {
-            linear_combinations: vec![(fe_1, w_x)],
-            ..Expression::default()
-        })],
-        outputs: vec![],
-        bytecode: vec![
-            BrilligOpcode::Const { destination: RegisterIndex::from(1), value: Value::from(fe_0) },
-            BrilligOpcode::ForeignCall {
-                function: "clear_mock".into(),
-                destinations: vec![],
-                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
-            },
-            BrilligOpcode::Stop,
-        ],
-        predicate: None,
-    };
-    let opcodes = vec![Opcode::Brillig(brillig_opcodes)];
-    let current_witness_index = 2;
-    let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        fn fixed_base_scalar_mul(
+            &self,
+            _low: &FieldElement,
+            _high: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
+            unimplemented!();
+        }
+    }
 
-    let debug_symbols = vec![];
-    let file_map = BTreeMap::new();
-    let warnings = vec![];
-    let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+    #[test]
+    fn test_resolve_foreign_calls_stepping_into_brillig() {
+        let fe_0 = FieldElement::zero();
+        let fe_1 = FieldElement::one();
+        let w_x = Witness(1);
 
-    let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
+        let blackbox_solver = &StubbedSolver;
 
-    let mut context = DebugContext::new(
-        blackbox_solver,
-        circuit,
-        debug_artifact,
-        initial_witness,
-        Box::new(DefaultForeignCallExecutor::new(true)),
-    );
-
-    assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(0)));
-
-    // execute the first Brillig opcode (const)
-    let result = context.step_into_opcode();
-    assert!(matches!(result, DebugCommandResult::Ok));
-    assert_eq!(
-        context.get_current_opcode_location(),
-        Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 })
-    );
-
-    // try to execute the second Brillig opcode (and resolve the foreign call)
-    let result = context.step_into_opcode();
-    assert!(matches!(result, DebugCommandResult::Ok));
-    assert_eq!(
-        context.get_current_opcode_location(),
-        Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 })
-    );
-
-    // retry the second Brillig opcode (foreign call should be finished)
-    let result = context.step_into_opcode();
-    assert!(matches!(result, DebugCommandResult::Ok));
-    assert_eq!(
-        context.get_current_opcode_location(),
-        Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 })
-    );
-
-    // last Brillig opcode
-    let result = context.step_into_opcode();
-    assert!(matches!(result, DebugCommandResult::Done));
-    assert_eq!(context.get_current_opcode_location(), None);
-}
-
-#[cfg(test)]
-#[test]
-fn test_break_brillig_block_while_stepping_acir_opcodes() {
-    use std::collections::BTreeMap;
-
-    use acvm::acir::{
-        brillig::{Opcode as BrilligOpcode, RegisterIndex},
-        circuit::brillig::{Brillig, BrilligInputs, BrilligOutputs},
-        native_types::Expression,
-    };
-    use acvm::brillig_vm::brillig::BinaryFieldOp;
-    use nargo::ops::DefaultForeignCallExecutor;
-
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
-    let w_x = Witness(1);
-    let w_y = Witness(2);
-    let w_z = Witness(3);
-
-    let blackbox_solver = &StubbedSolver;
-
-    // This Brillig block is equivalent to: z = x + y
-    let brillig_opcodes = Brillig {
-        inputs: vec![
-            BrilligInputs::Single(Expression {
+        let brillig_opcodes = Brillig {
+            inputs: vec![BrilligInputs::Single(Expression {
                 linear_combinations: vec![(fe_1, w_x)],
                 ..Expression::default()
+            })],
+            outputs: vec![],
+            bytecode: vec![
+                BrilligOpcode::Const {
+                    destination: RegisterIndex::from(1),
+                    value: Value::from(fe_0),
+                },
+                BrilligOpcode::ForeignCall {
+                    function: "clear_mock".into(),
+                    destinations: vec![],
+                    inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
+                },
+                BrilligOpcode::Stop,
+            ],
+            predicate: None,
+        };
+        let opcodes = vec![Opcode::Brillig(brillig_opcodes)];
+        let current_witness_index = 2;
+        let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+
+        let debug_symbols = vec![];
+        let file_map = BTreeMap::new();
+        let warnings = vec![];
+        let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+
+        let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
+
+        let mut context = DebugContext::new(
+            blackbox_solver,
+            circuit,
+            debug_artifact,
+            initial_witness,
+            Box::new(DefaultForeignCallExecutor::new(true)),
+        );
+
+        assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(0)));
+
+        // execute the first Brillig opcode (const)
+        let result = context.step_into_opcode();
+        assert!(matches!(result, DebugCommandResult::Ok));
+        assert_eq!(
+            context.get_current_opcode_location(),
+            Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 })
+        );
+
+        // try to execute the second Brillig opcode (and resolve the foreign call)
+        let result = context.step_into_opcode();
+        assert!(matches!(result, DebugCommandResult::Ok));
+        assert_eq!(
+            context.get_current_opcode_location(),
+            Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 })
+        );
+
+        // retry the second Brillig opcode (foreign call should be finished)
+        let result = context.step_into_opcode();
+        assert!(matches!(result, DebugCommandResult::Ok));
+        assert_eq!(
+            context.get_current_opcode_location(),
+            Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 })
+        );
+
+        // last Brillig opcode
+        let result = context.step_into_opcode();
+        assert!(matches!(result, DebugCommandResult::Done));
+        assert_eq!(context.get_current_opcode_location(), None);
+    }
+
+    #[test]
+    fn test_break_brillig_block_while_stepping_acir_opcodes() {
+        let fe_0 = FieldElement::zero();
+        let fe_1 = FieldElement::one();
+        let w_x = Witness(1);
+        let w_y = Witness(2);
+        let w_z = Witness(3);
+
+        let blackbox_solver = &StubbedSolver;
+
+        // This Brillig block is equivalent to: z = x + y
+        let brillig_opcodes = Brillig {
+            inputs: vec![
+                BrilligInputs::Single(Expression {
+                    linear_combinations: vec![(fe_1, w_x)],
+                    ..Expression::default()
+                }),
+                BrilligInputs::Single(Expression {
+                    linear_combinations: vec![(fe_1, w_y)],
+                    ..Expression::default()
+                }),
+            ],
+            outputs: vec![BrilligOutputs::Simple(w_z)],
+            bytecode: vec![
+                BrilligOpcode::BinaryFieldOp {
+                    destination: RegisterIndex::from(0),
+                    op: BinaryFieldOp::Add,
+                    lhs: RegisterIndex::from(0),
+                    rhs: RegisterIndex::from(1),
+                },
+                BrilligOpcode::Stop,
+            ],
+            predicate: None,
+        };
+        let opcodes = vec![
+            // z = x + y
+            Opcode::Brillig(brillig_opcodes),
+            // x + y - z = 0
+            Opcode::Arithmetic(Expression {
+                mul_terms: vec![],
+                linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
+                q_c: fe_0,
             }),
-            BrilligInputs::Single(Expression {
-                linear_combinations: vec![(fe_1, w_y)],
-                ..Expression::default()
-            }),
-        ],
-        outputs: vec![BrilligOutputs::Simple(w_z)],
-        bytecode: vec![
-            BrilligOpcode::BinaryFieldOp {
-                destination: RegisterIndex::from(0),
-                op: BinaryFieldOp::Add,
-                lhs: RegisterIndex::from(0),
-                rhs: RegisterIndex::from(1),
-            },
-            BrilligOpcode::Stop,
-        ],
-        predicate: None,
-    };
-    let opcodes = vec![
-        // z = x + y
-        Opcode::Brillig(brillig_opcodes),
-        // x + y - z = 0
-        Opcode::Arithmetic(Expression {
-            mul_terms: vec![],
-            linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
-            q_c: fe_0,
-        }),
-    ];
-    let current_witness_index = 3;
-    let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        ];
+        let current_witness_index = 3;
+        let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
 
-    let debug_symbols = vec![];
-    let file_map = BTreeMap::new();
-    let warnings = vec![];
-    let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
+        let debug_symbols = vec![];
+        let file_map = BTreeMap::new();
+        let warnings = vec![];
+        let debug_artifact = &DebugArtifact { debug_symbols, file_map, warnings };
 
-    let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
+        let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
-    let mut context = DebugContext::new(
-        blackbox_solver,
-        circuit,
-        debug_artifact,
-        initial_witness,
-        Box::new(DefaultForeignCallExecutor::new(true)),
-    );
+        let mut context = DebugContext::new(
+            blackbox_solver,
+            circuit,
+            debug_artifact,
+            initial_witness,
+            Box::new(DefaultForeignCallExecutor::new(true)),
+        );
 
-    // set breakpoint
-    let breakpoint_location = OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 };
-    assert!(context.add_breakpoint(breakpoint_location));
+        // set breakpoint
+        let breakpoint_location = OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 };
+        assert!(context.add_breakpoint(breakpoint_location));
 
-    // execute the first ACIR opcode (Brillig block) -> should reach the breakpoint instead
-    let result = context.step_acir_opcode();
-    assert!(matches!(result, DebugCommandResult::BreakpointReached(_)));
-    assert_eq!(context.get_current_opcode_location(), Some(breakpoint_location));
+        // execute the first ACIR opcode (Brillig block) -> should reach the breakpoint instead
+        let result = context.step_acir_opcode();
+        assert!(matches!(result, DebugCommandResult::BreakpointReached(_)));
+        assert_eq!(context.get_current_opcode_location(), Some(breakpoint_location));
 
-    // continue execution to the next ACIR opcode
-    let result = context.step_acir_opcode();
-    assert!(matches!(result, DebugCommandResult::Ok));
-    assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(1)));
+        // continue execution to the next ACIR opcode
+        let result = context.step_acir_opcode();
+        assert!(matches!(result, DebugCommandResult::Ok));
+        assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(1)));
 
-    // last ACIR opcode
-    let result = context.step_acir_opcode();
-    assert!(matches!(result, DebugCommandResult::Done));
-    assert_eq!(context.get_current_opcode_location(), None);
+        // last ACIR opcode
+        let result = context.step_acir_opcode();
+        assert!(matches!(result, DebugCommandResult::Done));
+        assert_eq!(context.get_current_opcode_location(), None);
+    }
 }

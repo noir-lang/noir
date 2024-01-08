@@ -18,14 +18,7 @@ export default (_, argv) => ({
     rules: [
       {
         test: /\.tsx?$/,
-        use: [
-          {
-            loader: 'ts-loader',
-            options: {
-              configFile: 'tsconfig.dest.json',
-            },
-          },
-        ],
+        use: 'ts-loader',
       },
     ],
   },
@@ -51,24 +44,21 @@ export default (_, argv) => ({
   ],
   resolve: {
     plugins: [new ResolveTypeScriptPlugin()],
-    alias: {
-      // All node specific code, wherever it's located, should be imported as below.
-      // Provides a clean and simple way to always strip out the node code for the web build.
-      './node/index.js': false,
-    },
+    // alias: {
+    //   // All node specific code, wherever it's located, should be imported as below.
+    //   // Provides a clean and simple way to always strip out the node code for the web build.
+    //   './node/index.js': false,
+    // },
+    // TODO: Get rid of these polyfills! Properly abstract away node/browser differences and bundle aztec.js properly.
+    // Consumers of our project should not have to jump through hoops to use it.
+    // (Fairly sure the false crypto here means things will break.)
     fallback: {
       crypto: false,
-      os: false,
       fs: false,
       path: false,
-      url: false,
-      worker_threads: false,
-      events: require.resolve('events/'),
-      buffer: require.resolve('buffer/'),
-      util: require.resolve('util/'),
       stream: require.resolve('stream-browserify'),
-      string_decoder: require.resolve('string_decoder/'),
       tty: require.resolve('tty-browserify'),
+      util: require.resolve('util/'),
     },
   },
   devServer: {

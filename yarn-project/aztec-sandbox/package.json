@@ -27,6 +27,7 @@
     "../package.common.json"
   ],
   "dependencies": {
+    "@aztec/accounts": "workspace:^",
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",

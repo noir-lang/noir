@@ -96,10 +96,10 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
 
     // Insert subtree into the l1 to l2 data tree
     const auto empty_l1_to_l2_subtree_root = components::calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
-    auto new_l1_to_l2_messages_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+    auto new_l1_to_l2_message_tree_snapshot = components::insert_subtree_to_snapshot_tree(
         builder,
-        rootRollupInputs.start_l1_to_l2_messages_tree_snapshot,
-        rootRollupInputs.new_l1_to_l2_messages_tree_root_sibling_path,
+        rootRollupInputs.start_l1_to_l2_message_tree_snapshot,
+        rootRollupInputs.new_l1_to_l2_message_tree_root_sibling_path,
         empty_l1_to_l2_subtree_root,
         l1_to_l2_subtree_root,
         L1_TO_L2_MSG_SUBTREE_HEIGHT,
@@ -112,7 +112,7 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
                                                       right.end_note_hash_tree_snapshot.root,
                                                       right.end_nullifier_tree_snapshot.root,
                                                       right.end_contract_tree_snapshot.root,
-                                                      new_l1_to_l2_messages_tree_snapshot.root,
+                                                      new_l1_to_l2_message_tree_snapshot.root,
                                                       right.end_public_data_tree_root);
 
     // Update the blocks tree
@@ -138,8 +138,8 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
         .end_contract_tree_snapshot = right.end_contract_tree_snapshot,
         .start_public_data_tree_root = left.start_public_data_tree_root,
         .end_public_data_tree_root = right.end_public_data_tree_root,
-        .start_l1_to_l2_messages_tree_snapshot = rootRollupInputs.start_l1_to_l2_messages_tree_snapshot,
-        .end_l1_to_l2_messages_tree_snapshot = new_l1_to_l2_messages_tree_snapshot,
+        .start_l1_to_l2_message_tree_snapshot = rootRollupInputs.start_l1_to_l2_message_tree_snapshot,
+        .end_l1_to_l2_message_tree_snapshot = new_l1_to_l2_message_tree_snapshot,
         .start_archive_snapshot = rootRollupInputs.start_archive_snapshot,
         .end_archive_snapshot = end_archive_snapshot,
         .calldata_hash = components::compute_calldata_hash(rootRollupInputs.previous_rollup_data),

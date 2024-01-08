@@ -1,4 +1,4 @@
-import { FUNCTION_TREE_HEIGHT } from '@aztec/circuits.js';
+import { FUNCTION_TREE_HEIGHT } from '@aztec/circuits.js/constants';
 import { ContractArtifact, DebugMetadata, FunctionArtifact, FunctionType } from '@aztec/foundation/abi';
 
 import { deflate } from 'pako';
@@ -30,7 +30,7 @@ function generateFunctionArtifact(fn: NoirFunctionEntry): FunctionArtifact {
   }
 
   // If the function is secret, the return is the public inputs, which should be omitted
-  const returnTypes = functionType === FunctionType.SECRET ? [] : [fn.abi.return_type];
+  const returnTypes = functionType === FunctionType.SECRET ? [] : [fn.abi.return_type.abi_type];
 
   return {
     name: fn.name,
@@ -72,7 +72,6 @@ export function generateProgramArtifact(
     // eslint-disable-next-line camelcase
     noir_version,
     hash: program.hash,
-    backend: program.backend,
     abi: program.abi,
 
     // TODO: should we parse and write the debug?  it doesn't seem to be in the nargo output

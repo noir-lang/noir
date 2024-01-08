@@ -126,11 +126,11 @@ export class MerkleTrees implements MerkleTreeDb {
       PUBLIC_DATA_TREE_HEIGHT,
       INITIAL_PUBLIC_DATA_TREE_SIZE,
     );
-    const l1Tol2MessagesTree: AppendOnlyTree = await initializeTree(
+    const l1Tol2MessageTree: AppendOnlyTree = await initializeTree(
       StandardTree,
       this.db,
       hasher,
-      `${MerkleTreeId[MerkleTreeId.L1_TO_L2_MESSAGES_TREE]}`,
+      `${MerkleTreeId[MerkleTreeId.L1_TO_L2_MESSAGE_TREE]}`,
       L1_TO_L2_MSG_TREE_HEIGHT,
     );
     const archive: AppendOnlyTree = await initializeTree(
@@ -140,7 +140,7 @@ export class MerkleTrees implements MerkleTreeDb {
       `${MerkleTreeId[MerkleTreeId.ARCHIVE]}`,
       ARCHIVE_HEIGHT,
     );
-    this.trees = [contractTree, nullifierTree, noteHashTree, publicDataTree, l1Tol2MessagesTree, archive];
+    this.trees = [contractTree, nullifierTree, noteHashTree, publicDataTree, l1Tol2MessageTree, archive];
 
     this.jobQueue.start();
 
@@ -195,8 +195,8 @@ export class MerkleTrees implements MerkleTreeDb {
   }
 
   /**
-   * Inserts into the roots trees (CONTRACT_TREE_ROOTS_TREE, NOTE_HASH_TREE_ROOTS_TREE, L1_TO_L2_MESSAGES_TREE_ROOTS_TREE)
-   * the current roots of the corresponding trees (CONTRACT_TREE, NOTE_HASH_TREE, L1_TO_L2_MESSAGES_TREE).
+   * Inserts into the roots trees (CONTRACT_TREE_ROOTS_TREE, NOTE_HASH_TREE_ROOTS_TREE, L1_TO_L2_MESSAGE_TREE_ROOTS_TREE)
+   * the current roots of the corresponding trees (CONTRACT_TREE, NOTE_HASH_TREE, L1_TO_L2_MESSAGE_TREE).
    * @param globalsHash - The current global variables hash.
    * @param includeUncommitted - Indicates whether to include uncommitted data.
    */
@@ -242,7 +242,7 @@ export class MerkleTrees implements MerkleTreeDb {
       noteHashTreeRoot: roots[0],
       nullifierTreeRoot: roots[1],
       contractDataTreeRoot: roots[2],
-      l1Tol2MessagesTreeRoot: roots[3],
+      l1Tol2MessageTreeRoot: roots[3],
       publicDataTreeRoot: roots[4],
       archiveRoot: roots[5],
     };
@@ -258,7 +258,7 @@ export class MerkleTrees implements MerkleTreeDb {
       MerkleTreeId.NOTE_HASH_TREE,
       MerkleTreeId.NULLIFIER_TREE,
       MerkleTreeId.CONTRACT_TREE,
-      MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
+      MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
       MerkleTreeId.PUBLIC_DATA_TREE,
       MerkleTreeId.ARCHIVE,
     ].map(tree => this.trees[tree].getRoot(includeUncommitted));
@@ -555,7 +555,7 @@ export class MerkleTrees implements MerkleTreeDb {
       [l2Block.endNullifierTreeSnapshot.root, MerkleTreeId.NULLIFIER_TREE],
       [l2Block.endNoteHashTreeSnapshot.root, MerkleTreeId.NOTE_HASH_TREE],
       [l2Block.endPublicDataTreeSnapshot.root, MerkleTreeId.PUBLIC_DATA_TREE],
-      [l2Block.endL1ToL2MessagesTreeSnapshot.root, MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      [l2Block.endL1ToL2MessageTreeSnapshot.root, MerkleTreeId.L1_TO_L2_MESSAGE_TREE],
       [l2Block.endArchiveSnapshot.root, MerkleTreeId.ARCHIVE],
     ] as const;
     const compareRoot = (root: Fr, treeId: MerkleTreeId) => {
@@ -574,7 +574,7 @@ export class MerkleTrees implements MerkleTreeDb {
       for (const [tree, leaves] of [
         [MerkleTreeId.CONTRACT_TREE, l2Block.newContracts],
         [MerkleTreeId.NOTE_HASH_TREE, l2Block.newCommitments],
-        [MerkleTreeId.L1_TO_L2_MESSAGES_TREE, l2Block.newL1ToL2Messages],
+        [MerkleTreeId.L1_TO_L2_MESSAGE_TREE, l2Block.newL1ToL2Messages],
       ] as const) {
         await this._appendLeaves(
           tree,

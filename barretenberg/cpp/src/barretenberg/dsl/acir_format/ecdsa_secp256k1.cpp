@@ -5,6 +5,7 @@ namespace acir_format {
 
 using namespace proof_system::plonk;
 
+template <typename Builder>
 crypto::ecdsa::signature ecdsa_convert_signature(Builder& builder, std::vector<uint32_t> signature)
 {
 
@@ -42,6 +43,7 @@ crypto::ecdsa::signature ecdsa_convert_signature(Builder& builder, std::vector<u
     return signature_cr;
 }
 
+template <typename Builder>
 secp256k1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256k1::g1::affine_element& input)
 {
     uint256_t x_u256(input.x);
@@ -61,8 +63,13 @@ secp256k1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256k1::g1::affi
 // vector of bytes here, assumes that the witness indices point to a field element which can be represented
 // with just a byte.
 // notice that this function truncates each field_element to a byte
-byte_array_ct ecdsa_vector_of_bytes_to_byte_array(Builder& builder, std::vector<uint32_t> vector_of_bytes)
+template <typename Builder>
+proof_system::plonk::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(
+    Builder& builder, std::vector<uint32_t> vector_of_bytes)
 {
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+
     byte_array_ct arr(&builder);
 
     // Get the witness assignment for each witness index
@@ -83,10 +90,15 @@ witness_ct ecdsa_index_to_witness(Builder& builder, uint32_t index)
     return { &builder, value };
 }
 
+template <typename Builder>
 void create_ecdsa_k1_verify_constraints(Builder& builder,
                                         const EcdsaSecp256k1Constraint& input,
                                         bool has_valid_witness_assignments)
 {
+    using secp256k1_ct = proof_system::plonk::stdlib::secp256k1<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using bool_ct = proof_system::plonk::stdlib::bool_t<Builder>;
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
 
     if (has_valid_witness_assignments == false) {
         dummy_ecdsa_constraint(builder, input);
@@ -94,12 +106,12 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
 
     auto new_sig = ecdsa_convert_signature(builder, input.signature);
 
-    auto message = ecdsa_vector_of_bytes_to_byte_array(builder, input.hashed_message);
+    byte_array_ct message = ecdsa_vector_of_bytes_to_byte_array(builder, input.hashed_message);
     auto pub_key_x_byte_arr = ecdsa_vector_of_bytes_to_byte_array(builder, input.pub_x_indices);
     auto pub_key_y_byte_arr = ecdsa_vector_of_bytes_to_byte_array(builder, input.pub_y_indices);
 
-    auto pub_key_x_fq = secp256k1_ct::fq_ct(pub_key_x_byte_arr);
-    auto pub_key_y_fq = secp256k1_ct::fq_ct(pub_key_y_byte_arr);
+    auto pub_key_x_fq = typename secp256k1_ct::fq_ct(pub_key_x_byte_arr);
+    auto pub_key_y_fq = typename secp256k1_ct::fq_ct(pub_key_y_byte_arr);
 
     std::vector<uint8_t> rr(new_sig.r.begin(), new_sig.r.end());
     std::vector<uint8_t> ss(new_sig.s.begin(), new_sig.s.end());
@@ -111,7 +123,7 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
 
     pub_key_x_fq.assert_is_in_field();
     pub_key_y_fq.assert_is_in_field();
-    secp256k1_ct::g1_bigfr_ct public_key = secp256k1_ct::g1_bigfr_ct(pub_key_x_fq, pub_key_y_fq);
+    typename secp256k1_ct::g1_bigfr_ct public_key = typename secp256k1_ct::g1_bigfr_ct(pub_key_x_fq, pub_key_y_fq);
     for (size_t i = 0; i < 32; ++i) {
         sig.r[i].assert_equal(field_ct::from_witness_index(&builder, input.signature[i]));
         sig.s[i].assert_equal(field_ct::from_witness_index(&builder, input.signature[i + 32]));
@@ -125,9 +137,10 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
     bool_ct signature_result =
         stdlib::ecdsa::verify_signature_prehashed_message_noassert<Builder,
                                                                    secp256k1_ct,
-                                                                   secp256k1_ct::fq_ct,
-                                                                   secp256k1_ct::bigfr_ct,
-                                                                   secp256k1_ct::g1_bigfr_ct>(message, public_key, sig);
+                                                                   typename secp256k1_ct::fq_ct,
+                                                                   typename secp256k1_ct::bigfr_ct,
+                                                                   typename secp256k1_ct::g1_bigfr_ct>(
+            message, public_key, sig);
     bool_ct signature_result_normalized = signature_result.normalize();
     builder.assert_equal(signature_result_normalized.witness_index, input.result);
 }
@@ -137,7 +150,7 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
 //
 // This does not work for ECDSA as the signature, r, s and public key need
 // to be valid.
-void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& input)
+template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& input)
 {
 
     std::vector<uint32_t> pub_x_indices_;
@@ -187,5 +200,14 @@ void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& in
         builder.assert_equal(signature_[i], input.signature[i]);
     }
 }
+
+template void create_ecdsa_k1_verify_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                                      const EcdsaSecp256k1Constraint& input,
+                                                                      bool has_valid_witness_assignments);
+template void create_ecdsa_k1_verify_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                            const EcdsaSecp256k1Constraint& input,
+                                                                            bool has_valid_witness_assignments);
+template void dummy_ecdsa_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                          EcdsaSecp256k1Constraint const& input);
 
 } // namespace acir_format

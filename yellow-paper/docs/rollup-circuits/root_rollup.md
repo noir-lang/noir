@@ -46,11 +46,11 @@ class GlobalVariables {
 
 class Header {
     last_archive: Snapshot
-    content_hash: Fr[2]
+    body_hash: Fr[2]
     state: StateReference
     global_variables: GlobalVariables
 }
-Header *.. Body : content_hash
+Header *.. Body : body_hash
 Header *-- StateReference : state
 Header *-- GlobalVariables : global_variables
 
@@ -126,14 +126,15 @@ class ChildRollupData {
 ChildRollupData *-- BaseOrMergeRollupPublicInputs: public_inputs
 
 class RootRollupInputs { 
-    l1_to_l2_msgs_tree: Snapshot
     l1_to_l2_msgs: List~Fr~
     l1_to_l2_msgs_sibling_path: List~Fr~
-
+    parent: Header,
+    parent_sibling_path: List~Fr~
     archive_sibling_path: List~Fr~
     left: ChildRollupData
     right: ChildRollupData
 }
+RootRollupInputs *-- Header : parent
 RootRollupInputs *-- ChildRollupData: left
 RootRollupInputs *-- ChildRollupData: right
 
@@ -149,29 +150,33 @@ RootRollupPublicInputs *--Header : header
 
 ```python
 def RootRollupCircuit(
-    left: ChildRollupData, 
-    right: ChildRollupData, 
     l1_to_l2_msgs: List[Fr],
     l1_to_l2_msgs_sibling_path: List[Fr],
     parent: Header,
     parent_sibling_path: List[Fr],
     archive_sibling_path: List[Fr],
+    left: ChildRollupData, 
+    right: ChildRollupData, 
 ) -> RootRollupPublicInputs:
-    assert left.proof.is_valid(left.inputs)
-    assert right.proof.is_valid(right.inputs)
+    assert left.proof.is_valid(left.public_inputs)
+    assert right.proof.is_valid(right.public_inputs)
 
-    assert left.inputs.constants == right.inputs.constants
-    assert right.inputs.start == left.inputs.end
-    assert left.inputs.type == right.inputs.type
-    assert left.inputs.height_in_block_tree == right.inputs.height_in_block_tree
+    assert left.public_inputs.constants == right.public_inputs.constants
+    assert left.public_inputs.end == right.public_inputs.start
+    assert left.public_inputs.type == right.public_inputs.type
+    assert left.public_inputs.height_in_block_tree == right.public_inputs.height_in_block_tree
 
+    assert parent.state.partial == left.public_inputs.start
+
+    # Check that the parent is a valid parent
     assert merkle_inclusion(
         parent.hash(), 
         parent_sibling_path, 
-        left.inputs.constants.global_variables.block_number, 
-        left.inputs.constants.last_archive.root
+        left.public_inputs.constants.global_variables.block_number, 
+        left.public_inputs.constants.last_archive.root
     )
 
+    # Update the l1 to l2 msg tree
     l1_to_l2_msg_subtree = MerkleTree(l1_to_l2_msgs)
     l1_to_l2_msg_tree = merkle_insertion(
         parent.state.l1_to_l2_message_tree, 
@@ -181,17 +186,17 @@ def RootRollupCircuit(
         L1_To_L2_HEIGHT
     )
 
-    txs_hash = SHA256(left.inputs.txs_hash | right.inputs.txs_hash)
-    out_hash = SHA256(left.inputs.txs_hash | right.inputs.out_hash)
+    txs_hash = SHA256(left.public_inputs.txs_hash | right.public_inputs.txs_hash)
+    out_hash = SHA256(left.public_inputs.txs_hash | right.public_inputs.out_hash)
 
     header = Header(
-        last_archive = left.inputs.constants.last_archive,
-        content_hash = SHA256(txs_hash | out_hash | SHA256(l1_to_l2_msgs)),
+        last_archive = left.public_inputs.constants.last_archive,
+        body_hash = SHA256(txs_hash | out_hash | SHA256(l1_to_l2_msgs)),
         state = StateReference(
             l1_to_l2_message_tree = l1_to_l2_msg_tree,
-            partial = right.inputs.end,
+            partial = right.public_inputs.end,
         ),
-        global_variables = left.inputs.constants.global_variables,
+        global_variables = left.public_inputs.constants.global_variables,
     )
 
     archive = merkle_insertion(
@@ -203,7 +208,9 @@ def RootRollupCircuit(
     )
 
     return RootRollupPublicInputs(
-        aggregation_object = left.inputs.aggregation_object + right.inputs.aggregation_object,
+        aggregation_object = 
+            left.public_inputs.aggregation_object + 
+            right.public_inputs.aggregation_object,
         archive = archive,
         header: Header,
     )

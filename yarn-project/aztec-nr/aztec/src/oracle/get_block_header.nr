@@ -32,7 +32,9 @@ pub fn get_block_header(block_number: u32, context: PrivateContext) -> BlockHead
 
     // 2) Check that the block header block number is more than or equal to the block number we want to prove against
     // We could not perform the proof otherwise because the archive root from the header would not "contain" the block we want to prove against
-    assert(block_header_block_number >= block_number, "Block header block number is smaller than the block number we want to prove against");
+    assert(
+        block_header_block_number >= block_number, "Block header block number is smaller than the block number we want to prove against"
+    );
 
     // 3) Get block header of a given block from oracle
     let block_header = get_block_header_internal(block_number);
@@ -44,7 +46,10 @@ pub fn get_block_header(block_number: u32, context: PrivateContext) -> BlockHead
     let witness = get_archive_membership_witness(block_header_block_number, block_hash);
 
     // 6) Check that the block is in the archive (i.e. the witness is valid)
-    assert(context.block_header.archive_root == compute_merkle_root(block_hash, witness.index, witness.path), "Proving membership of a block in archive failed");
+    assert(
+        context.block_header.archive_root
+        == compute_merkle_root(block_hash, witness.index, witness.path), "Proving membership of a block in archive failed"
+    );
 
     // 7) Return the block header
     block_header

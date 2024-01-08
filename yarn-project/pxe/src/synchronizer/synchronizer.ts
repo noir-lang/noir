@@ -1,5 +1,6 @@
 import { AztecAddress, BlockHeader, Fr, PublicKey } from '@aztec/circuits.js';
 import { computeGlobalsHash } from '@aztec/circuits.js/abis';
+import { SerialQueue } from '@aztec/foundation/fifo';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
 import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L2BlockContext, L2BlockL2Logs, LogType } from '@aztec/types';
@@ -24,7 +25,7 @@ export class Synchronizer {
   private log: DebugLogger;
   private noteProcessorsToCatchUp: NoteProcessor[] = [];
 
-  constructor(private node: AztecNode, private db: PxeDatabase, logSuffix = '') {
+  constructor(private node: AztecNode, private db: PxeDatabase, private jobQueue: SerialQueue, logSuffix = '') {
     this.log = createDebugLogger(logSuffix ? `aztec:pxe_synchronizer_${logSuffix}` : 'aztec:pxe_synchronizer');
   }
 
@@ -36,23 +37,35 @@ export class Synchronizer {
    * @param limit - The maximum number of encrypted, unencrypted logs and blocks to fetch in each iteration.
    * @param retryInterval - The time interval (in ms) to wait before retrying if no data is available.
    */
-  public async start(limit = 1, retryInterval = 1000) {
+  public start(limit = 1, retryInterval = 1000) {
     if (this.running) {
       return;
     }
     this.running = true;
 
-    await this.initialSync();
+    this.jobQueue
+      .put(() => this.initialSync())
+      .catch(err => {
+        this.log.error(`Error in synchronizer initial sync`, err);
+        this.running = false;
+        throw err;
+      });
 
     const run = async () => {
       while (this.running) {
-        if (this.noteProcessorsToCatchUp.length > 0) {
-          // There is a note processor that needs to catch up. We hijack the main loop to catch up the note processor.
-          await this.workNoteProcessorCatchUp(limit, retryInterval);
-        } else {
-          // No note processor needs to catch up. We continue with the normal flow.
-          await this.work(limit, retryInterval);
-        }
+        await this.jobQueue.put(async () => {
+          let moreWork = true;
+          while (moreWork && this.running) {
+            if (this.noteProcessorsToCatchUp.length > 0) {
+              // There is a note processor that needs to catch up. We hijack the main loop to catch up the note processor.
+              moreWork = await this.workNoteProcessorCatchUp(limit);
+            } else {
+              // No note processor needs to catch up. We continue with the normal flow.
+              moreWork = await this.work(limit);
+            }
+          }
+        });
+        await this.interruptibleSleep.sleep(retryInterval);
       }
     };
 
@@ -70,26 +83,29 @@ export class Synchronizer {
     await this.db.setBlockData(latestBlockNumber, latestBlockHeader);
   }
 
-  protected async work(limit = 1, retryInterval = 1000): Promise<void> {
+  /**
+   * Fetches encrypted logs and blocks from the Aztec node and processes them for all note processors.
+   *
+   * @param limit - The maximum number of encrypted, unencrypted logs and blocks to fetch in each iteration.
+   * @returns true if there could be more work, false if we're caught up or there was an error.
+   */
+  protected async work(limit = 1): Promise<boolean> {
     const from = this.getSynchedBlockNumber() + 1;
     try {
       let encryptedLogs = await this.node.getLogs(from, limit, LogType.ENCRYPTED);
       if (!encryptedLogs.length) {
-        await this.interruptibleSleep.sleep(retryInterval);
-        return;
+        return false;
       }
 
       let unencryptedLogs = await this.node.getLogs(from, limit, LogType.UNENCRYPTED);
       if (!unencryptedLogs.length) {
-        await this.interruptibleSleep.sleep(retryInterval);
-        return;
+        return false;
       }
 
       // Note: If less than `limit` encrypted logs is returned, then we fetch only that number of blocks.
       const blocks = await this.node.getBlocks(from, encryptedLogs.length);
       if (!blocks.length) {
-        await this.interruptibleSleep.sleep(retryInterval);
-        return;
+        return false;
       }
 
       if (blocks.length !== encryptedLogs.length) {
@@ -120,13 +136,21 @@ export class Synchronizer {
       for (const noteProcessor of this.noteProcessors) {
         await noteProcessor.process(blockContexts, encryptedLogs);
       }
+      return true;
     } catch (err) {
       this.log.error(`Error in synchronizer work`, err);
-      await this.interruptibleSleep.sleep(retryInterval);
+      return false;
     }
   }
 
-  protected async workNoteProcessorCatchUp(limit = 1, retryInterval = 1000): Promise<void> {
+  /**
+   * Catch up a note processor that is lagging behind the main sync,
+   * e.g. because we just added a new account.
+   *
+   * @param limit - the maximum number of encrypted, unencrypted logs and blocks to fetch in each iteration.
+   * @returns true if there could be more work, false if we're caught up or there was an error.
+   */
+  protected async workNoteProcessorCatchUp(limit = 1): Promise<boolean> {
     const noteProcessor = this.noteProcessorsToCatchUp[0];
     const toBlockNumber = this.getSynchedBlockNumber();
 
@@ -134,7 +158,8 @@ export class Synchronizer {
       // Note processor already synched, nothing to do
       this.noteProcessorsToCatchUp.shift();
       this.noteProcessors.push(noteProcessor);
-      return;
+      // could be more work if there are more note processors to catch up
+      return true;
     }
 
     const from = noteProcessor.status.syncedToBlock + 1;
@@ -184,9 +209,10 @@ export class Synchronizer {
         this.noteProcessorsToCatchUp.shift();
         this.noteProcessors.push(noteProcessor);
       }
+      return true;
     } catch (err) {
       this.log.error(`Error in synchronizer workNoteProcessorCatchUp`, err);
-      await this.interruptibleSleep.sleep(retryInterval);
+      return false;
     }
   }
 
@@ -201,7 +227,7 @@ export class Synchronizer {
       block.endNoteHashTreeSnapshot.root,
       block.endNullifierTreeSnapshot.root,
       block.endContractTreeSnapshot.root,
-      block.endL1ToL2MessagesTreeSnapshot.root,
+      block.endL1ToL2MessageTreeSnapshot.root,
       block.endArchiveSnapshot.root,
       Fr.ZERO, // todo: private kernel vk tree root
       block.endPublicDataTreeSnapshot.root,

@@ -74,7 +74,7 @@ impl TransparentNote {
         // TODO(#1386): should use `compute_note_hash_for_read_or_nullify` once public functions inject nonce!
         let siloed_note_hash = compute_siloed_note_hash(TransparentNoteMethods, self);
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([self.secret, siloed_note_hash], 0)
+        pedersen_hash([self.secret, siloed_note_hash],0)
     }
 
     pub fn set_header(&mut self, header: NoteHeader) {

@@ -6,6 +6,7 @@ import {
   FunctionSelector,
   PublicCallRequest,
   ReadRequestMembershipWitness,
+  SideEffect,
   TxContext,
 } from '@aztec/circuits.js';
 import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
@@ -116,14 +117,14 @@ export class ClientExecutionContext extends ViewDataOracle {
    * or to flag non-transient reads with their leafIndex.
    * The KernelProver will use this to fully populate witnesses and provide hints to
    * the kernel regarding which commitments each transient read request corresponds to.
-   * @param readRequests - Note hashed of the notes being read.
+   * @param readRequests - SideEffect containing Note hashed of the notes being read and counter.
    * @returns An array of partially filled in read request membership witnesses.
    */
-  public getReadRequestPartialWitnesses(readRequests: Fr[]) {
+  public getReadRequestPartialWitnesses(readRequests: SideEffect[]) {
     return readRequests
-      .filter(r => !r.isZero())
+      .filter(r => !r.isEmpty())
       .map(r => {
-        const index = this.gotNotes.get(r.value);
+        const index = this.gotNotes.get(r.value.toBigInt());
         return index !== undefined
           ? ReadRequestMembershipWitness.empty(index)
           : ReadRequestMembershipWitness.emptyTransient();
@@ -409,6 +410,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       isDelegateCall,
       isStaticCall,
       false,
+      Fr.ZERO,
     );
   }
 }

@@ -81,6 +81,7 @@ export function toACVMCallContext(callContext: CallContext): ACVMField[] {
     toACVMField(callContext.isDelegateCall),
     toACVMField(callContext.isStaticCall),
     toACVMField(callContext.isContractDeployment),
+    toACVMField(callContext.startSideEffectCounter),
   ];
 }
 
@@ -110,7 +111,7 @@ export function toACVMBlockHeader(blockHeader: BlockHeader): ACVMField[] {
     toACVMField(blockHeader.noteHashTreeRoot),
     toACVMField(blockHeader.nullifierTreeRoot),
     toACVMField(blockHeader.contractTreeRoot),
-    toACVMField(blockHeader.l1ToL2MessagesTreeRoot),
+    toACVMField(blockHeader.l1ToL2MessageTreeRoot),
     toACVMField(blockHeader.archiveRoot),
     toACVMField(blockHeader.publicDataTreeRoot),
     toACVMField(blockHeader.globalVariablesHash),
@@ -142,14 +143,13 @@ export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): AC
     toACVMField(publicInputs.argsHash),
 
     ...publicInputs.returnValues.map(toACVMField),
-    ...publicInputs.readRequests.map(toACVMField),
-    ...publicInputs.pendingReadRequests.map(toACVMField),
-    ...publicInputs.newCommitments.map(toACVMField),
-    ...publicInputs.newNullifiers.map(toACVMField),
-    ...publicInputs.nullifiedCommitments.map(toACVMField),
+    ...publicInputs.readRequests.flatMap(x => x.toFieldArray()).map(toACVMField),
+    ...publicInputs.newCommitments.flatMap(x => x.toFieldArray()).map(toACVMField),
+    ...publicInputs.newNullifiers.flatMap(x => x.toFieldArray()).map(toACVMField),
     ...publicInputs.privateCallStackHashes.map(toACVMField),
     ...publicInputs.publicCallStackHashes.map(toACVMField),
     ...publicInputs.newL2ToL1Msgs.map(toACVMField),
+    toACVMField(publicInputs.endSideEffectCounter),
     ...publicInputs.encryptedLogsHash.map(toACVMField),
     ...publicInputs.unencryptedLogsHash.map(toACVMField),
 
@@ -199,18 +199,18 @@ export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVM
 /**
  * Converts the result of loading messages to ACVM fields.
  * @param messageLoadOracleInputs - The result of loading messages to convert.
- * @param l1ToL2MessagesTreeRoot - The L1 to L2 messages tree root
+ * @param l1ToL2MessageTreeRoot - The L1 to L2 message tree root
  * @returns The Message Oracle Fields.
  */
 export function toAcvmL1ToL2MessageLoadOracleInputs(
   messageLoadOracleInputs: MessageLoadOracleInputs,
-  l1ToL2MessagesTreeRoot: Fr,
+  l1ToL2MessageTreeRoot: Fr,
 ): ACVMField[] {
   return [
     ...messageLoadOracleInputs.message.map(f => toACVMField(f)),
     toACVMField(messageLoadOracleInputs.index),
     ...messageLoadOracleInputs.siblingPath.map(f => toACVMField(f)),
-    toACVMField(l1ToL2MessagesTreeRoot),
+    toACVMField(l1ToL2MessageTreeRoot),
   ];
 }
 

@@ -5,6 +5,7 @@ namespace acir_format {
 
 using namespace proof_system::plonk;
 
+template <typename Builder>
 void create_logic_gate(Builder& builder,
                        const uint32_t a,
                        const uint32_t b,
@@ -12,6 +13,7 @@ void create_logic_gate(Builder& builder,
                        const size_t num_bits,
                        const bool is_xor_gate)
 {
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
 
     field_ct left = field_ct::from_witness_index(&builder, a);
     field_ct right = field_ct::from_witness_index(&builder, b);
@@ -20,5 +22,18 @@ void create_logic_gate(Builder& builder,
     field_ct our_res = field_ct::from_witness_index(&builder, result);
     res.assert_equal(our_res);
 }
+
+template void create_logic_gate<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                           const uint32_t a,
+                                                           const uint32_t b,
+                                                           const uint32_t result,
+                                                           const size_t num_bits,
+                                                           const bool is_xor_gate);
+template void create_logic_gate<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                     const uint32_t a,
+                                                     const uint32_t b,
+                                                     const uint32_t result,
+                                                     const size_t num_bits,
+                                                     const bool is_xor_gate);
 
 } // namespace acir_format

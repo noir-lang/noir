@@ -28,7 +28,7 @@ For structs and arrays, we are logically using a similar storage slot computatio
 
 Private storage is a different beast. As you might remember from [State Model](./main.md), private state is stored in encrypted logs and the corresponding private state commitments in append-only tree where each leaf is a commitment. Being append-only, means that leaves are never updated or deleted; instead a nullifier is emitted to signify that some note is no longer valid. A major reason we used this tree, is that lookups at a specific storage slot would leak information in the context of private state. If you could look up a specific address balance just by looking at the storage slot, even if encrypted you would be able to see it changing! That is not good privacy. 
 
-Following this, the storage slot as we know it doesn't really exist. The leaves of the note hashes tree are just commitments to content (think of it as a hash of its content). 
+Following this, the storage slot as we know it doesn't really exist. The leaves of the note hashes tree are just commitments to content (think of it as a hash of its content).
 
 Nevertheless, the concept of a storage slot is very useful when writing applications, since it allows us to reason about distinct and disjoint pieces of data. For example we can say that the balance of an account is stored in a specific slot and that the balance of another account is stored in another slot with the total supply stored in some third slot. By making sure that these slots are disjoint, we can be sure that the balances are not mixed up and that someone cannot use the total supply as their balance. 
 

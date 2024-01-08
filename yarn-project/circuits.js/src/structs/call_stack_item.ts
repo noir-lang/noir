@@ -1,4 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 import { computePrivateCallStackItemHash, computePublicCallStackItemHash } from '../abis/abis.js';
@@ -93,7 +94,8 @@ export class PrivateCallStackItem {
     const callerContext = callContext.isDelegateCall
       ? new CallerContext(callContext.msgSender, callContext.storageContractAddress)
       : CallerContext.empty();
-    return new CallRequest(this.hash(), callContext.msgSender, callerContext);
+    // todo: populate side effect counters correctly
+    return new CallRequest(this.hash(), callContext.msgSender, callerContext, Fr.ZERO, Fr.ZERO);
   }
 }
 
@@ -163,6 +165,7 @@ export class PublicCallStackItem {
     const callerContext = callContext.isDelegateCall
       ? new CallerContext(callContext.msgSender, callContext.storageContractAddress)
       : CallerContext.empty();
-    return new CallRequest(this.hash(), callContext.msgSender, callerContext);
+    // todo: populate side effect counters correctly
+    return new CallRequest(this.hash(), callContext.msgSender, callerContext, Fr.ZERO, Fr.ZERO);
   }
 }

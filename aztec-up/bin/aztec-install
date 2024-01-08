@@ -62,13 +62,13 @@ function warn {
 }
 
 AZTEC_PATH=$HOME/.aztec
-BIN_PATH=$AZTEC_PATH/bin
+BIN_PATH=${BIN_PATH:-$AZTEC_PATH/bin}
 
 # Define version if specified, otherwise set to "latest".
 VERSION=${VERSION:-"latest"}
 INSTALL_HOST=install.aztec.network.s3-website.eu-west-2.amazonaws.com
 
-[ -z "${SKIP_TITLE:-}" ] && title
+[ -z "${NON_INTERACTIVE:-}" ] && title
 
 # Check if Docker is available.
 if ! command -v docker &>/dev/null; then
@@ -88,7 +88,9 @@ if ! docker compose &>/dev/null && ! command -v docker-compose &>/dev/null; then
 fi
 
 # Create a "hidden" `$HOME/.aztec` dir, so as not to clutter the user's cwd.
-rm -f $BIN_PATH/* && mkdir -p $BIN_PATH
+mkdir -p $AZTEC_PATH
+mkdir -p $BIN_PATH
+rm -f $BIN_PATH/aztec*
 
 # Download containers from dockerhub. Tag them as latest.
 function pull_container {
@@ -109,8 +111,8 @@ if [ -z "${SKIP_PULL:-}" ]; then
   pull_container noir
 fi
 
-# Download the Docker Compose file. Used by aztec-start.
-curl -fsSL http://$INSTALL_HOST/docker-compose.yml -o $BIN_PATH/docker-compose.yml
+# Download the Docker Compose file. Used by aztec-sandbox.
+curl -fsSL http://$INSTALL_HOST/docker-compose.yml -o $AZTEC_PATH/docker-compose.yml
 
 function install_bin {
   curl -fsSL http://$INSTALL_HOST/$1 -o $BIN_PATH/$1
@@ -145,17 +147,24 @@ function update_path_env_var {
       return
       ;;
     esac
-    # Inform the user about the change and ask for confirmation
-    warn "The directory $TARGET_DIR is not in your PATH."
-    read -p "Add it to $SHELL_PROFILE to make the aztec binaries accessible? (y/n)" -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-      # Add the target directory to the user's PATH in their profile.
-      echo "export PATH=\"\$PATH:$TARGET_DIR\"" >> "$SHELL_PROFILE"
+
+    if [ -z "${NON_INTERACTIVE:-}" ]; then
+      # Inform the user about the change and ask for confirmation
+      warn "The directory $TARGET_DIR is not in your PATH."
+      read -p "Add it to $SHELL_PROFILE to make the aztec binaries accessible? (y/n)" -n 1 -r
+      echo
+      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        warn "Skipped updating PATH. You might need to add $TARGET_DIR to your PATH manually to use the binary."
+        return
+      fi
+    fi
+
+    # Add the target directory to the user's PATH in their profile.
+    echo "export PATH=\"\$PATH:$TARGET_DIR\"" >> "$SHELL_PROFILE"
+
+    if [ -z "${NON_INTERACTIVE:-}" ]; then
       info "Done! Starting fresh shell..."
       $SHELL
-    else
-      warn "Skipped updating PATH. You might need to add $TARGET_DIR to your PATH manually to use the binary."
     fi
   fi
 }

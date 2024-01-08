@@ -10,7 +10,7 @@ import {
   Wallet,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 
 import { open } from 'lmdb';
 import { Chain, HttpTransport, PublicClient } from 'viem';

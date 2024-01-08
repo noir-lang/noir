@@ -1,3 +1,5 @@
+import { EthAddress } from '@aztec/circuits.js';
+import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
 import { L2BlockSource, mockTx } from '@aztec/types';
 
 import { expect, jest } from '@jest/globals';
@@ -18,8 +20,10 @@ describe('In-Memory P2P Client', () => {
   let txPool: Mockify<TxPool>;
   let blockSource: L2BlockSource;
   let p2pService: Mockify<P2PService>;
+  let kvStore: AztecKVStore;
+  let client: P2PClient;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     txPool = {
       addTxs: jest.fn(),
       getTxByHash: jest.fn().mockReturnValue(undefined),
@@ -37,10 +41,12 @@ describe('In-Memory P2P Client', () => {
     };
 
     blockSource = new MockBlockSource();
+
+    kvStore = await AztecLmdbStore.create(EthAddress.random());
+    client = new P2PClient(kvStore, blockSource, txPool, p2pService);
   });
 
   it('can start & stop', async () => {
-    const client = new P2PClient(blockSource, txPool, p2pService);
     expect(await client.isReady()).toEqual(false);
 
     await client.start();
@@ -51,7 +57,6 @@ describe('In-Memory P2P Client', () => {
   });
 
   it('adds txs to pool', async () => {
-    const client = new P2PClient(blockSource, txPool, p2pService);
     await client.start();
     const tx1 = mockTx();
     const tx2 = mockTx();
@@ -63,7 +68,6 @@ describe('In-Memory P2P Client', () => {
   });
 
   it('rejects txs after being stopped', async () => {
-    const client = new P2PClient(blockSource, txPool, p2pService);
     await client.start();
     const tx1 = mockTx();
     const tx2 = mockTx();
@@ -75,5 +79,24 @@ describe('In-Memory P2P Client', () => {
     const tx3 = mockTx();
     await expect(client.sendTx(tx3)).rejects.toThrow();
     expect(txPool.addTxs).toHaveBeenCalledTimes(2);
+  });
+
+  it('republishes previously stored txs on start', async () => {
+    const tx1 = mockTx();
+    const tx2 = mockTx();
+    txPool.getAllTxs.mockReturnValue([tx1, tx2]);
+
+    await client.start();
+    expect(p2pService.propagateTx).toHaveBeenCalledTimes(2);
+    expect(p2pService.propagateTx).toHaveBeenCalledWith(tx1);
+    expect(p2pService.propagateTx).toHaveBeenCalledWith(tx2);
+  });
+
+  it('restores the previous block number it was at', async () => {
+    await client.start();
+    await client.stop();
+
+    const client2 = new P2PClient(kvStore, blockSource, txPool, p2pService);
+    expect(client2.getSyncedBlockNum()).toEqual(client.getSyncedBlockNum());
   });
 });

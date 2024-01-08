@@ -83,6 +83,7 @@ deploy_package foundation
 deploy_package circuits.js
 deploy_package types
 deploy_package aztec.js
+deploy_package accounts
 deploy_package l1-artifacts
 deploy_package ethereum
 deploy_package noir-compiler

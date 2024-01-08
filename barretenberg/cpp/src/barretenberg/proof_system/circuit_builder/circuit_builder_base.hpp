@@ -347,11 +347,15 @@ template <typename FF_> class CircuitBuilderBase {
 
         for (const auto& idx : proof_output_witness_indices) {
             set_public_input(idx);
+            // Why is it adding the size of the public input instead of the idx?
             recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
         }
     }
 
     /**
+     * TODO: We can remove this and use `add_recursive_proof` once my question has been addressed
+     * TODO: using `add_recursive_proof` also means that we will need to remove the cde which is
+     * TODO: adding the public_inputs
      * @brief Update recursive_proof_public_input_indices with existing public inputs that represent a recursive proof
      *
      * @param proof_output_witness_indices

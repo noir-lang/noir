@@ -85,7 +85,7 @@ If your contract works with storage (has Storage struct defined), you **MUST** i
 
 Every time a new note is successfully decrypted, the PXE will expect the existence of a `compute_note_hash_and_nullifier` function, which must teach it how to correctly process the new note.
 
-#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 
 ## Unencrypted Events
@@ -100,11 +100,11 @@ They can be emitted by both public and private functions.
 
 To emit unencrypted logs first import the `emit_unencrypted_log` utility function inside your contract:
 
-#include_code unencrypted_import /yarn-project/noir-contracts/src/contracts/test_contract/src/main.nr rust
+#include_code unencrypted_import /yarn-project/noir-contracts/contracts/test_contract/src/main.nr rust
 
 Then you can call the function:
 
-#include_code emit_unencrypted /yarn-project/noir-contracts/src/contracts/test_contract/src/main.nr rust
+#include_code emit_unencrypted /yarn-project/noir-contracts/contracts/test_contract/src/main.nr rust
 
 Once emitted, unencrypted events are stored in AztecNode and can be queried by anyone:
 <Tabs groupId="events">

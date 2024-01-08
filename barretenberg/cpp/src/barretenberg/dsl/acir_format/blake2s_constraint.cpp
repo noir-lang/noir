@@ -3,8 +3,10 @@
 
 namespace acir_format {
 
-void create_blake2s_constraints(Builder& builder, const Blake2sConstraint& constraint)
+template <typename Builder> void create_blake2s_constraints(Builder& builder, const Blake2sConstraint& constraint)
 {
+    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
+    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -33,5 +35,10 @@ void create_blake2s_constraints(Builder& builder, const Blake2sConstraint& const
         builder.assert_equal(bytes[i].normalize().witness_index, constraint.result[i]);
     }
 }
+
+template void create_blake2s_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
+                                                              const Blake2sConstraint& constraint);
+template void create_blake2s_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
+                                                                    const Blake2sConstraint& constraint);
 
 } // namespace acir_format

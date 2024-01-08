@@ -1,5 +1,8 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { BufferReader, Note, TxHash } from '@aztec/types';
+import { BufferReader } from '@aztec/foundation/serialize';
+
+import { Note } from '../logs/index.js';
+import { TxHash } from '../tx/index.js';
 
 /**
  * A note with contextual data.

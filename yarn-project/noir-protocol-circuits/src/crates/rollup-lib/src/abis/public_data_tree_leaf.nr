@@ -1,3 +1,6 @@
+use dep::std::ops::Eq;
+use dep::types::traits::{Empty, Hash};
+
 struct PublicDataTreeLeafPreimage {
     slot : Field,
     value: Field,
@@ -5,8 +8,8 @@ struct PublicDataTreeLeafPreimage {
     next_index : u32,
 }
 
-impl PublicDataTreeLeafPreimage {
-    pub fn default() -> Self {
+impl Empty for PublicDataTreeLeafPreimage {
+    fn empty() -> Self {
         Self {
             slot: 0,
             value: 0,
@@ -14,12 +17,10 @@ impl PublicDataTreeLeafPreimage {
             next_index: 0,
         }
     }
+}
 
-    pub fn is_empty(self) -> bool {
-        (self.slot == 0) & (self.value == 0) & (self.next_slot == 0) & (self.next_index == 0)
-    }
-
-    pub fn hash(self) -> Field {
+impl Hash for PublicDataTreeLeafPreimage {
+    fn hash(self) -> Field {
         if self.is_empty() {
             0
         } else {
@@ -28,25 +29,34 @@ impl PublicDataTreeLeafPreimage {
     }
 }
 
+impl PublicDataTreeLeafPreimage {
+    pub fn is_empty(self) -> bool {
+        (self.slot == 0) & (self.value == 0) & (self.next_slot == 0) & (self.next_index == 0)
+    }
+}
+
 struct PublicDataTreeLeaf {
     slot: Field,
     value: Field,
 }
 
+impl Eq for PublicDataTreeLeaf {
+    fn eq(self, other: Self) -> bool {
+        (self.slot == other.slot) & (self.value == other.value)
+    }
+}
 
-impl PublicDataTreeLeaf {
-    pub fn default() -> Self {
+impl Empty for PublicDataTreeLeaf  {    
+    fn empty() -> Self {
         Self {
             slot: 0,
             value: 0,
         }
     }
+}
 
+impl PublicDataTreeLeaf {
     pub fn is_empty(self) -> bool {
         (self.slot == 0) & (self.value == 0)
-    }
-
-    pub fn eq(self, other: Self) -> bool {
-        (self.slot == other.slot) & (self.value == other.value)
     }
 }

@@ -3,23 +3,21 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    "./artifacts": "./dest/artifacts/index.js",
-    "./types": "./dest/types/index.js"
+    ".": "./dest/index.js",
+    "./*": "./dest/*.js"
   },
   "scripts": {
-    "build": "yarn clean && tsc -b",
+    "build": "yarn clean && yarn build:contracts && tsc -b",
     "build:dev": "tsc -b --watch",
-    "clean": "rm -rf ./dest .tsbuildinfo",
+    "clean": "rm -rf ./dest .tsbuildinfo ./src ./target",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "noir:clean": "rm -rf ./src/artifacts ./src/types && mkdir -p ../aztec.js/src/artifacts/ && find ../aztec.js/src/artifacts/ -mindepth 1 -delete && rm -rf target/",
-    "noir:build": "./src/scripts/compile.sh",
-    "noir:build:all": "yarn noir:clean && ./scripts/compile_all.sh && ./scripts/types_all.sh",
-    "noir:types:all": "./scripts/types_all.sh"
+    "build:contracts": "./scripts/compile.sh && ./scripts/generate-types.sh"
   },
   "inherits": [
-    "../package.common.json"
+    "../package.common.json",
+    "./package.local.json"
   ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
@@ -31,23 +29,12 @@
   },
   "dependencies": {
     "@aztec/aztec.js": "workspace:^",
-    "@aztec/foundation": "workspace:^",
-    "lodash.omit": "^4.5.0",
     "tslib": "^2.4.0"
   },
   "devDependencies": {
-    "@aztec/noir-compiler": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
-    "@types/lodash.camelcase": "^4.3.7",
-    "@types/lodash.omit": "^4.5.7",
-    "@types/lodash.snakecase": "^4.1.7",
-    "@types/lodash.upperfirst": "^4.3.7",
-    "@types/node": "^18.7.23",
     "jest": "^29.5.0",
-    "lodash.camelcase": "^4.3.0",
-    "lodash.snakecase": "^4.1.1",
-    "lodash.upperfirst": "^4.3.1",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"

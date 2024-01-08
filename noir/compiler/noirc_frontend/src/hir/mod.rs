@@ -36,7 +36,8 @@ pub enum FunctionNameMatch<'a> {
 }
 
 impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+    pub fn new(file_manager: FileManager) -> Context {
+        let crate_graph = CrateGraph::default();
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
@@ -178,6 +179,14 @@ impl Context {
                 }
             })
             .collect()
+    }
+
+    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
+    /// Returns [None] when definition is not found.
+    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
+        let interner = &self.def_interner;
+
+        interner.find_location_index(location).and_then(|index| interner.resolve_location(index))
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain

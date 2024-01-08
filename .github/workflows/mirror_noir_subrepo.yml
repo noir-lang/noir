@@ -34,7 +34,7 @@ jobs:
       - name: Push to branch
         run: |
           SUBREPO_PATH=noir
-          BRANCH=aztec
+          BRANCH=aztec-packages
           # identify ourselves, needed to commit
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
@@ -57,4 +57,4 @@ jobs:
           pr_title: 'feat: aztec-packages'
           pr_body: 'Development from Aztec.'
           destination_branch: 'master'
-          source_branch: 'aztec'
+          source_branch: 'aztec-packages'

@@ -289,7 +289,16 @@ function makePublicExecutionResult(
   tx: FunctionCall,
   nestedExecutions: PublicExecutionResult[] = [],
 ): PublicExecutionResult {
-  const callContext = new CallContext(from, tx.to, EthAddress.ZERO, tx.functionData.selector, false, false, false);
+  const callContext = new CallContext(
+    from,
+    tx.to,
+    EthAddress.ZERO,
+    tx.functionData.selector,
+    false,
+    false,
+    false,
+    Fr.ZERO,
+  );
   const execution: PublicExecution = {
     callContext,
     contractAddress: tx.to,

@@ -57,19 +57,19 @@ contract Bridge {
         amount: Field,
     ) -> Field {
         ...
-    #include_code call_assert_token_is_same /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr raw
+    #include_code call_assert_token_is_same /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
     }
-    #include_code assert_token_is_same /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr raw
+    #include_code assert_token_is_same /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
 }
 ```
 :::danger
 This leaks information about the private function being called and the data which has been read. 
 :::
 
-### Writing public storage from private: when updating public state from private, you can call a public function from private, just make sure you mark public as internal
+### Writing public storage from private
+When calling a private function, you can update public state by calling a public function.
 
-When calling a public function from private, try to mark the public function as `internal`
-This ensures your flow works as intended and that no one can call the public function without going through the private function first!
+In this situation, try to mark the public function as `internal`. This ensures your flow works as intended and that no one can call the public function without going through the private function first!
 
 ### Moving public data into the private domain
 Let's say you have some storage in public and want to move them into the private domain. If you pass your aztec address that should receive the data, then that leaks privacy (as everyone will know who has the private notes). So what do you do?
@@ -91,6 +91,16 @@ When you send someone a note, the note hash gets added to the [note hash tree](.
 
 In the token contract, TransparentNotes are stored in a set called "pending_shields" which is in storage slot 5. See [here](../../../tutorials/writing_token_contract.md#contract-storage)
 
+### Revealing encrypted logs conditionally
+
+An encrypted log can contain any information for a recipient, typically in the form of a note. One could think this log is emitted as part of the transaction execution, so it wouldn't be revealed if the transaction fails.
+
+This is not true for Aztec, as the encrypted log is part of the transaction object broadcasted to the network. So if a transaction with an encrypted log and a note commitment is broadcasted, there could be a situation where the transaction is not mined or reorg'd out, so the commitment is never added to the note hash tree, but the recipient could still have read the encrypted log from the transaction in the mempool.
+
+Example:
+
+> Alice and Bob agree to a trade, where Alice sends Bob a passcode to collect funds from a web2 app, in exchange of on-chain tokens. Alice should only send Bob the passcode if the trade is successful. But just sending the passcode as an encrypted log doesn't work, since Bob could see the encrypted log from the transaction as soon as Alice broadcasts it, decrypt it to get the passcode, and withdraw his tokens from the trade to make the transaction fail.
+
 ### Randomness in notes
 Notes are hashed and stored in the merkle tree. While notes do have a header with a `nonce` field that ensure two exact notes still can be added to the note hash tree (since hashes would be different), preimage analysis can be done to reverse-engineer the contents of the note.
 
@@ -102,11 +112,11 @@ Hence, it's necessary to add a "randomness" field to your note to prevent such a
 Currently, if you have storage defined, the compiler will error if you don't have a `compute_note_hash_and_nullifier()` defined. Without this, the PXE can't process encrypted events and discover your notes.
 
 If your contract doesn't have anything to do with notes (e.g. operates solely in the public domain), you can do the following:
-#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 Otherwise, you need this method to help the PXE with processing your notes. In our [demo token contract](../../../tutorials/writing_token_contract.md#compute_note_hash_and_nullifier), we work with 2 kinds of notes: `ValueNote` and `TransparentNote`. Hence this method must define how to work with both:
 
-#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### L1 -- L2 interactions
 Refer to [Token Portal tutorial on bridging tokens between L1 and L2](../../../tutorials/token_portal/main.md) and/or [Uniswap tutorial that shows how to swap on L1 using funds on L2](../../../tutorials/uniswap/main.md). Both examples show how to:

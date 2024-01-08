@@ -3,7 +3,7 @@ use std::{
     future::{self, Future},
 };
 
-use acvm::{acir::circuit::Opcode, Language};
+use acvm::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::artifacts::debug::DebugArtifact;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -57,16 +57,13 @@ fn on_profile_run_request_inner(
                 .cloned()
                 .partition(|package| package.is_binary());
 
-            // # TODO(#3504): Consider how to incorporate Backend relevant information in wider context.
-            let is_opcode_supported = |_opcode: &Opcode| true;
-            let np_language = Language::PLONKCSat { width: 3 };
+            let expression_width = ExpressionWidth::Bounded { width: 3 };
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace,
                 &binary_packages,
                 &contract_packages,
-                np_language,
-                is_opcode_supported,
+                expression_width,
                 &CompileOptions::default(),
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;

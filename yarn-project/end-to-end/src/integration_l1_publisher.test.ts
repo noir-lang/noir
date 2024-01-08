@@ -17,10 +17,17 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PublicDataUpdateRequest,
+  SideEffectLinkedToNoteHash,
   makeTuple,
   range,
 } from '@aztec/circuits.js';
-import { fr, makeNewContractData, makeProof } from '@aztec/circuits.js/factories';
+import {
+  fr,
+  makeNewContractData,
+  makeNewSideEffect,
+  makeNewSideEffectLinkedToNoteHash,
+  makeProof,
+} from '@aztec/circuits.js/factories';
 import { createEthereumChain } from '@aztec/ethereum';
 import { DecoderHelperAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
@@ -171,9 +178,14 @@ describe('L1Publisher integration', () => {
 
     const processedTx = await makeProcessedTx(tx, kernelOutput, makeProof());
 
-    processedTx.data.end.newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100);
-    processedTx.data.end.newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200);
-    processedTx.data.end.newNullifiers[processedTx.data.end.newNullifiers.length - 1] = Fr.ZERO;
+    processedTx.data.end.newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, makeNewSideEffect, seed + 0x100);
+    processedTx.data.end.newNullifiers = makeTuple(
+      MAX_NEW_NULLIFIERS_PER_TX,
+      makeNewSideEffectLinkedToNoteHash,
+      seed + 0x200,
+    );
+    processedTx.data.end.newNullifiers[processedTx.data.end.newNullifiers.length - 1] =
+      SideEffectLinkedToNoteHash.empty();
     processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
     processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
     processedTx.data.end.encryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.encryptedLogs));

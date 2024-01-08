@@ -4,7 +4,7 @@ title: Testing with Typescript
 
 Testing is an integral part of any piece of software, and especially important for any blockchain application. In this page we will cover how to interact with your Noir contracts in a testing environment to write automated tests for your apps.
 
-We will be using typescript to write our tests, and rely on the [`aztec.js`](https://www.npmjs.com/package/@aztec/aztec.js) client library to interact with a local Aztec network. We will use [`jest`](https://jestjs.io/) as a testing library, though feel free to use whatever you work with. Configuring the nodejs testing framework is out of scope for this guide.
+We will be using typescript to write our tests, and rely on the [`aztec.js`](https://www.npmjs.com/package/@aztec/aztec.js) client library to interact with a local Aztec network, along with the [`accounts`](https://www.npmjs.com/package/@aztec/accounts) package for setting up test accounts. We will use [`jest`](https://jestjs.io/) as a testing library, though feel free to use whatever you work with. Configuring the nodejs testing framework is out of scope for this guide.
 
 ## A simple example
 
@@ -12,7 +12,7 @@ Let's start with a simple example for a test using the [Sandbox](../cli/sandbox-
 
 #include_code sandbox-example /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
-This test sets up the environment by creating a client to the Private Execution Environment (PXE) running on the Sandbox on port 8080. It then creates two new accounts, dubbed `owner` and `recipient`. Last, it deploys an instance of the [Token contract](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr), minting an initial 100 tokens to the owner.
+This test sets up the environment by creating a client to the Private Execution Environment (PXE) running on the Sandbox on port 8080. It then creates two new accounts, dubbed `owner` and `recipient`. Last, it deploys an instance of the [Token contract](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr), minting an initial 100 tokens to the owner.
 
 Once we have this setup, the test itself is simple. We check the balance of the `recipient` user to ensure it has no tokens, send and await a deployment transaction, and then check the balance again to ensure it was increased. Note that all numeric values are represented as [native bigints](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) to avoid loss of precision.
 
@@ -80,6 +80,20 @@ Instead of creating new accounts in our test suite, we can use the ones already 
 
 #include_code use-existing-wallets /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
+### Using debug options
+
+You can use the `debug` option in the `wait` method to get more information about the effects of the transaction. At the time of writing, this includes information about new note hashes added to the note hash tree, new nullifiers, public data writes, new L2 to L1 messages, new contract information and newly visible notes.
+
+This debug information will be populated in the transaction receipt. You can log it to the console or use it to make assertions about the transaction.
+
+If a note doesn't appear when you expect it to, check the visible notes returned by the debug options. See the following example for reference on how it's done in the token contract tests.
+
+#include_code debug /yarn-project/end-to-end/src/e2e_token_contract.test.ts typescript
+
+If the note appears in the visible notes and it contains the expected values there is probably an issue with how you fetch the notes. Check that the note getter (or note viewer) parameters are set correctly. If the note doesn't appear, ensure that you have emitted the corresponding encrypted log (usually by passing in a `broadcast = true` param to the `create_note` function). You can also check the Sandbox logs to see if the `emitEncryptedLog` was emitted. Run `export DEBUG="aztec:\*" before spinning up sandbox to see all the logs.
+
+For debugging and logging in Aztec contracts, see [this page](../debugging/main.md).
+
 ## Assertions
 
 We will now see how to use `aztec.js` to write assertions about transaction statuses, about chain state both public and private, and about logs.
@@ -106,7 +120,7 @@ We can have private transactions that work fine locally, but are dropped by the 
 
 #### A public call fails locally
 
-Public function calls can be caught failing locally similar to how we catch private function calls. For this example, we use a [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) instead of a private one.
+Public function calls can be caught failing locally similar to how we catch private function calls. For this example, we use a [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) instead of a private one.
 
 :::info
 Keep in mind that public function calls behave as in EVM blockchains, in that they are executed by the sequencer and not locally. Local simulation helps alert the user of a potential failure, but the actual execution path of a public function call will depend on when it gets mined.
@@ -150,7 +164,7 @@ We can query the Private eXecution Environment (PXE) for all notes encrypted for
 
 #### Querying public state
 
-[Public state](../../concepts/foundation/state_model/main.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 6.
+[Public state](../../concepts/foundation/state_model/main.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 6.
 
 #include_code public-storage /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
@@ -176,7 +190,7 @@ The [`CheatCodes`](./../testing/cheat_codes.md) class, which we used for [calcul
 
 The `warp` method sets the time for next execution, both on L1 and L2. We can test this using an `isTimeEqual` function in a `Test` contract defined like the following:
 
-#include_code is-time-equal yarn-project/noir-contracts/src/contracts/test_contract/src/main.nr rust
+#include_code is-time-equal yarn-project/noir-contracts/contracts/test_contract/src/main.nr rust
 
 We can then call `warp` and rely on the `isTimeEqual` function to check that the timestamp was properly modified.
 

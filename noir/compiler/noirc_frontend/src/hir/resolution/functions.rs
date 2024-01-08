@@ -11,7 +11,7 @@ use crate::{
         def_map::{CrateDefMap, ModuleId},
     },
     node_interner::{FuncId, NodeInterner, TraitImplId},
-    Shared, Type, TypeBinding,
+    Type, TypeVariable,
 };
 
 use super::{path_resolver::StandardPathResolver, resolver::Resolver};
@@ -24,7 +24,7 @@ pub(crate) fn resolve_function_set(
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
     trait_impl_id: Option<TraitImplId>,
-    impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
+    impl_generics: Vec<(Rc<String>, TypeVariable, Span)>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;

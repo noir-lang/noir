@@ -37,6 +37,8 @@
  */
 export * from './contract.js';
 export * from './contract_function_interaction.js';
-export { SentTx, WaitOpts } from './sent_tx.js';
+export * from './sent_tx.js';
 export * from './contract_base.js';
 export * from './batch_call.js';
+export * from './deploy_method.js';
+export * from './deploy_sent_tx.js';

@@ -76,22 +76,22 @@ def MergeRollupCircuit(
     left: ChildRollupData, 
     right: ChildRollupData
 ) -> BaseOrMergeRollupPublicInputs:
-    assert left.proof.is_valid(left.inputs)
-    assert right.proof.is_valid(right.inputs)
+    assert left.proof.is_valid(left.public_inputs)
+    assert right.proof.is_valid(right.public_inputs)
 
-    assert left.inputs.constants == right.inputs.constants
-    assert right.inputs.start == left.inputs.end
-    assert left.inputs.type == right.inputs.type
-    assert left.inputs.height_in_block_tree == right.inputs.height_in_block_tree
+    assert left.public_inputs.constants == right.public_inputs.constants
+    assert left.public_inputs.end == right.public_inputs.start
+    assert left.public_inputs.type == right.public_inputs.type
+    assert left.public_inputs.height_in_block_tree == right.public_inputs.height_in_block_tree
 
     return BaseOrMergeRollupPublicInputs(
         type=1,
-        height_in_block_tree=left.inputs.height_in_block_tree + 1,
+        height_in_block_tree=left.public_inputs.height_in_block_tree + 1,
         aggregation_object=AggregationObject(left.proof, right.proof),
-        txs_hash=SHA256(left.inputs.txs_hash | right.inputs.txs_hash),
-        out_hash=SHA256(left.inputs.out_hash | right.inputs.out_hash),
-        start=left.inputs.start,
-        end=right.inputs.end,
-        constants=left.inputs.constants
+        txs_hash=SHA256(left.public_inputs.txs_hash | right.public_inputs.txs_hash),
+        out_hash=SHA256(left.public_inputs.out_hash | right.public_inputs.out_hash),
+        start=left.public_inputs.start,
+        end=right.public_inputs.end,
+        constants=left.public_inputs.constants
     )
 ```

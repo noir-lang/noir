@@ -43,7 +43,7 @@ If your contract works with storage (has Storage struct defined), you **MUST** i
 
 If you don't yet have any private state variables defined put there a placeholder function:
 
-#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 :::
 
 Since Aztec.nr is written in Noir, which on its own is state-less, we need to specify how the storage struct should be initialized to read and write data correctly. This is done by specifying an `init` function that is run in functions that rely on reading or altering the state variables. This `init` function must declare the storage struct with an instantiation defining how variables are accessed and manipulated. The function MUST be called `init` for the Aztec.nr library to properly handle it (this will be relaxed in the future).
@@ -89,11 +89,11 @@ When declaring a mapping in private storage, we have to specify which type of No
 
 In the Storage struct:
 
-#include_code storage-map-singleton-declaration /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-map-singleton-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 In the `Storage::init` function:
 
-#include_code state_vars-MapSingleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+#include_code state_vars-MapSingleton /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 #### Public Example
 
@@ -101,11 +101,11 @@ When declaring a public mapping in Storage, we have to specify that the type is 
 
 In the Storage struct:
 
-#include_code storage_minters /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_minters /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 In the `Storage::init` function:
 
-#include_code storage_minters_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_minters_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### `at`
 
@@ -113,7 +113,7 @@ When dealing with a map, we can access the value at a given key using the `::at`
 
 This function behaves similarly for both private and public maps. An example could be if we have a map with `minters`, which is mapping addresses to a flag for whether they are allowed to mint tokens or not.
 
-#include_code read_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code read_minter /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 Above, we are specifying that we want to get the storage in the Map `at` the `msg_sender()`, read the value stored and check that `msg_sender()` is indeed a minter. Doing a similar operation in Solidity code would look like:
 
@@ -141,7 +141,7 @@ The British haven't surrendered fully to US spelling, so serialization is curren
 The Aztec.nr library provides serialization methods for various common types.
 
 :::info
-An example using a larger struct can be found in the [lending example](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/lending_contract)'s use of an [`Asset`](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/lending_contract/src/asset.nr).
+An example using a larger struct can be found in the [lending example](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/lending_contract)'s use of an [`Asset`](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/lending_contract/src/asset.nr).
 :::
 
 ### `new`
@@ -154,11 +154,11 @@ When declaring the storage for `T` as a persistent public storage variable, we u
 
 Say that we wish to add `admin` public state variable into our storage struct. In the struct we can define it as:
 
-#include_code storage_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_admin /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 And then when initializing it in the `Storage::init` function we can do:
 
-#include_code storage_admin_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_admin_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 We have specified that we are storing a `Field` that should be placed in storage slot `1`. This is just a single value, and is similar to the following in solidity:
 
@@ -174,11 +174,11 @@ We know its verbose, and are working on making it less so.
 
 Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](../../../../concepts/foundation/communication/public_private_calls/main.md#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
 
-#include_code storage_minters /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_minters /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 And then when initializing it in the `Storage::init` function we can do it as follows:
 
-#include_code storage_minters_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_minters_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 In this case, specifying that we are dealing with a map of Fields, and that it should be put at slot 2.
 
@@ -196,13 +196,13 @@ On the `PublicState` structs we have a `read` method to read the value at the lo
 
 For our `admin` example from earlier, this could be used as follows to check that the stored value matches the `msg_sender()`.
 
-#include_code read_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code read_admin /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 #### Reading from our `minters` example
 
 As we saw in the Map earlier, a very similar operation can be done to perform a lookup in a map.
 
-#include_code read_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code read_minter /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### `write`
 
@@ -210,11 +210,11 @@ We have a `write` method on the `PublicState` struct that takes the value to wri
 
 #### Writing to our `admin` example
 
-#include_code write_admin /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code write_admin /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 #### Writing to our `minters` example
 
-#include_code write_minter /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code write_minter /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ## Private State Variables
 
@@ -276,13 +276,13 @@ Like for public state, we define the struct to have context, a storage slot and 
 
 An example of singleton usage in the account contracts is keeping track of public keys. The `Singleton` is added to the `Storage` struct as follows:
 
-#include_code storage-singleton-declaration /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-singleton-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `new`
 
 As part of the initialization of the `Storage` struct, the `Singleton` is created as follows, here at the specified storage slot and with the `NoteInterface` for `CardNote`.
 
-#include_code start_vars_singleton /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/main.nr rust
+#include_code start_vars_singleton /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `initialize`
 
@@ -306,7 +306,7 @@ To update the value of a `Singleton`, we can use the `replace` method. The metho
 
 An example of this is seen in a example card game, where we create a new note (a `CardNote`) containing some new data, and replace the current note with it:
 
-#include_code state_vars-SingletonReplace /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
+#include_code state_vars-SingletonReplace /yarn-project/noir-contracts/contracts/docs_example_contract/src/actions.nr rust
 
 If two people are trying to modify the Singleton at the same time, only one will succeed as we don't allow duplicate nullifiers! Developers should put in place appropriate access controls to avoid race conditions (unless a race is intended!).
 
@@ -314,7 +314,7 @@ If two people are trying to modify the Singleton at the same time, only one will
 
 This function allows us to get the note of a Singleton, essentially reading the value.
 
-#include_code state_vars-SingletonGet /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/actions.nr rust
+#include_code state_vars-SingletonGet /yarn-project/noir-contracts/contracts/docs_example_contract/src/actions.nr rust
 
 #### Nullifying Note reads
 
@@ -334,7 +334,7 @@ ImmutableSingleton represents a unique private state variable that, as the name 
 
 As part of the initialization of the `Storage` struct, the `Singleton` is created as follows, here at storage slot 1 and with the `NoteInterface` for `PublicKeyNote`.
 
-#include_code storage_init /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
+#include_code storage_init /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
 
 ### `initialize`
 
@@ -342,7 +342,7 @@ When this function is invoked, it creates a nullifier for the storage slot, ensu
 
 Set the value of an ImmutableSingleton by calling the `initialize` method:
 
-#include_code initialize /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
+#include_code initialize /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
 
 Once initialized, an ImmutableSingleton's value remains unchangeable. This method can only be called once.
 
@@ -356,7 +356,7 @@ Similar to the `Singleton`, we can use the `get_note` method to read the value o
 
 Use this method to retrieve the value of an initialized ImmutableSingleton.
 
-#include_code get_note /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
+#include_code get_note /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
 
 Unlike a `Singleton`, the `get_note` function for an ImmutableSingleton doesn't destroy the current note in the background. This means that multiple accounts can concurrently call this function to read the value.
 
@@ -374,7 +374,7 @@ Set is used for managing a collection of notes. All notes in a set are of the sa
 
 And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](../functions.md#public---private)).
 
-#include_code storage_pending_shields /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_pending_shields /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### `new`
 
@@ -382,7 +382,7 @@ The `new` method tells the contract how to operate on the underlying storage.
 
 We can initialize the set as follows:
 
-#include_code storage_pending_shields_init /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code storage_pending_shields_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### `insert`
 
@@ -400,7 +400,7 @@ While we don't support private functions to directly alter public storage, the o
 
 The usage is rather straight-forward and very similar to using the `insert` method with the difference that this one is called in public functions.
 
-#include_code insert_from_public /yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr rust
+#include_code insert_from_public /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### `remove`
 
@@ -500,11 +500,11 @@ This method sets the offset value, which determines where to start retrieving no
 
 The following code snippet creates an instance of `NoteGetterOptions`, which has been configured to find the cards that belong to `account_address`. The returned cards are sorted by their points in descending order, and the first `offset` cards with the highest points are skipped.
 
-#include_code state_vars-NoteGetterOptionsSelectSortOffset /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsSelectSortOffset /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 The first value of `.select` and `.sort` is the index of a field in a note type. For the note type `CardNote` that has the following fields:
 
-#include_code state_vars-CardNote /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/types/card_note.nr rust
+#include_code state_vars-CardNote /yarn-project/noir-contracts/contracts/docs_example_contract/src/types/card_note.nr rust
 
 The indices are: 0 for `points`, 1 for `secret`, and 2 for `owner`.
 
@@ -514,18 +514,18 @@ In the example, `.select(2, account_address)` matches the 2nd field of `CardNote
 
 There can be as many conditions as the number of fields a note type has. The following example finds cards whose fields match the three given values:
 
-#include_code state_vars-NoteGetterOptionsMultiSelects /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsMultiSelects /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 While `selects` lets us find notes with specific values, `filter` lets us find notes in a more dynamic way. The function below picks the cards whose points are at least `min_points`:
 
-#include_code state_vars-OptionFilter /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-OptionFilter /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 We can use it as a filter to further reduce the number of the final notes:
 
-#include_code state_vars-NoteGetterOptionsFilter /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsFilter /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 One thing to remember is, `filter` will be applied on the notes after they are picked from the database. Therefore, it's possible that the actual notes we end up getting are fewer than the limit.
 
 The limit is `MAX_READ_REQUESTS_PER_CALL` by default. But we can set it to any value **smaller** than that:
 
-#include_code state_vars-NoteGetterOptionsPickOne /yarn-project/noir-contracts/src/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsPickOne /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust

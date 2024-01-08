@@ -5,7 +5,6 @@ use dep::types::abis::kernel_circuit_public_inputs::KernelCircuitPublicInputsBui
 use crate::common;
 use dep::std::unsafe;
 
-
 struct PublicKernelPublicPreviousInputs {
     previous_kernel: PreviousKernelData,
     public_call: PublicCallData,
@@ -56,11 +55,12 @@ mod tests {
             compute_public_data_update_requests,
         },
     };
-     use dep::types::{
+    use dep::types::{
         abis::{
             kernel_circuit_public_inputs::KernelCircuitPublicInputs,
             public_data_read::PublicDataRead,
             public_data_update_request::PublicDataUpdateRequest,
+            side_effect::{SideEffect, SideEffectLinkedToNoteHash},
         },
         hash::{
             compute_l2_to_l1_hash,
@@ -73,14 +73,13 @@ mod tests {
             public_call_data_builder::PublicCallDataBuilder,
         },
         utils::{
-            arrays::array_eq,
+            arrays::{array_eq, struct_array_eq},
         },
     };
     use dep::types::constants::{
         MAX_PUBLIC_DATA_READS_PER_CALL,
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     };
-
 
     struct PublicKernelPublicPreviousInputsBuilder {
         previous_kernel: PreviousKernelDataBuilder,
@@ -169,13 +168,39 @@ mod tests {
         builder.failed();
     }
 
-    // TODO: Break up this test into smaller tests.
     #[test]
-    fn circuit_outputs_should_be_correctly_populated_with_previous_public_kernel() {
+    fn circuit_outputs_should_be_correctly_populated_with_previous_commitments() {
         let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
         let contract_address = builder.public_call.contract_address;
-        let portal_contract_address = builder.public_call.portal_contract_address;
+        // Setup 2 new commitments on the previous kernel.
+        builder.previous_kernel.append_new_commitments(2);
+        let previous = builder.previous_kernel.end.new_commitments.storage;
+        // Setup 2 new commitments on the current public inputs.
+        let current = [
+            SideEffect { value: previous[1].value + 1, counter: 3 },
+            SideEffect { value: previous[1].value + 2, counter: 4 }
+        ];
+        builder.public_call.public_inputs.new_commitments.push_array(current);
+        let siloed = current.map(|c: SideEffect| silo_commitment(contract_address, c.value));
+        let new_commitments = [
+            previous[0], previous[1], SideEffect { value: siloed[0], counter: 3 }, SideEffect { value: siloed[1], counter: 4 }
+        ];
 
+        let public_inputs = builder.execute();
+
+        assert(
+            struct_array_eq(
+                public_inputs.end.new_commitments,
+                new_commitments,
+                |a: SideEffect, b: SideEffect| a.eq(b),
+                |a: SideEffect| a.is_empty()
+            )
+        );
+    }
+
+    #[test]
+    fn circuit_outputs_should_be_correctly_populated_with_previous_update_requests() {
+        let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
         // Setup 2 data writes on the previous kernel.
         builder.previous_kernel.append_public_data_update_requests(2);
         let previous = builder.previous_kernel.end.public_data_update_requests.storage;
@@ -184,6 +209,17 @@ mod tests {
         let current = builder.get_current_public_data_update_requests();
         let public_data_update_requests = [previous[0], previous[1], current[0], current[1]];
 
+        let public_inputs = builder.execute();
+        assert_eq_public_data_update_requests(
+            public_inputs.end.public_data_update_requests,
+            public_data_update_requests
+        );
+    }
+
+    #[test]
+    fn circuit_outputs_should_be_correctly_populated_with_previous_read_requests() {
+        let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
+
         // Setup 2 data reads on the previous kernel.
         builder.previous_kernel.append_public_data_read_requests(2);
         let previous = builder.previous_kernel.end.public_data_reads.storage;
@@ -191,28 +227,58 @@ mod tests {
         builder.public_call.append_read_requests(2);
         let current = builder.get_current_public_data_reads();
         let public_data_read_requests = [previous[0], previous[1], current[0], current[1]];
+        let public_inputs = builder.execute();
 
-        // Setup 2 new commitments on the previous kernel.
-        builder.previous_kernel.append_new_commitments(2);
-        let previous = builder.previous_kernel.end.new_commitments.storage;
-        // Setup 2 new commitments on the current public inputs.
-        let current = [previous[1] + 1, previous[1] + 2];
-        builder.public_call.public_inputs.new_commitments.push_array(current);
-        let siloed = current.map(|c| silo_commitment(contract_address, c));
-        let new_commitments = [previous[0], previous[1], siloed[0], siloed[1]];
+        assert_eq_public_data_reads(
+            public_inputs.end.public_data_reads,
+            public_data_read_requests
+        );
+    }
+
+    #[test]
+    fn circuit_outputs_should_be_correctly_populated_with_previous_nullifiers() {
+        let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
+        let contract_address = builder.public_call.contract_address;
 
         // Setup 2 new nullifiers on the previous kernel.
         builder.previous_kernel.append_new_nullifiers(2);
         let previous = builder.previous_kernel.end.new_nullifiers.storage;
         // Setup 2 new commitments on the current public inputs.
-        let current = [previous[2] + 1, previous[2] + 2];
+
+        let current = [
+            SideEffectLinkedToNoteHash { value: previous[2].value + 1, note_hash: 0, counter: 3 }, SideEffectLinkedToNoteHash { value: previous[2].value + 2, note_hash: 0, counter: 4 }
+        ];
+
+        let siloed = current.map(
+            |current: SideEffectLinkedToNoteHash| 
+        SideEffectLinkedToNoteHash { value: silo_nullifier(contract_address, current.value), note_hash: current.note_hash, counter: current.counter }
+        );
+
         builder.public_call.public_inputs.new_nullifiers.push_array(current);
-        let siloed = current.map(|c| silo_nullifier(contract_address, c));
         // There are 3 nullifiers in the previous kernel. The first one is the tx nullifier.
         let new_nullifiers = [previous[0], previous[1], previous[2], siloed[0], siloed[1]];
 
+        let public_inputs = builder.execute();
+
+        assert(
+            struct_array_eq(
+                public_inputs.end.new_nullifiers,
+                new_nullifiers,
+                |a: SideEffectLinkedToNoteHash, b: SideEffectLinkedToNoteHash| a.eq(b),
+                |a: SideEffectLinkedToNoteHash| a.is_empty()
+            )
+        );
+    }
+
+    #[test]
+    fn circuit_outputs_should_be_correctly_populated_with_previous_l2_to_l1_msg() {
+        let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
+
+        let contract_address = builder.public_call.contract_address;
+        let portal_contract_address = builder.public_call.portal_contract_address;
         // Setup 1 new l2 to l1 message on the previous kernel.
         let previous = [12345];
+
         builder.previous_kernel.end.new_l2_to_l1_msgs.push_array(previous);
         // Setup 1 new l2 to l1 message on the current public inputs.
         let current = [67890];
@@ -223,6 +289,13 @@ mod tests {
         let siloed = current.map(|c| compute_l2_to_l1_hash(contract_address, version, portal_contract_address, chain_id, c));
         let new_l2_to_l1_msgs = [previous[0], siloed[0]];
 
+        let public_inputs = builder.execute();
+        assert(array_eq(public_inputs.end.new_l2_to_l1_msgs, new_l2_to_l1_msgs));
+    }
+    // TODO: Break up this test into smaller tests.
+    #[test]
+    fn circuit_outputs_should_be_correctly_populated_with_previous_public_kernel_logs() {
+        let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
         // Logs for the current call stack.
         let unencrypted_logs_hash = [26, 47];
         let unencrypted_log_preimages_length = 50;
@@ -234,17 +307,17 @@ mod tests {
         let prev_unencrypted_logs_hash = [956, 112];
         let prev_unencrypted_log_preimages_length = 24;
         builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
-        builder.previous_kernel.set_unencrypted_logs(prev_unencrypted_logs_hash, prev_unencrypted_log_preimages_length);
+        builder.previous_kernel.set_unencrypted_logs(
+            prev_unencrypted_logs_hash,
+            prev_unencrypted_log_preimages_length
+        );
 
         let public_inputs = builder.execute();
-        assert_eq_public_data_update_requests(public_inputs.end.public_data_update_requests, public_data_update_requests);
-        assert_eq_public_data_reads(public_inputs.end.public_data_reads, public_data_read_requests);
-        assert(array_eq(public_inputs.end.new_commitments, new_commitments));
-        assert(array_eq(public_inputs.end.new_nullifiers, new_nullifiers));
-        assert(array_eq(public_inputs.end.new_l2_to_l1_msgs, new_l2_to_l1_msgs));
 
         assert_eq(public_inputs.end.encrypted_log_preimages_length, prev_encrypted_log_preimages_length);
-        assert_eq(public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length);
+        assert_eq(
+            public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
+        );
 
         assert_eq(public_inputs.end.encrypted_logs_hash, prev_encrypted_logs_hash);
 
@@ -274,7 +347,7 @@ mod tests {
     fn public_kernel_fails_creating_new_commitments_on_static_call() {
         let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
-        builder.public_call.public_inputs.new_commitments.push(1);
+        builder.public_call.public_inputs.new_commitments.push(SideEffect { value: 1, counter: 0 });
 
         builder.failed();
     }
@@ -283,7 +356,7 @@ mod tests {
     fn public_kernel_fails_creating_new_nullifiers_on_static_call() {
         let mut builder = PublicKernelPublicPreviousInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
-        builder.public_call.public_inputs.new_nullifiers.push(1);
+        builder.public_call.public_inputs.new_nullifiers.push(SideEffectLinkedToNoteHash { value: 1, note_hash: 0, counter: 0 });
 
         builder.failed();
     }

@@ -143,6 +143,12 @@ impl<F: PrimeField> From<u128> for FieldElement<F> {
     }
 }
 
+impl<F: PrimeField> From<usize> for FieldElement<F> {
+    fn from(a: usize) -> FieldElement<F> {
+        FieldElement::from(a as u128)
+    }
+}
+
 impl<F: PrimeField> From<bool> for FieldElement<F> {
     fn from(boolean: bool) -> FieldElement<F> {
         if boolean {
@@ -266,7 +272,10 @@ impl<F: PrimeField> FieldElement<F> {
     }
     pub fn from_hex(hex_str: &str) -> Option<FieldElement<F>> {
         let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
-        let hex_as_bytes = hex::decode(value).ok()?;
+        // Values of odd length require an additional "0" prefix
+        let sanitized_value =
+            if value.len() % 2 == 0 { value.to_string() } else { format!("0{}", value) };
+        let hex_as_bytes = hex::decode(sanitized_value).ok()?;
         Some(FieldElement::from_be_bytes_reduce(&hex_as_bytes))
     }
 
@@ -440,6 +449,25 @@ mod tests {
             assert_eq!(minus_i_field_element.to_hex(), string);
         }
     }
+
+    #[test]
+    fn deserialize_even_and_odd_length_hex() {
+        // Test cases of (odd, even) length hex strings
+        let hex_strings =
+            vec![("0x0", "0x00"), ("0x1", "0x01"), ("0x002", "0x0002"), ("0x00003", "0x000003")];
+        for (i, case) in hex_strings.into_iter().enumerate() {
+            let i_field_element =
+                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
+            let odd_field_element =
+                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.0).unwrap();
+            let even_field_element =
+                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.1).unwrap();
+
+            assert_eq!(i_field_element, odd_field_element);
+            assert_eq!(odd_field_element, even_field_element);
+        }
+    }
+
     #[test]
     fn max_num_bits_smoke() {
         let max_num_bits_bn254 = crate::generic_ark::FieldElement::<ark_bn254::Fr>::max_num_bits();

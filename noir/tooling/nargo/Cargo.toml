@@ -24,4 +24,10 @@ iter-extended.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 codespan-reporting.workspace = true
+log.workspace = true
 rayon = "1.8.0"
+
+[dev-dependencies]
+# TODO: This dependency is used to generate unit tests for `get_all_paths_in_dir`
+# TODO: once that method is moved to nargo_cli, we can move this dependency to nargo_cli
+tempfile.workspace = true

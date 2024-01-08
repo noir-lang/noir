@@ -1,12 +1,13 @@
 #!/usr/bin/env -S node --no-warnings
+import { deployInitialSandboxAccounts } from '@aztec/accounts/testing';
 import { createAztecNodeRpcServer, getConfigEnvVars as getNodeConfigEnvVars } from '@aztec/aztec-node';
-import { AccountManager, createAztecNodeClient, deployInitialSandboxAccounts } from '@aztec/aztec.js';
+import { AccountManager, createAztecNodeClient } from '@aztec/aztec.js';
 import { NULL_KEY } from '@aztec/ethereum';
 import { init } from '@aztec/foundation/crypto';
 import { createStatusRouter } from '@aztec/foundation/json-rpc/server';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
-import { NoirCommit } from '@aztec/noir-compiler/versions';
+import { NoirCommit, NoirTag } from '@aztec/noir-compiler/versions';
 import { BootstrapNode, getP2PConfigEnvVars } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, createPXERpcServer } from '@aztec/pxe';
 
@@ -121,7 +122,7 @@ async function main() {
 
   // Code path for starting Sandbox
   if (mode === SandboxMode.Sandbox) {
-    logger.info(`Setting up Aztec Sandbox v${version} (noir ${NoirCommit}), please stand by...`);
+    logger.info(`Setting up Aztec Sandbox v${version} (noir ${NoirCommit} ${NoirTag}), please stand by...`);
 
     const { pxe, node, stop, accounts } = await createAndInitialiseSandbox(deployTestAccounts);
 

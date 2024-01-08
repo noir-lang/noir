@@ -1,4 +1,5 @@
-import { AztecAddress, Contract, Fq, Fr, getSchnorrAccount } from '@aztec/aztec.js';
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { AztecAddress, Contract, Fq, Fr } from '@aztec/aztec.js';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';

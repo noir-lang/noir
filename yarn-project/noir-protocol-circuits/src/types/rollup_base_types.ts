@@ -9,6 +9,17 @@ export type u32 = string;
 
 export interface AggregationObject {}
 
+export interface SideEffect {
+  value: Field;
+  counter: Field;
+}
+
+export interface SideEffectLinkedToNoteHash {
+  value: Field;
+  note_hash: Field;
+  counter: Field;
+}
+
 export interface AztecAddress {
   inner: Field;
 }
@@ -22,6 +33,8 @@ export interface CallRequest {
   hash: Field;
   caller_contract_address: AztecAddress;
   caller_context: CallerContext;
+  start_side_effect_counter: Field;
+  end_side_effect_counter: Field;
 }
 
 export interface EthAddress {
@@ -69,11 +82,9 @@ export interface PublicDataRead {
 
 export interface CombinedAccumulatedData {
   aggregation_object: AggregationObject;
-  read_requests: FixedLengthArray<Field, 128>;
-  pending_read_requests: FixedLengthArray<Field, 128>;
-  new_commitments: FixedLengthArray<Field, 64>;
-  new_nullifiers: FixedLengthArray<Field, 64>;
-  nullified_commitments: FixedLengthArray<Field, 64>;
+  read_requests: FixedLengthArray<SideEffect, 128>;
+  new_commitments: FixedLengthArray<SideEffect, 64>;
+  new_nullifiers: FixedLengthArray<SideEffectLinkedToNoteHash, 64>;
   private_call_stack: FixedLengthArray<CallRequest, 8>;
   public_call_stack: FixedLengthArray<CallRequest, 8>;
   new_l2_to_l1_msgs: FixedLengthArray<Field, 2>;
@@ -91,7 +102,7 @@ export interface BlockHeader {
   note_hash_tree_root: Field;
   nullifier_tree_root: Field;
   contract_tree_root: Field;
-  l1_to_l2_messages_tree_root: Field;
+  l1_to_l2_message_tree_root: Field;
   archive_root: Field;
   public_data_tree_root: Field;
   global_variables_hash: Field;
@@ -148,8 +159,8 @@ export interface AppendOnlyTreeSnapshot {
 }
 
 export interface NullifierLeafPreimage {
-  leaf_value: Field;
-  next_value: Field;
+  nullifier: Field;
+  next_nullifier: Field;
   next_index: u32;
 }
 
@@ -197,27 +208,27 @@ export interface ConstantRollupData {
 }
 
 export interface BaseRollupInputs {
-  kernel_data: FixedLengthArray<PreviousKernelData, 2>;
+  kernel_data: PreviousKernelData;
   start_note_hash_tree_snapshot: AppendOnlyTreeSnapshot;
   start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot;
   start_contract_tree_snapshot: AppendOnlyTreeSnapshot;
   start_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
   archive_snapshot: AppendOnlyTreeSnapshot;
-  sorted_new_nullifiers: FixedLengthArray<Field, 128>;
-  sorted_new_nullifiers_indexes: FixedLengthArray<u32, 128>;
-  low_nullifier_leaf_preimages: FixedLengthArray<NullifierLeafPreimage, 128>;
-  low_nullifier_membership_witness: FixedLengthArray<NullifierMembershipWitness, 128>;
-  new_commitments_subtree_sibling_path: FixedLengthArray<Field, 25>;
-  new_nullifiers_subtree_sibling_path: FixedLengthArray<Field, 13>;
-  public_data_writes_subtree_sibling_paths: FixedLengthArray<FixedLengthArray<Field, 36>, 2>;
-  new_contracts_subtree_sibling_path: FixedLengthArray<Field, 15>;
-  sorted_public_data_writes: FixedLengthArray<FixedLengthArray<PublicDataTreeLeaf, 16>, 2>;
-  sorted_public_data_writes_indexes: FixedLengthArray<FixedLengthArray<u32, 16>, 2>;
-  low_public_data_writes_preimages: FixedLengthArray<FixedLengthArray<PublicDataTreeLeafPreimage, 16>, 2>;
-  low_public_data_writes_witnesses: FixedLengthArray<FixedLengthArray<PublicDataMembershipWitness, 16>, 2>;
-  public_data_reads_preimages: FixedLengthArray<FixedLengthArray<PublicDataTreeLeafPreimage, 16>, 2>;
-  public_data_reads_witnesses: FixedLengthArray<FixedLengthArray<PublicDataMembershipWitness, 16>, 2>;
-  archive_root_membership_witnesses: FixedLengthArray<ArchiveRootMembershipWitness, 2>;
+  sorted_new_nullifiers: FixedLengthArray<Field, 64>;
+  sorted_new_nullifiers_indexes: FixedLengthArray<u32, 64>;
+  low_nullifier_leaf_preimages: FixedLengthArray<NullifierLeafPreimage, 64>;
+  low_nullifier_membership_witness: FixedLengthArray<NullifierMembershipWitness, 64>;
+  new_commitments_subtree_sibling_path: FixedLengthArray<Field, 26>;
+  new_nullifiers_subtree_sibling_path: FixedLengthArray<Field, 14>;
+  public_data_writes_subtree_sibling_path: FixedLengthArray<Field, 36>;
+  new_contracts_subtree_sibling_path: FixedLengthArray<Field, 16>;
+  sorted_public_data_writes: FixedLengthArray<PublicDataTreeLeaf, 16>;
+  sorted_public_data_writes_indexes: FixedLengthArray<u32, 16>;
+  low_public_data_writes_preimages: FixedLengthArray<PublicDataTreeLeafPreimage, 16>;
+  low_public_data_writes_witnesses: FixedLengthArray<PublicDataMembershipWitness, 16>;
+  public_data_reads_preimages: FixedLengthArray<PublicDataTreeLeafPreimage, 16>;
+  public_data_reads_witnesses: FixedLengthArray<PublicDataMembershipWitness, 16>;
+  archive_root_membership_witness: ArchiveRootMembershipWitness;
   constants: ConstantRollupData;
 }
 

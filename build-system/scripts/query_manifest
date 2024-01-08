@@ -73,13 +73,14 @@ case "$CMD" in
     yq -r ".\"$REPO\".projectDir // .\"$REPO\".buildDir" $MANIFEST
     ;;
   dependencies)
+    # Build dependencies.
     yq -r ".\"$REPO\".dependencies // [] | .[]" $MANIFEST
     ;;
   runDependencies)
     echo $REPO
-    RUN_NAME=$3
     yq -r ".\"$REPO\".runDependencies // [] | .[]" $MANIFEST
-    yq -r ".\"$REPO\".run.\"$RUN_NAME\".dependencies // [] | .[]" $MANIFEST
+    RUN_NAME=${3:-}
+    [ -n "$RUN_NAME" ] && yq -r ".\"$REPO\".run.\"$RUN_NAME\".dependencies // [] | .[]" $MANIFEST
     ;;
   allDependencies)
     # Get dependencies for a given repo. Inclusive of repo itself.

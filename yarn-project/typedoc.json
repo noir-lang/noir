@@ -2,6 +2,7 @@
   "cleanOutputDir": false,
   "entryPointStrategy": "packages",
   "entryPoints": [
+    "accounts",
     "acir-simulator",
     "archiver",
     "aztec-cli",

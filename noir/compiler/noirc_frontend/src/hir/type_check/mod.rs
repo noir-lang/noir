@@ -101,8 +101,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(t) = &declared_return_type {
-            if interner.lookup_trait_implementation(&function_last_type, t.id).is_err() {
+        if let Type::TraitAsType(trait_id, _) = &declared_return_type {
+            if interner.lookup_trait_implementation(&function_last_type, *trait_id).is_err() {
                 let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type,
@@ -255,24 +255,27 @@ mod test {
     fn basic_let() {
         let mut interner = NodeInterner::default();
 
-        // Add a simple let Statement into the interner
-        // let z = x + y;
-        //
-        // Push x variable
-        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None));
-
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
         let location = Location::new(Span::default(), file);
 
+        // Add a simple let Statement into the interner
+        // let z = x + y;
+        //
+        // Push x variable
+        let x_id =
+            interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
+
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None));
+        let y_id =
+            interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None));
+        let z_id =
+            interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -304,7 +307,12 @@ mod test {
 
         let name = HirIdent {
             location,
-            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None)),
+            id: interner.push_definition(
+                "test_func".into(),
+                false,
+                DefinitionKind::Local(None),
+                location,
+            ),
         };
 
         // Add function meta

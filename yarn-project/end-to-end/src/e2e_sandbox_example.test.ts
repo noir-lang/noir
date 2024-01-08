@@ -1,4 +1,6 @@
 // docs:start:imports
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
 import {
   ExtendedNote,
   Fr,
@@ -8,11 +10,9 @@ import {
   computeMessageSecretHash,
   createDebugLogger,
   createPXEClient,
-  getSandboxAccountsWallets,
-  getSchnorrAccount,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 
 import { format } from 'util';
 

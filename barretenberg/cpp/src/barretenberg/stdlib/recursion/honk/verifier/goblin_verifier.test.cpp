@@ -33,7 +33,7 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
     using InnerFF = InnerFlavor::FF;
 
     // Types for recursive verifier circuit
-    using RecursiveFlavor = ::proof_system::honk::flavor::GoblinUltraRecursive_<BuilderType>;
+    using RecursiveFlavor = ::proof_system::honk::flavor::GoblinUltraRecursive;
     using RecursiveVerifier = UltraRecursiveVerifier_<RecursiveFlavor>;
     using OuterBuilder = BuilderType;
     using VerificationKey = typename RecursiveVerifier::VerificationKey;
@@ -187,6 +187,7 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
         OuterBuilder outer_circuit;
         RecursiveVerifier verifier{ &outer_circuit, instance->verification_key };
         auto pairing_points = verifier.verify_proof(inner_proof);
+        info("Recursive Verifier: num gates = ", outer_circuit.num_gates);
 
         // Check for a failure flag in the recursive verifier circuit
         EXPECT_EQ(outer_circuit.failed(), false) << outer_circuit.err();
@@ -254,7 +255,7 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
 };
 
 // Run the recursive verifier tests with conventional Ultra builder and Goblin builder
-using BuilderTypes = testing::Types<UltraCircuitBuilder, GoblinUltraCircuitBuilder>;
+using BuilderTypes = testing::Types<GoblinUltraCircuitBuilder>;
 
 TYPED_TEST_SUITE(GoblinRecursiveVerifierTest, BuilderTypes);
 

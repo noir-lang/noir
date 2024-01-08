@@ -264,6 +264,4 @@ template <typename Curve> class GeminiVerifier_ {
 
 }; // namespace proof_system::honk::pcs::gemini
 
-extern template class GeminiProver_<curve::BN254>;
-extern template class GeminiProver_<curve::Grumpkin>;
 } // namespace proof_system::honk::pcs::gemini

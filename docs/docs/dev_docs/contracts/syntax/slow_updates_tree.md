@@ -23,13 +23,13 @@ This is the primary smart contract that will use the slow updates tree. In the e
 
 ## Interface 
 
-This interface of the slow updates tree contract allows your contract to interact with the Slow Updates Tree contract. It provides methods for reading and updating values in the tree in both public and private contexts. You can find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/interfaces.nr).
+This interface of the slow updates tree contract allows your contract to interact with the Slow Updates Tree contract. It provides methods for reading and updating values in the tree in both public and private contexts. You can find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_blacklist_contract/src/interfaces.nr).
 
 ## SlowTree.nr contract
 
 This is a smart contract developed by Aztec that establishes and manages a slow updates tree structure. It allows developers to access and interact with the tree, such as reading and updating data.
 
-You can find it [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/slow_tree_contract).
+You can find it [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/slow_tree_contract).
 
 ## SlowMap type
 
@@ -87,31 +87,31 @@ graph TD
 
 # How to integrate a slow updates tree
 
-1. Copy the *SlowTree.nr* example and its dependencies, found [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/slow_tree_contract). Replace the constants with whatever you like and deploy it to your sandbox
-2. Copy the *SlowMap interface* for easy interaction with your deployed SlowTree. Find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/interfaces.nr)
+1. Copy the *SlowTree.nr* example and its dependencies, found [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/slow_tree_contract). Replace the constants with whatever you like and deploy it to your sandbox
+2. Copy the *SlowMap interface* for easy interaction with your deployed SlowTree. Find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_blacklist_contract/src/interfaces.nr)
 3. Import this interface into your contract
 
-#include_code interface yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code interface yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 5. Create a storage init function for the same value in both public and private storage
 
-#include_code slow_updates_storage yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code slow_updates_storage yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 6. Store the SlowTree address in private storage as a FieldNote
 
-#include_code constructor yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code constructor yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 7. Store the SlowTree address in public storage and initialize an instance of SlowMap using this address
 
-#include_code write_slow_update_public yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code write_slow_update_public yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 8. Now you can read and update from private functions:
 
-#include_code get_and_update_private yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code get_and_update_private yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 9. Or from public functions:
 
-#include_code get_public yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code get_public yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 View the [reference](slow_updates_tree.md#reference) for more information.
 
@@ -119,13 +119,13 @@ View the [reference](slow_updates_tree.md#reference) for more information.
 
 The `TokenBlacklist` contract is a token contract that does not allow blacklisted accounts to perform mints or transfers. In this section we will go through how this is achieved through the slow updates tree.
 
-You can find the full code for the TokenBlacklist smart contract [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts/token_blacklist_contract).
+You can find the full code for the TokenBlacklist smart contract [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/token_blacklist_contract).
 
 ### Importing SlowMap
 
 The contract first imports the **`SlowMap`** interface:
 
-#include_code interface yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code interface yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 This interface allows the contract to interact with its attached SlowTree. It abstracts these functions so they do not have to be implemented in the TokenBlacklist contract.
 
@@ -133,7 +133,7 @@ This interface allows the contract to interact with its attached SlowTree. It ab
 
 The contract's constructor takes the address of the slow updates contract:
 
-#include_code constructor yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code constructor yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 This initialization sets up the connection between the **`TokenBlacklist`** contract and a previously deployed SlowTree, allowing it to use the interface to directly interact with the SlowTree. 
 
@@ -141,7 +141,7 @@ This initialization sets up the connection between the **`TokenBlacklist`** cont
 
 In the private transfer function, the contract uses the interface to check if a user is blacklisted:
 
-#include_code transfer_private yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code transfer_private yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 Here, the contract reads the roles of the sender and recipient from the SlowTree using the **`read_at`** function in the interface. It checks if either party is blacklisted, and if so, the transaction does not go ahead.
 
@@ -178,7 +178,7 @@ Returns an instance of `SlowMap` at the specified address.
 
 **Example**
 
-#include_code slowmap_at yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code slowmap_at yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 ### initialize
 
@@ -198,7 +198,7 @@ Initializes the `SlowMap`.
 
 **Example**
 
-#include_code slowmap_initialize yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code slowmap_initialize yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 ### read_at_pub
 
@@ -219,7 +219,7 @@ Reads a value at a specified index from a public function.
 
 **Example**
 
-#include_code read_at_pub yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code read_at_pub yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 ### read_at
 
@@ -240,7 +240,7 @@ Reads a value at a specified index from a private function.
 
 **Example**
 
-#include_code slowmap_read_at yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code slowmap_read_at yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 ### update_at_private
 
@@ -256,7 +256,7 @@ Updates a value at a specified index from a private function. Does not return an
 
 **Example**
 
-#include_code get_and_update_private yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code get_and_update_private yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 
 ## Updating from public
 
@@ -264,5 +264,5 @@ This is not a method in the interface as it can be done using regular Aztec.nr p
 
 **Example**
 
-#include_code write_slow_update_public yarn-project/noir-contracts/src/contracts/token_blacklist_contract/src/main.nr rust
+#include_code write_slow_update_public yarn-project/noir-contracts/contracts/token_blacklist_contract/src/main.nr rust
 

@@ -1,3 +1,4 @@
+import { createAccount, getSandboxAccountsWallets } from '@aztec/accounts/testing';
 import { createSandbox } from '@aztec/aztec-sandbox';
 import {
   AccountWallet,
@@ -7,12 +8,11 @@ import {
   Note,
   PXE,
   computeMessageSecretHash,
-  createAccount,
   createPXEClient,
-  getSandboxAccountsWallets,
   waitForSandbox,
 } from '@aztec/aztec.js';
-import { TestContract, TokenContract } from '@aztec/noir-contracts/types';
+import { TestContract } from '@aztec/noir-contracts/Test';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 
 const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 

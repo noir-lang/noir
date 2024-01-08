@@ -1,4 +1,3 @@
-import { EMPTY_NULLIFIED_COMMITMENT } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -38,7 +37,7 @@ export class ExecutionNoteCache {
    * @param contractAddress - Contract address of the note.
    * @param storageSlot - Storage slot of the note.
    * @param innerNullifier - Inner nullifier of the note.
-   * @param innerNoteHash - Inner note hash of the note. If this value equals EMPTY_NULLIFIED_COMMITMENT, it means the
+   * @param innerNoteHash - Inner note hash of the note. If this value equals 0, it means the
    * note being nullified is from a previous transaction (and thus not a new note).
    */
   public nullifyNote(contractAddress: AztecAddress, innerNullifier: Fr, innerNoteHash: Fr) {
@@ -48,7 +47,7 @@ export class ExecutionNoteCache {
     this.nullifiers.set(contractAddress.toBigInt(), nullifiers);
 
     // Find and remove the matching new note if the emitted innerNoteHash is not empty.
-    if (!innerNoteHash.equals(new Fr(EMPTY_NULLIFIED_COMMITMENT))) {
+    if (!innerNoteHash.equals(Fr.ZERO)) {
       const notes = this.newNotes.get(contractAddress.toBigInt()) ?? [];
       const noteIndexToRemove = notes.findIndex(n => n.innerNoteHash.equals(innerNoteHash));
       if (noteIndexToRemove === -1) {

@@ -1,5 +1,24 @@
-import { makePrivateKernelInputsInner } from '../../tests/factories.js';
-import { PrivateKernelInputsInner } from './private_kernel.js';
+import {
+  makeCallRequest,
+  makeFinalAccumulatedData,
+  makeNewSideEffect,
+  makePreviousKernelData,
+  makePrivateCallData,
+  makePrivateCallStackItem,
+  makePrivateCircuitPublicInputs,
+  makePrivateKernelInputsInner,
+  makePrivateKernelPublicInputsFinal,
+} from '../../tests/factories.js';
+import {
+  CallRequest,
+  FinalAccumulatedData,
+  PreviousKernelData,
+  PrivateCallStackItem,
+  PrivateCircuitPublicInputs,
+  PrivateKernelPublicInputsFinal,
+  SideEffect,
+} from '../index.js';
+import { PrivateCallData, PrivateKernelInputsInner } from './private_kernel.js';
 
 describe('PrivateKernel', function () {
   it(`serializes PrivateKernelInputsInner to buffer and deserializes it back`, () => {
@@ -7,5 +26,70 @@ describe('PrivateKernel', function () {
     const buffer = expected.toBuffer();
     const res = PrivateKernelInputsInner.fromBuffer(buffer);
     expect(res).toEqual(expected);
+  });
+});
+
+describe('Public call request', () => {
+  it('convert to and from buffer', () => {
+    const pkpi = makePrivateKernelPublicInputsFinal();
+    const buf = pkpi.toBuffer();
+    expect(PrivateKernelPublicInputsFinal.fromBuffer(buf)).toEqual(pkpi);
+  });
+});
+
+describe('SideEffect', () => {
+  it('convert to and from buffer', () => {
+    const sde = makeNewSideEffect(0);
+    const buf = sde.toBuffer();
+    expect(SideEffect.fromBuffer(buf)).toEqual(sde);
+  });
+});
+
+describe('FinalAccumulatedData', () => {
+  it('convert to and from buffer', () => {
+    const fad = makeFinalAccumulatedData(0);
+    const buf = fad.toBuffer();
+    expect(FinalAccumulatedData.fromBuffer(buf)).toEqual(fad);
+  });
+});
+
+describe('PreviousKernelData', () => {
+  it('convert to and from buffer', () => {
+    const fad = makePreviousKernelData(0);
+    const buf = fad.toBuffer();
+    expect(PreviousKernelData.fromBuffer(buf)).toEqual(fad);
+  });
+});
+
+describe('PrivateCallData', () => {
+  it('convert to and from buffer', () => {
+    const fad = makePrivateCallData(0);
+    const buf = fad.toBuffer();
+    expect(PrivateCallData.fromBuffer(buf)).toEqual(fad);
+  });
+});
+
+describe('CallRequest', () => {
+  it('convert to and from buffer', () => {
+    const fad = makeCallRequest(0);
+    const buf = fad.toBuffer();
+    expect(CallRequest.fromBuffer(buf)).toEqual(fad);
+  });
+});
+
+describe('PrivateCallStackcItem', () => {
+  it('convert to and from buffer', () => {
+    const fad = makePrivateCallStackItem(0);
+
+    const buf = fad.toBuffer();
+    expect(PrivateCallStackItem.fromBuffer(buf)).toEqual(fad);
+  });
+});
+
+describe('Private Circuit Public Inputs', () => {
+  it('convert to and from buffer', () => {
+    const pkpi = makePrivateCircuitPublicInputs();
+    const buf = pkpi.toBuffer();
+    expect(PrivateCircuitPublicInputs.fromBuffer(buf)).toEqual(pkpi);
   });
 });

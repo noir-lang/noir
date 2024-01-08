@@ -14,7 +14,7 @@ fi
 
 # Build native.
 if [ -n "${DEBUG:-}" ]; then
-  cargo build --features="noirc_driver/aztec"
+  cargo build
 else
-  cargo build --features="noirc_driver/aztec" --release
+  cargo build --release
 fi

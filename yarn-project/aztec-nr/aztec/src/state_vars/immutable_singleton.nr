@@ -1,9 +1,8 @@
 use dep::std::option::Option;
 use dep::protocol_types::{
     address::AztecAddress,
-    constants::EMPTY_NULLIFIED_COMMITMENT,
 };
-    
+
 use crate::context::{PrivateContext, Context};
 use crate::note::{
     lifecycle::create_note,
@@ -60,7 +59,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
         // Nullify the storage slot.
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
         let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
-        context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
+        context.push_new_nullifier(nullifier, 0);
 
         create_note(
             context,

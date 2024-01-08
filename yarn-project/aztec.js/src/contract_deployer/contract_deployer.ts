@@ -1,8 +1,11 @@
+import { AztecAddress } from '@aztec/circuits.js';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { Point } from '@aztec/foundation/fields';
 import { PXE, PublicKey } from '@aztec/types';
 
-import { DeployMethod } from './deploy_method.js';
+import { Wallet } from '../account/wallet.js';
+import { DeployMethod } from '../contract/deploy_method.js';
+import { Contract } from '../contract/index.js';
 
 /**
  * A class for deploying contract.
@@ -21,6 +24,7 @@ export class ContractDeployer {
    * @returns A DeployMethod instance configured with the ABI, PXE, and constructor arguments.
    */
   public deploy(...args: any[]) {
-    return new DeployMethod(this.publicKey ?? Point.ZERO, this.pxe, this.artifact, args);
+    const postDeployCtor = (address: AztecAddress, wallet: Wallet) => Contract.at(address, this.artifact, wallet);
+    return new DeployMethod(this.publicKey ?? Point.ZERO, this.pxe, this.artifact, postDeployCtor, args);
   }
 }

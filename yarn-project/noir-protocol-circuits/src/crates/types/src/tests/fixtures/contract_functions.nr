@@ -23,7 +23,6 @@ global default_constructor = ContractFunction {
     membership_witness: dep::std::unsafe::zeroed(),
 };
 
-
 // sibling_path taken from __snapshots__/noir_test_gen.test.ts.snap
 global default_private_function = ContractFunction {
     data: FunctionData {

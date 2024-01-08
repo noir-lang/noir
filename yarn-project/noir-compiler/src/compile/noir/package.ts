@@ -6,6 +6,21 @@ import { join } from 'node:path';
 import { FileManager } from './file-manager/file-manager.js';
 
 const CONFIG_FILE_NAME = 'Nargo.toml';
+const SOURCE_EXTENSIONS = ['.nr'];
+
+/**
+ * An array of sources for a package
+ */
+type SourceList = Array<{
+  /**
+   * The source path, taking into account modules and aliases. Eg: mylib/mod/mysource.nr
+   */
+  path: string;
+  /**
+   * Resolved source plaintext
+   */
+  source: string;
+}>;
 
 /**
  * A Noir package.
@@ -62,7 +77,6 @@ export class NoirPackage {
       default:
         throw new Error(`Unknown package type: ${this.getType()}`);
     }
-
     // TODO check that `src` exists
     return join(this.#srcPath, entrypoint);
   }
@@ -82,13 +96,33 @@ export class NoirPackage {
   }
 
   /**
+   * Gets this package's sources.
+   * @param fm - A file manager to use
+   * @param alias - An alias for the sources, if this package is a dependency
+   */
+  public async getSources(fm: FileManager, alias?: string): Promise<SourceList> {
+    const handles = await fm.readdir(this.#srcPath, { recursive: true });
+    return Promise.all(
+      handles
+        .filter(handle => SOURCE_EXTENSIONS.find(ext => handle.endsWith(ext)))
+        .map(async file => {
+          const suffix = file.replace(this.#srcPath, '');
+          return {
+            path: this.getType() === 'lib' ? `${alias ? alias : this.#config.package.name}${suffix}` : file,
+            source: (await fm.readFile(file, 'utf-8')).toString(),
+          };
+        }),
+    );
+  }
+
+  /**
    * Opens a path on the filesystem.
    * @param path - Path to the package.
    * @param fm - A file manager to use.
    * @returns The Noir package at the given location
    */
-  public static open(path: string, fm: FileManager): NoirPackage {
-    const fileContents = fm.readFileSync(join(path, CONFIG_FILE_NAME), 'utf-8');
+  public static async open(path: string, fm: FileManager): Promise<NoirPackage> {
+    const fileContents = await fm.readFile(join(path, CONFIG_FILE_NAME), 'utf-8');
     const config = parseNoirPackageConfig(parse(fileContents));
 
     return new NoirPackage(path, join(path, 'src'), config);

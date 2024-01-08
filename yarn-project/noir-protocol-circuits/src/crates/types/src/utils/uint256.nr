@@ -71,8 +71,8 @@ impl U256 {
 }
 
 #[test]
-fn smoke_u256_from_bytes32_all_zeroes(){
-    let input = [0;32];
+fn smoke_u256_from_bytes32_all_zeroes() {
+    let input = [0; 32];
     let result = U256::from_bytes32(input);
     assert(result.inner[0] == 0);
     assert(result.inner[1] == 0);
@@ -81,13 +81,14 @@ fn smoke_u256_from_bytes32_all_zeroes(){
 }
 
 #[test]
-fn smoke_u256_from_bytes32_one_zero_zero_zero(){
+fn smoke_u256_from_bytes32_one_zero_zero_zero() {
     // We want to output [1,0,0,0]
-    let input = [   0, 0, 0, 0, 0, 0, 0, 1, 
-                    0, 0, 0, 0, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0
-                ];
+    let input = [
+        0, 0, 0, 0, 0, 0, 0, 1,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0
+    ];
     let result = U256::from_bytes32(input);
 
     assert(result.inner[0] == 1);
@@ -97,7 +98,7 @@ fn smoke_u256_from_bytes32_one_zero_zero_zero(){
 }
 
 #[test]
-fn smoke_u256_from_bytes32_test(){
+fn smoke_u256_from_bytes32_test() {
     /*
     input:  [   0xAA, 0xBB, 0xCC, 0xDD, 
                 0xEE, 0xFF, 0x00, 0x11, 
@@ -113,15 +114,16 @@ fn smoke_u256_from_bytes32_test(){
             inner[2]: 0x1122334455667788
             inner[3]: 0x99AABBCCDDEEFF00
     */
-    let input : [u8;32] = [ 0xAA, 0xBB, 0xCC, 0xDD, 
-                0xEE, 0xFF, 0x00, 0x11, 
-                0x22, 0x33, 0x44, 0x55, 
-                0x66, 0x77, 0x88, 0x99, 
-                0x11, 0x22, 0x33, 0x44, 
-                0x55, 0x66, 0x77, 0x88, 
-                0x99, 0xAA, 0xBB, 0xCC, 
-                0xDD, 0xEE, 0xFF, 0x00
-            ];
+    let input : [u8;32] = [
+        0xAA, 0xBB, 0xCC, 0xDD,
+        0xEE, 0xFF, 0x00, 0x11,
+        0x22, 0x33, 0x44, 0x55,
+        0x66, 0x77, 0x88, 0x99,
+        0x11, 0x22, 0x33, 0x44,
+        0x55, 0x66, 0x77, 0x88,
+        0x99, 0xAA, 0xBB, 0xCC,
+        0xDD, 0xEE, 0xFF, 0x00
+    ];
     let result = U256::from_bytes32(input);
 
     assert(result.inner[0] == 0xAABBCCDDEEFF0011);

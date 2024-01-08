@@ -16,7 +16,8 @@ import { computeGlobalsHash, computePublicDataTreeLeafSlot } from '@aztec/circui
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
+import { AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import {
   GlobalVariableBuilder,
   PublicProcessorFactory,
@@ -105,6 +106,7 @@ export class AztecNodeService implements AztecNode {
     }
 
     const log = createDebugLogger('aztec:node');
+    const store = await AztecLmdbStore.create(config.l1Contracts.rollupAddress, config.dataDirectory);
     const [nodeDb, worldStateDb] = await openDb(config, log);
 
     // first create and sync the archiver
@@ -116,7 +118,7 @@ export class AztecNodeService implements AztecNode {
     config.transactionProtocol = `/aztec/tx/${config.l1Contracts.rollupAddress.toString()}`;
 
     // create the tx pool and the p2p client, which will need the l2 block source
-    const p2pClient = await createP2PClient(config, new InMemoryTxPool(), archiver);
+    const p2pClient = await createP2PClient(store, config, new AztecKVTxPool(store), archiver);
 
     // now create the merkle trees and the world state synchronizer
     const merkleTrees = await MerkleTrees.new(worldStateDb);
@@ -369,7 +371,7 @@ export class AztecNodeService implements AztecNode {
    */
   public async getL1ToL2MessageAndIndex(messageKey: Fr): Promise<L1ToL2MessageAndIndex> {
     // todo: #697 - make this one lookup.
-    const index = (await this.findLeafIndex('latest', MerkleTreeId.L1_TO_L2_MESSAGES_TREE, messageKey))!;
+    const index = (await this.findLeafIndex('latest', MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageKey))!;
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
     return Promise.resolve(new L1ToL2MessageAndIndex(index, message));
   }
@@ -385,7 +387,7 @@ export class AztecNodeService implements AztecNode {
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     const committedDb = await this.#getWorldState(blockNumber);
-    return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, leafIndex);
+    return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, leafIndex);
   }
 
   /**
@@ -534,11 +536,11 @@ export class AztecNodeService implements AztecNode {
     const committedDb = await this.#getWorldState('latest');
     const getTreeRoot = async (id: MerkleTreeId) => Fr.fromBuffer((await committedDb.getTreeInfo(id)).root);
 
-    const [noteHashTree, nullifierTree, contractTree, l1ToL2MessagesTree, archive, publicDataTree] = await Promise.all([
+    const [noteHashTree, nullifierTree, contractTree, l1ToL2MessageTree, archive, publicDataTree] = await Promise.all([
       getTreeRoot(MerkleTreeId.NOTE_HASH_TREE),
       getTreeRoot(MerkleTreeId.NULLIFIER_TREE),
       getTreeRoot(MerkleTreeId.CONTRACT_TREE),
-      getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
+      getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE),
       getTreeRoot(MerkleTreeId.ARCHIVE),
       getTreeRoot(MerkleTreeId.PUBLIC_DATA_TREE),
     ]);
@@ -548,7 +550,7 @@ export class AztecNodeService implements AztecNode {
       [MerkleTreeId.NOTE_HASH_TREE]: noteHashTree,
       [MerkleTreeId.NULLIFIER_TREE]: nullifierTree,
       [MerkleTreeId.PUBLIC_DATA_TREE]: publicDataTree,
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: l1ToL2MessagesTree,
+      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: l1ToL2MessageTree,
       [MerkleTreeId.ARCHIVE]: archive,
     };
   }
@@ -565,7 +567,7 @@ export class AztecNodeService implements AztecNode {
       roots[MerkleTreeId.NOTE_HASH_TREE],
       roots[MerkleTreeId.NULLIFIER_TREE],
       roots[MerkleTreeId.CONTRACT_TREE],
-      roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE],
       roots[MerkleTreeId.ARCHIVE],
       Fr.ZERO, // TODO(#3441)
       roots[MerkleTreeId.PUBLIC_DATA_TREE],

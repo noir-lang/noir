@@ -36,7 +36,7 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
     const libPath = await this.#extractZip(dependency, archivePath);
     return {
       version: dependency.tag,
-      package: NoirPackage.open(libPath, this.#fm),
+      package: await NoirPackage.open(libPath, this.#fm),
     };
   }
 
@@ -64,7 +64,7 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
 
     const tmpFile = localArchivePath + '.tmp';
     await this.#fm.writeFile(tmpFile, response.body);
-    this.#fm.moveFileSync(tmpFile, localArchivePath);
+    await this.#fm.moveFile(tmpFile, localArchivePath);
 
     return localArchivePath;
   }
@@ -83,7 +83,7 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
       return packagePath;
     }
 
-    const { entries } = await unzip(this.#fm.readFileSync(archivePath));
+    const { entries } = await unzip(await this.#fm.readFile(archivePath));
 
     // extract to a temporary directory, then move it to the final location
     // TODO empty the temp directory first
@@ -99,7 +99,7 @@ export class GithubDependencyResolver implements NoirDependencyResolver {
       await this.#fm.writeFile(path, (await entry.blob()).stream());
     }
 
-    this.#fm.moveFileSync(tmpExtractLocation, extractLocation);
+    await this.#fm.moveFile(tmpExtractLocation, extractLocation);
 
     return packagePath;
   }

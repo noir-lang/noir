@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -eu
 
+# Check node version.
+node_version=$(node -v | tr -d 'v')
+major=${node_version%%.*}
+rest=${node_version#*.}
+minor=${rest%%.*}
+
+if (( major < 18 || ( major == 18 && minor < 19 ) )); then
+    echo "Node.js version is less than 18.19. Exiting."
+    exit 1
+fi
+
 cd "$(dirname "$0")"
 
 CMD=${1:-}
@@ -15,31 +26,18 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
-# if [ "$(uname)" = "Darwin" ]; then
-#   # works around https://github.com/AztecProtocol/aztec3-packages/issues/158
-#   echo "Note: not sourcing nvm on Mac, see github #158"
-# else
-#   \. ~/.nvm/nvm.sh
-# fi
-# set +eu # nvm runs in our context - don't assume it's compatible with these flags
-# nvm install
-# set -eu
-
 yarn install --immutable
-
-# Build the necessary dependencies for Aztec.nr contracts typegen.
-for package in "@aztec/foundation" "@aztec/noir-compiler"; do
-  echo "Building $package"
-  yarn workspace $package build
-done
 
 # Run remake constants before building Aztec.nr contracts or l1 contracts as they depend on files created by it.
 yarn workspace @aztec/circuits.js remake-constants
+# This is actually our code generation tool. Needed to build contract typescript wrappers.
+yarn workspace @aztec/noir-compiler build
+# Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
+yarn workspace @aztec/noir-contracts build:contracts
+yarn workspace @aztec/accounts build:copy-contracts
+# Build protocol circuits. TODO: move pre yarn-project.
 yarn workspace @aztec/noir-protocol-circuits noir:build
 
-(cd noir-contracts && ./bootstrap.sh)
-
-# We do not need to build individual packages, yarn build will build the root tsconfig.json
 yarn build
 
 echo

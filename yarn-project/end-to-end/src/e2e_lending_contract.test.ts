@@ -11,7 +11,7 @@ import {
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts/types';
+import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts';
 
 import { jest } from '@jest/globals';
 
@@ -89,7 +89,7 @@ describe('e2e_lending_contract', () => {
 
     lendingAccount = new LendingAccount(accounts[0].address, new Fr(42));
 
-    // Also specified in `noir-contracts/src/contracts/lending_contract/src/main.nr`
+    // Also specified in `noir-contracts/contracts/lending_contract/src/main.nr`
     const rate = 1268391679n;
     lendingSim = new LendingSimulator(
       cc,

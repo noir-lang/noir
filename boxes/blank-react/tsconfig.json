@@ -21,10 +21,5 @@
     "skipLibCheck": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "src/**/*.json"],
-  "references": [
-    {
-      "path": "../../yarn-project/aztec.js"
-    },
-  ]
+  "include": ["src", "src/artifacts/Blank.json"]
 }

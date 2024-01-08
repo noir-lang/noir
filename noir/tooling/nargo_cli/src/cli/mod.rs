@@ -100,7 +100,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
-        NargoCommand::Init(args) => init_cmd::run(&backend, args, config),
+        NargoCommand::Init(args) => init_cmd::run(args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),

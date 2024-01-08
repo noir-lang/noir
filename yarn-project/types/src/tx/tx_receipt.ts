@@ -1,6 +1,10 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractData, ExtendedNote, PublicDataWrite, TxHash } from '@aztec/types';
+
+import { ContractData } from '../contract_data.js';
+import { ExtendedNote } from '../notes/index.js';
+import { PublicDataWrite } from '../public_data_write.js';
+import { TxHash } from './tx_hash.js';
 
 /**
  * Possible status of a transaction.

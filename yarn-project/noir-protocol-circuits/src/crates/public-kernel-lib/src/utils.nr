@@ -16,7 +16,10 @@ use dep::types::{
     },
 };
 
-pub fn compute_public_data_reads<N>(contract_address: AztecAddress, read_requests: [StorageRead; N]) -> [PublicDataRead; N] {
+pub fn compute_public_data_reads<N>(
+    contract_address: AztecAddress,
+    read_requests: [StorageRead; N]
+) -> [PublicDataRead; N] {
     let mut public_data_reads = [PublicDataRead::empty(); N];
     for i in 0..N {
         let read_request = read_requests[i];
@@ -30,21 +33,20 @@ pub fn compute_public_data_reads<N>(contract_address: AztecAddress, read_request
     public_data_reads
 }
 
-pub fn assert_eq_call_requests<N, S>(
-    call_requests: [CallRequest; N],
-    expected: [CallRequest; S],
-) {
-    assert(struct_array_eq(
-        call_requests,
-        expected,
-        |c1: CallRequest, c2: CallRequest| c1.eq(c2),
-        |c: CallRequest| c.is_empty(),
-    ));
+pub fn assert_eq_call_requests<N, S>(call_requests: [CallRequest; N], expected: [CallRequest; S]) {
+    assert(
+        struct_array_eq(
+            call_requests,
+            expected,
+            |c1: CallRequest, c2: CallRequest| c1.eq(c2),
+            |c: CallRequest| c.is_empty()
+        )
+    );
 }
 
 pub fn compute_public_data_update_requests<N>(
     contract_address: AztecAddress,
-    update_requests: [StorageUpdateRequest; N],
+    update_requests: [StorageUpdateRequest; N]
 ) -> [PublicDataUpdateRequest; N] {
     let mut public_data_update_requests = [PublicDataUpdateRequest::empty(); N];
     for i in 0..N {
@@ -60,35 +62,44 @@ pub fn compute_public_data_update_requests<N>(
     public_data_update_requests
 }
 
-pub fn assert_eq_public_data_reads<N, S>(public_data_reads: [PublicDataRead; N], expected: [PublicDataRead; S]) {
-    assert(struct_array_eq(
-        public_data_reads,
-        expected,
-        |pdr1: PublicDataRead, pdr2: PublicDataRead| pdr1.eq(pdr2),
-        |pdr: PublicDataRead| pdr.is_empty(),
-    ));
+pub fn assert_eq_public_data_reads<N, S>(
+    public_data_reads: [PublicDataRead; N],
+    expected: [PublicDataRead; S]
+) {
+    assert(
+        struct_array_eq(
+            public_data_reads,
+            expected,
+            |pdr1: PublicDataRead, pdr2: PublicDataRead| pdr1.eq(pdr2),
+            |pdr: PublicDataRead| pdr.is_empty()
+        )
+    );
 }
 
 pub fn assert_eq_public_data_update_requests<N, S>(
     public_data_update_requests: [PublicDataUpdateRequest; N],
-    expected: [PublicDataUpdateRequest; S],
+    expected: [PublicDataUpdateRequest; S]
 ) {
-    assert(struct_array_eq(
-        public_data_update_requests,
-        expected,
-        |r1: PublicDataUpdateRequest, r2: PublicDataUpdateRequest| r1.eq(r2),
-        |r: PublicDataUpdateRequest| r.is_empty(),
-    ));
+    assert(
+        struct_array_eq(
+            public_data_update_requests,
+            expected,
+            |r1: PublicDataUpdateRequest, r2: PublicDataUpdateRequest| r1.eq(r2),
+            |r: PublicDataUpdateRequest| r.is_empty()
+        )
+    );
 }
 
 pub fn assert_eq_new_contracts<N, S>(
     new_contracts: [NewContractData; N],
-    expected: [NewContractData; S],
+    expected: [NewContractData; S]
 ) {
-    assert(struct_array_eq(
-        new_contracts,
-        expected,
-        |c1: NewContractData, c2: NewContractData| c1.eq(c2),
-        |c: NewContractData| c.is_empty(),
-    ));
+    assert(
+        struct_array_eq(
+            new_contracts,
+            expected,
+            |c1: NewContractData, c2: NewContractData| c1.eq(c2),
+            |c: NewContractData| c.is_empty()
+        )
+    );
 }

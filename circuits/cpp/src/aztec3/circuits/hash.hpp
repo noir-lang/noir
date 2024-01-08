@@ -130,14 +130,14 @@ template <typename NCT> typename NCT::fr compute_block_hash(typename NCT::fr con
                                                             typename NCT::fr const& note_hash_tree_root,
                                                             typename NCT::fr const& nullifier_tree_root,
                                                             typename NCT::fr const& contract_tree_root,
-                                                            typename NCT::fr const& l1_to_l2_messages_tree_root,
+                                                            typename NCT::fr const& l1_to_l2_message_tree_root,
                                                             typename NCT::fr const& public_data_tree_root)
 {
     using fr = typename NCT::fr;
 
     std::vector<fr> const inputs = {
-        globals_hash,       note_hash_tree_root,         nullifier_tree_root,
-        contract_tree_root, l1_to_l2_messages_tree_root, public_data_tree_root,
+        globals_hash,       note_hash_tree_root,        nullifier_tree_root,
+        contract_tree_root, l1_to_l2_message_tree_root, public_data_tree_root,
     };
 
     return NCT::hash(inputs, aztec3::GeneratorIndex::BLOCK_HASH);
@@ -148,14 +148,14 @@ typename NCT::fr compute_block_hash_with_globals(abis::GlobalVariables<NCT> cons
                                                  typename NCT::fr const& note_hash_tree_root,
                                                  typename NCT::fr const& nullifier_tree_root,
                                                  typename NCT::fr const& contract_tree_root,
-                                                 typename NCT::fr const& l1_to_l2_messages_tree_root,
+                                                 typename NCT::fr const& l1_to_l2_message_tree_root,
                                                  typename NCT::fr const& public_data_tree_root)
 {
     using fr = typename NCT::fr;
 
     std::vector<fr> const inputs = {
-        globals.hash(),     note_hash_tree_root,         nullifier_tree_root,
-        contract_tree_root, l1_to_l2_messages_tree_root, public_data_tree_root,
+        globals.hash(),     note_hash_tree_root,        nullifier_tree_root,
+        contract_tree_root, l1_to_l2_message_tree_root, public_data_tree_root,
     };
 
     return NCT::hash(inputs, aztec3::GeneratorIndex::BLOCK_HASH);

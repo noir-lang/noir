@@ -2,8 +2,6 @@ import { FieldsOf } from '@aztec/circuits.js';
 import { retryUntil } from '@aztec/foundation/retry';
 import { ExtendedNote, GetUnencryptedLogsResponse, PXE, TxHash, TxReceipt, TxStatus } from '@aztec/types';
 
-import every from 'lodash.every';
-
 /** Options related to waiting for a tx. */
 export type WaitOpts = {
   /** The maximum time (in seconds) to wait for the transaction to be mined. Defaults to 60. */
@@ -126,7 +124,7 @@ export class SentTx {
         // Check if all sync blocks on the PXE Service are greater or equal than the block in which the tx was mined
         const { blocks, notes } = await this.pxe.getSyncStatus();
         const targetBlock = txReceipt.blockNumber!;
-        const areNotesSynced = blocks >= targetBlock && every(notes, block => block >= targetBlock);
+        const areNotesSynced = blocks >= targetBlock && Object.values(notes).every(block => block >= targetBlock);
         return areNotesSynced ? txReceipt : undefined;
       },
       'isMined',

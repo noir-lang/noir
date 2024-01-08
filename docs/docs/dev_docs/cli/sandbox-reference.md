@@ -61,7 +61,9 @@ MODE='sandbox' # Option to start the sandbox or a standalone part of the system.
 AZTEC_NODE_PORT=8079 # The port that the Aztec node wil be listening to (default: 8079)
 PXE_PORT=8080 # The port that the PXE will be listening to (default: 8080)
 
-
+# Ethereum Forking (Optional: not enabled by default) #
+FORK_BLOCK_NUMBER=0 # The block number to fork from
+FORK_URL="" # The URL of the Ethereum node to fork from
 
 ## Polling intervals ##
 ARCHIVER_POLLING_INTERVAL_MS=50
@@ -78,7 +80,6 @@ Variables like `DEPLOY_AZTEC_CONTRACTS` & `AZTEC_NODE_PORT` are valid here as de
 `TEST_ACCOUNTS` cannot be used here because the Aztec node does not control an Aztec account to deploy contracts from.
 
 ```sh
-
 # P2P config #
 # Configuration variables for connecting a Node to the Aztec Node P2P network. You'll need a running P2P-Bootstrap node to connect to.
 P2P_ENABLED='false' # A flag to enable P2P networking for this node. (default: false)
@@ -173,7 +174,7 @@ UniswapContractArtifact
 
 > <sup><sub><a href="https://github.com/AztecProtocol/aztec-packages/blob/master//yarn-project/end-to-end/src/cli_docs_sandbox.test.ts#L95-L118" target="_blank" rel="noopener noreferrer">Source code: /yarn-project/end-to-end/src/cli_docs_sandbox.test.ts#L95-L118</a></sub></sup>
 
-You can see all of our example contracts in the monorepo [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/src/contracts).
+You can see all of our example contracts in the monorepo [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts).
 
 ## Boxes
 

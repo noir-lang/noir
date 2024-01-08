@@ -68,3 +68,58 @@ html[data-theme='dark'] {
 .katex-html {
   display: none;
 }
+
+.homepage_layout {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.homepage_h1 {
+  display: block;
+  margin: 40px auto;
+  text-align: center;
+}
+
+.homepage_p {
+  display: block;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.homepage_cta_container {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
+  text-align: center;
+  background: white;
+  border: none;
+  width: 50%;
+}
+
+.homepage_cta {
+  display: block;
+  margin: 50px auto;
+  text-align: center;
+}
+
+.cards__container {
+  margin: 0 auto;
+}
+
+
+.card__body {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.card__body.align_right {
+  justify-content: end;
+  text-align: right;
+}
+
+*,
+::before,
+::after {
+  border-width: 0;
+  border-style: solid;
+}

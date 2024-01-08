@@ -39,6 +39,7 @@ impl DebugInfo {
     /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
+        log::trace!("Start debug info update");
         let old_locations = mem::take(&mut self.locations);
 
         for (old_opcode_location, source_locations) in old_locations {
@@ -46,6 +47,7 @@ impl DebugInfo {
                 self.locations.insert(new_opcode_location, source_locations.clone());
             });
         }
+        log::trace!("Finish debug info update");
     }
 
     pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {

@@ -96,7 +96,9 @@ export class KernelProofCreator implements ProofCreator {
   public getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
     const contractAddress = publicInputs.callContext.storageContractAddress;
 
-    return Promise.resolve(publicInputs.newCommitments.map(commitment => siloCommitment(contractAddress, commitment)));
+    return Promise.resolve(
+      publicInputs.newCommitments.map(commitment => siloCommitment(contractAddress, commitment.value)),
+    );
   }
 
   public async createProofInit(privateInputs: PrivateKernelInputsInit): Promise<ProofOutput> {

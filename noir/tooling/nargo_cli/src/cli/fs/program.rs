@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use acvm::acir::circuit::Circuit;
 use nargo::artifacts::{
     contract::PreprocessedContract, debug::DebugArtifact, program::PreprocessedProgram,
 };
@@ -16,6 +17,19 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
 ) -> PathBuf {
     let circuit_name: String = crate_name.into();
     save_build_artifact_to_file(compiled_program, &circuit_name, circuit_dir)
+}
+
+/// Writes the bytecode as acir.gz
+pub(crate) fn only_acir<P: AsRef<Path>>(
+    compiled_program: &PreprocessedProgram,
+    circuit_dir: P,
+) -> PathBuf {
+    create_named_dir(circuit_dir.as_ref(), "target");
+    let circuit_path = circuit_dir.as_ref().join("acir").with_extension("gz");
+    let bytes = Circuit::serialize_circuit(&compiled_program.bytecode);
+    write_to_file(&bytes, &circuit_path);
+
+    circuit_path
 }
 
 pub(crate) fn save_contract_to_file<P: AsRef<Path>>(

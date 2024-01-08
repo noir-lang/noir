@@ -1,5 +1,5 @@
-import { TxL2Logs } from './index.js';
 import { L2Block } from './l2_block.js';
+import { TxL2Logs } from './logs/index.js';
 
 describe('L2Block', () => {
   it('can serialize an L2 block with logs to a buffer and back', () => {

@@ -5,19 +5,23 @@ use crate::{
     },
     hash::pedersen_hash,
 };
+use crate::traits::Empty;
 
 struct StorageRead {
     storage_slot: Field,
     current_value: Field,
 }
 
-impl StorageRead {
-    pub fn empty() -> Self {
+impl Empty for StorageRead {   
+    fn empty() -> Self {
         Self {
             storage_slot: 0,
             current_value: 0,
         }
     }
+}
+
+impl StorageRead {
 
     pub fn serialize(self) -> [Field; CONTRACT_STORAGE_READ_LENGTH] {
         [self.storage_slot, self.current_value]

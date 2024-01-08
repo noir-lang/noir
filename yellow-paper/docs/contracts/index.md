@@ -18,14 +18,14 @@ The purpose of the L1 contracts are simple:
 When presented with a new [`ProvenBlock`](../rollup-circuits/root_rollup.md) and its proof, an Aztec node can be convinced of its validity if the proof passes and the `Header.last_archive` matches the `archive` of the node (archive here represents a root of [archive tree](../state/archive.md)). The `archive` used as public input is the archive after the new header is inserted (see [root rollup](./../rollup-circuits/root_rollup.md)).
 
 ```python
-def process(block: ProvenBlock, archive: Fr, proof: Proof):
-    assert self.archive == header.last_archive
-    assert proof.verify(header, archive)
-    assert self.inbox.consume(block.l1_to_l2_msgs)
-    for tx in block.body.txs:
-        assert self.outbox.insert(tx.l2_to_l1_msgs)
+def process(block: ProvenBlock, proof: Proof):
+    assert self.archive == block.header.last_archive
+    assert proof.verify(block.header, block.archive)
+    assert self.inbox.consume(block.body.l1_to_l2_msgs)
+    for tx_effect in block.body.tx_effects:
+        assert self.outbox.insert(tx_effect.l2_to_l1_msgs)
     
-    self.archive = archive
+    self.archive = block.archive
 ```
 
 While the `ProvenBlock` must be published and available for nodes to build the state of the rollup, we can build the validating light node (the contract) such that as long as the node can be *convinced*  that the data is available we can progress the state. This means our light node can be built to only require a subset of the `ProvenBlock` to be published to Ethereum L1 and use a different data availability layer for most of the block body. Namely, we need the cross-chain messages to be published to L1, but the rest of the block body can be published to a different data availability layer.
@@ -105,7 +105,7 @@ class StateTransitioner:
 
     def body_available(
         self,
-        content_hash: Fr, 
+        body_hash: Fr, 
         txs_hash: Fr, 
         l1_to_l2_msgs: Fr[], 
         l2_to_l1_msgs: Fr[]
@@ -113,7 +113,7 @@ class StateTransitioner:
         assert self.registry.availability_oracle.is_available(txs_hash)
         in_hash = SHA256(pad(l1_to_l2_msgs))
         out_hash = MerkleTree(pad(l2_to_l1_msgs), SHA256)
-        return content_hash == SHA256(txs_hash, out_hash, in_hash)
+        return body_hash == SHA256(txs_hash, out_hash, in_hash)
     )
 
     def validate_header(
@@ -140,6 +140,7 @@ For a generic DA that publishes data commitments to Ethereum, the oracle could b
 
 By having the availability oracle be independent from state progression we can even do multi-transaction blocks, e.g., use multiple transactions or commitments from other DA layers to construct the `TxsHash` for a large block. 
 
+For more information around the requirements we have for the availability oracle, see [Data Availability](./da.md).
 
 ### Registry
 To keep one location where all the core rollup contracts can be found, we have a registry contract. The registry is a contract that holds the current and historical addresses of the core rollup contracts. The addresses of a rollup deployment are contained in a snapshot, and the registry is tracking version-snapshot pairs. Depending on the upgrade scheme, it might be used to handle upgrades, or it could entirely be removed. It is generally the one address that a node MUST know about, as it can then tell the node where to find the remainder of the contracts. This is for example used when looking for the address new L2 blocks should be published to.

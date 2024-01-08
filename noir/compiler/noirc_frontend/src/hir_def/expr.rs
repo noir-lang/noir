@@ -78,7 +78,7 @@ impl HirBinaryOp {
 pub enum HirLiteral {
     Array(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement),
+    Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
     FmtStr(String, Vec<ExprId>),
     Unit,

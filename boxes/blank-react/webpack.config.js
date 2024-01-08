@@ -18,14 +18,7 @@ export default (_, argv) => ({
     rules: [
       {
         test: /\.tsx?$/,
-        use: [
-          {
-            loader: 'ts-loader',
-            options: {
-              configFile: 'tsconfig.dest.json',
-            },
-          },
-        ],
+        use: 'ts-loader',
       },
       {
         test: /\.css$/i,

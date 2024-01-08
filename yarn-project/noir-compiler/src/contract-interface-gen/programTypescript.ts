@@ -158,8 +158,8 @@ export function generateTypescriptProgramInterface(abiObj: NoirFunctionAbi): str
   // Generating Return type, if it exists
   //
   if (abiObj.return_type != null) {
-    result += generateStructInterfaces(abiObj.return_type, outputStructs);
-    result += `export type ReturnType = ${abiTypeToTs(abiObj.return_type)};\n`;
+    result += generateStructInterfaces(abiObj.return_type.abi_type, outputStructs);
+    result += `export type ReturnType = ${abiTypeToTs(abiObj.return_type.abi_type)};\n`;
   }
 
   // Generating Input type

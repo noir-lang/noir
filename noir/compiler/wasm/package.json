@@ -3,7 +3,7 @@
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.19.4",
+  "version": "0.22.0",
   "license": "(MIT OR Apache-2.0)",
   "main": "./nodejs/noir_wasm.js",
   "types": "./web/noir_wasm.d.ts",
@@ -29,9 +29,6 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
     "build:nix": "nix build -L .#noir_wasm",
     "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noir_wasm/nodejs ./ && cp -rL ./result/noir_wasm/web ./"
-  },
-  "peerDependencies": {
-    "@noir-lang/source-resolver": "workspace:*"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",

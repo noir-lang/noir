@@ -10,9 +10,7 @@ import {
 
 import camelCase from 'lodash.camelcase';
 import capitalize from 'lodash.capitalize';
-import compact from 'lodash.compact';
 import times from 'lodash.times';
-import upperFirst from 'lodash.upperfirst';
 
 /**
  * Returns whether this function type corresponds to a private call.
@@ -41,7 +39,8 @@ function generateCallStatement(selector: FunctionSelector, functionType: Functio
  * @returns A capitalized camelcase string.
  */
 function toPascalCase(str: string) {
-  return upperFirst(camelCase(str));
+  const camel = camelCase(str);
+  return camel[0].toUpperCase() + camel.slice(1);
 }
 
 /**
@@ -281,10 +280,8 @@ ${contractImpl}
  */
 export function generateNoirContractInterface(artifact: ContractArtifact) {
   // We don't allow calling a constructor, internal fns, or unconstrained fns from other contracts
-  const methods = compact(
-    artifact.functions.filter(
-      f => f.name !== 'constructor' && !f.isInternal && f.functionType !== FunctionType.UNCONSTRAINED,
-    ),
+  const methods = artifact.functions.filter(
+    f => f.name !== 'constructor' && !f.isInternal && f.functionType !== FunctionType.UNCONSTRAINED,
   );
   const paramStructs = methods.flatMap(m => collectStructs(m.parameters, [m.name])).map(generateStruct);
   const privateContractStruct = generateContractStruct(artifact.name, 'private', methods);

@@ -70,7 +70,7 @@ nargo backend install acvm-backend-barretenberg https://github.com/noir-lang/bar
 
 This downloads and installs a specific bb.js based version of barretenberg binary from GitHub.
 
-The gzipped filed is running this bash script: <https://github.com/noir-lang/barretenberg-js-binary/blob/master/run-bb-js.sh>, where we need to gzip it as the Nargo currently expect the backend to be zipped up.
+The gzipped filed is running [this bash script](https://github.com/noir-lang/barretenberg-js-binary/blob/master/run-bb-js.sh), where we need to gzip it as the Nargo currently expect the backend to be zipped up.
 
 Then run:
 

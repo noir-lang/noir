@@ -468,13 +468,8 @@ impl Attribute {
                 .all(|ch| {
                     ch.is_ascii_alphabetic()
                         || ch.is_numeric()
-                        || ch == '_'
-                        || ch == '('
-                        || ch == ')'
-                        || ch == '='
-                        || ch == '"'
+                        || ch.is_ascii_punctuation()
                         || ch == ' '
-                        || ch == '\''
                 })
                 .then_some(());
 
@@ -644,6 +639,7 @@ pub enum Keyword {
     Assert,
     AssertEq,
     Bool,
+    CallData,
     Char,
     CompTime,
     Constrain,
@@ -667,6 +663,7 @@ pub enum Keyword {
     Open,
     Pub,
     Return,
+    ReturnData,
     String,
     Struct,
     Trait,
@@ -685,6 +682,7 @@ impl fmt::Display for Keyword {
             Keyword::AssertEq => write!(f, "assert_eq"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
+            Keyword::CallData => write!(f, "call_data"),
             Keyword::CompTime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Contract => write!(f, "contract"),
@@ -707,6 +705,7 @@ impl fmt::Display for Keyword {
             Keyword::Open => write!(f, "open"),
             Keyword::Pub => write!(f, "pub"),
             Keyword::Return => write!(f, "return"),
+            Keyword::ReturnData => write!(f, "return_data"),
             Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Trait => write!(f, "trait"),
@@ -727,6 +726,7 @@ impl Keyword {
             "assert" => Keyword::Assert,
             "assert_eq" => Keyword::AssertEq,
             "bool" => Keyword::Bool,
+            "call_data" => Keyword::CallData,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,
             "constrain" => Keyword::Constrain,
@@ -750,6 +750,7 @@ impl Keyword {
             "open" => Keyword::Open,
             "pub" => Keyword::Pub,
             "return" => Keyword::Return,
+            "return_data" => Keyword::ReturnData,
             "str" => Keyword::String,
             "struct" => Keyword::Struct,
             "trait" => Keyword::Trait,

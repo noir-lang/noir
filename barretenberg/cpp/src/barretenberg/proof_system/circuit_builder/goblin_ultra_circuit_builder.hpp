@@ -1,13 +1,7 @@
 #pragma once
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
-#include "barretenberg/proof_system/plookup_tables/types.hpp"
-#include "barretenberg/proof_system/types/merkle_hash_type.hpp"
-#include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 #include "ultra_circuit_builder.hpp"
-#include <optional>
 
 namespace proof_system {
 
@@ -68,6 +62,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
   private:
     void populate_ecc_op_wires(const ecc_op_tuple& in);
     ecc_op_tuple decompose_ecc_operands(uint32_t op, const g1::affine_element& point, const FF& scalar = FF::zero());
+    void set_goblin_ecc_op_code_constant_variables();
 
   public:
     GoblinUltraCircuitBuilder_(const size_t size_hint = 0,
@@ -76,14 +71,47 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         , op_queue(op_queue_in)
     {
         // Set indices to constants corresponding to Goblin ECC op codes
-        null_op_idx = this->zero_idx;
-        add_accum_op_idx = this->put_constant_variable(FF(EccOpCode::ADD_ACCUM));
-        mul_accum_op_idx = this->put_constant_variable(FF(EccOpCode::MUL_ACCUM));
-        equality_op_idx = this->put_constant_variable(FF(EccOpCode::EQUALITY));
+        set_goblin_ecc_op_code_constant_variables();
     };
     GoblinUltraCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in)
         : GoblinUltraCircuitBuilder_(0, op_queue_in)
     {}
+
+    /**
+     * @brief Constructor from data generated from ACIR
+     *
+     * @param op_queue_in Op queue to which goblinized group ops will be added
+     * @param witness_values witnesses values known to acir
+     * @param public_inputs indices of public inputs in witness array
+     * @param varnum number of known witness
+     *
+     * @note The size of witness_values may be less than varnum. The former is the set of actual witness values known at
+     * the time of acir generation. The former may be larger and essentially acounts for placeholders for witnesses that
+     * we know will exist but whose values are not known during acir generation. Both are in general less than the total
+     * number of variables/witnesses that might be present for a circuit generated from acir, since many gates will
+     * depend on the details of the bberg implementation (or more generally on the backend used to process acir).
+     */
+    GoblinUltraCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in,
+                               auto& witness_values,
+                               std::vector<uint32_t>& public_inputs,
+                               size_t varnum)
+        : UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>()
+        , op_queue(op_queue_in)
+    {
+        // Add the witness variables known directly from acir
+        for (size_t idx = 0; idx < varnum; ++idx) {
+            // Zeros are added for variables whose existence is known but whose values are not yet known. The values may
+            // be "set" later on via the assert_equal mechanism.
+            auto value = idx < witness_values.size() ? witness_values[idx] : 0;
+            this->add_variable(value);
+        }
+
+        // Add the public_inputs from acir
+        this->public_inputs = public_inputs;
+
+        // Set indices to constants corresponding to Goblin ECC op codes
+        set_goblin_ecc_op_code_constant_variables();
+    };
 
     void finalize_circuit();
     void add_gates_to_ensure_all_polys_are_non_zero();

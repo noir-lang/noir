@@ -67,7 +67,7 @@ Compiler:
 - For expressions
 - Arrays
 - Bit Operations
-- Binary operations (<, <=, >, >=, +, -, \*, /, %) [See documentation for an extensive list]
+- Binary operations (\<, \<=, >, >=, +, -, \*, /, %) [See documentation for an extensive list]
 - Unsigned integers
 - If statements
 - Structures and Tuples

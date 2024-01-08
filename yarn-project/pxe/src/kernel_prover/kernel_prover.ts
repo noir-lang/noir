@@ -3,7 +3,6 @@ import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
   CallRequest,
-  EMPTY_NULLIFIED_COMMITMENT,
   Fr,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
@@ -19,6 +18,7 @@ import {
   PrivateKernelInputsOrdering,
   PrivateKernelPublicInputs,
   ReadRequestMembershipWitness,
+  SideEffect,
   TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -26,7 +26,7 @@ import {
   makeTuple,
 } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { Tuple, assertLength } from '@aztec/foundation/serialize';
+import { Tuple, assertLength, mapTuple } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';
 
 import { KernelProofCreator, ProofCreator, ProofOutput, ProofOutputFinal } from './proof_creator.js';
@@ -172,7 +172,7 @@ export class KernelProver {
     );
 
     const nullifierCommitmentHints = this.getNullifierHints(
-      output.publicInputs.end.nullifiedCommitments,
+      mapTuple(output.publicInputs.end.newNullifiers, n => n.noteHash),
       output.publicInputs.end.newCommitments,
     );
 
@@ -185,7 +185,7 @@ export class KernelProver {
 
     // Only return the notes whose commitment is in the commitments of the final proof.
     const finalNewCommitments = outputFinal.publicInputs.end.newCommitments;
-    const outputNotes = finalNewCommitments.map(c => newNotes[c.toString()]).filter(c => !!c);
+    const outputNotes = finalNewCommitments.map(c => newNotes[c.value.toString()]).filter(c => !!c);
 
     return { ...outputFinal, outputNotes };
   }
@@ -272,12 +272,12 @@ export class KernelProver {
    *  corresponding to the read request. In other words we have readRequests[i] == commitments[hints[i]].
    */
   private getReadRequestHints(
-    readRequests: Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX>,
-    commitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
+    readRequests: Tuple<SideEffect, typeof MAX_READ_REQUESTS_PER_TX>,
+    commitments: Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_TX>,
   ): Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX> {
     const hints = makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero);
-    for (let i = 0; i < MAX_READ_REQUESTS_PER_TX && !readRequests[i].isZero(); i++) {
-      const equalToRR = (cmt: Fr) => cmt.equals(readRequests[i]);
+    for (let i = 0; i < MAX_READ_REQUESTS_PER_TX && !readRequests[i].isEmpty(); i++) {
+      const equalToRR = (cmt: SideEffect) => cmt.value.equals(readRequests[i].value);
       const result = commitments.findIndex(equalToRR);
       if (result == -1) {
         throw new Error(
@@ -302,12 +302,12 @@ export class KernelProver {
    */
   private getNullifierHints(
     nullifiedCommitments: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
-    commitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
+    commitments: Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_TX>,
   ): Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX> {
     const hints = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero);
     for (let i = 0; i < MAX_NEW_NULLIFIERS_PER_TX; i++) {
-      if (!nullifiedCommitments[i].isZero() && !nullifiedCommitments[i].equals(new Fr(EMPTY_NULLIFIED_COMMITMENT))) {
-        const equalToCommitment = (cmt: Fr) => cmt.equals(nullifiedCommitments[i]);
+      if (!nullifiedCommitments[i].isZero()) {
+        const equalToCommitment = (cmt: SideEffect) => cmt.value.equals(nullifiedCommitments[i]);
         const result = commitments.findIndex(equalToCommitment);
         if (result == -1) {
           throw new Error(

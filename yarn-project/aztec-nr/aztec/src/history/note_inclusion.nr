@@ -23,10 +23,9 @@ pub fn prove_note_commitment_inclusion(
 
     // 3) Prove that the commitment is in the note hash tree
     assert(
-        block_header.note_hash_tree_root == compute_merkle_root(note_commitment, witness.index, witness.path),
-        "Proving note inclusion failed"
+        block_header.note_hash_tree_root
+        == compute_merkle_root(note_commitment, witness.index, witness.path), "Proving note inclusion failed"
     );
-
     // --> Now we have traversed the trees all the way up to archive root.
 }
 

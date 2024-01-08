@@ -45,7 +45,7 @@ class RecursiveMergeVerifierTest : public testing::Test {
         auto op_queue = std::make_shared<ECCOpQueue>();
 
         InnerBuilder sample_circuit{ op_queue };
-        GoblinTestingUtils::construct_simple_initial_circuit(sample_circuit);
+        GoblinMockCircuits::construct_simple_initial_circuit(sample_circuit);
 
         // Generate a proof over the inner circuit
         InnerComposer inner_composer;

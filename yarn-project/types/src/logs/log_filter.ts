@@ -1,6 +1,7 @@
 import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
 
-import { LogId, TxHash } from '../index.js';
+import { TxHash } from '../tx/index.js';
+import { LogId } from './log_id.js';
 
 /**
  * Log filter used to fetch L2 logs.

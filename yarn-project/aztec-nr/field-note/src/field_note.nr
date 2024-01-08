@@ -76,7 +76,9 @@ fn set_header(note: &mut FieldNote, header: NoteHeader) {
 }
 
 fn broadcast(context: &mut PrivateContext, slot: Field, note: FieldNote) {
-    assert(false, "FieldNote does not support broadcast. Add it to PXE directly using the `.addNote` function.");
+    assert(
+        false, "FieldNote does not support broadcast. Add it to PXE directly using the `.addNote` function."
+    );
 }
 
 global FieldNoteMethods = NoteInterface {

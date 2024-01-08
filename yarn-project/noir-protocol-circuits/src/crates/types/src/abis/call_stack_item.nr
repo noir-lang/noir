@@ -7,6 +7,7 @@ use crate::address::AztecAddress;
 use crate::constants::{
     GENERATOR_INDEX__CALL_STACK_ITEM,
 };
+use crate::traits::Hash;
 
 struct PrivateCallStackItem {
     // This is the _actual_ contract address relating to where this function's code resides in the
@@ -21,7 +22,7 @@ struct PrivateCallStackItem {
     is_execution_request: bool,
 }
 
-impl PrivateCallStackItem {
+impl Hash for PrivateCallStackItem {
     fn hash(self) -> Field {
         dep::std::hash::pedersen_hash_with_separator([
             self.contract_address.to_field(),
@@ -40,7 +41,7 @@ struct PublicCallStackItem {
     is_execution_request: bool,
 }
 
-impl PublicCallStackItem {
+impl Hash for PublicCallStackItem {
     fn hash(self) -> Field {
         let item = if self.is_execution_request {
             self.as_execution_request()
@@ -54,18 +55,21 @@ impl PublicCallStackItem {
             item.public_inputs.hash(),
         ], GENERATOR_INDEX__CALL_STACK_ITEM)
     }
+}
 
+impl PublicCallStackItem {
     fn as_execution_request(self) -> Self {
         let public_inputs = self.public_inputs;
         let mut request_public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
         request_public_inputs.call_context = public_inputs.call_context;
         request_public_inputs.args_hash = public_inputs.args_hash;
 
-        PublicCallStackItem {
+        let call_stack_item = PublicCallStackItem {
             contract_address: self.contract_address,
             function_data: self.function_data,
             is_execution_request: true,
             public_inputs: request_public_inputs,
-        }
+        };
+        call_stack_item
     }
 }

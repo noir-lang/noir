@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Runs the given command within a build system context.
+# The non-interactive equivalent of start_interactive.
+
+source $(dirname "$0")/scripts/setup_env '' '' mainframe_$USER > /dev/null
+$@

@@ -8,6 +8,10 @@ import {
   FunctionSelector,
   GlobalVariables,
   NewContractData,
+  PublicCallStackItem,
+  PublicCircuitPublicInputs,
+  SideEffect,
+  SideEffectLinkedToNoteHash,
 } from '../index.js';
 import {
   makeAztecAddress,
@@ -21,6 +25,7 @@ import {
 import {
   computeBlockHashWithGlobals,
   computeCommitmentNonce,
+  computeCommitmentsHash,
   computeCompleteAddress,
   computeContractAddressFromPartial,
   computeContractLeaf,
@@ -28,10 +33,12 @@ import {
   computeFunctionSelector,
   computeFunctionTreeRoot,
   computeGlobalsHash,
+  computeNullifierHash,
   computePrivateCallStackItemHash,
   computePublicCallStackItemHash,
   computePublicDataTreeLeafSlot,
   computePublicDataTreeValue,
+  computePublicInputsHash,
   computeSecretMessageHash,
   computeTxHash,
   computeUniqueCommitment,
@@ -224,5 +231,31 @@ describe('abis', () => {
     const value = new Fr(8n);
     const hash = computeSecretMessageHash(value);
     expect(hash).toMatchSnapshot();
+  });
+
+  it('Computes an empty nullifier hash ', () => {
+    const emptyNull = SideEffectLinkedToNoteHash.empty();
+
+    const emptyHash = Fr.fromBuffer(computeNullifierHash(emptyNull)).toString();
+    expect(emptyHash).toMatchSnapshot();
+  });
+
+  it('Computes an empty sideeffect hash ', () => {
+    const emptySideEffect = SideEffect.empty();
+    const emptyHash = Fr.fromBuffer(computeCommitmentsHash(emptySideEffect)).toString();
+    expect(emptyHash).toMatchSnapshot();
+  });
+
+  it('Computes an empty call request hash ', () => {
+    const emptycallstack = PublicCallStackItem.empty();
+    const emptyHash = emptycallstack.hash();
+    expect(emptyHash.toString()).toMatchSnapshot();
+  });
+
+  it('Computes an empty public inputs hash ', () => {
+    const publicInputs = PublicCircuitPublicInputs.empty();
+    const emptyHash = computePublicInputsHash(publicInputs);
+
+    expect(Fr.fromBuffer(emptyHash).toString()).toMatchSnapshot();
   });
 });

@@ -3,15 +3,12 @@
 // Reducing the size of this package would be welcome.
 
 mod arrays;
-mod uint256;
-mod uint128;
 mod bounded_vec;
+mod field;
+mod uint128;
+mod uint256;
 
 // if predicate == true then return lhs, else return rhs
-pub fn conditional_assign(predicate : bool, lhs : Field, rhs: Field) -> Field {
-    if predicate{
-        lhs
-    } else {
-        rhs
-    }
+pub fn conditional_assign(predicate: bool, lhs: Field, rhs: Field) -> Field {
+    if predicate { lhs } else { rhs }
 }

@@ -22,12 +22,12 @@ pub fn build_contract_deployment_data(is_constructor: bool) -> ContractDeploymen
 
 pub fn build_tx_context(is_constructor: bool) -> TxContext {
     let contract_deployment_data = build_contract_deployment_data(is_constructor);
-     TxContext {
+    TxContext {
         is_fee_payment_tx: false,
         is_rebate_payment_tx: false,
         is_contract_deployment_tx: is_constructor,
         contract_deployment_data,
         chain_id: 1,
-        version: 0,
+        version: 0
     }
 }

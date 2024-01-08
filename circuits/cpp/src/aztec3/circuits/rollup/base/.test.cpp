@@ -741,8 +741,8 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     MemoryStore public_data_tree_store;
     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
-    MemoryStore l1_to_l2_messages_tree_store;
-    MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+    MemoryStore l1_to_l2_message_tree_store;
+    MerkleTree l1_to_l2_message_tree(l1_to_l2_message_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
     auto data_read = abis::PublicDataRead<NT>{
         .leaf_index = fr(1),
@@ -752,7 +752,7 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
     kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_message_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -777,8 +777,8 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     MemoryStore public_data_tree_store;
     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
-    MemoryStore l1_to_l2_messages_tree_store;
-    MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+    MemoryStore l1_to_l2_message_tree_store;
+    MerkleTree l1_to_l2_message_tree(l1_to_l2_message_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
 
     auto data_write = abis::PublicDataUpdateRequest<NT>{
@@ -791,7 +791,7 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     kernel_data[0].public_inputs.end.public_data_update_requests[0] = data_write;
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_message_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -816,8 +816,8 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     MemoryStore public_data_tree_store;
     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
-    MemoryStore l1_to_l2_messages_tree_store;
-    MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+    MemoryStore l1_to_l2_message_tree_store;
+    MerkleTree l1_to_l2_message_tree(l1_to_l2_message_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 
@@ -840,7 +840,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
         make_public_data_update_request(fr(4), fr(204), fr(304));
 
     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+        kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_message_tree);
 
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -868,8 +868,8 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 //     MemoryStore public_data_tree_store;
 //     MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
-//     MemoryStore l1_to_l2_messages_tree_store;
-//     MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+//     MemoryStore l1_to_l2_message_tree_store;
+//     MerkleTree l1_to_l2_message_tree(l1_to_l2_message_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
 //     auto data_read = abis::PublicDataRead<NT>{
 //         .leaf_index = fr(1),
@@ -879,7 +879,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 //     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 //     kernel_data[0].public_inputs.end.public_data_reads[0] = data_read;
 //     auto inputs = test_utils::utils::base_rollup_inputs_from_kernels(
-//         kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
+//         kernel_data, note_hash_tree, contract_tree, public_data_tree, l1_to_l2_message_tree);
 
 //     // We change the initial tree root so the read value does not match
 //     public_data_tree.update_element(1, fr(43));

@@ -1,0 +1,19 @@
+# Minimal Doxyfile. See https://www.doxygen.nl/manual/config.html
+
+# Project related configuration options
+DOXYFILE_ENCODING      = UTF-8
+PROJECT_NAME           = "barretenberg"
+
+# Paths and filenames
+INPUT                  = src/barretenberg
+HTML_OUTPUT            = docs/build
+FILE_PATTERNS          = *.c \
+                         *.cpp \
+                         *.h \
+                         *.hpp
+RECURSIVE              = YES
+
+# Output format options
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO

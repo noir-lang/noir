@@ -10,9 +10,6 @@
       "path": "../acir-simulator"
     },
     {
-      "path": "../kv-store"
-    },
-    {
       "path": "../circuits.js"
     },
     {
@@ -23,6 +20,9 @@
     },
     {
       "path": "../key-store"
+    },
+    {
+      "path": "../kv-store"
     },
     {
       "path": "../noir-compiler"

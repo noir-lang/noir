@@ -31,7 +31,6 @@ template <typename NCT> struct CombinedAccumulatedData {
     AggregationObject aggregation_object{};
 
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
-    std::array<fr, MAX_PENDING_READ_REQUESTS_PER_TX> pending_read_requests{};
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
     std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers{};
@@ -61,7 +60,6 @@ template <typename NCT> struct CombinedAccumulatedData {
     // for serialization, update with new fields
     MSGPACK_FIELDS(aggregation_object,
                    read_requests,
-                   pending_read_requests,
                    new_commitments,
                    new_nullifiers,
                    nullified_commitments,
@@ -100,7 +98,6 @@ template <typename NCT> struct CombinedAccumulatedData {
             },
 
             to_ct(read_requests),
-            to_ct(pending_read_requests),
 
             to_ct(new_commitments),
             to_ct(new_nullifiers),
@@ -141,7 +138,6 @@ template <typename NCT> struct CombinedAccumulatedData {
             },
 
             to_nt(read_requests),
-            to_nt(pending_read_requests),
 
             to_nt(new_commitments),
             to_nt(new_nullifiers),
@@ -172,7 +168,6 @@ template <typename NCT> struct CombinedAccumulatedData {
         aggregation_object.add_proof_outputs_as_public_inputs();
 
         set_array_public(read_requests);
-        set_array_public(pending_read_requests);
 
         set_array_public(new_commitments);
         set_array_public(new_nullifiers);

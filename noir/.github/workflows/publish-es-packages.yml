@@ -30,11 +30,6 @@ jobs:
           nix-cache-name: "noir"
           cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
 
-      - name: Enable aztec features
-        if: ${{ inputs.npm-tag == 'aztec' }}
-        run: |
-          echo $'\n'"default = [\"aztec\"]"$'\n' >> compiler/noirc_driver/Cargo.toml
-
       - name: Build wasm package
         run: |
           nix build -L .#noir_wasm

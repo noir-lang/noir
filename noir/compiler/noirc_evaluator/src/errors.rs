@@ -26,7 +26,7 @@ pub enum RuntimeError {
     },
     #[error(transparent)]
     InternalError(#[from] InternalError),
-    #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
+    #[error("Index out of bounds, array has size {array_size}, but index was {index}")]
     IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },

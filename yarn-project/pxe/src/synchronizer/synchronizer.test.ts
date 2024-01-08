@@ -1,5 +1,6 @@
 import { BlockHeader, CompleteAddress, EthAddress, Fr, GrumpkinScalar } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { SerialQueue } from '@aztec/foundation/fifo';
 import { TestKeyStore } from '@aztec/key-store';
 import { AztecLmdbStore } from '@aztec/kv-store';
 import { AztecNode, INITIAL_L2_BLOCK_NUM, L2Block, MerkleTreeId } from '@aztec/types';
@@ -17,6 +18,7 @@ describe('Synchronizer', () => {
   let synchronizer: TestSynchronizer;
   let roots: Record<MerkleTreeId, Fr>;
   let blockHeader: BlockHeader;
+  let jobQueue: SerialQueue;
 
   beforeEach(async () => {
     blockHeader = BlockHeader.random();
@@ -25,13 +27,14 @@ describe('Synchronizer', () => {
       [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot,
       [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,
       [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot,
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: blockHeader.l1ToL2MessagesTreeRoot,
+      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: blockHeader.l1ToL2MessageTreeRoot,
       [MerkleTreeId.ARCHIVE]: blockHeader.archiveRoot,
     };
 
     aztecNode = mock<AztecNode>();
     database = new KVPxeDatabase(await AztecLmdbStore.create(EthAddress.random()));
-    synchronizer = new TestSynchronizer(aztecNode, database);
+    jobQueue = new SerialQueue();
+    synchronizer = new TestSynchronizer(aztecNode, database, jobQueue);
   });
 
   it('sets tree roots from aztec node on initial sync', async () => {
@@ -128,7 +131,7 @@ class TestSynchronizer extends Synchronizer {
     return super.initialSync();
   }
 
-  public workNoteProcessorCatchUp(): Promise<void> {
+  public workNoteProcessorCatchUp(): Promise<boolean> {
     return super.workNoteProcessorCatchUp();
   }
 }

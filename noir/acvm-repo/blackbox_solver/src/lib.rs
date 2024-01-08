@@ -16,8 +16,6 @@ use thiserror::Error;
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum BlackBoxResolutionError {
-    #[error("unsupported blackbox function: {0}")]
-    Unsupported(BlackBoxFunc),
     #[error("failed to solve blackbox function: {0}, reason: {1}")]
     Failed(BlackBoxFunc, String),
 }
@@ -66,11 +64,6 @@ pub fn keccak256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Keccak256, err))
 }
 
-pub fn hash_to_field_128_security(inputs: &[u8]) -> Result<FieldElement, BlackBoxResolutionError> {
-    generic_hash_to_field::<Blake2s256>(inputs)
-        .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::HashToField128Security, err))
-}
-
 pub fn ecdsa_secp256k1_verify(
     hashed_msg: &[u8],
     public_key_x: &[u8; 32],
@@ -95,14 +88,6 @@ fn generic_hash_256<D: Digest>(message: &[u8]) -> Result<[u8; 32], String> {
         D::digest(message).as_slice().try_into().map_err(|_| "digest should be 256 bits")?;
 
     Ok(output_bytes)
-}
-
-/// Does a generic hash of the entire inputs converting the resulting hash into a single output field.
-fn generic_hash_to_field<D: Digest>(message: &[u8]) -> Result<FieldElement, String> {
-    let output_bytes: [u8; 32] =
-        D::digest(message).as_slice().try_into().map_err(|_| "digest should be 256 bits")?;
-
-    Ok(FieldElement::from_be_bytes_reduce(&output_bytes))
 }
 
 fn verify_secp256k1_ecdsa_signature(

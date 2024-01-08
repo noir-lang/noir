@@ -36,7 +36,21 @@ fn apply_binary_field_op<N>(
     registers: &mut Registers<N>
 ) -> bool {}
 
-fn main() -> distinct pub [Field;2] {}
+fn main() -> distinct pub [Field; 2] {}
+
+fn ret_normal_lambda1() -> ((fn() -> Field)) {}
+
+fn ret_normal_lambda1() -> fn() -> Field {}
+
+fn ret_closure1() -> fn[(Field,)]() -> Field {}
+
+fn ret_closure2() -> fn[(Field, Field)]() -> Field {}
+
+fn ret_closure3() -> fn[(u32, u64)]() -> u64 {}
+
+fn make_counter() -> fn[(&mut Field,)]() -> Field {}
+
+fn get_some<Env>(generator: fn[Env]() -> Field) -> [Field; 5] {}
 
 fn main(
     message: [u8; 10],
@@ -45,3 +59,5 @@ fn main(
     pub_key_y: Field,
     signature: [u8; 64]
 ) {}
+
+pub fn from_baz(x: [Field; crate::foo::MAGIC_NUMBER]) {}

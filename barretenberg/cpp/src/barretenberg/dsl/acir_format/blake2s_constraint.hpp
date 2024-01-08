@@ -24,6 +24,6 @@ struct Blake2sConstraint {
     friend bool operator==(Blake2sConstraint const& lhs, Blake2sConstraint const& rhs) = default;
 };
 
-void create_blake2s_constraints(Builder& builder, const Blake2sConstraint& constraint);
+template <typename Builder> void create_blake2s_constraints(Builder& builder, const Blake2sConstraint& constraint);
 
 } // namespace acir_format

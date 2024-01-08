@@ -8,32 +8,7 @@ In this step, we will write our token portal contract on L1.
 
 In `l1-contracts/contracts` in your file called `TokenPortal.sol` paste this:
 
-```solidity
-pragma solidity ^0.8.20;
-
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-// Messaging
-import {IRegistry} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol";
-import {IInbox} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IInbox.sol";
-import {DataStructures} from "@aztec/l1-contracts/src/core/libraries/DataStructures.sol";
-import {Hash} from "@aztec/l1-contracts/src/core/libraries/Hash.sol";
-
-contract TokenPortal {
-  using SafeERC20 for IERC20;
-
-  IRegistry public registry;
-  IERC20 public underlying;
-  bytes32 public l2TokenAddress;
-
-  function initialize(address _registry, address _underlying, bytes32 _l2TokenAddress) external {
-    registry = IRegistry(_registry);
-    underlying = IERC20(_underlying);
-    l2TokenAddress = _l2TokenAddress;
-  }
-}
-```
+#include_code init /l1-contracts/test/portals/TokenPortal.sol solidity
 
 This imports relevant files including the interfaces used by the Aztec rollup. And initializes the contract with the following parameters:
 
@@ -45,20 +20,7 @@ Create a basic ERC20 contract that can mint tokens to anyone. We will use this t
 
 Create a file `PortalERC20.sol` in the same folder and add:
 
-```solidity
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.0;
-
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-contract PortalERC20 is ERC20 {
-  constructor() ERC20("Portal", "PORTAL") {}
-
-  function mint(address to, uint256 amount) external {
-    _mint(to, amount);
-  }
-}
-```
+#include_code contract /l1-contracts/test/portals/PortalERC20.sol solidity
 
 ## Depositing tokens to Aztec publicly
 
@@ -108,8 +70,10 @@ Note that because L1 is public, everyone can inspect and figure out the fee, con
 
 **So how do we privately consume the message on Aztec?**
 
-On Aztec, anytime something is consumed, we emit a nullifier hash and add it to the nullifier tree. This prevents double-spends. The nullifier hash is a hash of the message that is consumed. So without the secret, one could reverse engineer the expected nullifier hash that might be emitted on L2 upon message consumption. Hence, to consume the message on L2, the user provides a secret to the private noir function, which computes the hash and asserts that it matches to what was provided in the L1->L2 message. This secret is then included in the nullifier hash computation and emits this nullifier. This way, anyone inspecting the blockchain, won’t know which nullifier hash corresponds to the L1->L2 message consumption.
+On Aztec, anytime something is consumed (i.e. deleted), we emit a nullifier hash and add it to the nullifier tree. This prevents double-spends. The nullifier hash is a hash of the message that is consumed. So without the secret, one could reverse engineer the expected nullifier hash that might be emitted on L2 upon message consumption. To consume the message on L2, the user provides a secret to the private function, which computes the hash and asserts that it matches to what was provided in the L1->L2 message. This secret is included in the nullifier hash computation and the nullifier is added to the nullifier tree. Anyone inspecting the blockchain won’t know which nullifier hash corresponds to the L1->L2 message consumption.
 
-Note: the secret hashes are Pedersen hashes since the hash has to be computed on L2, and sha256 hash is very expensive for zk circuits. The content hash however is a sha256 hash truncated to a field as clearly shown before.
+:::note
+Secret hashes are Pedersen hashes since the hash has to be computed on L2 and sha256 hash is very expensive for zk circuits. The content hash however is a sha256 hash truncated to a field as shown before.
+:::
 
 In the next step we will start writing our L2 smart contract to mint these tokens on L2.

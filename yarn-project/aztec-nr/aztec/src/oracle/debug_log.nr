@@ -8,9 +8,9 @@ fn debug_log_format_oracle<T, N>(_msg: T, _args: [Field; N], _num_args: Field) -
 #[oracle(debugLog)]
 fn debug_log_field_oracle(_field: Field) -> Field {}
 #[oracle(debugLog)]
-fn debug_log_array_oracle<T, N>(_arbitrary_array: [T;N]) -> Field {}
+fn debug_log_array_oracle<T, N>(_arbitrary_array: [T; N]) -> Field {}
 #[oracle(debugLogWithPrefix)]
-fn debug_log_array_with_prefix_oracle<S, T, N>(_prefix: S, _arbitrary_array: [T;N]) -> Field {}
+fn debug_log_array_with_prefix_oracle<S, T, N>(_prefix: S, _arbitrary_array: [T; N]) -> Field {}
 
 /// NOTE: call this with a str<N> msg of length > 1
 /// Example:

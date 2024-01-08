@@ -16,6 +16,7 @@
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include "barretenberg/srs/global_crs.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -46,7 +47,9 @@ template <class Curve> class CommitmentKey {
      * @param path
      *
      */
-    CommitmentKey(const size_t num_points, std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
+    CommitmentKey(const size_t num_points,
+                  std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory =
+                      barretenberg::srs::get_crs_factory())
         : pippenger_runtime_state(num_points)
         , srs(crs_factory->get_prover_crs(num_points))
     {}

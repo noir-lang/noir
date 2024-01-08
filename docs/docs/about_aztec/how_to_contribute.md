@@ -12,9 +12,11 @@ Decentralization is one of our core values, so we want to encourage participatio
 
 - Check out the monorepo on GitHub [here](https://github.com/AztecProtocol/aztec-packages)
 - We have some [good first issues](https://github.com/AztecProtocol/aztec-packages/labels/good%20first%20issue) for newcomers
-- Anyone can open an Issue, so please feel free to create one
+- Anyone can open an issue, so please feel free to create one
+- If you've built something for the ecosystem that others should see, add it to the [Awesome-Aztec Repo](https://github.com/AztecProtocol/awesome-aztec)
 
 ## Grants
 
-- We often run grants programs to support awesome projects and teams, you can read some of our past grantees [here](https://aztecnetwork.notion.site/Aztec-Grants-Wave-3-RFPs-acba57016db048868e5ed07cbf549979?p=5b2bf249f8f44836a10e6210cbaf95c0&pm=s)
+- We often run grants programs to support awesome projects and teams
+- We are currently operating with a retroactive grants funding model, and we strive to respond back to grants applications with a decision within a few days. Check out our [grants page](https://aztec.network/grants/) for more information
 - Keep checking back to see when we're opening up a new wave of grants

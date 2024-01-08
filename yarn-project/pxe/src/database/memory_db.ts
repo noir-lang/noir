@@ -128,7 +128,7 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
       roots[MerkleTreeId.NOTE_HASH_TREE],
       roots[MerkleTreeId.NULLIFIER_TREE],
       roots[MerkleTreeId.CONTRACT_TREE],
-      roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE],
       roots[MerkleTreeId.ARCHIVE],
       Fr.ZERO, // todo: private kernel vk tree root
       roots[MerkleTreeId.PUBLIC_DATA_TREE],
@@ -143,7 +143,7 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
       [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot,
       [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,
       [MerkleTreeId.CONTRACT_TREE]: blockHeader.contractTreeRoot,
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: blockHeader.l1ToL2MessagesTreeRoot,
+      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: blockHeader.l1ToL2MessageTreeRoot,
       [MerkleTreeId.ARCHIVE]: blockHeader.archiveRoot,
       [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot,
     });

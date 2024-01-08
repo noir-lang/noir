@@ -2,6 +2,7 @@ use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
 use fm::FileManager;
+use nargo::insert_all_files_for_package_into_file_manager;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_errors::CustomDiagnostic;
@@ -35,11 +36,11 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     let mut check_exit_code_one = false;
 
     for package in &workspace {
-        let mut file_manager =
-            FileManager::new(&package.root_dir, Box::new(|path| std::fs::read_to_string(path)));
+        let mut file_manager = FileManager::new(&package.root_dir);
+        insert_all_files_for_package_into_file_manager(package, &mut file_manager);
 
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
-            let file_id = file_manager.add_file(&entry.path()).expect("file exists");
+            let file_id = file_manager.name_to_id(entry.path().to_path_buf()).expect("The file should exist since we added all files in the package into the file manager");
             let (parsed_module, errors) = parse_file(&file_manager, file_id);
 
             let is_all_warnings = errors.iter().all(ParserError::is_warning);
@@ -61,7 +62,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 return Ok(());
             }
 
-            let original = file_manager.fetch_file(file_id).source();
+            let original = file_manager.fetch_file(file_id);
             let formatted = nargo_fmt::format(original, parsed_module, &config);
 
             if check_mode {

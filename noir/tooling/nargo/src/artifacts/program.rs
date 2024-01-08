@@ -17,7 +17,6 @@ pub struct PreprocessedProgram {
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
     pub hash: u64,
 
-    pub backend: String,
     pub abi: Abi,
 
     #[serde(

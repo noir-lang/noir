@@ -1,6 +1,17 @@
+use crate::utils::field::field_from_bytes;
+use dep::std::ops::Eq;
+
+global SELECTOR_SIZE = 4;
+
 struct FunctionSelector {
     // 1st 4-bytes of abi-encoding of function.
     inner: u32,
+}
+
+impl Eq for FunctionSelector {
+    fn eq(self, function_selector: FunctionSelector) -> bool {
+        function_selector.inner == self.inner
+    }
 }
 
 impl FunctionSelector {
@@ -20,12 +31,20 @@ impl FunctionSelector {
         }
     }
 
-    pub fn zero() -> Self {
-        FunctionSelector { inner: 0 }
+    pub fn from_signature<N>(signature: str<N>) -> Self {
+        let bytes = signature.as_bytes();
+        let hash = dep::std::hash::keccak256(bytes, bytes.len() as u32);
+
+        let mut selector_be_bytes = [0; SELECTOR_SIZE];
+        for i in 0..SELECTOR_SIZE {
+            selector_be_bytes[i] = hash[i];
+        }
+
+        FunctionSelector::from_field(field_from_bytes(selector_be_bytes, true))
     }
 
-    pub fn eq(self, function_selector: FunctionSelector) -> bool {
-        function_selector.inner == self.inner
+    pub fn zero() -> Self {
+        Self { inner: 0 }
     }
 
     pub fn serialize(self: Self) -> [Field; 1] {

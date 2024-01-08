@@ -45,10 +45,6 @@ module.exports = {
       {
         patterns: [
           {
-            group: ['client-dest'],
-            message: "Fix this absolute garbage import. It's your duty to solve it before it spreads.",
-          },
-          {
             group: ['dest'],
             message: 'You should not be importing from a build directory. Did you accidentally do a relative import?',
           },

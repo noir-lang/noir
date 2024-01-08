@@ -6,43 +6,41 @@ In this guide we will cover how to do so, both using the CLI and programmaticall
 
 We'll also cover how to generate a helper [TypeScript interface](#typescript-interfaces) and an [Aztec.nr interface](#noir-interfaces) for easily interacting with your contract from your typescript app and from other Aztec.nr contracts, respectively.
 
-## Compile using the CLI
+## Compile using aztec-nargo
 
-To compile a contract using the Aztec CLI, first [install it](../cli/cli-commands#installation).
+To compile a contract using the Aztec's build of nargo.
 
-Then run the `compile` command with the path to your [contract project folder](./layout.md#directory-structure), which is the one that contains the `Nargo.toml` file:
-
-```
-aztec-cli compile ./path/to/my_aztec_contract_project
-```
-
-This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing their artifact, which you can use for deploying or interacting with your contracts.
-
-`aztec-cli` uses `noir_wasm` by default for compiling contracts. This helps reduce the developer overhead of installation and maintaining the noir compiler, `nargo`. However, if you prefer, you can use `nargo` to compile contracts with `aztec-cli` as so:
+Run the `aztec-nargo compile` command within your [contract project folder](./layout.md#directory-structure), which is the one that contains the `Nargo.toml` file:
 
 ```bash
-aztec-cli compile my-contract --compiler nargo # switches compiler to nargo
+aztec-nargo compile
 ```
 
-When you specify `nargo` as your compiler, you need to make sure that you are using the correct version. You can find the [latest version information here](../updating.md#updating-nargo).
+This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing the Noir ABI artifacts.
+
+Before you can use the ABI it currently needs to be validated as being Aztec compatible, and transformed to an Aztec compatible ABI using `aztec-cli codegen`, passing a Noir ABI file or folder, and output location, e.g:
+
+```bash
+aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts
+```
+
+It can be useful to perform this compilation, validation and transformation in one go, so you may wish to chain the commands and perhaps add them to a package.json script. The below assumes your contract is in a folder called `contract` at your project root:
+
+```bash
+(cd contract && aztec-nargo compile && aztec-cli codegen target -o ../src/artifacts)
+```
 
 ### Typescript Interfaces
 
-You can use the compiler to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their artifact.
+You can use the codegenerator to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their artifact.
 
-To generate them, include a `--typescript` option in the compile command with a path to the target folder for the typescript files:
+To generate them, include a `--ts` option in the codegen command with a path to the target folder for the typescript files:
 
-```
-aztec-cli compile --typescript ./path/to/typescript/src ./path/to/my_aztec_contract_project
-```
-
-You can also generate these interfaces from prebuilt artifacts using the `generate-typescript` command:
-
-```
-aztec-cli generate-typescript ./path/to/my_aztec_contract_project
+```bash
+aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts --ts
 ```
 
-Below is typescript code generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) contract:
+Below is typescript code generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) contract:
 
 ```ts showLineNumbers
 export class TokenContract extends ContractBase {
@@ -133,19 +131,13 @@ An Aztec.nr contract can [call a function](./syntax/functions.md) in another con
 
 To make this easier, the compiler can generate contract interface structs that expose a convenience method for each function listed in a given contract artifact. These structs are intended to be used from another contract project that calls into the current one. For each contract, two interface structs are generated: one to be used from private functions with a `PrivateContext`, and one to be used from open functions with a `PublicContext`.
 
-To generate them, include a `--interface` option in the compile command with a path to the target folder for the generated Aztec.nr interface files:
+To generate them, include a `--nr` option in the `codegen` command with a path to the target folder for the generated Aztec.nr interface files:
 
-```
-aztec-cli compile --interface ./path/to/another_aztec_contract_project/src ./path/to/my_aztec_contract_project
-```
-
-You can also generate these interfaces from prebuilt artifacts using the `generate-noir-interface` command:
-
-```
-aztec-cli generate-noir-interface ./path/to/my_aztec_contract_project
+```bash
+aztec-cli codegen ./aztec-nargo/output/target/path -o ./path/to/output/folder --nr
 ```
 
-Below is an example interface, also generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_contract/src/main.nr) contract:
+Below is an example interface, also generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) contract:
 
 ```rust
 impl TokenPrivateContextInterface {

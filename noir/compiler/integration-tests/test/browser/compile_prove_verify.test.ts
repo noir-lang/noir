@@ -1,17 +1,17 @@
 import { expect } from '@esm-bundle/chai';
-import { Logger } from 'tslog';
 import * as TOML from 'smol-toml';
 
-import { initializeResolver } from '@noir-lang/source-resolver';
-import newCompiler, { CompiledProgram, compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
+import newCompiler, {
+  CompiledProgram,
+  PathToFileSourceMap,
+  compile,
+  init_log_level as compilerLogLevel,
+} from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 import { getFile } from './utils.js';
-import { TEST_LOG_LEVEL } from '../environment.js';
-
-const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 
 await newCompiler();
 
@@ -33,14 +33,11 @@ const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
 suite.timeout(60 * 20e3); //20mins
 
 function getCircuit(noirSource: string): CompiledProgram {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  initializeResolver((id: string) => {
-    logger.debug('source-resolver: resolving:', id);
-    return noirSource;
-  });
+  const sourceMap = new PathToFileSourceMap();
+  sourceMap.add_source_code('main.nr', noirSource);
 
   // We're ignoring this in the resolver but pass in something sensible.
-  const result = compile('/main.nr');
+  const result = compile('main.nr', undefined, undefined, sourceMap);
   if (!('program' in result)) {
     throw new Error('Compilation failed');
   }

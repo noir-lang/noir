@@ -9,16 +9,28 @@
 using namespace barretenberg;
 
 /**
+ * We are not passed a vector (length prefixed), but the buffer and num points independently.
+ * Saves on having the generate the vector awkwardly calling side after downloading crs.
+ */
+WASM_EXPORT void srs_init_srs(uint8_t const* points_buf, uint32_t const* num_points_buf, uint8_t const* g2_point_buf)
+{
+    auto num_points = ntohl(*num_points_buf);
+    auto g1_points = std::vector<g1::affine_element>(num_points);
+    for (size_t i = 0; i < num_points; ++i) {
+        g1_points[i] = from_buffer<barretenberg::g1::affine_element>(points_buf, i * 64);
+    }
+    auto g2_point = from_buffer<g2::affine_element>(g2_point_buf);
+    barretenberg::srs::init_crs_factory(g1_points, g2_point);
+}
+
+/**
  * WARNING: The SRS is not encoded the same way as all the read/write methods encode.
  * Have to use the old school io functions to parse the buffers.
  */
-WASM_EXPORT void srs_init_srs(uint8_t const* points_buf, uint32_t const* num_points, uint8_t const* g2_point_buf)
+WASM_EXPORT void srs_init_grumpkin_srs(uint8_t const* points_buf, uint32_t const* num_points)
 {
-    auto points = std::vector<g1::affine_element>(ntohl(*num_points));
-    srs::IO<curve::BN254>::read_affine_elements_from_buffer(points.data(), (char*)points_buf, points.size() * 64);
+    auto points = std::vector<curve::Grumpkin::AffineElement>(ntohl(*num_points));
+    srs::IO<curve::Grumpkin>::read_affine_elements_from_buffer(points.data(), (char*)points_buf, points.size() * 64);
 
-    g2::affine_element g2_point;
-    srs::IO<curve::BN254>::read_affine_elements_from_buffer(&g2_point, (char*)g2_point_buf, 128);
-
-    barretenberg::srs::init_crs_factory(points, g2_point);
+    barretenberg::srs::init_grumpkin_crs_factory(points);
 }

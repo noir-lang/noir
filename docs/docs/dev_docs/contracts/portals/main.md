@@ -44,15 +44,15 @@ Note that while the `secret` and the `content` are both hashed, they are actuall
 
 #include_code context_consume_l1_to_l2_message /yarn-project/aztec-nr/aztec/src/context.nr rust
 
-Computing the `content` must be done manually in its current form, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/util.nr).
+Computing the `content` must be done manually in its current form, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_bridge_contract/src/util.nr).
 
-#include_code claim_public /yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
+#include_code claim_public /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 :::info
 The `content_hash` is a sha256 truncated to a field element (~ 254 bits). In Aztec-nr, you can use our `sha256_to_field()` to do a sha256 hash which fits in one field element
 :::
 
-#include_code mint_public_content_hash_nr /yarn-project/noir-contracts/src/contracts/token_portal_content_hash_lib/src/lib.nr rust
+#include_code mint_public_content_hash_nr /yarn-project/noir-contracts/contracts/token_portal_content_hash_lib/src/lib.nr rust
 
 In Solidity, you can use our `Hash.sha256ToField()` method:
 
@@ -88,7 +88,7 @@ Access control on the L1 portal contract is essential to prevent consumption of 
 
 As earlier, we can use a token bridge as an example. In this case, we are burning tokens on L2 and sending a message to the portal to free them on L1.
 
-#include_code exit_to_l1_private yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr rust
+#include_code exit_to_l1_private yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 When the transaction is included in a rollup block the message will be inserted into the `Outbox`, where the recipient portal can consume it from. When consuming, the `msg.sender` must match the `recipient` meaning that only portal can actually consume the message.
 
@@ -202,4 +202,4 @@ Designated callers are enforced at the contract level for contracts that are not
 
 - Token bridge (Portal contract built for L1 -> L2, i.e., a non-native L2 asset)
   - [Portal contract](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/test/portals/TokenPortal.sol)
-  - [Aztec contract](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/token_bridge_contract/src/main.nr)
+  - [Aztec contract](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr)

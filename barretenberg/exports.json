@@ -370,6 +370,21 @@
     "isAsync": false
   },
   {
+    "functionName": "srs_init_grumpkin_srs",
+    "inArgs": [
+      {
+        "name": "points_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "num_points",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
     "functionName": "examples_simple_create_and_verify_proof",
     "inArgs": [],
     "outArgs": [
@@ -525,6 +540,30 @@
     "isAsync": false
   },
   {
+    "functionName": "acir_create_goblin_proof",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "constraint_system_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "witness_buf",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "uint8_t **"
+      }
+    ],
+    "isAsync": false
+  },
+  {
     "functionName": "acir_load_verification_key",
     "inArgs": [
       {
@@ -567,6 +606,26 @@
     "isAsync": false
   },
   {
+    "functionName": "acir_get_proving_key",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "acir_vec",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "uint8_t **"
+      }
+    ],
+    "isAsync": false
+  },
+  {
     "functionName": "acir_verify_proof",
     "inArgs": [
       {
@@ -580,6 +639,26 @@
       {
         "name": "is_recursive",
         "type": "const bool *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "result",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_verify_goblin_proof",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "proof_buf",
+        "type": "const uint8_t *"
       }
     ],
     "outArgs": [

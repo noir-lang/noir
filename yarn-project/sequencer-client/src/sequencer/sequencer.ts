@@ -294,7 +294,7 @@ export class Sequencer {
         continue;
       }
 
-      tx.data.end.newNullifiers.forEach(n => thisBlockNullifiers.add(n.toBigInt()));
+      tx.data.end.newNullifiers.forEach(n => thisBlockNullifiers.add(n.value.toBigInt()));
       validTxs.push(tx);
       if (validTxs.length >= this.maxTxsPerBlock) {
         break;
@@ -338,8 +338,8 @@ export class Sequencer {
     emptyTx: ProcessedTx,
     globalVariables: GlobalVariables,
   ) {
-    // Pad the txs array with empty txs to be a power of two, at least 4
-    const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 4);
+    // Pad the txs array with empty txs to be a power of two, at least 2
+    const txsTargetSize = Math.max(ceilPowerOfTwo(txs.length), 2);
     const emptyTxCount = txsTargetSize - txs.length;
 
     const allTxs = [...txs, ...times(emptyTxCount, () => emptyTx)];
@@ -365,10 +365,10 @@ export class Sequencer {
    */
   protected isTxDoubleSpendSameBlock(tx: Tx | ProcessedTx, thisBlockNullifiers: Set<bigint>): boolean {
     // We only consider non-empty nullifiers
-    const newNullifiers = tx.data.end.newNullifiers.filter(n => !n.isZero());
+    const newNullifiers = tx.data.end.newNullifiers.filter(n => !n.isEmpty());
 
     for (const nullifier of newNullifiers) {
-      if (thisBlockNullifiers.has(nullifier.toBigInt())) {
+      if (thisBlockNullifiers.has(nullifier.value.toBigInt())) {
         return true;
       }
     }
@@ -383,10 +383,10 @@ export class Sequencer {
    */
   protected async isTxDoubleSpend(tx: Tx | ProcessedTx): Promise<boolean> {
     // We only consider non-empty nullifiers
-    const newNullifiers = tx.data.end.newNullifiers.filter(n => !n.isZero());
+    const newNullifiers = tx.data.end.newNullifiers.filter(n => !n.isEmpty());
 
     // Ditch this tx if it has a repeated nullifiers
-    const uniqNullifiers = new Set(newNullifiers.map(n => n.toBigInt()));
+    const uniqNullifiers = new Set(newNullifiers.map(n => n.value.toBigInt()));
     if (uniqNullifiers.size !== newNullifiers.length) {
       return true;
     }

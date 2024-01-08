@@ -44,7 +44,7 @@ TESTS_STR="${TESTS[@]}"
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
   set -xe; \
   cd /usr/src/barretenberg/cpp; \
-  (cd srs_db && ./download_ignition.sh 1); \
+  srs_db/download_ignition.sh 1; \
+  srs_db/download_grumpkin.sh; \
   cd build; \
-  ./bin/grumpkin_srs_gen 1048576; \
   for BIN in $TESTS_STR; do ./bin/\$BIN; done"

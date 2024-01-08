@@ -66,8 +66,8 @@ export interface PreviousRollupData {
 export interface RootRollupInputs {
   previous_rollup_data: FixedLengthArray<PreviousRollupData, 2>;
   new_l1_to_l2_messages: FixedLengthArray<Field, 16>;
-  new_l1_to_l2_messages_tree_root_sibling_path: FixedLengthArray<Field, 12>;
-  start_l1_to_l2_messages_tree_snapshot: AppendOnlyTreeSnapshot;
+  new_l1_to_l2_message_tree_root_sibling_path: FixedLengthArray<Field, 12>;
+  start_l1_to_l2_message_tree_snapshot: AppendOnlyTreeSnapshot;
   start_archive_snapshot: AppendOnlyTreeSnapshot;
   new_archive_sibling_path: FixedLengthArray<Field, 16>;
 }
@@ -83,8 +83,8 @@ export interface RootRollupPublicInputs {
   end_contract_tree_snapshot: AppendOnlyTreeSnapshot;
   start_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
   end_public_data_tree_snapshot: AppendOnlyTreeSnapshot;
-  start_l1_to_l2_messages_tree_snapshot: AppendOnlyTreeSnapshot;
-  end_l1_to_l2_messages_tree_snapshot: AppendOnlyTreeSnapshot;
+  start_l1_to_l2_message_tree_snapshot: AppendOnlyTreeSnapshot;
+  end_l1_to_l2_message_tree_snapshot: AppendOnlyTreeSnapshot;
   start_archive_snapshot: AppendOnlyTreeSnapshot;
   end_archive_snapshot: AppendOnlyTreeSnapshot;
   calldata_hash: FixedLengthArray<Field, 2>;

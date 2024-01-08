@@ -30,7 +30,6 @@ import {
   FunctionData,
   FunctionSelector,
   G1AffineElement,
-  KERNELS_PER_BASE_ROLLUP,
   KernelCircuitPublicInputs,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -38,12 +37,9 @@ import {
   MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
-  MAX_PENDING_READ_REQUESTS_PER_CALL,
-  MAX_PENDING_READ_REQUESTS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -92,6 +88,8 @@ import {
   RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
+  SideEffect,
+  SideEffectLinkedToNoteHash,
   TxContext,
   TxRequest,
   VK_TREE_HEIGHT,
@@ -102,6 +100,24 @@ import {
   range,
 } from '../index.js';
 import { GlobalVariables } from '../structs/global_variables.js';
+
+/**
+ * Creates an arbitrary side effect object with the given seed.
+ * @param seed - The seed to use for generating the object.
+ * @returns A side effect object.
+ */
+export function makeNewSideEffect(seed: number): SideEffect {
+  return new SideEffect(fr(seed), fr(seed + 1));
+}
+
+/**
+ * Creates an arbitrary side effect object (linked to a note hash) with the given seed.
+ * @param seed - The seed to use for generating the object.
+ * @returns A side effect object.
+ */
+export function makeNewSideEffectLinkedToNoteHash(seed: number): SideEffectLinkedToNoteHash {
+  return new SideEffectLinkedToNoteHash(fr(seed), fr(seed + 1), fr(seed + 2));
+}
 
 /**
  * Creates an arbitrary tx context with the given seed.
@@ -213,11 +229,9 @@ export function makeAccumulatedData(seed = 1, full = false): CombinedAccumulated
 
   return new CombinedAccumulatedData(
     makeAggregationObject(seed),
-    tupleGenerator(MAX_READ_REQUESTS_PER_TX, fr, seed + 0x80),
-    tupleGenerator(MAX_PENDING_READ_REQUESTS_PER_TX, fr, seed + 0x80),
-    tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x300),
+    tupleGenerator(MAX_READ_REQUESTS_PER_TX, sideEffectFromNumber, seed + 0x80),
+    tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, sideEffectFromNumber, seed + 0x100),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, sideEffectLinkedFromNumber, seed + 0x200),
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600),
@@ -242,9 +256,8 @@ export function makeFinalAccumulatedData(seed = 1, full = false): FinalAccumulat
 
   return new FinalAccumulatedData(
     makeAggregationObject(seed),
-    tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x300),
+    tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, sideEffectFromNumber, seed + 0x100),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, sideEffectLinkedFromNumber, seed + 0x200),
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600),
@@ -313,6 +326,7 @@ export function makeCallContext(seed = 0, storageContractAddress = makeAztecAddr
     false,
     false,
     false,
+    Fr.ZERO,
   );
 }
 
@@ -336,8 +350,8 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, makeContractStorageUpdateRequest, seed + 0x400),
     tupleGenerator(MAX_PUBLIC_DATA_READS_PER_CALL, makeContractStorageRead, seed + 0x500),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600),
-    tupleGenerator(MAX_NEW_COMMITMENTS_PER_CALL, fr, seed + 0x700),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_CALL, fr, seed + 0x800),
+    tupleGenerator(MAX_NEW_COMMITMENTS_PER_CALL, makeNewSideEffect, seed + 0x700),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_CALL, makeNewSideEffectLinkedToNoteHash, seed + 0x800),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, fr, seed + 0x900),
     tupleGenerator(2, fr, seed + 0x901),
     fr(seed + 0x902),
@@ -379,6 +393,7 @@ export function makePublicCallRequest(seed = 1): PublicCallRequest {
     new FunctionData(makeSelector(seed + 0x1), false, false, false),
     makeCallContext(seed + 0x2, makeAztecAddress(seed)),
     makeTuple(ARGS_LENGTH, fr, seed + 0x10),
+    0,
   );
 }
 
@@ -509,7 +524,7 @@ export function makeCallerContext(seed = 1): CallerContext {
  * @returns A call stack item.
  */
 export function makeCallRequest(seed = 1): CallRequest {
-  return new CallRequest(fr(seed), makeAztecAddress(seed + 0x1), makeCallerContext(seed + 0x2));
+  return new CallRequest(fr(seed), makeAztecAddress(seed + 0x1), makeCallerContext(seed + 0x2), fr(0), fr(0));
 }
 
 /**
@@ -594,6 +609,8 @@ export function makePublicKernelInputsWithTweak(
       publicCall.callStackItem.hash(),
       publicCall.callStackItem.publicInputs.callContext.msgSender,
       makeCallerContext(seed + 0x100),
+      Fr.ZERO,
+      Fr.ZERO,
     );
   return publicKernelInputs;
 }
@@ -665,17 +682,17 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
       true,
       true,
       true,
+      Fr.ZERO,
     ),
     argsHash: fr(seed + 0x100),
     returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
-    readRequests: makeTuple(MAX_READ_REQUESTS_PER_CALL, fr, seed + 0x300),
-    pendingReadRequests: makeTuple(MAX_PENDING_READ_REQUESTS_PER_CALL, fr, seed + 0x310),
-    newCommitments: makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, fr, seed + 0x400),
-    newNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, fr, seed + 0x500),
-    nullifiedCommitments: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, fr, seed + 0x510),
+    readRequests: makeTuple(MAX_READ_REQUESTS_PER_CALL, sideEffectFromNumber, seed + 0x300),
+    newCommitments: makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, sideEffectFromNumber, seed + 0x400),
+    newNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, sideEffectLinkedFromNumber, seed + 0x500),
     privateCallStackHashes: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600),
     publicCallStackHashes: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x700),
     newL2ToL1Msgs: makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, fr, seed + 0x800),
+    endSideEffectCounter: fr(seed + 0x850),
     encryptedLogsHash: makeTuple(NUM_FIELDS_PER_SHA256, fr, seed + 0x900),
     unencryptedLogsHash: makeTuple(NUM_FIELDS_PER_SHA256, fr, seed + 0xa00),
     encryptedLogPreimagesLength: fr(seed + 0xb00),
@@ -867,8 +884,8 @@ export function makeRootRollupPublicInputs(
     endContractTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endPublicDataTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
-    startL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
-    endL1ToL2MessagesTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    startL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
+    endL1ToL2MessageTreeSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     startArchiveSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     endArchiveSnapshot: makeAppendOnlyTreeSnapshot((seed += 0x100)),
     calldataHash: [new Fr(1n), new Fr(2n)],
@@ -909,7 +926,7 @@ export function makePublicDataTreeLeafPreimage(seed = 0): PublicDataTreeLeafPrei
  * @returns A base rollup inputs.
  */
 export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
-  const kernelData = makeTuple(KERNELS_PER_BASE_ROLLUP, x => makePreviousKernelData(seed + (x + 1) * 0x100));
+  const kernelData = makePreviousKernelData(seed);
 
   const startNoteHashTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x100);
   const startNullifierTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x200);
@@ -918,13 +935,13 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const startArchiveSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x500);
 
   const lowNullifierLeafPreimages = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+    MAX_NEW_NULLIFIERS_PER_TX,
     x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), BigInt(x + 0x200)),
     seed + 0x1000,
   );
 
   const lowNullifierMembershipWitness = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP,
+    MAX_NEW_NULLIFIERS_PER_TX,
     x => makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
     seed + 0x2000,
   );
@@ -933,77 +950,44 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   const newNullifiersSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x4000);
   const newContractsSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x5000);
 
-  const sortedNewNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, fr, seed + 0x6000);
-  const sortednewNullifiersIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_BASE_ROLLUP, i => i, seed + 0x7000);
+  const sortedNewNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x6000);
+  const sortednewNullifiersIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => i, seed + 0x7000);
 
   const sortedPublicDataWrites = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makePublicDataTreeLeaf, seed + 0x8000 + i * 0x100);
-    },
-    0,
-  );
-  const sortedPublicDataWritesIndexes = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    () => makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, 0),
-    0,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    makePublicDataTreeLeaf,
+    seed + 0x8000,
   );
 
+  const sortedPublicDataWritesIndexes = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, 0);
+
   const lowPublicDataWritesPreimages = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        makePublicDataTreeLeafPreimage,
-        seed + 0x8200 + i * 0x100,
-      );
-    },
-    0,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    makePublicDataTreeLeafPreimage,
+    seed + 0x8200,
   );
 
   const lowPublicDataWritesMembershipWitnesses = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
-        seed + 0x8400 + i * 0x100,
-      );
-    },
-    0,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
+    seed + 0x8400,
   );
 
-  const publicDataWritesSubtreeSiblingPaths = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x8600 + i * 0x100);
-    },
-    0,
-  );
+  const publicDataWritesSubtreeSiblingPath = makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x8600);
 
   const publicDataReadsPreimages = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, makePublicDataTreeLeafPreimage, seed + 0x8800 + i * 0x100);
-    },
-    0,
+    MAX_PUBLIC_DATA_READS_PER_TX,
+    makePublicDataTreeLeafPreimage,
+    seed + 0x8800,
   );
 
   const publicDataReadsMembershipWitnesses = makeTuple(
-    KERNELS_PER_BASE_ROLLUP,
-    i => {
-      return makeTuple(
-        MAX_PUBLIC_DATA_READS_PER_TX,
-        i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
-        seed + 0x8a00 + i * 0x100,
-      );
-    },
-    0,
+    MAX_PUBLIC_DATA_READS_PER_TX,
+    i => makeMembershipWitness(PUBLIC_DATA_TREE_HEIGHT, i),
+    seed + 0x8a00,
   );
 
-  const archiveRootMembershipWitnesses = makeTuple(KERNELS_PER_BASE_ROLLUP, x =>
-    makeMembershipWitness(ARCHIVE_HEIGHT, seed + x * 0x1000 + 0x9000),
-  );
+  const archiveRootMembershipWitness = makeMembershipWitness(ARCHIVE_HEIGHT, seed + 0x9000);
 
   const constants = makeConstantBaseRollupData(0x100);
 
@@ -1025,10 +1009,10 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     sortedPublicDataWritesIndexes,
     lowPublicDataWritesPreimages,
     lowPublicDataWritesMembershipWitnesses,
-    publicDataWritesSubtreeSiblingPaths,
+    publicDataWritesSubtreeSiblingPath,
     publicDataReadsPreimages,
     publicDataReadsMembershipWitnesses,
-    archiveRootMembershipWitnesses,
+    archiveRootMembershipWitness,
     constants,
   });
 }
@@ -1041,4 +1025,22 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
  */
 export function fr(n: number): Fr {
   return new Fr(BigInt(n));
+}
+
+/**
+ * Test only. Easy to identify big endian side-effect serialize.
+ * @param n - The number.
+ * @returns The SideEffect instance.
+ */
+export function sideEffectFromNumber(n: number): SideEffect {
+  return new SideEffect(new Fr(BigInt(n)), Fr.zero());
+}
+
+/**
+ * Test only. Easy to identify big endian side-effect serialize.
+ * @param n - The number.
+ * @returns The SideEffect instance.
+ */
+export function sideEffectLinkedFromNumber(n: number): SideEffectLinkedToNoteHash {
+  return new SideEffectLinkedToNoteHash(new Fr(BigInt(n)), Fr.zero(), Fr.zero());
 }

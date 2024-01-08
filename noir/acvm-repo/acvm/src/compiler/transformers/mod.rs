@@ -5,34 +5,33 @@ use acir::{
 };
 use indexmap::IndexMap;
 
-use crate::Language;
+use crate::ExpressionWidth;
 
 mod csat;
-mod fallback;
 mod r1cs;
 
 pub(crate) use csat::CSatTransformer;
-pub(crate) use fallback::FallbackTransformer;
 pub(crate) use r1cs::R1CSTransformer;
 
-use super::{transform_assert_messages, AcirTransformationMap, CompileError};
+use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
 pub fn transform(
     acir: Circuit,
-    np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool,
-) -> Result<(Circuit, AcirTransformationMap), CompileError> {
+    expression_width: ExpressionWidth,
+) -> (Circuit, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    let (mut acir, transformation_map) =
-        transform_internal(acir, np_language, is_opcode_supported, acir_opcode_positions)?;
+    let (mut acir, acir_opcode_positions) =
+        transform_internal(acir, expression_width, acir_opcode_positions);
+
+    let transformation_map = AcirTransformationMap::new(acir_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
-    Ok((acir, transformation_map))
+    (acir, transformation_map)
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
@@ -40,21 +39,17 @@ pub fn transform(
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 pub(super) fn transform_internal(
     acir: Circuit,
-    np_language: Language,
-    is_opcode_supported: impl Fn(&Opcode) -> bool,
+    expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
-) -> Result<(Circuit, AcirTransformationMap), CompileError> {
-    // Fallback transformer pass
-    let (acir, acir_opcode_positions) =
-        FallbackTransformer::transform(acir, is_opcode_supported, acir_opcode_positions)?;
+) -> (Circuit, Vec<usize>) {
+    log::trace!("Start circuit transformation");
 
-    let mut transformer = match &np_language {
-        crate::Language::R1CS => {
-            let transformation_map = AcirTransformationMap { acir_opcode_positions };
+    let mut transformer = match &expression_width {
+        crate::ExpressionWidth::Unbounded => {
             let transformer = R1CSTransformer::new(acir);
-            return Ok((transformer.transform(), transformation_map));
+            return (transformer.transform(), acir_opcode_positions);
         }
-        crate::Language::PLONKCSat { width } => {
+        crate::ExpressionWidth::Bounded { width } => {
             let mut csat = CSatTransformer::new(*width);
             for value in acir.circuit_arguments() {
                 csat.mark_solvable(value);
@@ -137,11 +132,7 @@ pub(super) fn transform_internal(
                         transformer.mark_solvable(outputs.0);
                         transformer.mark_solvable(outputs.1);
                     }
-                    acir::circuit::opcodes::BlackBoxFuncCall::HashToField128Security {
-                        output,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+                    acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { output, .. } => {
@@ -214,8 +205,7 @@ pub(super) fn transform_internal(
         ..acir
     };
 
-    let transformation_map =
-        AcirTransformationMap { acir_opcode_positions: new_acir_opcode_positions };
+    log::trace!("Finish circuit transformation");
 
-    Ok((acir, transformation_map))
+    (acir, new_acir_opcode_positions)
 }

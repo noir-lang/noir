@@ -2,7 +2,7 @@
 name = "acvm"
 description = "The virtual machine that processes ACIR given a backend/proof system."
 # x-release-please-start-version
-version = "0.35.0"
+version = "0.38.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -16,30 +16,26 @@ repository.workspace = true
 num-bigint.workspace = true
 num-traits.workspace = true
 thiserror.workspace = true
+log.workspace = true
 
 acir.workspace = true
-stdlib.workspace = true
 brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
 
 indexmap = "1.7.0"
 
 [features]
-default = ["bn254", "testing"]
+default = ["bn254"]
 bn254 = [
     "acir/bn254",
-    "stdlib/bn254",
     "brillig_vm/bn254",
     "acvm_blackbox_solver/bn254",
 ]
 bls12_381 = [
     "acir/bls12_381",
-    "stdlib/bls12_381",
     "brillig_vm/bls12_381",
     "acvm_blackbox_solver/bls12_381",
 ]
-testing = ["stdlib/testing", "unstable-fallbacks"]
-unstable-fallbacks = []
 
 [dev-dependencies]
 rand = "0.8.5"

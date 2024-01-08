@@ -8,6 +8,7 @@
 
 # Important srs_db files.
 !srs_db/download_ignition.sh
+!srs_db/download_grumpkin.sh
 !srs_db/ignition/checksums
 
 # Source code.
@@ -20,3 +21,6 @@
 !scripts/strip-wasm.sh
 !./.clang-format
 !./format.sh
+
+# Doxygen stuff.
+!docs

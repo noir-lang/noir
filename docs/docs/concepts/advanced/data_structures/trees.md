@@ -6,44 +6,50 @@ import Image from "@theme/IdealImage";
 
 ## Overview
 
-Data trees are how we keep track of all the data in the network.
- Different tree structures are used for different kinds of data, as the requirements for each are different.
+Data trees are how we keep track of all the data in the network. Different tree structures are used for different kinds of data, as the requirements for each are different. This data is stored in corresponding trees whose roots are a part of an Aztec block.
 
 Data includes:
 
-- Private state (passed around either completely off-chain or via encrypted logs which are submitted on L1 in calldata)
-- Nullifiers to invalidate old private state
-- Public state
-- Contracts
+- Private state ([Note Hash tree](#note-hash-tree))
+- Nullifiers to invalidate old private state ([Nullifier tree](#nullifier-tree))
+- Public state ([Public State tree](#public-state-tree))
+- Contracts ([Contract tree](#contract-tree))
+- Previous block headers ([Archive tree](#archive-tree))
+- Global Variables
+
+```mermaid
+flowchart TD
+  A{Aztec Block} --> B[Note Hash Root]
+  A{Aztec Block} --> C[Nullifier Root]
+  A{Aztec Block} --> D[Public State Root]
+  A{Aztec Block} --> G[Contracts Root]
+  A{Aztec Block} --> F[Archive Root]
+  A{Aztec Block} --> E[Global Variables]
+
+```
 
 ## Note Hash Tree
 
 The note hash tree is an append-only tree, primarily designed for storing hashes of private state variables (called notes in Aztec Protocol).
 
-Each leaf value in the tree is a 254-bit altBN-254 scalar field element.
-This tree is used to verify validity of notes.
+Each leaf value in the tree is a 254-bit altBN-254 scalar field element. This tree is used to verify validity of notes (which hold private state).
 
 The leaves of this tree are hashes of notes.
 
 :::info
 These hashes are usually a cryptographic commitment.
-This is not always true because the note is not is not enforced by the protocol to contain randomness and therefore  not have the hiding property if the note does not contain any randomness, see [preimage attack](https://en.wikipedia.org/wiki/Preimage_attack) for context).
+This is not always true because the note is not required by the protocol to contain randomness. Therefore it may not have the hiding property of a commitment if the note does not contain any randomness, see [preimage attack](https://en.wikipedia.org/wiki/Preimage_attack) for context.
 :::
 
 Any function of any Aztec contract may insert new leaves into the this tree.
 
-Once inserted into this tree, a leaf's value can never be modified. We enforce this, to prevent linkability of transactions. If an observer sees that 'tx A' inserted a leaf and 'tx B' modified that leaf, then the observer knows these two transactions are related in some way. This is a big 'no no' if we want to ensure privacy.
+Once inserted into this tree, a leaf's value can never be modified. We enforce this, to prevent linkability of transactions. If an observer sees that 'tx A' inserted a leaf and 'tx B' modified that leaf, then the observer knows these two transactions are related in some way.
 
-So, if an app needs to edit a private state variable (which will be represented by one or more leaves in the tree), it may do so in a manner inspired by [zerocash](http://zerocash-project.org/media/pdf/zerocash-extended-20140518.pdf). (See [Nullifier Tree](#nullifier-tree)). This allows the leaf to be 'nullified' and a new leaf value inserted into the next empty position in the tree, in a way which prevents observers from linking the old and new leaves.
+If an app needs to edit a private state variable (which will be represented by one or more leaves in the tree), it may do so in a manner inspired by [zerocash](http://zerocash-project.org/media/pdf/zerocash-extended-20140518.pdf). (See [Nullifier Tree](#nullifier-tree)). This allows the leaf to be 'nullified' and a new leaf value inserted into the next empty position in the tree in a way which prevents observers from linking the old and new leaves.
 
 <Image img={require("/img/note-hash-tree.png")} />
 
 <!-- TODO: consider separating Note and Nullifier examples into their own doc, because it's actually a very large topic in itself, and can be expanded upon in much more detail than shown here. -->
-
-:::info
-**Siloing** refers to a process of hashing a hash with some other domain specific information (e.g. contract address).
-This siloing ensures that all hashes are appropriately domain-separated.
-:::
 
 ### Example Note
 
@@ -59,7 +65,7 @@ struct MyNote {
 }
 ```
 
-The note might be committed-to, within a function of the Aztec.nr Contract as:
+The note might be committed to, within a function of the Aztec.nr contract as:
 
 ```rust
 note_hash: Field = pedersen::compress(
@@ -75,8 +81,14 @@ The Private Kernel circuit will modify this `note_hash` further, before it is in
 
 - Silo the commitment, to prevent cross-contamination of this contract's state variables with other contracts' state variables:
   `siloed_note_hash: Field = hash(contract_address, note_hash);`
+
+  :::info
+  **Siloing** refers to a process of hashing a hash with some other domain specific information (e.g. contract address).
+  This siloing ensures that all hashes are appropriately domain-separated.
+  :::
+
 - Ensure uniqueness of the commitment, by hashing it with a nonce
-  `unique_siloed_note_hash: Field = hash(nonce, siloed_note_hash);`, where `nonce: Field = hash(new_nullifiers[0], index)`, where `new_nullifiers[0]` is a the first nullifier emitted in a transaction and index` is the position of the new note hash in all new note hashes inserted by the transaction to the note hash tree.
+  `unique_siloed_note_hash: Field = hash(nonce, siloed_note_hash);`, where `nonce: Field = hash(new_nullifiers[0], index)`, where `new_nullifiers[0]` is a the first nullifier emitted in a transaction and `index` is the position of the new note hash in all new note hashes inserted by the transaction to the note hash tree.
 
   :::info
   First nullifier of a transaction is always ensured to be non-zero because it is always set by the protocol and it represents a transaction hash.
@@ -85,13 +97,13 @@ The Private Kernel circuit will modify this `note_hash` further, before it is in
 
 The tree is append-only for a few of reasons:
 
-- It saves on the number of hashes required to perform membership proofs and insertions. As long as we know an upper bound on the number of leaves we'll ever need, we can shrink the tree down to that size (instead of using a gigantic sparse tree with 2^254 leaves).
+- It saves on the number of hashes required to perform membership proofs and insertions. As long as we know an upper bound on the number of leaves we'll ever need, we can shrink the tree down to that size.
 - It allows us to insert leaves in batches with fewer hashes than a sparse tree.
-- It allows syncing to be performed much quicker than a sparse tree, as a node can sync from left to right, and can adopt some efficient syncing algorithms.
+- It allows syncing to be performed much quicker than a sparse tree, as a node can sync from left to right, and can adopt an efficient syncing algorithm.
 
 :::note
 Cryptographic commitments have the nice property that they can _hide_ the contents of the underlying blob of data, whilst ensuring the
-'preimage' of that data cannot be modified (the latter property is called 'binding'). A simple commitment can be achieved by choosing your favorite hash function, and including a large random number in with the data you wish to commit to. (The randomness must be newly-generated for each commitment).
+'preimage' of that data cannot be modified (this property is called 'binding'). A simple commitment can be achieved by choosing a hash function and including a large random number in with the data you wish to commit to. Randomness must be newly-generated for each commitment.
 :::
 
 :::note
@@ -118,52 +130,60 @@ A common use case is to signal that a Note has been 'deleted', without revealing
 nullifier = hash(note_hash, owner_secret_key);
 ```
 
-This has the property that it's inextricably linked to the Note it is nullifying, and it can only be derived by the owner of the `owner_public_key` contained within the Note (a smart contract's logic would ensure that the secret key corresponds to the public key).
+This has the property that it's inextricably linked to the Note it is nullifying, and it can only be derived by the owner of the `owner_public_key` contained within the Note. Ensuring that the secret key corresponds to the public key would be implemented in the Aztec contract.
 
-If a function of a smart contract generates this Nullifier and submits it to the network, it will only be allowed to submit it once; a second submission will be rejected by the Base Rollup Circuit (which performs Merkle non-membership checks against the Nullifier Tree). This prevents a Note from being 'deleted' twice.
+A smart contract that generates this nullifier and submits it to the network will only be allowed to submit it once; a second submission will be rejected by the base [Rollup Circuit](../circuits/rollup_circuits/main.md#base-rollup-circuit) (which performs Merkle non-membership checks against the Nullifier Tree). This prevents a Note from being 'deleted' twice.
 
-> Note: a Note cannot actually be "deleted" from the Note Hash Tree, because it is an append-only tree. This is why we produce nullifiers; as a way of emulating deletion in a way where observers won't know which Note has been deleted.
+:::note
+
+A note cannot actually be "deleted" from the Note Hash Tree because it is an append-only tree. This is why we produce nullifiers; as a way of emulating deletion in a way where observers won't know which Note has been deleted.
+
+:::
+
 > Note: this nullifier derivation example is an oversimplification for the purposes of illustration.
 
 #### Initializing Singleton Notes
 
-'Singleton Note' is a term we've been using to mean: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". It's in contrast to a Note which only contains a small fragment of a Private State's current value. <!-- TODO: write about fragmented private state, somewhere. -->
+'Singleton Note' is a term we've been using to mean: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". It's in contrast to a Note which only contains a small fragment of a private state's current value. A token balance represented by multiple notes is an example of private state that uses many notes. <!-- TODO: write about fragmented private state, somewhere. -->
 
-We've found that such notes require an 'Initialization Nullifier'; a nullifier which, when emitted, signals the initialization of this state variable. I.e. the very first time the state variable has been written-to.
+Such notes require an 'Initialization Nullifier'; a nullifier which, when emitted, signals the initialization of this state variable (i.e. the very first time the state variable has been written to).
 
 > There's more on this topic in [the Aztec forum](https://discourse.aztec.network/t/utxo-syntax-2-initialising-singleton-utxos/47).
 
 ## Public State Tree
 
-A sparse Merkle tree, intended for storing public state variables of Aztec contracts. Each non-zero leaf contains the current value of some public state variable of some Aztec contract. Leaves of this tree may be updated in-place (as opposed to convoluted nullification of private states).
+A Sparse Merkle Tree, intended for storing public state variables of Aztec contracts. Each non-zero leaf contains the current value of some public state variable of some Aztec contract. Leaves of this tree may be updated in-place, as opposed to convoluted nullification of private states.
 
 <Image img={require("/img/public-data-tree.png")} />
 
-Each leaf is a key:value mapping, which maps a `(contract_address, storage_slot)` tuple to the current value of a state variable.
+Each leaf is a `key`:`value` mapping, which maps a `(contract_address, storage_slot)` tuple to the current value of a state variable.
 
-E.g. for a state variable at some `storage_slot` of some `contract_address`, its current `value` is stored at the leaf with:
+For example, for a state variable at some `storage_slot` of some `contract_address`, its current `value` is stored at the leaf with:
 
 - `leaf_index = pedersen(contract_address, storage_slot);`
 - `leaf_value = value;`
 
-> Note: pedersen hashes are domain-separated in the codebase; this is not shown here.
+:::note
+The type of hash used may change before mainnet.
+:::
 
-> Note: we might modify the type of hash used, before mainnet.
-
-Note this tree's data can only be read/written by the Sequencer, since only they can know the very-latest state of the tree when processing a tx.
+This tree's data can only be read/written by the Sequencer, since only they can know the very-latest state of the tree when processing a transaction.
 
 ## Contract Tree
 
-The contract tree contains information about every function of every contract deployed to the Aztec network. This allows the Kernel Circuits to validate that for every function execution request, the requested function actually belongs to a deployed contract.
+The contract tree contains information about every function of every contract deployed to the Aztec network. This allows the [Kernel Circuits](../circuits/kernels/main.md) to validate that a function belongs to a specific contract.
 
 <Image img={require("/img/contract-tree.png")} />
 
-> Note: Aztec supports the ability to keep the logic of private functions of a smart contract private. In such cases, no information about the logic of that private function will be broadcast; only a randomized merkle root of that contract's data.
+:::note
+Aztec supports the ability to keep the logic of private functions of a smart contract private. In such cases, no information about the logic of that private function will be broadcast; only a randomized merkle root of that contract's data.
+:::
 
-## Blocks Tree
+## Archive Tree
 
-Leaves are hashes of blocks (of block headers).
-Can be used to access any of the trees above at some older point in time by doing a membership check of the old root in the block header and of the block header hash in the blocks tree.
+A block includes the root to the Archive Tree (sometimes called the blocks tree).
+
+The leaves of the tree are hashes of previous block headers. This tree can be used to verify data of any of the trees above at some previous point in time by doing a membership check of the corresponding tree root in the block header and the block header hash in the blocks tree.
 
 ## Trees of valid Kernel/Rollup circuit Verification Keys
 

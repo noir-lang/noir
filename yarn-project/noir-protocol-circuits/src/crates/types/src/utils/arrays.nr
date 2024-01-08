@@ -15,28 +15,32 @@ use crate::utils::bounded_vec::BoundedVec;
 // if a value can actually be zero. In a future refactor, we can 
 // use the optional type for safety. Doing it now would lead to a worse devex
 // and would make it harder to sync up with the cpp code.
-pub fn is_empty_array<T>(array : [Field; T]) -> bool {
+pub fn is_empty_array<T>(array: [Field; T]) -> bool {
     array.all(|elem| is_empty(elem))
 }
 
-fn is_empty(value : Field) -> bool {
+fn is_empty(value: Field) -> bool {
     value == 0
 }
 
+pub fn is_empty_struct_array<T, N>(array: [T; N], is_empty: fn(T) -> bool) -> bool {
+    array.all(|elem| is_empty(elem))
+}
+
 // Replace it with `array_to_bounded_vec` when trait is available.
-pub fn struct_array_to_bounded_vec<T, N>(array: [T; N], is_empty_item: fn (T)->bool, empty_item: T) -> BoundedVec<T, N> {
+pub fn struct_array_to_bounded_vec<T, N>(
+    array: [T; N],
+    is_empty_item: fn(T) -> bool,
+    empty_item: T
+) -> BoundedVec<T, N> {
     let mut len = 0;
     for elem in array {
         if !is_empty_item(elem) {
             len += 1;
         }
     }
-    
-    BoundedVec {
-        storage: array,
-        len,
-        empty_value: empty_item,
-    }
+
+    BoundedVec { storage: array, len, empty_value: empty_item }
 }
 
 pub fn array_to_bounded_vec<N>(array: [Field; N]) -> BoundedVec<Field, N> {
@@ -46,12 +50,8 @@ pub fn array_to_bounded_vec<N>(array: [Field; N]) -> BoundedVec<Field, N> {
             len += 1;
         }
     }
-    
-    BoundedVec {
-        storage: array,
-        len,
-        empty_value: 0,
-    }
+
+    BoundedVec { storage: array, len, empty_value: 0 }
 }
 
 // Routine which validates that all zero values of an array form a contiguous region at the end, i.e.,
@@ -63,7 +63,7 @@ pub fn array_to_bounded_vec<N>(array: [Field; N]) -> BoundedVec<Field, N> {
 // 
 // TODO: We can possibly optimize this by taking advantage of the fact that adding 0 does not 
 // TODO: change a running sum.
-pub fn validate_array<T>(array : [Field;T]) {
+pub fn validate_array<T>(array: [Field; T]) {
     let array_length = array.len();
 
     let mut first_zero_pos = array_length;
@@ -98,7 +98,7 @@ pub fn validate_struct_array<T, N>(array: [T; N], is_empty_item: fn(T) -> bool) 
 
 // Helper method to determine the number of non-zero/empty elements in a validated array (ie, validate_array(array) 
 // should be true).
-pub fn array_length<N>(array : [Field; N]) -> Field {
+pub fn array_length<N>(array: [Field; N]) -> Field {
     let mut length = 0;
     let mut end = false;
     for elem in array {
@@ -135,8 +135,8 @@ pub fn array_eq<N, S>(array: [Field; N], expected: [Field; S]) -> bool {
 pub fn struct_array_eq<T, N, S>(
     array: [T; N],
     expected: [T; S],
-    eq: fn (T, T) -> bool,
-    is_empty_item: fn (T) -> bool,
+    eq: fn(T, T) -> bool,
+    is_empty_item: fn(T) -> bool
 ) -> bool {
     let length = struct_array_length(array, is_empty_item);
     let mut ret = length == S;
@@ -154,25 +154,25 @@ fn smoke_validate_array() {
     let valid_array = [0];
     validate_array(valid_array);
 
-    let valid_array = [1,2,3];
+    let valid_array = [1, 2, 3];
     validate_array(valid_array);
 
-    let valid_array = [1,2,3,0];
+    let valid_array = [1, 2, 3, 0];
     validate_array(valid_array);
 
-    let valid_array = [1,2,3,0,0];
+    let valid_array = [1, 2, 3, 0, 0];
     validate_array(valid_array);
 }
 
 #[test(should_fail_with = "invalid array")]
-fn smoke_validate_array_invalid(){
-    let invalid_array = [0,1];
+fn smoke_validate_array_invalid() {
+    let invalid_array = [0, 1];
     validate_array(invalid_array);
 }
 
 #[test(should_fail_with = "invalid array")]
-fn smoke_validate_array_invalid_case2(){
-    let invalid_array = [0,0,0,0,1];
+fn smoke_validate_array_invalid_case2() {
+    let invalid_array = [0, 0, 0, 0, 1];
     validate_array(invalid_array);
 }
 

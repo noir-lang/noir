@@ -1,25 +1,31 @@
 use crate::address::AztecAddress;
+use dep::std::ops::Eq;
+use crate::traits::Empty;
 
 struct CallerContext {
     msg_sender: AztecAddress,
     storage_contract_address: AztecAddress,
 }
 
-impl CallerContext {
-    pub fn empty() -> Self {
+impl Eq for CallerContext {
+    fn eq(self, caller_context: CallerContext) -> bool {
+        caller_context.msg_sender.eq(self.msg_sender)
+            & caller_context.storage_contract_address.eq(self.storage_contract_address)
+    }
+}
+
+impl Empty for CallerContext {
+    fn empty() -> Self {
         CallerContext {
             msg_sender: AztecAddress::zero(),
             storage_contract_address: AztecAddress::zero(),
         }
     }
+}
 
+impl CallerContext {
     pub fn is_empty(self) -> bool {
         self.msg_sender.is_zero() & self.storage_contract_address.is_zero()
-    }
-
-    pub fn eq(self, caller_context: CallerContext) -> bool {
-        caller_context.msg_sender.eq(self.msg_sender)
-            & caller_context.storage_contract_address.eq(self.storage_contract_address)
     }
 }
 
@@ -27,24 +33,34 @@ struct CallRequest {
     hash: Field,
     caller_contract_address: AztecAddress,
     caller_context: CallerContext,
+    start_side_effect_counter: Field,
+    end_side_effect_counter: Field,
 }
 
-impl CallRequest {
-    pub fn empty() -> Self {
-        Self {
-            hash: 0,
-            caller_contract_address: AztecAddress::zero(),
-            caller_context: dep::std::unsafe::zeroed(),
-        }
-    }
-
-    pub fn is_empty(self) -> bool {
-        self.hash == 0
-    }
-
-    pub fn eq(self, call_request: CallRequest) -> bool {
+impl Eq for CallRequest {
+    fn eq(self, call_request: CallRequest) -> bool {
         (call_request.hash == self.hash)
             & (call_request.caller_contract_address.eq(self.caller_contract_address))
             & (call_request.caller_context.eq(self.caller_context))
+            & (call_request.start_side_effect_counter == self.start_side_effect_counter)
+            & (call_request.end_side_effect_counter == self.end_side_effect_counter)
+    }
+}
+
+impl Empty for CallRequest {
+    fn empty() -> Self {
+        CallRequest {
+            hash: 0,
+            caller_contract_address: AztecAddress::zero(),
+            caller_context: CallerContext::empty(),
+            start_side_effect_counter: 0,
+            end_side_effect_counter: 0,
+        }
+    }
+}
+
+impl CallRequest {
+    pub fn is_empty(self) -> bool {
+        self.hash == 0
     }
 }

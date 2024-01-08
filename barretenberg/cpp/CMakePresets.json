@@ -370,6 +370,11 @@
       "targets": ["barretenberg.wasm"]
     },
     {
+      "name": "xray",
+      "configurePreset": "xray",
+      "inherits": "default"
+    },
+    {
       "name": "xray-verbose",
       "configurePreset": "xray-verbose",
       "inherits": "default"

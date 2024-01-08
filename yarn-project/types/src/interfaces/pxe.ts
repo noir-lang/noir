@@ -1,20 +1,14 @@
 import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
-import {
-  AuthWitness,
-  ContractData,
-  ExtendedContractData,
-  ExtendedNote,
-  GetUnencryptedLogsResponse,
-  L2Block,
-  L2Tx,
-  LogFilter,
-  Tx,
-  TxExecutionRequest,
-  TxHash,
-  TxReceipt,
-} from '@aztec/types';
 
+import { AuthWitness } from '../auth_witness.js';
+import { ContractData, ExtendedContractData } from '../contract_data.js';
+import { L2Block } from '../l2_block.js';
+import { L2Tx } from '../l2_tx.js';
+import { GetUnencryptedLogsResponse, LogFilter } from '../logs/index.js';
+import { ExtendedNote } from '../notes/index.js';
 import { NoteFilter } from '../notes/note_filter.js';
+import { Tx, TxHash, TxReceipt } from '../tx/index.js';
+import { TxExecutionRequest } from '../tx_execution_request.js';
 import { DeployedContract } from './deployed-contract.js';
 import { NodeInfo } from './node-info.js';
 import { SyncStatus } from './sync-status.js';

@@ -252,12 +252,15 @@ fn check_for_storage_definition(module: &SortedModule) -> bool {
     module.types.iter().any(|r#struct| r#struct.name.0.contents == "Storage")
 }
 
-// Check if "compute_note_hash_and_nullifier(Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
+// Check if "compute_note_hash_and_nullifier(AztecAddress,Field,Field,[Field; N]) -> [Field; 4]" is defined
 fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
     module.functions.iter().any(|func| {
         func.def.name.0.contents == "compute_note_hash_and_nullifier"
                 && func.def.parameters.len() == 4
-                && func.def.parameters[0].typ.typ == UnresolvedTypeData::FieldElement
+                && match &func.def.parameters[0].typ.typ {
+                    UnresolvedTypeData::Named(path, _) => path.segments.last().unwrap().0.contents == "AztecAddress",
+                    _ => false,
+                }
                 && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
                 && func.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
                 // checks if the 4th parameter is an array and the Box<UnresolvedType> in
@@ -480,11 +483,12 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 
 /// Generates the impl for an event selector
 ///
+/// TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Make this point to aztec-nr once the issue is fixed.
 /// Inserts the following code:
 /// ```noir
 /// impl SomeStruct {
-///    fn selector() -> Field {
-///       aztec::oracle::compute_selector::compute_selector("SIGNATURE_PLACEHOLDER")
+///    fn selector() -> FunctionSelector {
+///       protocol_types::abis::function_selector::FunctionSelector::from_signature("SIGNATURE_PLACEHOLDER")
 ///    }
 /// }
 /// ```
@@ -495,10 +499,18 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Make this point to aztec-nr once the issue is fixed.
+    let selector_path = chained_path!("protocol_types", "abis", "function_selector", "FunctionSelector");
+    let mut from_signature_path = selector_path.clone();
+    from_signature_path.segments.push(ident("from_signature"));
+
     let selector_fun_body = BlockExpression(vec![make_statement(StatementKind::Expression(call(
-        variable_path(chained_path!("aztec", "selector", "compute_selector")),
+        variable_path(from_signature_path),
         vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
     )))]);
+
+    // Define `FunctionSelector` return type
+    let return_type = FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![])));
 
     let mut selector_fn_def = FunctionDefinition::normal(
         &ident("selector"),
@@ -506,7 +518,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         &[],
         &selector_fun_body,
         &[],
-        &FunctionReturnType::Ty(make_type(UnresolvedTypeData::FieldElement)),
+        &return_type,
     );
 
     selector_fn_def.visibility = FunctionVisibility::Public;
@@ -914,9 +926,10 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {
         range: ForRange::Range(
-            expression(ExpressionKind::Literal(Literal::Integer(FieldElement::from(i128::from(
-                0,
-            ))))),
+            expression(ExpressionKind::Literal(Literal::Integer(
+                FieldElement::from(i128::from(0)),
+                false,
+            ))),
             end_range_expression,
         ),
         identifier: ident("i"),

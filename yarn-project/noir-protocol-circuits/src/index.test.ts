@@ -20,8 +20,6 @@ import {
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
-  MAX_PENDING_READ_REQUESTS_PER_CALL,
-  MAX_PENDING_READ_REQUESTS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -47,6 +45,8 @@ import {
   PublicDataUpdateRequest,
   RETURN_VALUES_LENGTH,
   ReadRequestMembershipWitness,
+  SideEffect,
+  SideEffectLinkedToNoteHash,
   TxContext,
   TxRequest,
   VK_TREE_HEIGHT,
@@ -63,6 +63,10 @@ import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 
 import { executeInit, executeInner, executeOrdering } from './index.js';
+
+function _makeEmptyReadRequest() {
+  return makeTuple(MAX_READ_REQUESTS_PER_TX, () => SideEffect.empty());
+}
 
 describe('Private kernel', () => {
   let logger: DebugLogger;
@@ -96,16 +100,29 @@ describe('Private kernel', () => {
       '0x25e2c017f5da1f994401e61d26be435e3cfa26efee784c6b4e947f7651bd4104',
     );
 
-    const newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, () => Fr.ZERO);
-    newCommitments[0] = Fr.fromString('0x0aced88c953b70873e4a33dde4620dc43a709c15013c46c60d167de8e1c32315');
+    const newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, () => SideEffect.empty());
+    newCommitments[0] = new SideEffect(
+      Fr.fromString('0x0aced88c953b70873e4a33dde4620dc43a709c15013c46c60d167de8e1c32315'),
+      Fr.ZERO,
+    );
 
-    const newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, () => Fr.ZERO);
-    newNullifiers[0] = Fr.fromString('0x03579f468b2283611cc4d7adfbb93b8a4815d93ac0b1e1d11dace012cf73c7aa');
+    const newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, () => SideEffectLinkedToNoteHash.empty());
+    newNullifiers[0] = new SideEffectLinkedToNoteHash(
+      Fr.fromString('0x03579f468b2283611cc4d7adfbb93b8a4815d93ac0b1e1d11dace012cf73c7aa'),
+      Fr.ZERO,
+      Fr.ZERO,
+    );
 
-    const nullifiedCommitments = makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, () => Fr.ZERO);
-    nullifiedCommitments[0] = Fr.fromString('0x0f4240');
-
-    const callContext = new CallContext(AztecAddress.ZERO, contractAddress, Fr.ZERO, selector, false, false, true);
+    const callContext = new CallContext(
+      AztecAddress.ZERO,
+      contractAddress,
+      Fr.ZERO,
+      selector,
+      false,
+      false,
+      true,
+      Fr.ZERO,
+    );
 
     const blockHeader = new BlockHeader(
       Fr.fromString('0x16642d9ccd8346c403aa4c3fa451178b22534a27035cdaa6ec34ae53b29c50cb'),
@@ -122,14 +139,13 @@ describe('Private kernel', () => {
       callContext,
       argsHash,
       makeTuple(RETURN_VALUES_LENGTH, () => Fr.ZERO),
-      makeTuple(MAX_READ_REQUESTS_PER_CALL, () => Fr.ZERO),
-      makeTuple(MAX_PENDING_READ_REQUESTS_PER_CALL, () => Fr.ZERO),
+      makeTuple(MAX_READ_REQUESTS_PER_CALL, () => SideEffect.empty()),
       newCommitments,
       newNullifiers,
-      nullifiedCommitments,
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, () => Fr.ZERO),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, () => Fr.ZERO),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, () => Fr.ZERO),
+      Fr.ZERO,
       [Fr.fromString('0x9cc0744c0dde14f24854659b052ffb7e'), Fr.fromString('0x28120e19a5cc9ec344f3d6d41b6fada2')],
       [Fr.fromString('0xe3b0c44298fc1c149afbf4c8996fb924'), Fr.fromString('0x27ae41e4649b934ca495991b7852b855')],
       Fr.fromString('0xf8'),
@@ -181,25 +197,34 @@ describe('Private kernel', () => {
     );
     const txContext = new TxContext(false, false, true, contractDeploymentData, Fr.ZERO, Fr.ZERO);
 
-    const newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => Fr.ZERO);
-    newCommitments[0] = Fr.fromString('0x0aced88c953b70873e4a33dde4620dc43a709c15013c46c60d167de8e1c32315');
+    const newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => SideEffect.empty());
+    newCommitments[0] = new SideEffect(
+      Fr.fromString('0x0aced88c953b70873e4a33dde4620dc43a709c15013c46c60d167de8e1c32315'),
+      Fr.ZERO,
+    );
 
-    const newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => Fr.ZERO);
-    newNullifiers[0] = Fr.fromString('0x0faf656089e5a8d321b64f420fc008005736a0b4f0b8588891241392c82655b9');
-    newNullifiers[1] = Fr.fromString('0x4a5d6bc34e84c5a3d7a625a3772f4d2f84c7d46637691ef64ee2711e6c6202');
-    newNullifiers[2] = Fr.fromString('0x19085a4478c4aa3994d4a5935eaf5e0d58726a758d398a97f634df22d33d388a');
-
-    const nullifiedCommitments = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => Fr.ZERO);
-    nullifiedCommitments[0] = Fr.fromString('0x0f4240');
-    nullifiedCommitments[1] = Fr.fromString('0x0f4240');
+    const newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => SideEffectLinkedToNoteHash.empty());
+    newNullifiers[0] = new SideEffectLinkedToNoteHash(
+      Fr.fromString('0x0faf656089e5a8d321b64f420fc008005736a0b4f0b8588891241392c82655b9'),
+      Fr.ZERO,
+      Fr.ZERO,
+    );
+    newNullifiers[1] = new SideEffectLinkedToNoteHash(
+      Fr.fromString('0x4a5d6bc34e84c5a3d7a625a3772f4d2f84c7d46637691ef64ee2711e6c6202'),
+      Fr.ZERO,
+      Fr.ZERO,
+    );
+    newNullifiers[2] = new SideEffectLinkedToNoteHash(
+      Fr.fromString('0x19085a4478c4aa3994d4a5935eaf5e0d58726a758d398a97f634df22d33d388a'),
+      Fr.ZERO,
+      Fr.ZERO,
+    );
 
     const combinedAccumulatedData = new CombinedAccumulatedData(
       AggregationObject.makeFake(),
-      makeTuple(MAX_READ_REQUESTS_PER_TX, () => new Fr(0n)),
-      makeTuple(MAX_PENDING_READ_REQUESTS_PER_TX, () => new Fr(0n)),
+      makeTuple(MAX_READ_REQUESTS_PER_TX, () => SideEffect.empty()),
       newCommitments,
       newNullifiers,
-      nullifiedCommitments,
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, () => CallRequest.empty()),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, () => CallRequest.empty()),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, () => new Fr(0n)),
@@ -343,7 +368,7 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
     const contractAddress = AztecAddress.fromBigInt(1n);
     const functionData = new FunctionData(new FunctionSelector(2), false, false, false);
     const appPublicInputs = PublicCircuitPublicInputs.empty();
-    appPublicInputs.newCommitments[0] = new Fr(1);
+    appPublicInputs.newCommitments[0] = new SideEffect(new Fr(1), Fr.ZERO);
 
     const publicCallStackItem = new PublicCallStackItem(contractAddress, functionData, appPublicInputs, false);
     expect(publicCallStackItem.hash().toString()).toMatchSnapshot();
@@ -353,7 +378,7 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
     const contractAddress = AztecAddress.fromBigInt(1n);
     const functionData = new FunctionData(new FunctionSelector(2), false, false, false);
     const appPublicInputs = PublicCircuitPublicInputs.empty();
-    appPublicInputs.newCommitments[0] = new Fr(1);
+    appPublicInputs.newCommitments[0] = new SideEffect(new Fr(1), Fr.ZERO);
 
     const publicCallStackItem = new PublicCallStackItem(contractAddress, functionData, appPublicInputs, true);
     expect(publicCallStackItem.hash().toString()).toMatchSnapshot();

@@ -16,6 +16,7 @@ template <typename Flavor> class UltraVerifier_ {
   public:
     explicit UltraVerifier_(const std::shared_ptr<Transcript>& transcript,
                             const std::shared_ptr<VerificationKey>& verifier_key = nullptr);
+
     explicit UltraVerifier_(const std::shared_ptr<VerificationKey>& verifier_key);
     UltraVerifier_(UltraVerifier_&& other);
 
@@ -34,5 +35,6 @@ extern template class UltraVerifier_<honk::flavor::Ultra>;
 extern template class UltraVerifier_<honk::flavor::GoblinUltra>;
 
 using UltraVerifier = UltraVerifier_<honk::flavor::Ultra>;
+using GoblinUltraVerifier = UltraVerifier_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

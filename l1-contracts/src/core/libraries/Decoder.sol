@@ -87,10 +87,8 @@ library Decoder {
     bytes32[] baseLeaves;
     bytes32[] l2ToL1Msgs;
     bytes baseLeaf;
-    bytes32 encryptedLogsHashKernel1;
-    bytes32 encryptedLogsHashKernel2;
-    bytes32 unencryptedLogsHashKernel1;
-    bytes32 unencryptedLogsHashKernel2;
+    bytes32 encryptedLogsHash;
+    bytes32 unencryptedLogsHash;
     uint256 l1Tol2MsgsCount;
   }
 
@@ -210,7 +208,7 @@ library Decoder {
 
       // Commitments
       uint256 count = read4(_l2Block, offset);
-      vars.baseLeaves = new bytes32[](count / (Constants.MAX_NEW_COMMITMENTS_PER_TX * 2));
+      vars.baseLeaves = new bytes32[](count / Constants.MAX_NEW_COMMITMENTS_PER_TX);
       offsets.commitment = BLOCK_HEADER_OFFSET + 0x4;
       offset += 0x4 + count * 0x20;
       offsets.nullifier = offset + 0x4; // + 0x4 to offset by next read4
@@ -261,24 +259,15 @@ library Decoder {
         /*
          * Compute the leaf to insert.
          * Leaf_i = (
-         *    newCommitmentsKernel1,
-         *    newCommitmentsKernel2,
-         *    newNullifiersKernel1,
-         *    newNullifiersKernel2,
-         *    newPublicDataWritesKernel1,
-         *    newPublicDataWritesKernel2,
-         *    newL2ToL1MsgsKernel1,
-         *    newL2ToL1MsgsKernel2,
-         *    newContractLeafKernel1,
-         *    newContractLeafKernel2,
-         *    newContractDataKernel1.aztecAddress,
-         *    newContractDataKernel1.ethAddress (padded to 32 bytes),
-         *    newContractDataKernel2.aztecAddress,
-         *    newContractDataKernel2.ethAddress (padded to 32 bytes), ____
-         *    encryptedLogsHashKernel1,                                   |
-         *    encryptedLogsHashKernel2,                                   |=> Computed below from logs' preimages.
-         *    unencryptedLogsHashKernel1,                                 |
-         *    unencryptedLogsHashKernel2                              ____|
+         *    newCommitmentsKernel,
+         *    newNullifiersKernel,
+         *    newPublicDataWritesKernel,
+         *    newL2ToL1MsgsKernel,
+         *    newContractLeafKernel,
+         *    newContractDataKernel.aztecAddress,
+         *    newContractDataKernel.ethAddress (padded to 32 bytes),
+         *    encryptedLogsHash,                                   |
+         *    unencryptedLogsHash,                             ____|=> Computed below from logs' preimages.
          * );
          * Note that we always read data, the l2Block (atm) must therefore include dummy or zero-notes for
          * Zero values.
@@ -288,14 +277,10 @@ library Decoder {
          * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
          * Note: will advance offsets by the number of bytes processed.
          */
-        (vars.encryptedLogsHashKernel1, offsets.encryptedLogs) =
-          computeKernelLogsHash(offsets.encryptedLogs, _l2Block);
-        (vars.encryptedLogsHashKernel2, offsets.encryptedLogs) =
+        (vars.encryptedLogsHash, offsets.encryptedLogs) =
           computeKernelLogsHash(offsets.encryptedLogs, _l2Block);
 
-        (vars.unencryptedLogsHashKernel1, offsets.unencryptedLogs) =
-          computeKernelLogsHash(offsets.unencryptedLogs, _l2Block);
-        (vars.unencryptedLogsHashKernel2, offsets.unencryptedLogs) =
+        (vars.unencryptedLogsHash, offsets.unencryptedLogs) =
           computeKernelLogsHash(offsets.unencryptedLogs, _l2Block);
 
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
@@ -310,19 +295,11 @@ library Decoder {
             slice(_l2Block, offsets.contracts, Constants.CONTRACTS_NUM_BYTES_PER_BASE_ROLLUP)
           ),
           bytes.concat(
-            slice(_l2Block, offsets.contractData, 0x20), // newContractDataKernel1.aztecAddress
+            slice(_l2Block, offsets.contractData, 0x20), // newContractDataKernel.aztecAddress
             bytes12(0),
-            slice(_l2Block, offsets.contractData + 0x20, 0x14), // newContractDataKernel1.ethAddress
-            slice(_l2Block, offsets.contractData + 0x34, 0x20), // newContractDataKernel2.aztecAddress
-            bytes12(0),
-            slice(_l2Block, offsets.contractData + 0x54, 0x14) // newContractDataKernel2.ethAddress
+            slice(_l2Block, offsets.contractData + 0x20, 0x14) // newContractDataKernel.ethAddress
           ),
-          bytes.concat(
-            vars.encryptedLogsHashKernel1,
-            vars.encryptedLogsHashKernel2,
-            vars.unencryptedLogsHashKernel1,
-            vars.unencryptedLogsHashKernel2
-          )
+          bytes.concat(vars.encryptedLogsHash, vars.unencryptedLogsHash)
         );
 
         offsets.commitment += Constants.COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP;

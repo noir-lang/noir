@@ -1,17 +1,11 @@
-import {
-  MAX_NEW_CONTRACTS_PER_TX,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  PrivateKernelPublicInputsFinal,
-  Proof,
-  PublicCallRequest,
-} from '@aztec/circuits.js';
+import { MAX_NEW_CONTRACTS_PER_TX, PrivateKernelPublicInputsFinal, Proof, PublicCallRequest } from '@aztec/circuits.js';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import { ExtendedContractData } from '../contract_data.js';
-import { L2LogsSource } from '../index.js';
 import { GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
+import { L2LogsSource } from '../logs/index.js';
 import { TxL2Logs } from '../logs/tx_l2_logs.js';
 import { TxStats } from '../stats/stats.js';
 import { TxHash } from './tx_hash.js';
@@ -81,8 +75,8 @@ export class Tx {
       reader.readObject(Proof),
       reader.readObject(TxL2Logs),
       reader.readObject(TxL2Logs),
-      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest),
-      reader.readArray(MAX_NEW_CONTRACTS_PER_TX, ExtendedContractData),
+      reader.readArray(reader.readNumber(), PublicCallRequest),
+      reader.readArray(reader.readNumber(), ExtendedContractData) as [ExtendedContractData],
     );
   }
 
@@ -96,7 +90,9 @@ export class Tx {
       this.proof,
       this.encryptedLogs,
       this.unencryptedLogs,
+      this.enqueuedPublicFunctionCalls.length,
       this.enqueuedPublicFunctionCalls,
+      this.newContracts.length,
       this.newContracts,
     ]);
   }
@@ -159,7 +155,7 @@ export class Tx {
     if (!firstNullifier) {
       throw new Error(`Cannot get tx hash since first nullifier is missing`);
     }
-    return Promise.resolve(new TxHash(firstNullifier.toBuffer()));
+    return Promise.resolve(new TxHash(firstNullifier.value.toBuffer()));
   }
 
   /** Returns stats about this tx. */

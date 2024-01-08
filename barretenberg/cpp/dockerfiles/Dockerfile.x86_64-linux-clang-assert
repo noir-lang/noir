@@ -3,19 +3,20 @@ FROM alpine:3.17 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
-        build-base \
-        clang15 \
-        cmake \
-        ninja \
-        git \
-        curl \
-        perl \
-        clang-extra-tools \
-        bash
+    build-base \
+    clang15 \
+    cmake \
+    ninja \
+    git \
+    curl \
+    perl \
+    clang-extra-tools \
+    bash
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
 RUN ./format.sh check && cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --build --preset default
+RUN srs_db/download_grumpkin.sh
 
 FROM alpine:3.17
 RUN apk update && apk add curl libstdc++

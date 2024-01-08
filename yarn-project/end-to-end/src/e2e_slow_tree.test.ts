@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import { CheatCodes, DebugLogger, Fr, Wallet } from '@aztec/aztec.js';
 import { Pedersen, SparseTree, newTree } from '@aztec/merkle-tree';
-import { SlowTreeContract } from '@aztec/noir-contracts/types';
+import { SlowTreeContract } from '@aztec/noir-contracts/SlowTree';
 
 import { default as levelup } from 'levelup';
 import { type MemDown, default as memdown } from 'memdown';

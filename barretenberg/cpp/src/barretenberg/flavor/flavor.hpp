@@ -263,7 +263,7 @@ class Ultra;
 class ECCVM;
 class GoblinUltra;
 template <typename BuilderType> class UltraRecursive_;
-template <typename BuilderType> class GoblinUltraRecursive_;
+class GoblinUltraRecursive;
 } // namespace proof_system::honk::flavor
 
 // Forward declare plonk flavors
@@ -293,14 +293,12 @@ concept IsUltraFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::GoblinUltr
 
 template <typename T> 
 concept IsGoblinFlavor = IsAnyOf<T, honk::flavor::GoblinUltra,
-                                    honk::flavor::GoblinUltraRecursive_<UltraCircuitBuilder>, 
-                                    honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>>;
+                                    honk::flavor::GoblinUltraRecursive>;
 
 template <typename T> 
 concept IsRecursiveFlavor = IsAnyOf<T, honk::flavor::UltraRecursive_<UltraCircuitBuilder>, 
                                        honk::flavor::UltraRecursive_<GoblinUltraCircuitBuilder>, 
-                                       honk::flavor::GoblinUltraRecursive_<UltraCircuitBuilder>, 
-                                       honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>>;
+                                       honk::flavor::GoblinUltraRecursive>;
 
 template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, honk::flavor::ECCVM>;
 

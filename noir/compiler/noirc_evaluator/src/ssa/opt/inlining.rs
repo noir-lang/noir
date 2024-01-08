@@ -139,11 +139,15 @@ impl InlineContext {
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
         context.inline_blocks(ssa);
+        // translate databus values
+        let databus = entry_point.dfg.data_bus.map_values(|t| context.translate_value(t));
 
         // Finally, we should have 1 function left representing the inlined version of the target function.
         let mut new_ssa = self.builder.finish();
         assert_eq!(new_ssa.functions.len(), 1);
-        new_ssa.functions.pop_first().unwrap().1
+        let mut new_func = new_ssa.functions.pop_first().unwrap().1;
+        new_func.dfg.data_bus = databus;
+        new_func
     }
 
     /// Inlines a function into the current function and returns the translated return values

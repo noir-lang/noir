@@ -7,7 +7,7 @@ import {
   TxStatus,
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
-import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts/types';
+import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts';
 
 import { delay, setup } from './fixtures/utils.js';
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';

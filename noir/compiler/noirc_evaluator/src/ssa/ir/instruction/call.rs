@@ -393,18 +393,6 @@ fn simplify_black_box_func(
                 _ => SimplifyResult::None,
             }
         }
-        BlackBoxFunc::HashToField128Security => match dfg.get_array_constant(arguments[0]) {
-            Some((input, _)) if array_is_constant(dfg, &input) => {
-                let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
-
-                let field = acvm::blackbox_solver::hash_to_field_128_security(&input_bytes)
-                    .expect("Rust solvable black box function should not fail");
-
-                let field_constant = dfg.make_constant(field, Type::field());
-                SimplifyResult::SimplifiedTo(field_constant)
-            }
-            _ => SimplifyResult::None,
-        },
 
         BlackBoxFunc::EcdsaSecp256k1 => {
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256k1_verify)

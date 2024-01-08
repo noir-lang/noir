@@ -170,7 +170,7 @@ export function generateTsInterface(
 
   // Generating Return type, if it exists
   if (abiObj.return_type != null) {
-    result += generateStructInterfaces(abiObj.return_type, outputStructs, primitiveTypeMap);
+    result += generateStructInterfaces(abiObj.return_type.abi_type, outputStructs, primitiveTypeMap);
   }
 
   return [result, getTsFunctionSignature(abiObj, primitiveTypeMap)];
@@ -184,6 +184,6 @@ function getTsFunctionSignature(
     param.name,
     abiTypeToTs(param.type, primitiveTypeMap),
   ]);
-  const returnValue = abi.return_type ? abiTypeToTs(abi.return_type, primitiveTypeMap) : null;
+  const returnValue = abi.return_type ? abiTypeToTs(abi.return_type.abi_type, primitiveTypeMap) : null;
   return { inputs, returnValue };
 }

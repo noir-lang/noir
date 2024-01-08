@@ -15,3 +15,4 @@ fm.workspace = true
 chumsky.workspace = true
 serde.workspace = true
 serde_with = "3.2.0"
+log.workspace = true

@@ -4,7 +4,7 @@ use dep::protocol_types::{
         new_contract_data::NewContractData as ContractLeafPreimage,
     },
     address::{AztecAddress, EthAddress},
-    point::Point,
+    grumpkin_point::GrumpkinPoint,
 };
 use dep::std::merkle::compute_merkle_root;
 
@@ -22,7 +22,7 @@ use crate::{
 //       it is what it expects. The constructor param check is the reason of why we pass in the preimage of contract's
 //       aztec address instead of just the address.
 pub fn prove_contract_inclusion(
-    deployer_public_key: Point,
+    deployer_public_key: GrumpkinPoint,
     contract_address_salt: Field,
     function_tree_root: Field,
     constructor_hash: Field,

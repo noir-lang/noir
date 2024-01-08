@@ -16,6 +16,6 @@ struct FixedBaseScalarMul {
     friend bool operator==(FixedBaseScalarMul const& lhs, FixedBaseScalarMul const& rhs) = default;
 };
 
-void create_fixed_base_constraint(Builder& builder, const FixedBaseScalarMul& input);
+template <typename Builder> void create_fixed_base_constraint(Builder& builder, const FixedBaseScalarMul& input);
 
 } // namespace acir_format

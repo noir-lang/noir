@@ -1,14 +1,7 @@
-import {
-  AccountWallet,
-  Fr,
-  GrumpkinScalar,
-  Note,
-  computeMessageSecretHash,
-  createPXEClient,
-  getUnsafeSchnorrAccount,
-} from '@aztec/aztec.js';
+import { getSingleKeyAccount } from '@aztec/accounts/single_key';
+import { AccountWallet, Fr, GrumpkinScalar, Note, computeMessageSecretHash, createPXEClient } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { TokenContract } from '@aztec/noir-contracts/types';
+import { TokenContract } from '@aztec/noir-contracts/Token';
 import { ExtendedNote } from '@aztec/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
@@ -32,8 +25,8 @@ const TRANSFER_AMOUNT = 33n;
 async function main() {
   logger('Running token contract test on HTTP interface.');
 
-  aliceWallet = await getUnsafeSchnorrAccount(pxe, alicePrivateKey).waitDeploy();
-  bobWallet = await getUnsafeSchnorrAccount(pxe, bobPrivateKey).waitDeploy();
+  aliceWallet = await getSingleKeyAccount(pxe, alicePrivateKey).waitDeploy();
+  bobWallet = await getSingleKeyAccount(pxe, bobPrivateKey).waitDeploy();
   const alice = aliceWallet.getCompleteAddress();
   const bob = bobWallet.getCompleteAddress();
 

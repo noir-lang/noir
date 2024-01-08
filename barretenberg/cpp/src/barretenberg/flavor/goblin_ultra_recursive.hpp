@@ -38,14 +38,14 @@ namespace proof_system::honk::flavor {
  *
  * @tparam BuilderType Determines the arithmetization of the verifier circuit defined based on this flavor.
  */
-template <typename BuilderType> class GoblinUltraRecursive_ {
+class GoblinUltraRecursive {
   public:
-    using CircuitBuilder = BuilderType; // Determines arithmetization of circuit instantiated with this flavor
+    using CircuitBuilder = GoblinUltraCircuitBuilder;
     using Curve = plonk::stdlib::bn254<CircuitBuilder>;
-    using GroupElement = typename Curve::Element;
-    using Commitment = typename Curve::Element;
-    using CommitmentHandle = typename Curve::Element;
-    using FF = typename Curve::ScalarField;
+    using GroupElement = Curve::Element;
+    using FF = Curve::ScalarField;
+    using Commitment = Curve::Element;
+    using CommitmentHandle = Curve::Element;
     using NativeVerificationKey = flavor::GoblinUltra::VerificationKey;
 
     // Note(luke): Eventually this may not be needed at all
@@ -78,7 +78,6 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
     using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
     using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
-  public:
     /**
      * @brief A field element for each entity of the flavor. These entities represent the prover polynomials evaluated
      * at one point.
@@ -87,7 +86,6 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
       public:
         using Base = GoblinUltra::AllEntities<FF>;
         using Base::Base;
-        AllValues(std::array<FF, NUM_ALL_ENTITIES> _data_in) { this->_data = _data_in; }
     };
     /**
      * @brief The verification key is responsible for storing the the commitments to the precomputed (non-witnessk)

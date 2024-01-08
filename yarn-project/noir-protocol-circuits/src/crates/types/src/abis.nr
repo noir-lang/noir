@@ -5,6 +5,7 @@ mod function_leaf_preimage;
 mod membership_witness;
 
 mod new_contract_data;
+mod nullifier_leaf_preimage;
 mod contract_leaf_preimage;
 
 mod block_header;
@@ -29,3 +30,4 @@ mod public_call_data;
 
 mod public_circuit_public_inputs;
 mod private_circuit_public_inputs;
+mod side_effect;

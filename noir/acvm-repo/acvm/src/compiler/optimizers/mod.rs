@@ -13,7 +13,9 @@ use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
-    let (mut acir, transformation_map) = optimize_internal(acir);
+    let (mut acir, new_opcode_positions) = optimize_internal(acir);
+
+    let transformation_map = AcirTransformationMap::new(new_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
@@ -21,7 +23,9 @@ pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
-pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, AcirTransformationMap) {
+pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
+    log::trace!("Start circuit optimization");
+
     // General optimizer pass
     let opcodes: Vec<Opcode> = acir
         .opcodes
@@ -50,7 +54,7 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, AcirTransformationMa
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
-    let transformation_map = AcirTransformationMap { acir_opcode_positions };
+    log::trace!("Finish circuit optimization");
 
-    (acir, transformation_map)
+    (acir, acir_opcode_positions)
 }

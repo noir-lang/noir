@@ -7,10 +7,6 @@ packages
 **/node_modules
 **/outputs
 
-# Source resolver
-compiler/source-resolver/lib
-compiler/source-resolver/lib-node
-
 # Noir.js
 tooling/noir_js/lib
 

@@ -7,7 +7,7 @@ use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSele
 use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
 
 use crate::{
-    get_non_stdlib_asset, get_package_tests_in_crate,
+    get_package_tests_in_crate,
     types::{NargoPackageTests, NargoTestsParams, NargoTestsResult},
     LspState,
 };
@@ -53,10 +53,10 @@ fn on_tests_request_inner(
     let package_tests: Vec<_> = workspace
         .into_iter()
         .filter_map(|package| {
-            let (mut context, crate_id) = prepare_package(package, Box::new(get_non_stdlib_asset));
+            let (mut context, crate_id) = prepare_package(package);
             // We ignore the warnings and errors produced by compilation for producing tests
             // because we can still get the test functions even if compilation fails
-            let _ = check_crate(&mut context, crate_id, false);
+            let _ = check_crate(&mut context, crate_id, false, false);
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             get_package_tests_in_crate(&context, &crate_id, &package.name)

@@ -56,12 +56,6 @@ pub enum BlackBoxFuncCall {
         domain_separator: u32,
         output: Witness,
     },
-    // 128 here specifies that this function
-    // should have 128 bits of security
-    HashToField128Security {
-        inputs: Vec<FunctionInput>,
-        output: Witness,
-    },
     EcdsaSecp256k1 {
         public_key_x: Vec<FunctionInput>,
         public_key_y: Vec<FunctionInput>,
@@ -130,7 +124,6 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
             BlackBoxFuncCall::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
             BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
-            BlackBoxFuncCall::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
             BlackBoxFuncCall::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
@@ -150,8 +143,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
-            | BlackBoxFuncCall::PedersenHash { inputs, .. }
-            | BlackBoxFuncCall::HashToField128Security { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::PedersenHash { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
@@ -244,7 +236,6 @@ impl BlackBoxFuncCall {
             } => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
-            | BlackBoxFuncCall::HashToField128Security { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
             | BlackBoxFuncCall::PedersenHash { output, .. }
