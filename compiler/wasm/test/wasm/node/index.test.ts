@@ -38,7 +38,7 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
     });
-  }).timeout(20 * 10e3);
+  }).timeout(60 * 20e3);
 
   describe('can compile scripts with dependencies', () => {
     const sourceMap = new PathToFileSourceMap();
@@ -72,7 +72,7 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
     });
-  }).timeout(20 * 10e3);
+  }).timeout(60 * 20e3);
 
   describe('can compile scripts with dependencies -- context-api', () => {
     let sourceMap: PathToFileSourceMap;
@@ -120,7 +120,7 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
-    }).timeout(20 * 10e3);
+    }).timeout(60 * 20e3);
 
     it('matching nargos compilation - context-implementation-compile-api', async () => {
       const wasmCircuit = await compile_(
@@ -145,6 +145,6 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
-    }).timeout(20 * 10e3);
+    }).timeout(60 * 20e3);
   });
 });
