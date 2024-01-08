@@ -468,6 +468,7 @@ impl NodeInterner {
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
     /// of each items [Span]
+    #[tracing::instrument(skip(self))]
     pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
@@ -504,7 +505,7 @@ impl NodeInterner {
             id: type_id,
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
-            span: unresolved_trait.trait_def.span,
+            location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
             generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
                 // Temporary type variable ids before the trait is resolved to its actual ids.
                 // This lets us record how many arguments the type expects so that other types
@@ -767,12 +768,12 @@ impl NodeInterner {
     }
 
     /// Returns the interned meta data corresponding to `func_id`
-    pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
-        self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
+    pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
+        self.func_meta.get(func_id).expect("ice: all function ids should have metadata")
     }
 
-    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<FuncMeta> {
-        self.func_meta.get(func_id).cloned()
+    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
+        self.func_meta.get(func_id)
     }
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
@@ -1142,6 +1143,7 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
+    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
@@ -1274,7 +1276,9 @@ impl NodeInterner {
     /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
     /// Returns [None] when definition is not found.
     pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
-        self.find_location_index(location).and_then(|index| self.resolve_location(index))
+        self.find_location_index(location)
+            .and_then(|index| self.resolve_location(index))
+            .or_else(|| self.try_resolve_trait_impl_location(location))
     }
 
     /// For a given [Index] we return [Location] to which we resolved to
@@ -1428,6 +1432,24 @@ impl NodeInterner {
 
     pub(crate) fn ordering_type(&self) -> Type {
         self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
+    }
+
+    /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
+    /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
+    ///
+    /// Example:
+    /// impl Foo for Bar { ... } -> trait Foo { ... }
+    fn try_resolve_trait_impl_location(&self, location: Location) -> Option<Location> {
+        self.trait_implementations
+            .iter()
+            .find(|shared_trait_impl| {
+                let trait_impl = shared_trait_impl.borrow();
+                trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
+            })
+            .and_then(|shared_trait_impl| {
+                let trait_impl = shared_trait_impl.borrow();
+                self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
+            })
     }
 }
 

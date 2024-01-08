@@ -29,6 +29,7 @@
         "chumsky",
         "clippy",
         "codegen",
+        "codegenned",
         "codegens",
         "Codespaces",
         "codespan",
@@ -153,7 +154,8 @@
         "vecmap",
         "wasi",
         "Weierstraß",
-        "zshell"
+        "zshell",
+        "barebones"
     ],
     "ignorePaths": [
         "./**/node_modules/**"
