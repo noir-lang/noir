@@ -15,8 +15,5 @@
     "target": "ESNext",
     "module": "CommonJS",
     "moduleResolution": "Node",
-    "paths": {
-      "@noir-lang/noir_wasm/*": ["./*"],
-    }
   }
 }
