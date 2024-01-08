@@ -510,6 +510,7 @@ impl Attribute {
                 Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod)
             }
             ["event"] => Attribute::Secondary(SecondaryAttribute::Event),
+            ["export"] => Attribute::Secondary(SecondaryAttribute::Export),
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
                     return Err(LexerErrorKind::MalformedFuncAttribute {
@@ -588,6 +589,7 @@ pub enum SecondaryAttribute {
     // the entry point.
     ContractLibraryMethod,
     Event,
+    Export,
     Field(String),
     Custom(String),
 }
@@ -602,6 +604,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
             SecondaryAttribute::Event => write!(f, "#[event]"),
+            SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
         }
     }
@@ -625,7 +628,7 @@ impl AsRef<str> for SecondaryAttribute {
             SecondaryAttribute::Deprecated(None) => "",
             SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
-            SecondaryAttribute::Event => "",
+            SecondaryAttribute::Event | SecondaryAttribute::Export => "",
         }
     }
 }

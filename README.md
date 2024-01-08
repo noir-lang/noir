@@ -6,7 +6,7 @@ Noir is a Domain Specific Language for SNARK proving systems. It has been design
 
 ## Quick Start
 
-Read the installation section [here](https://noir-lang.org/getting_started/nargo_installation).
+Read the installation section [here](https://noir-lang.org/docs/dev/getting_started/installation/).
 
 Once you have read through the documentation, you can visit [Awesome Noir](https://github.com/noir-lang/awesome-noir) to run some of the examples that others have created.
 
@@ -58,7 +58,7 @@ This crate's minimum supported rustc version is 1.71.1.
 
 ## Working on this project
 
-This project uses [Nix](https://nixos.org/) and [direnv](https://direnv.net/) to streamline the development experience. Please follow [our guidelines](https://noir-lang.org/getting_started/nargo_installation/#option-3-compile-from-source) to setup your environment for working on the project.
+This project uses [Nix](https://nixos.org/) and [direnv](https://direnv.net/) to streamline the development experience. Please follow [our guidelines](https://noir-lang.org/docs/dev/getting_started/installation/other_install_methods#option-3-compile-from-source) to setup your environment for working on the project.
 
 ### Building against a different local/remote version of Barretenberg
 

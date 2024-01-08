@@ -31,9 +31,9 @@ It is also assumed that you're not using `noir_wasm` for compilation, and instea
 
 :::info
 
-As you've read in the [explainer](../explainers/explainer-recursion.md), a recursive proof is an intermediate proof. Meaning it doesn't necessarily generate the final step that makes it verifiable in a smart contract. However, it is easy to verify within another circuit.
+As you've read in the [explainer](../explainers/explainer-recursion.md), a recursive proof is an intermediate proof. This means that it doesn't necessarily generate the final step that makes it verifiable in a smart contract. However, it is easy to verify within another circuit.
 
-While "standard" usage of NoirJS packages abstracts final proofs, it currently lacks the necessary interface to abstract away intermediate proofs. Which means these proofs need to be created by using the backend directly.
+While "standard" usage of NoirJS packages abstracts final proofs, it currently lacks the necessary interface to abstract away intermediate proofs. This means that these proofs need to be created by using the backend directly.
 
 In short:
 
@@ -82,11 +82,11 @@ const { proof, publicInputs } = await backend.generateIntermediateProof(witness)
 
 :::warning
 
-Always keep in mind what is actually happening on your development process, otherwise you'll quickly become confused about what circuit are we actually running and why!
+Always keep in mind what is actually happening on your development process, otherwise you'll quickly become confused about what circuit we are actually running and why!
 
 In this case, you can imagine that Alice (running the `main` circuit) is proving something to Bob (running the `recursive` circuit), and Bob is verifying her proof within his proof.
 
-With this in mind, it becomes clear that our intermediate proof is the one *meant to be verified within another circuit*. So it is Alice's. Actually, the only final proof in this theoretical scenario would be the last one, sent on-chain.
+With this in mind, it becomes clear that our intermediate proof is the one *meant to be verified within another circuit*, so it must be Alice's. Actually, the only final proof in this theoretical scenario would be the last one, sent on-chain.
 
 :::
 

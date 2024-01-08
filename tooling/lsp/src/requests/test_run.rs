@@ -78,8 +78,14 @@ fn on_test_run_request_inner(
                 )
             })?;
 
-            let test_result =
-                run_test(&state.solver, &context, test_function, false, &CompileOptions::default());
+            let test_result = run_test(
+                &state.solver,
+                &context,
+                test_function,
+                false,
+                None,
+                &CompileOptions::default(),
+            );
             let result = match test_result {
                 TestStatus::Pass => NargoTestRunResult {
                     id: params.id.clone(),

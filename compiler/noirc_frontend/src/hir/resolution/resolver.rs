@@ -1253,8 +1253,10 @@ impl<'a> Resolver<'a> {
                 if let Some((hir_expr, object_type)) = self.resolve_trait_generic_path(&path) {
                     let expr_id = self.interner.push_expr(hir_expr);
                     self.interner.push_expr_location(expr_id, expr.span, self.file);
-                    self.interner
-                        .select_impl_for_ident(expr_id, TraitImplKind::Assumed { object_type });
+                    self.interner.select_impl_for_expression(
+                        expr_id,
+                        TraitImplKind::Assumed { object_type },
+                    );
                     return expr_id;
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -1313,10 +1315,12 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Infix(infix) => {
                 let lhs = self.resolve_expression(infix.lhs);
                 let rhs = self.resolve_expression(infix.rhs);
+                let trait_id = self.interner.get_operator_trait_method(infix.operator.contents);
 
                 HirExpression::Infix(HirInfixExpression {
                     lhs,
                     operator: HirBinaryOp::new(infix.operator, self.file),
+                    trait_method_id: trait_id,
                     rhs,
                 })
             }
