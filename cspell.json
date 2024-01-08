@@ -15,8 +15,8 @@
         "bincode",
         "bindgen",
         "bitand",
-        "bitxor",
         "bitor",
+        "bitxor",
         "blackbox",
         "bridgekeeper",
         "brillig",
@@ -29,6 +29,7 @@
         "chumsky",
         "clippy",
         "codegen",
+        "codegenned",
         "codegens",
         "Codespaces",
         "codespan",
@@ -152,7 +153,8 @@
         "vecmap",
         "wasi",
         "Weierstraß",
-        "zshell"
+        "zshell",
+        "barebones"
     ],
     "ignorePaths": [
         "./**/node_modules/**"
