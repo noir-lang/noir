@@ -17,13 +17,13 @@ sidebar_position: 3
 The string type is a fixed length value defined with `str<N>`.
 
 You can use strings in `assert()` functions or print them with
-`std::println()`. See more about [Logging](../../standard_library/logging).
+`println()`. See more about [Logging](../../standard_library/logging).
 
 ```rust
 use dep::std;
 
 fn main(message : pub str<11>, hex_as_string : str<4>) {
-    std::println(message);
+    println(message);
     assert(message == "hello world");
     assert(hex_as_string == "0x41");
 }

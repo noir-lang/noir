@@ -41,7 +41,7 @@ impl<T> RepeatedValue<T> {
 
     fn print(self) {
         for _i in 0 .. self.count {
-            dep::std::println(self.value);
+            println(self.value);
         }
     }
 }
