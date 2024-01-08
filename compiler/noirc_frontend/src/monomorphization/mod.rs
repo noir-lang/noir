@@ -20,7 +20,7 @@ use std::{
 use crate::{
     hir_def::{
         expr::*,
-        function::{FuncMeta, FunctionSignature, Parameters},
+        function::{FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -109,14 +109,14 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, return_visibility, .. } = interner.function_meta(&main);
+    let meta = interner.function_meta(&main);
 
     Program::new(
         functions,
         function_sig,
-        *return_distinctness,
+        meta.return_distinctness,
         monomorphizer.return_location,
-        *return_visibility,
+        meta.return_visibility,
     )
 }
 
