@@ -181,18 +181,17 @@ impl DataFlowGraph {
                     );
                 }
 
-                let mut instructions = instructions.into_iter().peekable();
+                let last_id = None;
 
-                while let Some(instruction) = instructions.next() {
+                for instruction in instructions {
                     let id = self.make_instruction(instruction, ctrl_typevars.clone());
                     self.blocks[block].insert_instruction(id);
                     self.locations.insert(id, call_stack.clone());
-
-                    if instructions.peek().is_none() {
-                        return InsertInstructionResult::Results(id, self.instruction_results(id));
-                    }
+                    last_id = Some(id);
                 }
-                unreachable!("At least one instruction must be returned. To not insert an instruction, use `SimplifyResult::Remove`")
+
+                let id = last_id.expect("There should be at least 1 simplified instruction");
+                InsertInstructionResult::Results(id, self.instruction_results(id));
             }
         }
     }
