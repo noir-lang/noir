@@ -209,11 +209,19 @@ const circuits = [
 ];
 
 const main = async () => {
+  try {
+    await fs.access('./src/types/');
+  } catch (error) {
+    await fs.mkdir('./src/types', { recursive: true });
+  }
+
   for (const circuit of circuits) {
     const rawData = await fs.readFile(`./src/target/${circuit}.json`, 'utf-8');
     const abiObj: NoirCompiledCircuit = JSON.parse(rawData);
     const generatedInterface = generateTsInterface(abiObj.abi);
-    await fs.writeFile(`./src/types/${circuit}_types.ts`, generatedInterface);
+
+    const outputFile = `./src/types/${circuit}_types.ts`;
+    await fs.writeFile(outputFile, generatedInterface);
   }
 };
 

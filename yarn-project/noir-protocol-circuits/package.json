@@ -7,13 +7,13 @@
     "./types": "./dest/types/index.js"
   },
   "scripts": {
-    "build": "yarn clean && tsc -b",
-    "build:dev": "tsc -b --watch",
-    "clean": "rm -rf ./dest .tsbuildinfo",
+    "build": "yarn clean && yarn noir:build && yarn noir:types",
+    "clean": "rm -rf ./dest .tsbuildinfo src/types src/target",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src && run -T prettier -w ./src",
+    "formatting:fix:types": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src/types && run -T prettier -w ./src/types",
     "noir:build": "cd src && ../../../noir/target/release/nargo compile --silence-warnings && rm -rf ./target/debug_*",
-    "noir:types": "node --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && yarn formatting:fix",
+    "noir:types": "node --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && yarn formatting:fix:types",
     "noir:test": "cd src && ../../../noir/target/release/nargo test",
     "test": "yarn test:js && yarn noir:test",
     "test:js": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"

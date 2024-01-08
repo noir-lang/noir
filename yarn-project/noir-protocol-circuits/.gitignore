@@ -3,3 +3,4 @@ Prover.toml
 Verifier.toml
 src/target
 src/crs
+src/types

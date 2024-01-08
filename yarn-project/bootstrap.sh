@@ -36,7 +36,7 @@ yarn workspace @aztec/noir-compiler build
 yarn workspace @aztec/noir-contracts build:contracts
 yarn workspace @aztec/accounts build:copy-contracts
 # Build protocol circuits. TODO: move pre yarn-project.
-yarn workspace @aztec/noir-protocol-circuits noir:build
+yarn workspace @aztec/noir-protocol-circuits build
 
 yarn build
 

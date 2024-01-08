@@ -87,7 +87,7 @@ import {
   AztecAddress as NoirAztecAddress,
   EthAddress as NoirEthAddress,
   Field as NoirField,
-  Point as NoirPoint,
+  GrumpkinPoint as NoirPoint,
   OptionallyRevealedData as OptionallyRevealedDataNoir,
   PrivateCallData as PrivateCallDataNoir,
   PrivateCallStackItem as PrivateCallStackItemNoir,
