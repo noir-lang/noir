@@ -479,7 +479,7 @@ const sidebars = {
       value: "Miscellaneous",
       defaultStyle: true,
     },
-
+    "misc/migration_notes",
     "misc/glossary",
 
     {

@@ -43,6 +43,7 @@ aztec-cli update . --contract src/contract1 --contract src/contract2
 
 The sandbox must be running for the update command to work.
 
+3. Refer [Migration Notes](../misc/migration_notes.md) on any breaking changes that might affect your dapp
 ---
 
 There are three components whose versions need to be kept compatible:
