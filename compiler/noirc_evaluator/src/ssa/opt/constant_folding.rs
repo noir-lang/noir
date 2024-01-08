@@ -187,7 +187,7 @@ mod test {
             instruction::{BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::{Value, ValueId},
+            value::Value,
         },
     };
 
@@ -293,7 +293,7 @@ mod test {
     #[test]
     fn instruction_deduplication() {
         // fn main f0 {
-        //   b0(v0: Field):
+        //   b0(v0: u16):
         //     v1 = cast v0 as u32
         //     v2 = cast v0 as u32
         //     constrain v1 v2
@@ -308,7 +308,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
-        let v0 = builder.add_parameter(Type::field());
+        let v0 = builder.add_parameter(Type::unsigned(16));
 
         let v1 = builder.insert_cast(v0, Type::unsigned(32));
         let v2 = builder.insert_cast(v0, Type::unsigned(32));
@@ -322,7 +322,7 @@ mod test {
         // Expected output:
         //
         // fn main f0 {
-        //   b0(v0: Field):
+        //   b0(v0: u16):
         //     v1 = cast v0 as u32
         // }
         let ssa = ssa.fold_constants();
@@ -332,6 +332,6 @@ mod test {
         assert_eq!(instructions.len(), 1);
         let instruction = &main.dfg[instructions[0]];
 
-        assert_eq!(instruction, &Instruction::Cast(ValueId::test_new(0), Type::unsigned(32)));
+        assert_eq!(instruction, &Instruction::Cast(v0, Type::unsigned(32)));
     }
 }
