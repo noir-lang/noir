@@ -216,9 +216,17 @@ impl ConstantBackpropOptimizer {
                         },
                     };
 
-                    match solve_directives(&mut known_witnesses, &directive) {
-                        Ok(()) => continue,
-                        Err(_) => Opcode::Directive(directive),
+                    if directive
+                        .get_outputs_vec()
+                        .iter()
+                        .all(|output| known_witnesses.contains_key(output))
+                    {
+                        continue;
+                    } else {
+                        match solve_directives(&mut known_witnesses, &directive) {
+                            Ok(()) => continue,
+                            Err(_) => Opcode::Directive(directive),
+                        }
                     }
                 }
 

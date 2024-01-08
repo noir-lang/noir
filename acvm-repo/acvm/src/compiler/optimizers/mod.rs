@@ -66,6 +66,9 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
+    let (acir, acir_opcode_positions) =
+        ConstantBackpropOptimizer::backpropagate_constants(acir, acir_opcode_positions);
+
     info!("Number of opcodes after: {}", acir.opcodes.len());
 
     (acir, acir_opcode_positions)
