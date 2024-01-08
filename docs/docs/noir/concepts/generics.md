@@ -90,7 +90,7 @@ fn first_element_is_equal<T, N>(array1: [T; N], array2: [T; N]) -> bool
 fn main() {
     assert(first_element_is_equal([1, 2, 3], [1, 5, 6]));
 
-    // We can use first_element_is_equal even for arrays of any type
+    // We can use first_element_is_equal for arrays of any type
     // as long as we have an Eq impl for the types we pass in
     let array = [MyStruct::new(), MyStruct::new()];
     assert(array_eq(array, array, MyStruct::eq));
