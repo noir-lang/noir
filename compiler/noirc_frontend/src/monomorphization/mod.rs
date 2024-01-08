@@ -26,8 +26,8 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
-    Visibility,
+    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableId, TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -58,8 +58,9 @@ struct Monomorphizer<'interner> {
     /// confuse users.
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
-    /// Queue of functions to monomorphize next
-    queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings)>,
+    /// Queue of functions to monomorphize next each item in the queue is a tuple of:
+    /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl)
+    queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings, Option<TraitMethodId>)>,
 
     /// When a function finishes being monomorphized, the monomorphized ast::Function is
     /// stored here along with its FuncId.
@@ -97,11 +98,13 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     let function_sig = monomorphizer.compile_main(main);
 
     while !monomorphizer.queue.is_empty() {
-        let (next_fn_id, new_id, bindings) = monomorphizer.queue.pop_front().unwrap();
+        let (next_fn_id, new_id, bindings, trait_method) = monomorphizer.queue.pop_front().unwrap();
         monomorphizer.locals.clear();
 
         perform_instantiation_bindings(&bindings);
+        let impl_bindings = monomorphizer.perform_impl_bindings(trait_method, next_fn_id);
         monomorphizer.function(next_fn_id, new_id);
+        undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(bindings);
     }
 
@@ -154,6 +157,7 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::FuncId,
         expr_id: node_interner::ExprId,
         typ: &HirType,
+        trait_method: Option<TraitMethodId>,
     ) -> Definition {
         let typ = typ.follow_bindings();
         match self.globals.get(&id).and_then(|inner_map| inner_map.get(&typ)) {
@@ -177,7 +181,7 @@ impl<'interner> Monomorphizer<'interner> {
                         Definition::Builtin(opcode)
                     }
                     FunctionKind::Normal => {
-                        let id = self.queue_function(id, expr_id, typ);
+                        let id = self.queue_function(id, expr_id, typ, trait_method);
                         Definition::Function(id)
                     }
                     FunctionKind::Oracle => {
@@ -685,7 +689,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = Some(ident.location);
                 let name = definition.name.clone();
                 let typ = self.interner.id_type(expr_id);
-                let definition = self.lookup_function(*func_id, expr_id, &typ);
+                let definition = self.lookup_function(*func_id, expr_id, &typ, None);
                 let typ = self.convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
                 let ident_expression = ast::Expression::Ident(ident);
@@ -857,7 +861,7 @@ impl<'interner> Monomorphizer<'interner> {
             .get_selected_impl_for_expression(expr_id)
             .expect("ICE: missing trait impl - should be caught during type checking");
 
-        let hir_func_id = match trait_impl {
+        let func_id = match trait_impl {
             node_interner::TraitImplKind::Normal(impl_id) => {
                 self.interner.get_trait_implementation(impl_id).borrow().methods
                     [method.method_index]
@@ -885,7 +889,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
         };
 
-        let func_def = self.lookup_function(hir_func_id, expr_id, &function_type);
+        let func_def = self.lookup_function(func_id, expr_id, &function_type, Some(method));
         let func_id = match func_def {
             Definition::Function(func_id) => func_id,
             _ => unreachable!(),
@@ -1107,14 +1111,14 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::FuncId,
         expr_id: node_interner::ExprId,
         function_type: HirType,
+        trait_method: Option<TraitMethodId>,
     ) -> FuncId {
         let new_id = self.next_function_id();
         self.define_global(id, function_type.clone(), new_id);
 
         let bindings = self.interner.get_instantiation_bindings(expr_id);
         let bindings = self.follow_bindings(bindings);
-
-        self.queue.push_back((id, new_id, bindings));
+        self.queue.push_back((id, new_id, bindings, trait_method));
         new_id
     }
 
@@ -1502,6 +1506,46 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         result
+    }
+
+    /// Call sites are instantiated against the trait method, but when an impl is later selected,
+    /// the corresponding method in the impl will have a different set of generics. `perform_impl_bindings`
+    /// is needed to apply the generics from the trait method to the impl method. Without this,
+    /// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
+    /// the correct type bindings during monomorphization.
+    fn perform_impl_bindings(
+        &self,
+        trait_method: Option<TraitMethodId>,
+        impl_method: node_interner::FuncId,
+    ) -> TypeBindings {
+        let mut bindings = TypeBindings::new();
+
+        if let Some(trait_method) = trait_method {
+            let the_trait = self.interner.get_trait(trait_method.trait_id);
+
+            let trait_method_type = the_trait.methods[trait_method.method_index].typ.as_monotype();
+
+            // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
+            // with the same internal id and binding.
+            let (generics, impl_method_type) =
+                self.interner.function_meta(&impl_method).typ.unwrap_forall();
+
+            let replace_type_variable = |(id, var): &(TypeVariableId, TypeVariable)| {
+                (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+            };
+
+            // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
+            let type_bindings = generics.iter().map(replace_type_variable).collect();
+            let impl_method_type = impl_method_type.force_substitute(&type_bindings);
+
+            trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {
+                unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
+            });
+
+            perform_instantiation_bindings(&bindings);
+        }
+
+        bindings
     }
 }
 

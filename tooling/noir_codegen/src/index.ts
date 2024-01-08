@@ -46,13 +46,13 @@ export const codegen = (programs: [string, CompiledCircuit][]): string => {
     functions.push(codegenFunction(name, stripUnwantedFields(program), function_sig));
   }
 
+  const structTypeDefinitions: string = codegenStructDefinitions(structTypeMap, primitiveTypeMap);
+
   // Add the primitive Noir types that do not have a 1-1 mapping to TypeScript.
   const primitiveTypeAliases: string[] = [];
   for (const value of primitiveTypeMap.values()) {
     primitiveTypeAliases.push(`export type ${value.aliasName} = ${value.tsType};`);
   }
-
-  const structTypeDefinitions: string = codegenStructDefinitions(structTypeMap, primitiveTypeMap);
 
   results = results.concat(...primitiveTypeAliases, '', structTypeDefinitions, ...functions);
 
