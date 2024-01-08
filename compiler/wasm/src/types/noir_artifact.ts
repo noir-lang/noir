@@ -1,4 +1,18 @@
-import { Abi, AbiParameter } from '@noir-lang/noirc_abi';
+import { Abi, AbiType } from '@noir-lang/noirc_abi';
+
+/**
+ * A named type.f
+ */
+export interface ABIVariable {
+  /**
+   * The name of the variable.
+   */
+  name: string;
+  /**
+   * The type of the variable.
+   */
+  type: AbiType;
+}
 
 /**
  * A contract event.
@@ -15,7 +29,7 @@ export interface EventAbi {
   /**
    * The fields of the event.
    */
-  fields: AbiParameter[];
+  fields: ABIVariable[];
 }
 
 /** The Noir function types. */
@@ -35,10 +49,6 @@ export interface NoirFunctionEntry {
   abi: Abi;
   /** The bytecode of the function in base64. */
   bytecode: string;
-  /** The proving key. */
-  proving_key: string;
-  /** The verification key. */
-  verification_key: string;
 }
 
 /**
