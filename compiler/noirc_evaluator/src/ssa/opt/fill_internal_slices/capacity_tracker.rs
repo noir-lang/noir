@@ -192,7 +192,6 @@ impl<'a> SliceCapacityTracker<'a> {
                                     self.mapped_slice_values.get(&results[result_index])
                                 {
                                     if *fetched_val != slice_contents {
-                                        dbg!(slice_contents == results[0]);
                                         self.mapped_slice_values
                                             .insert(slice_contents, results[result_index]);
                                     }

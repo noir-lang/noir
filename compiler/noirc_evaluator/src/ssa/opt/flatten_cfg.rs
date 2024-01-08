@@ -485,9 +485,8 @@ impl<'f> Context<'f> {
 
         let block = self.inserter.function.entry_block();
 
-        dbg!(args.clone());
+        // Make sure we have tracked the slice sizes of any block arguments
         let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-
         for (then_arg, else_arg) in args.iter() {
             capacity_tracker.compute_slice_sizes(*then_arg, &mut self.slice_sizes);
             capacity_tracker.compute_slice_sizes(*else_arg, &mut self.slice_sizes);
