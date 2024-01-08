@@ -203,18 +203,7 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, aci
                     .proof = map(arg.proof, [](auto& e) { return e.witness.value; }),
                     .public_inputs = map(arg.public_inputs, [](auto& e) { return e.witness.value; }),
                     .key_hash = arg.key_hash.witness.value,
-                    .input_aggregation_object = {},
-                    .output_aggregation_object = {},
-                    .nested_aggregation_object = {},
                 };
-                if (arg.input_aggregation_object.has_value()) {
-                    for (size_t i = 0; i < RecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
-                        c.input_aggregation_object[i] = (*arg.input_aggregation_object)[i].witness.value;
-                    }
-                }
-                for (size_t i = 0; i < RecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
-                    c.output_aggregation_object[i] = arg.output_aggregation_object[i].value;
-                }
                 af.recursion_constraints.push_back(c);
             }
         },

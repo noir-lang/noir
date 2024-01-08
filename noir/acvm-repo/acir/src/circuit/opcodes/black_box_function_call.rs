@@ -107,17 +107,6 @@ pub enum BlackBoxFuncCall {
         /// The circuit implementing this opcode can use this hash to ensure that the
         /// key provided to the circuit matches the key produced by the circuit creator
         key_hash: FunctionInput,
-        /// An aggregation object is blob of data that the top-level verifier must run some proof system specific
-        /// algorithm on to complete verification. The size is proof system specific and will be set by the backend integrating this opcode.
-        /// The input aggregation object is only not `None` when we are verifying a previous recursive aggregation in
-        /// the current circuit. If this is the first recursive aggregation there is no input aggregation object.
-        /// It is left to the backend to determine how to handle when there is no input aggregation object.
-        input_aggregation_object: Option<Vec<FunctionInput>>,
-        /// This is the result of a recursive aggregation and is what will be fed into the next verifier.
-        /// The next verifier can either perform a final verification (returning true or false)
-        /// or perform another recursive aggregation where this output aggregation object
-        /// will be the input aggregation object of the next recursive aggregation.
-        output_aggregation_object: Vec<Witness>,
     },
 }
 
@@ -223,16 +212,12 @@ impl BlackBoxFuncCall {
                 proof,
                 public_inputs,
                 key_hash,
-                ..
             } => {
                 let mut inputs = Vec::new();
                 inputs.extend(key.iter().copied());
                 inputs.extend(proof.iter().copied());
                 inputs.extend(public_inputs.iter().copied());
                 inputs.push(*key_hash);
-                // NOTE: we do not return an input aggregation object as it will either be non-existent for the first recursive aggregation
-                // or the output aggregation object of a previous recursive aggregation. We do not simulate recursive aggregation
-                // thus the input aggregation object will always be unassigned until proving
                 inputs
             }
         }
@@ -245,9 +230,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
             | BlackBoxFuncCall::Keccakf1600 { outputs, .. }
-            | BlackBoxFuncCall::RecursiveAggregation {
-                output_aggregation_object: outputs, ..
-            } => outputs.to_vec(),
+            => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
@@ -256,7 +239,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
-            BlackBoxFuncCall::RANGE { .. } => vec![],
+            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => vec![],
             BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
         }
     }

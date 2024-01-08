@@ -227,23 +227,11 @@ impl GeneratedAcir {
                 BlackBoxFuncCall::Keccakf1600 { inputs: inputs[0].clone(), outputs }
             }
             BlackBoxFunc::RecursiveAggregation => {
-                let has_previous_aggregation = self.opcodes.iter().any(|op| {
-                    matches!(
-                        op,
-                        AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
-                    )
-                });
-
-                let input_aggregation_object =
-                    if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
-
                 BlackBoxFuncCall::RecursiveAggregation {
                     verification_key: inputs[0].clone(),
                     proof: inputs[1].clone(),
                     public_inputs: inputs[2].clone(),
                     key_hash: inputs[3][0],
-                    input_aggregation_object,
-                    output_aggregation_object: outputs,
                 }
             }
         };

@@ -53,15 +53,6 @@ struct RecursionConstraint {
     std::vector<uint32_t> proof;
     std::vector<uint32_t> public_inputs;
     uint32_t key_hash;
-    // TODO(maxim):This is now unused, but we keep it here for backwards compatibility
-    std::array<uint32_t, AGGREGATION_OBJECT_SIZE> input_aggregation_object;
-    // TODO(maxim): This is now unused, but we keep it here for backwards compatibility
-    std::array<uint32_t, AGGREGATION_OBJECT_SIZE> output_aggregation_object;
-    // TODO(maxim): This is currently not being used on the Noir level at all,
-    // TODO(maxim): but we keep it here for backwards compatibility
-    // TODO(maxim): The object is now currently contained by the `proof` field
-    // TODO(maxim): and is handled when serializing ACIR to a barretenberg circuit
-    std::array<uint32_t, AGGREGATION_OBJECT_SIZE> nested_aggregation_object;
 
     friend bool operator==(RecursionConstraint const& lhs, RecursionConstraint const& rhs) = default;
 };
@@ -100,9 +91,6 @@ template <typename B> inline void read(B& buf, RecursionConstraint& constraint)
     read(buf, constraint.proof);
     read(buf, constraint.public_inputs);
     read(buf, constraint.key_hash);
-    read(buf, constraint.input_aggregation_object);
-    read(buf, constraint.output_aggregation_object);
-    read(buf, constraint.nested_aggregation_object);
 }
 
 template <typename B> inline void write(B& buf, RecursionConstraint const& constraint)
@@ -112,9 +100,6 @@ template <typename B> inline void write(B& buf, RecursionConstraint const& const
     write(buf, constraint.proof);
     write(buf, constraint.public_inputs);
     write(buf, constraint.key_hash);
-    write(buf, constraint.input_aggregation_object);
-    write(buf, constraint.output_aggregation_object);
-    write(buf, constraint.nested_aggregation_object);
 }
 
 } // namespace acir_format

@@ -177,13 +177,7 @@ pub(crate) fn solve(
         BlackBoxFuncCall::FixedBaseScalarMul { low, high, outputs } => {
             fixed_base_scalar_mul(backend, initial_witness, *low, *high, *outputs)
         }
-        BlackBoxFuncCall::RecursiveAggregation { output_aggregation_object, .. } => {
-            // Solve the output of the recursive aggregation to zero to prevent missing assignment errors
-            // The correct value will be computed by the backend
-            for witness in output_aggregation_object {
-                insert_value(witness, FieldElement::zero(), initial_witness)?;
-            }
-            Ok(())
-        }
+        // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
+        BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
     }
 }

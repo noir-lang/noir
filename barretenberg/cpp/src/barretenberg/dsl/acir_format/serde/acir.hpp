@@ -178,8 +178,6 @@ struct BlackBoxFuncCall {
         std::vector<Circuit::FunctionInput> proof;
         std::vector<Circuit::FunctionInput> public_inputs;
         Circuit::FunctionInput key_hash;
-        std::optional<std::vector<Circuit::FunctionInput>> input_aggregation_object;
-        std::vector<Circuit::Witness> output_aggregation_object;
 
         friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -2659,12 +2657,6 @@ inline bool operator==(const BlackBoxFuncCall::RecursiveAggregation& lhs,
     if (!(lhs.key_hash == rhs.key_hash)) {
         return false;
     }
-    if (!(lhs.input_aggregation_object == rhs.input_aggregation_object)) {
-        return false;
-    }
-    if (!(lhs.output_aggregation_object == rhs.output_aggregation_object)) {
-        return false;
-    }
     return true;
 }
 
@@ -2697,8 +2689,6 @@ void serde::Serializable<Circuit::BlackBoxFuncCall::RecursiveAggregation>::seria
     serde::Serializable<decltype(obj.proof)>::serialize(obj.proof, serializer);
     serde::Serializable<decltype(obj.public_inputs)>::serialize(obj.public_inputs, serializer);
     serde::Serializable<decltype(obj.key_hash)>::serialize(obj.key_hash, serializer);
-    serde::Serializable<decltype(obj.input_aggregation_object)>::serialize(obj.input_aggregation_object, serializer);
-    serde::Serializable<decltype(obj.output_aggregation_object)>::serialize(obj.output_aggregation_object, serializer);
 }
 
 template <>
@@ -2711,10 +2701,6 @@ Circuit::BlackBoxFuncCall::RecursiveAggregation serde::Deserializable<
     obj.proof = serde::Deserializable<decltype(obj.proof)>::deserialize(deserializer);
     obj.public_inputs = serde::Deserializable<decltype(obj.public_inputs)>::deserialize(deserializer);
     obj.key_hash = serde::Deserializable<decltype(obj.key_hash)>::deserialize(deserializer);
-    obj.input_aggregation_object =
-        serde::Deserializable<decltype(obj.input_aggregation_object)>::deserialize(deserializer);
-    obj.output_aggregation_object =
-        serde::Deserializable<decltype(obj.output_aggregation_object)>::deserialize(deserializer);
     return obj;
 }
 
