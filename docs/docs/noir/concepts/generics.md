@@ -30,15 +30,6 @@ struct RepeatedValue<T> {
 }
 
 impl<T> RepeatedValue<T> {
-    fn new(value: T) -> Self {
-        Self { value, count: 1 }
-    }
-
-    fn increment(mut repeated: Self) -> Self {
-        repeated.count += 1;
-        repeated
-    }
-
     fn print(self) {
         for _i in 0 .. self.count {
             println(self.value);
@@ -47,8 +38,7 @@ impl<T> RepeatedValue<T> {
 }
 
 fn main() {
-    let mut repeated = RepeatedValue::new("Hello!");
-    repeated = repeated.increment();
+    let repeated = RepeatedValue { value: "Hello!", count: 2 };
     repeated.print();
 }
 ```
@@ -80,35 +70,37 @@ impl<N> BigInt<N> {
 
 ## Calling functions on generic parameters
 
-Unlike Rust, Noir does not have traits, so how can one translate the equivalent of a trait bound in
-Rust into Noir? That is, how can we write a function that is generic over some type `T`, while also
-requiring there is a function like `eq: fn(T, T) -> bool` that works on the type?
+Since a generic type `T` can represent any type, how can we call functions on the underlying type?
+In other words, how can we go from "any type `T`" to "any type `T` that has certain methods available?"
 
-The answer is that we can translate this by passing in the function manually. Here's an example of
-implementing array equality in Noir:
+This is what [traits](../concepts/traits) are for in Noir. Here's an example of a function generic over
+any type `T` that implements the `Eq` trait for equality:
 
 ```rust
-fn array_eq<T, N>(array1: [T; N], array2: [T; N], elem_eq: fn(T, T) -> bool) -> bool {
-    if array1.len() != array2.len() {
-        false
+fn first_element_is_equal<T, N>(array1: [T; N], array2: [T; N]) -> bool 
+    where T: Eq
+{
+    if (array1.len() == 0) | (array2.len() == 0) {
+        true
     } else {
-        let mut result = true;
-        for i in 0 .. array1.len() {
-            result &= elem_eq(array1[i], array2[i]);
-        }
-        result
+        array1[0] == array2[0]
     }
 }
 
 fn main() {
-    assert(array_eq([1, 2, 3], [1, 2, 3], |a, b| a == b));
+    assert(first_element_is_equal([1, 2, 3], [1, 5, 6]));
 
-    // We can use array_eq even for arrays of structs, as long as we have
-    // an equality function for these structs we can pass in
+    // We can use first_element_is_equal for arrays of any type
+    // as long as we have an Eq impl for the types we pass in
     let array = [MyStruct::new(), MyStruct::new()];
     assert(array_eq(array, array, MyStruct::eq));
 }
+
+impl Eq for MyStruct {
+    fn eq(self, other: MyStruct) -> bool {
+        self.foo == other.foo
+    }
+}
 ```
 
-You can see an example of generics in the tests
-[here](https://github.com/noir-lang/noir/blob/master/tooling/nargo_cli/tests/execution_success/generics/src/main.nr).
+You can find more details on traits and trait implementations on the [traits page](../concepts/traits).
