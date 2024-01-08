@@ -31,6 +31,7 @@ pub(super) fn simplify_call(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
+    call_stack: &CallStack,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
@@ -242,7 +243,24 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::FromField => {
-            let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap().remove(0));
+            let incoming_type = Type::field();
+            let target_type = ctrl_typevars.unwrap().remove(0);
+
+            let truncate = Instruction::Truncate {
+                value: arguments[0],
+                bit_size: target_type.bit_size(),
+                max_bit_size: incoming_type.bit_size(),
+            };
+            let truncated_value = dfg
+                .insert_instruction_and_results(
+                    truncate,
+                    block,
+                    Some(vec![incoming_type]),
+                    call_stack.clone(),
+                )
+                .first();
+
+            let instruction = Instruction::Cast(truncated_value, target_type);
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
     }
