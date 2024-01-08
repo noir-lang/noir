@@ -66,10 +66,10 @@ contract Bridge {
 This leaks information about the private function being called and the data which has been read. 
 :::
 
-### Writing public storage from private: when updating public state from private, you can call a public function from private, just make sure you mark public as internal
+### Writing public storage from private
+When calling a private function, you can update public state by calling a public function.
 
-When calling a public function from private, try to mark the public function as `internal`
-This ensures your flow works as intended and that no one can call the public function without going through the private function first!
+In this situation, try to mark the public function as `internal`. This ensures your flow works as intended and that no one can call the public function without going through the private function first!
 
 ### Moving public data into the private domain
 Let's say you have some storage in public and want to move them into the private domain. If you pass your aztec address that should receive the data, then that leaks privacy (as everyone will know who has the private notes). So what do you do?
@@ -90,6 +90,16 @@ When you send someone a note, the note hash gets added to the [note hash tree](.
 #include_code pxe_add_note yarn-project/end-to-end/src/e2e_cheat_codes.test.ts typescript
 
 In the token contract, TransparentNotes are stored in a set called "pending_shields" which is in storage slot 5. See [here](../../../tutorials/writing_token_contract.md#contract-storage)
+
+### Revealing encrypted logs conditionally
+
+An encrypted log can contain any information for a recipient, typically in the form of a note. One could think this log is emitted as part of the transaction execution, so it wouldn't be revealed if the transaction fails.
+
+This is not true for Aztec, as the encrypted log is part of the transaction object broadcasted to the network. So if a transaction with an encrypted log and a note commitment is broadcasted, there could be a situation where the transaction is not mined or reorg'd out, so the commitment is never added to the note hash tree, but the recipient could still have read the encrypted log from the transaction in the mempool.
+
+Example:
+
+> Alice and Bob agree to a trade, where Alice sends Bob a passcode to collect funds from a web2 app, in exchange of on-chain tokens. Alice should only send Bob the passcode if the trade is successful. But just sending the passcode as an encrypted log doesn't work, since Bob could see the encrypted log from the transaction as soon as Alice broadcasts it, decrypt it to get the passcode, and withdraw his tokens from the trade to make the transaction fail.
 
 ### Randomness in notes
 Notes are hashed and stored in the merkle tree. While notes do have a header with a `nonce` field that ensure two exact notes still can be added to the note hash tree (since hashes would be different), preimage analysis can be done to reverse-engineer the contents of the note.
