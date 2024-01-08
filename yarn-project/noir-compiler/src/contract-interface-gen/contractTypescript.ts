@@ -7,8 +7,6 @@ import {
   isFunctionSelectorStruct,
 } from '@aztec/foundation/abi';
 
-import compact from 'lodash.compact';
-
 /**
  * Returns the corresponding typescript type for a given Noir type.
  * @param type - The input Noir type.
@@ -168,8 +166,7 @@ function generateAbiStatement(name: string, artifactImportPath: string) {
  * @returns The corresponding ts code.
  */
 export function generateTypescriptContractInterface(input: ContractArtifact, artifactImportPath?: string) {
-  // `compact` removes all falsey values from an array
-  const methods = compact(input.functions.filter(f => f.name !== 'constructor').map(generateMethod));
+  const methods = input.functions.filter(f => f.name !== 'constructor').map(generateMethod);
   const deploy = artifactImportPath && generateDeploy(input);
   const ctor = artifactImportPath && generateConstructor(input.name);
   const at = artifactImportPath && generateAt(input.name);
