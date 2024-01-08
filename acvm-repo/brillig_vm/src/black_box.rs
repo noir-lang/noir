@@ -180,13 +180,9 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
         BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
         BlackBoxOp::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
-        BlackBoxOp::EcdsaSecp256k1 {
-         ..,
-        } => BlackBoxFunc::EcdsaSecp256k1,
-        BlackBoxOp::EcdsaSecp256r1 {
-         ..,
-        } => BlackBoxFunc::EcdsaSecp256r1,
-        BlackBoxOp::SchnorrVerify {.. } => BlackBoxFunc::SchnorrVerify,
+        BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
+        BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
+        BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
         BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
         BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
         BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
