@@ -1,5 +1,5 @@
 use dep::types::constants::GENERATOR_INDEX__GLOBAL_VARIABLES;
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 use dep::types::traits::Hash;
 
 struct GlobalVariables {

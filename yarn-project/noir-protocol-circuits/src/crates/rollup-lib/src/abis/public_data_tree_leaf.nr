@@ -1,4 +1,4 @@
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 use dep::types::traits::{Empty, Hash};
 
 struct PublicDataTreeLeafPreimage {

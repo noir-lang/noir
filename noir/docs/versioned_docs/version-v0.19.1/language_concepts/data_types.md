@@ -93,4 +93,4 @@ fn main() {
 
 ### BigInt
 
-You can acheive BigInt functionality using the [Noir BigInt](https://github.com/shuklaayush/noir-bigint) library.
+You can achieve BigInt functionality using the [Noir BigInt](https://github.com/shuklaayush/noir-bigint) library.

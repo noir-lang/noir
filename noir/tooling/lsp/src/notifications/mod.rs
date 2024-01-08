@@ -1,19 +1,21 @@
 use std::ops::ControlFlow;
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use nargo::prepare_package;
-use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
+use nargo::{insert_all_files_for_workspace_into_file_manager, prepare_package};
+use noirc_driver::{check_crate, file_manager_with_stdlib};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
+use crate::requests::collect_lenses_for_package;
 use crate::types::{
     notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, InitializedParams, LogMessageParams, MessageType, NargoPackageTests,
-    PublishDiagnosticsParams,
+    DidSaveTextDocumentParams, InitializedParams, NargoPackageTests, PublishDiagnosticsParams,
 };
 
-use crate::{byte_span_to_range, get_package_tests_in_crate, LspState};
+use crate::{
+    byte_span_to_range, get_package_tests_in_crate, prepare_source,
+    resolve_workspace_for_source_path, LspState,
+};
 
 pub(super) fn on_initialized(
     _state: &mut LspState,
@@ -34,7 +36,16 @@ pub(super) fn on_did_open_text_document(
     params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
-    ControlFlow::Continue(())
+
+    let document_uri = params.text_document.uri;
+
+    match process_noir_document(document_uri, state) {
+        Ok(_) => {
+            state.open_documents_count += 1;
+            ControlFlow::Continue(())
+        }
+        Err(err) => ControlFlow::Break(Err(err)),
+    }
 }
 
 pub(super) fn on_did_change_text_document(
@@ -42,7 +53,38 @@ pub(super) fn on_did_change_text_document(
     params: DidChangeTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let text = params.content_changes.into_iter().next().unwrap().text;
-    state.input_files.insert(params.text_document.uri.to_string(), text);
+    state.input_files.insert(params.text_document.uri.to_string(), text.clone());
+
+    let (mut context, crate_id) = prepare_source(text);
+    let _ = check_crate(&mut context, crate_id, false, false);
+
+    let workspace = match resolve_workspace_for_source_path(
+        params.text_document.uri.to_file_path().unwrap().as_path(),
+    ) {
+        Ok(workspace) => workspace,
+        Err(lsp_error) => {
+            return ControlFlow::Break(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                lsp_error.to_string(),
+            )
+            .into()))
+        }
+    };
+    let package = match workspace.members.first() {
+        Some(package) => package,
+        None => {
+            return ControlFlow::Break(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Selected workspace has no members",
+            )
+            .into()))
+        }
+    };
+
+    let lenses = collect_lenses_for_package(&context, crate_id, &workspace, package, None);
+
+    state.cached_lenses.insert(params.text_document.uri.to_string(), lenses);
+
     ControlFlow::Continue(())
 }
 
@@ -51,6 +93,14 @@ pub(super) fn on_did_close_text_document(
     params: DidCloseTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
+    state.cached_lenses.remove(&params.text_document.uri.to_string());
+
+    state.open_documents_count -= 1;
+
+    if state.open_documents_count == 0 {
+        state.cached_definitions.clear();
+    }
+
     ControlFlow::Continue(())
 }
 
@@ -58,57 +108,40 @@ pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let file_path = match params.text_document.uri.to_file_path() {
-        Ok(file_path) => file_path,
-        Err(()) => {
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "URI is not a valid file path",
-            )
-            .into()))
-        }
-    };
+    let document_uri = params.text_document.uri;
 
-    let package_root = find_file_manifest(file_path.as_path());
+    match process_noir_document(document_uri, state) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
+    }
+}
 
-    let toml_path = match package_root {
-        Some(toml_path) => toml_path,
-        None => {
-            // If we cannot find a manifest, we log a warning but return no diagnostics
-            // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
-            let _ = state.client.log_message(LogMessageParams {
-                typ: MessageType::WARNING,
-                message: format!("Nargo.toml not found for file: {:}", file_path.display()),
-            });
-            return ControlFlow::Continue(());
-        }
-    };
+fn process_noir_document(
+    document_uri: lsp_types::Url,
+    state: &mut LspState,
+) -> Result<(), async_lsp::Error> {
+    let file_path = document_uri.to_file_path().map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+    })?;
 
-    let workspace = match resolve_workspace_from_toml(
-        &toml_path,
-        PackageSelection::All,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    ) {
-        Ok(workspace) => workspace,
-        Err(err) => {
-            // If we found a manifest, but the workspace is invalid, we raise an error about it
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                format!("{err}"),
-            )
-            .into()));
-        }
-    };
+    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
+    })?;
+
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let diagnostics: Vec<_> = workspace
         .into_iter()
         .flat_map(|package| -> Vec<Diagnostic> {
-            let (mut context, crate_id) = prepare_package(package);
+            let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
 
             let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
+
+            let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
@@ -117,6 +150,17 @@ pub(super) fn on_did_save_text_document(
                     tests,
                 });
             }
+
+            let collected_lenses = crate::requests::collect_lenses_for_package(
+                &context,
+                crate_id,
+                &workspace,
+                package,
+                Some(&file_path),
+            );
+            state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
+
+            state.cached_definitions.insert(package_root_dir, context.def_interner);
 
             let fm = &context.file_manager;
             let files = fm.as_file_map();
@@ -152,14 +196,13 @@ pub(super) fn on_did_save_text_document(
                 .collect()
         })
         .collect();
-
     let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
-        uri: params.text_document.uri,
+        uri: document_uri,
         version: None,
         diagnostics,
     });
 
-    ControlFlow::Continue(())
+    Ok(())
 }
 
 pub(super) fn on_exit(

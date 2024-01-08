@@ -7,7 +7,7 @@ use crate::{
     utils,
     grumpkin_point::GrumpkinPoint,
 };
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 use crate::traits::Empty;
 
 // Aztec address

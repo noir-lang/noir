@@ -36,6 +36,7 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Unroll all loops in each SSA function.
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             // Loop unrolling in brillig can lead to a code explosion currently. This can

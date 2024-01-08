@@ -315,25 +315,105 @@ Finished execution
 
 Upon quitting the debugger after a solved circuit, the resulting circuit witness gets saved, equivalent to what would happen if we had run the same circuit with `nargo execute`.
 
-## VS Code extension
 
-We're working on extending Noir's official VS Code extension so it uses the editor's debugger facilities to debug Noir programs. 
+# Testing experimental features
 
-This section will soon show how to load the extension from sources, in order to test the debugger.
+There's a number of features that are in active development and that can't yet be merged to the main branch for different reasons. In this section we detail what those features are and how to try them out.
 
+## Build from experimental branch at fork
 
-## Variable value inspection (unstable)
+Build Nargo by pulling the source version from https://github.com/manastech/noir/tree/dap-with-vars.
 
-To enable the inspection of variable values at runtime from the debugger, we're in the process of instrumenting the compiler to track and collect the necessary mappings between source code level variable names and ACIR/Brillig state. 
+This will result in a Nargo binary being written to `PROJECT_ROOT/target/debug/nargo`. We will use this path later, so keep it at hand or export it to a an env var. For example:
 
-At the time of writing, there are still some parts of the language that haven't been fully instrumented, which means certain programs will crash when compiled with this.
+`export NARGO_EXP=PROJECT_ROOT/target/debug/nargo`
 
-It is however possible to try out this feature, both from the REPL and VS Code, by building Nargo from branch https://github.com/manastech/noir/tree/dap-with-vars.
+## About the experimental features
 
-We'll soon expand this section with details on how to do so for the adventurous.
+There are currently 2 experimental features in the debugger:
 
+- Variables inspection
+- Stacktrace inspection
 
-## Towards debugging contracts 
+NOTE: Supporting variables inspection requires extensive instrumentation of the compiler, handling all cases of variable creation, types, and value assignment. At the time of writing this README, some cases are still not supported. For example, if your program uses slices or references, this compiler version might panic when trying to compile them, or at some point during the debugger step-by-step execution. This is the main reason why this feature has not yet been merged into master. 
+
+## Trying out REPL experimental features
+
+To try out these features, go through the same steps as described at the REPL Debugger section above, but instead of using `nargo debug` use `$NARGO_EXP debug` (assuming you exported your custom built Nargo binary to NARGO_EXP). 
+
+When entering `help` on this version, you'll find two new commands:
+
+```
+...
+stacktrace                       display the current stack trace
+...
+vars                             show variable values available at this point
+                                   in execution
+```
+
+Running `vars` will print the current variables in scope, and its current values:
+
+```
+At /mul_1/src/main.nr:6:5
+  1    // Test unsafe integer multiplication with overflow: 12^8 = 429 981 696
+  2    // The circuit should handle properly the growth of the bit size
+  3    fn main(mut x: u32, y: u32, z: u32) {
+  4        x *= y;
+  5        x *= x; //144
+  6 ->     x *= x; //20736
+  7        x *= x; //429 981 696
+  8        assert(x == z);
+  9    }
+> vars
+y:UnsignedInteger { width: 32 }=Field(4), z:UnsignedInteger { width: 32 }=Field(2¹⁶×6561), x:UnsignedInteger { width: 32 }=Field(2⁴×9)
+> 
+```
+
+Running `stacktrace` will print information about the current frame in the stacktrace:
+
+```
+> stacktrace
+Frame #0, opcode 12: EXPR [ (1, _5, _5) (-1, _6) 0 ]
+At /1_mul/src/main.nr:6:5
+  1    // Test unsafe integer multiplication with overflow: 12^8 = 429 981 696
+  2    // The circuit should handle properly the growth of the bit size
+  3    fn main(mut x: u32, y: u32, z: u32) {
+  4        x *= y;
+  5        x *= x; //144
+  6 ->     x *= x; //20736
+  7        x *= x; //429 981 696
+  8        assert(x == z);
+  9    }
+> 
+```
+
+## Testing the VS Code extension (experimental)
+
+There is a fork of the official Noir Visual Studio extension which enables the debugger in VS Code. This fork is at: https://github.com/manastech/vscode-noir/tree/dap-support.
+
+In this section, we'll explain how to test the VS Code Noir debugger combining that extension fork with the experimental features branch discussed above.
+
+1. First, get a copy of the extension source code from https://github.com/manastech/vscode-noir/tree/dap-support.
+
+2. Package the extension by running `npm run package`.
+
+3. Open the root folder of the extension on VS Code.
+
+4. From VS Code, press fn+F5. This will open a new VS Code window with the extension loaded from source. 
+
+5. Go to Code -> Settings -> Extensions -> Noir Language Server. Look for the property `Nargo Path` and enter the path to the experimental build you got as a result of following the steps at [Trying out REPL experimental features](#trying-out-repl-experimental-features).
+
+6. At the VS Code sidebar, go to the debugger section (see screenshot). Click "Add configuration". Overwrite the `projectFolder` property with the absolute path to the Nargo project you want to debug.
+
+<img width="473" alt="Screenshot 2023-12-18 at 14 37 38" src="https://github.com/manastech/noir/assets/651693/cdad9ee1-8164-4c33-ab24-2584016088f0">
+
+7. Go to a Noir file you want to debug. Navigate again to the debug section of VS Code, and click the "play" icon.
+
+The debugger should now have started. Current features exposed to the debugger include different kinds of stepping interactions, variable inspection and stacktraces. At the time of writing, Brillig registers and memory are not being exposed, but they will soon be.  
+
+![Screen Recording 2023-12-18 at 14 14 28](https://github.com/manastech/noir/assets/651693/36b4becb-953a-4158-9c5a-7a185673f54f)
+
+## Towards debugging contracts
 
 ### Contracts Runtime
 

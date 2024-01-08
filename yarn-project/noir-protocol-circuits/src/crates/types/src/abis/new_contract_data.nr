@@ -1,6 +1,6 @@
 use crate::address::{AztecAddress, EthAddress};
 use crate::constants::GENERATOR_INDEX__CONTRACT_LEAF;
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 use crate::traits::{Empty, Hash};
 
 struct NewContractData {

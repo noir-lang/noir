@@ -1,4 +1,4 @@
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 
 struct AppendOnlyTreeSnapshot {
     root : Field,

@@ -1,5 +1,5 @@
 use crate::address::AztecAddress;
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 use crate::traits::Empty;
 
 struct CallerContext {

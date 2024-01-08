@@ -156,6 +156,7 @@ impl AcirValue {
 }
 
 impl Ssa {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn into_acir(
         self,
         brillig: Brillig,
@@ -265,11 +266,14 @@ impl Context {
 
         let code = self.gen_brillig_for(main_func, &brillig)?;
 
+        // We specifically do not attempt execution of the brillig code being generated as this can result in it being
+        // replaced with constraints on witnesses to the program outputs.
         let output_values = self.acir_context.brillig(
             self.current_side_effects_enabled_var,
             code,
             inputs,
             outputs,
+            false,
         )?;
         let output_vars: Vec<_> = output_values
             .iter()
@@ -301,7 +305,7 @@ impl Context {
                     let len = if matches!(typ, Type::Array(_, _)) {
                         typ.flattened_size()
                     } else {
-                        return Err(InternalError::UnExpected {
+                        return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
                             found: format!("Instead got {:?}", typ),
                             call_stack: self.acir_context.get_call_stack(),
@@ -488,7 +492,7 @@ impl Context {
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs)?;
+                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs, true)?;
 
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
@@ -639,7 +643,7 @@ impl Context {
             Instruction::ArrayGet { array, index } => (array, index, None),
             Instruction::ArraySet { array, index, value, .. } => (array, index, Some(value)),
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "Instruction should be an ArrayGet or ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
@@ -696,7 +700,7 @@ impl Context {
 
         match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::InternalError(InternalError::UnExpected {
+                return Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
                     call_stack: self.acir_context.get_call_stack(),
@@ -787,7 +791,7 @@ impl Context {
                 let slice_sizes = if store_type.contains_slice_element() {
                     self.compute_slice_sizes(store, None, dfg);
                     self.slice_sizes.get(&store).cloned().ok_or_else(|| {
-                        InternalError::UnExpected {
+                        InternalError::Unexpected {
                             expected: "Store value should have slice sizes computed".to_owned(),
                             found: "Missing key in slice sizes map".to_owned(),
                             call_stack: self.acir_context.get_call_stack(),
@@ -1012,7 +1016,7 @@ impl Context {
         let array = match dfg[instruction] {
             Instruction::ArraySet { array, .. } => array,
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "Instruction should be an ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
@@ -1234,7 +1238,7 @@ impl Context {
                                 }
                             }
                             _ => {
-                                return Err(InternalError::UnExpected {
+                                return Err(InternalError::Unexpected {
                                     expected: "AcirValue::DynamicArray or AcirValue::Array"
                                         .to_owned(),
                                     found: format!("{:?}", array_acir_value),
@@ -1245,7 +1249,7 @@ impl Context {
                         }
                     }
                     _ => {
-                        return Err(InternalError::UnExpected {
+                        return Err(InternalError::Unexpected {
                             expected: "array or instruction".to_owned(),
                             found: format!("{:?}", &dfg[array_id]),
                             call_stack: self.acir_context.get_call_stack(),
@@ -1255,7 +1259,7 @@ impl Context {
                 };
             }
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "array or slice".to_owned(),
                     found: array_typ.to_string(),
                     call_stack: self.acir_context.get_call_stack(),
@@ -1512,12 +1516,12 @@ impl Context {
     ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => Ok(acir_var),
-            AcirValue::Array(array) => Err(InternalError::UnExpected {
+            AcirValue::Array(array) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: format!("{array:?}"),
                 call_stack: self.acir_context.get_call_stack(),
             }),
-            AcirValue::DynamicArray(_) => Err(InternalError::UnExpected {
+            AcirValue::DynamicArray(_) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),
                 call_stack: self.acir_context.get_call_stack(),
@@ -1569,12 +1573,12 @@ impl Context {
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
-            BinaryOp::Lt => self.acir_context.less_than_var(
-                lhs,
-                rhs,
-                bit_count,
-                self.current_side_effects_enabled_var,
-            ),
+            BinaryOp::Lt => match binary_type {
+                AcirType::NumericType(NumericType::Signed { .. }) => {
+                    self.acir_context.less_than_signed(lhs, rhs, bit_count)
+                }
+                _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
+            },
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
@@ -2135,19 +2139,11 @@ impl Context {
                     let current_index = self.acir_context.add_constant(i);
 
                     // Check that we are above the lower bound of the insertion index
-                    let greater_eq_than_idx = self.acir_context.more_than_eq_var(
-                        current_index,
-                        flat_user_index,
-                        64,
-                        self.current_side_effects_enabled_var,
-                    )?;
+                    let greater_eq_than_idx =
+                        self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
                     // Check that we are below the upper bound of the insertion index
-                    let less_than_idx = self.acir_context.less_than_var(
-                        current_index,
-                        max_flat_user_index,
-                        64,
-                        self.current_side_effects_enabled_var,
-                    )?;
+                    let less_than_idx =
+                        self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?;
 
                     // Read from the original slice the value we want to insert into our new slice.
                     // We need to make sure that we read the previous element when our current index is greater than insertion index.
@@ -2322,7 +2318,6 @@ impl Context {
                             current_index,
                             flat_user_index,
                             64,
-                            self.current_side_effects_enabled_var,
                         )?;
 
                         let shifted_value_pred =

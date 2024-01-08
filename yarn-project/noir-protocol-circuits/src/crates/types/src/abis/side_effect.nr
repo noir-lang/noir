@@ -1,5 +1,5 @@
 use crate::constants::{GENERATOR_INDEX__SIDE_EFFECT};
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 use crate::traits::{Empty, Hash};
 
 struct SideEffect{

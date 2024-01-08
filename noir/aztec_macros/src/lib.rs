@@ -500,7 +500,8 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Make this point to aztec-nr once the issue is fixed.
-    let selector_path = chained_path!("protocol_types", "abis", "function_selector", "FunctionSelector");
+    let selector_path =
+        chained_path!("protocol_types", "abis", "function_selector", "FunctionSelector");
     let mut from_signature_path = selector_path.clone();
     from_signature_path.segments.push(ident("from_signature"));
 
@@ -510,7 +511,8 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     )))]);
 
     // Define `FunctionSelector` return type
-    let return_type = FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![])));
+    let return_type =
+        FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![])));
 
     let mut selector_fn_def = FunctionDefinition::normal(
         &ident("selector"),

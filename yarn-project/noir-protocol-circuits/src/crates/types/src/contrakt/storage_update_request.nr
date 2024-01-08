@@ -5,7 +5,7 @@ use crate::{
     },
     hash::pedersen_hash,
 };
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 use crate::traits::{Hash, Empty};
 
 struct StorageUpdateRequest{

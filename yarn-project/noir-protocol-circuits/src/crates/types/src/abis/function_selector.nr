@@ -1,5 +1,5 @@
 use crate::utils::field::field_from_bytes;
-use dep::std::ops::Eq;
+use dep::std::cmp::Eq;
 
 global SELECTOR_SIZE = 4;
 

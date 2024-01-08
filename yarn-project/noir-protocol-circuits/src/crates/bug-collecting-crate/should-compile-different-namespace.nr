@@ -1,4 +1,3 @@
-
 struct Foo<N> {
     x : N,
 }
