@@ -1,6 +1,6 @@
 fn main() {
-    let xs = Vec::new();
-    let option = Option::none();
+    let _xs = Vec::new();
+    let _option = Option::none();
 
     print("42\n");
     println("42");
@@ -12,8 +12,8 @@ mod a {
     use dep::std::option::Option;
 
     fn main() {
-        let xs = Vec::new();
-        let option = Option::none();
+        let _xs = Vec::new();
+        let _option = Option::none();
 
         print("42\n");
         println("42");
@@ -22,8 +22,8 @@ mod a {
 
 mod b {
     fn main() {
-        let xs = Vec::new();
-        let option = Option::none();
+        let _xs = Vec::new();
+        let _option = Option::none();
 
         print("42\n");
         println("42");
