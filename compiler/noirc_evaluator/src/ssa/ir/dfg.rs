@@ -181,7 +181,7 @@ impl DataFlowGraph {
                     );
                 }
 
-                let last_id = None;
+                let mut last_id = None;
 
                 for instruction in instructions {
                     let id = self.make_instruction(instruction, ctrl_typevars.clone());
@@ -191,7 +191,7 @@ impl DataFlowGraph {
                 }
 
                 let id = last_id.expect("There should be at least 1 simplified instruction");
-                InsertInstructionResult::Results(id, self.instruction_results(id));
+                InsertInstructionResult::Results(id, self.instruction_results(id))
             }
         }
     }
