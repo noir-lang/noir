@@ -28,7 +28,7 @@ Nothing! Except perhaps the 30-40$ per hour it will cost you.
 
 The problem is that provisioning takes time, and I bet you don't want to see the AWS console every time you want to code something real quick.
 
-Fortunately, there's an easy and free way to get a decent remote machine ready and loaded in less than 2 minutes: Codespaces. Codespaces is a Github feature that allows you to code in a remote machine by using devcontainers, and it's pretty cool:
+Fortunately, there's an easy and free way to get a decent remote machine ready and loaded in less than 2 minutes: Codespaces. [Codespaces is a Github feature](https://github.com/features/codespaces) that allows you to code in a remote machine by using devcontainers, and it's pretty cool:
 
 - You can start coding Noir in less than a minute
 - It uses the resources of a remote machine, so you can code on your grandma's phone if needed be
@@ -57,8 +57,7 @@ Github comes with a default codespace and you can use it to code your own devcon
 
 #### 4. Create a Dockerfile in that folder, and paste the following code:
 
-```dockerfile
-
+```docker
 FROM --platform=linux/amd64 node:lts-bookworm-slim
 SHELL ["/bin/bash", "-c"]
 RUN apt update && apt install -y curl bash git tar gzip libc++-dev
@@ -66,7 +65,6 @@ RUN curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | ba
 ENV PATH="/root/.nargo/bin:$PATH"
 RUN noirup
 ENTRYPOINT ["nargo"]
-
 ```
 #### 5. Create a file called `devcontainer.json` in the same folder, and paste the following code:
 
