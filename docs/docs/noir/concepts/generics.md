@@ -73,7 +73,7 @@ impl<N> BigInt<N> {
 Since a generic type `T` can represent any type, how can we call functions on the underlying type?
 In other words, how can we go from "any type `T`" to "any type `T` that has certain methods available?"
 
-This is what [traits](docs/traits) are for in Noir. Here's an example of a function generic over
+This is what [traits](../traits) are for in Noir. Here's an example of a function generic over
 any type `T` that implements the `Eq` trait for equality:
 
 ```rust
@@ -103,4 +103,4 @@ impl Eq for MyStruct {
 }
 ```
 
-You can find more details on traits and trait implementations on the [traits page](docs/traits).
+You can find more details on traits and trait implementations on the [traits page](../traits).
