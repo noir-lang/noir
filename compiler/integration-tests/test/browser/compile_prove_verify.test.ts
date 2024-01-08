@@ -1,7 +1,7 @@
 import { expect } from '@esm-bundle/chai';
 import * as TOML from 'smol-toml';
 
-import { CompiledCircuit, compile, createFileManager } from '@noir-lang/noir_wasm';
+import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
@@ -23,11 +23,11 @@ const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
 
 suite.timeout(60 * 20e3); //20mins
 
-async function getCircuit(projectPath: string): Promise<CompiledCircuit> {
+async function getCircuit(projectPath: string) {
   const fm = createFileManager('/');
   await fm.writeFile('./src/main.nr', await getFile(`${projectPath}/src/main.nr`));
   await fm.writeFile('./Nargo.toml', await getFile(`${projectPath}/Nargo.toml`));
-  const [result] = await compile(fm);
+  const result = await compile(fm);
   if (!('program' in result)) {
     throw new Error('Compilation failed');
   }
@@ -41,7 +41,7 @@ test_cases.forEach((testInfo) => {
     const base_relative_path = '../../../../..';
     const test_case = testInfo.case;
 
-    let noir_program: CompiledCircuit;
+    let noir_program;
     try {
       noir_program = await getCircuit(`${base_relative_path}/${test_case}`);
 

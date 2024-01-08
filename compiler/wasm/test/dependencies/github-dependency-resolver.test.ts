@@ -42,7 +42,7 @@ describe('GithubDependencyResolver', () => {
     pkg = new Package('/test_contract', '/test_contract/src', {
       dependencies: {
         // eslint-disable-next-line camelcase
-        test_lib: libDependency,
+        lib_c: libDependency,
       },
       package: {
         name: 'test_contract',
@@ -62,7 +62,7 @@ describe('GithubDependencyResolver', () => {
 
   it("returns null if it can't resolve a dependency", async () => {
     const dep = await resolver.resolveDependency(pkg, {
-      path: '/test_lib',
+      path: '/lib-c',
     });
 
     expect(dep).to.be.null;
@@ -70,9 +70,9 @@ describe('GithubDependencyResolver', () => {
 
   it('resolves Github dependency', async () => {
     const zip = new AdmZip();
-    const testLibPath = join(fixtures, 'deps', 'test_lib');
+    const testLibPath = join(fixtures, 'deps', 'lib-c');
     for (const filePath of await readdirRecursive(testLibPath)) {
-      zip.addLocalFile(filePath, dirname(filePath.replace(testLibPath, 'test_lib')));
+      zip.addLocalFile(filePath, dirname(filePath.replace(testLibPath, 'lib-c')));
     }
 
     fetchStub?.onCall(0).returns(new Response(zip.toBuffer(), { status: 200 }));

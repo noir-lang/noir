@@ -10,6 +10,17 @@ export function getPaths(basePath: string) {
   const libASourcePath = `${fixtures}/deps/lib-a/src/lib.nr`;
   const libBSourcePath = `${fixtures}/deps/lib-b/src/lib.nr`;
 
+  const contractProjectPath = `${fixtures}/noir-contract`;
+  const contractSourcePath = `${contractProjectPath}/src/main.nr`;
+  const contractTOMLPath = `${contractProjectPath}/Nargo.toml`;
+  const contractExpectedArtifact = `${contractProjectPath}/target/test-TestContract.json`;
+
+  const libCProjectPath = `${fixtures}/deps/lib-c`;
+  const libCSourcePath = `${libCProjectPath}/src/lib.nr`;
+  const libCModulePath = `${libCProjectPath}/src/module.nr`;
+  const libCModuleSourcePath = `${libCProjectPath}/src/module/foo.nr`;
+  const libCTOMLPath = `${libCProjectPath}/Nargo.toml`;
+
   return {
     simpleScriptSourcePath,
     simpleScriptExpectedArtifact,
@@ -17,5 +28,14 @@ export function getPaths(basePath: string) {
     depsScriptExpectedArtifact,
     libASourcePath,
     libBSourcePath,
+    contractProjectPath,
+    contractSourcePath,
+    contractTOMLPath,
+    contractExpectedArtifact,
+    libCProjectPath,
+    libCSourcePath,
+    libCModulePath,
+    libCModuleSourcePath,
+    libCTOMLPath,
   };
 }

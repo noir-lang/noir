@@ -1,10 +1,14 @@
-import { compile, createFileManager } from '@noir-lang/noir_wasm';
-import { getPaths } from '../shared';
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { getPaths } from '../../shared';
 import { expect } from '@esm-bundle/chai';
+// @ts-ignore
+import { compile, createFileManager } from '../../../dist/web/main';
+import { CompilationResult, CompiledContract } from '../../../src/types/noir_artifact';
 
 const paths = getPaths('.');
 
 async function getFile(path: string) {
+  // @ts-ignore
   const basePath = new URL('./../../', import.meta.url).toString().replace(/\/$/g, '');
   const url = `${basePath}${path.replace('.', '')}`;
   const response = await fetch(url);
@@ -24,11 +28,12 @@ describe('noir-compiler', () => {
     const fm = createFileManager('/');
     const files = Object.values(paths).filter((fileOrDir) => /^\.?\/.*\..*$/.test(fileOrDir));
     for (const path of files) {
+      console.log(path);
       await fm.writeFile(path, (await getFile(path)).body as ReadableStream<Uint8Array>);
     }
-    const nargoArtifact = await getPrecompiledSource(contractExpectedArtifact);
+    const nargoArtifact = (await getPrecompiledSource(contractExpectedArtifact)) as CompiledContract;
     nargoArtifact.functions.sort((a, b) => a.name.localeCompare(b.name));
-    const [noirWasmArtifact] = await compile(fm, '/circuits/deps_testing');
+    const noirWasmArtifact = (await compile(fm, '/fixtures/noir-contract')) as CompilationResult;
     if (!('contract' in noirWasmArtifact)) {
       throw new Error('Compilation failed');
     }

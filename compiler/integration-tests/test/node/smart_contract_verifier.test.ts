@@ -31,7 +31,7 @@ test_cases.forEach((testInfo) => {
     const test_case = testInfo.case;
 
     const fm = createFileManager(resolve(`${base_relative_path}/${test_case}`));
-    const [compileResult] = await compile(fm);
+    const compileResult = await compile(fm);
     if (!('program' in compileResult)) {
       throw new Error('Compilation failed');
     }

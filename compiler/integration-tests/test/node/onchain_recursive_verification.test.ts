@@ -14,7 +14,7 @@ import { compile, createFileManager } from '@noir-lang/noir_wasm';
 it(`smart contract can verify a recursive proof`, async () => {
   const basePath = resolve(join(__dirname, '../../../../'));
   const fm = createFileManager(basePath);
-  const [innerCompilationResult] = await compile(
+  const innerCompilationResult = await compile(
     fm,
     join(basePath, './test_programs/execution_success/assert_statement'),
   );
@@ -23,7 +23,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   }
   const innerProgram = innerCompilationResult.program;
 
-  const [recursionCompilationResult] = await compile(
+  const recursionCompilationResult = await compile(
     fm,
     join(basePath, './compiler/integration-tests/circuits/recursion'),
   );

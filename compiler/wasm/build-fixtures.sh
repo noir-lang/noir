@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-cd test/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../../
+cd test/fixtures && cd simple && nargo compile && cd ../with-deps && nargo compile && cd ../noir-contract && nargo compile && cd ../../

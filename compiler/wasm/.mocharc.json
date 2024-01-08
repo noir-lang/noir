@@ -4,7 +4,7 @@
       "ts"
     ],
     "spec": [
-      "**/!(browser)/*.test.ts"
+      "./test/**/!(browser)/*.test.ts"
     ],
     "node-option": [
       "loader=ts-node"

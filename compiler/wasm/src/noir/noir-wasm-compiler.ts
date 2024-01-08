@@ -87,14 +87,11 @@ export class NoirWasmCompiler {
   /**
    * Compile EntryPoint
    */
-  public async compile(): Promise<CompilationResult[]> {
+  public async compile(): Promise<CompilationResult> {
     console.log(`Compiling at ${this.#package.getEntryPointPath()}`);
 
     if (!(this.#package.getType() === 'contract' || this.#package.getType() === 'bin')) {
-      this.#log(
-        `Compile skipped - only supports compiling "contract" and "bin" package types (${this.#package.getType()})`,
-      );
-      return [];
+      throw new Error(`Only supports compiling "contract" and "bin" package types (${this.#package.getType()})`);
     }
     await this.#dependencyManager.resolveDependencies();
     this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
@@ -127,11 +124,14 @@ export class NoirWasmCompiler {
         throw new Error('Invalid compilation result');
       }
 
-      return [result];
+      return result;
     } catch (err) {
       if (err instanceof Error && err.name === 'CompileError') {
-        await this.#processCompileError(err);
-        throw new Error('Compilation failed');
+        const logs = await this.#processCompileError(err);
+        for (const log of logs) {
+          this.#log(log);
+        }
+        throw new Error(logs.join('\n'));
       }
 
       throw err;
@@ -148,9 +148,10 @@ export class NoirWasmCompiler {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async #processCompileError(err: any): Promise<void> {
+  async #processCompileError(err: any): Promise<string[]> {
+    const logs = [];
     for (const diag of err.diagnostics) {
-      this.#log(`  ${diag.message}`);
+      logs.push(`  ${diag.message}`);
       const contents = await this.#resolveFile(diag.file);
       const lines = contents.split('\n');
       const lineOffsets = lines.reduce<number[]>((accum, _, idx) => {
@@ -164,8 +165,9 @@ export class NoirWasmCompiler {
 
       for (const secondary of diag.secondaries) {
         const errorLine = lineOffsets.findIndex((offset) => offset > secondary.start);
-        this.#log(`    ${diag.file}:${errorLine}: ${contents.slice(secondary.start, secondary.end)}`);
+        logs.push(`    ${diag.file}:${errorLine}: ${contents.slice(secondary.start, secondary.end)}`);
       }
     }
+    return logs;
   }
 }

@@ -318,8 +318,14 @@ jobs:
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
+
+      - name: Run browser tests
+        run: yarn workspace @noir-lang/noir_wasm test:browser
 
   test-noir-codegen:
     needs: [build-acvm-js, build-noirc-abi, build-nargo]

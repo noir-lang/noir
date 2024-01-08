@@ -1,7 +1,0 @@
-[package]
-name = "testlib"
-authors = [""]
-compiler_version = "0.1"
-type = "lib"
-
-[dependencies]
