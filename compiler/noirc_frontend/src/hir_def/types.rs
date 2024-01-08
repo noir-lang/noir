@@ -1265,7 +1265,7 @@ impl Type {
                     })
                     .collect();
 
-                let instantiated = typ.substitute(&replacements);
+                let instantiated = typ.force_substitute(&replacements);
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
