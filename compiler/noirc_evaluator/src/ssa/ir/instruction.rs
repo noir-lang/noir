@@ -581,6 +581,14 @@ impl Instruction {
 /// that value is returned. Otherwise None is returned.
 fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> SimplifyResult {
     use SimplifyResult::*;
+    let value = dfg.resolve(value);
+
+    if let Value::Instruction { instruction, .. } = &dfg[value] {
+        if let Instruction::Cast(original_value, _) = &dfg[*instruction] {
+            return SimplifiedToInstruction(Instruction::Cast(*original_value, dst_typ.clone()));
+        }
+    }
+
     if let Some(constant) = dfg.get_numeric_constant(value) {
         let src_typ = dfg.type_of_value(value);
         match (src_typ, dst_typ) {
