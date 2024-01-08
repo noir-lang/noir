@@ -203,7 +203,6 @@ struct Context<'f> {
     slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
-#[derive(Debug, Clone)]
 pub(crate) struct Store {
     old_value: ValueId,
     new_value: ValueId,

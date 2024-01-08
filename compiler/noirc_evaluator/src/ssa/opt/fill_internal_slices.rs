@@ -150,8 +150,9 @@ impl<'f> Context<'f> {
         self.slice_parents = capacity_tracker.slice_parents_map();
 
         // Compute slice nested max
-        // TODO: This can be optimized to better track the nested max only when necessary
-        // Here we assume the nested max throughout the program
+        // Here we are currently assuming the nested max throughout the block
+        // TODO: This can be optimized to better track the nested max for specific slices.
+        // TODO: Tracking the nested max for each slice was simpler before enabling the merging of nested slices.
         let mut nested_max = 0;
         for (slice_value, size_and_children) in slice_sizes.iter() {
             let typ = self.inserter.function.dfg.type_of_value(*slice_value);

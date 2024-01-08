@@ -41,9 +41,6 @@ impl<'a> SliceCapacityTracker<'a> {
         slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
         results: Vec<ValueId>,
     ) {
-        // let (instruction, _) = self.inserter.map_instruction(instruction_id);
-        // let results = self.inserter.function.dfg.instruction_results(instruction_id);
-        // let instruction = &self.dfg[instruction_id];
         match instruction {
             Instruction::ArrayGet { array, .. } => {
                 let array_typ = self.dfg.type_of_value(*array);
