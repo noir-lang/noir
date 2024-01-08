@@ -557,8 +557,12 @@ impl Instruction {
                                 .expect("rhs is checked to be constant.");
                             let divisor_bits = divisor.num_bits();
 
-                            let max_quotient_bits = max_numerator_bits - divisor_bits + 1;
-                            if max_quotient_bits <= *bit_size {
+                            // 2^{max_quotient_bits} = 2^{max_numerator_bits} / 2^{divisor_bits}
+                            // => max_quotient_bits = max_numerator_bits - divisor_bits
+                            //
+                            // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
+                            let max_quotient_bits = max_numerator_bits - divisor_bits;
+                            if max_quotient_bits < *bit_size {
                                 SimplifiedTo(*value)
                             } else {
                                 None
