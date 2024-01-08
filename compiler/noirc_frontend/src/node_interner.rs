@@ -768,12 +768,12 @@ impl NodeInterner {
     }
 
     /// Returns the interned meta data corresponding to `func_id`
-    pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
-        self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
+    pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
+        self.func_meta.get(func_id).expect("ice: all function ids should have metadata")
     }
 
-    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<FuncMeta> {
-        self.func_meta.get(func_id).cloned()
+    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
+        self.func_meta.get(func_id)
     }
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
@@ -1104,7 +1104,10 @@ impl NodeInterner {
         recursion_limit: u32,
     ) -> Result<(), Vec<TraitConstraint>> {
         for constraint in where_clause {
-            let constraint_type = constraint.typ.substitute(instantiation_bindings);
+            // Instantiation bindings are generally safe to force substitute into the same type.
+            // This is needed here to undo any bindings done to trait methods by monomorphization.
+            // Otherwise, an impl for (A, B) could get narrowed to only an impl for e.g. (u8, u16).
+            let constraint_type = constraint.typ.force_substitute(instantiation_bindings);
             let constraint_type = constraint_type.substitute(type_bindings);
 
             self.lookup_trait_implementation_helper(

@@ -28,7 +28,7 @@ mod tests {
         dbg_session
             .execute(
                 &format!("{} debug --program-dir {}", nargo_bin, test_program_dir),
-                &format!(".*\\Starting debugger.*"),
+                ".*\\Starting debugger.*",
             )
             .expect("Could not start debugger");
 
@@ -49,7 +49,7 @@ mod tests {
         // having successfully solved the circuit witness.
         dbg_session.send_line("quit").expect("Failed to quit debugger");
         dbg_session
-            .exp_regex(&format!(".*Circuit witness successfully solved.*"))
+            .exp_regex(".*Circuit witness successfully solved.*")
             .expect("Expected circuit witness to be successfully solved.");
     }
 }
