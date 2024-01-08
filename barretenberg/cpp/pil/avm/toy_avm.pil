@@ -1,0 +1,20 @@
+namespace toy(256);
+    pol commit q_tuple_set;
+
+    // Set 1
+    pol commit set_1_column_1;
+    pol commit set_1_column_2;
+    // Set 2
+    pol commit set_2_column_1;
+    pol commit set_2_column_2;
+    
+    // This is a column based tuple lookup
+    #[two_column_perm] // the name of the inverse
+    q_tuple_set { set_1_column_1, set_1_column_2 } is { set_2_column_1, set_2_column_2 };
+
+    // Relation not used -> we currently require a single relation for codegen
+    pol commit x;
+    x' - x = 0;
+
+    // Also needs a fixed relation 
+    pol fixed first = [1] + [0]*;

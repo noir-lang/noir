@@ -10,6 +10,7 @@
 #include <tuple>
 
 #include "barretenberg/common/constexpr_utils.hpp"
+#include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/relation_types.hpp"
@@ -201,10 +202,17 @@ template <typename Settings, typename FF_> class GenericPermutationRelationImpl 
     static void accumulate(ContainerOverSubrelations& accumulator,
                            const AllEntities& in,
                            const Parameters& params,
-                           const FF& scaling_factor);
+                           const FF& scaling_factor)
+    {
+        logderivative_library::accumulate_logderivative_permutation_subrelation_contributions<
+            FF,
+            GenericPermutationRelationImpl<Settings, FF>>(accumulator, in, params, scaling_factor);
+    }
 };
 
 template <typename Settings, typename FF>
 using GenericPermutationRelation = Relation<GenericPermutationRelationImpl<Settings, FF>>;
+
+template <typename Settings, typename FF> using GenericPermutation = GenericPermutationRelationImpl<Settings, FF>;
 
 } // namespace proof_system::honk::sumcheck

@@ -6,3 +6,4 @@ ts/dest
 .tsbuildinfo
 .idea
 cmake-build-debug
+*_opt.pil
