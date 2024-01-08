@@ -21,5 +21,4 @@ export default {
   nodeResolve: true,
   rootDir: fileURLToPath(new URL('./../../', import.meta.url)),
   reporters: [reporter],
-  debug: true,
 };
