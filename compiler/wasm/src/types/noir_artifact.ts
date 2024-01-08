@@ -1,7 +1,7 @@
 import { Abi, AbiType } from '@noir-lang/noirc_abi';
 
 /**
- * A named type.f
+ * A named type.
  */
 export interface ABIVariable {
   /**
