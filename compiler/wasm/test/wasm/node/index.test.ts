@@ -37,8 +37,8 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
-    });
-  }).timeout(60 * 20e3);
+    }).timeout(60 * 20e3);
+  });
 
   describe('can compile scripts with dependencies', () => {
     const sourceMap = new PathToFileSourceMap();
@@ -71,8 +71,8 @@ describe('noir wasm compilation', () => {
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
-    });
-  }).timeout(60 * 20e3);
+    }).timeout(60 * 20e3);
+  });
 
   describe('can compile scripts with dependencies -- context-api', () => {
     let sourceMap: PathToFileSourceMap;
