@@ -1,0 +1,12 @@
+{
+  "extends": ".",
+  "include": ["src/web/*.ts"],
+  "references": [
+    {
+      "path": "../accounts"
+    },
+    {
+      "path": "../aztec.js"
+    }
+  ],
+}

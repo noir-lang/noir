@@ -1,17 +1,17 @@
+import { AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { Ecdsa } from '@aztec/circuits.js/barretenberg';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { AuthWitness, CompleteAddress } from '@aztec/types';
 
-import { AuthWitnessProvider } from '../account/interface.js';
-import EcdsaAccountContractArtifact from './artifacts/EcdsaAccount.json' assert { type: 'json' };
-import { BaseAccountContract } from './base_account_contract.js';
+import { DefaultAccountContract } from '../defaults/account_contract.js';
+import { EcdsaAccountContractArtifact } from './artifact.js';
 
 /**
  * Account contract that authenticates transactions using ECDSA signatures
  * verified against a secp256k1 public key stored in an immutable encrypted note.
  */
-export class EcdsaAccountContract extends BaseAccountContract {
+export class EcdsaAccountContract extends DefaultAccountContract {
   constructor(private signingPrivateKey: Buffer) {
     super(EcdsaAccountContractArtifact as ContractArtifact);
   }

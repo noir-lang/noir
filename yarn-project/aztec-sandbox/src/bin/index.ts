@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --no-warnings
+import { deployInitialSandboxAccounts } from '@aztec/accounts/testing';
 import { createAztecNodeRpcServer, getConfigEnvVars as getNodeConfigEnvVars } from '@aztec/aztec-node';
-import { AccountManager, createAztecNodeClient, deployInitialSandboxAccounts } from '@aztec/aztec.js';
+import { AccountManager, createAztecNodeClient } from '@aztec/aztec.js';
 import { NULL_KEY } from '@aztec/ethereum';
 import { init } from '@aztec/foundation/crypto';
 import { createStatusRouter } from '@aztec/foundation/json-rpc/server';

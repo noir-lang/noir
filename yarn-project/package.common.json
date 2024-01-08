@@ -11,7 +11,6 @@
     "node": ">=18"
   },
   "files": ["dest", "src", "!*.test.*"],
-  "types": "./dest/index.d.ts",
   "devDependencies": {
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",

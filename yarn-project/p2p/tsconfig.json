@@ -13,10 +13,10 @@
       "path": "../foundation"
     },
     {
-      "path": "../types"
+      "path": "../kv-store"
     },
     {
-      "path": "../kv-store"
+      "path": "../types"
     }
   ],
   "include": ["src"]

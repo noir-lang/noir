@@ -1,17 +1,17 @@
+import { AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { AuthWitness, CompleteAddress, GrumpkinPrivateKey } from '@aztec/types';
 
-import { AuthWitnessProvider } from '../account/interface.js';
-import SchnorrAccountContractArtifact from './artifacts/SchnorrAccount.json' assert { type: 'json' };
-import { BaseAccountContract } from './base_account_contract.js';
+import { DefaultAccountContract } from '../defaults/account_contract.js';
+import { SchnorrAccountContractArtifact } from './artifact.js';
 
 /**
  * Account contract that authenticates transactions using Schnorr signatures
  * verified against a Grumpkin public key stored in an immutable encrypted note.
  */
-export class SchnorrAccountContract extends BaseAccountContract {
+export class SchnorrAccountContract extends DefaultAccountContract {
   constructor(private signingPrivateKey: GrumpkinPrivateKey) {
     super(SchnorrAccountContractArtifact as ContractArtifact);
   }

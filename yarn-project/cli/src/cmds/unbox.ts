@@ -7,6 +7,7 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const resolutions: { [key: string]: string } = {
+  '@aztec/accounts': 'portal:.aztec-packages/yarn-project/accounts',
   '@aztec/aztec.js': 'portal:.aztec-packages/yarn-project/aztec.js',
   '@aztec/circuits.js': 'portal:.aztec-packages/yarn-project/circuits.js',
   '@aztec/foundation': 'portal:.aztec-packages/yarn-project/foundation',

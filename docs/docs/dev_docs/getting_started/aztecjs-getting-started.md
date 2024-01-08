@@ -39,7 +39,7 @@ mkdir src
 3. Add necessary yarn packages (and optionally add typescript too)
 
 ```sh
-yarn add @aztec/aztec.js @aztec/noir-contracts typescript @types/node
+yarn add @aztec/aztec.js @aztec/accounts @aztec/noir-contracts typescript @types/node
 ```
 
 4. [Optional] If creating a typescript file, add a `tsconfig.json` file into the project root, here is an example:
@@ -88,6 +88,7 @@ yarn add @aztec/aztec.js @aztec/noir-contracts typescript @types/node
     "start": "yarn build && DEBUG='token' node ./dest/index.js"
   },
   "dependencies": {
+    "@aztec/accounts": "latest",
     "@aztec/aztec.js": "latest",
     "@aztec/noir-contracts": "latest",
     "@types/node": "^20.6.3",

@@ -34,8 +34,7 @@ yarn workspace @aztec/circuits.js remake-constants
 yarn workspace @aztec/noir-compiler build
 # Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
 yarn workspace @aztec/noir-contracts build:contracts
-# TODO: Contracts should not be baked into aztec.js.
-yarn workspace @aztec/aztec.js build:copy-contracts
+yarn workspace @aztec/accounts build:copy-contracts
 # Build protocol circuits. TODO: move pre yarn-project.
 yarn workspace @aztec/noir-protocol-circuits noir:build
 

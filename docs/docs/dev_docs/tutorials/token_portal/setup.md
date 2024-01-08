@@ -130,7 +130,7 @@ Inside the `packages` directory, run
 
 ```bash
 mkdir src && cd src && yarn init -yp
-yarn add @aztec/aztec.js @aztec/noir-contracts @aztec/types @aztec/foundation @aztec/l1-artifacts viem "@types/node@^20.8.2"
+yarn add @aztec/aztec.js @aztec/accounts @aztec/noir-contracts @aztec/types @aztec/foundation @aztec/l1-artifacts viem "@types/node@^20.8.2"
 yarn add -D jest @jest/globals ts-jest
 ```
 

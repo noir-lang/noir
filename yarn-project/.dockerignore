@@ -11,7 +11,7 @@
 **/Dockerfile*
 **/*.tsbuildinfo
 
-./aztec.js/src/account_contract/artifacts
+./accounts/src/artifacts
 
 noir-contracts/src
 noir-contracts/target

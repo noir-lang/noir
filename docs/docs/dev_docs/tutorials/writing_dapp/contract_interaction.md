@@ -45,10 +45,10 @@ Balance of 0x0e1f60e8566e2c6d32378bdcadb7c63696e853281be798c107266b8c3a88ea9b: 0
 
 Now that we can see the balance for each user, let's transfer tokens from one account to another. To do this, we will first need access to a `Wallet` object. This wraps access to an PXE and also provides an interface to craft and sign transactions on behalf of one of the user accounts.
 
-We can initialize a wallet using one of the `getAccount` methods from `aztec.js`, along with the corresponding signing and encryption keys:
+We can initialize a wallet using one of the `getAccount` methods from the `accounts` package, along with the corresponding signing and encryption keys:
 
 ```js
-import { getSchnorrAccount } from "@aztec/aztec.js";
+import { getSchnorrAccount } from "@aztec/accounts/schnorr";
 const wallet = await getSchnorrAccount(
   client,
   ENCRYPTION_PRIVATE_KEY,
@@ -56,10 +56,10 @@ const wallet = await getSchnorrAccount(
 ).getWallet();
 ```
 
-For ease of use, `aztec.js` also ships with a helper `getSandboxAccountsWallets` method that returns a wallet for each of the pre-initialized accounts in the Sandbox, so you can send transactions as any of them. 
+For ease of use, `accounts` also ships with a helper `getSandboxAccountsWallets` method that returns a wallet for each of the pre-initialized accounts in the Sandbox, so you can send transactions as any of them. 
 
 ```js
-import { getSandboxAccountsWallets } from '@aztec/aztec.js';
+import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
 ```
 
 We'll use one of these wallets to initialize the `Contract` instance that represents our private token contract, so every transaction sent through it will be sent through that wallet.

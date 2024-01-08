@@ -18,6 +18,7 @@
     "skipLibCheck": true
   },
   "references": [
+    { "path": "accounts/tsconfig.json" },
     { "path": "acir-simulator/tsconfig.json" },
     { "path": "archiver/tsconfig.json" },
     { "path": "aztec-faucet/tsconfig.json" },

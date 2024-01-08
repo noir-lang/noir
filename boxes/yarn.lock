@@ -29,6 +29,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@aztec/accounts@portal:../yarn-project/accounts::locator=%40aztec%2Fboxes%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@aztec/accounts@portal:../yarn-project/accounts::locator=%40aztec%2Fboxes%40workspace%3A."
+  dependencies:
+    "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
+    tslib: "npm:^2.4.0"
+  languageName: node
+  linkType: soft
+
 "@aztec/aztec-ui@npm:^0.1.14":
   version: 0.1.14
   resolution: "@aztec/aztec-ui@npm:0.1.14"
@@ -58,7 +71,6 @@ __metadata:
     "@aztec/types": "workspace:^"
     lodash.every: "npm:^4.6.0"
     lodash.partition: "npm:^4.6.0"
-    lodash.zip: "npm:^4.2.0"
     tslib: "npm:^2.4.0"
   languageName: node
   linkType: soft
@@ -80,6 +92,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/box-blank-react@workspace:blank-react"
   dependencies:
+    "@aztec/accounts": "npm:^0.16.9"
     "@aztec/aztec-ui": "npm:^0.1.14"
     "@aztec/aztec.js": "npm:^0.16.9"
     "@types/jest": "npm:^29.5.0"
@@ -130,6 +143,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/box-blank@workspace:blank"
   dependencies:
+    "@aztec/accounts": "npm:^0.16.9"
     "@aztec/aztec.js": "npm:^0.16.9"
     "@types/jest": "npm:^29.5.0"
     "@types/mocha": "npm:^10.0.3"
@@ -163,6 +177,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/box-token@workspace:token"
   dependencies:
+    "@aztec/accounts": "npm:^0.16.9"
     "@aztec/aztec-ui": "npm:^0.1.14"
     "@aztec/aztec.js": "npm:^0.16.9"
     "@jest/globals": "npm:^29.6.4"
@@ -9469,13 +9484,6 @@ __metadata:
   version: 4.3.2
   resolution: "lodash.times@npm:4.3.2"
   checksum: 57a31fab8750fe0a03e1b0ca042cb7f05c125b22a546f5156a4b642966c7ac49ea9ffee462beaffb93a47a4516cdb08b2c0fe280e37b7e1c14840ec94c9aa7ca
-  languageName: node
-  linkType: hard
-
-"lodash.zip@npm:^4.2.0":
-  version: 4.2.0
-  resolution: "lodash.zip@npm:4.2.0"
-  checksum: e596da80a6138e369998b50c78b51ed6cf984b4f239e59056aa18dca5972a213c491c511caf5888a2dec603c67265caf942099bec554a86a5c7ff1937d57f0e4
   languageName: node
   linkType: hard
 

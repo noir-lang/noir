@@ -1,12 +1,5 @@
-import {
-  ExtendedNote,
-  Fr,
-  L2BlockL2Logs,
-  Note,
-  computeMessageSecretHash,
-  createPXEClient,
-  getSandboxAccountsWallets,
-} from '@aztec/aztec.js';
+import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { ExtendedNote, Fr, Note, computeMessageSecretHash, createPXEClient } from '@aztec/aztec.js';
 import { fileURLToPath } from '@aztec/foundation/url';
 
 import { getToken } from './contracts.mjs';

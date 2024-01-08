@@ -1,3 +1,4 @@
+import { createAccount, getSandboxAccountsWallets } from '@aztec/accounts/testing';
 import { createSandbox } from '@aztec/aztec-sandbox';
 import {
   AccountWallet,
@@ -7,9 +8,7 @@ import {
   Note,
   PXE,
   computeMessageSecretHash,
-  createAccount,
   createPXEClient,
-  getSandboxAccountsWallets,
   waitForSandbox,
 } from '@aztec/aztec.js';
 import { TestContract } from '@aztec/noir-contracts/Test';

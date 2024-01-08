@@ -7,13 +7,15 @@
     ".": "./dest/index.js",
     "./interfaces/pxe": "./dest/api/interfaces/pxe.js",
     "./abi": "./dest/api/abi.js",
+    "./account": "./dest/api/account.js",
     "./aztec_address": "./dest/api/aztec_address.js",
     "./eth_address": "./dest/api/eth_address.js",
     "./ethereum": "./dest/api/ethereum.js",
     "./fields": "./dest/api/fields.js",
     "./init": "./dest/api/init.js",
     "./log_id": "./dest/api/log_id.js",
-    "./tx_hash": "./dest/api/tx_hash.js"
+    "./tx_hash": "./dest/api/tx_hash.js",
+    "./wallet": "./dest/api/wallet.js"
   },
   "typedocOptions": {
     "entryPoints": [

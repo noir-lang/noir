@@ -1,8 +1,8 @@
+import { AccountWalletWithPrivateKey } from '@aztec/aztec.js/wallet';
 import { GrumpkinScalar } from '@aztec/circuits.js';
 import { PXE } from '@aztec/types';
 
-import { getSchnorrAccount } from '../account_manager/index.js';
-import { AccountWalletWithPrivateKey } from '../wallet/account_wallet_with_private_key.js';
+import { getSchnorrAccount } from '../schnorr/index.js';
 
 /**
  * Deploys and registers a new account using random private keys and returns the associated Schnorr account wallet. Useful for testing.

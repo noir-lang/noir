@@ -1,15 +1,14 @@
+import { AccountContract, AccountInterface, AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { CompleteAddress, NodeInfo } from '@aztec/types';
 
-import { DefaultAccountInterface } from '../account/defaults/default_interface.js';
-import { AccountInterface, AuthWitnessProvider } from '../account/interface.js';
-import { AccountContract } from './account_contract.js';
+import { DefaultAccountInterface } from '../defaults/account_interface.js';
 
 /**
  * Base class for implementing an account contract. Requires that the account uses the
  * default entrypoint method signature.
  */
-export abstract class BaseAccountContract implements AccountContract {
+export abstract class DefaultAccountContract implements AccountContract {
   abstract getAuthWitnessProvider(address: CompleteAddress): AuthWitnessProvider;
   abstract getDeploymentArgs(): any[];
 

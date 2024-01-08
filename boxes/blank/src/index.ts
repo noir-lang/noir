@@ -14,8 +14,9 @@ import {
   TxReceipt,
   createPXEClient,
   encodeArguments,
-  getSandboxAccountsWallets,
 } from '@aztec/aztec.js';
+
+import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
 
 // docs:end:imports
 

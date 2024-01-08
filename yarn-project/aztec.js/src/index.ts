@@ -48,23 +48,14 @@ export {
 
 export { createPXEClient } from './pxe_client.js';
 
-export { CompleteAddress, AuthWitnessProvider } from './account/index.js';
+export { AuthWitnessProvider } from './account/index.js';
 
-export {
-  AccountContract,
-  EcdsaAccountContract,
-  SchnorrAccountContract,
-  SingleKeyAccountContract,
-  BaseAccountContract,
-} from './account_contract/index.js';
+export { AccountContract } from './account/index.js';
+export { AccountManager } from './account_manager/index.js';
 
-export { getSchnorrAccount, AccountManager, getUnsafeSchnorrAccount } from './account_manager/index.js';
-
-export { waitForSandbox, getSandboxAccountsWallets, deployInitialSandboxAccounts } from './sandbox/index.js';
+export { waitForSandbox } from './sandbox/index.js';
 
 export { AccountWalletWithPrivateKey, AccountWallet, Wallet, SignerlessWallet } from './wallet/index.js';
-
-export { createAccount, createAccounts } from './create_account/index.js';
 
 // // TODO https://github.com/AztecProtocol/aztec-packages/issues/2632 --> FunctionSelector might not need to be exposed
 // // here once the issue is resolved.
@@ -85,6 +76,7 @@ export { Grumpkin, Schnorr } from '@aztec/circuits.js/barretenberg';
 export {
   AuthWitness,
   AztecNode,
+  CompleteAddress,
   ContractData,
   DeployedContract,
   ExtendedContractData,

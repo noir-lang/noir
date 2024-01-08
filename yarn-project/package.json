@@ -16,6 +16,7 @@
     "clean": "yarn workspaces foreach -p -v run clean"
   },
   "workspaces": [
+    "accounts",
     "acir-simulator",
     "archiver",
     "aztec-faucet",

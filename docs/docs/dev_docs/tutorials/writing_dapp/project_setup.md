@@ -20,10 +20,10 @@ cd sample-dapp
 yarn init -yp
 ```
 
-3. Add the `aztec.js` library as a dependency:
+3. Add the `aztec.js` and `accounts` libraries as a dependency:
 
 ```sh
-yarn add @aztec/aztec.js
+yarn add @aztec/aztec.js @aztec/accounts
 ```
 
 ## Next steps

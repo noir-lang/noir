@@ -1,7 +1,7 @@
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { CompleteAddress, NodeInfo } from '@aztec/types';
 
-import { AccountInterface } from '../account/interface.js';
+import { AccountInterface } from './interface.js';
 
 // docs:start:account-contract-interface
 /**

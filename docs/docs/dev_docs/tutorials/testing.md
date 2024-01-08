@@ -4,7 +4,7 @@ title: Testing with Typescript
 
 Testing is an integral part of any piece of software, and especially important for any blockchain application. In this page we will cover how to interact with your Noir contracts in a testing environment to write automated tests for your apps.
 
-We will be using typescript to write our tests, and rely on the [`aztec.js`](https://www.npmjs.com/package/@aztec/aztec.js) client library to interact with a local Aztec network. We will use [`jest`](https://jestjs.io/) as a testing library, though feel free to use whatever you work with. Configuring the nodejs testing framework is out of scope for this guide.
+We will be using typescript to write our tests, and rely on the [`aztec.js`](https://www.npmjs.com/package/@aztec/aztec.js) client library to interact with a local Aztec network, along with the [`accounts`](https://www.npmjs.com/package/@aztec/accounts) package for setting up test accounts. We will use [`jest`](https://jestjs.io/) as a testing library, though feel free to use whatever you work with. Configuring the nodejs testing framework is out of scope for this guide.
 
 ## A simple example
 

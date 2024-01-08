@@ -87,7 +87,8 @@ Open `cross_chain_messaging.test.ts` and paste the initial description of the te
 
 ```typescript
 import { expect, jest} from '@jest/globals'
-import { AccountWallet, AztecAddress, DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, getSandboxAccountsWallets, waitForSandbox } from '@aztec/aztec.js';
+import { AccountWallet, AztecAddress, DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, waitForSandbox } from '@aztec/aztec.js';
+import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
 import { TokenContract } from '@aztec/noir-contracts/Token';
 import { TokenBridgeContract } from '@aztec/noir-contracts/TokenBridge';
 

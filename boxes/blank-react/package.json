@@ -32,6 +32,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/accounts": "^0.16.9",
     "@aztec/aztec-ui": "^0.1.14",
     "@aztec/aztec.js": "^0.16.9",
     "classnames": "^2.3.2",

@@ -1,14 +1,14 @@
+import { EcdsaAccountContract } from '@aztec/accounts/ecdsa';
+import { SchnorrAccountContract } from '@aztec/accounts/schnorr';
+import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
 import {
   AccountContract,
   AccountManager,
   CompleteAddress,
-  EcdsaAccountContract,
   Fr,
   GrumpkinPrivateKey,
   GrumpkinScalar,
   PXE,
-  SchnorrAccountContract,
-  SingleKeyAccountContract,
   Wallet,
 } from '@aztec/aztec.js';
 import { ChildContract } from '@aztec/noir-contracts/Child';

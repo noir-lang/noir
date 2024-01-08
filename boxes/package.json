@@ -12,6 +12,7 @@
     "token"
   ],
   "resolutions": {
+    "@aztec/accounts": "portal:../yarn-project/accounts",
     "@aztec/aztec.js": "portal:../yarn-project/aztec.js",
     "@aztec/circuits.js": "portal:../yarn-project/circuits.js",
     "@aztec/foundation": "portal:../yarn-project/foundation",

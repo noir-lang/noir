@@ -1,10 +1,9 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS builder
 
-# Build aztec.js web.
-WORKDIR /usr/src/yarn-project/aztec.js
+# Build web bundle for browser tests
+WORKDIR /usr/src/yarn-project/end-to-end
 RUN yarn build:web
 
-WORKDIR /usr/src/yarn-project/end-to-end
 # Productionify. See comment in yarn-project-base/Dockerfile.
 RUN yarn workspaces focus --production && yarn cache clean
 
@@ -24,9 +23,6 @@ RUN apk update && apk add --no-cache \
 
 ENV CHROME_BIN="/usr/bin/chromium-browser" PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 COPY --from=builder /usr/src /usr/src
-
-RUN rm /usr/src/yarn-project/end-to-end/src/web/main.js
-COPY --from=builder /usr/src/yarn-project/aztec.js/dest/main.js /usr/src/yarn-project/end-to-end/src/web/main.js
 
 WORKDIR /usr/src/yarn-project/end-to-end
 

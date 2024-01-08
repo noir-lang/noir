@@ -1,8 +1,8 @@
+import { AccountInterface, AuthWitnessProvider, EntrypointInterface } from '@aztec/aztec.js/account';
 import { CompleteAddress, Fr } from '@aztec/circuits.js';
 import { AuthWitness, FunctionCall, NodeInfo, TxExecutionRequest } from '@aztec/types';
 
-import { AccountInterface, AuthWitnessProvider, EntrypointInterface } from '../interface.js';
-import { DefaultAccountEntrypoint } from './default_entrypoint.js';
+import { DefaultAccountEntrypoint } from './account_entrypoint.js';
 
 /**
  * Default implementation for an account interface. Requires that the account uses the default

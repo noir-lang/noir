@@ -1,3 +1,4 @@
+import { getUnsafeSchnorrAccount } from '@aztec/accounts/single_key';
 import {
   AztecAddress,
   AztecNode,
@@ -12,7 +13,6 @@ import {
   TxStatus,
   Wallet,
   computeMessageSecretHash,
-  getUnsafeSchnorrAccount,
   retryUntil,
 } from '@aztec/aztec.js';
 import { ChildContract, TokenContract } from '@aztec/noir-contracts';
