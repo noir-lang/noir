@@ -1,6 +1,6 @@
 import { NoirDependencyConfig, NoirPackageConfig, parseNoirPackageConfig } from '@aztec/foundation/noir';
 
-import { parse } from '@ltd/j-toml';
+import { parse } from '@iarna/toml';
 import { join } from 'node:path';
 
 import { FileManager } from './file-manager/file-manager.js';

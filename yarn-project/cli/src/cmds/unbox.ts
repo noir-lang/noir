@@ -1,10 +1,12 @@
 import { LogFn } from '@aztec/foundation/log';
 
-import { parse, stringify } from '@iarna/toml';
+import { parse } from '@iarna/toml';
 import { execSync } from 'child_process';
 import { appendFileSync, cpSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
+
+import { prettyPrintNargoToml } from '../utils.js';
 
 const resolutions: { [key: string]: string } = {
   '@aztec/accounts': 'portal:.aztec-packages/yarn-project/accounts',
@@ -127,7 +129,7 @@ function nargoTomlUpdateToGithubDeps(path: string, cliVersion: string) {
     }
   });
 
-  const updatedToml = stringify(content);
+  const updatedToml = prettyPrintNargoToml(content);
 
   writeFileSync(path, updatedToml, 'utf-8');
 }
@@ -148,7 +150,7 @@ function nargoTomlUpdateToDevPath(path: string) {
     }
   });
 
-  const updatedToml = stringify(content);
+  const updatedToml = prettyPrintNargoToml(content);
 
   writeFileSync(path, updatedToml, 'utf-8');
 }

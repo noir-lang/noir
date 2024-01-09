@@ -3,7 +3,9 @@ import { AztecAddress } from '@aztec/aztec.js/aztec_address';
 import { type L1ContractArtifactsForDeployment } from '@aztec/aztec.js/ethereum';
 import { type PXE } from '@aztec/aztec.js/interfaces/pxe';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { NoirPackageConfig } from '@aztec/foundation/noir';
 
+import TOML from '@iarna/toml';
 import { CommanderError, InvalidArgumentError } from 'commander';
 import { readFile, rename, writeFile } from 'fs/promises';
 
@@ -204,4 +206,21 @@ export async function atomicUpdateFile(filePath: string, contents: string) {
       throw e;
     }
   }
+}
+
+/**
+ * Pretty prints Nargo.toml contents to a string
+ * @param config - Nargo.toml contents
+ * @returns The Nargo.toml contents as a string
+ */
+export function prettyPrintNargoToml(config: NoirPackageConfig): string {
+  const withoutDependencies = Object.fromEntries(Object.entries(config).filter(([key]) => key !== 'dependencies'));
+
+  const partialToml = TOML.stringify(withoutDependencies);
+  const dependenciesToml = Object.entries(config.dependencies).map(([name, dep]) => {
+    const depToml = TOML.stringify.value(dep);
+    return `${name} = ${depToml}`;
+  });
+
+  return partialToml + '\n[dependencies]\n' + dependenciesToml.join('\n') + '\n';
 }

@@ -327,7 +327,6 @@ __metadata:
     "@iarna/toml": ^2.2.5
     "@jest/globals": ^29.5.0
     "@libp2p/peer-id-factory": ^3.0.4
-    "@ltd/j-toml": ^1.38.0
     "@types/jest": ^29.5.0
     "@types/lodash.startcase": ^4.4.7
     "@types/node": ^18.7.23
@@ -576,8 +575,8 @@ __metadata:
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@iarna/toml": ^2.2.5
     "@jest/globals": ^29.5.0
-    "@ltd/j-toml": ^1.38.0
     "@noir-lang/noir_wasm": "portal:../../noir/packages/noir_wasm"
     "@types/fs-extra": ^11.0.1
     "@types/jest": ^29.5.0
@@ -2526,13 +2525,6 @@ __metadata:
   version: 2.9.1
   resolution: "@lmdb/lmdb-win32-x64@npm:2.9.1"
   conditions: os=win32 & cpu=x64
-  languageName: node
-  linkType: hard
-
-"@ltd/j-toml@npm:^1.38.0":
-  version: 1.38.0
-  resolution: "@ltd/j-toml@npm:1.38.0"
-  checksum: 34f5d0ec652e790a7a733f0d3a8d9957d63997bd0efc13a61beb9d772bae75519453884fbc3fd6a2d5fe15674834bdd57ca1824bb1de8f829e5ce195fc5fa3ea
   languageName: node
   linkType: hard
 

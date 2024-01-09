@@ -1,12 +1,11 @@
 import { LogFn } from '@aztec/foundation/log';
-import { NoirPackageConfig, parseNoirPackageConfig } from '@aztec/foundation/noir';
+import { parseNoirPackageConfig } from '@aztec/foundation/noir';
 
-import TOML from '@ltd/j-toml';
+import TOML from '@iarna/toml';
 import { readFile } from 'fs/promises';
-import { EOL } from 'os';
 import { join, relative, resolve } from 'path';
 
-import { atomicUpdateFile } from '../utils.js';
+import { atomicUpdateFile, prettyPrintNargoToml } from '../utils.js';
 import { DependencyChanges } from './common.js';
 
 /**
@@ -49,31 +48,9 @@ export async function updateAztecNr(contractPath: string, tag: string, log: LogF
   }
 
   if (changes.dependencies.length > 0) {
-    const contents = prettyPrintTOML(packageConfig);
+    const contents = prettyPrintNargoToml(packageConfig);
     await atomicUpdateFile(configFilepath, contents);
   }
 
   return changes;
-}
-
-/**
- * Pretty prints a NoirPackageConfig to a string
- * @param packageConfig - Nargo.toml contents
- * @returns The Nargo.toml contents as a string
- */
-function prettyPrintTOML(packageConfig: NoirPackageConfig): string {
-  // hint to TOML.stringify how we want the file to look like
-  return TOML.stringify(
-    {
-      package: TOML.Section(packageConfig.package),
-      dependencies: TOML.Section(
-        Object.fromEntries(Object.entries(packageConfig.dependencies).map(([name, dep]) => [name, TOML.inline(dep)])),
-      ),
-    },
-    {
-      indent: 2,
-      newline: EOL as any,
-      newlineAround: 'section',
-    },
-  );
 }
