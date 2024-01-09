@@ -68,6 +68,15 @@ pub fn keccak256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Keccak256, err))
 }
 
+const KECCAK_LANES: usize = 25;
+
+pub fn keccakf1600(
+    mut state: [u64; KECCAK_LANES],
+) -> Result<[u64; KECCAK_LANES], BlackBoxResolutionError> {
+    keccak::f1600(&mut state);
+    Ok(state)
+}
+
 pub fn ecdsa_secp256k1_verify(
     hashed_msg: &[u8],
     public_key_x: &[u8; 32],
