@@ -9,6 +9,8 @@ pub enum BlackBoxOp {
     Sha256 { message: HeapVector, output: HeapArray },
     /// Calculates the Blake2s hash of the inputs.
     Blake2s { message: HeapVector, output: HeapArray },
+    /// Calculates the Blake3 hash of the inputs.
+    Blake3 { message: HeapVector, output: HeapArray },
     /// Calculates the Keccak256 hash of the inputs.
     Keccak256 { message: HeapVector, output: HeapArray },
     /// Verifies a ECDSA signature over the secp256k1 curve.

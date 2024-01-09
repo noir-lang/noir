@@ -1,7 +1,7 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
-    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256,
+    blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256,
     BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
@@ -55,6 +55,12 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::Blake2s { message, output } => {
             let message = to_u8_vec(read_heap_vector(memory, registers, message));
             let bytes = blake2s(message.as_slice())?;
+            memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
+            Ok(())
+        }
+        BlackBoxOp::Blake3 { message, output } => {
+            let message = to_u8_vec(read_heap_vector(memory, registers, message));
+            let bytes = blake3(message.as_slice())?;
             memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
             Ok(())
         }
@@ -171,6 +177,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
     match op {
         BlackBoxOp::Sha256 { .. } => BlackBoxFunc::SHA256,
         BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
+        BlackBoxOp::Blake3 { .. } => BlackBoxFunc::Blake3,
         BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
         BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
