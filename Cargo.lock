@@ -2682,6 +2682,7 @@ dependencies = [
  "assert_fs",
  "async-lsp",
  "backend-interface",
+ "bb_abstraction_leaks",
  "bn254_blackbox_solver",
  "build-data",
  "clap",

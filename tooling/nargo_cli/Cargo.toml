@@ -51,6 +51,7 @@ dap.workspace = true
 
 # Backends
 backend-interface = { path = "../backend_interface" }
+bb_abstraction_leaks.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
