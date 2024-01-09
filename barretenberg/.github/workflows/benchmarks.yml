@@ -43,7 +43,7 @@ jobs:
       - name: Run Honk benchmarks
         working-directory: cpp/build-bench
         run: |
-          bin/ultra_honk_bench --benchmark_format=json > ../src/barretenberg/benchmark/honk_bench/bench_results.json
+          bin/ultra_honk_bench --benchmark_format=json > ../src/barretenberg/benchmark/ultra_bench/bench_results.json
       
       # Utilize github-action-benchmark to automatically update the plots at 
       # https://aztecprotocol.github.io/barretenberg/dev/bench/ with new benchmark data.
@@ -53,7 +53,7 @@ jobs:
         with:
           name: C++ Benchmark
           tool: 'googlecpp'
-          output-file-path: cpp/src/barretenberg/benchmark/honk_bench/bench_results.json
+          output-file-path: cpp/src/barretenberg/benchmark/ultra_bench/bench_results.json
           # Access token to deploy GitHub Pages branch
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Push and deploy GitHub pages branch automatically

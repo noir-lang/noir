@@ -1,4 +1,4 @@
-#include "barretenberg/benchmark/honk_bench/benchmark_utilities.hpp"
+#include "barretenberg/benchmark/ultra_bench/benchmark_utilities.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 

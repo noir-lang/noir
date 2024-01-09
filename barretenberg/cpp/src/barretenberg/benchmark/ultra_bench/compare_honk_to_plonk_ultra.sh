@@ -30,7 +30,7 @@ PLONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/plonk_bench.json"
 cd ..
 cmake --preset bench > /dev/null && cmake --build --preset bench --target ultra_honk_bench
 cd build-bench
-HONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/honk_bench.json"
+HONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/ultra_bench.json"
 ./bin/ultra_honk_bench --benchmark_format=json > $HONK_BENCH_RESULTS
 
 # Call compare.py on the results (json) to get high level statistics.

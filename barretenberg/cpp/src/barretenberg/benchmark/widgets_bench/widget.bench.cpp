@@ -1,4 +1,4 @@
-#include "barretenberg/benchmark/honk_bench/benchmark_utilities.hpp"
+#include "barretenberg/benchmark/ultra_bench/benchmark_utilities.hpp"
 #include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"

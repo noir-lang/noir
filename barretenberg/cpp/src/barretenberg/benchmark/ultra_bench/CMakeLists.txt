@@ -1,13 +1,18 @@
 # Each source represents a separate benchmark suite 
 set(BENCHMARK_SOURCES
-  plonk.bench.cpp
-  standard_plonk.bench.cpp
+  ultra_honk.bench.cpp
+  ultra_honk_rounds.bench.cpp
+  ultra_plonk.bench.cpp
+  ultra_plonk_rounds.bench.cpp
 )
 
 # Required libraries for benchmark suites
 set(LINKED_LIBRARIES
-  plonk
-  stdlib_primitives
+  ultra_honk
+  stdlib_sha256
+  stdlib_keccak
+  stdlib_merkle_tree
+  stdlib_recursion
   benchmark::benchmark
 )
 
