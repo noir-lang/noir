@@ -312,7 +312,7 @@ fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), Functi
 fn attribute() -> impl NoirParser<Attribute> {
     token_kind(TokenKind::Attribute).map(|token| match token {
         Token::Attribute(attribute) => attribute,
-        _ => unreachable!(),
+        _ => unreachable!("Parser should have already errored due to token not being an attribute"),
     })
 }
 
@@ -369,7 +369,7 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
 
 /// This parser always parses no input and fails
 fn nothing<T>() -> impl NoirParser<T> {
-    one_of([]).map(|_| unreachable!())
+    one_of([]).map(|_| unreachable!("parser should always error"))
 }
 
 fn self_parameter() -> impl NoirParser<Param> {

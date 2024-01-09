@@ -85,11 +85,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             signature,
             result: result_register,
         } => {
-            let bb_func = match op {
-                BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
-                BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
-                _ => unreachable!(),
-            };
+            let bb_func = black_box_function_from_op(op);
 
             let public_key_x: [u8; 32] = to_u8_vec(read_heap_array(
                 memory,
@@ -124,7 +120,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                 BlackBoxOp::EcdsaSecp256r1 { .. } => {
                     ecdsa_secp256r1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
                 }
-                _ => unreachable!(),
+                _ => unreachable!("`BlackBoxOp` is guarded against being a non-ecdsa operation"),
             };
 
             registers.set(*result_register, result.into());
@@ -175,6 +171,21 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             registers.set(*output, hash.into());
             Ok(())
         }
+    }
+}
+
+fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
+    match op {
+        BlackBoxOp::Sha256 { .. } => BlackBoxFunc::SHA256,
+        BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
+        BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
+        BlackBoxOp::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
+        BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
+        BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
+        BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
+        BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
+        BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
+        BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
     }
 }
 

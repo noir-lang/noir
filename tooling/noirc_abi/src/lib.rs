@@ -157,11 +157,7 @@ impl AbiType {
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
-            Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
-            Type::Constant(_) => unreachable!(),
-            Type::TraitAsType(..) => unreachable!(),
+
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -175,12 +171,17 @@ impl AbiType {
                 let fields = vecmap(fields, |typ| Self::from_type(context, typ));
                 Self::Tuple { fields }
             }
-            Type::TypeVariable(_, _) => unreachable!(),
-            Type::NamedGeneric(..) => unreachable!(),
-            Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
+            Type::Error
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(..)
+            | Type::Forall(..)
+            | Type::NotConstant
+            | Type::Function(_, _, _) => unreachable!("Type cannot be used in the abi"),
+            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
-            Type::NotConstant => unreachable!(),
         }
     }
 

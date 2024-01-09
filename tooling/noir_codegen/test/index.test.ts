@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import { exported_function_foo, MyStruct, u64, ForeignCallHandler } from './codegen/index.js';
 
 it('codegens a callable function', async () => {
-  const my_struct = { foo: true, bar: ['12345', '12345', '12345'] };
+  const my_struct = { foo: true, bar: ['12345', '12345', '12345'], baz: '0x00' };
 
   const [sum, constant, struct]: [u64, u64, MyStruct] = await exported_function_foo(
     '2',
@@ -20,7 +20,7 @@ it('codegens a callable function', async () => {
 
   expect(sum).to.be.eq('0x05');
   expect(constant).to.be.eq('0x03');
-  expect(struct).to.be.deep.eq({ foo: true, bar: ['12345', '12345', '12345'] });
+  expect(struct).to.be.deep.eq(my_struct);
 });
 
 it('allows passing a custom foreign call handler', async () => {
@@ -35,7 +35,7 @@ it('allows passing a custom foreign call handler', async () => {
     return [];
   };
 
-  const my_struct = { foo: true, bar: ['12345', '12345', '12345'] };
+  const my_struct = { foo: true, bar: ['12345', '12345', '12345'], baz: '0x00' };
 
   const [sum, constant, struct]: [u64, u64, MyStruct] = await exported_function_foo(
     '2',
@@ -102,5 +102,5 @@ it('allows passing a custom foreign call handler', async () => {
 
   expect(sum).to.be.eq('0x05');
   expect(constant).to.be.eq('0x03');
-  expect(struct).to.be.deep.eq({ foo: true, bar: ['12345', '12345', '12345'] });
+  expect(struct).to.be.deep.eq(my_struct);
 });

@@ -1,6 +1,7 @@
 struct MyStruct {
     foo: bool,
     bar: [str<5>; 3],
+    baz: Field
 }
 
 struct NestedStruct {
