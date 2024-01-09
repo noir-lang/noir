@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export VERSION=${1:-$VERSION}
+export VERSION=${1:-${VERSION:-}}
 export NON_INTERACTIVE=1
 bash -i <(curl -s http://install.aztec.network)
