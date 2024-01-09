@@ -36,7 +36,21 @@ You can run the Sandbox using Docker.
 To install the latest Sandbox version, run:
 
 ```bash
-/bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
+bash -i <(curl -s install.aztec.network)
+```
+
+This will install the following:
+
+- **aztec** - launches various infrastructure subsystems (sequencer, prover, pxe, etc).
+- **aztec-cli** - a command line tool for interfacing and experimenting with infrastructure.
+- **aztec-nargo** - aztec's build of nargo, the noir compiler toolchain.
+- **aztec-sandbox** - a wrapper around docker-compose that launches services needed for sandbox testing.
+- **aztec-up** - a tool to upgrade the aztec toolchain to the latest, or specific versions.
+
+Once these have been installed, to start the sandbox, run:
+
+```bash
+aztec-sandbox
 ```
 
 This will attempt to run the Sandbox on ` localhost:8080`, so you will have to make sure nothing else is running on that port or change the port defined in `./.aztec/docker-compose.yml`. Running the command again will overwrite any changes made to the `docker-compose.yml`.

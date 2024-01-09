@@ -18,9 +18,7 @@ We are going to start with a blank project and fill in the token contract source
 
 ## Requirements
 
-You will need to have `aztec-cli` installed in order to compile Aztec.nr contracts. See the [quickstart guide](../getting_started/quickstart.md#cli) for installation instructions.
-
-When you are running the Sandbox, `aztec-cli`, and compiling contracts with Noir, make sure you are using matching versions--we will be shipping breaking changes so mis-matched versions may not work.
+You will need to have `aztec-nargo` installed in order to compile Aztec.nr contracts. See the [sandbox reference](../cli/sandbox-reference.md) for installation instructions.
 
 You should also install the [Noir Language Support extension](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir) for VS Code.
 
@@ -462,10 +460,18 @@ If you don't yet have any private state variables defined put there a placeholde
 
 ## Compiling
 
-Now that the contract is complete, you should be able to compile it with the `aztec-cli`. See the [CLI page](../cli/main.md) for instructions on setting it up.
+Now that the contract is complete, you can compile it with `aztec-nargo`. See the [Sandbox reference page](../cli/sandbox-reference.md) for instructions on setting it up.
+
+Run the following command in the directory where your `Nargo.toml` file is located:
 
 ```bash
-aztec-cli compile /path/to/token_contracts_folder
+aztec-nargo compile
+```
+
+Once your contract is compiled, generate the Aztec contract ABI with typescript interface with the following command:
+
+```bash
+aztec-cli codegen target -o src/artifacts --ts
 ```
 
 ## Next Steps

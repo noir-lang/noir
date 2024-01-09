@@ -27,11 +27,16 @@ cd l1-contracts
 npx hardhat compile
 ```
 
-and the Aztec.nr contracts:
+and the each of the Aztec.nr contracts by going into each folder and running:
 
 ```bash
-cd aztec-contracts
-aztec-cli compile --typescript ../../src/test/fixtures uniswap
+aztec-nargo compile
+```
+
+And then generate the ABIs and typescript interface:
+
+```bash
+aztec-cli codegen ./target/ -o ../../../src/test/fixtures uniswap --ts
 ```
 
 This will create a TS interface in our `src/test` folder that will help us write our test.

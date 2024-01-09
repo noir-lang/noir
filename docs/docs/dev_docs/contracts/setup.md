@@ -14,19 +14,13 @@ If you haven't read about [Aztec.nr](./main.md), we recommend going there first.
 
 ### Dependencies
 
-#### `nargo`
-
-Nargo is Noir's build tool. On your terminal, run:
-
-<InstallNargoInstructions />
-
 #### Aztec Sandbox
 
 You need to setup the [Aztec sandbox](../getting_started/quickstart.md).
 
 <!-- TODO([#1056](https://github.com/AztecProtocol/aztec-packages/issues/1056)): Add a step for the starter kit -->
 
-## Set up for aztec.nr contracts
+## Setup for Aztec.nr contracts
 
 1. Inside the yarn project you created from the [Sandbox page](../getting_started/quickstart.md), create a sub-folder where the contracts will reside.
 
@@ -36,14 +30,14 @@ mkdir contracts
 
 All contract projects will reside within this folder. Note that contracts don't actually have to live here and this is just a style choice.
 
-2. Next, create a noir project using nargo by running the following in the terminal from the `contracts` folder
+1. Next, create an Aztec contract project using aztec-nargo by running the following in the terminal from the `contracts` folder
 
 ```bash
 cd contracts
-nargo new --contract example_contract
+aztec-nargo new --contract example_contract
 ```
 
-This creates `example_contract` directory within contracts which is a noir project with:
+This creates `example_contract` directory within contracts which is a Noir project with:
 
 - a Nargo.toml (which is the manifest file of the project) at `example_contract/Nargo.toml`.
 - a main.nr file (the file where our contract will reside) at `example_contract/src/main.nr`.
@@ -77,6 +71,7 @@ type = "contract"
 [dependencies]
 # Framework import
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
+protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
 
 # Utility dependencies
 value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/value-note"}

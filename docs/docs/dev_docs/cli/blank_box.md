@@ -20,7 +20,7 @@ See the Quickstart page for [requirements](../getting_started/quickstart.md#requ
 
 Aztec Boxes use [yarn](https://classic.yarnpkg.com/) for package management, so if you want to follow along exactly, make sure you have it [installed](https://classic.yarnpkg.com/en/docs/install).
 
-You will also need to install Noir to compile contracts. You can find instructions for installing the latest version of Noir that is compatible with the Sandbox on the [Aztec.nr Contracts](../contracts/main.md#install-noir) page.
+You will also need to install Aztec tooling to compile contracts. You can find instructions for installing the latest version [here](../cli/sandbox-reference.md).
 
 ## Getting the Box
 

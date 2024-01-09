@@ -8,23 +8,23 @@ We will build this:
 
 <Image img={require('/img/tutorials/voting_flow.png')} />
 
-* The contract will be initialized with an admin, stored publicly
-* A voter can vote privately, which will call a public function and update the votes publically
-* The admin can end the voting period, which is a public boolean
+- The contract will be initialized with an admin, stored publicly
+- A voter can vote privately, which will call a public function and update the votes publicly
+- The admin can end the voting period, which is a public boolean
 
-To keep things simple, we won't create ballots or allow for delegate voting. 
+To keep things simple, we won't create ballots or allow for delegate voting.
 
 ## Prerequisites
 
-- You have followed the [quickstart](../getting_started/quickstart.md)
+- You have followed the [quickstart](../getting_started/quickstart.md) to install `aztec-nargo`, `aztec-cli` and `aztec-sandbox`.
 - Running Aztec Sandbox
 
 ## Set up a project
 
-First, [create a new contract project with `nargo`](../getting_started/aztecnr-getting-started.md). 
+First, create a new contract project with `aztec-nargo`.
 
 ```bash
-nargo new --contract private_voting
+aztec-nargo new --contract private_voting
 ```
 
 Your file structure should look something like this:
@@ -50,6 +50,7 @@ compiler_version = ">=0.18.0"
 
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
+protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
 ```
 
 ## Initiate the contract and define imports
@@ -61,6 +62,7 @@ contract Voting {
 
 }
 ```
+
 This defines a contract called `Voter`. Everything will sit inside this block.
 
 Inside this, paste these imports:
@@ -69,13 +71,13 @@ Inside this, paste these imports:
 
 We are using various utils within the Aztec library:
 
-* `context` - exposes things such as the contract address, msg_sender, etc
-* `oracle::get_secret_key` - get your secret key to help us create a randomized nullifier
-* `FunctionSelector::from_signature` - compute a function selector from signature so we can call functions from other functions
-* `state_vars::{ map::Map, public_state::PublicState, }` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicState to hold our public values that we mentioned earlier
-* `types::type_serialization::{..}` - various serialization methods for defining how to use these types
-* `types::address::{AztecAddress},` - our admin will be held as an address
-* `constants::EMPTY_NULLIFIED_COMMITMENT,` - this will come in useful when creating our nullifier
+- `context` - exposes things such as the contract address, msg_sender, etc
+- `oracle::get_secret_key` - get your secret key to help us create a randomized nullifier
+- `FunctionSelector::from_signature` - compute a function selector from signature so we can call functions from other functions
+- `state_vars::{ map::Map, public_state::PublicState, }` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicState to hold our public values that we mentioned earlier
+- `types::type_serialization::{..}` - various serialization methods for defining how to use these types
+- `types::address::{AztecAddress},` - our admin will be held as an address
+- `constants::EMPTY_NULLIFIED_COMMITMENT,` - this will come in useful when creating our nullifier
 
 ## Set up storage
 
@@ -89,6 +91,7 @@ Define the storage struct like so:
 #include_code storage_struct yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 In this contract, we will store three vars:
+
 1. admin, as an Aztec address held in public state
 2. tally, as a map with key as the persona and value as the number (in Field) held in public state
 3. voteEnded, as a boolean held in public state
@@ -97,7 +100,7 @@ Under the struct, define the impl block like this:
 
 #include_code storage_impl yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
-The `impl` block must define one function `init` that explains how to access and manipulate our variables. We pass context, a storage slot, and serialization methods we imported earlier. 
+The `impl` block must define one function `init` that explains how to access and manipulate our variables. We pass context, a storage slot, and serialization methods we imported earlier.
 
 This `init` function will be called every time we access `storage` in our functions.
 
@@ -112,6 +115,7 @@ Therefore our constructor must call a public function by using `context.call_pub
 #include_code constructor yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 `context.call_public_function()` takes three arguments:
+
 1. The contract address whose method we want to call
 2. The selector of the function to call (we can use `FunctionSelector::from_signature(...)` for this)
 3. The arguments of the function (we pass the `admin`)
@@ -127,6 +131,7 @@ This function is set as `internal` so that it can only be called from within the
 ## Casting a vote privately
 
 For the sake of simplicity, we will have three requirements:
+
 1. Everyone with an Aztec account gets a vote
 2. They can only vote once in this contract
 3. Who they are is private, but their actual vote is not
@@ -151,7 +156,7 @@ The first thing we do here is assert that the vote has not ended.
 
 `assert()` takes two arguments: the assertion, in this case that `storage.voteEnded` is not false, and the error thrown if the assertion fails.
 
-The code after the assertion will only run if the assertion is true. In this snippet, we read the current vote tally at the voteId, add 1 to it, and write this new number to the voteId. The `Field` element allows us to use `+` to add to an integer. 
+The code after the assertion will only run if the assertion is true. In this snippet, we read the current vote tally at the voteId, add 1 to it, and write this new number to the voteId. The `Field` element allows us to use `+` to add to an integer.
 
 ## Getting the number of votes
 
@@ -163,7 +168,7 @@ We set it as `unconstrained` and do not annotate it because it is only reading f
 
 ## Allowing an admin to end a voting period
 
-To ensure that only an admin can end a voting period, we can use another `assert()` statement. 
+To ensure that only an admin can end a voting period, we can use another `assert()` statement.
 
 Paste this function in your contract:
 
@@ -183,20 +188,24 @@ We can simply return `[0,0,0,0]` because we are not creating any notes in our co
 
 ## Compiling and deploying
 
-The easiest way to compile and deploy a contract is by using the [Aztec CLI](../cli/cli-commands.md). 
-
-In the `private_voting` directory, run this:
+The easiest way to compile the contract is with `aztec-nargo`. Run the following command in the directory with your Nargo.toml file:
 
 ```bash
-aztec-cli compile .
+aztec-nargo compile
 ```
 
-This should create a new directory called `target` and a JSON artifact inside it called `Voting.json`. If you are getting some errors here you might want to check out the [debugging page](../debugging/main.md).
-
-Once it is compiled you can deploy it to the sandbox. Ensure your [sandbox is running](../cli/sandbox-reference.md) and run this in the same dir as before:
+This will create a new directory called `target` and a JSON artifact inside it. To create the Aztec contract ABI and typescript interface, run:
 
 ```bash
-aztec-cli deploy ./target/Voting.json --args $ADMIN_ADDRESS
+aztec-cli codegen target -o src/artifacts --ts
+```
+
+This will create the ABI called `Voting.json` in `src/artifacts`. If you are getting some errors here you might want to check out the [debugging page](../debugging/main.md).
+
+Once it is compiled you can [deploy](../contracts/deploying.md) it to the sandbox. Ensure your [sandbox is running](../cli/sandbox-reference.md) and run this in the same dir as before:
+
+```bash
+aztec-cli deploy ./src/artifacts/Voting.json --args $ADMIN_ADDRESS
 ```
 
 The constructor takes an address as an argument to set the admin, so you can use an address that is deployed with the sandbox - check the sandbox terminal or run `aztec-cli get-accounts`.
@@ -206,22 +215,22 @@ You should see a success message with the contract address. Now we can start cal
 Cast a vote like this:
 
 ```bash
-aztec-cli send cast_vote --contract-artifact ./target/Voting.json --contract-address $CONTRACT_ADDRESS --args 1 --private-key $PRIVATE_KEY
+aztec-cli send cast_vote --contract-artifact ./src/artifacts/Voting.json --contract-address $CONTRACT_ADDRESS --args 1 --private-key $PRIVATE_KEY
 ```
 
 You can get the contract address from the sandbox terminal or the message printed when you deployed the contract. You can also get a private key from the sandbox terminal, or generate one with `aztec-cli generate-private-key`.
 
-This should return a `mined` success message. 
+This should return a `mined` success message.
 
 You can now try running this command again to ensure our nullifier works.
 
 Get the number of votes like this:
 
 ```bash
-aztec-cli call get_vote --contract-artifact ./target/Voting.json --contract-address $CONTRACT_ADDRESS --args 1
+aztec-cli call get_vote --contract-artifact ./src/artifacts/Voting.json --contract-address $CONTRACT_ADDRESS --args 1
 ```
 
-This should return `1n`. 
+This should return `1n`.
 
 You can follow this pattern to test `end_vote()` and access control of other functions. Find more information about calling functions from the CLI [here](../cli/cli-commands.md).
 
@@ -229,6 +238,6 @@ You can follow this pattern to test `end_vote()` and access control of other fun
 
 Now you have learned the foundations of Aztec smart contracts, you can start to play around with some more advanced features. Some ideas:
 
-* Add some more features into this contract, like the admin can distribute votes, people can delegate their votes, or voteIds can have more data like names, descriptions, etc
-* Create a frontend for this contract using [Aztec.js](../aztecjs/main.md).
-* Go to the [next tutorial](writing_token_contract.md) and learn how to write a token contract
+- Add some more features into this contract, like the admin can distribute votes, people can delegate their votes, or voteIds can have more data like names, descriptions, etc
+- Create a frontend for this contract using [Aztec.js](../aztecjs/main.md).
+- Go to the [next tutorial](writing_token_contract.md) and learn how to write a token contract

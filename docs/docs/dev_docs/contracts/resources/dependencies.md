@@ -26,12 +26,6 @@ This allows you to use authentication witnesses in your contract. Find more abou
 address_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/address-note" }
 ```
 
-## Assets
-
-```toml
-assets = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/assets" }
-```
-
 This is a library for utilizing notes that hold addresses. Find it on [GitHub](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/aztec-nr/address-note/src).
 
 ## Easy private state
@@ -41,6 +35,14 @@ easy_private_state = { git="https://github.com/AztecProtocol/aztec-packages/", t
 ```
 
 This is an abstraction library for using private variables like [`EasyPrivateUint`](https://github.com/AztecProtocol/aztec-packages/blob/6c20b45993ee9cbd319ab8351e2722e0c912f427/yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr#L17).
+
+## Protocol Types
+
+```toml
+protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
+```
+
+This library contains types that are used in the Aztec protocol. Find it on [GitHub](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-protocol-circuits/src/crates/types/src).
 
 ## Safe math
 

@@ -75,8 +75,14 @@ npx hardhat compile
 And compile your Aztec.nr contracts like this:
 
 ```bash
-cd aztec-contracts
-aztec-cli compile --typescript ../../src/test/fixtures token_bridge
+cd aztec-contracts/token-bridge
+aztec-nargo compile
+```
+
+And generate the TypeScript interface for the contract and add it to the test dir:
+
+```bash
+aztec-cli codegen target -o ../../../src/test/fixtures --ts
 ```
 
 This will create a TS interface in our `src/test` folder!

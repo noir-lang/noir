@@ -140,11 +140,19 @@
 
 [[redirects]]
     from = "/aztec/how-it-works/private-state"
-    to = "/concepts/foundation/state_model"
+    to = "/concepts/foundation/state_model/main"
+
+[[redirects]]
+    from = "/concepts/foundation/state_model"
+    to = "/concepts/foundation/state_model/main"
 
 [[redirects]]
     from = "/aztec/how-it-works/private-public-execution"
-    to = "/concepts/foundation/communication/public_private_calls"
+    to = "/concepts/foundation/communication/public_private_calls/main"
+
+[[redirects]]
+    from="/concepts/foundation/communication/public_private_calls"
+    to="/concepts/foundation/communication/public_private_calls/main"
 
 [[redirects]]
     from = "/aztec/how-it-works/l1-l2-messaging"
@@ -194,7 +202,10 @@
     from = "/dev_docs/contracts/common_errors"
     to = "dev_docs/debugging/aztecnr-errors"
 
-
 [[redirects]]
     from = "/misc/aztec-connect-sunset"
     to = "/misc/aztec_connect_sunset"
+
+[[redirects]]
+    from= "zk-money/userguide"
+    to= "/misc/aztec_connect_sunset"

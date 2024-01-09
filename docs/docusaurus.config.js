@@ -223,6 +223,10 @@ const config = {
                 label: "Developer Quickstart",
                 to: "/dev_docs/getting_started/quickstart",
               },
+              {
+                label: "Aztec.nr",
+                to: "https://github.com/AztecProtocol/aztec-nr",
+              },
             ],
           },
           {
@@ -252,6 +256,10 @@ const config = {
               {
                 label: "GitHub",
                 href: "https://github.com/AztecProtocol",
+              },
+              {
+                label: "Awesome Aztec",
+                to: "https://github.com/AztecProtocol/awesome-aztec",
               },
               {
                 label: "Grants",

@@ -22,12 +22,12 @@ Inside `ISwapRouter.sol` paste this:
 
 This is an interface for the Uniswap V3 Router, providing token swapping functionality. The contract defines methods for token swaps, both between two tokens or via a multi-hop path. Our portal will interact with the Uniswap V3 Router via this interface to perform token swaps on L1. We’ll see more about this in the next step.
 
-# Create another Noir project
+## Create another Aztec project
 
-In `aztec-contracts` create a new Noir project.
+In `aztec-contracts` create a new Aztec contract project.
 
 ```bash
-cd aztec-contracts && nargo new --contract uniswap
+cd aztec-contracts && aztec-nargo new --contract uniswap
 ```
 
 Now your `aztec-contracts` will look like this:
@@ -49,12 +49,11 @@ Inside `uniswap/Nargo.toml` paste this in `[dependencies]`:
 ```json
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/value-note"}
-safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/safe-math"}
 authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/authwit"}
+protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
 ```
 
-# L2 contracts
+## L2 contracts
 
 The `main.nr` will utilize a few helper functions that are outside the scope of this tutorial. Inside `uniswap/src` create two new files:
 
@@ -71,12 +70,18 @@ This creates interfaces for the `Token` contract and `TokenBridge` contract
 - `Token` is a reference implementation for a token on Aztec. Here we just need two methods - [`transfer_public`](../writing_token_contract.md#transfer_public) and [`unshield()`](../writing_token_contract.md#unshield).
 - The `TokenBridge` facilitates interactions with our [bridge contract](../token_portal/main.md). Here we just need its [`exit_to_l1_public`](../token_portal/withdrawing_to_l1.md)
 
-# Run Aztec sandbox
+## Run Aztec sandbox
 
 You will need a running sandbox.
 
 ```bash
-/bin/bash -c "$(curl -fsSL 'https://sandbox.aztec.network')"
+bash -i <(curl -s install.aztec.network)
+```
+
+Then
+
+```bash
+aztec-sandbox
 ```
 
 In the next step, we will write the L1 Uniswap Portal.

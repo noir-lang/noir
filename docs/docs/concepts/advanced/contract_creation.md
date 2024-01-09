@@ -206,7 +206,7 @@ The `deployedContracts` array has a maximum size `MAX_NUM_DEPLOYED_CONTRACTS`. I
 
 Excluding these steps, constructor function call is executed identically to a regular private function.
 
-> Under this design, if a public constructor is desired, one must create a private constructor function that then calls a public function. This could be abstracted away by the Noir++ compiler.
+> Under this design, if a public constructor is desired, one must create a private constructor function that then calls a public function. This could be abstracted away by the aztec-nargo compiler.
 
 **Q: why can't deployments be part of the public fn callstack?**
 

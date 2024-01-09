@@ -4,7 +4,7 @@ Once you have [compiled](./compiling.md) your contracts you can proceed to deplo
 
 ## Prerequisites
 
-- `aztec-cli` installed (go to [CLI main section](../cli/main.md) for installation instructions)
+- `aztec-cli` and `aztec-nargo` installed (go to [CLI main section](../cli/main.md) for installation instructions)
 - contract artifacts ready (go to [Compiling contracts section](./compiling.md) for instructions on how to compile contracts)
 - aztec-sandbox running (go to [Sandbox section](../getting_started/quickstart.md) for instructions on how to install and run the sandbox)
 
@@ -27,11 +27,19 @@ aztec-cli deploy /path/to/contract/artifact.json
 
 Pre-requisite - Compile the contract and generate a type-safe typescript class for it.
 
+Compile the contract:
+
 ```bash
-aztec-cli compile /path/to/contract -o target/ -ts target/
+aztec-nargo compile
 ```
 
-This would create a typescript file like `Example.ts` in the path specified. More details in the [compiling page](./compiling.md)
+Generate the ABI and typescript class:
+
+```bash
+aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts --ts
+```
+
+This would create a typescript file like `Example.ts` in `./src/artifacts`. Read more on the [compiling page](./compiling.md).
 
 Now you can import it to easily deploy and interact with the contract.
 
