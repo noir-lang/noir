@@ -147,7 +147,7 @@ impl<'interner> TypeChecker<'interner> {
         // Must push new lvalue to the interner, we've resolved any field indices
         self.interner.update_statement(stmt_id, |stmt| match stmt {
             HirStatement::Assign(assign) => assign.lvalue = new_lvalue,
-            _ => unreachable!(),
+            _ => unreachable!("statement is known to be assignment"),
         });
 
         let span = self.interner.expr_span(&assign_stmt.expression);
