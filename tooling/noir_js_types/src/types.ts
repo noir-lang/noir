@@ -45,7 +45,9 @@ export interface Backend {
  * */
 export type ProofData = {
   /** @description Public inputs of a proof */
-  publicInputs: WitnessMap;
+  publicInputs: string[];
+  /** @description The public inputs as a witness map */
+  publicInputsMap: WitnessMap;
   /** @description An byte array representing the proof */
   proof: Uint8Array;
 };
