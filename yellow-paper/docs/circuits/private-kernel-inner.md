@@ -12,11 +12,11 @@ Each **inner** kernel iteration processes a private function call and the result
 
 #### Verifying the previous kernel proof.
 
-It verifies that the previous iteration was executed successfully with the given proof data, verification key, and public inputs.
+It verifies that the previous iteration was executed successfully with the provided proof data, verification key, and public inputs, sourced from _[private_inputs](#private-inputs).[previous_kernel](#previouskernel)_.
 
 The preceding proof can be:
 
-- [Initial private kernel proof](./private-kernel-initial.md)
+- [Initial private kernel proof](./private-kernel-initial.md).
 - Inner private kernel proof.
 - [Reset private kernel proof](./private-kernel-reset.md).
 
@@ -24,143 +24,83 @@ The previous proof and the proof for the current function call are verified usin
 
 ### Processing Private Function Call
 
-#### Ensuring the contract instance being called is deployed.
-
-It proves that either of the following conditions is true:
-
-1. The nullifier representing the contract exists in the contract tree.
-
-   - Specifically, this nullifier is the contract address siloed with the address of a precompiled deployment contract.
-
-2. The contract is listed in the new contract context within the public inputs.
-
-   - The index of this contract in the new contracts array is supplied as a hint through private inputs.
-   - The counter of the new contract context must be less than the _counter_start_ of the current call.
-
 #### Ensuring the function being called exists in the contract.
 
-The contract address contains the contract class ID, which is a hash of the root of its function tree and additional values. This circuit leverages these characteristics to establish the validity of the function's association with the contract address.
-
-Each leaf of the function tree is a hash representing a function. The preimage includes:
-
-- Function data.
-- Hash of the verification key.
-- Hash of the function bytecode.
-
-To ensure the function's existence, the circuit executes the following steps:
-
-1. Computes the hash of the verification key.
-2. Calculates the function leaf: `hash(...function_data, vk_hash, bytecode_hash)`
-3. Derives the function tree root with the leaf and the specified sibling path.
-4. Computes the contract class ID using the function tree root and additional information.
-5. Generates the contract address using the contract class ID and other relevant details.
-6. Validates that the contract address matches the address specified in the private call data.
+This section follows the same [process](./private-kernel-initial.md#ensuring-the-function-being-called-exists-in-the-contract) as outlined in the initial private kernel circuit.
 
 #### Ensuring the function is legitimate:
 
-- It must be a private function.
+For the _[function_data](./private-kernel-initial.md#functiondata)_ in _[private_call](#privatecall).[call_stack_item](./private-kernel-initial.md#privatecallstackitem)_, this circuit verifies that:
+
+- It must be a private function:
+  - _`function_data.function_type == private`_
 
 #### Ensuring the current call matches the call request.
 
-The top item in the previous iteration's private call requests must pertain to the current function call.
+The top item in the _private_call_requests_ of the _[previous_kernel](#previouskernel)_ must pertain to the current function call.
 
-This circuit will pop the request from the stack, comparing the hash with that of the current function call.
+This circuit will:
 
-The preimage of the hash contains:
+1. Pop the request from the stack:
 
-- Contract address.
-- Function data.
-- Private function circuit's public inputs.
+   - _`call_request = previous_kernel.public_inputs.transient_accumulated_data.private_call_requests.pop()`_
+
+2. Compare the hash with that of the current function call:
+
+   - _`call_request.hash == private_call.call_stack_item.hash()`_
+   - The hash of the _call_stack_item_ is computed as:
+     - _`hash(contract_address, function_data.hash(), public_inputs.hash(), counter_start, counter_end)`_
+     - Where _function_data.hash()_ and _public_inputs.hash()_ are the hashes of the serialized field elements.
 
 #### Ensuring this function is called with the correct context.
 
-1. If it is a standard call:
+For the _call_context_ in the [public_inputs](./private-function.md#public-inputs) of the _[private_call](#privatecall).[call_stack_item](./private-kernel-initial.md#privatecallstackitem)_ and the _call_request_ popped in the [previous step](#ensuring-the-current-call-matches-the-call-request), this circuit checks that:
 
-   - The storage contract address of the current iteration must be the same as its contract address.
-   - The _msg_sender_ of the current iteration must be the same as the caller's contract address.
+1. If it is a standard call (`call_context.is_delegate_call == false`):
 
-2. If it is a delegate call:
+   - The _msg_sender_ of the current iteration must be the same as the caller's _contract_address_:
+     - _`call_context.msg_sender == call_request.caller_contract_address`_
+   - The _storage_contract_address_ of the current iteration must be the same as its _contract_address_:
+     - _`call_context.storage_contract_address == call_stack_item.contract_address`_
 
-   - The caller context in the call request must not be empty. Specifically, the following values of the caller should not be zeros:
-     - _msg_sender_.
-     - Storage contract address.
-   - The _msg_sender_ of the current iteration must equal the caller's _msg_sender_.
-   - The storage contract address of the current iteration must equal the caller's storage contract address.
-   - The storage contract address of the current iteration must NOT equal the contract address.
+2. If it is a delegate call (`call_context.is_delegate_call == true`):
 
-3. If it is an internal call:
+   - The _caller_context_ in the _call_request_ must not be empty. Specifically, the following values of the caller must not be zeros:
+     - _msg_sender_
+     - _storage_contract_address_
+   - The _msg_sender_ of the current iteration must equal the caller's _msg_sender_:
+     - _`call_context.msg_sender == caller_context.msg_sender`_
+   - The _storage_contract_address_ of the current iteration must equal the caller's _storage_contract_address_:
+     - _`call_context.storage_contract_address == caller_context.storage_contract_address`_
+   - The _storage_contract_address_ of the current iteration must not equal the _contract_address_:
+     - _`call_context.storage_contract_address != call_stack_item.contract_address`_
 
-   - The _msg_sender_ of the current iteration must equal the storage contract address.
+3. If it is an internal call (`call_stack_item.function_data.is_internal == true`):
+
+   - The _msg_sender_ of the current iteration must equal the _storage_contract_address_:
+     - _`call_context.msg_sender == call_context.storage_contract_address`_
 
 #### Verifying the private function proof.
 
-It verifies that the private function was executed successfully with the provided proof data, verification key, and the public inputs of the private function circuit.
+It verifies that the private function was executed successfully with the provided proof data, verification key, and the public inputs, sourced from _[private_inputs](#private-inputs).[private_call](#privatecall)_.
 
-This circuit verifies this proof and [the proof for the previous function call](#verifying-the-previous-kernel-proof) using recursion, and generates a single proof. This consolidation of multiple proofs into one is what allows the private kernel circuits to gradually merge private function proofs into a single proof of execution that represents the entire private section of a transaction.
+This circuit verifies this proof and [the proof of the previous kernel iteration](#verifying-the-previous-kernel-proof) using recursion, and generates a single proof. This consolidation of multiple proofs into one is what allows the private kernel circuits to gradually merge private function proofs into a single proof of execution that represents the entire private section of a transaction.
 
 #### Verifying the public inputs of the private function circuit.
 
-It ensures the private function circuit's intention by checking the following:
+It ensures the private function circuit's intention by checking the following in _[private_call](#privatecall).[call_stack_item](#privatecallstackitem).[public_inputs](./private-function.md#public-inputs)_:
 
-- The contract address for each non-empty item in the following arrays must equal the storage contract address of the current call:
-  - Note hash contexts.
-  - Nullifier contexts.
-  - L2-to-L1 message contexts.
-  - Read requests.
-- The portal contract address for each non-empty L2-to-L1 message must equal the portal contract address of the current call.
-- If the new contract contexts array is not empty, the contract address must equal the precompiled deployment contract address.
-- The historical data must match the one in the constant data.
-
-> Ensuring the alignment of the contract addresses is crucial, as it is later used to silo the value and to establish associations with values within the same contract.
-
-If it is a static call, it must ensure that the function does not induce any state changes by verifying that the following arrays are empty:
-
-- Note hash contexts.
-- Nullifier contexts.
-- L2-to-L1 message contexts.
-
-#### Verifying the call requests.
-
-For both private and public call requests initiated in the current function call, it ensures that for each request at index _i_:
-
-- Its hash equals the value at index _i_ within the call request hashes array in private function circuit's public inputs.
-- Its caller context is either empty or aligns with the call context of the current function call, including:
-  - _msg_sender_
-  - Storage contract address.
-
-> It is important to note that the caller context in a call request may be empty for standard calls. This precaution is crucial to prevent information leakage, particularly as revealing the _msg_sender_ to the public could pose security risks when calling a public function.
+- The _block_header_ must match the one in the _[constant_data](./private-kernel-initial.md#constantdata)_.
+- If it is a static call (_`public_inputs.call_context.is_static_call == true`_), it ensures that the function does not induce any state changes by verifying that the following arrays are empty:
+  - _note_hashes_
+  - _nullifiers_
+  - _l2_to_l1_messages_
 
 #### Verifying the counters.
 
-It verifies that each relevant value is associated with a legitimate counter.
+This section follows the same [process](./private-kernel-initial.md#verifying-the-counters) as outlined in the initial private kernel circuit.
 
-1. For the current call:
-
-   - The _counter_end_ of the current call must be greater than its _counter_start_.
-   - Both counters must match the ones defined in the top item in the previous iteration's private call requests.
-
-2. For private call requests in the private call data:
-
-   - The _counter_end_ of each request must be greater than its _counter_start_.
-   - The _counter_start_ of the first request must be greater than the _counter_start_ of the current call.
-   - The _counter_start_ of the second and subsequent requests must be greater than the _counter_end_ of the previous request.
-   - The _counter_end_ of the last request must be less than the _counter_end_ of the current call.
-
-3. For items in each ordered array in the private call data:
-
-   - The counter of the first item much be greater than the _counter_start_ of the current call.
-   - The counter of each subsequent item much be greater than the counter of the previous item.
-   - The counter of the last item much be less than the _counter_end_ of the current call.
-
-   The ordered arrays include:
-
-   - Note hash contexts.
-   - Nullifier contexts.
-   - New contract contexts.
-   - Read requests.
-   - Public call requests.
-
-   > Note that _counter_start_ is used in the above steps for public call requests to ensure their correct ordering. At this point, the _counter_end_ of public call request is unknown. Both counters will be [recalibrated](./private-kernel-tail.md#recalibrating-counters) in the tail circuit following the simulation of all public function calls.
+Additionally, it verifies that for the _[call_stack_item](#privatecallstackitem)_, the _counter_start_ and _counter_end_ must match those in the _call_request_ [popped](#ensuring-the-current-call-matches-the-call-request) from the _private_call_requests_ in a previous step.
 
 ### Validating Public Inputs
 
@@ -168,115 +108,51 @@ It verifies that each relevant value is associated with a legitimate counter.
 
 It checks that the hashes and the lengths for both encrypted and unencrypted logs are accumulated as follows:
 
-- New log hash = `hash(prev_hash, cur_hash)`
-  - If either hash is zero, the new hash will be `prev_hash | cur_hash`
-- New log length = `prev_length + cur_length`
+- `new_hash = hash(prev_hash, cur_hash)`
+  - If either hash is zero, the new hash will be `prev_hash | cur_hash`.
+- `new_length = prev_length + cur_length`
+
+Where:
+
+- _new_hash_ and _new_length_ are the values in _[public_inputs](#public-inputs).[accumulated_data](./private-kernel-initial.md#accumulateddata)_.
+- _prev_hash_ and _prev_length_ are the values in _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./private-kernel-initial.md#public-inputs).[accumulated_data](./private-kernel-initial.md#accumulateddata)_.
+- _cur_hash_ and _cur_length_ are the values in _[private_inputs](#private-inputs).[private_call](#privatecall).[call_stack_item](./private-kernel-initial.md#privatecallstackitem).[public_inputs](./private-function.md#public-inputs)_.
 
 #### Verifying the transient accumulated data.
 
-1. It verifies that the following values match the result of combining the values in the previous iteration's public inputs with those in the private call data:
+The _[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_ in this circuit's _[public_inputs](#public-inputs)_ includes values from both the previous iterations and the _[private_call](#privatecall)_.
 
-   - Note hash contexts.
-   - Nullifier contexts.
-   - L2-to-L1 message contexts.
-   - New contract contexts.
-   - Read requests.
-   - Public call requests.
+For each array in the _transient_accumulated_data_, this circuit verifies that:
 
-2. For the newly added note hashes from private function circuits' public inputs, this circuit also checks that each is associated with a nullifier counter, provided as a hint via the private inputs. The nullifier counter can be:
+1. It is populated with the values from the previous iterations, specifically:
 
-   - Zero: if the note is not nullified in the same transaction.
-   - Greater than zero: if the note is nullified in the same transaction.
-     - This value must be greater than the counter of the note hash.
+   - _`public_inputs.transient_accumulated_data.ARRAY[0..N] == private_inputs.previous_kernel.public_inputs.transient_accumulated_data.ARRAY[0..N]`_
 
-   > Nullifier counters are used in the [reset private kernel circuit](./private-kernel-reset.md) to ensure a read happens **before** a transient note is nullified.
+   > It's important to note that the top item in the _private_call_requests_ from the _previous_kernel_ won't be included, as it has been removed in a [previous step](#ensuring-the-current-call-matches-the-call-request).
 
-   > Zero can be used to indicate a non-existing transient nullifier, as this value can never serve as the counter of a nullifier. It corresponds to the _counter_start_ of the first function call.
-
-3. It verifies that the private call requests include:
-
-   - All requests from the previous iteration's public inputs excluding the top one.
-   - All requests present in the private call data, appended to the above in **reverse** order.
-
-   > Ensuring the chronological execution of call requests is vital, requiring them to be arranged in reverse order. This becomes particularly crucial when calling a contract deployed earlier within the same transaction.
+2. As for the subsequent items appended after the values from the previous iterations, they constitute the values from the _private_call_, and each must undergo the same [verification](./private-kernel-initial.md#verifying-the-transient-accumulated-data) as outlined in the initial private kernel circuit.
 
 #### Verifying the constant data.
 
-It verifies that the constant data matches the one in the previous iteration's public inputs.
+It verifies that the _[constant_data](./private-kernel-initial.md#constantdata)_ in the _[public_inputs](#public-inputs)_ matches the _constant_data_ in _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./private-kernel-initial.md#public-inputs)_.
 
 ## Private Inputs
 
-### Previous Kernel
+### _PreviousKernel_
 
-The data of the previous kernel iteration:
+Data of the previous kernel iteration.
 
-- Proof of the kernel circuit. It must be one of the following:
-  - [Initial private kernel circuit](./private-kernel-initial.md).
-  - Inner private kernel circuit.
-  - [Reset private kernel circuit](./private-kernel-reset.md).
-- Public inputs of the proof.
-- Verification key of the kernel circuit.
-- Membership witness for the verification key.
+| Field                | Type                                                                            | Description                                  |
+| -------------------- | ------------------------------------------------------------------------------- | -------------------------------------------- |
+| _public_inputs_      | _[InitialPrivateKernelPublicInputs](./private-kernel-initial.md#public-inputs)_ | Public inputs of the proof.                  |
+| _proof_              | _Proof_                                                                         | Proof of the kernel circuit.                 |
+| _vk_                 | _VerificationKey_                                                               | Verification key of the kernel circuit.      |
+| _membership_witness_ | _[MembershipWitness](./private-kernel-initial.md#membershipwitness)_            | Membership witness for the verification key. |
 
-### Private Call Data
+### _PrivateCall_
 
-The private call data holds details about the current private function call:
-
-- Contract address.
-- Function data.
-- Private call requests.
-- Public call requests.
-- Private function circuit public inputs.
-- Proof of the private function circuit.
-- Verification key of the private function circuit.
-- Hash of the function bytecode.
-
-### Hints
-
-Data that aids in the verifications carried out in this circuit or later iterations:
-
-- Index of the new contract.
-- Membership witness for the function leaf.
-- Membership witness for the contract leaf.
-- Transient note nullifier counters.
+The format aligns with the _[PrivateCall](./private-kernel-initial.md#privatecall)_ of the initial private kernel circuit.
 
 ## Public Inputs
 
-The structure of this public inputs aligns with that of the [initial private kernel circuit](./private-kernel-initial.md) and the [reset private kernel circuit](./private-kernel-reset.md).
-
-### Constant Data
-
-These are constants that remain the same throughout the entire transaction:
-
-- Historical data - representing the states of the block at which the transaction is constructed, including:
-  - Hash of the global variables.
-  - Roots of the trees:
-    - Note hash tree.
-    - Nullifier tree.
-    - Contract tree.
-    - L1-to-l2 message tree.
-    - Public data tree.
-- Transaction context
-  - A flag indicating whether it is a fee paying transaction.
-  - A flag indicating whether it is a fee rebate transaction.
-  - Chain ID.
-  - Version of the transaction.
-
-### Accumulated Data
-
-It contains data accumulated during the execution of the transaction up to this point:
-
-- Log hashes.
-- Log lengths.
-
-### Transient Accumulated Data
-
-It includes transient data accumulated during the execution of the transaction up to this point:
-
-- Note hash contexts.
-- Nullifier contexts.
-- L2-to-L1 message contexts.
-- New contract contexts.
-- Read requests.
-- Private call requests.
-- Public call requests.
+The format aligns with the _[Public Inputs](./private-kernel-initial.md#public-inputs)_ of the initial private kernel circuit.

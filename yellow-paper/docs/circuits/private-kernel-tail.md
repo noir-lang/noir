@@ -12,7 +12,7 @@ The **tail** circuit abstains from processing individual private function calls.
 
 #### Verifying the previous kernel proof.
 
-It verifies that the previous iteration was executed successfully with the given proof data, verification key, and public inputs.
+It verifies that the previous iteration was executed successfully with the given proof data, verification key, and public inputs, sourced from _[private_inputs](#private-inputs).[previous_kernel](#previouskernel)_.
 
 The preceding proof can be:
 
@@ -20,205 +20,184 @@ The preceding proof can be:
 - [Inner private kernel proof](./private-kernel-inner.md).
 - [Reset private kernel proof](./private-kernel-reset.md).
 
-An inner iteration may be omitted when there's only a single private function call for the transaction. And a reset iteration can be skipped if there are no read requests and transient nullifiers in the public inputs from the last initial or inner iteration.
+An inner iteration may be omitted when there's only a single private function call for the transaction. And a reset iteration can be skipped if there are no read requests and transient notes in the public inputs from the last iteration.
 
 #### Ensuring the previous iteration is the last.
 
-The following must be empty to ensure all the private function calls are processed:
+It checks the data within _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./private-kernel-initial.md#public-inputs).[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_ to ensure that no further private kernel iteration is needed.
 
-- Private call requests.
+1. The following must be empty to ensure all the private function calls are processed:
 
-The following must be empty to ensure a comprehensive final reset:
+   - _private_call_requests_
 
-- The nullified note hash associated with each nullifier.
-- Read requests.
+2. The following must be empty to ensure a comprehensive final reset:
 
-> A [reset iteration](./private-kernel-reset.md) should ideally precede this step. Although it doesn't have to be executed immediately before the tail circuit, as long as it effectively clears the specified values.
+   - _read_requests_
+   - The _nullifier_counter_ associated with each note hash in _note_hash_contexts_.
+   - The _nullified_note_hash_ associated with each nullifier in _nullifier_contexts_.
+
+   > A [reset iteration](./private-kernel-reset.md) should ideally precede this step. Although it doesn't have to be executed immediately before the tail circuit, as long as it effectively clears the specified values.
 
 ### Processing Final Outputs
 
 #### Siloing values.
 
-1. This circuit must silo the following with each item's contract address:
+Siloing a value with the address of the contract generating the value ensures that data produced by a contract is accurately attributed to the correct contract and cannot be misconstrued as data created in a different contract. This circuit guarantees the following siloed values:
 
-   - Note hash contexts.
-   - Nullifier contexts.
+1. Silo _nullifiers_:
 
-   The siloed value is computed as: `hash(contract_address, value)`.
+   For each _nullifier_ at index _i_ _> 0_ in the _nullifier_contexts_ within _private_inputs_, if _`nullifier.value != 0`_:
 
-   Siloing with a contract address ensures that data produced by a contract is accurately attributed to the correct contract and cannot be misconstrued as data created in a different contract.
+   _`nullifier_contexts[i].value = hash(nullifier.contract_address, nullifier.value)`_
 
-2. The circuit then applies nonces to the note hashes:
+   > This process does not apply to _nullifier_contexts[0]_, which is the [hash of the transaction request](./private-kernel-initial.md#ensuring-transaction-uniqueness) created by the initial private kernel circuit.
 
-   - The nonce for a note hash is computed as: `hash(first_nullifier, index)`, where:
-     - `first_nullifier` is the [hash of the transaction request](./private-kernel-initial.md#ensuring-transaction-uniqueness).
-     - `index` is the position of the note hash in the note hashes array in the public inputs.
+2. Silo _note_hashes_:
 
-   Siloing with a nonce guarantees that each final note hash is a unique value in the note hash tree.
+   For each _note_hash_ at index _i_ in the _note_hash_contexts_ within _private_inputs_, if _`note_hash.value != 0`_:
 
-3. Additionally, this circuit generates the final hashes for L2-L1 messages, calculated as:
+   _`note_hash_contexts[i].value = hash(nonce, siloed_hash)`_
 
-   `hash(contract_address, version_id, portal_contract_address, chain_id, message)`
+   Where:
 
-   Where _version_id_ and _portal_contract_address_ equal the values defined in the constant data.
+   - _`nonce = hash(first_nullifier, index)`_
+     - _`first_nullifier = nullifier_contexts[0].value`_.
+     - _`index = note_hash_indices[i]`_, which is the index of the same note hash within _public_inputs.note_hashes_. Where _note_hash_indices_ is provided as [hints](#hints) via _private_inputs_ and are verified in the [following step](#verifying-ordered-arrays).
+   - _`siloed_hash = hash(note_hash.contract_address, note_hash.value)`_
+
+   > Siloing with a nonce guarantees that each final note hash is a unique value in the note hash tree.
+
+3. Verify the _l2_to_l1_messages_ within _[public_inputs](#public-inputs).[accumulated_data](./public-kernel-tail.md#accumulateddata)_:
+
+   For each _l2_to_l1_message_ at index _i_ in _l2_to_l1_message_contexts_ within _[private_inputs](#private-inputs).[previous_kernel](./private-kernel-inner.md#previouskernel).[public_inputs](./private-kernel-initial.md#private-inputs).[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_:
+
+   - If _l2_to_l1_message.value == 0_:
+     - Verify that _`l2_to_l1_messages[i] == 0`_
+   - Else:
+     - Verify that _`l2_to_l1_messages[i] == hash(l2_to_l1_message.contract_address, version_id, l2_to_l1_message.portal_contract_address, chain_id, l2_to_l1_message.value)`_
+     - Where _version_id_ and _chain_id_ are defined in _[public_inputs](#public-inputs).[constant_data](./private-kernel-initial.md#constantdata).[tx_context](./private-kernel-initial.md#transactioncontext)_.
 
 #### Verifying ordered arrays.
 
 The initial and inner kernel iterations may produce values in an unordered state due to the serial nature of the kernel, contrasting with the stack-based nature of code execution.
 
-This circuit ensures the correct ordering of the following arrays (_ordered_array_) in public inputs:
+This circuit ensures the correct ordering of the following arrays within _[public_inputs](#public-inputs).[accumulated_data](./public-kernel-tail.md#accumulateddata)_:
 
-- Note hashes.
-- Nullifiers.
-- L2-to-l1 messages.
-- Public call requests.
-- New contracts (if public call request is empty).
-- New contract contexts (if public call request is not empty).
+- _note_hashes_
+- _nullifiers_
+- _public_call_requests_
 
-The corresponding _unordered_arrays_ for the above are sourced either from the transient accumulated data of the previous iteration or from the [siloed results](#siloing-values).
+The corresponding unordered array for each of the above is sourced from _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./private-kernel-initial.md#public-inputs).[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_.
 
-A hints array is provided through private inputs for every _unordered_array_.
+1. Verify ordered _note_hashes_:
 
-For each hint _hints[i]_ at index _i_, this circuit locates the item at index _i_ in _ordered_array_:
+   For each _note_hash_ at index _i_ in _note_hashes_, the associated _note_hash_context_ is at _`note_hash_contexts[note_hash_hints[i]]`_.
 
-- If the item is not empty:
-  - It must correspond to the item at index _hints[i]_ in _unordered_array_.
-  - For _i_ != 0, the counter must be greater (less for public call requests) than the counter of the item at index _hints[i - 1]_ in _unordered_array_.
-- If the item is empty:
-  - All the subsequent items must be empty in both _ordered_array_ and _unordered_array_.
+   - If _`note_hash != 0`_, verify that:
+     - _`note_hash == note_hash_context.value`_
+     - _`note_hash_indices[note_hash_hints[i]] == i`_
+       - The values in _note_hash_indices_ are provided as [hints](#hints) to [silo note hashes](#siloing-values) and must be verified.
+     - If _i > 0_, verify that:
+       - _`note_hash_context.counter > note_hash_contexts[note_hash_hints[i - 1]].counter`_
+   - Else:
+     - All the subsequent values in _note_hashes_ must be 0.
+     - All the subsequent contexts in _note_hash_contexts_ must have 0 values.
 
-> Note that the public call requests must be arranged in descending order to ensure the calls are executed in chronological order.
+2. Verify ordered _nullifiers_:
 
-> Note that while ordering could occur gradually in each kernel iteration, the implementation is much simpler and **typically** more efficient to be done once in the tail circuit.
+   For each _nullifier_ at index _i_ in _nullifiers_, the associated _nullifier_context_ is at _`nullifier_contexts[nullifier_hints[i]]`_.
+
+   - If _`nullifier != 0`_, verify that:
+     - _`nullifier == nullifier_context.value`_
+     - If _i > 0_, verify that:
+       - _`nullifier_context.counter > nullifier_contexts[nullifier_hints[i - 1]].counter`_
+   - Else:
+     - All the subsequent values in _nullifiers_ must be 0.
+     - All the subsequent contexts in _nullifier_contexts_ must have 0 values.
+
+3. Verify ordered _public_call_requests_:
+
+   For each _request_ at index _i_ in _public_call_requests_ within _public_inputs_, the associated _mapped_request_ is at _`unordered_requests[public_call_request_hints[i]]`_, where _unordered_requests_ refers to the _public_call_requests_ within _private_inputs_.
+
+   - If _`request.hash != 0`_, verify that:
+     - _`request.hash == mapped_request.hash`_
+     - _`request.caller_contract == mapped_request.caller_contract`_
+     - _`request.caller_context == mapped_request.caller_context`_
+     - If _i > 0_, verify that:
+       - _`mapped_request.counter < unordered_requests[public_call_request_hints[i - 1]].counter`_
+   - Else:
+     - All the subsequent requests in both _public_call_requests_ and _unordered_requests_ must have 0 hashes.
+
+   > Note that _public_call_requests_ must be arranged in descending order to ensure the calls are executed in chronological order.
+
+> While ordering could occur gradually in each kernel iteration, the implementation is much simpler and **typically** more efficient to be done once in the tail circuit.
 
 #### Recalibrating counters.
 
-1. For public call requests:
+While the _counter_start_ of a _public_call_request_ is initially assigned in the private function circuit to ensure proper ordering within the transaction, it should be modified in this step. As using _counter_start_ values obtained from private function circuits may leak information.
 
-   The _counter_end_ for a public call request is determined by the overall count of call requests, reads and writes, note hashes and nullifiers within its scope, including those nested within its child function executions. This calculation, performed in advance of executing this circuit, provides the necessary input for the recalibration process.
+The _counter_start_ in the _public_call_requests_ within _public_inputs_ should have been recalibrated. This circuit validates the values through the following checks:
 
-   This circuit enables the adjustment of counters, ensuring that subsequent public kernels can be executed with the correct counter range.
+- The _counter_start_ of the non-empty requests are continuous values in descending order:
+  - _`public_call_requests[i].counter_start == public_call_requests[i + 1].counter_start + 1`_
+- The _counter_start_ of the last non-empty request must be _1_.
 
-   An array _public_call_counters_ is provided through private inputs. The reassignment process unfolds as follows:
+> It's crucial for the _counter_start_ of the last request to be _1_, as it's assumed in the [tail public kernel circuit](./public-kernel-tail.md#grouping-storage-writes) that no storage writes have a counter _1_.
 
-   1. Check that items in _public_call_counters_ are in descending order:
-      - The _counter_end_ of each item must be greater than its _counter_start_.
-      - The _counter_end_ of the second and subsequent items must be less than the _counter_start_ of the previous item.
-   2. Ensure that the _counter_start_ of the last item in _public_call_counters_ is _1_.
-   3. Assign the _counter_start_ and _counter_end_ of the item at index _i_ in _public_call_counters_ to the corresponding item at index _i_ in the [ordered](#verifying-ordered-arrays) public call requests.
-
-   > It's crucial for the _counter_start_ of the last item to be _1_, as it's assumed in the [tail public kernel circuit](./public-kernel-tail.md#grouping-update-requests) that no update requests have a counter _1_.
-
-   > While the _counter_start_ of public call request is assigned in the private function circuit to preserve the order, it's important to acknowledge that it may be modified in this step. As using _counter_start_ populated from private function circuits maybe leak information. It's recommended to adept the values that mirror the incremented amount on the public side without including any side effects on the private side.
-
-2. For new contract contexts:
-
-   If there's at least one non-empty public call request, the new contract contexts will be carried forward for processing in the public kernels. However, the counters in new contract contexts must be adjusted to reflect the changes to the counters for public call requests in the previous step.
-
-   For each new contract context in the transient accumulated data:
-
-   1. If its counter is greater than the **old** _counter_start_ of the public call request at index _0_, update it to be the **new** _counter_end_ of the public call request and skip the remaining steps.
-   2. Find the public call request at index _i_ where the **old** _counter_start_ is greater than the counter.
-   3. Check that the **old** _counter_start_ of the public call request at index _i + 1_ is less than the counter.
-   4. Update its counter to be the **new** _counter_start_ of the public call request at index _i_.
+> The _counter_end_ for a public call request is determined by the overall count of call requests, reads and writes, note hashes and nullifiers within its scope, including those nested within its child function executions. This calculation will be performed by the sequencer for the executions of public function calls.
 
 ### Validating Public Inputs
 
 #### Verifying the accumulated data.
 
-1. The following must align with the results after ordering, as verified in a [previous step](#verifying-ordered-arrays):
+1. The following must align with the results after siloing, as verified in a [previous step](#siloing-values):
 
-   - Note hashes.
-   - Nullifiers.
-   - L2-to-L1 messages.
-   - New contracts.
+   - _l2_to_l1_messages_
 
-   > Note that these are arrays of siloed values or relevant data. Attributes aiding verification and siloing only exist in the corresponding types in the transient accumulated data.
+2. The following must align with the results after ordering, as verified in a [previous step](#verifying-ordered-arrays):
 
-2. The following must match the respective values in the previous kernel's public inputs:
+   - _note_hashes_
+   - _nullifiers_
 
-   - Log hashes.
-   - Log lengths.
+3. The following must match the respective values within _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./private-kernel-initial.md#public-inputs).[accumulated_data](./private-kernel-initial.md#accumulateddata)_:
 
-3. The following must be empty:
+   - _encrypted_logs_hash_
+   - _unencrypted_logs_hash_
+   - _encrypted_log_preimages_length_
+   - _unencrypted_log_preimages_length_
 
-   - Old public data tree snapshot.
-   - New public data tree snapshot.
+4. The following must be empty:
+
+   - _old_public_data_tree_snapshot_
+   - _new_public_data_tree_snapshot_
 
 #### Verifying the transient accumulated data.
 
-It ensures that all data in the transient accumulated data is empty, with the exception of the public call requests and new contract contexts.
+It ensures that all data in the _[transient_accumulated_data](./public-kernel-tail.md#transientaccumulateddata)_ within _[public_inputs](#public-inputs)_ is empty, with the exception of the _public_call_requests_.
 
-The public call requests must adhere to a specific order, as verified in a [previous step](#verifying-ordered-arrays).
-
-The new contract contexts should be empty when there are no public call requests. In the event of propagation to the public kernels, they must also [conform to a specific order](#verifying-ordered-arrays).
+The _public_call_requests_ must [adhere to a specific order](#verifying-ordered-arrays) with [recalibrated counters](#recalibrating-counters), as verified in the previous steps.
 
 #### Verifying the constant data.
 
-It verifies that the constant data matches the one in the previous iteration's public inputs.
+This section follows the same [process](./private-kernel-inner.md#verifying-the-constant-data) as outlined in the inner private kernel circuit.
 
 ## Private Inputs
 
-### Previous Kernel
+### _PreviousKernel_
 
-The data of the previous kernel iteration:
+The format aligns with the _[PreviousKernel](./private-kernel-inner.md#previouskernel)_ of the inner private kernel circuit.
 
-- Proof of the kernel circuit. It could be one of the following:
-  - [Initial private kernel circuit](./private-kernel-initial.md).
-  - [Inner private kernel circuit](./private-kernel-inner.md).
-  - [Reset private kernel circuit](./private-kernel-reset.md).
-- Public inputs of the proof.
-- Verification key of the kernel circuit.
-- Membership witness for the verification key.
-
-### Hints
+### _Hints_
 
 Data that aids in the verifications carried out in this circuit:
 
-- Sorted indices of public call requests.
-- Counters for public call requests.
+| Field                       | Type           | Description                                                                                                            |
+| --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| _note_hash_indices_         | [_field_; _C_] | Indices of _note_hashes_ for _note_hash_contexts_. _C_ equals the length of _note_hashes_.                             |
+| _note_hash_hints_           | [_field_; _C_] | Indices of _note_hash_contexts_ for ordered _note_hashes_. _C_ equals the length of _note_hash_contexts_.              |
+| _nullifier_hints_           | [_field_; _C_] | Indices of _nullifier_contexts_ for ordered _nullifiers_. _C_ equals the length of _nullifier_contexts_.               |
+| _public_call_request_hints_ | [_field_; _C_] | Indices of _public_call_requests_ for ordered _public_call_requests_. _C_ equals the length of _public_call_requests_. |
 
 ## Public Inputs
 
-The structure of this public inputs aligns with that of the [iterative public kernel circuit](./public-kernel-iterative.md) and the [tail public kernel circuit](./public-kernel-tail.md).
-
-### Constant Data
-
-These are constants that remain the same throughout the entire transaction:
-
-- Historical data - representing the states of the block at which the transaction is constructed, including:
-  - Hash of the global variables.
-  - Roots of the trees:
-    - Note hash tree.
-    - Nullifier tree.
-    - Contract tree.
-    - L1-to-l2 message tree.
-    - Public data tree.
-- Transaction context
-  - A flag indicating whether it is a fee paying transaction.
-  - A flag indicating whether it is a fee rebate transaction.
-  - Chain ID.
-  - Version of the transaction.
-
-### Accumulated Data
-
-It contains data accumulated during the execution of the transaction:
-
-- Note hashes.
-- Nullifiers.
-- L2-to-L1 messages.
-- New contracts.
-- Log hashes.
-- Log lengths.
-- Old public data tree snapshot.
-- New public data tree snapshot.
-
-### Transient Accumulated Data
-
-- Note hash contexts.
-- Nullifier contexts.
-- L2-to-L1 message contexts.
-- New contract contexts.
-- Read requests.
-- Update requests.
-- Public call requests.
+The format aligns with the _[Public Inputs](./public-kernel-tail.md#public-inputs)_ of the tail public kernel circuit.
