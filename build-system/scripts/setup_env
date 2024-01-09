@@ -6,6 +6,7 @@
 # The script should be sourced from the root of the repository, e.g:
 #   source ./build-system/scripts/setup_env
 # This ensures the resultant variables are set in the calling shell.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 COMMIT_HASH=$1

@@ -1,22 +1,36 @@
 #!/usr/bin/env bash
-# Given a repository, extracts the builds entire /usr/src dir to the given path.
+# Given a repository, extracts the builds entire /usr/src dir to the current path.
+# Can be given any number of pairs to extract the first path from the repo to the second path locally.
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
 REPOSITORY=$1
-EXTRACT_FROM=${2:-/usr/src}
-EXTRACT_TO=${3:-./}
-IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
+shift
 
+IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
 echo "Pulling $IMAGE_COMMIT_URI..."
 ecr_login
 retry docker pull $IMAGE_COMMIT_URI
-TEMP_CONTAINER=$(docker create $IMAGE_COMMIT_URI)
+TEMP_CONTAINER=$(docker create $IMAGE_COMMIT_URI dummy_cmd)
 
-echo "Extracting $EXTRACT_FROM from $REPOSITORY to $EXTRACT_TO..."
-mkdir -p $EXTRACT_TO
-docker cp $TEMP_CONTAINER:$EXTRACT_FROM $EXTRACT_TO
+
+function extract_from_temp_container {
+  EXTRACT_FROM=$1
+  EXTRACT_TO=$2
+  echo "Extracting $EXTRACT_FROM from $REPOSITORY to $EXTRACT_TO..."
+  mkdir -p $EXTRACT_TO
+  docker cp $TEMP_CONTAINER:$EXTRACT_FROM $EXTRACT_TO
+}
+
+# Default to extracting the entire /usr/src dir
+if [ $# -eq 0 ]; then 
+  extract_from_temp_container /usr/src ./
+else 
+  while [ $# -gt 0 ]; do
+    extract_from_temp_container $1 $2
+    shift 2
+  done
+fi
+
+echo "Cleaning up temp container"
 docker rm -v $TEMP_CONTAINER >/dev/null
-
-echo "Extracted contents:"
-ls -al $EXTRACT_TO

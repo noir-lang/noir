@@ -29,7 +29,7 @@ function get_deps {
   elif [ "$TYPE" == "!!seq" ]; then
     DEPS=($(yq -r ".\"$1\".dependencies // [] | .[]" $MANIFEST))
   else
-    >&2 echo "dependencies must be a array, string or null."
+    >&2 echo "Build manifest 'dependencies' must be array, string, or null (got $TYPE)."
     exit 1
   fi
 }
@@ -46,7 +46,7 @@ function add_rebuild_patterns {
     local PROJECT_DIR=$($0 relativeProjectDir $1)
     PATTERNS=(${PATTERNS[@]} "^$PROJECT_DIR/")
   else
-    >&2 echo "rebuildPatterns must be array, string, or null."
+    >&2 echo "Build manifest 'rebuildPatterns' must be array, string, or null (got $TYPE)."
     exit 1
   fi
 }
