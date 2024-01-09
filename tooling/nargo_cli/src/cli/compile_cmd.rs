@@ -3,10 +3,9 @@ use std::path::Path;
 use acvm::ExpressionWidth;
 use fm::FileManager;
 use iter_extended::vecmap;
-use nargo::artifacts::contract::PreprocessedContract;
-use nargo::artifacts::contract::PreprocessedContractFunction;
+use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
 use nargo::artifacts::debug::DebugArtifact;
-use nargo::artifacts::program::PreprocessedProgram;
+use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::CompileError;
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
@@ -173,15 +172,15 @@ fn compile_program(
     let program_artifact_path = workspace.package_build_path(package);
     let mut debug_artifact_path = program_artifact_path.clone();
     debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
-    let cached_program = if let (Ok(preprocessed_program), Ok(mut debug_artifact)) = (
+    let cached_program = if let (Ok(program_artifact), Ok(mut debug_artifact)) = (
         read_program_from_file(program_artifact_path),
         read_debug_artifact_from_file(debug_artifact_path),
     ) {
         Some(CompiledProgram {
-            hash: preprocessed_program.hash,
-            circuit: preprocessed_program.bytecode,
-            abi: preprocessed_program.abi,
-            noir_version: preprocessed_program.noir_version,
+            hash: program_artifact.hash,
+            circuit: program_artifact.bytecode,
+            abi: program_artifact.abi,
+            noir_version: program_artifact.noir_version,
             debug: debug_artifact.debug_symbols.remove(0),
             file_map: debug_artifact.file_map,
             warnings: debug_artifact.warnings,
@@ -233,22 +232,17 @@ fn compile_contract(
     Ok((optimized_contract, warnings))
 }
 
-fn save_program(
+pub(super) fn save_program(
     program: CompiledProgram,
     package: &Package,
     circuit_dir: &Path,
     only_acir_opt: bool,
 ) {
-    let preprocessed_program = PreprocessedProgram {
-        hash: program.hash,
-        abi: program.abi,
-        noir_version: program.noir_version,
-        bytecode: program.circuit,
-    };
+    let program_artifact = ProgramArtifact::from(program.clone());
     if only_acir_opt {
-        only_acir(&preprocessed_program, circuit_dir);
+        only_acir(&program_artifact, circuit_dir);
     } else {
-        save_program_to_file(&preprocessed_program, &package.name, circuit_dir);
+        save_program_to_file(&program_artifact, &package.name, circuit_dir);
     }
 
     let debug_artifact = DebugArtifact {
@@ -263,7 +257,7 @@ fn save_program(
 fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
     // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
     // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
-    // are compiled via nargo-core and then the PreprocessedContract is constructed here.
+    // are compiled via nargo-core and then the ContractArtifact is constructed here.
     // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
@@ -271,7 +265,7 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         warnings: contract.warnings,
     };
 
-    let preprocessed_functions = vecmap(contract.functions, |func| PreprocessedContractFunction {
+    let functions = vecmap(contract.functions, |func| ContractFunctionArtifact {
         name: func.name,
         function_type: func.function_type,
         is_internal: func.is_internal,
@@ -279,22 +273,22 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         bytecode: func.bytecode,
     });
 
-    let preprocessed_contract = PreprocessedContract {
+    let contract_artifact = ContractArtifact {
         noir_version: contract.noir_version,
         name: contract.name,
-        functions: preprocessed_functions,
+        functions,
         events: contract.events,
     };
 
     save_contract_to_file(
-        &preprocessed_contract,
-        &format!("{}-{}", package.name, preprocessed_contract.name),
+        &contract_artifact,
+        &format!("{}-{}", package.name, contract_artifact.name),
         circuit_dir,
     );
 
     save_debug_artifact_to_file(
         &debug_artifact,
-        &format!("{}-{}", package.name, preprocessed_contract.name),
+        &format!("{}-{}", package.name, contract_artifact.name),
         circuit_dir,
     );
 }

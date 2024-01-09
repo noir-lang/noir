@@ -2,9 +2,9 @@ use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
 use nargo::artifacts::{
-    contract::{PreprocessedContract, PreprocessedContractFunction},
+    contract::{ContractArtifact, ContractFunctionArtifact},
     debug::DebugArtifact,
-    program::PreprocessedProgram,
+    program::ProgramArtifact,
 };
 use noirc_driver::{
     add_dep, compile_contract, compile_main, file_manager_with_stdlib, prepare_crate,
@@ -148,8 +148,8 @@ impl PathToFileSourceMap {
 }
 
 pub enum CompileResult {
-    Contract { contract: PreprocessedContract, debug: DebugArtifact },
-    Program { program: PreprocessedProgram, debug: DebugArtifact },
+    Contract { contract: ContractArtifact, debug: DebugArtifact },
+    Program { program: ProgramArtifact, debug: DebugArtifact },
 }
 
 #[wasm_bindgen]
@@ -195,7 +195,7 @@ pub fn compile(
 
         let optimized_contract = nargo::ops::optimize_contract(compiled_contract, expression_width);
 
-        let compile_output = preprocess_contract(optimized_contract);
+        let compile_output = generate_contract_artifact(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
     } else {
         let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
@@ -210,7 +210,7 @@ pub fn compile(
 
         let optimized_program = nargo::ops::optimize_program(compiled_program, expression_width);
 
-        let compile_output = preprocess_program(optimized_program);
+        let compile_output = generate_program_artifact(optimized_program);
         Ok(JsCompileResult::new(compile_output))
     }
 }
@@ -272,50 +272,32 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
     prepare_dependency(context, &path_to_lib)
 }
 
-pub(crate) fn preprocess_program(program: CompiledProgram) -> CompileResult {
+pub(crate) fn generate_program_artifact(program: CompiledProgram) -> CompileResult {
     let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug],
-        file_map: program.file_map,
-        warnings: program.warnings,
+        debug_symbols: vec![program.debug.clone()],
+        file_map: program.file_map.clone(),
+        warnings: program.warnings.clone(),
     };
 
-    let preprocessed_program = PreprocessedProgram {
-        hash: program.hash,
-        abi: program.abi,
-        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-        bytecode: program.circuit,
-    };
-
-    CompileResult::Program { program: preprocessed_program, debug: debug_artifact }
+    CompileResult::Program { program: program.into(), debug: debug_artifact }
 }
 
-// TODO: This method should not be doing so much, most of this should be done in nargo or the driver
-pub(crate) fn preprocess_contract(contract: CompiledContract) -> CompileResult {
+pub(crate) fn generate_contract_artifact(contract: CompiledContract) -> CompileResult {
     let debug_artifact = DebugArtifact {
         debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
         file_map: contract.file_map,
         warnings: contract.warnings,
     };
-    let preprocessed_functions = contract
-        .functions
-        .into_iter()
-        .map(|func| PreprocessedContractFunction {
-            name: func.name,
-            function_type: func.function_type,
-            is_internal: func.is_internal,
-            abi: func.abi,
-            bytecode: func.bytecode,
-        })
-        .collect();
+    let functions = contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
 
-    let preprocessed_contract = PreprocessedContract {
+    let contract_artifact = ContractArtifact {
         noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
-        functions: preprocessed_functions,
+        functions,
         events: contract.events,
     };
 
-    CompileResult::Contract { contract: preprocessed_contract, debug: debug_artifact }
+    CompileResult::Contract { contract: contract_artifact, debug: debug_artifact }
 }
 
 #[cfg(test)]

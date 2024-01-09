@@ -11,11 +11,9 @@ struct Option<T> {
 }
 ```
 
-You can import the Option type into your Noir program like so:
+The `Option` type, already imported into your Noir program, can be used directly:
 
 ```rust
-use dep::std::option::Option;
-
 fn main() {
     let none = Option::none();
     let some = Option::some(3);

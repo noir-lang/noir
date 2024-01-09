@@ -255,6 +255,19 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
 
+    /// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
+    pub(crate) fn insert_range_check(
+        &mut self,
+        value: ValueId,
+        max_bit_size: u32,
+        assert_message: Option<String>,
+    ) {
+        self.insert_instruction(
+            Instruction::RangeCheck { value, max_bit_size, assert_message },
+            None,
+        );
+    }
+
     /// Insert a call instruction at the end of the current block and return
     /// the results of the call.
     pub(crate) fn insert_call(
