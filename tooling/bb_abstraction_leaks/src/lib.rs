@@ -7,13 +7,6 @@ pub const ACVM_BACKEND_BARRETENBERG: &str = "acvm-backend-barretenberg";
 pub const BB_DOWNLOAD_URL: &str = env!("BB_BINARY_URL");
 pub const BB_VERSION: &str = env!("BB_VERSION");
 
-/// Embed the Solidity verifier file
-const ULTRA_VERIFIER_CONTRACT: &str = include_str!("contract.sol");
-
-pub fn complete_barretenberg_verifier_contract(contract: String) -> String {
-    format!("{contract}{ULTRA_VERIFIER_CONTRACT}")
-}
-
 /// Removes the public inputs which are prepended to a proof by Barretenberg.
 pub fn remove_public_inputs(num_pub_inputs: usize, proof: &[u8]) -> Vec<u8> {
     // Barretenberg prepends the public inputs onto the proof so we need to remove

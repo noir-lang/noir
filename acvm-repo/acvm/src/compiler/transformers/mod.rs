@@ -104,18 +104,17 @@ pub(super) fn transform_internal(
                     | acir::circuit::opcodes::BlackBoxFuncCall::XOR { output, .. } => {
                         transformer.mark_solvable(*output);
                     }
-                    acir::circuit::opcodes::BlackBoxFuncCall::RANGE { .. } => (),
+                    acir::circuit::opcodes::BlackBoxFuncCall::RANGE { .. }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation { .. } => (),
                     acir::circuit::opcodes::BlackBoxFuncCall::SHA256 { outputs, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256 { outputs, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256VariableLength {
                         outputs,
                         ..
                     }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation {
-                        output_aggregation_object: outputs,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Blake2s { outputs, .. } => {
+                    | acir::circuit::opcodes::BlackBoxFuncCall::Keccakf1600 { outputs, .. }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::Blake2s { outputs, .. }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::Blake3 { outputs, .. } => {
                         for witness in outputs {
                             transformer.mark_solvable(*witness);
                         }
@@ -131,11 +130,7 @@ pub(super) fn transform_internal(
                         transformer.mark_solvable(outputs.0);
                         transformer.mark_solvable(outputs.1);
                     }
-                    acir::circuit::opcodes::BlackBoxFuncCall::HashToField128Security {
-                        output,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+                    acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { output, .. } => {
