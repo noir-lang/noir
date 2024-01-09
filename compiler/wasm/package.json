@@ -28,7 +28,7 @@
     "url": "https://github.com/noir-lang/noir/issues"
   },
   "scripts": {
-    "build": "webpack",
+    "build": "WASM_OPT=$(bash -c ./wasm-opt-check.sh) webpack",
     "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
     "test:build_fixtures": "./build-fixtures.sh",
     "test:browser": "web-test-runner",

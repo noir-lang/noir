@@ -43,7 +43,7 @@ const webConfig: webpack.Configuration = {
       crateDirectory: resolve(__dirname),
       outDir: resolve(__dirname, './build/esm'),
       extraArgs: '--target web',
-      forceMode: 'production',
+      forceMode: process.env.WASM_OPT === 'true' ? 'production' : 'development',
     }),
     new HtmlWebpackPlugin({
       title: 'Noir Wasm ESM',
@@ -102,7 +102,7 @@ const nodeConfig: webpack.Configuration = {
       crateDirectory: resolve(__dirname),
       outDir: resolve(__dirname, './build/cjs'),
       extraArgs: '--target nodejs',
-      forceMode: 'production',
+      forceMode: process.env.WASM_OPT === 'true' ? 'production' : 'development',
     }),
     new CopyWebpackPlugin({
       patterns: [
