@@ -34,7 +34,7 @@ export class BarretenbergBackend implements Backend {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-      const api = await Barretenberg.new(this.options.threads);
+      const api = await Barretenberg.new({ threads: this.options.threads });
 
       const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);
