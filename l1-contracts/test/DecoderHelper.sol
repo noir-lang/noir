@@ -2,7 +2,7 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {Decoder} from "../src/core/libraries/Decoder.sol";
+import {Decoder} from "../src/core/libraries/decoders/Decoder.sol";
 import {Rollup} from "../src/core/Rollup.sol";
 
 contract DecoderHelper {

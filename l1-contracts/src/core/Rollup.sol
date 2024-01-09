@@ -9,11 +9,14 @@ import {IOutbox} from "./interfaces/messagebridge/IOutbox.sol";
 import {IRegistry} from "./interfaces/messagebridge/IRegistry.sol";
 
 // Libraries
-import {Decoder} from "./libraries/Decoder.sol";
+import {HeaderDecoder} from "./libraries/decoders/HeaderDecoder.sol";
+import {MessagesDecoder} from "./libraries/decoders/MessagesDecoder.sol";
+import {Hash} from "./libraries/Hash.sol";
 import {Errors} from "./libraries/Errors.sol";
 
 // Contracts
 import {MockVerifier} from "../mock/MockVerifier.sol";
+import {AvailabilityOracle} from "./availability_oracle/AvailabilityOracle.sol";
 
 /**
  * @title Rollup
@@ -25,6 +28,7 @@ contract Rollup is IRollup {
   MockVerifier public immutable VERIFIER;
   IRegistry public immutable REGISTRY;
   uint256 public immutable VERSION;
+  AvailabilityOracle public immutable AVAILABILITY_ORACLE;
 
   bytes32 public rollupStateHash;
   uint256 public lastBlockTs;
@@ -34,6 +38,7 @@ contract Rollup is IRollup {
 
   constructor(IRegistry _registry) {
     VERIFIER = new MockVerifier();
+    AVAILABILITY_ORACLE = new AvailabilityOracle();
     REGISTRY = _registry;
     VERSION = 1;
   }
@@ -45,14 +50,30 @@ contract Rollup is IRollup {
    */
   function process(bytes memory _proof, bytes calldata _l2Block) external override(IRollup) {
     _constrainGlobals(_l2Block);
-    (
-      uint256 l2BlockNumber,
-      bytes32 oldStateHash,
-      bytes32 newStateHash,
-      bytes32 publicInputHash,
-      bytes32[] memory l2ToL1Msgs,
-      bytes32[] memory l1ToL2Msgs
-    ) = Decoder.decode(_l2Block);
+
+    // Decode the header
+    (uint256 l2BlockNumber, bytes32 oldStateHash, bytes32 newStateHash) =
+      HeaderDecoder.decode(_l2Block[:HeaderDecoder.BLOCK_HEADER_SIZE]);
+
+    // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
+    bytes32 txsHash;
+    {
+      // @todo @LHerskind Hack such that the node is unchanged for now.
+      // should be removed when we have a proper block publication.
+      txsHash = AVAILABILITY_ORACLE.publish(_l2Block[HeaderDecoder.BLOCK_HEADER_SIZE:]);
+    }
+
+    if (!AVAILABILITY_ORACLE.isAvailable(txsHash)) {
+      // @todo @LHerskind Impossible to hit with above hack.
+      revert Errors.Rollup__UnavailableTxs(txsHash);
+    }
+
+    // Decode the cross-chain messages
+    (bytes32 inHash,, bytes32[] memory l2ToL1Msgs, bytes32[] memory l1ToL2Msgs) =
+      MessagesDecoder.decode(_l2Block[HeaderDecoder.BLOCK_HEADER_SIZE:]);
+
+    bytes32 publicInputHash =
+      _computePublicInputHash(_l2Block[:HeaderDecoder.BLOCK_HEADER_SIZE], txsHash, inHash);
 
     // @todo @LHerskind Proper genesis state. If the state is empty, we allow anything for now.
     if (rollupStateHash != bytes32(0) && rollupStateHash != oldStateHash) {
@@ -79,10 +100,10 @@ contract Rollup is IRollup {
     emit L2BlockProcessed(l2BlockNumber);
   }
 
-  function _constrainGlobals(bytes calldata _l2Block) internal view {
-    uint256 chainId = uint256(bytes32(_l2Block[:0x20]));
-    uint256 version = uint256(bytes32(_l2Block[0x20:0x40]));
-    uint256 ts = uint256(bytes32(_l2Block[0x60:0x80]));
+  function _constrainGlobals(bytes calldata _header) internal view {
+    uint256 chainId = uint256(bytes32(_header[:0x20]));
+    uint256 version = uint256(bytes32(_header[0x20:0x40]));
+    uint256 ts = uint256(bytes32(_header[0x60:0x80]));
     // block number already constrained by start state hash
 
     if (block.chainid != chainId) {
@@ -104,5 +125,13 @@ contract Rollup is IRollup {
     if (ts < lastBlockTs) {
       revert Errors.Rollup__TimestampTooOld();
     }
+  }
+
+  function _computePublicInputHash(bytes calldata _header, bytes32 _txsHash, bytes32 _inHash)
+    internal
+    pure
+    returns (bytes32)
+  {
+    return Hash.sha256ToField(bytes.concat(_header, _txsHash, _inHash));
   }
 }
