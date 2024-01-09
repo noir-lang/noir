@@ -118,8 +118,9 @@ jobs:
         password: ${{ secrets.github_token }}
     steps:
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/nargo-test.sh
+          .github/scripts/nargo-test.sh
 
   build-noir-wasm:
     name: Build noir wasm
@@ -166,8 +167,9 @@ jobs:
           name: noir_wasm
           path: /usr/src/noir/compiler/wasm
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-wasm-test.sh
+          ./.github/scripts/noir-wasm-test.sh
 
   test-noir-wasm-browser:
     name: Test noir wasm browser
@@ -193,8 +195,9 @@ jobs:
           name: noir_wasm
           path: /usr/src/noir/compiler/wasm
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-wasm-test-browser.sh
+          ./.github/scripts/noir-wasm-test-browser.sh
 
   build-acvm_js:
     name: Build acvm js
@@ -207,8 +210,9 @@ jobs:
         password: ${{ secrets.github_token }}
     steps:
       - name: Build
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/acvm_js-build.sh
+          ./.github/scripts/acvm_js-build.sh
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -235,8 +239,9 @@ jobs:
           path: |
             /usr/src/noir/acvm-repo/acvm_js
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/acvm_js-test.sh
+          ./.github/scripts/acvm_js-test.sh
 
   test-acvm_js-browser:
     name: Test acvm js browser
@@ -255,8 +260,9 @@ jobs:
           path: |
             /usr/src/noir/acvm-repo/acvm_js
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/acvm_js-test-browser.sh
+          ./.github/scripts/acvm_js-test-browser.sh
 
   build-noirc-abi:
     name: Build noirc abi
@@ -269,8 +275,9 @@ jobs:
         password: ${{ secrets.github_token }}
     steps:
       - name: Build
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noirc-abi-build.sh
+          ./.github/scripts/noirc-abi-build.sh
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -297,8 +304,9 @@ jobs:
           path: |
             /usr/src/noir/tooling/noirc_abi_wasm
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noirc-abi-test.sh
+          ./.github/scripts/noirc-abi-test.sh
 
   test-noirc-abi-browser:
     name: Test noirc abi browser
@@ -317,8 +325,9 @@ jobs:
           path: |
             /usr/src/noir/tooling/noirc_abi_wasm
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noirc-abi-test-browser.sh
+          ./.github/scripts/noirc-abi-test-browser.sh
 
   build-noir-js-types:
     name: Build noir js types
@@ -337,8 +346,9 @@ jobs:
           path: |
             /usr/src/noir/tooling/noirc_abi_wasm
       - name: Build
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-js-types-build.sh
+          ./.github/scripts/noir-js-types-build.sh
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -370,8 +380,9 @@ jobs:
           name: noir-js-types
           path: /usr/src/noir/tooling/noir_js_types/lib/
       - name: Build
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/backend-barretenberg-build.sh
+          ./.github/scripts/backend-barretenberg-build.sh
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -409,8 +420,9 @@ jobs:
           path:
             /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/backend-barretenberg-test.sh
+          ./.github/scripts/backend-barretenberg-test.sh
 
   build-noir_js:
     name: Build noirjs
@@ -455,8 +467,9 @@ jobs:
           path: |
             /usr/src/noir/tooling/noir_js_types/lib
       - name: Build
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-js-build.sh
+          ./.github/scripts/noir-js-build.sh
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -521,8 +534,9 @@ jobs:
           path:
             /usr/src/noir/tooling/noir_js/lib
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-js-test.sh
+          ./.github/scripts/noir-js-test.sh
 
   build-noir_codegen:
     name: Build noir codegen
@@ -565,8 +579,9 @@ jobs:
           path:
             /usr/src/noir/tooling/noir_js/lib
       - name: Build
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-codegen-build.sh
+          ./.github/scripts/noir-codegen-build.sh
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -621,8 +636,9 @@ jobs:
           path:
             /usr/src/noir/tooling/noir_codegen/lib
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/noir-codegen-test.sh
+          ./.github/scripts/noir-codegen-test.sh
 
   test-integration:
     name: Integration test
@@ -685,8 +701,9 @@ jobs:
           path:
             /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
       - name: Test
+        working-directory: /usr/src/noir
         run: |
-          /usr/src/noir/.github/scripts/integration-test.sh
+          ./.github/scripts/integration-test.sh
 
   tests-end:
     name: End
