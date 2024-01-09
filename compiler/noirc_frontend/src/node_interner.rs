@@ -468,7 +468,6 @@ impl NodeInterner {
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
     /// of each items [Span]
-    #[tracing::instrument(skip(self))]
     pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
         let mut location_candidate: Option<(&Index, &Location)> = None;
 
@@ -1279,6 +1278,16 @@ impl NodeInterner {
             .and_then(|index| self.resolve_location(index))
             .or_else(|| self.try_resolve_trait_impl_location(location))
             .or_else(|| self.try_resolve_trait_method_declaration(location))
+    }
+
+    pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {
+        self.try_resolve_trait_method_declaration(location).or_else(|| {
+            self.find_location_index(location)
+                .and_then(|index| self.resolve_location(index))
+                .and_then(|found_impl_location| {
+                    self.try_resolve_trait_method_declaration(found_impl_location)
+                })
+        })
     }
 
     /// For a given [Index] we return [Location] to which we resolved to
