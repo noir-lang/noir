@@ -15,7 +15,7 @@ title: Contract Workflow
 
 ## Unit Tests
 
-[Test individual noir functions](https://noir-lang.org/nargo/testing).
+[Test individual noir functions](https://noir-lang.org/docs/nargo/testing).
 
 ## Deploy
 

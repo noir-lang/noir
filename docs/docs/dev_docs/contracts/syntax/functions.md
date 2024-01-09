@@ -81,7 +81,7 @@ As alluded to earlier, a private function operates on private information, and i
 
 ## `unconstrained` functions
 
-Unconstrained functions are an underlying part of Noir - a deeper explanation can be found [here](https://noir-lang.org/language_concepts/unconstrained). But in short, they are functions which are not directly constrained and therefore should be seen as untrusted! That they are untrusted means that, for security, the developer must make sure to constrain them when used!
+Unconstrained functions are an underlying part of Noir - a deeper explanation can be found [here](https://noir-lang.org/docs/language_concepts/unconstrained). But in short, they are functions which are not directly constrained and therefore should be seen as untrusted! That they are untrusted means that, for security, the developer must make sure to constrain them when used!
 
 Beyond using them inside your other functions, they are convenient for providing an interface that reads storage, applies logic and returns values to a UI or test. Below is a snippet from exposing the `balance_of_private` function from a token implementation, which allows a user to easily read their balance, similar to the `balanceOf` function in the ERC20 standard.
 

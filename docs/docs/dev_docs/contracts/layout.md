@@ -20,7 +20,7 @@ contract MyContract {
 }
 ```
 :::info A note for vanilla Noir devs
-There is no [`main()`](https://noir-lang.org/getting_started/breakdown/#mainnr) function within a Noir `contract` scope. More than one function can be an entrypoint.
+There is no [`main()`](https://noir-lang.org/docs/getting_started/breakdown/#mainnr) function within a Noir `contract` scope. More than one function can be an entrypoint.
 :::
 
 ## Directory structure
@@ -34,5 +34,5 @@ Here's a common layout for a basic Aztec.nr Contract project:
        └── Nargo.toml          <-- package and dependency management
 ```
 
-- See the vanilla Noir docs for [more info on packages](https://noir-lang.org/modules_packages_crates/crates_and_packages).
+- See the vanilla Noir docs for [more info on packages](https://noir-lang.org/docs/modules_packages_crates/crates_and_packages).
 - You can review the structure of a complete contract in the token contract tutorial [here](../tutorials/writing_token_contract.md).

@@ -208,7 +208,7 @@ Congratulations, you have now written, compiled, and deployed your first Aztec.n
 
 ## Install `nargo` (recommended)
 
-The CLI comes with the Noir compiler, so installing `nargo` is not required, however it is recommended as it provides a better developer experience for writing contracts. You will need nargo installed to take advantage of the [Noir Language Server](https://noir-lang.org/nargo/language_server), which provides syntax highlighting and formatting for your Aztec contracts.
+The CLI comes with the Noir compiler, so installing `nargo` is not required, however it is recommended as it provides a better developer experience for writing contracts. You will need nargo installed to take advantage of the [Noir Language Server](https://noir-lang.org/docs/nargo/language_server), which provides syntax highlighting and formatting for your Aztec contracts.
 
 You will also need `nargo` if you want to run unit tests in Noir.
 

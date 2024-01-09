@@ -53,7 +53,7 @@ value_note = { git = "https://github.com/AztecProtocol/aztec-nr", tag = "master"
 To use `Aztec.nr` you must have [Noir](https://noir-lang.org/) installed. Noir is a general purpose programming language for creating zero-knowledge-proofs. `Aztec.nr` supercharges the Noir language with Aztec Smart Contract capabilities.
 
 ### Quick Installation
-The fastest way to install is with [noirup](https://noir-lang.org/getting_started/nargo_installation#option-1-noirup).
+The fastest way to install is with [noirup](https://noir-lang.org/docs/getting_started/nargo_installation#option-1-noirup).
 
 To use `Aztec-nr` the `aztec` version of `Noir` is required (Note; this version is temporarily required if you would like to use `#[aztec()]` macros).
 
