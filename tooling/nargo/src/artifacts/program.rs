@@ -1,6 +1,11 @@
+use std::collections::BTreeMap;
+
 use acvm::acir::circuit::Circuit;
+use fm::FileId;
 use noirc_abi::Abi;
 use noirc_driver::CompiledProgram;
+use noirc_driver::DebugFile;
+use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -20,6 +25,15 @@ pub struct ProgramArtifact {
         deserialize_with = "Circuit::deserialize_circuit_base64"
     )]
     pub bytecode: Circuit,
+
+    #[serde(
+        serialize_with = "DebugInfo::serialize_compressed_base64_json",
+        deserialize_with = "DebugInfo::deserialize_compressed_base64_json"
+    )]
+    pub debug_symbols: DebugInfo,
+
+    /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
+    pub file_map: BTreeMap<FileId, DebugFile>,
 }
 
 impl From<CompiledProgram> for ProgramArtifact {
@@ -29,6 +43,22 @@ impl From<CompiledProgram> for ProgramArtifact {
             abi: program.abi,
             noir_version: program.noir_version,
             bytecode: program.circuit,
+            debug_symbols: program.debug,
+            file_map: program.file_map,
+        }
+    }
+}
+
+impl Into<CompiledProgram> for ProgramArtifact {
+    fn into(self) -> CompiledProgram {
+        CompiledProgram {
+            hash: self.hash,
+            abi: self.abi,
+            noir_version: self.noir_version,
+            circuit: self.bytecode,
+            debug: self.debug_symbols,
+            file_map: self.file_map,
+            warnings: vec![],
         }
     }
 }

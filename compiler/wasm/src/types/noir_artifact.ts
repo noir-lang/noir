@@ -49,6 +49,8 @@ export interface NoirFunctionEntry {
   abi: Abi;
   /** The bytecode of the function in base64. */
   bytecode: string;
+  /** The debug information, compressed and base64 encoded. */
+  debug_symbols: string;
 }
 
 /**
@@ -57,12 +59,16 @@ export interface NoirFunctionEntry {
 export interface CompiledContract {
   /** The name of the contract. */
   name: string;
+  /** Version of noir used for the build. */
+  noir_version: string;
   /** Compilation backend. */
   backend: string;
   /** The functions of the contract. */
   functions: NoirFunctionEntry[];
   /** The events of the contract */
   events: EventAbi[];
+  /** The map of file ID to the source code and path of the file. */
+  file_map: DebugFileMap;
 }
 
 /**
@@ -73,12 +79,14 @@ export interface CompiledCircuit {
   hash?: number;
   /** Compilation backend. */
   backend: string;
-  /**
-   * The ABI of the function.
-   */
+  /** * The ABI of the function. */
   abi: Abi;
   /** The bytecode of the circuit in base64. */
   bytecode: string;
+  /** The debug information, compressed and base64 encoded. */
+  debug_symbols: string;
+  /** The map of file ID to the source code and path of the file. */
+  file_map: DebugFileMap;
 }
 
 /**
@@ -142,19 +150,8 @@ export type DebugFileMap = Record<
   }
 >;
 
-/**
- * The debug metadata of an Noir contract.
- */
-export interface DebugMetadata {
-  /**
-   * The debug information for each function.
-   */
-  debug_symbols: DebugInfo[];
-  /**
-   * The map of file ID to the source code and path of the file.
-   */
-  file_map: DebugFileMap;
-}
+/** Compilation warning */
+export type Warning = unknown;
 
 /**
  * The compilation artifacts of a given contract.
@@ -165,10 +162,8 @@ export interface ContractCompilationArtifacts {
    */
   contract: CompiledContract;
 
-  /**
-   * The artifact that contains the debug metadata about the contract.
-   */
-  debug?: DebugMetadata;
+  /** Compilation warnings. */
+  warnings: Warning[];
 }
 
 /**
@@ -184,10 +179,8 @@ export interface ProgramCompilationArtifacts {
    */
   program: CompiledCircuit;
 
-  /**
-   * The artifact that contains the debug metadata about the contract.
-   */
-  debug?: DebugMetadata;
+  /** Compilation warnings. */
+  warnings: Warning[];
 }
 
 /**
