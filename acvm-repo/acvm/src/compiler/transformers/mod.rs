@@ -104,7 +104,8 @@ pub(super) fn transform_internal(
                     | acir::circuit::opcodes::BlackBoxFuncCall::XOR { output, .. } => {
                         transformer.mark_solvable(*output);
                     }
-                    acir::circuit::opcodes::BlackBoxFuncCall::RANGE { .. } | acir::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation { .. } => (),
+                    acir::circuit::opcodes::BlackBoxFuncCall::RANGE { .. }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation { .. } => (),
                     acir::circuit::opcodes::BlackBoxFuncCall::SHA256 { outputs, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256 { outputs, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256VariableLength {
