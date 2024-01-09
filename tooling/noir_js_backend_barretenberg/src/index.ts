@@ -127,7 +127,9 @@ export class BarretenbergBackend implements Backend {
   }> {
     await this.instantiate();
     const proof = reconstructProofWithPublicInputs(proofData);
-    const proofAsFields = await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs);
+    const proofAsFields = (
+      await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs)
+    ).slice(numOfPublicInputs);
 
     // TODO: perhaps we should put this in the init function. Need to benchmark
     // TODO how long it takes.
