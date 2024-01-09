@@ -49,7 +49,7 @@ jq --arg v $VERSION '.version = $v' package.json >$TMP && mv $TMP package.json
 
 if [ -z "$STANDALONE" ]; then
   # Update each dependent @aztec package version in package.json.
-  for PKG in $(jq --raw-output ".dependencies | keys[] | select(contains(\"@aztec/\"))" package.json); do
+  for PKG in $(jq --raw-output ".dependencies | try keys[] | select(contains(\"@aztec/\"))" package.json); do
     jq --arg v $VERSION ".dependencies[\"$PKG\"] = \$v" package.json >$TMP && mv $TMP package.json
   done
 fi
@@ -62,9 +62,11 @@ else
   # Check if version exists
   if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
     # Tag the existing version
+    echo "Tagging existing version $VERSION with $TAG"
     npm dist-tag add $PACKAGE_NAME@$VERSION $TAG
   else
     # Publish new version
+    echo "Publishing new version $VERSION with $TAG"
     npm publish $TAG_ARG --access public
   fi
 fi
