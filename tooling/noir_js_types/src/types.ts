@@ -1,4 +1,4 @@
-import { Abi, WitnessMap } from '@noir-lang/noirc_abi';
+import { Abi } from '@noir-lang/noirc_abi';
 
 export { Abi, WitnessMap } from '@noir-lang/noirc_abi';
 
@@ -46,8 +46,6 @@ export interface Backend {
 export type ProofData = {
   /** @description Public inputs of a proof */
   publicInputs: string[];
-  /** @description The public inputs as a witness map */
-  publicInputsMap: WitnessMap;
   /** @description An byte array representing the proof */
   proof: Uint8Array;
 };

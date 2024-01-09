@@ -3,8 +3,9 @@ import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
-import { deflattenPublicInputs, flattenPublicInputsAsArray, publicInputsToWitnessMap } from './public_inputs.js';
+import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
 
+export { publicInputsToWitnessMap } from './public_inputs.js';
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;
@@ -94,9 +95,8 @@ export class BarretenbergBackend implements Backend {
     const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
     const proof = proofWithPublicInputs.slice(splitIndex);
     const publicInputs = deflattenPublicInputs(publicInputsConcatenated);
-    const publicInputsMap = publicInputsToWitnessMap(publicInputs, this.acirCircuit.abi);
 
-    return { proof, publicInputs, publicInputsMap };
+    return { proof, publicInputs };
   }
 
   // Generates artifacts that will be passed to a circuit that will verify this proof.
