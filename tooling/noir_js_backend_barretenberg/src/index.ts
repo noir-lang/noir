@@ -3,6 +3,7 @@ import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
+import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
 
 export { flattenPublicInputs } from './public_inputs.js';
 
@@ -92,8 +93,9 @@ export class BarretenbergBackend implements Backend {
 
     const splitIndex = proofWithPublicInputs.length - numBytesInProofWithoutPublicInputs;
 
-    const publicInputs = proofWithPublicInputs.slice(0, splitIndex);
+    const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
     const proof = proofWithPublicInputs.slice(splitIndex);
+    const publicInputs = deflattenPublicInputs(publicInputsConcatenated, this.acirCircuit.abi);
 
     return { proof, publicInputs };
   }
@@ -179,8 +181,11 @@ export class BarretenbergBackend implements Backend {
 }
 
 function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Array {
+  // Flatten publicInputs
+  const publicInputsConcatenated = flattenPublicInputsAsArray(proofData.publicInputs);
+
   // Concatenate publicInputs and proof
-  const proofWithPublicInputs = Uint8Array.from([...proofData.publicInputs, ...proofData.proof]);
+  const proofWithPublicInputs = Uint8Array.from([...publicInputsConcatenated, ...proofData.proof]);
 
   return proofWithPublicInputs;
 }
