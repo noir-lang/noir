@@ -5,6 +5,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { MerkleTreeId, NoteFilter } from '@aztec/types';
 
 import { MemoryContractDatabase } from '../contract_database/index.js';
+import { DeferredNoteDao } from './deferred_note_dao.js';
 import { NoteDao } from './note_dao.js';
 import { PxeDatabase } from './pxe_database.js';
 
@@ -16,6 +17,7 @@ import { PxeDatabase } from './pxe_database.js';
  */
 export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
   private notesTable: NoteDao[] = [];
+  private deferredNotesTable: DeferredNoteDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
   private globalVariablesHash: Fr | undefined;
   private blockNumber: number | undefined;
@@ -52,6 +54,27 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
   public addNote(note: NoteDao): Promise<void> {
     this.notesTable.push(note);
     return Promise.resolve();
+  }
+
+  public addDeferredNotes(notes: DeferredNoteDao[]): Promise<void> {
+    this.deferredNotesTable.push(...notes);
+    return Promise.resolve();
+  }
+
+  public getDeferredNotesByContract(contractAddress: AztecAddress): Promise<DeferredNoteDao[]> {
+    return Promise.resolve(this.deferredNotesTable.filter(note => note.contractAddress.equals(contractAddress)));
+  }
+
+  public removeDeferredNotesByContract(contractAddress: AztecAddress): Promise<DeferredNoteDao[]> {
+    const removed: DeferredNoteDao[] = [];
+    this.deferredNotesTable = this.deferredNotesTable.filter(note => {
+      if (note.contractAddress.equals(contractAddress)) {
+        removed.push(note);
+        return false;
+      }
+      return true;
+    });
+    return Promise.resolve(removed);
   }
 
   public addCapsule(capsule: Fr[]): Promise<void> {

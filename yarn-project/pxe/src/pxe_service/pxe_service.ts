@@ -88,8 +88,9 @@ export class PXEService implements PXE {
     this.synchronizer = new Synchronizer(node, db, this.jobQueue, logSuffix);
     this.contractDataOracle = new ContractDataOracle(db, node);
     this.simulator = getAcirSimulator(db, node, keyStore, this.contractDataOracle);
-
     this.nodeVersion = getPackageInfo().version;
+
+    this.jobQueue.start();
   }
 
   /**
@@ -99,11 +100,7 @@ export class PXEService implements PXE {
    */
   public async start() {
     const { l2BlockPollingIntervalMS } = this.config;
-    this.synchronizer.start(1, l2BlockPollingIntervalMS);
-    this.jobQueue.start();
-    this.log.info('Started Job Queue');
-    await this.jobQueue.syncPoint();
-    this.log.info('Synced Job Queue');
+    await this.synchronizer.start(1, l2BlockPollingIntervalMS);
     await this.restoreNoteProcessors();
     const info = await this.getNodeInfo();
     this.log.info(`Started PXE connected to chain ${info.chainId} version ${info.protocolVersion}`);
@@ -207,9 +204,11 @@ export class PXEService implements PXE {
     const contractDaos = contracts.map(c => new ContractDao(c.artifact, c.completeAddress, c.portalContract));
     await Promise.all(contractDaos.map(c => this.db.addContract(c)));
     for (const contract of contractDaos) {
+      const contractAztecAddress = contract.completeAddress.address;
       const portalInfo =
         contract.portalContract && !contract.portalContract.isZero() ? ` with portal ${contract.portalContract}` : '';
-      this.log.info(`Added contract ${contract.name} at ${contract.completeAddress.address}${portalInfo}`);
+      this.log.info(`Added contract ${contract.name} at ${contractAztecAddress}${portalInfo}`);
+      await this.synchronizer.reprocessDeferredNotesForContract(contractAztecAddress);
     }
   }
 

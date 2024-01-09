@@ -3,6 +3,7 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecArray, AztecKVStore, AztecMap, AztecMultiMap, AztecSingleton } from '@aztec/kv-store';
 import { ContractDao, MerkleTreeId, NoteFilter, PublicKey } from '@aztec/types';
 
+import { DeferredNoteDao } from './deferred_note_dao.js';
 import { NoteDao } from './note_dao.js';
 import { PxeDatabase } from './pxe_database.js';
 
@@ -32,6 +33,8 @@ export class KVPxeDatabase implements PxeDatabase {
   #notesByStorageSlot: AztecMultiMap<string, number>;
   #notesByTxHash: AztecMultiMap<string, number>;
   #notesByOwner: AztecMultiMap<string, number>;
+  #deferredNotes: AztecArray<Buffer>;
+  #deferredNotesByContract: AztecMultiMap<string, number>;
   #syncedBlockPerPublicKey: AztecMap<string, number>;
   #db: AztecKVStore;
 
@@ -55,6 +58,9 @@ export class KVPxeDatabase implements PxeDatabase {
     this.#notesByStorageSlot = db.createMultiMap('notes_by_storage_slot');
     this.#notesByTxHash = db.createMultiMap('notes_by_tx_hash');
     this.#notesByOwner = db.createMultiMap('notes_by_owner');
+
+    this.#deferredNotes = db.createArray('deferred_notes');
+    this.#deferredNotesByContract = db.createMultiMap('deferred_notes_by_contract');
   }
 
   async addAuthWitness(messageHash: Fr, witness: Fr[]): Promise<void> {
@@ -93,6 +99,60 @@ export class KVPxeDatabase implements PxeDatabase {
         this.#notesByOwner.set(note.publicKey.toString(), noteId),
       ]);
     }
+  }
+
+  async addDeferredNotes(deferredNotes: DeferredNoteDao[]): Promise<void> {
+    const newLength = await this.#deferredNotes.push(...deferredNotes.map(note => note.toBuffer()));
+    for (const [index, note] of deferredNotes.entries()) {
+      const noteId = newLength - deferredNotes.length + index;
+      await this.#deferredNotesByContract.set(note.contractAddress.toString(), noteId);
+    }
+  }
+
+  getDeferredNotesByContract(contractAddress: AztecAddress): Promise<DeferredNoteDao[]> {
+    const noteIds = this.#deferredNotesByContract.getValues(contractAddress.toString());
+    const notes: DeferredNoteDao[] = [];
+    for (const noteId of noteIds) {
+      const serializedNote = this.#deferredNotes.at(noteId);
+      if (!serializedNote) {
+        continue;
+      }
+
+      const note = DeferredNoteDao.fromBuffer(serializedNote);
+      notes.push(note);
+    }
+
+    return Promise.resolve(notes);
+  }
+
+  /**
+   * Removes all deferred notes for a given contract address.
+   * @param contractAddress - the contract address to remove deferred notes for
+   * @returns an array of the removed deferred notes
+   *
+   * @remarks We only remove indices from the deferred notes by contract map, but not the actual deferred notes.
+   * This is safe because our only getter for deferred notes is by contract address.
+   * If we should add a more general getter, we will need a delete vector for deferred notes as well,
+   * analogous to this.#nullifiedNotes.
+   */
+  removeDeferredNotesByContract(contractAddress: AztecAddress): Promise<DeferredNoteDao[]> {
+    return this.#db.transaction(() => {
+      const deferredNotes: DeferredNoteDao[] = [];
+      const indices = this.#deferredNotesByContract.getValues(contractAddress.toString());
+
+      for (const index of indices) {
+        const deferredNoteBuffer = this.#deferredNotes.at(index);
+        if (!deferredNoteBuffer) {
+          continue;
+        } else {
+          deferredNotes.push(DeferredNoteDao.fromBuffer(deferredNoteBuffer));
+        }
+
+        void this.#deferredNotesByContract.deleteValue(contractAddress.toString(), index);
+      }
+
+      return deferredNotes;
+    });
   }
 
   *#getAllNonNullifiedNotes(): IterableIterator<NoteDao> {
@@ -155,6 +215,9 @@ export class KVPxeDatabase implements PxeDatabase {
   }
 
   removeNullifiedNotes(nullifiers: Fr[], account: PublicKey): Promise<NoteDao[]> {
+    if (nullifiers.length === 0) {
+      return Promise.resolve([]);
+    }
     const nullifierSet = new Set(nullifiers.map(n => n.toString()));
     return this.#db.transaction(() => {
       const notesIds = this.#notesByOwner.getValues(account.toString());

@@ -6,7 +6,16 @@ import { Fr } from '@aztec/foundation/fields';
 import { L2Block, MerkleTreeId, NullifierMembershipWitness, PublicDataWitness } from '@aztec/types';
 
 import { NoteData } from '../acvm/index.js';
-import { CommitmentsDB } from '../public/index.js';
+import { CommitmentsDB } from '../public/db.js';
+
+/**
+ * Error thrown when a contract is not found in the database.
+ */
+export class ContractNotFoundError extends Error {
+  constructor(contractAddress: string) {
+    super(`DB has no contract with address ${contractAddress}`);
+  }
+}
 
 /**
  * A function artifact with optional debug metadata

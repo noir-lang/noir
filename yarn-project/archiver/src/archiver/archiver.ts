@@ -59,7 +59,6 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    * @param inboxAddress - Ethereum address of the inbox contract.
    * @param registryAddress - Ethereum address of the registry contract.
    * @param contractDeploymentEmitterAddress - Ethereum address of the contractDeploymentEmitter contract.
-   * @param searchStartBlock - The L1 block from which to start searching for new blocks.
    * @param pollingIntervalMs - The interval for polling for L1 logs (in milliseconds).
    * @param store - An archiver data store for storage & retrieval of blocks, encrypted logs & contract data.
    * @param log - A logger.

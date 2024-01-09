@@ -1,4 +1,4 @@
-import { deserializeBigInt, serializeBigInt } from '@aztec/foundation/serialize';
+import { BufferReader, deserializeBigInt, serializeBigInt } from '@aztec/foundation/serialize';
 
 /**
  * A class representing hash of Aztec transaction.
@@ -23,6 +23,24 @@ export class TxHash {
     if (buffer.length !== TxHash.SIZE) {
       throw new Error(`Expected buffer to have length ${TxHash.SIZE} but was ${buffer.length}`);
     }
+  }
+
+  /**
+   * Returns the raw buffer of the hash.
+   * @returns The buffer containing the hash.
+   */
+  public toBuffer() {
+    return this.buffer;
+  }
+
+  /**
+   * Creates a TxHash from a buffer.
+   * @param buffer - The buffer to create from.
+   * @returns A new TxHash object.
+   */
+  public static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new TxHash(reader.readBytes(TxHash.SIZE));
   }
 
   /**

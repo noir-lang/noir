@@ -108,6 +108,8 @@ export type NoteProcessorCaughtUpStats = {
 export type NoteProcessorStats = {
   /** How many notes have been seen and trial-decrypted. */
   seen: number;
+  /** How many notes had decryption deferred due to a missing contract */
+  deferred: number;
   /** How many notes were successfully decrypted. */
   decrypted: number;
   /** How many notes failed processing. */

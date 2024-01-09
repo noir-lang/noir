@@ -1,5 +1,13 @@
 import { CompleteAddress, ContractFunctionDao } from '@aztec/circuits.js';
-import { ContractArtifact, DebugMetadata, EventAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import {
+  ContractArtifact,
+  DebugMetadata,
+  EventAbi,
+  FunctionDebugMetadata,
+  FunctionSelector,
+  FunctionType,
+  getFunctionDebugMetadata,
+} from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { prefixBufferWithLength } from '@aztec/foundation/serialize';
 
@@ -40,6 +48,18 @@ export class ContractDao implements ContractArtifact {
 
   get debug(): DebugMetadata | undefined {
     return this.contractArtifact.debug;
+  }
+
+  getFunctionArtifact(selector: FunctionSelector): ContractFunctionDao | undefined {
+    return this.functions.find(f => f.selector.equals(selector));
+  }
+
+  getFunctionArtifactByName(functionName: string): ContractFunctionDao | undefined {
+    return this.functions.find(f => f.name === functionName);
+  }
+
+  getFunctionDebugMetadataByName(functionName: string): FunctionDebugMetadata | undefined {
+    return getFunctionDebugMetadata(this, functionName);
   }
 
   toBuffer(): Buffer {
