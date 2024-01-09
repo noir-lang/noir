@@ -38,7 +38,7 @@ export default function Landing() {
           </h1>
           <p className="homepage_p">
             Noir is a Domain Specific Language for SNARK proving systems. It has been designed to use any ACIR
-            compatible proving system. It's design choices are influenced heavily by Rust and focuses on a simple,
+            compatible proving system. Its design choices are influenced heavily by Rust and focuses on a simple,
             familiar syntax.
           </p>
 
