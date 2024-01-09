@@ -155,22 +155,21 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     }
 
     /**
-     * Make a witness variable a member of the public calldata.
+     * @brief Add a witness variable to the public calldata.
      *
-     * @param witness_index The index of the witness.
+     * @param in Value to be added to calldata.
      * */
-    void set_public_calldata(const uint32_t witness_index)
+    uint32_t add_public_calldata(const FF& in)
     {
-        for (const uint32_t calldata : public_calldata) {
-            if (calldata == witness_index) {
-                if (!this->failed()) {
-                    this->failure("Attempted to redundantly set a public calldata!");
-                }
-                return;
-            }
-        }
-        public_calldata.emplace_back(witness_index);
+        const uint32_t index = this->add_variable(in);
+        public_calldata.emplace_back(index);
+        // Note: this is a bit inefficent to do every time but for safety these need to be coupled
+        calldata_read_counts.resize(public_calldata.size());
+        return index;
     }
+
+    void create_calldata_lookup_gate(const databus_lookup_gate_<FF>& in);
+
     void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);
     void create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in);
 

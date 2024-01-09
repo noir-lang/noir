@@ -31,42 +31,15 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     // All that remains is to handle databus related and poseidon2 related polynomials. In what follows we populate the
     // calldata with some mock data then constuct a single calldata read gate
 
-    // Populate the calldata with some data
-    public_calldata.emplace_back(this->add_variable(FF(5)));
-    public_calldata.emplace_back(this->add_variable(FF(7)));
-    public_calldata.emplace_back(this->add_variable(FF(9)));
-
-    // Construct read counts with length of calldata
-    calldata_read_counts.resize(public_calldata.size());
-    for (auto& val : calldata_read_counts) {
-        val = 0;
-    }
-
-    // Construct gate corresponding to a single calldata read
-    size_t read_idx = 1;                                        // index into calldata array at which we want to read
-    this->w_l().emplace_back(public_calldata[read_idx]);        // populate with value of calldata at read index
-    this->w_r().emplace_back(this->add_variable(FF(read_idx))); // populate with read index as witness
-    calldata_read_counts[read_idx]++;                           // increment read count at read index
-    q_busread().emplace_back(1);                                // read selector on
-
-    // populate all other components with zero
-    this->w_o().emplace_back(this->zero_idx);
-    this->w_4().emplace_back(this->zero_idx);
-    this->q_m().emplace_back(0);
-    this->q_1().emplace_back(0);
-    this->q_2().emplace_back(0);
-    this->q_3().emplace_back(0);
-    this->q_c().emplace_back(0);
-    this->q_sort().emplace_back(0);
-    this->q_arith().emplace_back(0);
-    this->q_4().emplace_back(0);
-    this->q_lookup_type().emplace_back(0);
-    this->q_elliptic().emplace_back(0);
-    this->q_aux().emplace_back(0);
-    this->q_poseidon2_external().emplace_back(0);
-    this->q_poseidon2_internal().emplace_back(0);
-
-    ++this->num_gates;
+    // Create an arbitrary calldata read gate
+    add_public_calldata(FF(25)); // ensure there is at least one entry in calldata
+    uint32_t raw_read_idx = 0;   // read first entry in calldata
+    auto read_idx = this->add_variable(raw_read_idx);
+    FF calldata_value = this->get_variable(public_calldata[raw_read_idx]);
+    auto value_idx = this->add_variable(calldata_value);
+    create_calldata_lookup_gate({ read_idx, value_idx });
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/821): automate updating of read counts
+    calldata_read_counts[raw_read_idx]++;
 
     // mock gates that use poseidon selectors, with all zeros as input
     this->w_l().emplace_back(this->zero_idx);
@@ -252,6 +225,39 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::set_goblin_ecc_op_co
     add_accum_op_idx = this->put_constant_variable(FF(EccOpCode::ADD_ACCUM));
     mul_accum_op_idx = this->put_constant_variable(FF(EccOpCode::MUL_ACCUM));
     equality_op_idx = this->put_constant_variable(FF(EccOpCode::EQUALITY));
+}
+
+/**
+ * @brief Create a calldata lookup/read gate
+ *
+ * @tparam FF
+ * @param databus_lookup_gate_ witness indices corresponding to: calldata index, calldata value
+ */
+template <typename FF>
+void GoblinUltraCircuitBuilder_<FF>::create_calldata_lookup_gate(const databus_lookup_gate_<FF>& in)
+{
+    this->w_l().emplace_back(in.value);
+    this->w_r().emplace_back(in.index);
+    q_busread().emplace_back(1);
+
+    // populate all other components with zero
+    this->w_o().emplace_back(this->zero_idx);
+    this->w_4().emplace_back(this->zero_idx);
+    this->q_m().emplace_back(0);
+    this->q_1().emplace_back(0);
+    this->q_2().emplace_back(0);
+    this->q_3().emplace_back(0);
+    this->q_c().emplace_back(0);
+    this->q_sort().emplace_back(0);
+    this->q_arith().emplace_back(0);
+    this->q_4().emplace_back(0);
+    this->q_lookup_type().emplace_back(0);
+    this->q_elliptic().emplace_back(0);
+    this->q_aux().emplace_back(0);
+    this->q_poseidon2_external().emplace_back(0);
+    this->q_poseidon2_internal().emplace_back(0);
+
+    ++this->num_gates;
 }
 
 template <typename FF>

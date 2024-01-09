@@ -195,6 +195,7 @@ void ProverInstance_<Flavor>::construct_databus_polynomials(Circuit& circuit)
     // Note: We do not utilize a zero row for databus columns
     for (size_t idx = 0; idx < circuit.public_calldata.size(); ++idx) {
         public_calldata[idx] = circuit.get_variable(circuit.public_calldata[idx]);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/821): automate updating of read counts
         calldata_read_counts[idx] = circuit.calldata_read_counts[idx];
     }
 

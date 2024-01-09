@@ -48,19 +48,19 @@ void inspect_instance(auto& prover_instance)
 void print_databus_info(auto& prover_instance)
 {
     info("\nInstance Inspector: Printing databus gate info.");
-    auto& prover_polys = prover_instance->prover_polynomials;
+    auto& key = prover_instance->proving_key;
     for (size_t idx = 0; idx < prover_instance->proving_key->circuit_size; ++idx) {
-        if (prover_polys.q_busread[idx] == 1) {
+        if (key->q_busread[idx] == 1) {
             info("idx = ", idx);
-            info("q_busread = ", prover_polys.q_busread[idx]);
-            info("w_l = ", prover_polys.w_l[idx]);
-            info("w_r = ", prover_polys.w_r[idx]);
+            info("q_busread = ", key->q_busread[idx]);
+            info("w_l = ", key->w_l[idx]);
+            info("w_r = ", key->w_r[idx]);
         }
-        if (prover_polys.calldata_read_counts[idx] > 0) {
+        if (key->calldata_read_counts[idx] > 0) {
             info("idx = ", idx);
-            info("read_counts = ", prover_polys.calldata_read_counts[idx]);
-            info("calldata = ", prover_polys.calldata[idx]);
-            info("databus_id = ", prover_polys.databus_id[idx]);
+            info("read_counts = ", key->calldata_read_counts[idx]);
+            info("calldata = ", key->calldata[idx]);
+            info("databus_id = ", key->databus_id[idx]);
         }
     }
     info();
