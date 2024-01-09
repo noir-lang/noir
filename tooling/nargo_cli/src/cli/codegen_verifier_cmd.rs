@@ -7,7 +7,6 @@ use crate::backends::Backend;
 use crate::errors::CliError;
 
 use acvm::ExpressionWidth;
-use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
 use clap::Args;
 use fm::FileManager;
 use nargo::insert_all_files_for_workspace_into_file_manager;
@@ -83,12 +82,5 @@ fn smart_contract_for_package(
     let program =
         compile_bin_package(file_manager, workspace, package, compile_options, expression_width)?;
 
-    let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
-
-    if backend.name() == ACVM_BACKEND_BARRETENBERG {
-        smart_contract_string =
-            bb_abstraction_leaks::complete_barretenberg_verifier_contract(smart_contract_string);
-    }
-
-    Ok(smart_contract_string)
+    Ok(backend.eth_contract(&program.circuit)?)
 }
