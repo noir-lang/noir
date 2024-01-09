@@ -56,10 +56,10 @@ const wallet = await getSchnorrAccount(
 ).getWallet();
 ```
 
-For ease of use, `accounts` also ships with a helper `getSandboxAccountsWallets` method that returns a wallet for each of the pre-initialized accounts in the Sandbox, so you can send transactions as any of them.
+For ease of use, `accounts` also ships with a helper `getInitialTestAccountsWallets` method that returns a wallet for each of the pre-initialized accounts in the Sandbox, so you can send transactions as any of them. 
 
 ```js
-import { getSandboxAccountsWallets } from "@aztec/accounts/testing";
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 ```
 
 We'll use one of these wallets to initialize the `Contract` instance that represents our private token contract, so every transaction sent through it will be sent through that wallet.

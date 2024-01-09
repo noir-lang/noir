@@ -13,7 +13,7 @@ export const getL1ContractAddresses = async (url: string): Promise<L1ContractAdd
         // do nothing
       }
     },
-    'isSandboxReady',
+    'isNodeReady',
     120,
     1,
   );

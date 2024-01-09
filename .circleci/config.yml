@@ -769,7 +769,7 @@ jobs:
           name: "Test"
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-no-sandbox.yml TEST=e2e_p2p_network.test.ts
 
-  e2e-browser-sandbox:
+  e2e-browser:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -791,7 +791,7 @@ jobs:
           name: "Test"
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_card_game.test.ts
 
-  pxe-sandbox:
+  pxe:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -1206,9 +1206,9 @@ workflows:
       - integration-l1-publisher: *e2e_test
       - integration-archiver-l1-to-l2: *e2e_test
       - e2e-p2p: *e2e_test
-      - e2e-browser-sandbox: *e2e_test
+      - e2e-browser: *e2e_test
       - e2e-card-game: *e2e_test
-      - pxe-sandbox: *e2e_test
+      - pxe: *e2e_test
       - cli-docs-sandbox: *e2e_test
       - guides-writing-an-account-contract: *e2e_test
       - guides-dapp-testing: *e2e_test
@@ -1242,9 +1242,9 @@ workflows:
             - integration-l1-publisher
             - integration-archiver-l1-to-l2
             - e2e-p2p
-            - e2e-browser-sandbox
+            - e2e-browser
             - e2e-card-game
-            - pxe-sandbox
+            - pxe
             - cli-docs-sandbox
             - guides-writing-an-account-contract
             - guides-dapp-testing

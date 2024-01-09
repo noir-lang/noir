@@ -26,7 +26,6 @@
     "@aztec/accounts": "workspace:^",
     "@aztec/archiver": "workspace:^",
     "@aztec/aztec-node": "workspace:^",
-    "@aztec/aztec-sandbox": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/cli": "workspace:^",

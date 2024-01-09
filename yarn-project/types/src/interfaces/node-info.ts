@@ -7,9 +7,9 @@ export interface NodeInfo {
   /**
    * Version as tracked in the aztec-packages repository.
    */
-  sandboxVersion: string;
+  nodeVersion: string;
   /**
-   * The nargo version compatible with this sandbox version
+   * The nargo version compatible with this node version
    */
   compatibleNargoVersion: string;
   /**

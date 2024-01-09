@@ -1,12 +1,19 @@
-import { deployInitialSandboxAccounts, getSandboxAccountsWallets } from '@aztec/accounts/testing';
-import { AccountWallet, AztecAddress, DebugLogger, PXE, Wallet } from '@aztec/aztec.js';
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { INITIAL_TEST_ENCRYPTION_KEYS } from '@aztec/accounts/testing';
+import {
+  AccountWallet,
+  AztecAddress,
+  DebugLogger,
+  GrumpkinScalar,
+  PXE,
+  Wallet,
+  generatePublicKey,
+} from '@aztec/aztec.js';
 import { CardGameContract } from '@aztec/noir-contracts/CardGame';
 
 import { setup } from './fixtures/utils.js';
 
 /* eslint-disable camelcase */
-
-const { PXE_URL } = process.env;
 
 interface Card {
   points: bigint;
@@ -46,6 +53,8 @@ function unwrapOptions<T>(options: NoirOption<T>[]): T[] {
 
 const GAME_ID = 42;
 
+const PLAYER_ENCRYPTION_KEYS = INITIAL_TEST_ENCRYPTION_KEYS;
+
 describe('e2e_card_game', () => {
   let pxe: PXE;
   let logger: DebugLogger;
@@ -64,24 +73,38 @@ describe('e2e_card_game', () => {
   let contractAsSecondPlayer: CardGameContract;
   let contractAsThirdPlayer: CardGameContract;
 
-  beforeEach(async () => {
-    // Card stats are derived from the users' private keys, so to get consistent values, we set up the
-    // initial sandbox accounts that always use the same private keys, instead of random ones.
-    ({ pxe, logger, teardown } = await setup(0));
+  beforeAll(async () => {
+    ({ pxe, logger, teardown, wallets } = await setup(0));
 
-    // Get pre-deployed account wallets if we're running against sandbox.
-    if (PXE_URL) {
-      wallets = await getSandboxAccountsWallets(pxe);
-    } else {
-      // Deploy initial wallets if we're NOT running against sandbox.
-      wallets = await Promise.all((await deployInitialSandboxAccounts(pxe)).map(a => a.account.getWallet()));
+    const preRegisteredAccounts = await pxe.getRegisteredAccounts();
+
+    const toRegister = PLAYER_ENCRYPTION_KEYS.filter(key => {
+      const publicKey = generatePublicKey(key);
+      return (
+        preRegisteredAccounts.find(preRegisteredAccount => {
+          return preRegisteredAccount.publicKey.equals(publicKey);
+        }) == undefined
+      );
+    });
+
+    for (let i = 0; i < toRegister.length; i++) {
+      logger(`Deploying account contract ${i}/${toRegister.length}...`);
+      const encryptionPrivateKey = toRegister[i];
+      const account = getSchnorrAccount(pxe, encryptionPrivateKey, GrumpkinScalar.random());
+      const wallet = await account.waitDeploy({ interval: 0.1 });
+      wallets.push(wallet);
     }
+    logger('Account contracts deployed');
+
     [firstPlayerWallet, secondPlayerWallet, thirdPlayerWallet] = wallets;
     [firstPlayer, secondPlayer, thirdPlayer] = wallets.map(a => a.getAddress());
-    await deployContract();
   }, 100_000);
 
-  afterEach(() => teardown());
+  beforeEach(async () => {
+    await deployContract();
+  });
+
+  afterAll(() => teardown());
 
   const deployContract = async () => {
     logger(`Deploying L2 contract...`);

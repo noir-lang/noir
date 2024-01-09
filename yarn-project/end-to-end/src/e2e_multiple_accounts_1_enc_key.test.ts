@@ -1,5 +1,4 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
 import {
   AztecAddress,
   AztecNode,
@@ -19,13 +18,11 @@ import { TokenContract } from '@aztec/noir-contracts/Token';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
-const { PXE_URL } = process.env;
-
 describe('e2e_multiple_accounts_1_enc_key', () => {
   let aztecNode: AztecNode | undefined;
   let pxe: PXE;
   const wallets: Wallet[] = [];
-  const accounts: AztecAddress[] = [];
+  const accounts: CompleteAddress[] = [];
   let logger: DebugLogger;
   let teardown: () => Promise<void>;
 
@@ -44,27 +41,16 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
       const signingPrivateKey = GrumpkinScalar.random();
       const account = getSchnorrAccount(pxe, encryptionPrivateKey, signingPrivateKey);
       const wallet = await account.waitDeploy({ interval: 0.1 });
-      const { address } = account.getCompleteAddress();
+      const completeAddress = account.getCompleteAddress();
       wallets.push(wallet);
-      accounts.push(address);
+      accounts.push(completeAddress);
     }
     logger('Account contracts deployed');
 
     // Verify that all accounts use the same encryption key
     const encryptionPublicKey = generatePublicKey(encryptionPrivateKey);
 
-    // Disregard sandbox accounts
-    let keyAccounts: CompleteAddress[];
-    if (PXE_URL) {
-      const sandBoxWallets = await getSandboxAccountsWallets(pxe);
-      const allAccounts = await pxe.getRegisteredAccounts();
-      keyAccounts = allAccounts.filter(
-        acc => !sandBoxWallets.map(wlt => wlt.getAddress().toString()).includes(acc.address.toString()),
-      );
-    } else {
-      keyAccounts = await pxe.getRegisteredAccounts();
-    }
-    for (const account of keyAccounts) {
+    for (const account of accounts) {
       expect(account.publicKey).toEqual(encryptionPublicKey);
     }
 
@@ -81,7 +67,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     const storageSlot = new Fr(5);
     const note = new Note([new Fr(initialBalance), secretHash]);
-    const extendedNote = new ExtendedNote(note, accounts[0], token.address, storageSlot, receipt.txHash);
+    const extendedNote = new ExtendedNote(note, accounts[0].address, token.address, storageSlot, receipt.txHash);
     await pxe.addNote(extendedNote);
 
     expect((await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait()).status).toEqual(
@@ -97,7 +83,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     // Then check the balance
     const contractWithWallet = await TokenContract.at(tokenAddress, wallet);
-    const balance = await contractWithWallet.methods.balance_of_private(owner).view({ from: owner });
+    const balance = await contractWithWallet.methods.balance_of_private(owner).view({ from: owner.address });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };

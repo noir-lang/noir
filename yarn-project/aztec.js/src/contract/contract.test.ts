@@ -28,7 +28,7 @@ describe('Contract Class', () => {
     decoderHelperAddress: EthAddress.random(),
   };
   const mockNodeInfo: NodeInfo = {
-    sandboxVersion: 'vx.x.x',
+    nodeVersion: 'vx.x.x',
     compatibleNargoVersion: 'vx.x.x-aztec.x',
     chainId: 1,
     protocolVersion: 2,

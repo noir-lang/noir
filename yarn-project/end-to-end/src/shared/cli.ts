@@ -8,10 +8,18 @@ const TRANSFER_BALANCE = 3000;
 
 export const cliTestSuite = (
   name: string,
-  setup: () => Promise<PXE>,
+  setup: () => Promise<{
+    /**
+     * The PXE instance.
+     */
+    pxe: PXE;
+    /**
+     * The URL of the PXE RPC server.
+     */
+    rpcURL: string;
+  }>,
   cleanup: () => Promise<void>,
   debug: DebugLogger,
-  rpcUrl = 'http://localhost:8080',
 ) =>
   describe(name, () => {
     let cli: ReturnType<typeof getProgram>;
@@ -19,12 +27,13 @@ export const cliTestSuite = (
     let existingAccounts: CompleteAddress[];
     let contractAddress: AztecAddress;
     let log: (msg: string) => void;
+    let rpcURL = '';
 
     // All logs emitted by the cli will be collected here, and reset between tests
     const logs: string[] = [];
 
     beforeAll(async () => {
-      pxe = await setup();
+      ({ pxe, rpcURL } = await setup());
       log = (msg: string) => {
         logs.push(msg);
         debug(msg);
@@ -49,7 +58,7 @@ export const cliTestSuite = (
     const run = (cmd: string, addRpcUrl = true) => {
       const args = stringArgv(cmd, 'node', 'dest/bin/index.js');
       if (addRpcUrl) {
-        args.push('--rpc-url', rpcUrl);
+        args.push('--rpc-url', rpcURL);
       }
       const res = cli.parseAsync(args);
       resetCli();

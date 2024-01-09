@@ -1,4 +1,4 @@
-import { createAccounts, getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { createAccounts, getDeployedTestAccountsWallets } from '@aztec/accounts/testing';
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AccountWalletWithPrivateKey,
@@ -17,7 +17,7 @@ import {
   createDebugLogger,
   createPXEClient,
   deployL1Contracts,
-  retryUntil,
+  waitForPXE,
 } from '@aztec/aztec.js';
 import {
   ContractDeploymentEmitterAbi,
@@ -65,19 +65,6 @@ const getAztecNodeUrl = () => {
   const url = new URL(PXE_URL);
   url.port = '8079';
   return url.toString();
-};
-
-export const waitForPXE = async (pxe: PXE, logger: DebugLogger) => {
-  await retryUntil(async () => {
-    try {
-      logger('Attempting to contact PXE...');
-      await pxe.getNodeInfo();
-      return true;
-    } catch (error) {
-      logger('Failed to contact PXE!');
-    }
-    return undefined;
-  }, 'RPC Get Node Info');
 };
 
 export const setupL1Contracts = async (
@@ -163,21 +150,21 @@ export async function setupPXEService(
 }
 
 /**
- * Function to setup the test against a running sandbox.
+ * Function to setup the test against a remote deployment. It is assumed that L1 contract are already deployed
  * @param account - The account for use in create viem wallets.
  * @param config - The aztec Node Configuration
  * @param logger - The logger to be used
  * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
- * (will create extra accounts if the sandbox don't already have enough accounts)
+ * (will create extra accounts if the environment doesn't already have enough accounts)
  * @returns Private eXecution Environment (PXE) client, viem wallets, contract addresses etc.
  */
-async function setupWithSandbox(
+async function setupWithRemoteEnvironment(
   account: Account,
   config: AztecNodeConfig,
   logger: DebugLogger,
   numberOfAccounts: number,
 ) {
-  // we are setting up against the sandbox, l1 contracts are already deployed
+  // we are setting up against a remote environment, l1 contracts are already deployed
   const aztecNodeUrl = getAztecNodeUrl();
   logger(`Creating Aztec Node client to remote host ${aztecNodeUrl}`);
   const aztecNode = createAztecNodeClient(aztecNodeUrl);
@@ -187,11 +174,13 @@ async function setupWithSandbox(
   logger('JSON RPC client connected to PXE');
   logger(`Retrieving contract addresses from ${PXE_URL}`);
   const l1Contracts = (await pxeClient.getNodeInfo()).l1ContractAddresses;
-  logger('PXE created, constructing wallets from initial sandbox accounts...');
-  const wallets = await getSandboxAccountsWallets(pxeClient);
+  logger('PXE created, constructing available wallets from already registered accounts...');
+  const wallets = await getDeployedTestAccountsWallets(pxeClient);
 
   if (wallets.length < numberOfAccounts) {
-    wallets.push(...(await createAccounts(pxeClient, numberOfAccounts - wallets.length)));
+    const numNewAccounts = numberOfAccounts - wallets.length;
+    logger(`Deploying ${numNewAccounts} accounts...`);
+    wallets.push(...(await createAccounts(pxeClient, numNewAccounts)));
   }
 
   const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
@@ -232,7 +221,7 @@ type SetupOptions = { /** State load */ stateLoad?: string } & Partial<AztecNode
 export type EndToEndContext = {
   /** The Aztec Node service or client a connected to it. */
   aztecNode: AztecNode;
-  /** A client to the sequencer service (undefined if connected to remote sandbox) */
+  /** A client to the sequencer service (undefined if connected to remote environment) */
   sequencer: SequencerClient | undefined;
   /** The Private eXecution Environment (PXE). */
   pxe: PXE;
@@ -277,8 +266,8 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
   const hdAccount = mnemonicToAccount(MNEMONIC);
 
   if (PXE_URL) {
-    // we are setting up against the sandbox, l1 contracts are already deployed
-    return await setupWithSandbox(hdAccount, config, logger, numberOfAccounts);
+    // we are setting up against a remote environment, l1 contracts are assumed to already be deployed
+    return await setupWithRemoteEnvironment(hdAccount, config, logger, numberOfAccounts);
   }
 
   const deployL1ContractsValues = await setupL1Contracts(config.rpcUrl, hdAccount, logger);

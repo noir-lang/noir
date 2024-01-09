@@ -60,9 +60,9 @@ Create a new file `src/deploy.mjs`:
 ```js
 // src/deploy.mjs
 import { writeFileSync } from 'fs';
-import { Contract, ContractDeployer, createPXEClient, getSandboxAccountsWallets } from '@aztec/aztec.js';
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
-import TokenContractArtifact from "../contracts/token/src/artifacts/Token.json" assert { type: "json" };
+import { Contract, ContractDeployer, createPXEClient } from '@aztec/aztec.js';
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
+import TokenContractArtifact from "../contracts/token/target/Token.json" assert { type: "json" };
 
 #include_code dapp-deploy yarn-project/end-to-end/src/sample-dapp/deploy.mjs raw
 

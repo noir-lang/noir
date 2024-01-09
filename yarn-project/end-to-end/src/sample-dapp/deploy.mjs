@@ -1,4 +1,4 @@
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { Contract, createPXEClient } from '@aztec/aztec.js';
 import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 
@@ -10,7 +10,7 @@ const { PXE_URL = 'http://localhost:8080' } = process.env;
 
 async function main() {
   const pxe = createPXEClient(PXE_URL);
-  const [ownerWallet] = await getSandboxAccountsWallets(pxe);
+  const [ownerWallet] = await getInitialTestAccountsWallets(pxe);
   const ownerAddress = ownerWallet.getCompleteAddress();
 
   const token = await Contract.deploy(ownerWallet, TokenContractArtifact, [ownerAddress]).send().deployed();

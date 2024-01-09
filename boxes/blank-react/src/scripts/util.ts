@@ -1,6 +1,6 @@
 import { AccountWallet, CompleteAddress, Fr, FunctionArtifact, PXE, encodeArguments } from '@aztec/aztec.js';
 
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 
 export function convertArgs(functionAbi: FunctionArtifact, args: any): Fr[] {
   const untypedArgs = functionAbi.parameters.map(param => {
@@ -27,7 +27,7 @@ export function convertArgs(functionAbi: FunctionArtifact, args: any): Fr[] {
  * @returns
  */
 export async function getWallet(account: CompleteAddress, pxe: PXE): Promise<AccountWallet> {
-  const accountWallets: AccountWallet[] = await getSandboxAccountsWallets(pxe);
+  const accountWallets: AccountWallet[] = await getInitialTestAccountsWallets(pxe);
   const selectedWallet: AccountWallet = accountWallets.find(w => w.getAddress().equals(account.address))!;
   if (!selectedWallet) {
     throw new Error(`Wallet for account ${account.address.toShortString()} not found in the PXE.`);

@@ -21,7 +21,7 @@ import { join } from 'path';
 import { EndToEndContext, setup } from '../fixtures/utils.js';
 
 /**
- * Setup for benchmarks. Initializes a sandbox node with a single account and deploys a benchmark contract.
+ * Setup for benchmarks. Initializes a remote node with a single account and deploys a benchmark contract.
  */
 export async function benchmarkSetup(opts: Partial<AztecNodeConfig>) {
   const context = await setup(1, { ...opts });

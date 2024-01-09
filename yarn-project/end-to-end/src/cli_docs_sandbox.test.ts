@@ -29,7 +29,7 @@ describe('CLI docs sandbox', () => {
 % aztec-cli get-node-info
 Node Info:
 
-Sandbox Version: #include_aztec_short_version
+Node Version: #include_aztec_short_version
 Compatible Nargo Version: #include_noir_version
 Chain Id: 31337
 Protocol Version: 1

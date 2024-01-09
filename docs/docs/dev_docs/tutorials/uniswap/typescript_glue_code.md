@@ -86,9 +86,9 @@ import {
   computeAuthWitMessageHash,
   createDebugLogger,
   createPXEClient,
-  waitForSandbox,
+  waitForPXE,
 } from "@aztec/aztec.js";
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import {
   Chain,
   HttpTransport,

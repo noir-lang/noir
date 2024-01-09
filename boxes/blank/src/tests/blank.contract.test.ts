@@ -10,20 +10,10 @@ import {
   TxStatus,
   Wallet,
   createDebugLogger,
-  createPXEClient,
-  waitForSandbox,
 } from '@aztec/aztec.js';
+import { setupEnvironment } from '../environment/index.js';
 
 const logger = createDebugLogger('aztec:blank-box-test');
-
-// assumes sandbox is running locally, which this script does not trigger
-// as well as anvil.  anvil can be started with yarn test:integration
-const setupSandbox = async () => {
-  const { PXE_URL = 'http://localhost:8080' } = process.env;
-  const pxe = createPXEClient(PXE_URL);
-  await waitForSandbox(pxe);
-  return pxe;
-};
 
 async function deployZKContract(owner: CompleteAddress, wallet: Wallet, pxe: PXE) {
   logger('Deploying Blank contract...');
@@ -43,7 +33,7 @@ describe('ZK Contract Tests', () => {
   let pxe: PXE;
 
   beforeAll(async () => {
-    pxe = await setupSandbox();
+    pxe = await setupEnvironment();
     const accounts = await pxe.getRegisteredAccounts();
     [owner, _account2, _account3] = accounts;
 

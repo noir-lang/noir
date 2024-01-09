@@ -16,7 +16,7 @@ import {
   encodeArguments,
 } from '@aztec/aztec.js';
 
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 
 // docs:end:imports
 
@@ -45,7 +45,7 @@ if (typeof document !== 'undefined') {
 export async function handleDeployClick(): Promise<string> {
   // eslint-disable-next-line no-console
   console.log('Deploying Contract');
-  const [wallet, ..._rest] = await getSandboxAccountsWallets(pxe);
+  const [wallet, ..._rest] = await getInitialTestAccountsWallets(pxe);
 
   const contractAztecAddress = await deployContract(
     wallet.getCompleteAddress(),
@@ -60,7 +60,7 @@ export async function handleDeployClick(): Promise<string> {
 // docs:end:deploy
 // docs:start:interact
 export async function handleInteractClick(contractAddress: string) {
-  const [wallet, ..._rest] = await getSandboxAccountsWallets(pxe);
+  const [wallet, ..._rest] = await getInitialTestAccountsWallets(pxe);
   const callArgs = { address: wallet.getCompleteAddress().address };
   const getPkAbi = getFunctionAbi(BlankContractArtifact, 'getPublicKey');
   const typedArgs = convertArgs(getPkAbi, callArgs);
@@ -115,7 +115,7 @@ export async function callContractFunction(
  * @returns
  */
 export async function getWallet(account: CompleteAddress, pxe: PXE): Promise<AccountWallet> {
-  const accountWallets: AccountWallet[] = await getSandboxAccountsWallets(pxe);
+  const accountWallets: AccountWallet[] = await getInitialTestAccountsWallets(pxe);
   const selectedWallet: AccountWallet = accountWallets.find(w => w.getAddress().equals(account.address))!;
   if (!selectedWallet) {
     throw new Error(`Wallet for account ${account.address.toShortString()} not found in the PXE.`);

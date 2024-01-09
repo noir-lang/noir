@@ -72,7 +72,7 @@ export class PXEService implements PXE {
   private contractDataOracle: ContractDataOracle;
   private simulator: AcirSimulator;
   private log: DebugLogger;
-  private sandboxVersion: string;
+  private nodeVersion: string;
   // serialize synchronizer and calls to simulateTx.
   // ensures that state is not changed while simulating
   private jobQueue = new SerialQueue();
@@ -89,7 +89,7 @@ export class PXEService implements PXE {
     this.contractDataOracle = new ContractDataOracle(db, node);
     this.simulator = getAcirSimulator(db, node, keyStore, this.contractDataOracle);
 
-    this.sandboxVersion = getPackageInfo().version;
+    this.nodeVersion = getPackageInfo().version;
   }
 
   /**
@@ -481,7 +481,7 @@ export class PXEService implements PXE {
     ]);
 
     const nodeInfo: NodeInfo = {
-      sandboxVersion: this.sandboxVersion,
+      nodeVersion: this.nodeVersion,
       compatibleNargoVersion: NoirWasmVersion,
       chainId,
       protocolVersion: version,

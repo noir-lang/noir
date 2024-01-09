@@ -1,4 +1,4 @@
-import { getSandboxAccountsWallets } from '@aztec/accounts/testing';
+import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { ExtendedNote, Fr, Note, computeMessageSecretHash, createPXEClient } from '@aztec/aztec.js';
 import { fileURLToPath } from '@aztec/foundation/url';
 
@@ -27,7 +27,7 @@ async function showPrivateBalances(pxe) {
 }
 
 async function mintPrivateFunds(pxe) {
-  const [owner] = await getSandboxAccountsWallets(pxe);
+  const [owner] = await getInitialTestAccountsWallets(pxe);
   const token = await getToken(owner);
 
   await showPrivateBalances(pxe);
@@ -49,7 +49,7 @@ async function mintPrivateFunds(pxe) {
 
 async function transferPrivateFunds(pxe) {
   // docs:start:transferPrivateFunds
-  const [owner, recipient] = await getSandboxAccountsWallets(pxe);
+  const [owner, recipient] = await getInitialTestAccountsWallets(pxe);
   const token = await getToken(owner);
 
   const tx = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 1n, 0).send();
@@ -78,7 +78,7 @@ async function showPublicBalances(pxe) {
 
 async function mintPublicFunds(pxe) {
   // docs:start:mintPublicFunds
-  const [owner] = await getSandboxAccountsWallets(pxe);
+  const [owner] = await getInitialTestAccountsWallets(pxe);
   const token = await getToken(owner);
 
   const tx = token.methods.mint_public(owner.getAddress(), 100n).send();

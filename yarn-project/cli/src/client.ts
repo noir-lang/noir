@@ -17,7 +17,7 @@ export async function createCompatibleClient(rpcUrl: string, logger: DebugLogger
   const pxe = createPXEClient(rpcUrl);
   const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json');
   const packageJsonContents = JSON.parse(readFileSync(packageJsonPath).toString());
-  const expectedVersionRange = packageJsonContents.version; // During sandbox, we'll expect exact matches
+  const expectedVersionRange = packageJsonContents.version;
 
   try {
     await checkServerVersion(pxe, expectedVersionRange);
@@ -41,27 +41,27 @@ class VersionMismatchError extends Error {}
  * @param expectedVersionRange - Expected version by CLI.
  */
 export async function checkServerVersion(pxe: PXE, expectedVersionRange: string) {
-  const serverName = 'Aztec Sandbox';
-  const { sandboxVersion } = await pxe.getNodeInfo();
-  if (!sandboxVersion) {
+  const serverName = 'Aztec Node';
+  const { nodeVersion } = await pxe.getNodeInfo();
+  if (!nodeVersion) {
     throw new VersionMismatchError(`Couldn't determine ${serverName} version. You may run into issues.`);
   }
-  if (!sandboxVersion || !valid(sandboxVersion)) {
+  if (!nodeVersion || !valid(nodeVersion)) {
     throw new VersionMismatchError(
-      `Missing or invalid version identifier for ${serverName} (${sandboxVersion ?? 'empty'}).`,
+      `Missing or invalid version identifier for ${serverName} (${nodeVersion ?? 'empty'}).`,
     );
-  } else if (!satisfies(sandboxVersion, expectedVersionRange)) {
-    if (gtr(sandboxVersion, expectedVersionRange)) {
+  } else if (!satisfies(nodeVersion, expectedVersionRange)) {
+    if (gtr(nodeVersion, expectedVersionRange)) {
       throw new VersionMismatchError(
-        `${serverName} is running version ${sandboxVersion} which is newer than the expected by this CLI (${expectedVersionRange}). Consider upgrading your CLI to a newer version.`,
+        `${serverName} is running version ${nodeVersion} which is newer than the expected by this CLI (${expectedVersionRange}). Consider upgrading your CLI to a newer version.`,
       );
-    } else if (ltr(sandboxVersion, expectedVersionRange)) {
+    } else if (ltr(nodeVersion, expectedVersionRange)) {
       throw new VersionMismatchError(
-        `${serverName} is running version ${sandboxVersion} which is older than the expected by this CLI (${expectedVersionRange}). Consider upgrading your ${serverName} to a newer version.`,
+        `${serverName} is running version ${nodeVersion} which is older than the expected by this CLI (${expectedVersionRange}). Consider upgrading your ${serverName} to a newer version.`,
       );
     } else {
       throw new VersionMismatchError(
-        `${serverName} is running version ${sandboxVersion} which does not match the expected by this CLI (${expectedVersionRange}).`,
+        `${serverName} is running version ${nodeVersion} which does not match the expected by this CLI (${expectedVersionRange}).`,
       );
     }
   }

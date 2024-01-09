@@ -29,7 +29,7 @@ import {
   computeMessageSecretHash,
   createAccount,
   createPXEClient,
-  waitForSandbox,
+  waitForPXE,
 } from "@aztec/aztec.js";
 import { TokenContractArtifact } from "@aztec/noir-contracts/Token";
 
