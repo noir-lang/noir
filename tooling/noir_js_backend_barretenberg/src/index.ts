@@ -5,8 +5,6 @@ import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
 import { deflattenPublicInputs, flattenPublicInputsAsArray, publicInputsToWitnessMap } from './public_inputs.js';
 
-export { flattenPublicInputs } from './public_inputs.js';
-
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;

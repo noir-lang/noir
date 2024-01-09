@@ -1,11 +1,5 @@
 import { Abi, WitnessMap } from '@noir-lang/types';
 
-export function flattenPublicInputs(publicInputs: WitnessMap): string[] {
-  const publicInputIndices = [...publicInputs.keys()].sort((a, b) => a - b);
-  const flattenedPublicInputs = publicInputIndices.map((index) => publicInputs.get(index) as string);
-  return flattenedPublicInputs;
-}
-
 export function flattenPublicInputsAsArray(publicInputs: string[]): Uint8Array {
   const flattenedPublicInputs = publicInputs.map(hexToUint8Array);
   return flattenUint8Arrays(flattenedPublicInputs);
@@ -21,6 +15,12 @@ export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array): string
   }
 
   return chunkedFlattenedPublicInputs.map(uint8ArrayToHex);
+}
+
+export function witnessMapToPublicInputs(publicInputs: WitnessMap): string[] {
+  const publicInputIndices = [...publicInputs.keys()].sort((a, b) => a - b);
+  const flattenedPublicInputs = publicInputIndices.map((index) => publicInputs.get(index) as string);
+  return flattenedPublicInputs;
 }
 
 export function publicInputsToWitnessMap(publicInputs: string[], abi: Abi): WitnessMap {
