@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { getPaths } from '../../shared';
 import { expect } from '@esm-bundle/chai';
-// @ts-ignore
-import { compile, createFileManager } from '../../../dist/web/main';
-import { CompilationResult, CompiledContract } from '../../../src/types/noir_artifact';
+import { compile, createFileManager } from '@noir-lang/noir_wasm';
+import { CompiledContract } from '../../../src/types/noir_artifact';
 
 const paths = getPaths('.');
 
@@ -33,7 +32,7 @@ describe('noir-compiler', () => {
     }
     const nargoArtifact = (await getPrecompiledSource(contractExpectedArtifact)) as CompiledContract;
     nargoArtifact.functions.sort((a, b) => a.name.localeCompare(b.name));
-    const noirWasmArtifact = (await compile(fm, '/fixtures/noir-contract')) as CompilationResult;
+    const noirWasmArtifact = await compile(fm, '/fixtures/noir-contract');
     if (!('contract' in noirWasmArtifact)) {
       throw new Error('Compilation failed');
     }
