@@ -1,37 +1,63 @@
 ---
-title: Tiny NoirJS app
-description: Learn how to setup a new app that uses Noir to generate and verify zero-knowledge SNARK proofs in a typescript or javascript environment
-keywords: [how to, guide, javascript, typescript, noir, barretenberg, zero-knowledge, proofs]
+title: Building a web app with NoirJS
+description: Learn how to setup a new app that uses Noir to generate and verify zero-knowledge SNARK proofs in a typescript or javascript environment.
+keywords: [how to, guide, javascript, typescript, noir, barretenberg, zero-knowledge, proofs, app]
 sidebar_position: 0
 ---
 
-NoirJS works both on the browser and on the server, and works for both ESM and CJS module systems. In this page, we will learn how can we write a simple test and a simple web app to verify the standard Noir example.
+NoirJS is a set of packages meant to work both in a browser and a server environment. In this tutorial, we will build a simple web app using them. From here, you should get an idea on how to proceed with your own Noir projects!
 
 You can find the complete app code for this guide [here](https://github.com/noir-lang/tiny-noirjs-app).
 
-## Before we start
+## Setup
 
 :::note
 
-Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.18.x matches `noir_js@0.18.x`, etc.
+Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.19.x matches `noir_js@0.19.x`, etc.
 
-In this guide, we will be pinned to 0.17.0.
+In this guide, we will be pinned to 0.19.4.
 
 :::
 
-Make sure you have Node installed on your machine by opening a terminal and executing `node --version`. If you don't see a version, you should install [node](https://github.com/nvm-sh/nvm). You can also use `yarn` if you prefer that package manager over npm (which comes with node).
+Before we start, we want to make sure we have Node and Nargo installed.
 
-First of all, follow the the [Nargo guide](../getting_started/installation/index.md) to install nargo version 0.17.0 and create a new project with `nargo new circuit`. Once there, `cd` into the `circuit` folder. You should then be able to compile your circuit into `json` format and see it inside the `target` folder:
+We start by opening a terminal and executing `node --version`. If we don't get an output like `v20.10.0`, that means node is not installed. Let's do that by following the handy [nvm guide](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script).
 
-```bash
-nargo compile
+As for `Nargo`, we can follow the the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
+
+```sh
+curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 ```
 
-Your folder structure should look like:
+Easy enough. Onwards!
+
+## Our project
+
+ZK is a powerful technology. An app that doesn't reveal one of the inputs to *anyone* is almost unbelievable, yet Noir makes it as easy as a single line of code.
+
+In fact, it's so simple that it comes nicely packaged in `nargo`. Let's do that!
+
+### Nargo
+
+Run:
+
+```nargo new circuit```
+
+And... That's about it. Your program is ready to be compiled and run.
+
+To compile, let's `cd` into the `circuit` folder to enter our project, and call:
+
+```nargo compile```
+
+This compiles our circuit into `json` format and add it to a new `target` folder.
+
+:::info
+
+At this point in the tutorial, your folder structure should look like this:
 
 ```tree
 .
-└── circuit
+└── circuit <---- our working directory
     ├── Nargo.toml
     ├── src
     │   └── main.nr
@@ -39,84 +65,46 @@ Your folder structure should look like:
         └── circuit.json
 ```
 
-## Starting a new project
+:::
 
-Go back to the previous folder and start a new project by running run `npm init`. You can configure your project or just leave the defaults, and see a `package.json` appear in your root folder.
+### Node and Vite
 
-## Installing dependencies
+If you want to explore Nargo, feel free to go on a side-quest now and follow the steps in the
+[getting started](../getting_started/create_a_project) guide. However, we want our app to run on the browser, so we need Vite.
 
-We'll need two `npm` packages. These packages will provide us the methods we need to run and verify proofs:
+Vite is a powerful tool to generate static websites. While it provides all kinds of features, let's just go barebones with some good old vanilla JS.
+
+To do this this, go back to the previous folder (`cd ..`) and create a new vite project by running `npm create vite` and choosing "Vanilla" and "Javascript".
+
+You should see `vite-project` appear in your root folder. This seems like a good time to `cd` into it and install our NoirJS packages:
 
 ```bash
-npm i @noir-lang/backend_barretenberg@^0.17.0 @noir-lang/noir_js@^0.17.0
+npm i @noir-lang/backend_barretenberg@0.19.4 @noir-lang/noir_js@0.19.4
 ```
 
-To serve our page, we can use a build tool such as `vite`. Because we're gonna use some `wasm` files, we need to install a plugin as well. Run:
+:::info
 
-```bash
-npm i --save-dev vite rollup-plugin-copy
+At this point in the tutorial, your folder structure should look like this:
+
+```tree
+.
+└── circuit
+    └── ...etc...
+└── vite-project <---- our working directory
+    └── ...etc...
 ```
 
-Since we're on the dependency world, we may as well define a nice starting script. Vite makes it easy. Just open `package.json`, find the block "scripts" and add this just below the line with `"test" : "echo......."`:
+:::
 
-```json
-  "start": "vite --open"
-```
+#### Some cleanup
 
-If you want do build a static website, you can also add some build and preview scripts:
+`npx create vite` is amazing but it creates a bunch of files we don't really need for our simple example. Actually, let's just delete everything except for `index.html`, `main.js` and `package.json`. I feel lighter already.
 
-```json
-    "build": "vite build",
-    "preview": "vite preview"
-```
-
-## Vite plugins
-
-Vite is great, but support from `wasm` doesn't work out-of-the-box. We're gonna write a quick plugin and use another one. Just copy and paste this into a file named `vite.config.js`. You don't need to understand it, just trust me bro.
-
-```js
-import { defineConfig } from 'vite';
-import copy from 'rollup-plugin-copy';
-import fs from 'fs';
-import path from 'path';
-
-const wasmContentTypePlugin = {
-  name: 'wasm-content-type-plugin',
-  configureServer(server) {
-    server.middlewares.use(async (req, res, next) => {
-      if (req.url.endsWith('.wasm')) {
-        res.setHeader('Content-Type', 'application/wasm');
-        const newPath = req.url.replace('deps', 'dist');
-        const targetPath = path.join(__dirname, newPath);
-        const wasmContent = fs.readFileSync(targetPath);
-        return res.end(wasmContent);
-      }
-      next();
-    });
-  },
-};
-
-export default defineConfig(({ command }) => {
-  if (command === 'serve') {
-    return {
-      plugins: [
-        copy({
-          targets: [{ src: 'node_modules/**/*.wasm', dest: 'node_modules/.vite/dist' }],
-          copySync: true,
-          hook: 'buildStart',
-        }),
-        command === 'serve' ? wasmContentTypePlugin : [],
-      ],
-    };
-  }
-
-  return {};
-});
-```
+![my heart is ready for you, noir.js](../../static/img/memes/titanic.jpeg)
 
 ## HTML
 
-Here's the simplest HTML with some terrible UI. Create a file called `index.html` and paste this:
+Our app won't run like this, of course. We need some working HTML, at least. Let's open our broken-hearted `index.html` and replace everything with this code snippet:
 
 ```html
 <!DOCTYPE html>
@@ -136,8 +124,12 @@ Here's the simplest HTML with some terrible UI. Create a file called `index.html
   </style>
 </head>
 <body>
-  <script type="module" src="/app.js"></script>
-  <h1>Very basic Noir app</h1>
+  <script type="module" src="/main.js"></script>
+  <h1>Noir app</h1>
+  <div class="input-area">
+    <input id="guessInput" type="number" placeholder="Enter your guess" />
+    <button id="submitGuess">Submit Guess</button>
+  </div>
   <div class="outer">
     <div id="logs" class="inner"><h2>Logs</h2></div>
     <div id="results" class="inner"><h2>Proof</h2></div>
@@ -146,14 +138,25 @@ Here's the simplest HTML with some terrible UI. Create a file called `index.html
 </html>
 ```
 
+It *could* be a beautiful UI... Depending on which universe you live in.
+
 ## Some good old vanilla Javascript
 
-Create a new file `app.js`, which is where our javascript code will live. Let's start with this code inside:
+Our love for Noir needs undivided attention, so let's just open `main.js` and delete everything (this is where the romantic scenery becomes a bit creepy).
+
+Start by pasting in this boilerplate code:
 
 ```js
-document.addEventListener('DOMContentLoaded', async () => {
-  // here's where the magic happens
-});
+const setup = async () => {
+  await Promise.all([
+    import("@noir-lang/noirc_abi").then(module => 
+      module.default(new URL("@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm", import.meta.url).toString())
+    ),
+    import("@noir-lang/acvm_js").then(module => 
+      module.default(new URL("@noir-lang/acvm_js/web/acvm_js_bg.wasm", import.meta.url).toString())
+    )
+  ]);
+}
 
 function display(container, msg) {
   const c = document.getElementById(container);
@@ -161,73 +164,83 @@ function display(container, msg) {
   p.textContent = msg;
   c.appendChild(p);
 }
+
+document.getElementById('submitGuess').addEventListener('click', async () => {
+  try {
+    // here's where love happens
+  } catch(err) {
+    display("logs", "Oh 💔 Wrong guess")
+  }
+});
+
 ```
 
-We can manipulate our website with this little function, so we can see our website working.
+The display function doesn't do much. We're simply manipulating our website to see stuff happening. For example, if the proof fails, it will simply log a broken heart 😢
 
-## Adding Noir
+As for the `setup` function, it's just a sad reminder that dealing with `wasm` on the browser is not as easy as it should. Just copy, paste, and forget.
 
-If you come from the previous page, your folder structure should look like this:
+:::info
+
+At this point in the tutorial, your folder structure should look like this:
 
 ```tree
-├── app.js
-├── circuit
-│   ├── Nargo.toml
-│   ├── src
-│   │   └── main.nr
-│   └── target
-│       └── circuit.json
-├── index.html
-├── package.json
-└── vite.config.js
+.
+└── circuit
+    └── ...same as above
+└── vite-project
+    ├── main.js
+    ├── package.json
+    └── index.html
 ```
 
-You'll see other files and folders showing up (like `package-lock.json`, `yarn.lock`, `node_modules`) but you shouldn't have to care about those.
+You'll see other files and folders showing up (like `package-lock.json`, `node_modules`) but you shouldn't have to care about those.
 
-## Importing our dependencies
+:::
 
-We're starting with the good stuff now. At the top of the new javascript file, import the packages:
+## Some NoirJS
+
+We're starting with the good stuff now. If you've compiled the circuit as described above, you should have a `json` file we want to import at the very top of our `main.js` file:
 
 ```ts
+import circuit from '../circuit/target/circuit.json';
+```
+
+[Noir is backend-agnostic](../index.md#whats-new-about-noir). We write Noir, but we also need a proving backend. That's why we need to import and instantiate the two dependencies we installed above: `BarretenbergBackend` and `Noir`. Let's import them right below:
+
+```js
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { Noir } from '@noir-lang/noir_js';
 ```
 
-We also need to import the `circuit` JSON file we created. If you have the suggested folder structure, you can add this line:
+And instantiate them inside our try-catch block:
 
 ```ts
-import circuit from './circuit/target/circuit.json';
+// try {
+const backend = new BarretenbergBackend(circuit);
+const noir = new Noir(circuit, backend);
+// }
 ```
-
-## Write code
 
 :::note
 
-We're gonna be adding code inside the `document.addEventListener...etc` block:
-
-```js
-// forget stuff here
-document.addEventListener('DOMContentLoaded', async () => {
-  // here's where the magic happens
-});
-// forget stuff here
-```
+For the remainder of the tutorial, everything will be happening inside the `try` block
 
 :::
 
-Our dependencies exported two classes: `BarretenbergBackend` and `Noir`. Let's `init` them and add some logs, just to flex:
+## Our app
 
-```ts
-const backend = new BarretenbergBackend(circuit);
-const noir = new Noir(circuit, backend);
+Now for the app itself. We're capturing whatever is in the input when people press the submit button. Just add this:
+
+```js
+const x = parseInt(document.getElementById('guessInput').value);
+const input = { x, y: 2 };
 ```
-
-## Proving
 
 Now we're ready to prove stuff! Let's feed some inputs to our circuit and calculate the proof:
 
 ```js
-const input = { x: 1, y: 2 };
+await setup(); // let's squeeze our wasm inits here
+
 display('logs', 'Generating proof... ⌛');
 const proof = await noir.generateFinalProof(input);
 display('logs', 'Generating proof... ✅');
@@ -236,13 +249,17 @@ display('results', proof.proof);
 
 You're probably eager to see stuff happening, so go and run your app now!
 
-From your terminal, run `npm start` (or `yarn start`). If it doesn't open a browser for you, just visit `localhost:5173`. On a modern laptop, proof will generate in less than 100ms, and you'll see this:
+From your terminal, run `npm run dev`. If it doesn't open a browser for you, just visit `localhost:5173`. You should now see the worst UI ever, with an ugly input.
 
 ![Getting Started 0](@site/static/img/noir_getting_started_1.png)
 
-If you're human, you shouldn't be able to understand anything on the "proof" box. That's OK. We like you, human.
+Now, our circuit says `fn main(x: Field, y: pub Field)`. This means only the `y` value is public, and it's hardcoded above: `input = { x, y: 2 }`. In other words, you won't need to send your secret`x` to the verifier!
 
-In any case, this means your proof was generated! But you shouldn't trust me just yet. Add these lines to see it being verified:
+By inputting any number other than 2 in the input box and clicking "submit", you should get a valid proof. Otherwise the proof won't even generate correctly. By the way, if you're human, you shouldn't be able to understand anything on the "proof" box. That's OK. We like you, human ❤️.
+
+## Verifying
+
+Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add these lines to see our proof being verified:
 
 ```js
 display('logs', 'Verifying proof... ⌛');
@@ -250,9 +267,9 @@ const verification = await noir.verifyFinalProof(proof);
 if (verification) display('logs', 'Verifying proof... ✅');
 ```
 
-By saving, your app will refresh and here's our complete Tiny Noir App!
+You have successfully generated a client-side Noir web app!
 
-You can find the complete app code for this guide [here](https://github.com/noir-lang/tiny-noirjs-app).
+![coded app without math knowledge](../../static/img/memes/flextape.jpeg)
 
 ## Further Reading
 

@@ -4,7 +4,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 
-use crate::hir::resolution::import::{resolve_imports, ImportDirective};
+use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
@@ -259,37 +259,33 @@ impl DefCollector {
             );
         }
 
-        // Resolve unresolved imports collected from the crate
-        let (resolved, unresolved_imports) =
-            resolve_imports(crate_id, def_collector.collected_imports, &context.def_maps);
+        // Resolve unresolved imports collected from the crate, one by one.
+        for collected_import in def_collector.collected_imports {
+            match resolve_import(crate_id, collected_import, &context.def_maps) {
+                Ok(resolved_import) => {
+                    // Populate module namespaces according to the imports used
+                    let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
-        {
-            let current_def_map = context.def_maps.get(&crate_id).unwrap();
-            errors.extend(vecmap(unresolved_imports, |(error, module_id)| {
-                let file_id = current_def_map.file_id(module_id);
-                let error = DefCollectorErrorKind::PathResolutionError(error);
-                (error.into(), file_id)
-            }));
-        };
+                    let name = resolved_import.name;
+                    for ns in resolved_import.resolved_namespace.iter_defs() {
+                        let result = current_def_map.modules[resolved_import.module_scope.0]
+                            .import(name.clone(), ns, resolved_import.is_prelude);
 
-        // Populate module namespaces according to the imports used
-        let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-        for resolved_import in resolved {
-            let name = resolved_import.name;
-            for ns in resolved_import.resolved_namespace.iter_defs() {
-                let result = current_def_map.modules[resolved_import.module_scope.0].import(
-                    name.clone(),
-                    ns,
-                    resolved_import.is_prelude,
-                );
-
-                if let Err((first_def, second_def)) = result {
-                    let err = DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::Import,
-                        first_def,
-                        second_def,
-                    };
-                    errors.push((err.into(), root_file_id));
+                        if let Err((first_def, second_def)) = result {
+                            let err = DefCollectorErrorKind::Duplicate {
+                                typ: DuplicateType::Import,
+                                first_def,
+                                second_def,
+                            };
+                            errors.push((err.into(), root_file_id));
+                        }
+                    }
+                }
+                Err((error, module_id)) => {
+                    let current_def_map = context.def_maps.get(&crate_id).unwrap();
+                    let file_id = current_def_map.file_id(module_id);
+                    let error = DefCollectorErrorKind::PathResolutionError(error);
+                    errors.push((error.into(), file_id));
                 }
             }
         }
@@ -478,10 +474,7 @@ pub(crate) fn check_methods_signatures(
     let trait_methods = std::mem::take(&mut the_trait.methods);
 
     for (file_id, func_id) in impl_methods {
-        let impl_method = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id).to_owned();
-
-        let mut typecheck_errors = Vec::new();
 
         // This is None in the case where the impl block has a method that's not part of the trait.
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
@@ -489,7 +482,10 @@ pub(crate) fn check_methods_signatures(
         if let Some(trait_method) =
             trait_methods.iter().find(|method| method.name.0.contents == func_name)
         {
-            let impl_function_type = impl_method.typ.instantiate(resolver.interner);
+            let mut typecheck_errors = Vec::new();
+            let impl_method = resolver.interner.function_meta(func_id);
+
+            let (impl_function_type, _) = impl_method.typ.instantiate(resolver.interner);
 
             let impl_method_generic_count =
                 impl_method.typ.generic_count() - trait_impl_generic_count;
@@ -509,7 +505,7 @@ pub(crate) fn check_methods_signatures(
                 errors.push((error.into(), *file_id));
             }
 
-            if let Type::Function(impl_params, _, _) = impl_function_type.0 {
+            if let Type::Function(impl_params, _, _) = impl_function_type {
                 if trait_method.arguments().len() == impl_params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
                     let args = trait_method.arguments().iter();
@@ -546,6 +542,7 @@ pub(crate) fn check_methods_signatures(
 
             // TODO: This is not right since it may bind generic return types
             trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
+                let impl_method = resolver.interner.function_meta(func_id);
                 let ret_type_span = impl_method.return_type.get_type().span;
                 let expr_span = ret_type_span.expect("return type must always have a span");
 

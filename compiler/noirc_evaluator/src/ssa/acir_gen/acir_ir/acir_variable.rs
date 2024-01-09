@@ -307,6 +307,7 @@ impl AcirContext {
             inverse_code,
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
+            true,
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -708,6 +709,7 @@ impl AcirContext {
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
+                true,
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1310,6 +1312,7 @@ impl AcirContext {
         generated_brillig: GeneratedBrillig,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
+        attempt_execution: bool,
     ) -> Result<Vec<AcirValue>, InternalError> {
         let b_inputs = try_vecmap(inputs, |i| match i {
             AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
@@ -1329,10 +1332,15 @@ impl AcirContext {
 
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
-        if let Some(brillig_outputs) =
-            self.execute_brillig(&generated_brillig.byte_code, &b_inputs, &outputs)
-        {
-            return Ok(brillig_outputs);
+        //
+        // We do _not_ want to do this in the situation where the `main` function is unconstrained, as if execution succeeds
+        // the entire program will be replaced with witness constraints to its outputs.
+        if attempt_execution {
+            if let Some(brillig_outputs) =
+                self.execute_brillig(&generated_brillig.byte_code, &b_inputs, &outputs)
+            {
+                return Ok(brillig_outputs);
+            }
         }
 
         // Otherwise we must generate ACIR for it and execute at runtime.
