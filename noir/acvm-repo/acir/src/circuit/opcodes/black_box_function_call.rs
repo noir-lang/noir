@@ -163,8 +163,12 @@ impl BlackBoxFuncCall {
                 vec![*lhs, *rhs]
             }
             BlackBoxFuncCall::FixedBaseScalarMul { low, high, .. } => vec![*low, *high],
-            BlackBoxFuncCall::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, .. } => vec![*input1_x, *input1_y, *input2_x, *input2_y],
-            BlackBoxFuncCall::EmbeddedCurveDouble { input_x, input_y, .. } => vec![*input_x, *input_y],
+            BlackBoxFuncCall::EmbeddedCurveAdd {
+                input1_x, input1_y, input2_x, input2_y, ..
+            } => vec![*input1_x, *input1_y, *input2_x, *input2_y],
+            BlackBoxFuncCall::EmbeddedCurveDouble { input_x, input_y, .. } => {
+                vec![*input_x, *input_y]
+            }
             BlackBoxFuncCall::RANGE { input } => vec![*input],
             BlackBoxFuncCall::SchnorrVerify {
                 public_key_x,
@@ -245,8 +249,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Blake2s { outputs, .. }
             | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
-            | BlackBoxFuncCall::Keccakf1600 { outputs, .. }
-            => outputs.to_vec(),
+            | BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
@@ -257,7 +260,9 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::PedersenCommitment { outputs, .. }
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. }
             | BlackBoxFuncCall::EmbeddedCurveDouble { outputs, .. } => vec![outputs.0, outputs.1],
-            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => vec![],
+            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => {
+                vec![]
+            }
             BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
         }
     }

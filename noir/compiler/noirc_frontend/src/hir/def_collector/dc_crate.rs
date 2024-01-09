@@ -474,10 +474,7 @@ pub(crate) fn check_methods_signatures(
     let trait_methods = std::mem::take(&mut the_trait.methods);
 
     for (file_id, func_id) in impl_methods {
-        let impl_method = resolver.interner.function_meta(func_id);
         let func_name = resolver.interner.function_name(func_id).to_owned();
-
-        let mut typecheck_errors = Vec::new();
 
         // This is None in the case where the impl block has a method that's not part of the trait.
         // If that's the case, a `MethodNotInTrait` error has already been thrown, and we can ignore
@@ -485,7 +482,10 @@ pub(crate) fn check_methods_signatures(
         if let Some(trait_method) =
             trait_methods.iter().find(|method| method.name.0.contents == func_name)
         {
-            let impl_function_type = impl_method.typ.instantiate(resolver.interner);
+            let mut typecheck_errors = Vec::new();
+            let impl_method = resolver.interner.function_meta(func_id);
+
+            let (impl_function_type, _) = impl_method.typ.instantiate(resolver.interner);
 
             let impl_method_generic_count =
                 impl_method.typ.generic_count() - trait_impl_generic_count;
@@ -505,7 +505,7 @@ pub(crate) fn check_methods_signatures(
                 errors.push((error.into(), *file_id));
             }
 
-            if let Type::Function(impl_params, _, _) = impl_function_type.0 {
+            if let Type::Function(impl_params, _, _) = impl_function_type {
                 if trait_method.arguments().len() == impl_params.len() {
                     // Check the parameters of the impl method against the parameters of the trait method
                     let args = trait_method.arguments().iter();
@@ -542,6 +542,7 @@ pub(crate) fn check_methods_signatures(
 
             // TODO: This is not right since it may bind generic return types
             trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
+                let impl_method = resolver.interner.function_meta(func_id);
                 let ret_type_span = impl_method.return_type.get_type().span;
                 let expr_span = ret_type_span.expect("return type must always have a span");
 

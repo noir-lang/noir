@@ -79,7 +79,6 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
       proof: proofAsFields,
       public_inputs: [main_inputs.y as Field],
       key_hash: vkHash,
-      input_aggregation_object: ['0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'],
     };
 
     logger.debug('recursion_inputs', recursion_inputs);
