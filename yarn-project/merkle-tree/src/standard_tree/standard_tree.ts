@@ -1,3 +1,6 @@
+import { Timer } from '@aztec/foundation/timer';
+import { TreeInsertionStats } from '@aztec/types/stats';
+
 import { AppendOnlySnapshotBuilder, TreeSnapshot } from '../index.js';
 import { AppendOnlyTree } from '../interfaces/append_only_tree.js';
 import { TreeBase } from '../tree_base.js';
@@ -14,7 +17,16 @@ export class StandardTree extends TreeBase implements AppendOnlyTree {
    * @returns Empty promise.
    */
   public async appendLeaves(leaves: Buffer[]): Promise<void> {
+    const timer = new Timer();
     await super.appendLeaves(leaves);
+    this.log(`Inserted ${leaves.length} leaves into ${this.getName()} tree`, {
+      eventName: 'tree-insertion',
+      duration: timer.ms(),
+      batchSize: leaves.length,
+      treeName: this.getName(),
+      treeDepth: this.getDepth(),
+      treeType: 'append-only',
+    } satisfies TreeInsertionStats);
   }
 
   public snapshot(block: number): Promise<TreeSnapshot> {

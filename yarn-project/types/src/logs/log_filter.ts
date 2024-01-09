@@ -1,6 +1,6 @@
 import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
 
-import { TxHash } from '../tx/index.js';
+import { TxHash } from '../tx/tx_hash.js';
 import { LogId } from './log_id.js';
 
 /**

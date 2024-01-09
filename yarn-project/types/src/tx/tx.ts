@@ -5,7 +5,7 @@ import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import { ExtendedContractData } from '../contract_data.js';
 import { GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
-import { L2LogsSource } from '../logs/index.js';
+import { L2LogsSource } from '../logs/l2_logs_source.js';
 import { TxL2Logs } from '../logs/tx_l2_logs.js';
 import { TxStats } from '../stats/stats.js';
 import { TxHash } from './tx_hash.js';
@@ -168,6 +168,8 @@ export class Tx {
       unencryptedLogSize: this.unencryptedLogs.getSerializedLength(),
       newContractCount: this.newContracts.filter(c => !c.isEmpty()).length,
       newContractDataSize: this.newContracts.map(c => c.toBuffer().length).reduce((a, b) => a + b, 0),
+      newCommitmentCount: this.data!.end.newCommitments.filter(c => !c.isEmpty()).length,
+      newNullifierCount: this.data!.end.newNullifiers.filter(c => !c.isEmpty()).length,
       proofSize: this.proof.buffer.length,
       size: this.toBuffer().length,
     };

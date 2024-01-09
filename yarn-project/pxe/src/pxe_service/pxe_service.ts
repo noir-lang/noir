@@ -23,6 +23,7 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { Timer } from '@aztec/foundation/timer';
 import { NoirWasmVersion } from '@aztec/noir-compiler/versions';
 import {
   AuthWitness,
@@ -52,6 +53,7 @@ import {
   getNewContractPublicFunctions,
   isNoirCallStackUnresolved,
 } from '@aztec/types';
+import { TxPXEProcessingStats } from '@aztec/types/stats';
 
 import { PXEServiceConfig, getPackageInfo } from '../config/index.js';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
@@ -353,7 +355,13 @@ export class PXEService implements PXE {
       const deployedContractAddress = txRequest.txContext.isContractDeploymentTx ? txRequest.origin : undefined;
       const newContract = deployedContractAddress ? await this.db.getContract(deployedContractAddress) : undefined;
 
+      const timer = new Timer();
       const tx = await this.#simulateAndProve(txRequest, newContract);
+      this.log(`Processed private part of ${tx.data.end.newNullifiers[0]}`, {
+        eventName: 'tx-pxe-processing',
+        duration: timer.ms(),
+        ...tx.getStats(),
+      } satisfies TxPXEProcessingStats);
       if (simulatePublic) {
         await this.#simulatePublicCalls(tx);
       }

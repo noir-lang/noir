@@ -44,7 +44,9 @@ import { computeVarArgsHash } from '@aztec/circuits.js/abis';
 import { arrayNonEmptyLength, isArrayEmpty, padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
+import { Timer } from '@aztec/foundation/timer';
 import { ContractDataSource, FunctionL2Logs, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
+import { TxSequencerProcessingStats } from '@aztec/types/stats';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
 import { getVerificationKeys } from '../index.js';
@@ -159,12 +161,23 @@ export class PublicProcessor {
 
   protected async processTx(tx: Tx): Promise<ProcessedTx> {
     if (!isArrayEmpty(tx.data.end.publicCallStack, item => item.isEmpty())) {
+      const timer = new Timer();
+
       const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs] = await this.processEnqueuedPublicCalls(
         tx,
       );
       tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
 
-      return makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
+      const processedTransaction = await makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
+      this.log(`Processed public part of ${tx.data.end.newNullifiers[0]}`, {
+        eventName: 'tx-sequencer-processing',
+        duration: timer.ms(),
+        publicDataUpdateRequests:
+          processedTransaction.data.end.publicDataUpdateRequests.filter(x => !x.leafSlot.isZero()).length ?? 0,
+        ...tx.getStats(),
+      } satisfies TxSequencerProcessingStats);
+
+      return processedTransaction;
     } else {
       return makeProcessedTx(tx);
     }

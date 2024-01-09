@@ -1,7 +1,13 @@
 import { StatsEventName } from './stats.js';
 
 /** How a metric is grouped in benchmarks: by block size, by length of chain processed, or by circuit name. */
-export type MetricGroupBy = 'block-size' | 'chain-length' | 'circuit-name' | 'contract-count';
+export type MetricGroupBy =
+  | 'block-size'
+  | 'chain-length'
+  | 'circuit-name'
+  | 'contract-count'
+  | 'leaf-count'
+  | 'data-writes';
 
 /** Definition of a metric to track in benchmarks. */
 export interface Metric {
@@ -126,6 +132,30 @@ export const Metrics = [
     groupBy: 'contract-count',
     description: 'Size of txs received in the mempool.',
     events: ['tx-added-to-pool'],
+  },
+  {
+    name: 'tx_pxe_processing_time_ms',
+    groupBy: 'data-writes',
+    description: 'Time to process the private part of a tx.',
+    events: ['tx-pxe-processing'],
+  },
+  {
+    name: 'tx_sequencer_processing_time_ms',
+    groupBy: 'data-writes',
+    description: 'Time to process the public part of a tx.',
+    events: ['tx-sequencer-processing'],
+  },
+  {
+    name: 'batch_insert_into_append_only_tree_ms',
+    groupBy: 'leaf-count',
+    description: 'Time to insert a batch of leaves into an append-only tree',
+    events: ['tree-insertion'],
+  },
+  {
+    name: 'batch_insert_into_indexed_tree_ms',
+    groupBy: 'leaf-count',
+    description: 'Time to insert a batch of leaves into an indexed tree',
+    events: ['tree-insertion'],
   },
 ] as const satisfies readonly Metric[];
 

@@ -95,10 +95,13 @@ function getCell(
   row: string,
   col: string,
 ) {
-  const value = data[row][col];
+  const value: number | undefined = data[row][col];
   const formattedValue = formatValue(value);
-  const baseValue = base ? (base[row] ?? {})[col] : undefined;
-  const percentDiff = baseValue ? Math.round(((value - baseValue) / baseValue) * 100) : undefined;
+  const baseValue: number | undefined = base?.[row]?.[col];
+  const percentDiff =
+    typeof baseValue === 'number' && baseValue > 0 && typeof value === 'number'
+      ? Math.round(((value - baseValue) / baseValue) * 100)
+      : undefined;
   if (!percentDiff || Math.abs(percentDiff) < 1) {
     return formattedValue;
   }
@@ -118,7 +121,11 @@ function withDesc(name: string) {
 }
 
 /** Formats a numeric value for display. */
-function formatValue(value: number) {
+function formatValue(value: number | undefined): string {
+  if (typeof value === 'undefined') {
+    return 'N/A';
+  }
+
   if (value < 100) {
     return value.toPrecision(3);
   }
@@ -180,6 +187,10 @@ export function getMarkdown() {
   const metricsByChainLength = Metrics.filter(m => m.groupBy === 'chain-length').map(m => m.name);
   const metricsByCircuitName = Metrics.filter(m => m.groupBy === 'circuit-name').map(m => m.name);
   const metricsByContractCount = Metrics.filter(m => m.groupBy === 'contract-count').map(m => m.name);
+  const metricsByLeafCount = Metrics.filter(m => m.groupBy === 'leaf-count').map(m => m.name);
+
+  const metricsTxPxeProcessing = Metrics.filter(m => m.name === 'tx_pxe_processing_time_ms').map(m => m.name);
+  const metricsTxSeqProcessing = Metrics.filter(m => m.name === 'tx_sequencer_processing_time_ms').map(m => m.name);
 
   const baseHash = process.env.BASE_COMMIT_HASH;
   const baseUrl = baseHash && `[\`${baseHash.slice(0, 8)}\`](${S3_URL}/benchmarks-v1/master/${baseHash}.json)`;
@@ -202,7 +213,7 @@ ${getWarningsSummary(benchmark, baseBenchmark)}
 
 <summary>Detailed results</summary>
 
-All benchmarks are run on txs on the \`Benchmarking\` contract on the repository. Each tx consists of a batch call  to \`create_note\` and \`increment_balance\`, which guarantees that each tx has a private call, a nested private call, a public call, and a nested public call, as well as an emitted private note, an unencrypted log, and public storage read and write. 
+All benchmarks are run on txs on the \`Benchmarking\` contract on the repository. Each tx consists of a batch call  to \`create_note\` and \`increment_balance\`, which guarantees that each tx has a private call, a nested private call, a public call, and a nested public call, as well as an emitted private note, an unencrypted log, and public storage read and write.
 ${prSourceDataText}
 ${baseCommitText}
 
@@ -221,10 +232,19 @@ ${getTableContent(pick(benchmark, metricsByChainLength), baseBenchmark, 'blocks'
 Stats on running time and I/O sizes collected for every circuit run across all benchmarks.
 ${getTableContent(transpose(pick(benchmark, metricsByCircuitName)), transpose(baseBenchmark), '', 'Circuit')}
 
+### Tree insertion stats
+
+The duration to insert a fixed batch of leaves into each tree type.
+${getTableContent(pick(benchmark, metricsByLeafCount), baseBenchmark, 'leaves')}
+
 ### Miscellaneous
 
 Transaction sizes based on how many contracts are deployed in the tx.
 ${getTableContent(pick(benchmark, metricsByContractCount), baseBenchmark, 'deployed contracts')}
+
+Transaction processing duration by data writes.
+${getTableContent(pick(benchmark, metricsTxPxeProcessing), baseBenchmark, 'new commitments')}
+${getTableContent(pick(benchmark, metricsTxSeqProcessing), baseBenchmark, 'public data writes')}
 
 </details>
 ${COMMENT_MARK}

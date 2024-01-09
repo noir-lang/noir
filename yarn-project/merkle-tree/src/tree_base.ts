@@ -1,4 +1,5 @@
 import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Hasher, SiblingPath } from '@aztec/types';
 
 import { LevelUp, LevelUpChain } from 'levelup';
@@ -36,6 +37,7 @@ export abstract class TreeBase implements MerkleTree {
   private root!: Buffer;
   private zeroHashes: Buffer[] = [];
   private cache: { [key: string]: Buffer } = {};
+  protected log: DebugLogger;
 
   public constructor(
     protected db: LevelUp,
@@ -58,6 +60,8 @@ export abstract class TreeBase implements MerkleTree {
 
     this.root = root ? root : current;
     this.maxIndex = 2n ** BigInt(depth) - 1n;
+
+    this.log = createDebugLogger(`aztec:merkle-tree:${name}`);
   }
 
   /**
