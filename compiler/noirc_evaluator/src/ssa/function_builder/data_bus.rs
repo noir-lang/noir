@@ -84,7 +84,6 @@ impl FunctionBuilder {
                 databus.values.push_back(value);
                 databus.index += 1;
             }
-            Type::Reference(_) => unreachable!(),
             Type::Array(typ, len) => {
                 assert!(typ.len() == 1, "unsupported composite type");
                 databus.map.insert(value, databus.index);
@@ -98,8 +97,11 @@ impl FunctionBuilder {
                     self.add_to_data_bus(element, databus);
                 }
             }
-            Type::Slice(_) => unreachable!(),
-            Type::Function => unreachable!(),
+            Type::Reference(_) => {
+                unreachable!("Attempted to add invalid type (reference) to databus")
+            }
+            Type::Slice(_) => unreachable!("Attempted to add invalid type (slice) to databus"),
+            Type::Function => unreachable!("Attempted to add invalid type (function) to databus"),
         }
     }
 

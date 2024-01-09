@@ -11,6 +11,7 @@
         "arity",
         "arkworks",
         "arraysort",
+        "barebones",
         "barretenberg",
         "bincode",
         "bindgen",
@@ -82,6 +83,7 @@
         "jmpif",
         "jmpifs",
         "jmps",
+        "jsdoc",
         "Jubjub",
         "keccak",
         "krate",
@@ -97,6 +99,7 @@
         "montcurve",
         "nand",
         "nargo",
+        "neovim",
         "newtype",
         "nightlies",
         "nixpkgs",
@@ -153,8 +156,7 @@
         "vecmap",
         "wasi",
         "Weierstraß",
-        "zshell",
-        "barebones"
+        "zshell"
     ],
     "ignorePaths": [
         "./**/node_modules/**"

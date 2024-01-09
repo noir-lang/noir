@@ -144,7 +144,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 
     for (test_name, test_function) in test_functions {
         write!(writer, "[{}] Testing {test_name}... ", package.name)
-            .expect("Failed to write to stdout");
+            .expect("Failed to write to stderr");
         writer.flush().expect("Failed to flush writer");
 
         match run_test(
@@ -159,13 +159,13 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                     .expect("Failed to set color");
-                writeln!(writer, "ok").expect("Failed to write to stdout");
+                writeln!(writer, "ok").expect("Failed to write to stderr");
             }
             TestStatus::Fail { message, error_diagnostic } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
                     .expect("Failed to set color");
-                writeln!(writer, "{message}\n").expect("Failed to write to stdout");
+                writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         context.file_manager.as_file_map(),
@@ -189,12 +189,13 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         writer.reset().expect("Failed to reset writer");
     }
 
-    write!(writer, "[{}] ", package.name).expect("Failed to write to stdout");
+    write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
     if count_failed == 0 {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
-        writeln!(writer, "{count_all} test{plural} passed").expect("Failed to write to stdout");
+        write!(writer, "{count_all} test{plural} passed").expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
+        writeln!(writer).expect("Failed to write to stderr");
 
         Ok(())
     } else {
@@ -207,13 +208,15 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                 .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                 .expect("Failed to set color");
             write!(writer, "{count_passed} test{plural_passed} passed, ",)
-                .expect("Failed to write to stdout");
+                .expect("Failed to write to stderr");
         }
+
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
-        writeln!(writer, "{count_failed} test{plural_failed} failed")
-            .expect("Failed to write to stdout");
+        write!(writer, "{count_failed} test{plural_failed} failed")
+            .expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
 
+        // Writes final newline.
         Err(CliError::Generic(String::new()))
     }
 }

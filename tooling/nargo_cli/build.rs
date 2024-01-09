@@ -14,9 +14,6 @@ fn check_rustc_version() {
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
-    // Rebuild if the tests have changed
-    println!("cargo:rerun-if-changed=tests");
-
     check_rustc_version();
 
     // Only use build_data if the environment variable isn't set
@@ -38,6 +35,10 @@ fn main() {
         Err(_) => std::env::current_dir().unwrap(),
     };
     let test_dir = root_dir.join("test_programs");
+
+    // Rebuild if the tests have changed
+    println!("cargo:rerun-if-changed=tests");
+    println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_noir_test_success_tests(&mut test_file, &test_dir);
