@@ -10,13 +10,17 @@ struct U128 {
 
 impl U128 {
 
-    pub fn new(lo: u64, hi: u64) -> U128 {
+    pub fn from_u64s_le(lo: u64, hi: u64) -> U128 {
         // in order to handle multiplication, we need to represent the product of two u64 without overflow
         assert(crate::field::modulus_num_bits() as u32 > 128);
         U128 {
             lo: lo as Field,
             hi: hi as Field,
         }
+    }
+
+    pub fn from_u64s_be(hi: u64, lo: u64) -> U128 {
+        U128::from_u64s_le(lo,hi)
     }
 
     pub fn from_le_bytes(bytes: [u8; 16]) -> U128 {
@@ -54,7 +58,7 @@ impl U128 {
         let bytes = hex.as_bytes();
         // string must starts with "0x"
         assert((bytes[0] == 48) & (bytes[1] == 120), "Invalid hexadecimal string");
-        assert(N < 35, "Input does not fit into a u128");
+        assert(N < 35, "Input does not fit into a U128");
 
         let mut lo = 0;
         let mut hi = 0;
@@ -96,15 +100,15 @@ impl U128 {
 
     unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
         if self < b {
-            (U128::new(0, 0), self)
+            (U128::from_u64s_le(0, 0), self)
         } else {
             //TODO check if this can overflow?
-            let (q,r) = self.unconstrained_div(b * U128::new(2,0));
-            let q_mul_2 = q * U128::new(2,0);
+            let (q,r) = self.unconstrained_div(b * U128::from_u64s_le(2,0));
+            let q_mul_2 = q * U128::from_u64s_le(2,0);
             if r < b {
                 (q_mul_2, r)
             } else {
-                (q_mul_2 + U128::new(1,0), r - b)
+                (q_mul_2 + U128::from_u64s_le(1,0), r - b)
             }
 
         }  
@@ -257,9 +261,9 @@ impl BitXor for U128 {
     }
 }
 
-impl Shl for u128 { 
-    fn shl(self, other: u128) -> u128 { 
-        assert(other < u128::new(128,0), "attempt to shift left with overflow");
+impl Shl for U128 { 
+    fn shl(self, other: U128) -> U128 { 
+        assert(other < U128::from_u64s_le(128,0), "attempt to shift left with overflow");
         let exp_bits = other.lo.to_be_bits(7);
 
         let mut r: Field = 2;
@@ -268,13 +272,13 @@ impl Shl for u128 {
             y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
             r *= r;
         }
-        self.wrapping_mul(u128::from_integer(y))
+        self.wrapping_mul(U128::from_integer(y))
     } 
 }
 
-impl Shr for u128 { 
-    fn shr(self, other: u128) -> u128 { 
-        assert(other < u128::new(128,0), "attempt to shift right with overflow");
+impl Shr for U128 { 
+    fn shr(self, other: U128) -> U128 { 
+        assert(other < U128::from_u64s_le(128,0), "attempt to shift right with overflow");
         let exp_bits = other.lo.to_be_bits(7);
 
         let mut r: Field = 2;
@@ -283,6 +287,6 @@ impl Shr for u128 {
             y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
             r *= r;
         }
-        self / u128::from_integer(y)
+        self / U128::from_integer(y)
     } 
 }
