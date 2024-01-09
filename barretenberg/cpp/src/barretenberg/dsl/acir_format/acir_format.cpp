@@ -149,6 +149,16 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
         create_fixed_base_constraint(builder, constraint);
     }
 
+    // Add ec add constraints
+    for (const auto& constraint : constraint_system.ec_add_constraints) {
+        create_ec_add_constraint(builder, constraint);
+    }
+
+    // Add ec double
+    for (const auto& constraint : constraint_system.ec_double_constraints) {
+        create_ec_double_constraint(builder, constraint);
+    }
+
     // Add block constraints
     for (const auto& constraint : constraint_system.block_constraints) {
         create_block_constraints(builder, constraint, has_valid_witness_assignments);

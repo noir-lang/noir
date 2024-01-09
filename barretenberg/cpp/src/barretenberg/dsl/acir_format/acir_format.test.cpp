@@ -44,6 +44,8 @@ TEST_F(AcirFormatTests, TestASingleConstraintNoPubInputs)
         .pedersen_constraints = {},
         .pedersen_hash_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
+        .ec_add_constraints = {},
+        .ec_double_constraints = {},
         .recursion_constraints = {},
         .constraints = { constraint },
         .block_constraints = {},
@@ -152,6 +154,8 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
                                    .pedersen_constraints = {},
                                    .pedersen_hash_constraints = {},
                                    .fixed_base_scalar_mul_constraints = {},
+                                   .ec_add_constraints = {},
+                                   .ec_double_constraints = {},
                                    .recursion_constraints = {},
                                    .constraints = { expr_a, expr_b, expr_c, expr_d },
                                    .block_constraints = {} };
@@ -218,6 +222,8 @@ TEST_F(AcirFormatTests, TestSchnorrVerifyPass)
                                    .pedersen_constraints = {},
                                    .pedersen_hash_constraints = {},
                                    .fixed_base_scalar_mul_constraints = {},
+                                   .ec_add_constraints = {},
+                                   .ec_double_constraints = {},
                                    .recursion_constraints = {},
                                    .constraints = { poly_triple{
                                        .a = schnorr_constraint.result,
@@ -307,6 +313,8 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
         .pedersen_constraints = {},
         .pedersen_hash_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
+        .ec_add_constraints = {},
+        .ec_double_constraints = {},
         .recursion_constraints = {},
         .constraints = { poly_triple{
             .a = schnorr_constraint.result,
@@ -415,6 +423,8 @@ TEST_F(AcirFormatTests, TestVarKeccak)
         .pedersen_constraints = {},
         .pedersen_hash_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
+        .ec_add_constraints = {},
+        .ec_double_constraints = {},
         .recursion_constraints = {},
         .constraints = { dummy },
         .block_constraints = {},
@@ -454,6 +464,8 @@ TEST_F(AcirFormatTests, TestKeccakPermutation)
                                    .pedersen_constraints = {},
                                    .pedersen_hash_constraints = {},
                                    .fixed_base_scalar_mul_constraints = {},
+                                   .ec_add_constraints = {},
+                                   .ec_double_constraints = {},
                                    .recursion_constraints = {},
                                    .constraints = {},
                                    .block_constraints = {} };

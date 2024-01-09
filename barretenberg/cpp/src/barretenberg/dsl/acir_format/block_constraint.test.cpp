@@ -125,6 +125,8 @@ TEST_F(UltraPlonkRAM, TestBlockConstraint)
         .pedersen_constraints = {},
         .pedersen_hash_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
+        .ec_add_constraints = {},
+        .ec_double_constraints = {},
         .recursion_constraints = {},
         .constraints = {},
         .block_constraints = { block },

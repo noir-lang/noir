@@ -169,6 +169,43 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
+        BlackBoxFunc::EmbeddedCurveAdd => {
+            if let (
+                [BrilligVariable::Simple(input1_x), BrilligVariable::Simple(input1_y),
+                BrilligVariable::Simple(input2_x), BrilligVariable::Simple(input2_y)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveAdd {
+                    input1_x: *input1_x,
+                    input1_y: *input1_y,
+                    input2_x: *input2_x,
+                    input2_y: *input2_y,
+                    result: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!(
+                    "ICE: EmbeddedCurveAdd expects four register arguments and one array result"
+                )
+            }
+        }       
+        BlackBoxFunc::EmbeddedCurveDouble => {
+            if let (
+                [BrilligVariable::Simple(input1_x), BrilligVariable::Simple(input1_y)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveDouble {
+                    input1_x: *input1_x,
+                    input1_y: *input1_y,
+                    result: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!(
+                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                )
+            }
+        }
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
         }

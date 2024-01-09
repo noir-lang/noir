@@ -5,6 +5,7 @@
 #include "blake2s_constraint.hpp"
 #include "blake3_constraint.hpp"
 #include "block_constraint.hpp"
+#include "ec_operations.hpp"
 #include "ecdsa_secp256k1.hpp"
 #include "ecdsa_secp256r1.hpp"
 #include "fixed_base_scalar_mul.hpp"
@@ -38,6 +39,8 @@ struct acir_format {
     std::vector<PedersenConstraint> pedersen_constraints;
     std::vector<PedersenHashConstraint> pedersen_hash_constraints;
     std::vector<FixedBaseScalarMul> fixed_base_scalar_mul_constraints;
+    std::vector<EcAdd> ec_add_constraints;
+    std::vector<EcDouble> ec_double_constraints;
     std::vector<RecursionConstraint> recursion_constraints;
 
     // A standard plonk arithmetic constraint, as defined in the poly_triple struct, consists of selector values

@@ -87,4 +87,22 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         fixed_base_scalar_mul(low, high)
     }
+
+    fn ec_add(
+        &self,
+        input1_x: &FieldElement,
+        input1_y: &FieldElement,
+        input2_x: &FieldElement,
+        input2_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        todo!();
+    }
+
+    fn ec_double(
+        &self,
+        input_x: &FieldElement,
+        input_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        todo!();
+    }
 }

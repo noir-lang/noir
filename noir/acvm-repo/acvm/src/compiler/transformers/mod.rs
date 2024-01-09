@@ -122,6 +122,14 @@ pub(super) fn transform_internal(
                         outputs,
                         ..
                     }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd {
+                        outputs,
+                        ..
+                    }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveDouble {
+                        outputs,
+                        ..
+                    }
                     | acir::circuit::opcodes::BlackBoxFuncCall::PedersenCommitment {
                         outputs,
                         ..
