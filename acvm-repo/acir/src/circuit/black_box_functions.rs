@@ -68,7 +68,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::XOR => "xor",
             BlackBoxFunc::RANGE => "range",
             BlackBoxFunc::Keccak256 => "keccak256",
-            BlackBoxFunc::Keccakf1600 => "keccak_f1600",
+            BlackBoxFunc::Keccakf1600 => "keccakf1600",
             BlackBoxFunc::RecursiveAggregation => "recursive_aggregation",
             BlackBoxFunc::EcdsaSecp256r1 => "ecdsa_secp256r1",
         }
