@@ -13,8 +13,36 @@ namespace toy(256);
     q_tuple_set { set_1_column_1, set_1_column_2 } is { set_2_column_1, set_2_column_2 };
 
     // Relation not used -> we currently require a single relation for codegen
-    pol commit x;
-    x' - x = 0;
+    q_tuple_set * (1 - q_tuple_set) = 0;
 
     // Also needs a fixed relation 
     pol fixed first = [1] + [0]*;
+
+    // Lookup related stuff
+
+    // For each xor term we need:
+    // - The witness wire it is over
+    // - The column being lookuped
+    // - A shift of the column being lookuped
+    // - An accumulator for each of the tables 
+
+    // constraint wires
+    pol commit xor_a;
+    pol commit xor_b;
+    pol commit xor_c;
+    
+    // Precomputed tables
+    pol commit table_xor_a;
+    pol commit table_xor_b;
+    pol commit table_xor_c;
+
+    pol commit q_xor;
+    pol commit q_xor_table;
+
+    q_xor * (1 - q_xor) = 0;
+    q_xor_table * (1 - q_xor_table) = 0;
+
+    // Note - if no right hand side selector column is provided, then we will need to build the table ourselves
+    // Note - we can also take advantage of pil creating the lookup columns for us here -> I may be able to do some codegen here !
+    #[lookup_xor]
+    q_xor { xor_a, xor_b, xor_c } in q_xor_table { table_xor_a, table_xor_b, table_xor_c };

@@ -102,7 +102,7 @@ template <typename Settings, typename FF_> class GenericPermutationRelationImpl 
     static Accumulator compute_read_term_predicate(const AllEntities& in)
 
     {
-        static_assert(read_index < WRITE_TERMS);
+        static_assert(read_index < READ_TERMS);
         using View = typename Accumulator::View;
 
         // The selector/wire value that determines that an element from the first set needs to be included. Can be

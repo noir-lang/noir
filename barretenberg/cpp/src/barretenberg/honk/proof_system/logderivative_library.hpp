@@ -31,6 +31,7 @@ void compute_logderivative_inverse(Polynomials& polynomials, auto& relation_para
     constexpr size_t WRITE_TERMS = Relation::WRITE_TERMS;
 
     auto lookup_relation = Relation();
+
     auto& inverse_polynomial = lookup_relation.template get_inverse_polynomial(polynomials);
     for (size_t i = 0; i < circuit_size; ++i) {
         auto row = polynomials.get_row(i);

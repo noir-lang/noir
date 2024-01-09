@@ -8,6 +8,14 @@
     [[maybe_unused]] auto toy_set_1_column_2 = View(new_term.toy_set_1_column_2);                                      \
     [[maybe_unused]] auto toy_set_2_column_1 = View(new_term.toy_set_2_column_1);                                      \
     [[maybe_unused]] auto toy_set_2_column_2 = View(new_term.toy_set_2_column_2);                                      \
-    [[maybe_unused]] auto toy_x = View(new_term.toy_x);                                                                \
+    [[maybe_unused]] auto toy_xor_a = View(new_term.toy_xor_a);                                                        \
+    [[maybe_unused]] auto toy_xor_b = View(new_term.toy_xor_b);                                                        \
+    [[maybe_unused]] auto toy_xor_c = View(new_term.toy_xor_c);                                                        \
+    [[maybe_unused]] auto toy_table_xor_a = View(new_term.toy_table_xor_a);                                            \
+    [[maybe_unused]] auto toy_table_xor_b = View(new_term.toy_table_xor_b);                                            \
+    [[maybe_unused]] auto toy_table_xor_c = View(new_term.toy_table_xor_c);                                            \
+    [[maybe_unused]] auto toy_q_xor = View(new_term.toy_q_xor);                                                        \
+    [[maybe_unused]] auto toy_q_xor_table = View(new_term.toy_q_xor_table);                                            \
     [[maybe_unused]] auto two_column_perm = View(new_term.two_column_perm);                                            \
-    [[maybe_unused]] auto toy_x_shift = View(new_term.toy_x_shift);
+    [[maybe_unused]] auto lookup_xor = View(new_term.lookup_xor);                                                      \
+    [[maybe_unused]] auto lookup_xor_counts = View(new_term.lookup_xor_counts);

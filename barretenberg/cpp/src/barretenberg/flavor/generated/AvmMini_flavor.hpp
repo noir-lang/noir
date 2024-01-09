@@ -202,10 +202,10 @@ class AvmMiniFlavor {
                               avmMini_mem_idx_b,
                               avmMini_mem_idx_c,
                               avmMini_last,
-                              memTrace_m_val_shift,
-                              memTrace_m_addr_shift,
-                              memTrace_m_tag_shift,
                               memTrace_m_rw_shift,
+                              memTrace_m_tag_shift,
+                              memTrace_m_addr_shift,
+                              memTrace_m_val_shift,
                               avmMini_internal_return_ptr_shift,
                               avmMini_pc_shift)
 
@@ -251,10 +251,10 @@ class AvmMiniFlavor {
                      avmMini_mem_idx_b,
                      avmMini_mem_idx_c,
                      avmMini_last,
-                     memTrace_m_val_shift,
-                     memTrace_m_addr_shift,
-                     memTrace_m_tag_shift,
                      memTrace_m_rw_shift,
+                     memTrace_m_tag_shift,
+                     memTrace_m_addr_shift,
+                     memTrace_m_val_shift,
                      avmMini_internal_return_ptr_shift,
                      avmMini_pc_shift };
         };
@@ -303,15 +303,15 @@ class AvmMiniFlavor {
         };
         RefVector<DataType> get_to_be_shifted()
         {
-            return { memTrace_m_val, memTrace_m_addr, memTrace_m_tag, memTrace_m_rw, avmMini_internal_return_ptr,
+            return { memTrace_m_rw, memTrace_m_tag, memTrace_m_addr, memTrace_m_val, avmMini_internal_return_ptr,
                      avmMini_pc };
         };
         RefVector<DataType> get_shifted()
         {
-            return { memTrace_m_val_shift,
-                     memTrace_m_addr_shift,
+            return { memTrace_m_rw_shift,
                      memTrace_m_tag_shift,
-                     memTrace_m_rw_shift,
+                     memTrace_m_addr_shift,
+                     memTrace_m_val_shift,
                      avmMini_internal_return_ptr_shift,
                      avmMini_pc_shift };
         };
@@ -326,7 +326,7 @@ class AvmMiniFlavor {
 
         RefVector<DataType> get_to_be_shifted()
         {
-            return { memTrace_m_val, memTrace_m_addr, memTrace_m_tag, memTrace_m_rw, avmMini_internal_return_ptr,
+            return { memTrace_m_rw, memTrace_m_tag, memTrace_m_addr, memTrace_m_val, avmMini_internal_return_ptr,
                      avmMini_pc };
         };
 
@@ -637,6 +637,4 @@ class AvmMiniFlavor {
 };
 
 } // namespace flavor
-
-namespace sumcheck {}
 } // namespace proof_system::honk

@@ -7,8 +7,9 @@
 namespace proof_system::Toy_vm {
 
 template <typename FF> struct Toy_avmRow {
-    FF toy_x{};
-    FF toy_x_shift{};
+    FF toy_q_xor_table{};
+    FF toy_q_tuple_set{};
+    FF toy_q_xor{};
 };
 
 inline std::string get_relation_label_toy_avm(int index)
@@ -21,8 +22,10 @@ template <typename FF_> class toy_avmImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 1> SUBRELATION_PARTIAL_LENGTHS{
-        2,
+    static constexpr std::array<size_t, 3> SUBRELATION_PARTIAL_LENGTHS{
+        3,
+        3,
+        3,
     };
 
     template <typename ContainerOverSubrelations, typename AllEntities>
@@ -36,9 +39,25 @@ template <typename FF_> class toy_avmImpl {
         {
             Toy_DECLARE_VIEWS(0);
 
-            auto tmp = (toy_x_shift - toy_x);
+            auto tmp = (toy_q_tuple_set * (-toy_q_tuple_set + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
+        }
+        // Contribution 1
+        {
+            Toy_DECLARE_VIEWS(1);
+
+            auto tmp = (toy_q_xor * (-toy_q_xor + FF(1)));
+            tmp *= scaling_factor;
+            std::get<1>(evals) += tmp;
+        }
+        // Contribution 2
+        {
+            Toy_DECLARE_VIEWS(2);
+
+            auto tmp = (toy_q_xor_table * (-toy_q_xor_table + FF(1)));
+            tmp *= scaling_factor;
+            std::get<2>(evals) += tmp;
         }
     }
 };

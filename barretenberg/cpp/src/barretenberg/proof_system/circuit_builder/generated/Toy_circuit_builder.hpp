@@ -8,9 +8,11 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/proof_system/circuit_builder/circuit_builder_base.hpp"
+#include "barretenberg/relations/generic_lookup/generic_lookup_relation.hpp"
 #include "barretenberg/relations/generic_permutation/generic_permutation_relation.hpp"
 
 #include "barretenberg/flavor/generated/Toy_flavor.hpp"
+#include "barretenberg/relations/generated/Toy/lookup_xor.hpp"
 #include "barretenberg/relations/generated/Toy/toy_avm.hpp"
 #include "barretenberg/relations/generated/Toy/two_column_perm.hpp"
 
@@ -25,9 +27,17 @@ template <typename FF> struct ToyFullRow {
     FF toy_set_1_column_2{};
     FF toy_set_2_column_1{};
     FF toy_set_2_column_2{};
-    FF toy_x{};
+    FF toy_xor_a{};
+    FF toy_xor_b{};
+    FF toy_xor_c{};
+    FF toy_table_xor_a{};
+    FF toy_table_xor_b{};
+    FF toy_table_xor_c{};
+    FF toy_q_xor{};
+    FF toy_q_xor_table{};
     FF two_column_perm{};
-    FF toy_x_shift{};
+    FF lookup_xor{};
+    FF lookup_xor_counts{};
 };
 
 class ToyCircuitBuilder {
@@ -40,8 +50,8 @@ class ToyCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 9;
-    static constexpr size_t num_polys = 8;
+    static constexpr size_t num_fixed_columns = 17;
+    static constexpr size_t num_polys = 17;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -63,11 +73,18 @@ class ToyCircuitBuilder {
             polys.toy_set_1_column_2[i] = rows[i].toy_set_1_column_2;
             polys.toy_set_2_column_1[i] = rows[i].toy_set_2_column_1;
             polys.toy_set_2_column_2[i] = rows[i].toy_set_2_column_2;
-            polys.toy_x[i] = rows[i].toy_x;
+            polys.toy_xor_a[i] = rows[i].toy_xor_a;
+            polys.toy_xor_b[i] = rows[i].toy_xor_b;
+            polys.toy_xor_c[i] = rows[i].toy_xor_c;
+            polys.toy_table_xor_a[i] = rows[i].toy_table_xor_a;
+            polys.toy_table_xor_b[i] = rows[i].toy_table_xor_b;
+            polys.toy_table_xor_c[i] = rows[i].toy_table_xor_c;
+            polys.toy_q_xor[i] = rows[i].toy_q_xor;
+            polys.toy_q_xor_table[i] = rows[i].toy_q_xor_table;
             polys.two_column_perm[i] = rows[i].two_column_perm;
+            polys.lookup_xor[i] = rows[i].lookup_xor;
+            polys.lookup_xor_counts[i] = rows[i].lookup_xor_counts;
         }
-
-        polys.toy_x_shift = Polynomial(polys.toy_x.shifted());
 
         return polys;
     }
@@ -88,7 +105,7 @@ class ToyCircuitBuilder {
             .eccvm_set_permutation_delta = 0,
         };
 
-        ProverPolynomials polys = compute_polynomials();
+        auto polys = compute_polynomials();
         const size_t num_rows = polys.get_polynomial_size();
 
         const auto evaluate_relation = [&]<typename Relation>(const std::string& relation_name,
@@ -118,22 +135,22 @@ class ToyCircuitBuilder {
             return true;
         };
 
-        const auto evaluate_permutation = [&]<typename PermutationSettings>(const std::string& permutation_name) {
-            // Check the tuple permutation relation
-            proof_system::honk::logderivative_library::compute_logderivative_inverse<Flavor, PermutationSettings>(
+        const auto evaluate_logderivative = [&]<typename LogDerivativeSettings>(const std::string& lookup_name) {
+            // Check the logderivative relation
+            proof_system::honk::logderivative_library::compute_logderivative_inverse<Flavor, LogDerivativeSettings>(
                 polys, params, num_rows);
 
-            typename PermutationSettings::SumcheckArrayOfValuesOverSubrelations permutation_result;
+            typename LogDerivativeSettings::SumcheckArrayOfValuesOverSubrelations lookup_result;
 
-            for (auto& r : permutation_result) {
+            for (auto& r : lookup_result) {
                 r = 0;
             }
             for (size_t i = 0; i < num_rows; ++i) {
-                PermutationSettings::accumulate(permutation_result, polys.get_row(i), params, 1);
+                LogDerivativeSettings::accumulate(lookup_result, polys.get_row(i), params, 1);
             }
-            for (auto r : permutation_result) {
+            for (auto r : lookup_result) {
                 if (r != 0) {
-                    info("Tuple ", permutation_name, " failed.");
+                    info("Lookup ", lookup_name, " failed.");
                     return false;
                 }
             }
@@ -145,8 +162,11 @@ class ToyCircuitBuilder {
             return false;
         }
 
-        if (!evaluate_permutation.template operator()<honk::sumcheck::two_column_perm_relation<FF>>(
+        if (!evaluate_logderivative.template operator()<honk::sumcheck::two_column_perm_relation<FF>>(
                 "two_column_perm")) {
+            return false;
+        }
+        if (!evaluate_logderivative.template operator()<honk::sumcheck::lookup_xor_relation<FF>>("lookup_xor")) {
             return false;
         }
 
