@@ -48,6 +48,7 @@ Memory addresses must be tagged to be a `u32` type.
 ## Types and Tagged Memory
 
 ### Terminology/legend
+
 - `M[X]`: main memory cell at offset `X`
 - `tag`: a value referring to a memory cell's type (its maximum potential value)
 - `T[X]`: the tag associated with memory cell at offset `X`
@@ -102,6 +103,7 @@ M[dstOffset] = M[aOffset] + M[bOffset] // perform the addition
 #### `MOV` and tag preservation
 
 The `MOV` instruction copies data from one memory cell to another, preserving tags. In other words, the destination cell's tag will adopt the value of the source:
+
 ```
 # MOV srcOffset dstOffset
 T[dstOffset] = T[srcOffset] // preserve tag
@@ -132,6 +134,7 @@ M[dstOffset] = cast<to: u64>(M[srcOffset]) // perform cast
 A `MOV` instruction may flag its source and/or destination offsets as "indirect". An indirect memory access performs `M[M[offset]]` instead of the standard `M[offset]`. Memory offsets must be `u32`s since main memory is a 32-bit addressable space, and so indirect memory accesses include additional checks.
 
 Additional checks for a `MOV` with an indirect source offset:
+
 ```
 # MOV srcOffset dstOffset      // with indirect source
 assert T[srcOffset] == u32     // enforce that `M[srcOffset]` is itself a valid memory offset
@@ -140,6 +143,7 @@ M[dstOffset] = M[M[srcOffset]] // perform move from indirect source
 ```
 
 Additional checks for a `MOV` with an indirect destination offset:
+
 ```
 # MOV srcOffset dstOffset      // with indirect destination
 assert T[dstOffset] == u32     // enforce that `M[dstOffset]` is itself a valid memory offset
@@ -148,6 +152,7 @@ M[M[dstOffset]] = M[srcOffset] // perform move to indirect destination
 ```
 
 Additional checks for a `MOV` with both indirect source and destination offsets:
+
 ```
 # MOV srcOffset dstOffset                  // with indirect source and destination
 assert T[srcOffset] == T[dstOffset] == u32 // enforce that `M[*Offset]` are valid memory offsets
@@ -158,12 +163,15 @@ M[M[dstOffset]] = M[M[srcOffset]]          // perform move to indirect destinati
 #### Calldata/returndata and tag conversions
 
 All elements in calldata/returndata are implicitly tagged as field elements (i.e. maximum value is $p - 1$). To perform a tag conversion, calldata/returndata must be copied into main memory (via [`CALLDATACOPY`](./InstructionSet#isa-section-calldatacopy) or [`RETURN`'s `offset` and `size`](./InstructionSet#isa-section-return)), followed by an appropriate `CAST` instruction.
+
 ```
 # Copy calldata to memory and cast a word to u64
 CALLDATACOPY cdOffset size offsetA // copy calldata to memory at offsetA
 CAST<u64> offsetA dstOffset        // cast first copied word to a u64
 ```
+
 This would perform the following:
+
 ```
 # CALLDATACOPY cdOffset size offsetA
 T[offsetA:offsetA+size] = field                            // CALLDATACOPY assigns the field tag

@@ -13,6 +13,7 @@ A contract instance is a concrete deployment of a [contract class](./classes.md)
 
 The structure of a contract instance is defined as:
 
+<!-- prettier-ignore -->
 | Field | Type | Description |
 |----------|----------|----------|
 | version | u8 | Version identifier. Initially one, bumped for any changes to the contract instance struct. |
@@ -32,6 +33,7 @@ The address of the contract instance is computed as the hash of all elements in 
 ## Statuses
 
 A contract instance at a given address can be in any of the following statuses:
+
 - **Undeployed**: The instance has not yet been deployed. A user who knows the preimage of the address can issue a private call into the contract, as long as it does not require initialization. Public function calls to this address will fail.
 - **Privately deployed**: The instance constructor has been executed, but its class identifier has not been broadcasted. A user who knows the preimage of the address can issue a private call into the contract. Public function calls to this address will fail. Private deployments are signalled by emitting an initialization nullifier when the constructor runs.
 - **Publicly deployed**: The instance constructor has been executed, and the address preimage has been broadcasted. All function calls to the address, private or public, are valid. Public deployments are signalled by emitting a public deployment nullifier.
@@ -41,6 +43,7 @@ A contract instance at a given address can be in any of the following statuses:
 ## Constructors
 
 Contract constructors are not enshrined in the protocol, but handled at the application circuit level. A contract must satisfy the following requirements:
+
 - The constructor must be invoked exactly once
 - The constructor must be invoked with the arguments in the address preimage
 - Functions that depend on contract initialization cannot be invoked until the constructor is run
@@ -73,6 +76,7 @@ Additionally, the `Deployer` contract provides two `universal_deploy` functions,
 ## Verification of Executed Code
 
 The kernel circuit, both private and public, is responsible for verifying that the code loaded for a given function execution matches the expected one. This requires the following checks:
+
 - The contract class identifier of the address called is the expected one, verified by hashing the address preimage that includes the class id.
 - The function identifier being executed is part of the class id, verified via a merkle membership proof.
 - The function code executed matches the commitment in the function identifier, verified via a merkle membership proof and a bytecode commitment proof.

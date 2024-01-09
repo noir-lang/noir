@@ -1,9 +1,5 @@
 # Public Kernel Circuit - Initial
 
-:::info Disclaimer
-This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
-:::
-
 ## Requirements
 
 The **initial** public kernel iteration undergoes processes to prepare the necessary data for the executions of the public function calls.

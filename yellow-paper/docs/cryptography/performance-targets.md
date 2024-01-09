@@ -14,13 +14,13 @@ This document is designed to definitively answer the following questions:
 
 The following is a list of the relevant properties that affect the performance of the Aztec network:
 
-* Size of a user transaction (in kb)
-* Time to generate a user transaction proof
-* Memory required to generate a user transaction proof
-* Time to generate an Aztec Virtual Machine proof
-* Memory required to generate an Aztec Virtual Machine proof
-* Time to compute a 2-to-1 rollup proof
-* Memory required to compute a 2-to-1 rollup proof
+- Size of a user transaction (in kb)
+- Time to generate a user transaction proof
+- Memory required to generate a user transaction proof
+- Time to generate an Aztec Virtual Machine proof
+- Memory required to generate an Aztec Virtual Machine proof
+- Time to compute a 2-to-1 rollup proof
+- Memory required to compute a 2-to-1 rollup proof
 
 <!-- We can break these properties down into metrics linked to specitic cryptographic components:
 
@@ -30,10 +30,11 @@ The following is a list of the relevant properties that affect the performance o
 * Goblin Plonk prover time
 * Protogalaxy recursion -->
 
- "MVP" = minimum standards that we can go to main-net with.
+"MVP" = minimum standards that we can go to main-net with.
 
 Note: gb = gigabytes (not gigabits, gigibits or gigibytes)
 
+<!-- prettier-ignore -->
 | metric | how to measure | MVP (10tps) | ideal (100tps) |
 | --- | --- | --- | --- |
 | proof size | total size of a user tx incl. goblin plonk proofs | 80kb | 8kb |
@@ -46,23 +47,24 @@ Note: gb = gigabytes (not gigabits, gigibits or gigibytes)
 | 2-to-1 rollup proving time | 1 2-to-1 rollup proof | 7.4 seconds | 0.74 seconds |
 | 2-to-1 rollup memory consumption | 1 2-to-1 rollup proof | 128gb | 16gb |
 
-To come up with the above estimates, we are targetting 10 transactions per second for the MVP and 100 tps for the "ideal" case. We are assuming both block producers and rollup Provers have access to 128-core machines with 128gb of RAM. Additionally, we assume that the various process required to produce a block consume the following: 
+To come up with the above estimates, we are targetting 10 transactions per second for the MVP and 100 tps for the "ideal" case. We are assuming both block producers and rollup Provers have access to 128-core machines with 128gb of RAM. Additionally, we assume that the various process required to produce a block consume the following:
 
+<!-- prettier-ignore -->
 | process | percent of block production time allocated to process |
 | --- | --- |
 | transaction validation | 10% |
 | block building (tx simulation) | 20% |
 | public VM proof construction time | 20% |
 | rollup prover time | 40% |
-| UltraPlonk proof compression time | 10% | 
+| UltraPlonk proof compression time | 10% |
 
 These are very rough estimates that could use further evaluation and validation!
 
 ### Proof size
 
-The MVP wishes to target a tx through put of 10 tx per second. 
+The MVP wishes to target a tx through put of 10 tx per second.
 
-Each Aztec node (not sequencer/prover, just a regular node that is sending transactions) needs to download `10*proof_size` bytes of data to keep track of the mempool. However, this is the *best case* scenario.
+Each Aztec node (not sequencer/prover, just a regular node that is sending transactions) needs to download `10*proof_size` bytes of data to keep track of the mempool. However, this is the _best case_ scenario.
 
 More practically, the data throughput of a p2p network will be less than the bandwidth of participants due to network coordination costs.
 As a rough heuristic, we assume that network bandwidth will be 10% of p2p user bandwidth.
@@ -91,7 +93,7 @@ To perform a private swap, the following must occur:
 1. Validate the user's account contract (1 kernel call)
 2. Call a swap contract (1 kernel call)
 3. The swap contract will initiate `transfer` calls on two token contracts (2 kernel calls)
-4. A fee must be paid via our fee abstraction spec (1 kernel call) 
+4. A fee must be paid via our fee abstraction spec (1 kernel call)
 5. A final "cleanup" proof is generated that evaluates state reads and processes the queues that have been constructed by previous kernel circuits (1 kernel call + 1 function call; the cleanup proof)
 
 In total we have 6 kernel calls and 6 function calls.
@@ -105,7 +107,7 @@ Defining the first function to cost $2^{19}$ constraints is a conservative assum
 
 #### Summary of what we are measuring to capture Prover time
 
-1. A mock kernel circuit has a size of $2^{17}$ constraints and folds *two* Honk instances into an accumulator (the prev. kernel and the function being called)
+1. A mock kernel circuit has a size of $2^{17}$ constraints and folds _two_ Honk instances into an accumulator (the prev. kernel and the function being called)
 2. The Prover must prove 5 mock function circuit proofs of size $2^{17}$ and one mock function proof of size $2^{19}$
 3. The Prover must iteratively prove 6 mock kernel circuit proofs
 
@@ -131,7 +133,7 @@ If the block producer has access to more than one physical machine that they can
 
 ### Memory consumption
 
-This is *critical*. Users can tolerate slow proofs, but if Honk consumes too much memory, a user cannot make a proof at all.
+This is _critical_. Users can tolerate slow proofs, but if Honk consumes too much memory, a user cannot make a proof at all.
 
 safari on iPhone will purge tabs that consume more than 1gb of RAM. The WASM memory cap is 4gb which defines the upper limit for an MVP.
 
@@ -142,7 +144,6 @@ Not a critical metric, but the prover time + prover memory metrics are predicate
 ### AVM Prover time
 
 Our goal is to hit main-net with a network that can support 10 transactions per second. We need to estimate how many VM computation steps will be needed per transaction to determine the required speed of the VM Prover. The following uses very conservative estimations due to the difficulty of estimating this.
-
 
 An Ethereum block consists of approximately 1,000 transactions, with a block gas limit of roughly 10 million gas. Basic computational steps in the Ethereum Virtual Machine consume 3 gas. If the entire block gas limit is consumed with basic computation steps (not true but let's assume for a moment), this implies that 1,000 transactions consume 3.33 million computation steps. i.e. 10 transactions per second would require roughly 33,000 steps per second and 3,330 steps per transaction.
 
@@ -161,8 +162,6 @@ If we assume that ~10 seconds is budgeted to the public kernel proof, this would
 
 100 tps requires 1.5 seconds per proof.
 
-
-
 ### AVM Memory consumption
 
 A large AWS instance can consume 128Gb of memory which puts an upper limit for AVM RAM consumption. Ideally consumer-grade hardware can be used to generate AVM proofs i.e. 16 Gb.
@@ -175,6 +174,7 @@ Note: this excludes network coordination costs, latency costs, block constructio
 
 To accomodate the above costs, we assume that we can budget 40% of block production time towards making proofs. Given these constraints, the following table describes maximum allowable proof construction times for a selection of block sizes.
 
+<!-- prettier-ignore -->
 | block size | number of successive 2-to-1 rollup proofs | number of parallel Prover machines required for base layer proofs | time required to construct a rollup proof |
 | --- | --- | --- | --- |
 | $1,024$ | $10$ | $512$ | 4.1s |
@@ -190,4 +190,3 @@ Supporting a proof construction time of 4.1s would enable us to reduce minimum h
 ### 2-to-1 rollup memory consumption
 
 Same rationale as the public VM proof construction time.
-

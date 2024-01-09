@@ -1,9 +1,8 @@
 ---
 title: Diversified and Stealth Accounts
-sidebar_position: 4
 ---
 
-The [keys specification](./specification.md) describes derivation mechanisms for diversified and stealth public keys. However, the protocol requires users to interact with addresses. 
+The [keys specification](./specification.md) describes derivation mechanisms for diversified and stealth public keys. However, the protocol requires users to interact with addresses.
 
 ## Computing Addresses
 
@@ -21,10 +20,10 @@ contract DiversifiedAccount
     private fn entrypoint(payload: action[])
         assert msg_sender == get_owner_address()
         execute(payload)
-    
+
     private fn is_valid(message_hash: Field)
         return get_owner_address().is_valid(message_hash)
-    
+
     internal private get_owner_address()
         let address_preimage = pxe.get_address_preimage(this)
         assert hash(address_preimage) == this

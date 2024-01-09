@@ -1,9 +1,5 @@
 # Private Kernel Circuit - Inner
 
-:::info Disclaimer
-This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
-:::
-
 ## Requirements
 
 Each **inner** kernel iteration processes a private function call and the results of a previous kernel iteration.

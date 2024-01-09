@@ -1,9 +1,5 @@
 # Public Kernel Circuit - Tail
 
-:::info Disclaimer
-This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
-:::
-
 ## Requirements
 
 The **tail** circuit refrains from processing individual public function calls. Instead, it integrates the results of inner public kernel circuit and performs additional verification and processing necessary for generating the final public inputs.

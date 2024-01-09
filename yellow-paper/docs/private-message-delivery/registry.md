@@ -1,7 +1,3 @@
----
-sidebar_position: 4
----
-
 # Registry
 
 The protocol should allow users to express their preferences in terms of encryption and note tagging mechanisms, and also provably advertise their encryption public keys. A canonical registry contract provides an application-level solution to both problems.
@@ -24,17 +20,17 @@ The registry contract exposes functions for setting public keys and encryption m
 
 ```
 contract Registry
-    
+
     public mapping(address => { keys, precompile_address }) registry
-        
+
     public fn set(keys, precompile_address)
         this.do_set(msg_sender, keys, precompile_address)
-        
+
     public fn set_from_preimage(address, keys, precompile_address, ...address_preimage)
         assert address not in registry
         assert hash(keys, precompile_address, ...address_preimage) == address
-        this.set(msg_sender, keys, precompile_address)    
-    
+        this.set(msg_sender, keys, precompile_address)
+
     public fn assert_non_membership(address)
         assert address not in registry
 
@@ -57,7 +53,7 @@ Note that this optimization may also be included natively into the protocol, [pe
 
 While account contracts that belong to individual users have a clear set of public keys to announce, some private contracts may be shared by a group of users, like in a multisig or an escrow contract. In these scenarios, we want all messages intended for the shared contract to actually be delivered to all participants, using the encryption method selected by each.
 
-This can be achieved by having the registry support multiple sets of keys and precompiles for each entry. Applications can then query the registry and obtain a list of recipients, rather than a single one. 
+This can be achieved by having the registry support multiple sets of keys and precompiles for each entry. Applications can then query the registry and obtain a list of recipients, rather than a single one.
 
 The registry limits multi-recipient registrations to no more than `MAX_ENTRIES_PER_ADDRESS` to prevent abuse, since this puts an additional burden on the sender, who needs to emit the same note multiple times, increasing the cost of their transaction.
 

@@ -1,9 +1,5 @@
 # Private Function Circuit
 
-:::info Disclaimer
-This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
-:::
-
 ## Requirements
 
 Private function circuits represent smart contract functions that modify the Aztec private state trees. They serve as untrusted, third-party code that is executed as part of evaluating an Aztec transaction.

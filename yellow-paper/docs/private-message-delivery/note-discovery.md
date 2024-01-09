@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Note Discovery
 
 When users interact with contracts they will generate and publish encrypted notes for other network participants. In order for a user to consume notes that belong to them, they need to identify, retrieve and decrypt them. A simple, privacy-preserving approach to this would be to download all of the notes and attempt decryption. However, the total number of encrypted notes published by the network will be substantial, making it infeasible for some users to do this. Those users will want to utilize a note discovery protocol to privately identify their notes.

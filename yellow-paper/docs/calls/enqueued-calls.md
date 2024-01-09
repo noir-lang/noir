@@ -1,6 +1,3 @@
----
-sidebar_position: 2
----
 # Enqueued calls
 
 Calls from private functions to public functions are asynchronous. Since private and public functions are executed in different domains at different times and in different contexts, as the former are run by the user on a PXE and the latter by the sequencer, it is not possible for a private function to call a public one and await its result. Instead, private functions can _enqueue_ public function calls.

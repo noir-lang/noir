@@ -1,7 +1,3 @@
----
-sidebar_position: 6
----
-
 # Delegate calls
 
 Delegate calls are function calls against a contract class identifier instead of an instance. Any call, synchronous or asynchronous, can be made as a delegate call. The behavior of a delegate call is to execute the function code in the specified class identifier but on the context of the current instance. This opens the door to script-like executions and upgradeable contracts. Delegate calls are based on [EIP7](https://eips.ethereum.org/EIPS/eip-7).

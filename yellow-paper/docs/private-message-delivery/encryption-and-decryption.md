@@ -1,7 +1,3 @@
----
-sidebar_position: 3
----
-
 # Encryption and Decryption
 
 Applications should be able to provably encrypt data for a target user, as part of private message delivery. As stated on the Keys section, we define three types of encrypted data, based on the sender and the recipient, from the perspective of a user:

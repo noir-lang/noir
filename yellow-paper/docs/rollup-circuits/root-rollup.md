@@ -1,6 +1,5 @@
 ---
 title: Root Rollup
-sidebar_position: 4
 ---
 
 The root rollup circuit is our top circuit, it applies the state changes passed through its children and the cross-chain messages. Essentially, it is the last step that allows us to prove that the state transition function $\mathcal{T}(S, B) \mapsto S'$ was applied correctly for a state $S$ and a block $B$. Note, that the root rollup circuit's public inputs do not comprise the block entirely as it would be too costly to verify. Given a `ProvenBlock` and proof a node can derive the public inputs and validate the correctness of the state progression.
@@ -10,8 +9,7 @@ graph LR
 A[RootRollupInputs] --> C[RootRollupCircuit] --> B[RootRollupPublicInputs] --> D[ProvenBlock] --> E[Node]
 ```
 
-For rollup purposes, the node we want to convince of the correctness is the [validating light node](./../contracts/index.md) that we put on L1. We will cover it in more detail in the [cross-chain communication](./../contracts/index.md) section.
-
+For rollup purposes, the node we want to convince of the correctness is the [validating light node](../cross-chain-communication/index.md) that we put on L1. We will cover it in more detail in the [cross-chain communication](../cross-chain-communication/index.md) section.
 
 :::info Squishers
 This might practically happen through a series of "squisher" circuits that will wrap the proof in another proof that is cheaper to verify on-chain. For example, wrapping a ultra-plonk proof in a standard plonk proof.
@@ -88,7 +86,7 @@ class Body {
 }
 Body *-- "m" TxEffect
 
-class ProvenBlock { 
+class ProvenBlock {
     archive: Snapshot
     header: Header
     body: Body
@@ -125,7 +123,7 @@ class ChildRollupData {
 }
 ChildRollupData *-- BaseOrMergeRollupPublicInputs: public_inputs
 
-class RootRollupInputs { 
+class RootRollupInputs {
     l1_to_l2_msgs: List~Fr~
     l1_to_l2_msgs_sibling_path: List~Fr~
     parent: Header,
@@ -155,8 +153,8 @@ def RootRollupCircuit(
     parent: Header,
     parent_sibling_path: List[Fr],
     archive_sibling_path: List[Fr],
-    left: ChildRollupData, 
-    right: ChildRollupData, 
+    left: ChildRollupData,
+    right: ChildRollupData,
 ) -> RootRollupPublicInputs:
     assert left.proof.is_valid(left.public_inputs)
     assert right.proof.is_valid(right.public_inputs)
@@ -170,19 +168,19 @@ def RootRollupCircuit(
 
     # Check that the parent is a valid parent
     assert merkle_inclusion(
-        parent.hash(), 
-        parent_sibling_path, 
-        left.public_inputs.constants.global_variables.block_number, 
+        parent.hash(),
+        parent_sibling_path,
+        left.public_inputs.constants.global_variables.block_number,
         left.public_inputs.constants.last_archive.root
     )
 
     # Update the l1 to l2 msg tree
     l1_to_l2_msg_subtree = MerkleTree(l1_to_l2_msgs)
     l1_to_l2_msg_tree = merkle_insertion(
-        parent.state.l1_to_l2_message_tree, 
-        l1_to_l2_msg_subtree.root, 
-        l1_to_l2_msgs_sibling_path, 
-        L1_TO_L2_SUBTREE_HEIGHT, 
+        parent.state.l1_to_l2_message_tree,
+        l1_to_l2_msg_subtree.root,
+        l1_to_l2_msgs_sibling_path,
+        L1_TO_L2_SUBTREE_HEIGHT,
         L1_To_L2_HEIGHT
     )
 
@@ -201,19 +199,19 @@ def RootRollupCircuit(
 
     archive = merkle_insertion(
         header.last_archive
-        header.hash(), 
-        archive_sibling_path, 
-        0, 
+        header.hash(),
+        archive_sibling_path,
+        0,
         ARCHIVE_HEIGHT
     )
 
     return RootRollupPublicInputs(
-        aggregation_object = 
-            left.public_inputs.aggregation_object + 
+        aggregation_object =
+            left.public_inputs.aggregation_object +
             right.public_inputs.aggregation_object,
         archive = archive,
         header: Header,
     )
 ```
 
-The `RootRollupPublicInputs` can then be used together with `Body` to build a `ProvenBlock` which can be used to convince the [validating light node](./../contracts/index.md) of state progression.
+The `RootRollupPublicInputs` can then be used together with `Body` to build a `ProvenBlock` which can be used to convince the [validating light node](../cross-chain-communication/index.md) of state progression.

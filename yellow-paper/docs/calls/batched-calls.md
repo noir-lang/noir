@@ -1,7 +1,3 @@
----
-sidebar_position: 3
----
-
 # Batched calls
 
 Calls to private functions can be _batched_ instead of executed [synchronously](./sync-calls.md). When executing a batched call to a private function, the function is not executed on the spot, but enqueued for execution at the end of local execution. Once the private call stack has been emptied, all batched execution requests are grouped by target (contract and function selector), and executed via a single call to each target.
@@ -13,7 +9,7 @@ Batched calls are processed by the private kernel circuit. On each kernel circui
 The arguments for the batched call are arranged in an array with one position for each individual call. Each position within the array is a nested array where the first element is the call context for that individual call, followed by the actual arguments of the call. A batched call is expected to return an array of `PrivateCircuitPublicInputs`, where each public input's call context matches the call context from the corresponding individual call. This allows batched delegate calls, where each individual call processed has a context of its own. This can be used to emit logs on behalf of multiple contracts within a single batched call.
 
 <!-- TODO: The above seems to make the kernel circuit unnecessarily more complex, since we now need dedicated kernels that handle arrays of app circuit outputs instead of a single one. However, it is needed for precompiles that need to emit tagged notes on behalf of multiple calling contracts. The other option here is to grant precompiles special privileges to emit an event on behalf of any address, so they just use the call_context.msg_sender from each individual call. But the phrase "special privileges" makes me wary. -->
- 
+
 In pseudocode, the kernel circuit executes the following logic:
 
 ```

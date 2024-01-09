@@ -1,9 +1,8 @@
 ---
 title: Base Rollup
-sidebar_position: 2
 ---
 
-The base rollup circuit is the most complex of the rollup circuits, as it has to interpret the output data of a kernel proof and perform the state updates and transaction validation. While this makes the data structures complex to follow, the goal of the circuit is fairly straight forward: 
+The base rollup circuit is the most complex of the rollup circuits, as it has to interpret the output data of a kernel proof and perform the state updates and transaction validation. While this makes the data structures complex to follow, the goal of the circuit is fairly straight forward:
 
 Take `BaseRollupInputs` as an input value, and transform it to `BaseOrMergeRollupPublicInputs` as an output value while making sure that the validity conditions are met.
 
@@ -86,7 +85,7 @@ class Body {
 }
 Body *-- "m" TxEffect
 
-class ProvenBlock { 
+class ProvenBlock {
     archive: Snapshot
     header: Header
     body: Body
@@ -162,7 +161,7 @@ class TxContext {
 }
 TxContext *-- ContractDeploymentData: contract_deployment_data
 
-class CombinedConstantData { 
+class CombinedConstantData {
     historical_header: Header
     tx_context: TxContext
 }
@@ -240,8 +239,8 @@ def BaseRollupCircuit(
   public_data_tree_root = partial.public_data_tree
   for i in len(kernel_data):
     tx_hash, _c, public_data_tree_root = kernel_checks(
-      kernel_data[i], 
-      constants, 
+      kernel_data[i],
+      constants,
       public_data_tree_root,
       historical_header_membership_witnesses[i],
     )
@@ -260,7 +259,7 @@ def BaseRollupCircuit(
   )
 
   # We can use the sorted nullifiers to simplify batch-insertion
-  # The sorting can be checked with a permutation 
+  # The sorting can be checked with a permutation
   nullifier_snapshot = successor_merkle_batch_insertion(
     partial.nullifier_tree.root,
     [...nullifiers for kernel_data.public_inputs.end.nullifiers in kernel_data],
@@ -303,8 +302,8 @@ def BaseRollupCircuit(
   )
 
 def kernel_checks(
-  kernel: KernelData, 
-  constants: ConstantRollupData, 
+  kernel: KernelData,
+  constants: ConstantRollupData,
   public_data_tree_root: Fr,
   historical_header_membership_witness: HeaderMembershipWitness
 ) -> (Fr[2], Fr[], Fr):
@@ -319,9 +318,9 @@ def kernel_checks(
   assert len(kernel.public_inputs.end.public_call_stack) == 0
 
   assert merkle_inclusion(
-    kernel.constants.historical_header.hash(), 
-    kernel.constants.historical_header.global_variables.block_number, 
-    historical_header_membership_witness, 
+    kernel.constants.historical_header.hash(),
+    kernel.constants.historical_header.global_variables.block_number,
+    historical_header_membership_witness,
     constants.last_archive
   )
 

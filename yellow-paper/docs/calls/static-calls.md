@@ -1,11 +1,9 @@
----
-sidebar_position: 5
----
 # Static calls
 
 [Synchronous calls](./sync-calls.md), both private and public, can be executed as _static_ calls. This means that the called function, and all nested calls within, cannot emit any modifying side effects, such as creating or consuming notes, writing to storage, or emitting events. The purpose of a static call is to query another contract while ensuring that the call will not modify state. Static calls are based on [EIP214](https://eips.ethereum.org/EIPS/eip-214).
 
 In particular, the following fields of the returned `CallStackItem` must be zero or empty in a static call:
+
 - `new_commitments`
 - `new_nullifiers`
 - `nullified_commitments`

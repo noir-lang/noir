@@ -1,9 +1,5 @@
 # High Level Topology
 
-:::info Disclaimer
-This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
-:::
-
 ## Overview
 
 A transaction begins with a call to a private function, which may invoke nested calls to other private and public functions. The entire set of private function calls is executed in a secure environment, and their proofs are validated and aggregated by private kernel circuits. Meanwhile, any public function calls triggered from private functions will be enqueued. The proofs for these calls, along with those from the nested public function calls, are generated and processed through public kernel circuits in any entity possessing the correct contexts.
@@ -131,6 +127,6 @@ A few things to note:
 - An [inner private kernel circuit](./private-kernel-inner.md) won't be required if there is only one private function in a transaction.
 - A [reset private kernel circuit](./private-kernel-reset.md) can be executed between two private kernel circuits to "reset" transient data. The reset process can be repeated as needed.
 - Public functions are "enqueued" when invoked from a private function. Public kernel circuits will be executed after the completion of all private kernel iterations.
-- A [base rollup circuit](../rollup-circuits/base_rollup.md) can accept either a [tail public kernel circuit](./public-kernel-tail.md), or a [tail private kernel circuit](./private-kernel-tail.md) in cases where no public functions are present in the transaction.
-- A [merge rollup circuit](../rollup-circuits/merge_rollup.md) can merge two base rollup circuits or two merge rollup circuits.
-- The final step is the execution of the [root rollup circuit](../rollup-circuits/root_rollup.md), which combines two base rollup circuits or two merge rollup circuits.
+- A [base rollup circuit](../rollup-circuits/base-rollup.md) can accept either a [tail public kernel circuit](./public-kernel-tail.md), or a [tail private kernel circuit](./private-kernel-tail.md) in cases where no public functions are present in the transaction.
+- A [merge rollup circuit](../rollup-circuits/merge-rollup.md) can merge two base rollup circuits or two merge rollup circuits.
+- The final step is the execution of the [root rollup circuit](../rollup-circuits/root-rollup.md), which combines two base rollup circuits or two merge rollup circuits.

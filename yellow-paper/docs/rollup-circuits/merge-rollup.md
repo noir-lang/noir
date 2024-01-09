@@ -1,6 +1,5 @@
 ---
 title: Merge Rollup
-sidebar_position: 3
 ---
 
 The Merge rollup circuit is our in-between circuit, it doesn't need to perform any state updates, but mainly check the consistency of its inputs.
@@ -61,7 +60,7 @@ class ChildRollupData {
 }
 ChildRollupData *-- BaseOrMergeRollupPublicInputs: public_inputs
 
-class MergeRollupInputs { 
+class MergeRollupInputs {
     left: ChildRollupData
     right: ChildRollupData
 }
@@ -73,7 +72,7 @@ MergeRollupInputs *-- ChildRollupData: right
 
 ```python
 def MergeRollupCircuit(
-    left: ChildRollupData, 
+    left: ChildRollupData,
     right: ChildRollupData
 ) -> BaseOrMergeRollupPublicInputs:
     assert left.proof.is_valid(left.public_inputs)

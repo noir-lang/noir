@@ -1,7 +1,3 @@
----
-sidebar_position: 1
----
-
 # Editorial guidelines
 
 This "yellow paper" is a first attempt to describe the Aztec protocol in its entirety.
@@ -25,15 +21,18 @@ The details should be sufficient for some other engineering team to implement th
 Some of the info we need to populate this document might have already been written in the top-level `docs/` dir of the monorepo. But the target audience is different. Reduce verbose prose. Remove monorepo code snippets (but note that simple pseudocode snippets to explain a protocol concept are fine). Don't describe components of the sandbox (that's an implementation detail and doesn't belong in this doc).
 
 ## Diagrams
-To increase the probability of diagrams being up to date we encourage you to write them in `mermaid`. Mermaid is a markdown-like language for generating diagrams and is supported by Docusaurus, so it will be rendered automatically for you. 
+
+To increase the probability of diagrams being up to date we encourage you to write them in `mermaid`. Mermaid is a markdown-like language for generating diagrams and is supported by Docusaurus, so it will be rendered automatically for you.
 You simply create a codeblock specifying the language as `mermaid` and write your diagram in the codeblock. For example:
-```txt
+
+````txt
 ```mermaid
 graph LR
     A --> B
     B --> C
     C --> A
 ```
+````
 
 ```mermaid
 graph LR
@@ -41,11 +40,12 @@ graph LR
     B --> C
     C --> A
 ```
+
 Mermaid supports multiple types of diagrams, so finding one that suits your needs should be possible. Consult their [documentation](https://mermaid.js.org/intro/getting-started.html) or try out their [live editor](https://mermaid.live/) to see if they've got what you need.
 
 When writing class diagrams, we recommend using the `classDiagram` type and composition arrows `*--` to represent extensions. Also for the sake of readability, add all the components in the class itself, including composite types. For example:
 
-```txt
+````txt
 ```mermaid
 classDiagram
     class A{
@@ -63,6 +63,7 @@ classDiagram
     C *-- A: a
     C *-- B: b
 ```
+````
 
 ```mermaid
 classDiagram
@@ -83,10 +84,10 @@ classDiagram
 ```
 
 ### Mermaid doesn't cover my case, what should I do?
+
 If mermaid doesn't cover your case, please add both the rendered image and the source code to the documentation. Most of the tools for diagramming can export a non-rendered representation that can then be updated by other people. Please name it such that it is clear what tool was used.
 
-This should allow us to keep the diagrams up to date, by allowing others to update them. 
-
+This should allow us to keep the diagrams up to date, by allowing others to update them.
 
 ## For each protocol feature
 

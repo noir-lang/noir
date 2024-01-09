@@ -6,6 +6,7 @@ Transactions are initiated via a _transaction execution request_ sent from the u
 
 A transaction execution request has the following structure. Note that, since Aztec uses full native account abstraction where every account is backed by a contract, a transaction execution request only needs to provide the contract address, function, and arguments of the initial call; nonces and signatures are arguments to the call, and thus opaque to the protocol.
 
+<!-- prettier-ignore -->
 | Field | Type | Description |
 |----------|----------|----------|
 | origin        | AztecAddress    | Address of the contract where the transaction is initiated.  |
@@ -25,7 +26,6 @@ In terms of circuitry, the simulation step must execute all application circuits
 
 ## Proving step
 
-The proving step is similar to the simulation step, though witnesses are generated for all circuits and proven. Note that it is not necessary to execute the simulation step before the proving step, though it is desirable in order to provide the user with info on their transaction and catch any failed assertions early. 
+The proving step is similar to the simulation step, though witnesses are generated for all circuits and proven. Note that it is not necessary to execute the simulation step before the proving step, though it is desirable in order to provide the user with info on their transaction and catch any failed assertions early.
 
 The output of the proving step is a [_transaction_](./tx-object.md) object with a valid _proof_ associated, ready to be broadcasted to the network.
-

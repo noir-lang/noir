@@ -8,15 +8,17 @@ Contract classes simplify the process of reusing code by enshrining implementati
 
 :::info
 Read the following discussions for additional context:
+
 - [Abstracting contract deployment](https://forum.aztec.network/t/proposal-abstracting-contract-deployment/2576)
 - [Implementing contract upgrades](https://forum.aztec.network/t/implementing-contract-upgrades/2570)
 - [Contract classes, upgrades, and default accounts](https://forum.aztec.network/t/contract-classes-upgrades-and-default-accounts/433)
-:::
+  :::
 
 ## Structure
 
 The structure of a contract class is defined as:
 
+<!-- prettier-ignore -->
 | Field | Type | Description |
 |----------|----------|----------|
 | version | u8 | Version identifier. Initially one, bumped for any changes to the contract class struct. |
@@ -32,6 +34,7 @@ The structure of a contract class is defined as:
 
 ### Private Function
 
+<!-- prettier-ignore -->
 | Field | Type | Description |
 |----------|----------|----------|
 | function_selector | u32 | Selector of the function. Calculated as the hash of the method name and arguments. |
@@ -42,6 +45,7 @@ The structure of a contract class is defined as:
 
 ### Public and Unconstrained Function
 
+<!-- prettier-ignore -->
 | Field | Type | Description |
 |----------|----------|----------|
 | function_selector | u32 | Selector of the function. Calculated as the hash of the method name and arguments. |

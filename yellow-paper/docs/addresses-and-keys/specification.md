@@ -1,6 +1,5 @@
 ---
 title: Specification
-sidebar_position: 1
 description: Specification of address format in the protocol, default privacy keys format and derivation, and nullifier derivation.
 ---
 
@@ -93,10 +92,6 @@ $$
 $$
 
 ## Requirements for Keys
-
-:::info Disclaimer
-This is a draft. These requirements need to be considered by the wider team, and might change significantly before a mainnet release.
-:::
 
 ### Scenario
 
@@ -594,6 +589,7 @@ Bob wants to send himself a private message (e.g. a record of the outgoing notes
 > Note: rather than copying the 'shared secret' approach of Bob sending to Alice, we can cut a corner (because Bob is the sender and recipient, and so knows his own secrets).
 
 > Note: if Bob has sent a private message to Alice, and he also wants to send himself a corresponding message:
+>
 > - he can likely re-use the ephemeral keypairs for himself.
 > - he can include $\esk$ in the plaintext that he sends to himself, as a way of reducing the size of his $\ciphertext$ (since the $\esk$ will enable him to access all the information in the ciphertext that was sent to Alice).
 

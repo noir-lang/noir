@@ -4,7 +4,7 @@ title: Transactions
 
 # Transactions
 
-A transaction is the minimal action that changes the state of the network. Transactions in Aztec have a private and a public component, where the former is executed in the user's private execution environment (PXE) and the latter by the sequencer. 
+A transaction is the minimal action that changes the state of the network. Transactions in Aztec have a private and a public component, where the former is executed in the user's private execution environment (PXE) and the latter by the sequencer.
 
 A transaction is also split into three phases to [support authorization abstraction and fee payments](../gas-and-fees/gas-and-fees.md#fees): a validation and fee preparation phase, a main execution phase, and fee distribution phase.
 

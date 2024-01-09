@@ -1,8 +1,0 @@
-{
-  "label": "Cryptography",
-  "position": 10,
-  "link": {
-    "type": "generated-index",
-    "description": "Aztec cryptography tech stack"
-  }
-}

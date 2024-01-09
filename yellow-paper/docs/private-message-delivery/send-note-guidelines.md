@@ -1,7 +1,3 @@
----
-sidebar_position: 5
----
-
 # Guidelines
 
 Application contracts are in control of creating, encrypting, tagging, and broadcasting private notes to users. As such, each application is free to follow whatever scheme it prefers, choosing to override user preferences or use custom encryption and note tagging mechanisms. However, this may hinder composability, or not be compatible with existing wallet software.
@@ -10,7 +6,7 @@ In order to satisfy the requirements established for private message delivery, w
 
 ## Provably Sending a Note
 
-To provably encrypt, tag, and send a note to a recipient, applications should first check the registry. This ensures that the latest preferences for the recipient are honored, in case they rotated their keys. The registry should be queried via a direct storage read and not a function call, in order to save an additional recursion which incurs in extra proving time. 
+To provably encrypt, tag, and send a note to a recipient, applications should first check the registry. This ensures that the latest preferences for the recipient are honored, in case they rotated their keys. The registry should be queried via a direct storage read and not a function call, in order to save an additional recursion which incurs in extra proving time.
 
 If the recipient is not in the registry, then the app should allow the sender to provide the recipient's public key from the recipient's address preimage. This allows users who have never interacted with the chain to receive encrypted notes, though it requires a collaborative sender.
 
@@ -24,11 +20,11 @@ The following pseudocode covers how to provably send a note to a recipient, give
 
 ```
 fn provably_send_note(recipient, note, encryption_type)
-    
+
     let block_number = context.latest_block_number
     let public_state_root = context.roots[block_number].public_state
     let storage_slot = calculate_slot(registry_address, registry_base_slot, recipient)
-    
+
     let public_keys, precompile_address
     if storage_slot in public_state_root
         context.update_tx_max_valid_block_number(block_number + N)
@@ -40,7 +36,7 @@ fn provably_send_note(recipient, note, encryption_type)
     else
         registry_address.assert_non_membership(recipient)
         return
-        
+
     batch_private_delegate_call(precompile_address.encrypt_and_broadcast, { public_keys, encryption_type, recipient, note })
 ```
 
@@ -52,7 +48,7 @@ This flexibility is useful in scenarios where the sender can be trusted to make 
 
 ## Delivering Messages for Self
 
-Applications may encrypt, tag, and broadcast messages for the same user who's initiating a transaction, using the outgoing or the incoming internal encryption key. This allows a user to have an on-chain backup of their private transaction history, which they can use to recover state in case they lose their private database. In this scenario, unconstrained message delivery is recommended, since the sender is incentivized to correctly encrypt message for themselves. 
+Applications may encrypt, tag, and broadcast messages for the same user who's initiating a transaction, using the outgoing or the incoming internal encryption key. This allows a user to have an on-chain backup of their private transaction history, which they can use to recover state in case they lose their private database. In this scenario, unconstrained message delivery is recommended, since the sender is incentivized to correctly encrypt message for themselves.
 
 Applications may also choose to query the user wallet software via an oracle call, so the wallet can decide whether to broadcast the note to self on chain based on user preferences. This allows users to save on gas costs by avoiding unnecessary note broadcasts if they rely on other backup strategies.
 

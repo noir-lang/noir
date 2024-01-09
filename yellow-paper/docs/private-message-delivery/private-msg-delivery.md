@@ -1,7 +1,3 @@
----
-sidebar_position: 1
----
-
 # Private Message Delivery
 
 Maintaining the core tenet of privacy within the Aztec Network imposes a number of requirements related to the transfer of notes from one user to another. If Alice executes a function that generates a note for Bob:

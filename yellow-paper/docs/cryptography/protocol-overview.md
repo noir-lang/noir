@@ -44,7 +44,7 @@ Verification gas costs are lower for UltraPlonk vs Honk due to the following fac
 1. Fewer precomputed selector polynomials, reducing Verifier G1 scalar multiplications
 2. UltraPlonk does not use multilinear polynomials, which removes 1 pairing from the Verifier, as well as O(logn) G1 scalar multiplications.
 
-The following sections list the protocol components required to implement client-side IVC. We make heavy use of folding schemes to build an IVC scheme. A folding scheme  enables instances of a relation to be folded into a single instance of the original relation, but in a "relaxed" form. Depending on the scheme, restrictions may be placed on the instances that can be folded.
+The following sections list the protocol components required to implement client-side IVC. We make heavy use of folding schemes to build an IVC scheme. A folding scheme enables instances of a relation to be folded into a single instance of the original relation, but in a "relaxed" form. Depending on the scheme, restrictions may be placed on the instances that can be folded.
 
 The main two families of folding schemes are derived from the [Nova](https://eprint.iacr.org/2021/370) protocol and the [Protostar](https://eprint.iacr.org/2023/620) protocol respectively.
 
@@ -62,7 +62,7 @@ The "Fold" Prover/Verifier validates that `k` instances of a defined relation (i
 
 #### Protogalaxy Decider
 
-The "Decider" Prover/Verifier validate whether an accumulator instance correctly satisfies the accumulator relation. The accumulator being satisfiable inductively shows that all instances that have been folded were satisfied as well. (additional protocol checks are required to reason about *which* instances have been folded into the accumulator. See the [IVC specification](https://hackmd.io/h0yTcOHiQWeeTXnxTQhTNQ?view) for more information. (note to zac: put this in the yellow paper!)
+The "Decider" Prover/Verifier validate whether an accumulator instance correctly satisfies the accumulator relation. The accumulator being satisfiable inductively shows that all instances that have been folded were satisfied as well. (additional protocol checks are required to reason about _which_ instances have been folded into the accumulator. See the [IVC specification](https://hackmd.io/h0yTcOHiQWeeTXnxTQhTNQ?view) for more information. (note to zac: put this in the yellow paper!)
 
 ## Goblin Plonk
 
@@ -78,11 +78,11 @@ This subprotocol aggregates deferred computations from two independent instances
 
 #### Elliptic Curve Virtual Machine (ECCVM) Subprotocol
 
-The ECCVM is a Honk circuit with a custom circuit arithmetisation, designed to optimally evaluate elliptic curve arithmetic computations that have been deferred. It is defined over the Grumpkin elliptic curve.  
+The ECCVM is a Honk circuit with a custom circuit arithmetisation, designed to optimally evaluate elliptic curve arithmetic computations that have been deferred. It is defined over the Grumpkin elliptic curve.
 
 #### Translator Subprotocol
 
-The Translator is a Honk circuit, defined over BN254, with a custom circuit arithmetisation, designed to validate that the input commitments of an ECCVM circuit align with the delegated computations described by a Goblin Plonk transcript commitment.  
+The Translator is a Honk circuit, defined over BN254, with a custom circuit arithmetisation, designed to validate that the input commitments of an ECCVM circuit align with the delegated computations described by a Goblin Plonk transcript commitment.
 
 ## Plonk Data Bus
 
@@ -94,7 +94,7 @@ The [Plonk Data Bus](https://aztecprotocol.slack.com/files/U8Q1VAX6Y/F05G2B971FY
 
 # Polynomial Commitment Schemes
 
-The UltraPlonk, Honk, Goblin Plonk and Plonk Data Bus protocols utilize Polynomial Interactive Oracle Proofs as a core component, thus requiring the use of polynomial commitment schemes (PCS).  
+The UltraPlonk, Honk, Goblin Plonk and Plonk Data Bus protocols utilize Polynomial Interactive Oracle Proofs as a core component, thus requiring the use of polynomial commitment schemes (PCS).
 
 UltraPlonk and Honk utilize multilinear PCS. The Plonk Data Bus and Goblin Plonk also utilize univariate PCS.
 

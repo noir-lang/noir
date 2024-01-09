@@ -2,10 +2,6 @@
 title: Bytecode
 ---
 
-:::info Disclaimer
-This is a draft. The public VM and brillig are under heavy development, and specific details about how they are compiled and their bytecode might change in the future.
-:::
-
 This section describes how contracts are represented within the protocol for execution.
 
 In the context of Aztec, a contract is a set of functions which can be of one of three types:
