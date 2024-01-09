@@ -117,7 +117,10 @@ const nodeConfig: webpack.Configuration = {
     rules: [
       {
         test: /.c?ts$/,
-        use: 'ts-loader',
+        loader: 'ts-loader',
+        options: {
+          configFile: 'tsconfig.webpack.json',
+        },
         exclude: /node_modules/,
       },
       {

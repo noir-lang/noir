@@ -16,8 +16,5 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "allowJs": true,
-    "paths": {
-      "*": ["./dist/types/*"]
-    }
   }
 }
