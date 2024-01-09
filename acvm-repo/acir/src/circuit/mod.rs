@@ -99,7 +99,7 @@ impl FromStr for OpcodeLocation {
                     let brillig_index = parts[1].parse()?;
                     Ok(OpcodeLocation::Brillig { acir_index, brillig_index })
                 }
-                _ => unreachable!(),
+                _ => unreachable!("`OpcodeLocation` has too many components"),
             }
         }
 

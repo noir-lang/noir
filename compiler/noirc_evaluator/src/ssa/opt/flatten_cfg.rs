@@ -1102,7 +1102,7 @@ mod test {
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
             Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
-            _ => unreachable!(),
+            _ => unreachable!("Should have terminator instruction"),
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
@@ -1473,7 +1473,7 @@ mod test {
                     None => unreachable!("Expected constant 200 for return value"),
                 }
             }
-            _ => unreachable!(),
+            _ => unreachable!("Should have terminator instruction"),
         }
     }
 }
