@@ -61,7 +61,7 @@ poly_triple serialize_arithmetic_gate(Circuit::Expression const& arg)
     return pt;
 }
 
-void handle_arithmetic(Circuit::Opcode::Arithmetic const& arg, acir_format& af)
+void handle_arithmetic(Circuit::Opcode::AssertZero const& arg, acir_format& af)
 {
     af.constraints.push_back(serialize_arithmetic_gate(arg.value));
 }
@@ -269,7 +269,7 @@ acir_format circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
         std::visit(
             [&](auto&& arg) {
                 using T = std::decay_t<decltype(arg)>;
-                if constexpr (std::is_same_v<T, Circuit::Opcode::Arithmetic>) {
+                if constexpr (std::is_same_v<T, Circuit::Opcode::AssertZero>) {
                     handle_arithmetic(arg, af);
                 } else if constexpr (std::is_same_v<T, Circuit::Opcode::BlackBoxFuncCall>) {
                     handle_blackbox_func_call(arg, af);

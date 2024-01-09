@@ -805,12 +805,12 @@ struct MemOp {
 
 struct Opcode {
 
-    struct Arithmetic {
+    struct AssertZero {
         Circuit::Expression value;
 
-        friend bool operator==(const Arithmetic&, const Arithmetic&);
+        friend bool operator==(const AssertZero&, const AssertZero&);
         std::vector<uint8_t> bincodeSerialize() const;
-        static Arithmetic bincodeDeserialize(std::vector<uint8_t>);
+        static AssertZero bincodeDeserialize(std::vector<uint8_t>);
     };
 
     struct BlackBoxFuncCall {
@@ -856,7 +856,7 @@ struct Opcode {
         static MemoryInit bincodeDeserialize(std::vector<uint8_t>);
     };
 
-    std::variant<Arithmetic, BlackBoxFuncCall, Directive, Brillig, MemoryOp, MemoryInit> value;
+    std::variant<AssertZero, BlackBoxFuncCall, Directive, Brillig, MemoryOp, MemoryInit> value;
 
     friend bool operator==(const Opcode&, const Opcode&);
     std::vector<uint8_t> bincodeSerialize() const;
@@ -5109,7 +5109,7 @@ Circuit::Opcode serde::Deserializable<Circuit::Opcode>::deserialize(Deserializer
 
 namespace Circuit {
 
-inline bool operator==(const Opcode::Arithmetic& lhs, const Opcode::Arithmetic& rhs)
+inline bool operator==(const Opcode::AssertZero& lhs, const Opcode::AssertZero& rhs)
 {
     if (!(lhs.value == rhs.value)) {
         return false;
@@ -5117,17 +5117,17 @@ inline bool operator==(const Opcode::Arithmetic& lhs, const Opcode::Arithmetic& 
     return true;
 }
 
-inline std::vector<uint8_t> Opcode::Arithmetic::bincodeSerialize() const
+inline std::vector<uint8_t> Opcode::AssertZero::bincodeSerialize() const
 {
     auto serializer = serde::BincodeSerializer();
-    serde::Serializable<Opcode::Arithmetic>::serialize(*this, serializer);
+    serde::Serializable<Opcode::AssertZero>::serialize(*this, serializer);
     return std::move(serializer).bytes();
 }
 
-inline Opcode::Arithmetic Opcode::Arithmetic::bincodeDeserialize(std::vector<uint8_t> input)
+inline Opcode::AssertZero Opcode::AssertZero::bincodeDeserialize(std::vector<uint8_t> input)
 {
     auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<Opcode::Arithmetic>::deserialize(deserializer);
+    auto value = serde::Deserializable<Opcode::AssertZero>::deserialize(deserializer);
     if (deserializer.get_buffer_offset() < input.size()) {
         throw_or_abort("Some input bytes were not read");
     }
@@ -5138,7 +5138,7 @@ inline Opcode::Arithmetic Opcode::Arithmetic::bincodeDeserialize(std::vector<uin
 
 template <>
 template <typename Serializer>
-void serde::Serializable<Circuit::Opcode::Arithmetic>::serialize(const Circuit::Opcode::Arithmetic& obj,
+void serde::Serializable<Circuit::Opcode::AssertZero>::serialize(const Circuit::Opcode::AssertZero& obj,
                                                                  Serializer& serializer)
 {
     serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
@@ -5146,9 +5146,9 @@ void serde::Serializable<Circuit::Opcode::Arithmetic>::serialize(const Circuit::
 
 template <>
 template <typename Deserializer>
-Circuit::Opcode::Arithmetic serde::Deserializable<Circuit::Opcode::Arithmetic>::deserialize(Deserializer& deserializer)
+Circuit::Opcode::AssertZero serde::Deserializable<Circuit::Opcode::AssertZero>::deserialize(Deserializer& deserializer)
 {
-    Circuit::Opcode::Arithmetic obj;
+    Circuit::Opcode::AssertZero obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
