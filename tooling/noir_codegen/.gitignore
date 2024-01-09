@@ -1,5 +1,5 @@
 crs
 lib
 
-!test/*/target
 test/codegen
+test/test_lib/export
