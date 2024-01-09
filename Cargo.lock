@@ -2801,7 +2801,6 @@ dependencies = [
  "noirc_printable_type",
  "owo-colors",
  "rexpect",
- "rustc_version",
  "serde_json",
  "tempfile",
  "test-binary",
