@@ -33,7 +33,9 @@ describe('guides/dapp/testing', () => {
         pxe = createPXEClient(PXE_URL);
         owner = await createAccount(pxe);
         recipient = await createAccount(pxe);
-        token = await TokenContract.deploy(owner, owner.getCompleteAddress()).send().deployed();
+        token = await TokenContract.deploy(owner, owner.getCompleteAddress(), 'TokenName', 'TokenSymbol', 18)
+          .send()
+          .deployed();
       }, 60_000);
 
       it('increases recipient funds on mint', async () => {
@@ -66,7 +68,9 @@ describe('guides/dapp/testing', () => {
         // docs:start:use-existing-wallets
         pxe = createPXEClient(PXE_URL);
         [owner, recipient] = await getDeployedTestAccountsWallets(pxe);
-        token = await TokenContract.deploy(owner, owner.getCompleteAddress()).send().deployed();
+        token = await TokenContract.deploy(owner, owner.getCompleteAddress(), 'TokenName', 'TokenSymbol', 18)
+          .send()
+          .deployed();
         // docs:end:use-existing-wallets
       }, 30_000);
 
@@ -124,7 +128,9 @@ describe('guides/dapp/testing', () => {
         owner = await createAccount(pxe);
         recipient = await createAccount(pxe);
         testContract = await TestContract.deploy(owner).send().deployed();
-        token = await TokenContract.deploy(owner, owner.getCompleteAddress()).send().deployed();
+        token = await TokenContract.deploy(owner, owner.getCompleteAddress(), 'TokenName', 'TokenSymbol', 18)
+          .send()
+          .deployed();
 
         const ownerAddress = owner.getAddress();
         const mintAmount = 100n;

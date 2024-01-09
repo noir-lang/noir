@@ -50,6 +50,8 @@ function encodeArg(arg: string, abiType: ABIType, name: string): any {
     } else {
       throw Error(`Invalid boolean value passed for ${name}: ${arg}.`);
     }
+  } else if (kind === 'string') {
+    return arg;
   } else if (kind === 'array') {
     let arr;
     const res = [];

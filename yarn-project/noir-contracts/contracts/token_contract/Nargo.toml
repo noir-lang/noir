@@ -7,5 +7,6 @@ type = "contract"
 [dependencies]
 aztec = { path = "../../../aztec-nr/aztec" }
 safe_math = { path = "../../../aztec-nr/safe-math" }
+compressed_string = {path = "../../../aztec-nr/compressed-string"}
 authwit = { path = "../../../aztec-nr/authwit" }
 protocol_types = { path = "../../../noir-protocol-circuits/src/crates/types" }

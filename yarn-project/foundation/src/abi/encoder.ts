@@ -68,6 +68,13 @@ class ArgumentEncoder {
           this.encodeArgument(abiType.type, arg[i], `${name}[${i}]`);
         }
         break;
+      case 'string':
+        for (let i = 0; i < abiType.length; i += 1) {
+          // If the string is shorter than the defined length, pad it with 0s.
+          const toInsert = i < arg.length ? BigInt((arg as string).charCodeAt(i)) : 0n;
+          this.flattened.push(new Fr(toInsert));
+        }
+        break;
       case 'struct': {
         // If the abi expects a struct like { address: Field } and the supplied arg does not have
         // an address field in it, we try to encode it as if it were a field directly.
@@ -98,7 +105,7 @@ class ArgumentEncoder {
         this.flattened.push(new Fr(arg));
         break;
       default:
-        throw new Error(`Unsupported type: ${abiType.kind}`);
+        throw new Error(`Unsupported type: ${abiType}`);
     }
   }
 

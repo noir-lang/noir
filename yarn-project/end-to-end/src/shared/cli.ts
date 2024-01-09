@@ -130,7 +130,7 @@ export const cliTestSuite = (
       const ownerAddress = AztecAddress.fromString(foundAddress!);
 
       debug('Deploy Token Contract using created account.');
-      await run(`deploy TokenContractArtifact --salt 0 --args ${ownerAddress}`);
+      await run(`deploy TokenContractArtifact --salt 0 --args ${ownerAddress} 'TokenName' 'TKN' 18`);
       const loggedAddress = findInLogs(/Contract\sdeployed\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
       expect(loggedAddress).toBeDefined();
       contractAddress = AztecAddress.fromString(loggedAddress!);

@@ -13,7 +13,10 @@ async function main() {
   const [ownerWallet] = await getInitialTestAccountsWallets(pxe);
   const ownerAddress = ownerWallet.getCompleteAddress();
 
-  const token = await Contract.deploy(ownerWallet, TokenContractArtifact, [ownerAddress]).send().deployed();
+  const token = await Contract.deploy(ownerWallet, TokenContractArtifact, [ownerAddress, 'TokenName', 'TKN', 18])
+    .send()
+    .deployed();
+
   console.log(`Token deployed at ${token.address.toString()}`);
 
   const addresses = { token: token.address.toString() };

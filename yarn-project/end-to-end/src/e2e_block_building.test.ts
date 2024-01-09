@@ -80,7 +80,7 @@ describe('e2e_block_building', () => {
 
       // Deploy a contract in the first transaction
       // In the same block, call a public method on the contract
-      const deployer = TokenContract.deploy(owner, owner.getCompleteAddress());
+      const deployer = TokenContract.deploy(owner, owner.getCompleteAddress(), 'TokenName', 'TokenSymbol', 18);
       await deployer.create();
 
       // We can't use `TokenContract.at` to call a function because it checks the contract is deployed

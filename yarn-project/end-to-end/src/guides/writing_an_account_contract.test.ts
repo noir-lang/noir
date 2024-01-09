@@ -64,7 +64,7 @@ describe('guides/writing_an_account_contract', () => {
     logger(`Deployed account contract at ${address}`);
 
     // docs:start:account-contract-works
-    const token = await TokenContract.deploy(wallet, { address }).send().deployed();
+    const token = await TokenContract.deploy(wallet, { address }, 'TokenName', 'TokenSymbol', 18).send().deployed();
     logger(`Deployed token contract at ${token.address}`);
 
     const secret = Fr.random();

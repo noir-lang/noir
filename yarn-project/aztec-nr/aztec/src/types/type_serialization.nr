@@ -1,5 +1,6 @@
 mod bool_serialization;
 mod field_serialization;
+mod u8_serialization;
 mod u32_serialization;
 mod address_serialization;
 

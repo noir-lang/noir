@@ -25,6 +25,53 @@ describe('abi/encoder', () => {
     expect(encodeArguments(abi, [field])).toEqual([field]);
   });
 
+  it('serializes arrays of fields', () => {
+    const abi: FunctionAbi = {
+      name: 'constructor',
+      functionType: FunctionType.SECRET,
+      isInternal: false,
+      parameters: [
+        {
+          name: 'owner',
+          type: {
+            kind: 'array',
+            length: 2,
+            type: { kind: 'field' },
+          },
+          visibility: ABIParameterVisibility.SECRET,
+        },
+      ],
+      returnTypes: [],
+    };
+
+    const arr = [Fr.random(), Fr.random()];
+    expect(encodeArguments(abi, [arr])).toEqual(arr);
+  });
+
+  it('serializes string', () => {
+    const abi: FunctionAbi = {
+      name: 'constructor',
+      functionType: FunctionType.SECRET,
+      isInternal: false,
+      parameters: [
+        {
+          name: 'owner',
+          type: {
+            kind: 'string',
+            length: 4,
+          },
+          visibility: ABIParameterVisibility.SECRET,
+        },
+      ],
+      returnTypes: [],
+    };
+
+    const str = 'abc';
+    // As bigints padded with 0 for length 4. ("a" = 97, "b" = 98, "c" = 99, 0)
+    const expected = [new Fr(97), new Fr(98), new Fr(99), new Fr(0)];
+    expect(encodeArguments(abi, [str])).toEqual(expected);
+  });
+
   it.each(['AztecAddress', 'EthAddress'])('accepts address instance for %s structs', (structType: string) => {
     const abi: FunctionAbi = {
       name: 'constructor',

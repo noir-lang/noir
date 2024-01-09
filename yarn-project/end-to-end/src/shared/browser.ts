@@ -242,7 +242,7 @@ export const browserTestSuite = (
             pxe,
             TokenContractArtifact,
             (a: AztecJs.AztecAddress) => Contract.at(a, TokenContractArtifact, owner),
-            [owner.getCompleteAddress()],
+            [owner.getCompleteAddress(), 'TokenName', 'TKN', 18],
           ).send();
           const { contract: token, txHash } = await tx.wait();
 

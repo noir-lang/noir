@@ -39,7 +39,7 @@ describe('e2e_cheat_codes', () => {
     rollupAddress = deployL1ContractsValues.l1ContractAddresses.rollupAddress;
     admin = accounts[0];
 
-    token = await TokenContract.deploy(wallet, admin).send().deployed();
+    token = await TokenContract.deploy(wallet, admin, 'TokenName', 'TokenSymbol', 18).send().deployed();
   }, 100_000);
 
   afterAll(() => teardown());

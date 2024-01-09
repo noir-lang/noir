@@ -33,7 +33,7 @@ async function main() {
   logger(`Created Alice and Bob accounts: ${alice.address.toString()}, ${bob.address.toString()}`);
 
   logger('Deploying Token...');
-  const token = await TokenContract.deploy(aliceWallet, alice).send().deployed();
+  const token = await TokenContract.deploy(aliceWallet, alice, 'TokenName', 'TokenSymbol', 18).send().deployed();
   logger('Token deployed');
 
   // Create the contract abstraction and link it to Alice's and Bob's wallet for future signing

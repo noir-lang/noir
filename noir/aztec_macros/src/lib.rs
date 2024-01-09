@@ -620,7 +620,21 @@ fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
                     UnresolvedTypeData::Integer(..) | UnresolvedTypeData::Bool => {
                         add_cast_to_hasher(identifier)
                     }
-                    _ => unreachable!("[Aztec Noir] Provided parameter type is not supported"),
+                    UnresolvedTypeData::String(..) => {
+                        let (var_bytes, id) = str_to_bytes(identifier);
+                        injected_expressions.push(var_bytes);
+                        add_array_to_hasher(
+                            &id,
+                            &UnresolvedType {
+                                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, 32),
+                                span: None,
+                            },
+                        )
+                    }
+                    _ => panic!(
+                        "[Aztec Noir] Provided parameter type: {:?} is not supported",
+                        unresolved_type
+                    ),
                 };
                 injected_expressions.push(expression);
             }
@@ -907,6 +921,21 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
         "add_multiple",        // method name
         vec![serialized_call], // args
     )))
+}
+
+fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
+    // let identifier_as_bytes = identifier.as_bytes();
+    let var = variable_ident(identifier.clone());
+    let contents = if let ExpressionKind::Variable(p) = &var.kind {
+        p.segments.first().cloned().unwrap_or_else(|| panic!("No segments")).0.contents
+    } else {
+        panic!("Unexpected identifier type")
+    };
+    let bytes_name = format!("{}_bytes", contents);
+    let var_bytes = assignment(&bytes_name, method_call(var, "as_bytes", vec![]));
+    let id = Ident::new(bytes_name, Span::default());
+
+    (var_bytes, id)
 }
 
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {

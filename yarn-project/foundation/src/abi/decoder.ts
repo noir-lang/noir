@@ -43,8 +43,15 @@ class ReturnValuesDecoder {
         }
         return struct;
       }
+      case 'string': {
+        const array = [];
+        for (let i = 0; i < abiType.length; i += 1) {
+          array.push(this.getNextField().toBigInt());
+        }
+        return array;
+      }
       default:
-        throw new Error(`Unsupported type: ${abiType.kind}`);
+        throw new Error(`Unsupported type: ${abiType}`);
     }
   }
 
@@ -114,10 +121,12 @@ export class FunctionSignatureDecoder {
         return 'bool';
       case 'array':
         return `[${this.getParameterType(param.type)};${param.length}]`;
+      case 'string':
+        return `str<${param.length}>`;
       case 'struct':
         return `(${param.fields.map(field => `${this.decodeParameter(field)}`).join(this.separator)})`;
       default:
-        throw new Error(`Unsupported type: ${param.kind}`);
+        throw new Error(`Unsupported type: ${param}`);
     }
   }
 

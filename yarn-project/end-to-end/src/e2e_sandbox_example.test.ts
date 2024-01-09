@@ -61,7 +61,7 @@ describe('e2e_sandbox_example', () => {
     logger(`Deploying token contract...`);
 
     // Deploy the contract and set Alice as the admin while doing so
-    const contract = await TokenContract.deploy(aliceWallet, alice).send().deployed();
+    const contract = await TokenContract.deploy(aliceWallet, alice, 'TokenName', 'TokenSymbol', 18).send().deployed();
     logger(`Contract successfully deployed at address ${contract.address.toShortString()}`);
 
     // Create the contract abstraction and link it to Alice's wallet for future signing

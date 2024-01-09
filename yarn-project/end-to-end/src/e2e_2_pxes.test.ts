@@ -91,7 +91,7 @@ describe('e2e_2_pxes', () => {
 
   const deployTokenContract = async (initialAdminBalance: bigint, admin: AztecAddress, pxe: PXE) => {
     logger(`Deploying Token contract...`);
-    const contract = await TokenContract.deploy(walletA, admin).send().deployed();
+    const contract = await TokenContract.deploy(walletA, admin, 'TokenName', 'TokenSymbol', 18).send().deployed();
 
     if (initialAdminBalance > 0n) {
       await mintTokens(contract, admin, initialAdminBalance, pxe);

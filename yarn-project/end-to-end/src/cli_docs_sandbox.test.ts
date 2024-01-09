@@ -112,6 +112,7 @@ LendingContractArtifact
 ParentContractArtifact
 PendingCommitmentsContractArtifact
 PriceFeedContractArtifact
+ReaderContractArtifact
 SchnorrAccountContractArtifact
 SchnorrHardcodedAccountContractArtifact
 SchnorrSingleKeyAccountContractArtifact
@@ -255,7 +256,7 @@ Accounts found:
     // Test deploy
     docs = `
 // docs:start:deploy
-% aztec-cli deploy TokenContractArtifact --args $ADDRESS
+% aztec-cli deploy TokenContractArtifact --args $ADDRESS TokenName TKN 18
 
 Contract deployed at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc54c06d0f
 // docs:end:deploy
