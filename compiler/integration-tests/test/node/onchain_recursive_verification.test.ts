@@ -6,7 +6,7 @@ import { resolve, join } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend, flattenPublicInputs } from '@noir-lang/backend_barretenberg';
+import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { Field, InputMap } from '@noir-lang/noirc_abi';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
@@ -72,10 +72,7 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   const contract = await ethers.deployContract('contracts/recursion.sol:UltraVerifier', []);
 
-  const result = await contract.verify.staticCall(
-    recursion_proof.proof,
-    flattenPublicInputs(recursion_proof.publicInputs),
-  );
+  const result = await contract.verify.staticCall(recursion_proof.proof, recursion_proof.publicInputs);
 
   expect(result).to.be.true;
 });

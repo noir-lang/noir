@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend, flattenPublicInputs } from '@noir-lang/backend_barretenberg';
+import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
@@ -57,7 +57,7 @@ test_cases.forEach((testInfo) => {
 
     const contract = await ethers.deployContract(testInfo.compiled, []);
 
-    const result = await contract.verify(proofData.proof, flattenPublicInputs(proofData.publicInputs));
+    const result = await contract.verify(proofData.proof, proofData.publicInputs);
 
     expect(result).to.be.true;
   });
