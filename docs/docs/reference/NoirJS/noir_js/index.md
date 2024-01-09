@@ -26,7 +26,7 @@
 | :------ | :------ |
 | [and](functions/and.md) | Performs a bitwise AND operation between `lhs` and `rhs` |
 | [blake2s256](functions/blake2s256.md) | Calculates the Blake2s256 hash of the input bytes |
-| [ecdsa\_secp256k1\_verify](functions/ecdsa_secp256k1_verify.md) | Calculates the Blake2s256 hash of the input bytes and represents these as a single field element. |
+| [ecdsa\_secp256k1\_verify](functions/ecdsa_secp256k1_verify.md) | Verifies a ECDSA signature over the secp256k1 curve. |
 | [ecdsa\_secp256r1\_verify](functions/ecdsa_secp256r1_verify.md) | Verifies a ECDSA signature over the secp256r1 curve. |
 | [keccak256](functions/keccak256.md) | Calculates the Keccak256 hash of the input bytes |
 | [sha256](functions/sha256.md) | Calculates the SHA256 hash of the input bytes |
