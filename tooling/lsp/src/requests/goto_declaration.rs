@@ -67,7 +67,7 @@ fn on_goto_definition_inner(
         span: noirc_errors::Span::single_char(byte_index as u32),
     };
 
-    let goto_definition_response =
+    let goto_declaration_response =
         interner.get_declaration_location_from(search_for_location).and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(files, file_id, found_location.span)?;
@@ -76,5 +76,5 @@ fn on_goto_definition_inner(
             Some(response)
         });
 
-    Ok(goto_definition_response)
+    Ok(goto_declaration_response)
 }
