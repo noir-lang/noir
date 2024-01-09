@@ -938,7 +938,7 @@ fn add_array_to_hasher(identifier: &Ident, arr_type: &UnresolvedType) -> Stateme
         UnresolvedTypeData::Named(..) => {
             let hasher_method_name = "add_multiple".to_owned();
             let call = method_call(
-                // All serialise on each element
+                // All serialize on each element
                 arr_index,   // variable
                 "serialize", // method name
                 vec![],      // args

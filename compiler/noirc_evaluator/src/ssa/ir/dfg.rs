@@ -47,7 +47,7 @@ pub(crate) struct DataFlowGraph {
     constants: HashMap<(FieldElement, Type), ValueId>,
 
     /// Contains each function that has been imported into the current function.
-    /// Each function's Value::Function is uniqued here so any given FunctionId
+    /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
     /// will always have the same ValueId within this function.
     functions: HashMap<FunctionId, ValueId>,
 
@@ -57,7 +57,7 @@ pub(crate) struct DataFlowGraph {
     intrinsics: HashMap<Intrinsic, ValueId>,
 
     /// Contains each foreign function that has been imported into the current function.
-    /// This map is used to ensure that the ValueId for any given foreign functôn is always
+    /// This map is used to ensure that the ValueId for any given foreign function is always
     /// represented by only 1 ValueId within this function.
     foreign_functions: HashMap<String, ValueId>,
 
