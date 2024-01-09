@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cd ./tooling/noir_codegen/test/assert_lt
+cd ./tooling/noir_codegen/test/test_lib
 nargo compile
