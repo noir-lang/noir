@@ -21,8 +21,6 @@ contracts_dir=$self_path/../contracts
 rm -rf $contracts_dir
 mkdir $contracts_dir
 
-# Run codegen-verifier for recursion
-
 cp $mul_dir/contract/1_mul/plonk_vk.sol $contracts_dir/1_mul.sol
 cp $assert_statement_dir/contract/assert_statement/plonk_vk.sol $contracts_dir/assert_statement.sol
 cp $recursion_dir/contract/recursion/plonk_vk.sol $contracts_dir/recursion.sol
