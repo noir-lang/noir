@@ -1,11 +1,6 @@
 import { Abi } from '@noir-lang/types';
 import { expect } from 'chai';
-import {
-  flattenPublicInputsAsArray,
-  deflattenPublicInputs,
-  witnessMapToPublicInputs,
-  publicInputsToWitnessMap,
-} from '../src/public_inputs.js';
+import { witnessMapToPublicInputs, publicInputsToWitnessMap } from '../src/public_inputs.js';
 
 const abi: Abi = {
   parameters: [
