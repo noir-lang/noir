@@ -761,36 +761,6 @@ impl BrilligContext {
         self.deallocate_register(scratch_register_j);
     }
 
-    /// Emits a modulo instruction against 2**target_bit_size
-    ///
-    /// Integer arithmetic in Brillig is currently constrained to 127 bit integers.
-    /// We restrict the cast operation, so that integer types over 127 bits
-    /// cannot be created.
-    pub(crate) fn cast_instruction(
-        &mut self,
-        destination: RegisterIndex,
-        source: RegisterIndex,
-        target_bit_size: u32,
-    ) {
-        self.debug_show.cast_instruction(destination, source, target_bit_size);
-        assert!(
-            target_bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-            "tried to cast to a bit size greater than allowed {target_bit_size}"
-        );
-
-        // The brillig VM performs all arithmetic operations modulo 2**bit_size
-        // So to cast any value to a target bit size we can just issue a no-op arithmetic operation
-        // With bit size equal to target_bit_size
-        let zero_register = self.make_constant(Value::from(FieldElement::zero()));
-        self.binary_instruction(
-            source,
-            zero_register,
-            destination,
-            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: target_bit_size },
-        );
-        self.deallocate_register(zero_register);
-    }
-
     /// Adds a unresolved external `Call` instruction to the bytecode.
     /// This calls into another function compiled into this brillig artifact.
     pub(crate) fn add_external_call_instruction<T: ToString>(&mut self, func_label: T) {

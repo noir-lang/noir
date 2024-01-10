@@ -325,22 +325,6 @@ impl DebugShow {
         );
     }
 
-    /// Debug function for cast_instruction
-    pub(crate) fn cast_instruction(
-        &self,
-        destination: RegisterIndex,
-        source: RegisterIndex,
-        target_bit_size: u32,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  CAST {} FROM {} TO {} BITS",
-            destination,
-            source,
-            target_bit_size
-        );
-    }
-
     /// Debug function for black_box_op
     pub(crate) fn black_box_op_instruction(&self, op: BlackBoxOp) {
         match op {
