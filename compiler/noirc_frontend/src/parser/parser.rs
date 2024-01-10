@@ -614,7 +614,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
 
 fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
     let function = function_definition(true)
-        .validate(|f, span, emit| {
+        .validate(|mut f, span, emit| {
             if f.def().is_internal
                 || f.def().is_unconstrained
                 || f.def().is_open
@@ -622,9 +622,6 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
             {
                 emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
             }
-            f
-        })
-        .map(|mut f| {
             // Trait impl functions are always public
             f.def_mut().visibility = FunctionVisibility::Public;
             TraitImplItem::Function(f)
