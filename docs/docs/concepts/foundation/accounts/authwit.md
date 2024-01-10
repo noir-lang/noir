@@ -24,14 +24,14 @@ This flow makes it rather simple for the application developer to implement the 
 
 One main downside, which births a bunch of other issues, is that the user needs to send two transactions to make the deposit - first the `approve` and then the `deposit`.
 
-To limit the annoyance for return-users, some front-ends will use the `approve` function with an infinite amount, which means that the user will only has to sign the `approve` transaction once, and every future `deposit` with then use some of that "allowance" to transfer funds from the user's account to the protocol's account.
+To limit the annoyance for return-users, some front-ends will use the `approve` function with an infinite amount, which means that the user will only have to sign the `approve` transaction once, and every future `deposit` will then use some of that "allowance" to transfer funds from the user's account to the protocol's account.
 
 This can lead to a series of issues though, eg:
 
 - The user is not aware of how much they have allowed the protocol to transfer.
 - The protocol can transfer funds from the user's account at any time. This means that if the protocol is rugged or exploited, it can transfer funds from the user's account without the user having to sign any transaction. This is especially an issue if the protocol is upgradable, as it could be made to steal the user's approved funds at any time in the future.
 
-To avoid this, many protocols implement the `permit` flow, which uses a meta-transaction to let the user sign the approval off-chain, and pass it as an input to the `deposit` function, that way the user only have to send one transaction to make the deposit.
+To avoid this, many protocols implement the `permit` flow, which uses a meta-transaction to let the user sign the approval off-chain, and pass it as an input to the `deposit` function, that way the user only has to send one transaction to make the deposit.
 
 ```mermaid
 sequenceDiagram
@@ -182,7 +182,7 @@ For the transfer, this could be done simply by appending a nonce to the argument
 action = H(defi, token, transfer_selector, H(alice_account, defi, 1000, nonce));
 ```
 
-Beware that since the the account contract will be unable to emit the nullifier since it is checked with a static call, so the calling contract must do it. This is similar to nonces in ERC20 tokens today. We provide a small library that handles this which we will see in the [developer documentation](./../../../dev_docs/contracts/resources/common_patterns/authwit.md).
+Beware that the account contract will be unable to emit the nullifier since it is checked with a static call, so the calling contract must do it. This is similar to nonces in ERC20 tokens today. We provide a small library that handles this which we will see in the [developer documentation](./../../../dev_docs/contracts/resources/common_patterns/authwit.md).
 
 ### Differences to approval
 
