@@ -285,6 +285,7 @@ export class AztecNodeService implements AztecNode {
     await this.p2pClient.stop();
     await this.worldStateSynchronizer.stop();
     await this.blockSource.stop();
+    await this.merkleTreesDb.close();
     this.log.info(`Stopped`);
   }
 

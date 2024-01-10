@@ -60,6 +60,7 @@ export class MemoryFifo<T> {
    */
   public put(item: T) {
     if (this.flushing) {
+      this.log.warn('Discarding item because queue is flushing');
       return;
     } else if (this.waiting.length) {
       this.waiting.shift()!(item);

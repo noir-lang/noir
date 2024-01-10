@@ -52,7 +52,7 @@ describe('e2e_2_pxes', () => {
       pxe: pxeB,
       accounts: accounts,
       wallets: [walletB],
-    } = await setupPXEService(1, aztecNode!, undefined, true));
+    } = await setupPXEService(1, aztecNode!, {}, undefined, true));
     [userB] = accounts;
   }, 100_000);
 

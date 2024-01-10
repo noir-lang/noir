@@ -33,7 +33,7 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
-import { PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { PXEService, PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { SequencerClient } from '@aztec/sequencer-client';
 
 import * as path from 'path';
@@ -108,6 +108,7 @@ export const setupL1Contracts = async (
  * Sets up Private eXecution Environment (PXE).
  * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
  * @param aztecNode - An instance of Aztec Node.
+ * @param opts - Partial configuration for the PXE service.
  * @param firstPrivKey - The private key of the first account to be created.
  * @param logger - The logger to be used.
  * @param useLogSuffix - Whether to add a randomly generated suffix to the PXE debug logs.
@@ -116,6 +117,7 @@ export const setupL1Contracts = async (
 export async function setupPXEService(
   numberOfAccounts: number,
   aztecNode: AztecNode,
+  opts: Partial<PXEServiceConfig> = {},
   logger = getLogger(),
   useLogSuffix = false,
 ): Promise<{
@@ -136,7 +138,7 @@ export async function setupPXEService(
    */
   logger: DebugLogger;
 }> {
-  const pxeServiceConfig = getPXEServiceConfig();
+  const pxeServiceConfig = { ...getPXEServiceConfig(), ...opts };
   const pxe = await createPXEService(aztecNode, pxeServiceConfig, useLogSuffix);
 
   const wallets = await createAccounts(pxe, numberOfAccounts);
@@ -215,7 +217,12 @@ async function setupWithRemoteEnvironment(
 }
 
 /** Options for the e2e tests setup */
-type SetupOptions = { /** State load */ stateLoad?: string } & Partial<AztecNodeConfig>;
+type SetupOptions = {
+  /** State load */
+  stateLoad?: string;
+  /** Previously deployed contracts on L1 */
+  deployL1ContractsValues?: DeployL1Contracts;
+} & Partial<AztecNodeConfig>;
 
 /** Context for an end-to-end test as returned by the `setup` function */
 export type EndToEndContext = {
@@ -247,8 +254,13 @@ export type EndToEndContext = {
  * Sets up the environment for the end-to-end tests.
  * @param numberOfAccounts - The number of new accounts to be created once the PXE is initiated.
  * @param opts - Options to pass to the node initialization and to the setup script.
+ * @param pxeOpts - Options to pass to the PXE initialization.
  */
-export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Promise<EndToEndContext> {
+export async function setup(
+  numberOfAccounts = 1,
+  opts: SetupOptions = {},
+  pxeOpts: Partial<PXEServiceConfig> = {},
+): Promise<EndToEndContext> {
   const config = { ...getConfigEnvVars(), ...opts };
 
   // Enable logging metrics to a local file named after the test suite
@@ -264,15 +276,16 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
 
   const logger = getLogger();
   const hdAccount = mnemonicToAccount(MNEMONIC);
+  const privKeyRaw = hdAccount.getHdKey().privateKey;
+  const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
 
   if (PXE_URL) {
     // we are setting up against a remote environment, l1 contracts are assumed to already be deployed
     return await setupWithRemoteEnvironment(hdAccount, config, logger, numberOfAccounts);
   }
 
-  const deployL1ContractsValues = await setupL1Contracts(config.rpcUrl, hdAccount, logger);
-  const privKeyRaw = hdAccount.getHdKey().privateKey;
-  const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
+  const deployL1ContractsValues =
+    opts.deployL1ContractsValues ?? (await setupL1Contracts(config.rpcUrl, hdAccount, logger));
 
   config.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   config.l1Contracts.rollupAddress = deployL1ContractsValues.l1ContractAddresses.rollupAddress;
@@ -286,7 +299,7 @@ export async function setup(numberOfAccounts = 1, opts: SetupOptions = {}): Prom
   const aztecNode = await AztecNodeService.createAndSync(config);
   const sequencer = aztecNode.getSequencer();
 
-  const { pxe, accounts, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, logger);
+  const { pxe, accounts, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
 
   const cheatCodes = CheatCodes.create(config.rpcUrl, pxe!);
 

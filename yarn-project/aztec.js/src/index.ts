@@ -45,6 +45,7 @@ export {
   EthCheatCodes,
   computeAuthWitMessageHash,
   waitForPXE,
+  waitForAccountSynch,
 } from './utils/index.js';
 
 export { createPXEClient } from './pxe_client.js';

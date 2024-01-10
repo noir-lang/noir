@@ -7,10 +7,10 @@ import { Salt } from '../account/index.js';
 import { AccountInterface } from '../account/interface.js';
 import { DefaultWaitOpts, DeployMethod, WaitOpts } from '../contract/index.js';
 import { ContractDeployer } from '../contract_deployer/index.js';
+import { waitForAccountSynch } from '../utils/account.js';
 import { generatePublicKey } from '../utils/index.js';
 import { AccountWalletWithPrivateKey } from '../wallet/index.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
-import { waitForAccountSynch } from './util.js';
 
 /**
  * Manages a user account. Provides methods for calculating the account's address, deploying the account contract,
