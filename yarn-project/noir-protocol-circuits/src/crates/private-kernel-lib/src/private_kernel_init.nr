@@ -9,7 +9,7 @@ use dep::types::{
     },
     mocked::{Proof, verify_previous_kernel_state},
     transaction::request::TxRequest,
-    utils::arrays::{is_empty_array, is_empty_struct_array},
+    traits::is_empty_array,
 };
 
 // Initialization struct for private inputs to the private kernel
@@ -135,7 +135,7 @@ mod tests {
         },
         tests::private_call_data_builder::PrivateCallDataBuilder,
         transaction::request::TxRequest,
-        utils::arrays::{array_length, struct_array_length},
+        utils::arrays::array_length,
     };
 
     struct PrivateKernelInitInputsBuilder {
@@ -520,7 +520,7 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
 
         // non-transient read requests are NOT forwarded
-        assert_eq(struct_array_length(public_inputs.end.read_requests, |r: SideEffect| r.is_empty()), 0);
+        assert_eq(array_length(public_inputs.end.read_requests), 0);
     }
 
     #[test]
@@ -536,7 +536,7 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
 
         // non-transient read requests are NOT forwarded
-        assert_eq(struct_array_length(public_inputs.end.read_requests, |r: SideEffect| r.is_empty()), 0);
+        assert_eq(array_length(public_inputs.end.read_requests), 0);
     }
 
     #[test]
@@ -552,7 +552,7 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
 
         // non-transient read requests are NOT forwarded
-        assert_eq(struct_array_length(public_inputs.end.read_requests, |r: SideEffect| r.is_empty()), 0);
+        assert_eq(array_length(public_inputs.end.read_requests), 0);
     }
 
     #[test]
@@ -568,7 +568,7 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
 
         // non-transient read requests are NOT forwarded
-        assert_eq(struct_array_length(public_inputs.end.read_requests, |r: SideEffect| r.is_empty()), 0);
+        assert_eq(array_length(public_inputs.end.read_requests), 0);
     }
 
     #[test]
@@ -584,7 +584,7 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
 
         // non-transient read requests are NOT forwarded
-        assert_eq(struct_array_length(public_inputs.end.read_requests, |r: SideEffect| r.is_empty()), 1);
+        assert_eq(array_length(public_inputs.end.read_requests), 1);
     }
 
     #[test]
@@ -601,7 +601,7 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
 
         // non-transient read requests are NOT forwarded
-        assert_eq(struct_array_length(public_inputs.end.read_requests, |r: SideEffect| r.is_empty()), 1);
+        assert_eq(array_length(public_inputs.end.read_requests), 1);
     }
 
     #[test]
@@ -617,8 +617,6 @@ mod tests {
         assert_eq(public_inputs.end.new_nullifiers[0].value, builder.tx_request.hash());
 
         // non-transient read requests are NOT forwarded
-        assert_eq(
-            struct_array_length(public_inputs.end.read_requests, |r: SideEffect| r.is_empty()), MAX_READ_REQUESTS_PER_CALL
-        );
+        assert_eq(array_length(public_inputs.end.read_requests), MAX_READ_REQUESTS_PER_CALL);
     }
 }

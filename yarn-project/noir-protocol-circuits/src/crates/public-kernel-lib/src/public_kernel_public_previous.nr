@@ -73,7 +73,7 @@ mod tests {
             public_call_data_builder::PublicCallDataBuilder,
         },
         utils::{
-            arrays::{array_eq, struct_array_eq},
+            arrays::array_eq,
         },
     };
     use dep::types::constants::{
@@ -188,14 +188,7 @@ mod tests {
 
         let public_inputs = builder.execute();
 
-        assert(
-            struct_array_eq(
-                public_inputs.end.new_commitments,
-                new_commitments,
-                |a: SideEffect, b: SideEffect| a.eq(b),
-                |a: SideEffect| a.is_empty()
-            )
-        );
+        assert(array_eq(public_inputs.end.new_commitments, new_commitments));
     }
 
     #[test]
@@ -260,14 +253,7 @@ mod tests {
 
         let public_inputs = builder.execute();
 
-        assert(
-            struct_array_eq(
-                public_inputs.end.new_nullifiers,
-                new_nullifiers,
-                |a: SideEffectLinkedToNoteHash, b: SideEffectLinkedToNoteHash| a.eq(b),
-                |a: SideEffectLinkedToNoteHash| a.is_empty()
-            )
-        );
+        assert(array_eq(public_inputs.end.new_nullifiers, new_nullifiers));
     }
 
     #[test]

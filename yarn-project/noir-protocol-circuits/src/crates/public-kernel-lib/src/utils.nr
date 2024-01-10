@@ -12,7 +12,7 @@ use dep::types::{
         storage_update_request::StorageUpdateRequest,
     },
     utils::{
-        arrays::struct_array_eq,
+        arrays::array_eq,
     },
 };
 
@@ -34,14 +34,7 @@ pub fn compute_public_data_reads<N>(
 }
 
 pub fn assert_eq_call_requests<N, S>(call_requests: [CallRequest; N], expected: [CallRequest; S]) {
-    assert(
-        struct_array_eq(
-            call_requests,
-            expected,
-            |c1: CallRequest, c2: CallRequest| c1.eq(c2),
-            |c: CallRequest| c.is_empty()
-        )
-    );
+    assert(array_eq(call_requests, expected));
 }
 
 pub fn compute_public_data_update_requests<N>(
@@ -66,40 +59,19 @@ pub fn assert_eq_public_data_reads<N, S>(
     public_data_reads: [PublicDataRead; N],
     expected: [PublicDataRead; S]
 ) {
-    assert(
-        struct_array_eq(
-            public_data_reads,
-            expected,
-            |pdr1: PublicDataRead, pdr2: PublicDataRead| pdr1.eq(pdr2),
-            |pdr: PublicDataRead| pdr.is_empty()
-        )
-    );
+    assert(array_eq(public_data_reads, expected));
 }
 
 pub fn assert_eq_public_data_update_requests<N, S>(
     public_data_update_requests: [PublicDataUpdateRequest; N],
     expected: [PublicDataUpdateRequest; S]
 ) {
-    assert(
-        struct_array_eq(
-            public_data_update_requests,
-            expected,
-            |r1: PublicDataUpdateRequest, r2: PublicDataUpdateRequest| r1.eq(r2),
-            |r: PublicDataUpdateRequest| r.is_empty()
-        )
-    );
+    assert(array_eq(public_data_update_requests, expected));
 }
 
 pub fn assert_eq_new_contracts<N, S>(
     new_contracts: [NewContractData; N],
     expected: [NewContractData; S]
 ) {
-    assert(
-        struct_array_eq(
-            new_contracts,
-            expected,
-            |c1: NewContractData, c2: NewContractData| c1.eq(c2),
-            |c: NewContractData| c.is_empty()
-        )
-    );
+    assert(array_eq(new_contracts, expected));
 }
