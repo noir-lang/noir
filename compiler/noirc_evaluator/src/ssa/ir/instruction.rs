@@ -533,16 +533,43 @@ impl Instruction {
                     let truncated = numeric_constant.to_u128() % integer_modulus;
                     SimplifiedTo(dfg.make_constant(truncated.into(), typ))
                 } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
-                    if let Instruction::Truncate { bit_size: src_bit_size, .. } = &dfg[*instruction]
-                    {
-                        // If we're truncating the value to fit into the same or larger bit size then this is a noop.
-                        if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
-                            SimplifiedTo(*value)
-                        } else {
-                            None
+                    match &dfg[*instruction] {
+                        Instruction::Truncate { bit_size: src_bit_size, .. } => {
+                            // If we're truncating the value to fit into the same or larger bit size then this is a noop.
+                            if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
+                                SimplifiedTo(*value)
+                            } else {
+                                None
+                            }
                         }
-                    } else {
-                        None
+
+                        Instruction::Binary(Binary {
+                            lhs, rhs, operator: BinaryOp::Div, ..
+                        }) if dfg.is_constant(*rhs) => {
+                            // If we're truncating the result of a division by a constant denominator, we can
+                            // reason about the maximum bit size of the result and whether a truncation is necessary.
+
+                            let numerator_type = dfg.type_of_value(*lhs);
+                            let max_numerator_bits = numerator_type.bit_size();
+
+                            let divisor = dfg
+                                .get_numeric_constant(*rhs)
+                                .expect("rhs is checked to be constant.");
+                            let divisor_bits = divisor.num_bits();
+
+                            // 2^{max_quotient_bits} = 2^{max_numerator_bits} / 2^{divisor_bits}
+                            // => max_quotient_bits = max_numerator_bits - divisor_bits
+                            //
+                            // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
+                            let max_quotient_bits = max_numerator_bits - divisor_bits;
+                            if max_quotient_bits < *bit_size {
+                                SimplifiedTo(*value)
+                            } else {
+                                None
+                            }
+                        }
+
+                        _ => None,
                     }
                 } else {
                     None
