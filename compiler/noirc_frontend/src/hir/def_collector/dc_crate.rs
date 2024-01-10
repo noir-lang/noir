@@ -457,6 +457,7 @@ fn type_check_functions(
 }
 
 // TODO(vitkov): Move this out of here and into type_check
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn check_methods_signatures(
     resolver: &mut Resolver,
     impl_methods: &Vec<(FileId, FuncId)>,
@@ -480,7 +481,7 @@ pub(crate) fn check_methods_signatures(
         let error = DefCollectorErrorKind::MismatchGenericCount {
             actual_generic_count: trait_generics.len(),
             expected_generic_count: the_trait.generics.len(),
-            location: "impl".into(),
+            location: "impl",
             origin: the_trait.name.to_string(),
             span: trait_name_span,
         };
@@ -571,7 +572,7 @@ pub(crate) fn check_methods_signatures(
                     }
                 }
 
-                if trait_method.return_type().try_unify(&impl_return, &mut bindings).is_err() {
+                if trait_method.return_type().try_unify(impl_return, &mut bindings).is_err() {
                     let impl_method = resolver.interner.function_meta(func_id);
                     let ret_type_span = impl_method.return_type.get_type().span;
                     let expr_span = ret_type_span.expect("return type must always have a span");
