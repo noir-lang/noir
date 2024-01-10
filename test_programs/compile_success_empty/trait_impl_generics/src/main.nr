@@ -55,5 +55,5 @@ trait T3 {
 }
 
 impl T3 for u32 {
-    fn t3<U>(self, y: U) -> U { y }
+    fn t3<U>(_self: Self, y: U) -> U { y }
 }
