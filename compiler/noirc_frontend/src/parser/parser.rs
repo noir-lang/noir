@@ -613,19 +613,18 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
-    let function = function_definition(true)
-        .validate(|mut f, span, emit| {
-            if f.def().is_internal
-                || f.def().is_unconstrained
-                || f.def().is_open
-                || f.def.visibility != FunctionVisibility::Private
-            {
-                emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
-            }
-            // Trait impl functions are always public
-            f.def_mut().visibility = FunctionVisibility::Public;
-            TraitImplItem::Function(f)
-        });
+    let function = function_definition(true).validate(|mut f, span, emit| {
+        if f.def().is_internal
+            || f.def().is_unconstrained
+            || f.def().is_open
+            || f.def().visibility != FunctionVisibility::Private
+        {
+            emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
+        }
+        // Trait impl functions are always public
+        f.def_mut().visibility = FunctionVisibility::Public;
+        TraitImplItem::Function(f)
+    });
 
     let alias = keyword(Keyword::Type)
         .ignore_then(ident())
