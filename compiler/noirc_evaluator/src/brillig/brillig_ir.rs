@@ -687,10 +687,19 @@ impl BrilligContext {
         &mut self,
         destination_of_truncated_value: RegisterIndex,
         value_to_truncate: RegisterIndex,
+        bit_size: u32,
     ) {
-        // Effectively a no-op because brillig already has implicit truncation on integer
-        // operations. We need only copy the value to it's destination.
-        self.mov_instruction(destination_of_truncated_value, value_to_truncate);
+        // The brillig VM performs all arithmetic operations modulo 2**bit_size
+        // So to truncate any value to a target bit size we can just issue a no-op arithmetic operation
+        // With bit size equal to target_bit_size
+        let zero_register = self.make_constant(Value::from(FieldElement::zero()));
+        self.binary_instruction(
+            value_to_truncate,
+            zero_register,
+            destination_of_truncated_value,
+            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size },
+        );
+        self.deallocate_register(zero_register);
     }
 
     /// Emits a stop instruction

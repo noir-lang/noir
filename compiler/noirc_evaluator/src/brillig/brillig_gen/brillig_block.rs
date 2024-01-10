@@ -521,7 +521,7 @@ impl<'block> BrilligBlock<'block> {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
-            Instruction::Truncate { value, .. } => {
+            Instruction::Truncate { value, bit_size, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_register = self.variables.define_register_variable(
                     self.function_context,
@@ -530,7 +530,11 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let source_register = self.convert_ssa_register_value(*value, dfg);
-                self.brillig_context.truncate_instruction(destination_register, source_register);
+                self.brillig_context.truncate_instruction(
+                    destination_register,
+                    source_register,
+                    *bit_size,
+                );
             }
             Instruction::Cast(value, target_type) => {
                 let result_ids = dfg.instruction_results(instruction_id);
