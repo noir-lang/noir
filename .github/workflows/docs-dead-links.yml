@@ -22,3 +22,15 @@ jobs:
         use-quiet-mode: 'yes'
         config-file: ./docs/link-check.config.json
         folder-path: ./docs
+
+  # If we're performing a nightly build and it fails acceptance tests then raise an issue.
+    - name: Alert on dead links
+      uses: JasonEtco/create-an-issue@v2
+      if: ${{ failure() }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        WORKFLOW_NAME: ${{ github.workflow }}
+        WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      with:
+        update_existing: true
+        filename: .github/DEAD_LINKS_IN_DOCS.md
