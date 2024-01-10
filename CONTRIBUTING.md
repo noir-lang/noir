@@ -27,5 +27,5 @@ If you're looking for a good place to start, look for issues labeled ["good firs
 - I've enabled auto-merge if the PR is ready to merge.
 - I have updated the yellow paper when making changes to associated functionality (e.g. outward-facing spec changes).
 - I have reviewed my diff in github, line by line and removed unexpected formatting changes, testing logs, or commented-out code.
-- Every change is related to the PR description.s
+- Every change is related to the PR description.
 - I have [linked](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue) this pull request to relevant issues (if any exist).
