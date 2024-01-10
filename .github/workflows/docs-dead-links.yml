@@ -6,6 +6,12 @@ on:
     # Run a check at 9 AM UTC
     - cron: "0 9 * * *"
 
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+
 jobs:
   markdown-link-check:
     runs-on: ubuntu-latest
@@ -14,3 +20,4 @@ jobs:
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
       with:
         use-quiet-mode: 'yes'
+        folder-path: ./docs
