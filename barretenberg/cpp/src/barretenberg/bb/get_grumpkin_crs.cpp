@@ -1,28 +1,13 @@
 #include "get_grumpkin_crs.hpp"
 
-// Gets the transcript URL from the BARRETENBERG_GRUMPKIN_TRANSCRIPT_URL environment variable, if set.
-// Otherwise returns the default URL.
-namespace {
-std::string get_grumpkin_transcript_url()
-{
-    const char* ENV_VAR_NAME = "BARRETENBERG_GRUMPKIN_TRANSCRIPT_URL";
-    const std::string DEFAULT_URL = "https://aztec-ignition.s3.amazonaws.com/TEST%20GRUMPKIN/monomial/transcript00.dat";
-
-    const char* env_url = std::getenv(ENV_VAR_NAME);
-
-    auto environment_variable_exists = ((env_url != nullptr) && *env_url);
-
-    return environment_variable_exists ? env_url : DEFAULT_URL;
-}
-} // namespace
-
 std::vector<uint8_t> download_grumpkin_g1_data(size_t num_points)
 {
     size_t g1_start = 28;
     size_t g1_end = g1_start + num_points * 64 - 1;
 
-    std::string url = get_grumpkin_transcript_url();
+    std::string url = "https://aztec-ignition.s3.amazonaws.com/TEST%20GRUMPKIN/monomial/transcript00.dat";
 
+    // IMPORTANT: this currently uses a shell, DO NOT let user-controlled strings here.
     std::string command =
         "curl -s -H \"Range: bytes=" + std::to_string(g1_start) + "-" + std::to_string(g1_end) + "\" '" + url + "'";
 
