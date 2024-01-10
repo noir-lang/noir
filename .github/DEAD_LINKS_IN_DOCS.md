@@ -1,6 +1,6 @@
 ---
 title: "Docs contains dead links"
-assignees: signorcello
+assignees: signorecello
 labels: documentation
 ---
 
