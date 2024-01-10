@@ -73,6 +73,12 @@ export interface L1PublisherTxSender {
    * @param txHash - Hash of the tx to look for.
    */
   getTransactionStats(txHash: string): Promise<TransactionStats | undefined>;
+
+  /**
+   * Returns the current state hash.
+   * @returns The current state hash of the rollup contract.
+   */
+  getCurrentStateHash(): Promise<Buffer>;
 }
 
 /**
@@ -125,12 +131,13 @@ export class L1Publisher implements L2BlockReceiver {
   public async processL2Block(l2BlockData: L2Block): Promise<boolean> {
     const proof = Buffer.alloc(0);
     const txData = { proof, inputs: l2BlockData.toBufferWithLogs() };
+    const startStateHash = l2BlockData.getStartStateHash();
 
     while (!this.interrupted) {
-      if (!(await this.checkFeeDistributorBalance())) {
-        this.log(`Fee distributor ETH balance too low, awaiting top up...`);
-        await this.sleepOrInterrupted();
-        continue;
+      // TODO: Remove this block number check, it's here because we don't currently have proper genesis state on the contract
+      if (l2BlockData.number != 1 && !(await this.checkStartStateHash(startStateHash))) {
+        this.log(`Detected different state hash prior to publishing rollup, aborting publish...`);
+        break;
       }
 
       const txHash = await this.sendProcessTx(txData);
@@ -157,8 +164,8 @@ export class L1Publisher implements L2BlockReceiver {
       }
 
       // Check if someone else incremented the block number
-      if (!(await this.checkNextL2BlockNum(l2BlockData.number))) {
-        this.log('Publish failed. Contract changed underfoot.');
+      if (!(await this.checkStartStateHash(startStateHash))) {
+        this.log('Publish failed. Detected different state hash.');
         break;
       }
 
@@ -180,12 +187,6 @@ export class L1Publisher implements L2BlockReceiver {
   public async processNewContractData(l2BlockNum: number, l2BlockHash: Buffer, contractData: ExtendedContractData[]) {
     let _contractData: ExtendedContractData[] = [];
     while (!this.interrupted) {
-      if (!(await this.checkFeeDistributorBalance())) {
-        this.log(`Fee distributor ETH balance too low, awaiting top up...`);
-        await this.sleepOrInterrupted();
-        continue;
-      }
-
       const arr = _contractData.length ? _contractData : contractData;
       const txHashes = await this.sendEmitNewContractDataTx(l2BlockNum, l2BlockHash, arr);
       if (!txHashes) {
@@ -235,17 +236,19 @@ export class L1Publisher implements L2BlockReceiver {
     this.interrupted = false;
   }
 
-  // TODO: Check fee distributor has at least 0.5 ETH.
-  // Related to https://github.com/AztecProtocol/aztec-packages/issues/1588
-  // eslint-disable-next-line require-await
-  private async checkFeeDistributorBalance(): Promise<boolean> {
-    return true;
-  }
-
-  // TODO: Fail if blockchainStatus.nextBlockNum > thisBlockNum.
-  // Related to https://github.com/AztecProtocol/aztec-packages/issues/1588
-  private checkNextL2BlockNum(_thisBlockNum: number): Promise<boolean> {
-    return Promise.resolve(true);
+  /**
+   * Verifies that the given value of start state hash equals that on the rollup contract
+   * @param startStateHash - The start state hash of the block we wish to publish.
+   * @returns Boolean indicating if the hashes are equal.
+   */
+  private async checkStartStateHash(startStateHash: Buffer): Promise<boolean> {
+    const fromChain = await this.txSender.getCurrentStateHash();
+    const areSame = startStateHash.equals(fromChain);
+    if (!areSame) {
+      this.log(`CONTRACT STATE HASH: ${fromChain.toString('hex')}`);
+      this.log(`NEW BLOCK STATE HASH: ${startStateHash.toString('hex')}`);
+    }
+    return areSame;
   }
 
   private async sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined> {

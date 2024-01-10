@@ -24,6 +24,7 @@ describe('L1Publisher', () => {
     txReceipt = { transactionHash: txHash, status: true } as MinimalTransactionReceipt;
     txSender.sendProcessTx.mockResolvedValueOnce(txHash);
     txSender.getTransactionReceipt.mockResolvedValueOnce(txReceipt);
+    txSender.getCurrentStateHash.mockResolvedValue(l2Block.getStartStateHash());
 
     publisher = new L1Publisher(txSender, { l1BlockPublishRetryIntervalMS: 1 });
   });
@@ -34,6 +35,13 @@ describe('L1Publisher', () => {
     expect(result).toEqual(true);
     expect(txSender.sendProcessTx).toHaveBeenCalledWith({ proof: l2Proof, inputs: l2Inputs });
     expect(txSender.getTransactionReceipt).toHaveBeenCalledWith(txHash);
+  });
+
+  it('does not publish if start hash is different to expected', async () => {
+    txSender.getCurrentStateHash.mockResolvedValueOnce(L2Block.random(43).getStartStateHash());
+    const result = await publisher.processL2Block(l2Block);
+    expect(result).toBe(false);
+    expect(txSender.sendProcessTx).not.toHaveBeenCalled();
   });
 
   it('does not retry if sending a tx fails', async () => {
@@ -72,8 +80,4 @@ describe('L1Publisher', () => {
     expect(result).toEqual(false);
     expect(txSender.getTransactionReceipt).not.toHaveBeenCalled();
   });
-
-  it.skip('waits for fee distributor balance', () => {});
-
-  it.skip('fails if contract is changed underfoot', () => {});
 });

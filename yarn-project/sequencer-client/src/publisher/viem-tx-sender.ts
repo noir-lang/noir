@@ -75,6 +75,11 @@ export class ViemTxSender implements L1PublisherTxSender {
     });
   }
 
+  async getCurrentStateHash(): Promise<Buffer> {
+    const stateHash = await this.rollupContract.read.rollupStateHash();
+    return Buffer.from(stateHash.replace('0x', ''), 'hex');
+  }
+
   async getTransactionStats(txHash: string): Promise<TransactionStats | undefined> {
     const tx = await this.publicClient.getTransaction({ hash: txHash as Hex });
     if (!tx) {
