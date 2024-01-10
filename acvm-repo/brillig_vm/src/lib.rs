@@ -12,8 +12,8 @@
 //! [acvm]: https://crates.io/crates/acvm
 
 use acir::brillig::{
-    BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, Opcode,
-    RegisterIndex, RegisterOrMemory, Value,
+    BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapArray, HeapValueType,
+    HeapVector, Opcode, RegisterIndex, RegisterOrMemory, Value,
 };
 use acir::FieldElement;
 // Re-export `brillig`.
@@ -227,7 +227,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                     // but has the necessary results to proceed with execution.
                     let resolved_inputs = inputs
                         .iter()
-                        .map(|input| self.get_register_value_or_memory_values(*input))
+                        .map(|input| self.get_register_value_or_memory_values(input.clone()))
                         .collect::<Vec<_>>();
                     return self.wait_for_foreign_call(function.clone(), resolved_inputs);
                 }
@@ -245,36 +245,51 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                                 "Function result size does not match brillig bytecode (expected 1 result)"
                             ),
                         },
-                        RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_index, size }) => {
-                            match output {
-                                ForeignCallParam::Array(values) => {
-                                    if values.len() != *size {
-                                        invalid_foreign_call_result = true;
-                                        break;
+                        RegisterOrMemory::HeapArray(HeapArray {
+                            pointer: pointer_index,
+                            size,
+                            value_types,
+                        }) => {
+                            if HeapValueType::all_simple(value_types) {
+                                match output {
+                                    ForeignCallParam::Array(values) => {
+                                        if values.len() != *size {
+                                            invalid_foreign_call_result = true;
+                                            break;
+                                        }
+                                        // Convert the destination pointer to a usize
+                                        let destination = self.registers.get(*pointer_index).to_usize();
+                                        // Write to our destination memory
+                                        self.memory.write_slice(destination, values);
                                     }
-                                    // Convert the destination pointer to a usize
-                                    let destination = self.registers.get(*pointer_index).to_usize();
-                                    // Write to our destination memory
-                                    self.memory.write_slice(destination, values);
+                                    _ => {
+                                        unreachable!("Function result size does not match brillig bytecode size")
+                                    }
                                 }
-                                _ => {
-                                    unreachable!("Function result size does not match brillig bytecode size")
-                                }
+                            } else {
+                                unimplemented!("unflattening heap arrays");
                             }
                         }
-                        RegisterOrMemory::HeapVector(HeapVector { pointer: pointer_index, size: size_index }) => {
-                            match output {
-                                ForeignCallParam::Array(values) => {
-                                    // Set our size in the size register
-                                    self.registers.set(*size_index, Value::from(values.len()));
-                                    // Convert the destination pointer to a usize
-                                    let destination = self.registers.get(*pointer_index).to_usize();
-                                    // Write to our destination memory
-                                    self.memory.write_slice(destination, values);
+                        RegisterOrMemory::HeapVector(HeapVector { pointer: pointer_index,
+                                                                  size: size_index,
+                                                                  value_types,
+                        }) => {
+                            if HeapValueType::all_simple(value_types) {
+                                match output {
+                                    ForeignCallParam::Array(values) => {
+                                        // Set our size in the size register
+                                        self.registers.set(*size_index, Value::from(values.len()));
+                                        // Convert the destination pointer to a usize
+                                        let destination = self.registers.get(*pointer_index).to_usize();
+                                        // Write to our destination memory
+                                        self.memory.write_slice(destination, values);
+                                    }
+                                    _ => {
+                                        unreachable!("Function result size does not match brillig bytecode size")
+                                    }
                                 }
-                                _ => {
-                                    unreachable!("Function result size does not match brillig bytecode size")
-                                }
+                            } else {
+                                unimplemented!("unflattening heap vectors");
                             }
                         }
                     }
@@ -361,17 +376,30 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     fn get_register_value_or_memory_values(&self, input: RegisterOrMemory) -> ForeignCallParam {
         match input {
             RegisterOrMemory::RegisterIndex(value_index) => self.registers.get(value_index).into(),
-            RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_index, size }) => {
-                let start = self.registers.get(pointer_index);
-                self.memory.read_slice(start.to_usize(), size).to_vec().into()
+            RegisterOrMemory::HeapArray(HeapArray {
+                pointer: pointer_index,
+                size,
+                value_types,
+            }) => {
+                if HeapValueType::all_simple(&value_types) {
+                    let start = self.registers.get(pointer_index);
+                    self.memory.read_slice(start.to_usize(), size).to_vec().into()
+                } else {
+                    unimplemented!("flattening heap arrays");
+                }
             }
             RegisterOrMemory::HeapVector(HeapVector {
                 pointer: pointer_index,
                 size: size_index,
+                value_types,
             }) => {
-                let start = self.registers.get(pointer_index);
-                let size = self.registers.get(size_index);
-                self.memory.read_slice(start.to_usize(), size.to_usize()).to_vec().into()
+                if HeapValueType::all_simple(&value_types) {
+                    let start = self.registers.get(pointer_index);
+                    let size = self.registers.get(size_index);
+                    self.memory.read_slice(start.to_usize(), size.to_usize()).to_vec().into()
+                } else {
+                    unimplemented!("flattening heap vectors");
+                }
             }
         }
     }
@@ -999,10 +1027,12 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_output,
                     size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
                 })],
                 inputs: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_input,
                     size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
                 })],
             },
         ];
@@ -1072,10 +1102,12 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapVector(HeapVector {
                     pointer: r_output_pointer,
                     size: r_output_size,
+                    value_types: vec![HeapValueType::Simple],
                 })],
                 inputs: vec![RegisterOrMemory::HeapVector(HeapVector {
                     pointer: r_input_pointer,
                     size: r_input_size,
+                    value_types: vec![HeapValueType::Simple],
                 })],
             },
         ];
@@ -1134,10 +1166,12 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_output,
                     size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
                 })],
                 inputs: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_input,
                     size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
                 })],
             },
         ];
@@ -1212,15 +1246,18 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_output,
                     size: matrix_a.len(),
+                    value_types: vec![HeapValueType::Simple],
                 })],
                 inputs: vec![
                     RegisterOrMemory::HeapArray(HeapArray {
                         pointer: r_input_a,
                         size: matrix_a.len(),
+                        value_types: vec![HeapValueType::Simple],
                     }),
                     RegisterOrMemory::HeapArray(HeapArray {
                         pointer: r_input_b,
                         size: matrix_b.len(),
+                        value_types: vec![HeapValueType::Simple],
                     }),
                 ],
             },

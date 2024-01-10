@@ -330,10 +330,13 @@ impl<'block> BrilligBlock<'block> {
                     let result_ids = dfg.instruction_results(instruction_id);
 
                     let input_registers = vecmap(arguments, |value_id| {
-                        self.convert_ssa_value(*value_id, dfg).to_register_or_memory()
+                        let value_type = dfg.type_of_value(*value_id);
+                        self.convert_ssa_value(*value_id, dfg).to_register_or_memory(&value_type)
                     });
                     let output_registers = vecmap(result_ids, |value_id| {
-                        self.allocate_external_call_result(*value_id, dfg).to_register_or_memory()
+                        let value_type = dfg.type_of_value(*value_id);
+                        self.allocate_external_call_result(*value_id, dfg)
+                            .to_register_or_memory(&value_type)
                     });
                     self.brillig_context.foreign_call_instruction(
                         func_name.to_owned(),

@@ -19,18 +19,34 @@ impl From<usize> for RegisterIndex {
     }
 }
 
+/// Describes the memory layout for an array/vector element
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub enum HeapValueType {
+    Simple,
+    Array { value_types: Vec<HeapValueType>, size: usize },
+    Vector { value_types: Vec<HeapValueType> },
+}
+
+impl HeapValueType {
+    pub fn all_simple(types: &Vec<HeapValueType>) -> bool {
+        types.iter().all(|typ| matches!(typ, HeapValueType::Simple))
+    }
+}
+
 /// A fixed-sized array starting from a Brillig register memory location.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeapArray {
     pub pointer: RegisterIndex,
     pub size: usize,
+    pub value_types: Vec<HeapValueType>,
 }
 
 /// A register-sized vector passed starting from a Brillig register memory location and with a register-held size
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeapVector {
     pub pointer: RegisterIndex,
     pub size: RegisterIndex,
+    pub value_types: Vec<HeapValueType>,
 }
 
 /// Lays out various ways an external foreign call's input and output data may be interpreted inside Brillig.
@@ -39,7 +55,7 @@ pub struct HeapVector {
 /// While we are usually agnostic to how memory is passed within Brillig,
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the ForeignCall instructions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RegisterOrMemory {
     /// A single register value passed to or from an external call
     /// It is an 'immediate' value - used without dereferencing memory.

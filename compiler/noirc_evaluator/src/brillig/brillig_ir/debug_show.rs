@@ -342,7 +342,7 @@ impl DebugShow {
     }
 
     /// Debug function for black_box_op
-    pub(crate) fn black_box_op_instruction(&self, op: BlackBoxOp) {
+    pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
         match op {
             BlackBoxOp::Sha256 { message, output } => {
                 debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
