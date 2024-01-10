@@ -1,8 +1,8 @@
-use dep::reexporting_lib::{FooStruct, MyStruct, is_struct_zero};
+use dep::reexporting_lib::{FooStruct, MyStruct, lib};
 
 fn main() {
     let x: FooStruct = MyStruct {
         inner: 0
     };
-    assert(is_struct_zero(x));
+    assert(lib::is_struct_zero(x));
 }

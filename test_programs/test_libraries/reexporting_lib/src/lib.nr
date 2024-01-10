@@ -1,1 +1,3 @@
-use dep::exporting_lib::{MyStruct, FooStruct, is_struct_zero};
+use dep::exporting_lib::{MyStruct, FooStruct};
+
+use dep::exporting_lib as lib;
