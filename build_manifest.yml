@@ -104,6 +104,12 @@ barretenberg-acir-tests-bb.js:
     - bb.js
     - noir-compile-acir-tests
 
+barretenberg-bench:
+  buildDir: barretenberg/cpp
+  dockerfile: dockerfiles/Dockerfile.bench
+  dependencies:
+    - barretenberg-x86_64-linux-clang
+
 barretenberg-docs:
   buildDir: barretenberg/cpp
   dockerfile: docs/Dockerfile

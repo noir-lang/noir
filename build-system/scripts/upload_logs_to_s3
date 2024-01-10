@@ -17,7 +17,7 @@ if [ ! -d "$LOG_FOLDER" ] || [ -z "$(ls -A "$LOG_FOLDER")" ]; then
   exit 0
 fi
 
-# Duplicated in scripts/ci/assemble_e2e_benchmark.sh
+# Paths used in scripts/ci/assemble_e2e_benchmark.sh
 if [ "${BRANCH:-}" = "master" ]; then
   TARGET_FOLDER="logs-v1/master/$COMMIT_HASH/"
 elif [ -n "${PULL_REQUEST:-}" ]; then

@@ -205,7 +205,7 @@ jobs:
       - run:
           name: "Deploy barretenberg docs"
           command: |
-            barretenberg/cpp/docs/deploy_doxygen.sh
+            barretenberg/cpp/scripts/ci/upload_doxygen_to_s3.sh
 
   barretenberg-stdlib-tests:
     docker:
@@ -239,6 +239,23 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/bb-tests.sh
+
+  barretenberg-bench:
+    machine:
+      # NOTE: we usually use alpine build image when making spot images, but
+      # we are not able to upload to S3 with it
+      image: ubuntu-2204:2023.07.2
+    resource_class: medium 
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Benchmark"
+          command: cond_spot_run_build barretenberg-bench 32
+      - run:
+          name: "Upload"
+          command: |
+            barretenberg/cpp/scripts/ci/upload_benchmarks_to_s3.sh
 
   barretenberg-honk-tests:
     docker:
@@ -1108,6 +1125,10 @@ workflows:
       - barretenberg-x86_64-linux-clang-fuzzing: *defaults
       - barretenberg-wasm-linux-clang: *defaults
       - barretenberg-x86_64-linux-clang-sol: *defaults
+      - barretenberg-bench:
+          requires:
+            - barretenberg-x86_64-linux-clang
+          <<: *defaults
       - barretenberg-proof-system-tests: *bb_test
       - barretenberg-honk-tests: *bb_test
       - barretenberg-dsl-tests: *bb_test

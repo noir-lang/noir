@@ -11,13 +11,19 @@ RUN apk update \
         perl
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
-# Build bb binary. Everything else is built as part linux-clang-assert.
-RUN cmake --preset default && cmake --build --preset default --target bb
+# Build bb binary and targets needed for benchmarking. 
+# Everything else is built as part linux-clang-assert.
+# Benchmark targets want to run without asserts, so get built alongside bb.
+RUN cmake --preset default
+RUN cmake --build --preset default --target ultra_honk_rounds_bench --target bb --target grumpkin_srs_gen
 
 FROM alpine:3.18
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
+COPY --from=builder /usr/src/barretenberg/cpp/scripts/ci /usr/src/barretenberg/cpp/scripts/ci
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/ultra_honk_rounds_bench /usr/src/barretenberg/cpp/build/bin/ultra_honk_rounds_bench
+COPY --from=builder /usr/src/barretenberg/cpp/build/bin/grumpkin_srs_gen /usr/src/barretenberg/cpp/build/bin/grumpkin_srs_gen
 # Copy libs for consuming projects.
 COPY --from=builder /usr/src/barretenberg/cpp/build/lib/libbarretenberg.a /usr/src/barretenberg/cpp/build/lib/libbarretenberg.a
 COPY --from=builder /usr/src/barretenberg/cpp/build/lib/libenv.a /usr/src/barretenberg/cpp/build/lib/libenv.a

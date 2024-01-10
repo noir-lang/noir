@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Grabs the log files uploaded in yarn-project/end-to-end/scripts/upload_logs_to_s3.sh
+# Grabs the log files uploaded in build-system/scripts/upload_logs_to_s3
 # that contain representative benchmarks, extracts whatever metrics are interesting,
 # and assembles a single file that shows the current state of the repository.
 
@@ -14,7 +14,7 @@ BASE_COMMIT_HASH=""
 BENCHMARK_FILE_JSON="${BENCH_FOLDER}/benchmark.json"
 BASE_BENCHMARK_FILE_JSON="${BENCH_FOLDER}/base-benchmark.json"
 
-# Adapted from yarn-project/end-to-end/scripts/upload_logs_to_s3.sh
+# Paths from build-system/scripts/upload_logs_to_s3
 if [ "${CIRCLE_BRANCH:-}" = "master" ]; then
   LOG_SOURCE_FOLDER="logs-v1/master/$COMMIT_HASH"
   BENCHMARK_TARGET_FILE="benchmarks-v1/master/$COMMIT_HASH.json"

@@ -1,0 +1,24 @@
+FROM ubuntu:lunar
+
+RUN apt update && apt install -y \
+  build-essential \
+  curl \
+  git \
+  cmake \
+  lsb-release \
+  wget \
+  software-properties-common \
+  gnupg \
+  ninja-build \
+  npm \
+\
+  libssl-dev \
+  jq \
+  bash \
+  libstdc++6
+
+WORKDIR /usr/src/barretenberg/cpp
+
+RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16
+
+CMD ["/bin/bash"]

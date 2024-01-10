@@ -18,6 +18,6 @@ static void construct_proof_standard_power_of_2(State& state) noexcept
 }
 
 BENCHMARK(construct_proof_standard_power_of_2)
-    // 2**13 gates to 2**18 gates
-    ->DenseRange(13, 18)
+    // 2**15 gates to 2**20 gates
+    ->DenseRange(15, 20)
     ->Unit(::benchmark::kMillisecond);

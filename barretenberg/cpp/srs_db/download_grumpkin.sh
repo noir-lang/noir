@@ -1,6 +1,6 @@
 #!/bin/sh
 # TODO(https://github.com/AztecProtocol/barretenberg/issues/813) We don't *actually* download grumpkin yet.
-# this just generates grumpkin points and puts in a place where run_acir_tests.sh expects it.
+# this just generates grumpkin points and links in a place where run_acir_tests.sh expects it.
 # The above issue tracks the final pieces here.
 set -eu
 

@@ -1,0 +1,20 @@
+# Use Alpine 3.18 as the base image
+FROM alpine:3.18
+
+# Install necessary packages
+RUN apk update && apk add \
+  bash \
+  build-base \
+  clang16 \
+  cmake \
+  ninja \
+  git \
+  curl \
+  perl \
+  libstdc++
+
+# Set the working directory in the container
+WORKDIR /usr/src/barretenberg/cpp
+
+# Set bash as the default command to keep the container running interactively
+CMD ["/bin/bash"]
