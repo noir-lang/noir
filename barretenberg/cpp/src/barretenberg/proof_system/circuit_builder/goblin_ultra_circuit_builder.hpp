@@ -98,7 +98,10 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         : UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>()
         , op_queue(op_queue_in)
     {
-        // Add the witness variables known directly from acir
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): NOTE: This still works even though the
+        // witness indices in the explicit acir gates are +1 offset because we're still adding the const 0 before
+        // anything else via the UCB constructor. Once we remove the +1 from Noir, we'll need to update the UCB by
+        // moving that const 0 to get these tests to pass again. Add the witness variables known directly from acir
         for (size_t idx = 0; idx < varnum; ++idx) {
             // Zeros are added for variables whose existence is known but whose values are not yet known. The values may
             // be "set" later on via the assert_equal mechanism.

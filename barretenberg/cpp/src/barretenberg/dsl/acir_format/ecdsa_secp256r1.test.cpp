@@ -150,7 +150,7 @@ TEST(ECDSASecp256r1, test_hardcoded)
         message, pub_key, signature);
     EXPECT_EQ(we_ballin, true);
 
-    auto builder = create_circuit_with_witness(constraint_system, witness_values);
+    auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness_values);
 
     EXPECT_EQ(builder.get_variable(ecdsa_r1_constraint.result), 1);
     auto composer = Composer();
@@ -190,7 +190,7 @@ TEST(ECDSASecp256r1, TestECDSAConstraintSucceed)
         .block_constraints = {},
     };
 
-    auto builder = create_circuit_with_witness(constraint_system, witness_values);
+    auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness_values);
 
     EXPECT_EQ(builder.get_variable(ecdsa_r1_constraint.result), 1);
     auto composer = Composer();
@@ -271,7 +271,7 @@ TEST(ECDSASecp256r1, TestECDSAConstraintFail)
         .block_constraints = {},
     };
 
-    auto builder = create_circuit_with_witness(constraint_system, witness_values);
+    auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness_values);
 
     EXPECT_EQ(builder.get_variable(ecdsa_r1_constraint.result), 0);
     auto composer = Composer();

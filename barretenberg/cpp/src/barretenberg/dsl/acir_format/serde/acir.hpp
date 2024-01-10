@@ -239,6 +239,8 @@ struct BlockId {
     static BlockId bincodeDeserialize(std::vector<uint8_t>);
 };
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/825): This struct is more general than it needs / should be
+// allowed to be. We can only accommodate 1 quadratic term and 3 linear terms.
 struct Expression {
     std::vector<std::tuple<std::string, Circuit::Witness, Circuit::Witness>> mul_terms;
     std::vector<std::tuple<std::string, Circuit::Witness>> linear_combinations;

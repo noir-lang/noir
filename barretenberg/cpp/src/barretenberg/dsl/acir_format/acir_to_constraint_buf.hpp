@@ -19,8 +19,22 @@
 
 namespace acir_format {
 
+/**
+ * @brief Construct a poly_tuple for a standard width-3 arithmetic gate from its acir representation
+ *
+ * @param arg acir representation of an 3-wire arithmetic operation
+ * @return poly_triple
+ * @note In principle Circuit::Expression can accommodate arbitrarily many quadratic and linear terms but in practice
+ * the ones processed here have a max of 1 and 3 respectively, in accordance with the standard width-3 arithmetic gate.
+ */
 poly_triple serialize_arithmetic_gate(Circuit::Expression const& arg)
 {
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): Instead of zeros for a,b,c, what we really want
+    // is something like the bberg zero_idx. Hardcoding these to 0 has the same effect only if zero_idx == 0, as has
+    // historically been the case. If that changes, this might break since now "0" points to some non-zero witness in
+    // variables. (From some testing, it seems like it may not break but only because the selectors multiplying the
+    // erroneously non-zero value are zero. Still, it seems like a bad idea to have erroneous wire values even if they
+    // dont break the relation. They'll still add cost in commitments, for example).
     poly_triple pt{
         .a = 0,
         .b = 0,
@@ -31,32 +45,53 @@ poly_triple serialize_arithmetic_gate(Circuit::Expression const& arg)
         .q_o = 0,
         .q_c = 0,
     };
-    // Think this never longer than 1?
-    for (const auto& e : arg.mul_terms) {
-        uint256_t qm(std::get<0>(e));
-        uint32_t a = std::get<1>(e).value;
-        uint32_t b = std::get<2>(e).value;
-        pt.q_m = qm;
-        pt.a = a;
-        pt.b = b;
-    }
-    for (const auto& e : arg.linear_combinations) {
-        barretenberg::fr x(uint256_t(std::get<0>(e)));
-        uint32_t witness = std::get<1>(e).value;
 
-        if (pt.a == 0 || pt.a == witness) {
-            pt.a = witness;
-            pt.q_l = x;
-        } else if (pt.b == 0 || pt.b == witness) {
-            pt.b = witness;
-            pt.q_r = x;
-        } else if (pt.c == 0 || pt.c == witness) {
-            pt.c = witness;
-            pt.q_o = x;
+    // Flags indicating whether each witness index for the present poly_tuple has been set
+    bool a_set = false;
+    bool b_set = false;
+    bool c_set = false;
+
+    // If necessary, set values for quadratic term (q_m * w_l * w_r)
+    ASSERT(arg.mul_terms.size() <= 1); // We can only accommodate 1 quadratic term
+    // Note: mul_terms are tuples of the form {selector_value, witness_idx_1, witness_idx_2}
+    if (!arg.mul_terms.empty()) {
+        const auto& mul_term = arg.mul_terms[0];
+        pt.q_m = uint256_t(std::get<0>(mul_term));
+        pt.a = std::get<1>(mul_term).value;
+        pt.b = std::get<2>(mul_term).value;
+        a_set = true;
+        b_set = true;
+    }
+
+    // If necessary, set values for linears terms q_l * w_l, q_r * w_r and q_o * w_o
+    ASSERT(arg.linear_combinations.size() <= 3); // We can only accommodate 3 linear terms
+    for (const auto& linear_term : arg.linear_combinations) {
+        barretenberg::fr selector_value(uint256_t(std::get<0>(linear_term)));
+        uint32_t witness_idx = std::get<1>(linear_term).value;
+
+        // If the witness index has not yet been set or if the corresponding linear term is active, set the witness
+        // index and the corresponding selector value.
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): May need to adjust the pt.a == witness_idx
+        // check (and the others like it) since we initialize a,b,c with 0 but 0 becomes a valid witness index if the +1
+        // offset is removed from noir.
+        if (!a_set || pt.a == witness_idx) { // q_l * w_l
+            pt.a = witness_idx;
+            pt.q_l = selector_value;
+            a_set = true;
+        } else if (!b_set || pt.b == witness_idx) { // q_r * w_r
+            pt.b = witness_idx;
+            pt.q_r = selector_value;
+            b_set = true;
+        } else if (!c_set || pt.c == witness_idx) { // q_o * w_o
+            pt.c = witness_idx;
+            pt.q_o = selector_value;
+            c_set = true;
         } else {
-            throw_or_abort("Cannot assign linear term to a constrain of width 3");
+            throw_or_abort("Cannot assign linear term to a constraint of width 3");
         }
     }
+
+    // Set constant value q_c
     pt.q_c = uint256_t(arg.q_c);
     return pt;
 }
@@ -259,9 +294,7 @@ acir_format circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
     auto circuit = Circuit::Circuit::bincodeDeserialize(buf);
 
     acir_format af;
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): this +1 seems to be accounting for the const 0 at
-    // the first index in variables
-    af.varnum = circuit.current_witness_index + 1;
+    af.varnum = circuit.current_witness_index;
     af.public_inputs = join({ map(circuit.public_parameters.value, [](auto e) { return e.value; }),
                               map(circuit.return_values.value, [](auto e) { return e.value; }) });
     std::map<uint32_t, BlockConstraint> block_id_to_block_constraint;
@@ -299,10 +332,16 @@ WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
 {
     auto w = WitnessMap::WitnessMap::bincodeDeserialize(buf);
     WitnessVector wv;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): Does "index" need to be initialized to 0 once we
+    // get rid of the +1 offeet in noir?
     size_t index = 1;
     for (auto& e : w.value) {
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/824): Document what this mechanism is doing. It
+        // appears to be somewhat unrelated to the const 0 issue (but see discussion in issue for caveats). See 2_div
+        // for an example of when this gets used. Seems like a mechanism for adding 0s intermittently between known
+        // witness values.
         while (index < e.first.value) {
-            wv.push_back(barretenberg::fr(0)); // TODO(https://github.com/AztecProtocol/barretenberg/issues/816)?
+            wv.push_back(barretenberg::fr(0));
             index++;
         }
         wv.push_back(barretenberg::fr(uint256_t(e.second)));

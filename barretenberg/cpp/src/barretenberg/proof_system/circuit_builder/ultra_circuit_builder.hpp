@@ -656,6 +656,48 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
         this->zero_idx = put_constant_variable(FF::zero());
         this->tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
     };
+    /**
+     * @brief Constructor from data generated from ACIR
+     *
+     * @param size_hint
+     * @param witness_values witnesses values known to acir
+     * @param public_inputs indices of public inputs in witness array
+     * @param varnum number of known witness
+     *
+     * @note The size of witness_values may be less than varnum. The former is the set of actual witness values known at
+     * the time of acir generation. The former may be larger and essentially acounts for placeholders for witnesses that
+     * we know will exist but whose values are not known during acir generation. Both are in general less than the total
+     * number of variables/witnesses that might be present for a circuit generated from acir, since many gates will
+     * depend on the details of the bberg implementation (or more generally on the backend used to process acir).
+     */
+    UltraCircuitBuilder_(const size_t size_hint,
+                         auto& witness_values,
+                         const std::vector<uint32_t>& public_inputs,
+                         size_t varnum)
+        : CircuitBuilderBase<FF>(size_hint)
+    {
+        selectors.reserve(size_hint);
+        w_l().reserve(size_hint);
+        w_r().reserve(size_hint);
+        w_o().reserve(size_hint);
+        w_4().reserve(size_hint);
+
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): Once the hardcoded +1 offset is removed from
+        // noir, we'll need to move the addition of the const zero variable to after the acir witness has been
+        // incorporated into variables.
+        this->zero_idx = put_constant_variable(FF::zero());
+        this->tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
+
+        for (size_t idx = 0; idx < varnum; ++idx) {
+            // Zeros are added for variables whose existence is known but whose values are not yet known. The values may
+            // be "set" later on via the assert_equal mechanism.
+            auto value = idx < witness_values.size() ? witness_values[idx] : 0;
+            this->add_variable(value);
+        }
+
+        // Add the public_inputs from acir
+        this->public_inputs = public_inputs;
+    };
     UltraCircuitBuilder_(const UltraCircuitBuilder_& other) = default;
     UltraCircuitBuilder_(UltraCircuitBuilder_&& other)
         : CircuitBuilderBase<FF>(std::move(other))

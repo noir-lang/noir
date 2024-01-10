@@ -104,15 +104,10 @@ Builder create_inner_circuit()
                                    .block_constraints = {} };
 
     uint256_t inverse_of_five = fr(5).invert();
-    auto builder = create_circuit_with_witness(constraint_system,
-                                               {
-                                                   5,
-                                                   10,
-                                                   15,
-                                                   5,
-                                                   inverse_of_five,
-                                                   1,
-                                               });
+    WitnessVector witness{
+        5, 10, 15, 5, inverse_of_five, 1,
+    };
+    auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness);
 
     return builder;
 }
@@ -261,7 +256,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                    .constraints = {},
                                    .block_constraints = {} };
 
-    auto outer_circuit = create_circuit_with_witness(constraint_system, witness);
+    auto outer_circuit = create_circuit(constraint_system, /*size_hint*/ 0, witness);
 
     return outer_circuit;
 }
