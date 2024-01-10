@@ -353,14 +353,6 @@ impl DebugShow {
             BlackBoxOp::Blake2s { message, output } => {
                 debug_println!(self.enable_debug_trace, "  BLAKE2S {} -> {}", message, output);
             }
-            BlackBoxOp::HashToField128Security { message, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  HASH_TO_FIELD_128_SECURITY {} -> {}",
-                    message,
-                    output
-                );
-            }
             BlackBoxOp::EcdsaSecp256k1 {
                 hashed_msg,
                 public_key_x,

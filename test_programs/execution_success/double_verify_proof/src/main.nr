@@ -2,31 +2,27 @@ use dep::std;
 
 fn main(
     verification_key: [Field; 114],
-    proof: [Field; 94],
+    // This is the proof without public inputs attached.
+    // 
+    // This means: the size of this does not change with the number of public inputs.
+    proof: [Field; 93],
     public_inputs: [Field; 1],
+    // This is currently not public. It is fine given that the vk is a part of the circuit definition.
+    // I believe we want to eventually make it public too though.
     key_hash: Field,
-    input_aggregation_object: [Field; 16],
-    proof_b: [Field; 94]
-) -> pub [Field; 16] {
-    let output_aggregation_object_a = std::verify_proof(
+    proof_b: [Field; 93]
+) {
+    std::verify_proof(
         verification_key.as_slice(),
         proof.as_slice(),
         public_inputs.as_slice(),
-        key_hash,
-        input_aggregation_object
+        key_hash
     );
 
-    let output_aggregation_object = std::verify_proof(
+    std::verify_proof(
         verification_key.as_slice(),
         proof_b.as_slice(),
         public_inputs.as_slice(),
-        key_hash,
-        output_aggregation_object_a
+        key_hash
     );
-
-    let mut output = [0; 16];
-    for i in 0..16 {
-        output[i] = output_aggregation_object[i];
-    }
-    output
 }
