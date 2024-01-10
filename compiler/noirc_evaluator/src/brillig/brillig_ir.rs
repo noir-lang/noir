@@ -689,6 +689,11 @@ impl BrilligContext {
         value_to_truncate: RegisterIndex,
         bit_size: u32,
     ) {
+        assert!(
+            bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+            "tried to truncate to a bit size greater than allowed {bit_size}"
+        );
+
         // The brillig VM performs all arithmetic operations modulo 2**bit_size
         // So to truncate any value to a target bit size we can just issue a no-op arithmetic operation
         // With bit size equal to target_bit_size

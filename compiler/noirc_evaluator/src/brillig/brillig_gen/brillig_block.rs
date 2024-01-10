@@ -536,7 +536,7 @@ impl<'block> BrilligBlock<'block> {
                     *bit_size,
                 );
             }
-            Instruction::Cast(value, target_type) => {
+            Instruction::Cast(value, _) => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_register = self.variables.define_register_variable(
                     self.function_context,
@@ -545,12 +545,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let source_register = self.convert_ssa_register_value(*value, dfg);
-                self.convert_cast(
-                    destination_register,
-                    source_register,
-                    target_type,
-                    &dfg.type_of_value(*value),
-                );
+                self.convert_cast(destination_register, source_register);
             }
             Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -1096,25 +1091,7 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
     /// Casting is only necessary when shrinking the bit size of a numeric value.
-    fn convert_cast(
-        &mut self,
-        destination: RegisterIndex,
-        source: RegisterIndex,
-        target_type: &Type,
-        source_type: &Type,
-    ) {
-        // Casting is only valid for numeric types
-        // This should be checked by the frontend, so we panic if this is the case
-        let target_bit_size = target_type.bit_size();
-        let source_bit_size = source_type.bit_size();
-
-        if source_bit_size > target_bit_size {
-            assert!(
-                target_bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-                "tried to cast to a bit size greater than allowed {target_bit_size}"
-            );
-        }
-
+    fn convert_cast(&mut self, destination: RegisterIndex, source: RegisterIndex) {
         // We assume that `source` is a valid `target_type` as it's expected that a truncate instruction was emitted
         // to ensure this is the case.
 
