@@ -561,15 +561,13 @@ pub(crate) fn check_methods_signatures(
                     args_and_params.enumerate()
                 {
                     if expected.try_unify(actual, &mut bindings).is_err() {
-                        typecheck_errors.push(
-                            TypeCheckError::TraitMethodParameterTypeMismatch {
-                                method_name: func_name.to_string(),
-                                expected_typ: expected.to_string(),
-                                actual_typ: actual.to_string(),
-                                parameter_span: hir_pattern.span(),
-                                parameter_index: parameter_index + 1,
-                            },
-                        );
+                        typecheck_errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
+                            method_name: func_name.to_string(),
+                            expected_typ: expected.to_string(),
+                            actual_typ: actual.to_string(),
+                            parameter_span: hir_pattern.span(),
+                            parameter_index: parameter_index + 1,
+                        });
                     }
                 }
 
