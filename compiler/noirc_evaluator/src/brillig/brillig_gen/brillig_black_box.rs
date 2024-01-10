@@ -58,19 +58,6 @@ pub(crate) fn convert_black_box_call(
                 unreachable!("ICE: Keccak256 expects message, message size and result array")
             }
         }
-        BlackBoxFunc::HashToField128Security => {
-            if let ([message], [BrilligVariable::Simple(result_register)]) =
-                (function_arguments, function_results)
-            {
-                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::HashToField128Security {
-                    message: message_vector.to_heap_vector(),
-                    output: *result_register,
-                });
-            } else {
-                unreachable!("ICE: HashToField128Security expects one array argument and one register result")
-            }
-        }
         BlackBoxFunc::EcdsaSecp256k1 => {
             if let (
                 [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
@@ -92,6 +79,28 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
+        BlackBoxFunc::EcdsaSecp256r1 => {
+            if let (
+                [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
+                [BrilligVariable::Simple(result_register)],
+            ) = (function_arguments, function_results)
+            {
+                let message_hash_vector =
+                    convert_array_or_vector(brillig_context, message, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256r1 {
+                    hashed_msg: message_hash_vector.to_heap_vector(),
+                    public_key_x: public_key_x.to_heap_array(),
+                    public_key_y: public_key_y.to_heap_array(),
+                    signature: signature.to_heap_array(),
+                    result: *result_register,
+                });
+            } else {
+                unreachable!(
+                    "ICE: EcdsaSecp256r1 expects four array arguments and one register result"
+                )
+            }
+        }
+
         BlackBoxFunc::PedersenCommitment => {
             if let (
                 [message, BrilligVariable::Simple(domain_separator)],
@@ -160,7 +169,24 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
-        _ => unimplemented!("ICE: Black box function {:?} is not implemented", bb_func),
+        BlackBoxFunc::AND => {
+            unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
+        }
+        BlackBoxFunc::XOR => {
+            unreachable!("ICE: `BlackBoxFunc::XOR` calls should be transformed into a `BinaryOp`")
+        }
+        BlackBoxFunc::RANGE => unreachable!(
+            "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
+        ),
+        BlackBoxFunc::RecursiveAggregation => unimplemented!(
+            "ICE: `BlackBoxFunc::RecursiveAggregation` is not implemented by the Brillig VM"
+        ),
+        BlackBoxFunc::Blake3 => {
+            unimplemented!("ICE: `BlackBoxFunc::Blake3` is not implemented by the Brillig VM")
+        }
+        BlackBoxFunc::Keccakf1600 => {
+            unimplemented!("ICE: `BlackBoxFunc::Keccakf1600` is not implemented by the Brillig VM")
+        }
     }
 }
 

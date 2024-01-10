@@ -12,6 +12,8 @@ mod affine {
     use crate::ec::safe_inverse;
     use crate::ec::sqrt;
     use crate::ec::ZETA;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
         j: Field,
@@ -30,11 +32,6 @@ mod affine {
         // Point constructor
         pub fn new(x: Field, y: Field) -> Self {
             Self {x, y, infty: false}
-        }
-
-        // Check for equality
-        fn eq(self, p: Self) -> bool {
-            (self.infty & p.infty) | (!self.infty & !p.infty & (self.x == p.x) & (self.y == p.y))
         }
 
         // Check if zero
@@ -73,6 +70,12 @@ mod affine {
             } else {
                 TEPoint::new(x/y, (x-1)/(x+1))
             }
+        }
+    }
+
+    impl Eq for Point {
+        fn eq(self, p: Self) -> bool {
+            (self.infty & p.infty) | (!self.infty & !p.infty & (self.x == p.x) & (self.y == p.y))
         }
     }
 
@@ -219,6 +222,7 @@ mod curvegroup {
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
     use crate::ec::tecurve::curvegroup::Curve as TECurve;
     use crate::ec::tecurve::curvegroup::Point as TEPoint;
+    use crate::cmp::Eq;
 
     struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
         j: Field,
@@ -237,11 +241,6 @@ mod curvegroup {
         // Point constructor
         pub fn new(x: Field, y: Field, z: Field) -> Self {
             Self {x, y, z}
-        }
-
-        // Check for equality
-        fn eq(self, p: Self) -> bool {
-            (self.z == p.z) | (((self.x * self.z) == (p.x * p.z)) & ((self.y * self.z) == (p.y * p.z)))
         }
 
         // Check if zero
@@ -274,6 +273,12 @@ mod curvegroup {
         // Map into equivalent Twisted Edwards curve
         fn into_tecurve(self) -> TEPoint {
             self.into_affine().into_tecurve().into_group()
+        }
+    }
+
+    impl Eq for Point {
+        fn eq(self, p: Self) -> bool {
+             (self.z == p.z) | (((self.x * self.z) == (p.x * p.z)) & ((self.y * self.z) == (p.y * p.z)))
         }
     }
 

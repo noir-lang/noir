@@ -266,11 +266,14 @@ impl Context {
 
         let code = self.gen_brillig_for(main_func, &brillig)?;
 
+        // We specifically do not attempt execution of the brillig code being generated as this can result in it being
+        // replaced with constraints on witnesses to the program outputs.
         let output_values = self.acir_context.brillig(
             self.current_side_effects_enabled_var,
             code,
             inputs,
             outputs,
+            false,
         )?;
         let output_vars: Vec<_> = output_values
             .iter()
@@ -469,9 +472,9 @@ impl Context {
                     self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
                 }
             }
-            Instruction::Cast(value_id, typ) => {
-                let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
+            Instruction::Cast(value_id, _) => {
+                let acir_var = self.convert_numeric_value(*value_id, dfg)?;
+                self.define_result_var(dfg, instruction_id, acir_var);
             }
             Instruction::Call { func, arguments } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -489,7 +492,7 @@ impl Context {
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs)?;
+                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs, true)?;
 
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
@@ -1629,41 +1632,6 @@ impl Context {
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(lhs_type, rhs_type, "lhs and rhs types in {binary:?} are not the same");
                 Type::Numeric(lhs_type)
-            }
-        }
-    }
-
-    /// Returns an `AcirVar` that is constrained to fit in the target type by truncating the input.
-    /// If the target cast is to a `NativeField`, no truncation is required so the cast becomes a
-    /// no-op.
-    fn convert_ssa_cast(
-        &mut self,
-        value_id: &ValueId,
-        typ: &Type,
-        dfg: &DataFlowGraph,
-    ) -> Result<AcirVar, RuntimeError> {
-        let (variable, incoming_type) = match self.convert_value(*value_id, dfg) {
-            AcirValue::Var(variable, typ) => (variable, typ),
-            AcirValue::DynamicArray(_) | AcirValue::Array(_) => {
-                unreachable!("Cast is only applied to numerics")
-            }
-        };
-        let target_numeric = match typ {
-            Type::Numeric(numeric) => numeric,
-            _ => unreachable!("Can only cast to a numeric"),
-        };
-        match target_numeric {
-            NumericType::NativeField => {
-                // Casting into a Field as a no-op
-                Ok(variable)
-            }
-            NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => {
-                let max_bit_size = incoming_type.bit_size();
-                if max_bit_size <= *bit_size {
-                    // Incoming variable already fits into target bit size -  this is a no-op
-                    return Ok(variable);
-                }
-                self.acir_context.truncate_var(variable, *bit_size, max_bit_size)
             }
         }
     }

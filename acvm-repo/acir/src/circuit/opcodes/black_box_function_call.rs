@@ -39,6 +39,10 @@ pub enum BlackBoxFuncCall {
         inputs: Vec<FunctionInput>,
         outputs: Vec<Witness>,
     },
+    Blake3 {
+        inputs: Vec<FunctionInput>,
+        outputs: Vec<Witness>,
+    },
     SchnorrVerify {
         public_key_x: FunctionInput,
         public_key_y: FunctionInput,
@@ -54,12 +58,6 @@ pub enum BlackBoxFuncCall {
     PedersenHash {
         inputs: Vec<FunctionInput>,
         domain_separator: u32,
-        output: Witness,
-    },
-    // 128 here specifies that this function
-    // should have 128 bits of security
-    HashToField128Security {
-        inputs: Vec<FunctionInput>,
         output: Witness,
     },
     EcdsaSecp256k1 {
@@ -94,6 +92,10 @@ pub enum BlackBoxFuncCall {
         var_message_size: FunctionInput,
         outputs: Vec<Witness>,
     },
+    Keccakf1600 {
+        inputs: Vec<FunctionInput>,
+        outputs: Vec<Witness>,
+    },
     RecursiveAggregation {
         verification_key: Vec<FunctionInput>,
         proof: Vec<FunctionInput>,
@@ -105,17 +107,6 @@ pub enum BlackBoxFuncCall {
         /// The circuit implementing this opcode can use this hash to ensure that the
         /// key provided to the circuit matches the key produced by the circuit creator
         key_hash: FunctionInput,
-        /// An aggregation object is blob of data that the top-level verifier must run some proof system specific
-        /// algorithm on to complete verification. The size is proof system specific and will be set by the backend integrating this opcode.
-        /// The input aggregation object is only not `None` when we are verifying a previous recursive aggregation in
-        /// the current circuit. If this is the first recursive aggregation there is no input aggregation object.
-        /// It is left to the backend to determine how to handle when there is no input aggregation object.
-        input_aggregation_object: Option<Vec<FunctionInput>>,
-        /// This is the result of a recursive aggregation and is what will be fed into the next verifier.
-        /// The next verifier can either perform a final verification (returning true or false)
-        /// or perform another recursive aggregation where this output aggregation object
-        /// will be the input aggregation object of the next recursive aggregation.
-        output_aggregation_object: Vec<Witness>,
     },
 }
 
@@ -127,15 +118,16 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
             BlackBoxFuncCall::SHA256 { .. } => BlackBoxFunc::SHA256,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
+            BlackBoxFuncCall::Blake3 { .. } => BlackBoxFunc::Blake3,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
             BlackBoxFuncCall::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
             BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
-            BlackBoxFuncCall::HashToField128Security { .. } => BlackBoxFunc::HashToField128Security,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
             BlackBoxFuncCall::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
             BlackBoxFuncCall::Keccak256 { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccak256VariableLength { .. } => BlackBoxFunc::Keccak256,
+            BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } => BlackBoxFunc::RecursiveAggregation,
         }
     }
@@ -148,10 +140,11 @@ impl BlackBoxFuncCall {
         match self {
             BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
+            | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
+            | BlackBoxFuncCall::Keccakf1600 { inputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
-            | BlackBoxFuncCall::PedersenHash { inputs, .. }
-            | BlackBoxFuncCall::HashToField128Security { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::PedersenHash { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
@@ -219,16 +212,12 @@ impl BlackBoxFuncCall {
                 proof,
                 public_inputs,
                 key_hash,
-                ..
             } => {
                 let mut inputs = Vec::new();
                 inputs.extend(key.iter().copied());
                 inputs.extend(proof.iter().copied());
                 inputs.extend(public_inputs.iter().copied());
                 inputs.push(*key_hash);
-                // NOTE: we do not return an input aggregation object as it will either be non-existent for the first recursive aggregation
-                // or the output aggregation object of a previous recursive aggregation. We do not simulate recursive aggregation
-                // thus the input aggregation object will always be unassigned until proving
                 inputs
             }
         }
@@ -238,20 +227,20 @@ impl BlackBoxFuncCall {
         match self {
             BlackBoxFuncCall::SHA256 { outputs, .. }
             | BlackBoxFuncCall::Blake2s { outputs, .. }
+            | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
-            | BlackBoxFuncCall::RecursiveAggregation {
-                output_aggregation_object: outputs, ..
-            } => outputs.to_vec(),
+            | BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
-            | BlackBoxFuncCall::HashToField128Security { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
             | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
-            BlackBoxFuncCall::RANGE { .. } => vec![],
+            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => {
+                vec![]
+            }
             BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
         }
     }

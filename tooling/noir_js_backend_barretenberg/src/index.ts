@@ -5,8 +5,7 @@ import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
 import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
 
-export { flattenPublicInputs } from './public_inputs.js';
-
+export { publicInputsToWitnessMap } from './public_inputs.js';
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;
@@ -34,7 +33,7 @@ export class BarretenbergBackend implements Backend {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-      const api = await Barretenberg.new(this.options.threads);
+      const api = await Barretenberg.new({ threads: this.options.threads });
 
       const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);
@@ -95,7 +94,7 @@ export class BarretenbergBackend implements Backend {
 
     const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
     const proof = proofWithPublicInputs.slice(splitIndex);
-    const publicInputs = deflattenPublicInputs(publicInputsConcatenated, this.acirCircuit.abi);
+    const publicInputs = deflattenPublicInputs(publicInputsConcatenated);
 
     return { proof, publicInputs };
   }
@@ -127,7 +126,9 @@ export class BarretenbergBackend implements Backend {
   }> {
     await this.instantiate();
     const proof = reconstructProofWithPublicInputs(proofData);
-    const proofAsFields = await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs);
+    const proofAsFields = (
+      await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs)
+    ).slice(numOfPublicInputs);
 
     // TODO: perhaps we should put this in the init function. Need to benchmark
     // TODO how long it takes.

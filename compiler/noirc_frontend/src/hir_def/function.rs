@@ -131,22 +131,12 @@ impl FuncMeta {
         }
     }
 
-    pub fn into_function_signature(self) -> FunctionSignature {
-        // Doesn't use `self.return_type()` so we aren't working with references and don't need a `clone()`
-        let return_type = match self.typ {
-            Type::Function(_, ret, _env) => *ret,
-            Type::Forall(_, typ) => match *typ {
-                Type::Function(_, ret, _env) => *ret,
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
-        let return_type = match return_type {
+    pub fn function_signature(&self) -> FunctionSignature {
+        let return_type = match self.return_type() {
             Type::Unit => None,
-            typ => Some(typ),
+            typ => Some(typ.clone()),
         };
-
-        (self.parameters.0, return_type)
+        (self.parameters.0.clone(), return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.
