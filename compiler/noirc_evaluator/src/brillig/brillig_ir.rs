@@ -689,6 +689,11 @@ impl BrilligContext {
         value_to_truncate: RegisterIndex,
         bit_size: u32,
     ) {
+        self.debug_show.truncate_instruction(
+            destination_of_truncated_value,
+            value_to_truncate,
+            bit_size,
+        );
         assert!(
             bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
             "tried to truncate to a bit size greater than allowed {bit_size}"
