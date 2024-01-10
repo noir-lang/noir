@@ -481,7 +481,9 @@ pub(crate) fn check_methods_signatures(
         let error = DefCollectorErrorKind::MismatchGenericCount {
             actual_generic_count: trait_generics.len(),
             expected_generic_count: the_trait.generics.len(),
-            location: "impl",
+            // Preferring to use 'here' over a more precise term like 'this reference'
+            // to try to make the error easier to understand for newer users.
+            location: "here it",
             origin: the_trait.name.to_string(),
             span: trait_name_span,
         };
@@ -524,7 +526,7 @@ pub(crate) fn check_methods_signatures(
                     actual_generic_count: impl_method_generic_count,
                     expected_generic_count: trait_method_generic_count,
                     origin: format!("{}::{}", trait_name, func_name),
-                    location: "impl_method",
+                    location: "this method",
                     span: impl_method.location.span,
                 };
                 errors.push((error.into(), *file_id));
