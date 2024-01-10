@@ -90,6 +90,7 @@ pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
     pub trait_id: Option<TraitId>,
+    pub trait_generics: Vec<UnresolvedType>,
     pub trait_path: Path,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
@@ -492,7 +493,9 @@ pub(crate) fn check_methods_signatures(
 
             // We subtract 1 here to account for the implicit generic `Self` type that is on all
             // traits (and thus trait methods) but is not required (or allowed) for users to specify.
-            let trait_method_generic_count = trait_method.generics().len() - 1;
+            let the_trait = resolver.interner.get_trait(trait_id);
+            let trait_method_generic_count =
+                trait_method.generics().len() - 1 - the_trait.generics.len();
 
             if impl_method_generic_count != trait_method_generic_count {
                 let error = DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
@@ -537,19 +540,19 @@ pub(crate) fn check_methods_signatures(
             }
 
             // Check that impl method return type matches trait return type:
-            let resolved_return_type =
-                resolver.resolve_type(impl_method.return_type.get_type().into_owned());
+            // let resolved_return_type =
+            //     resolver.resolve_type(impl_method.return_type.get_type().into_owned());
 
-            // TODO: This is not right since it may bind generic return types
-            trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
-                let impl_method = resolver.interner.function_meta(func_id);
-                let ret_type_span = impl_method.return_type.get_type().span;
-                let expr_span = ret_type_span.expect("return type must always have a span");
+            // // TODO: This is not right since it may bind generic return types
+            // trait_method.return_type().unify(&resolved_return_type, &mut typecheck_errors, || {
+            //     let impl_method = resolver.interner.function_meta(func_id);
+            //     let ret_type_span = impl_method.return_type.get_type().span;
+            //     let expr_span = ret_type_span.expect("return type must always have a span");
 
-                let expected_typ = trait_method.return_type().to_string();
-                let expr_typ = impl_method.return_type().to_string();
-                TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
-            });
+            //     let expected_typ = trait_method.return_type().to_string();
+            //     let expr_typ = impl_method.return_type().to_string();
+            //     TypeCheckError::TypeMismatch { expr_typ, expected_typ, expr_span }
+            // });
 
             errors.extend(typecheck_errors.iter().cloned().map(|e| (e.into(), *file_id)));
         }

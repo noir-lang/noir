@@ -419,8 +419,27 @@ impl<'a> Resolver<'a> {
         constraint: UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ);
-        let trait_id = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?.id;
-        Some(TraitConstraint { typ, trait_id })
+        let trait_generics =
+            vecmap(constraint.trait_bound.trait_generics, |typ| self.resolve_type(typ));
+
+        let span = constraint.trait_bound.trait_path.span();
+        let the_trait = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?;
+        let trait_id = the_trait.id;
+
+        let expected_generics = the_trait.generics.len();
+        let actual_generics = trait_generics.len();
+
+        if actual_generics != expected_generics {
+            let item_name = the_trait.name.to_string();
+            self.push_err(ResolverError::IncorrectGenericCount {
+                span,
+                item_name,
+                actual: actual_generics,
+                expected: expected_generics,
+            });
+        }
+
+        Some(TraitConstraint { typ, trait_id, trait_generics })
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -584,7 +603,7 @@ impl<'a> Resolver<'a> {
         if args.len() != expected_count {
             self.errors.push(ResolverError::IncorrectGenericCount {
                 span,
-                struct_type: type_name(),
+                item_name: type_name(),
                 actual: args.len(),
                 expected: expected_count,
             });
@@ -736,7 +755,6 @@ impl<'a> Resolver<'a> {
             let name = Rc::new(generic.0.contents.clone());
 
             if let Some((_, _, first_span)) = self.find_generic(&name) {
-                let span = generic.0.span();
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: generic.0.contents.clone(),
                     first_span: *first_span,
@@ -748,6 +766,30 @@ impl<'a> Resolver<'a> {
 
             (id, typevar)
         })
+    }
+
+    /// Add the given existing generics to scope.
+    /// This is useful for adding the same generics to many items. E.g. apply impl generics
+    /// to each function in the impl or trait generics to each item in the trait.
+    pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
+        assert_eq!(names.len(), generics.len());
+
+        for (name, (_id, typevar)) in names.iter().zip(generics) {
+            let span = name.0.span();
+
+            // Check for name collisions of this generic
+            let rc_name = Rc::new(name.0.contents.clone());
+
+            if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+                self.errors.push(ResolverError::DuplicateDefinition {
+                    name: name.0.contents.clone(),
+                    first_span: *first_span,
+                    second_span: span,
+                });
+            } else {
+                self.generics.push((rc_name, typevar.clone(), span));
+            }
+        }
     }
 
     pub fn resolve_struct_fields(
@@ -778,12 +820,13 @@ impl<'a> Resolver<'a> {
     /// there's a bunch of other places where trait constraints can pop up
     fn resolve_trait_constraints(
         &mut self,
-        where_clause: &Vec<UnresolvedTraitConstraint>,
+        where_clause: &[UnresolvedTraitConstraint],
     ) -> Vec<TraitConstraint> {
-        vecmap(where_clause, |constraint| TraitConstraint {
-            typ: self.resolve_type(constraint.typ.clone()),
-            trait_id: constraint.trait_bound.trait_id.unwrap_or_else(TraitId::dummy_id),
-        })
+        where_clause
+            .iter()
+            .cloned()
+            .filter_map(|constraint| self.resolve_trait_constraint(constraint))
+            .collect()
     }
 
     /// Extract metadata from a NoirFunction

@@ -413,13 +413,7 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::LeftBrace))
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
-        .validate(|(((name, generics), where_clause), items), span, emit| {
-            if !generics.is_empty() {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::ExperimentalFeature("Generic traits"),
-                    span,
-                ));
-            }
+        .map_with_span(|(((name, generics), where_clause), items), span| {
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
         })
 }

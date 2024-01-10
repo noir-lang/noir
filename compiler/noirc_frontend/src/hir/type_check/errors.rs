@@ -218,7 +218,7 @@ impl From<TypeCheckError> for Diagnostic {
             TypeCheckError::ResolverError(error) => error.into(),
             TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
                 let message = match source {
-                    Source::Binary => format!("Types in a binary operation should match, but found {expected} and {actual}"),
+                    Source::Binary => format!("Types in a binary operation should match, but found {expected:?} and {actual:?}"),
                     Source::Assignment => {
                         format!("Cannot assign an expression of type {actual} to a value of type {expected}")
                     }

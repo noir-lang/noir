@@ -85,12 +85,12 @@ pub struct TraitImpl {
 pub struct TraitConstraint {
     pub typ: Type,
     pub trait_id: TraitId,
-    // pub trait_generics: Generics, TODO
+    pub trait_generics: Vec<Type>,
 }
 
 impl TraitConstraint {
-    pub fn new(typ: Type, trait_id: TraitId) -> Self {
-        Self { typ, trait_id }
+    pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>) -> Self {
+        Self { typ, trait_id, trait_generics }
     }
 }
 

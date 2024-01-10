@@ -18,7 +18,7 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Path, Shared, TraitItem, Type, TypeBinding, TypeVariableKind,
+    Generics, Path, Shared, TraitItem, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::{
@@ -38,8 +38,14 @@ pub(crate) fn resolve_traits(
     for (trait_id, unresolved_trait) in &traits {
         context.def_interner.push_empty_trait(*trait_id, unresolved_trait);
     }
-    let mut res: Vec<(CompilationError, FileId)> = vec![];
+    let mut all_errors = Vec::new();
+
     for (trait_id, unresolved_trait) in traits {
+        let generics = vecmap(&unresolved_trait.trait_def.generics, |_| {
+            let id = context.def_interner.next_type_variable_id();
+            (id, TypeVariable::unbound(id))
+        });
+
         // Resolve order
         // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
         let _ = resolve_trait_types(context, crate_id, &unresolved_trait);
@@ -47,10 +53,13 @@ pub(crate) fn resolve_traits(
         let _ = resolve_trait_constants(context, crate_id, &unresolved_trait);
         // 3. Trait Methods
         let (methods, errors) =
-            resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait);
-        res.extend(errors);
+            resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, &generics);
+
+        all_errors.extend(errors);
+
         context.def_interner.update_trait(trait_id, |trait_def| {
             trait_def.set_methods(methods);
+            trait_def.generics = generics;
         });
 
         // This check needs to be after the trait's methods are set since
@@ -60,7 +69,7 @@ pub(crate) fn resolve_traits(
             context.def_interner.try_add_operator_trait(trait_id);
         }
     }
-    res
+    all_errors
 }
 
 fn resolve_trait_types(
@@ -85,6 +94,7 @@ fn resolve_trait_methods(
     trait_id: TraitId,
     crate_id: CrateId,
     unresolved_trait: &UnresolvedTrait,
+    trait_generics: &Generics,
 ) -> (Vec<TraitFunction>, Vec<(CompilationError, FileId)>) {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
@@ -114,6 +124,7 @@ fn resolve_trait_methods(
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.add_generics(generics);
+            resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
             resolver.set_self_type(Some(self_type));
 
             let func_id = unresolved_trait.method_ids[&name.0.contents];
@@ -432,6 +443,9 @@ pub(crate) fn resolve_trait_impls(
                 .into_iter()
                 .flat_map(|item| new_resolver.resolve_trait_constraint(item))
                 .collect();
+
+            let resolver_errors = new_resolver.take_errors().into_iter();
+            errors.extend(resolver_errors.map(|error| (error.into(), trait_impl.file_id)));
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident: trait_impl.trait_path.last_segment().clone(),

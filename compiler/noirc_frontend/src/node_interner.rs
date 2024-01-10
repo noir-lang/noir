@@ -1050,7 +1050,9 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
-        let make_constraint = || TraitConstraint::new(object_type.clone(), trait_id);
+        // Using an empty Vec here will display no generics when displaying this trait constraint
+        // in error messages. This may be confusing for generic traits.
+        let make_constraint = || TraitConstraint::new(object_type.clone(), trait_id, Vec::new());
 
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {
