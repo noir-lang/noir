@@ -394,9 +394,9 @@ pub(crate) fn resolve_trait_impls(
         let mut resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
         resolver.add_generics(&trait_impl.generics);
+
         let self_type = resolver.resolve_type(unresolved_type.clone());
         let generics = resolver.get_generics().to_vec();
-
         let impl_id = interner.next_trait_impl_id();
 
         let mut impl_methods = functions::resolve_function_set(
@@ -434,7 +434,10 @@ pub(crate) fn resolve_trait_impls(
                 &mut new_resolver,
                 &impl_methods,
                 trait_id,
+                trait_impl.trait_path.span(),
+                trait_impl.trait_generics,
                 trait_impl.generics.len(),
+                trait_impl.file_id,
                 errors,
             );
 

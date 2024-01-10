@@ -21,7 +21,7 @@ impl<T, U, N> Into<[U; N]> for [T; N] where T: Into<U> {
     }
 }
 
-impl Into for Field {
+impl Into<u32> for Field {
     fn into(self) -> u32 {
         self as u32
     }
