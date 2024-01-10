@@ -23,7 +23,7 @@ jobs:
         config-file: ./docs/link-check.config.json
         folder-path: ./docs
 
-  # If we're performing a nightly build and it fails acceptance tests then raise an issue.
+    # Raise an issue if the previous step failed due to dead links being found
     - name: Alert on dead links
       uses: JasonEtco/create-an-issue@v2
       if: ${{ failure() }}
