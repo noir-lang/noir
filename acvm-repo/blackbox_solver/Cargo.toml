@@ -17,8 +17,10 @@ acir.workspace = true
 thiserror.workspace = true
 
 blake2 = "0.10.6"
+blake3 = "1.5.0"
 sha2 = "0.10.6"
 sha3 = "0.10.6"
+keccak = "0.1.4"
 k256 = { version = "0.11.0", features = [
     "ecdsa",
     "ecdsa-core",

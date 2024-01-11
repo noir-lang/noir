@@ -266,11 +266,14 @@ impl Context {
 
         let code = self.gen_brillig_for(main_func, &brillig)?;
 
+        // We specifically do not attempt execution of the brillig code being generated as this can result in it being
+        // replaced with constraints on witnesses to the program outputs.
         let output_values = self.acir_context.brillig(
             self.current_side_effects_enabled_var,
             code,
             inputs,
             outputs,
+            false,
         )?;
         let output_vars: Vec<_> = output_values
             .iter()
@@ -302,7 +305,7 @@ impl Context {
                     let len = if matches!(typ, Type::Array(_, _)) {
                         typ.flattened_size()
                     } else {
-                        return Err(InternalError::UnExpected {
+                        return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
                             found: format!("Instead got {:?}", typ),
                             call_stack: self.acir_context.get_call_stack(),
@@ -469,9 +472,9 @@ impl Context {
                     self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
                 }
             }
-            Instruction::Cast(value_id, typ) => {
-                let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
+            Instruction::Cast(value_id, _) => {
+                let acir_var = self.convert_numeric_value(*value_id, dfg)?;
+                self.define_result_var(dfg, instruction_id, acir_var);
             }
             Instruction::Call { func, arguments } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -489,7 +492,7 @@ impl Context {
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs)?;
+                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs, true)?;
 
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
@@ -640,7 +643,7 @@ impl Context {
             Instruction::ArrayGet { array, index } => (array, index, None),
             Instruction::ArraySet { array, index, value, .. } => (array, index, Some(value)),
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "Instruction should be an ArrayGet or ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
@@ -697,7 +700,7 @@ impl Context {
 
         match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::InternalError(InternalError::UnExpected {
+                return Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
                     call_stack: self.acir_context.get_call_stack(),
@@ -788,7 +791,7 @@ impl Context {
                 let slice_sizes = if store_type.contains_slice_element() {
                     self.compute_slice_sizes(store, None, dfg);
                     self.slice_sizes.get(&store).cloned().ok_or_else(|| {
-                        InternalError::UnExpected {
+                        InternalError::Unexpected {
                             expected: "Store value should have slice sizes computed".to_owned(),
                             found: "Missing key in slice sizes map".to_owned(),
                             call_stack: self.acir_context.get_call_stack(),
@@ -1013,7 +1016,7 @@ impl Context {
         let array = match dfg[instruction] {
             Instruction::ArraySet { array, .. } => array,
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "Instruction should be an ArraySet".to_owned(),
                     found: format!("Instead got {:?}", dfg[instruction]),
                     call_stack: self.acir_context.get_call_stack(),
@@ -1235,7 +1238,7 @@ impl Context {
                                 }
                             }
                             _ => {
-                                return Err(InternalError::UnExpected {
+                                return Err(InternalError::Unexpected {
                                     expected: "AcirValue::DynamicArray or AcirValue::Array"
                                         .to_owned(),
                                     found: format!("{:?}", array_acir_value),
@@ -1246,7 +1249,7 @@ impl Context {
                         }
                     }
                     _ => {
-                        return Err(InternalError::UnExpected {
+                        return Err(InternalError::Unexpected {
                             expected: "array or instruction".to_owned(),
                             found: format!("{:?}", &dfg[array_id]),
                             call_stack: self.acir_context.get_call_stack(),
@@ -1256,7 +1259,7 @@ impl Context {
                 };
             }
             _ => {
-                return Err(InternalError::UnExpected {
+                return Err(InternalError::Unexpected {
                     expected: "array or slice".to_owned(),
                     found: array_typ.to_string(),
                     call_stack: self.acir_context.get_call_stack(),
@@ -1513,12 +1516,12 @@ impl Context {
     ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => Ok(acir_var),
-            AcirValue::Array(array) => Err(InternalError::UnExpected {
+            AcirValue::Array(array) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: format!("{array:?}"),
                 call_stack: self.acir_context.get_call_stack(),
             }),
-            AcirValue::DynamicArray(_) => Err(InternalError::UnExpected {
+            AcirValue::DynamicArray(_) => Err(InternalError::Unexpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),
                 call_stack: self.acir_context.get_call_stack(),
@@ -1629,41 +1632,6 @@ impl Context {
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(lhs_type, rhs_type, "lhs and rhs types in {binary:?} are not the same");
                 Type::Numeric(lhs_type)
-            }
-        }
-    }
-
-    /// Returns an `AcirVar` that is constrained to fit in the target type by truncating the input.
-    /// If the target cast is to a `NativeField`, no truncation is required so the cast becomes a
-    /// no-op.
-    fn convert_ssa_cast(
-        &mut self,
-        value_id: &ValueId,
-        typ: &Type,
-        dfg: &DataFlowGraph,
-    ) -> Result<AcirVar, RuntimeError> {
-        let (variable, incoming_type) = match self.convert_value(*value_id, dfg) {
-            AcirValue::Var(variable, typ) => (variable, typ),
-            AcirValue::DynamicArray(_) | AcirValue::Array(_) => {
-                unreachable!("Cast is only applied to numerics")
-            }
-        };
-        let target_numeric = match typ {
-            Type::Numeric(numeric) => numeric,
-            _ => unreachable!("Can only cast to a numeric"),
-        };
-        match target_numeric {
-            NumericType::NativeField => {
-                // Casting into a Field as a no-op
-                Ok(variable)
-            }
-            NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => {
-                let max_bit_size = incoming_type.bit_size();
-                if max_bit_size <= *bit_size {
-                    // Incoming variable already fits into target bit size -  this is a no-op
-                    return Ok(variable);
-                }
-                self.acir_context.truncate_var(variable, *bit_size, max_bit_size)
             }
         }
     }

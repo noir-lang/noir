@@ -42,6 +42,8 @@ pub(crate) fn run(
                 .service(router)
         });
 
+        eprintln!("LSP starting...");
+
         // Prefer truly asynchronous piped stdin/stdout without blocking tasks.
         #[cfg(unix)]
         let (stdin, stdout) = (

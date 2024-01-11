@@ -29,20 +29,27 @@ fn on_goto_definition_inner(
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = workspace.members.first().unwrap();
 
+    let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
+
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
     let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
 
-    // We ignore the warnings and errors produced by compilation while resolving the definition
-    let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+    let interner;
+    if let Some(def_interner) = _state.cached_definitions.get(&package_root_path) {
+        interner = def_interner;
+    } else {
+        // We ignore the warnings and errors produced by compilation while resolving the definition
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false);
+        interner = &context.def_interner;
+    }
 
     let files = context.file_manager.as_file_map();
     let file_id = context.file_manager.name_to_id(file_path.clone()).ok_or(ResponseError::new(
         ErrorCode::REQUEST_FAILED,
         format!("Could not find file in file manager. File path: {:?}", file_path),
     ))?;
-
     let byte_index =
         position_to_byte_index(files, file_id, &params.text_document_position_params.position)
             .map_err(|err| {
@@ -58,7 +65,7 @@ fn on_goto_definition_inner(
     };
 
     let goto_definition_response =
-        context.get_definition_location_from(search_for_location).and_then(|found_location| {
+        interner.get_definition_location_from(search_for_location).and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(files, file_id, found_location.span)?;
             let response: GotoDefinitionResponse =
@@ -109,6 +116,11 @@ where
     }
 }
 
+/// Calculates the byte offset of a given character in a line.
+/// LSP Clients (editors, eg. neovim) use a different coordinate (LSP Positions) system than the compiler.
+///
+/// LSP Positions navigate through line numbers and character numbers, eg. `(line: 1, character: 5)`
+/// meanwhile byte indexes are used within the compiler to navigate through the source code.
 fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
     let line_len = line.len();
     let mut character_offset = 0;
@@ -190,5 +202,27 @@ mod goto_definition_tests {
             .expect("Could execute on_goto_definition_request");
 
         assert!(&response.is_some());
+    }
+}
+
+#[cfg(test)]
+mod character_to_line_offset_tests {
+    use super::*;
+
+    #[test]
+    fn test_character_to_line_offset() {
+        let line = "Hello, dark!";
+        let character = 8;
+
+        let result = character_to_line_offset(line, character).unwrap();
+        assert_eq!(result, 8);
+
+        // In the case of a multi-byte character, the offset should be the byte index of the character
+        // byte offset for 8 character (黑) is expected to be 10
+        let line = "Hello, 黑!";
+        let character = 8;
+
+        let result = character_to_line_offset(line, character).unwrap();
+        assert_eq!(result, 10);
     }
 }

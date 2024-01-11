@@ -687,10 +687,29 @@ impl BrilligContext {
         &mut self,
         destination_of_truncated_value: RegisterIndex,
         value_to_truncate: RegisterIndex,
+        bit_size: u32,
     ) {
-        // Effectively a no-op because brillig already has implicit truncation on integer
-        // operations. We need only copy the value to it's destination.
-        self.mov_instruction(destination_of_truncated_value, value_to_truncate);
+        self.debug_show.truncate_instruction(
+            destination_of_truncated_value,
+            value_to_truncate,
+            bit_size,
+        );
+        assert!(
+            bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+            "tried to truncate to a bit size greater than allowed {bit_size}"
+        );
+
+        // The brillig VM performs all arithmetic operations modulo 2**bit_size
+        // So to truncate any value to a target bit size we can just issue a no-op arithmetic operation
+        // With bit size equal to target_bit_size
+        let zero_register = self.make_constant(Value::from(FieldElement::zero()));
+        self.binary_instruction(
+            value_to_truncate,
+            zero_register,
+            destination_of_truncated_value,
+            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size },
+        );
+        self.deallocate_register(zero_register);
     }
 
     /// Emits a stop instruction
@@ -759,36 +778,6 @@ impl BrilligContext {
         // Free scratch registers
         self.deallocate_register(scratch_register_i);
         self.deallocate_register(scratch_register_j);
-    }
-
-    /// Emits a modulo instruction against 2**target_bit_size
-    ///
-    /// Integer arithmetic in Brillig is currently constrained to 127 bit integers.
-    /// We restrict the cast operation, so that integer types over 127 bits
-    /// cannot be created.
-    pub(crate) fn cast_instruction(
-        &mut self,
-        destination: RegisterIndex,
-        source: RegisterIndex,
-        target_bit_size: u32,
-    ) {
-        self.debug_show.cast_instruction(destination, source, target_bit_size);
-        assert!(
-            target_bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-            "tried to cast to a bit size greater than allowed {target_bit_size}"
-        );
-
-        // The brillig VM performs all arithmetic operations modulo 2**bit_size
-        // So to cast any value to a target bit size we can just issue a no-op arithmetic operation
-        // With bit size equal to target_bit_size
-        let zero_register = self.make_constant(Value::from(FieldElement::zero()));
-        self.binary_instruction(
-            source,
-            zero_register,
-            destination,
-            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size: target_bit_size },
-        );
-        self.deallocate_register(zero_register);
     }
 
     /// Adds a unresolved external `Call` instruction to the bytecode.
