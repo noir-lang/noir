@@ -45,7 +45,7 @@ pub(crate) fn resolve_structs(
         if struct_type.borrow().generics.len() == 0 {
             let fields = struct_type.borrow().get_fields(&[]);
             for field in fields.iter() {
-                if is_nested_slice(&field.1) {
+                if field.1.is_nested_slice() {
                     errors.push((ResolverError::NestedSlices { span: struct_type.borrow().location.span }.into(), struct_type.borrow().location.file));
                 }
             }
@@ -68,46 +68,4 @@ fn resolve_struct_fields(
             .resolve_struct_fields(unresolved.struct_def);
 
     (generics, fields, errors)
-}
-
-fn is_nested_slice(typ: &Type) -> bool {
-    match typ {
-        Type::Array(size, elem) => {
-            if let Type::NotConstant = size.as_ref() {
-                is_slice(elem.as_ref())
-            } else {
-                false
-            }
-        }
-        _ => false,
-    }
-}
-
-fn is_slice(typ: &Type) -> bool {
-    match typ {
-        Type::Array(size, _) => {
-            match size.as_ref() {
-                Type::NotConstant => return true,
-                _ => return false,
-            }
-        }
-        Type::Struct(struct_typ, generics) => {
-            let fields = struct_typ.borrow().get_fields(generics);
-            for field in fields.iter() {
-                if is_slice(&field.1) {
-                    return true;
-                }
-            }
-            false
-        }
-        Type::Tuple(types) => {
-            for typ in types.iter() {
-                if is_slice(typ) {
-                    return false;
-                }
-            }
-            false
-        }
-        _ => false,
-    }
 }

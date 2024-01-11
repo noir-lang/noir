@@ -143,6 +143,48 @@ impl Type {
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
     }
+
+    pub(crate) fn is_nested_slice(&self) -> bool {
+        match self {
+            Type::Array(size, elem) => {
+                if let Type::NotConstant = size.as_ref() {
+                    elem.as_ref().contains_slice()
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    fn contains_slice(&self) -> bool {
+        match self {
+            Type::Array(size, _) => {
+                match size.as_ref() {
+                    Type::NotConstant => return true,
+                    _ => return false,
+                }
+            }
+            Type::Struct(struct_typ, generics) => {
+                let fields = struct_typ.borrow().get_fields(generics);
+                for field in fields.iter() {
+                    if field.1.contains_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => {
+                for typ in types.iter() {
+                    if typ.contains_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
+    }
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the

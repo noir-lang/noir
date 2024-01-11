@@ -32,7 +32,7 @@ use crate::node_interner::{
     TraitImplId, TraitImplKind,
 };
 use crate::{
-    hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
+    hir::{def_map::CrateDefMap, resolution::{path_resolver::PathResolver, resolve_structs}},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     StatementKind,
 };
@@ -684,7 +684,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span ;
         let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
-        if self.is_nested_slice(&resolved_type) {
+        if resolved_type.is_nested_slice() {
             self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
         }
         resolved_type
@@ -772,42 +772,42 @@ impl<'a> Resolver<'a> {
         (generics, fields, self.errors)
     }
 
-    fn is_nested_slice(&self, typ: &Type) -> bool {
-        match typ {
-            Type::Array(size, elem) => {
-                if let Type::NotConstant = size.as_ref() {
-                    self.is_slice(elem.as_ref())
-                } else {
-                    false
-                }
-            }
-            Type::Struct(struct_typ, generics) => {
-                let fields = struct_typ.borrow().get_fields(generics);
-                let mut has_nested_slice = false;
-                // dbg!(fields.clone());
-                for field in fields.iter() {
-                    has_nested_slice = self.is_nested_slice(&field.1);
-                    if has_nested_slice {
-                        break;
-                    }
-                }
-                has_nested_slice
-            }
-            _ => false,
-        }
-    }
+    // fn is_nested_slice(&self, typ: &Type) -> bool {
+    //     match typ {
+    //         Type::Array(size, elem) => {
+    //             if let Type::NotConstant = size.as_ref() {
+    //                 self.is_slice(elem.as_ref())
+    //             } else {
+    //                 false
+    //             }
+    //         }
+    //         Type::Struct(struct_typ, generics) => {
+    //             let fields = struct_typ.borrow().get_fields(generics);
+    //             let mut has_nested_slice = false;
+    //             // dbg!(fields.clone());
+    //             for field in fields.iter() {
+    //                 has_nested_slice = self.is_nested_slice(&field.1);
+    //                 if has_nested_slice {
+    //                     break;
+    //                 }
+    //             }
+    //             has_nested_slice
+    //         }
+    //         _ => false,
+    //     }
+    // }
 
-    fn is_slice(&self, typ: &Type) -> bool {
-        match typ {
-            Type::Array(size, elem) => {
-                match size.as_ref() {
-                    Type::NotConstant => return true,
-                    _ => return false,
-                }
-            }
-            _ => false,
-        }
-    }
+    // fn is_slice(&self, typ: &Type) -> bool {
+    //     match typ {
+    //         Type::Array(size, elem) => {
+    //             match size.as_ref() {
+    //                 Type::NotConstant => return true,
+    //                 _ => return false,
+    //             }
+    //         }
+    //         _ => false,
+    //     }
+    // }
 
     fn resolve_local_globals(&mut self) {
         for (stmt_id, global_info) in self.interner.get_all_globals() {
