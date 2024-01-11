@@ -63,3 +63,15 @@ Releases are driven by [release-please](https://github.com/googleapis/release-pl
 ## Contribute
 
 There are many ways you can participate and help build high quality software. Check out the [contribution guide](CONTRIBUTING.md)!
+
+## Syncing noir
+
+We currently use [git-subrepo](https://github.com/ingydotnet/git-subrepo) to manage a mirror of noir. This tool was chosen because it makes code checkout and development as simple as possible (compared to submodules or subtrees), with the tradeoff of complexity around sync's.
+
+There is an automatic mirror pushing noir to a PR on noir side. If the mirror is not working, generally we need to do a "git subrepo pull noir".
+
+Recovering if the sync is not happening with basic pull commands:
+ - manually editing the commit variable in noir/.gitrepo: 
+   this needs to exist in the branch we push to, and have the same content as our base. This is similar to submodules, except instead of pointing to the final state of the module, it points to the last commit we have sync'd from, for purposes of commit replay. This can be fixed to match the commit in master after merges.
+ - manually editing the parent variable in noir/.gitrepo: this is the parent of the last sync commit on aztec side. If you get errors with a commit not being found in the upstream repo, and the commit mentioned is not the commit variable above, it might indicate this is somehow incorrect. This can happen when commit content is ported without its history, e.g. squashes
+ - use pull --force ONLY where you would use git reset. That is, if you really want to match some upstream noir for a purpose its fine, but you'll lose local changes (if any)
