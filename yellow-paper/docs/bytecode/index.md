@@ -16,7 +16,7 @@ There are three different (but related) bytecode standards that are used in Azte
 
 # AVM Bytecode
 
-The AVM bytecode is the compilation target of the public functions of a contract. It's specified in the [AVM section](../public-vm/InstructionSet). It allows control flow and uses a flat memory model which tracks bit sizes of values stored in memory via tagging of memory indexes. Sequencers run the AVM bytecode of the public functions of a contract using the public VM and prove the correct execution of it.
+The AVM bytecode is the compilation target of the public functions of a contract. It's specified in the [AVM section](../public-vm/instruction-set). It allows control flow and uses a flat memory model which tracks bit sizes of values stored in memory via tagging of memory indexes. Sequencers run the AVM bytecode of the public functions of a contract using the public VM and prove the correct execution of it.
 
 # Brillig Bytecode
 

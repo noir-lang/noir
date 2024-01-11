@@ -1,7 +1,3 @@
----
-sidebar_position: 0
----
-
 # Aztec Virtual Machine
 
 :::note reference
@@ -21,7 +17,7 @@ This document contains the following sections:
 - [**Execution**](#execution), outlining control flow, gas tracking, halting, and reverting
 - [**Nested calls**](#nested-calls), outlining the initiation of message calls, processing of sub-context results, gas refunds, and world state reverts
 
-Refer to the **["AVM Instruction Set"](./InstructionSet)** for the list of all supported instructions and their associated state transition functions.
+Refer to the **["AVM Instruction Set"](./instruction-set)** for the list of all supported instructions and their associated state transition functions.
 
 For details on the AVM's "tagged" memory model, refer to the **["AVM Memory Model"](./state-model.md)**.
 
@@ -186,7 +182,7 @@ With an initialized context (and therefore an initial program counter of 0), the
 
 The program counter (machine state's `pc`) determines which instruction to execute (`instr = environment.bytecode[pc]`). Each instruction's state transition function updates the program counter in some way, which allows the VM to progress to the next instruction at each step.
 
-Most instructions simply increment the program counter by 1. This allows VM execution to flow naturally from instruction to instruction. Some instructions ([`JUMP`](./InstructionSet#isa-section-jump), [`JUMPI`](./InstructionSet#isa-section-jumpi), `INTERNALCALL`) modify the program counter based on inputs.
+Most instructions simply increment the program counter by 1. This allows VM execution to flow naturally from instruction to instruction. Some instructions ([`JUMP`](./instruction-set#isa-section-jump), [`JUMPI`](./instruction-set#isa-section-jumpi), `INTERNALCALL`) modify the program counter based on inputs.
 
 The `INTERNALCALL` instruction jumps to the destination specified by its input (sets `pc` to that destination), but first it pushes the current `pc+1` to `machineState.internalCallStack`. The `INTERNALRETURN` instruction pops a destination from `machineState.internalCallStack` and jumps there.
 
@@ -223,11 +219,11 @@ machineState.l2GasLeft = 0
 
 A instruction's gas cost is loosely derived from its complexity. Execution complexity of some instructions changes based on inputs. Here are some examples and important notes:
 
-- [`JUMP`](./InstructionSet/#isa-section-jump) is an example of an instruction with constant gas cost. Regardless of its inputs, the instruction always incurs the same `l1GasCost` and `l2GasCost`.
-- The [`SET`](./InstructionSet/#isa-section-set) instruction operates on a different sized constant (based on its `dst-type`). Therefore, this instruction's gas cost increases with the size of its input.
-- Instructions that operate on a data range of a specified "size" scale in cost with that size. An example of this is the [`CALLDATACOPY`](./InstructionSet/#isa-section-calldatacopy) argument which copies `copySize` words from `environment.calldata` to memory.
-- The [`CALL`](./InstructionSet/#isa-section-call)/[`STATICCALL`](./InstructionSet/#isa-section-call)/`DELEGATECALL` instruction's gas cost is determined by its `l*Gas` arguments, but any gas unused by the triggered message call is refunded after its completion ([more on this later](#updating-the-calling-context-after-nested-call-halts)).
-- An instruction with "offset" arguments (like [`ADD`](./InstructionSet/#isa-section-add) and many others), has increased cost for each offset argument that is flagged as "indirect".
+- [`JUMP`](./instruction-set/#isa-section-jump) is an example of an instruction with constant gas cost. Regardless of its inputs, the instruction always incurs the same `l1GasCost` and `l2GasCost`.
+- The [`SET`](./instruction-set/#isa-section-set) instruction operates on a different sized constant (based on its `dst-type`). Therefore, this instruction's gas cost increases with the size of its input.
+- Instructions that operate on a data range of a specified "size" scale in cost with that size. An example of this is the [`CALLDATACOPY`](./instruction-set/#isa-section-calldatacopy) argument which copies `copySize` words from `environment.calldata` to memory.
+- The [`CALL`](./instruction-set/#isa-section-call)/[`STATICCALL`](./instruction-set/#isa-section-call)/`DELEGATECALL` instruction's gas cost is determined by its `l*Gas` arguments, but any gas unused by the triggered message call is refunded after its completion ([more on this later](#updating-the-calling-context-after-nested-call-halts)).
+- An instruction with "offset" arguments (like [`ADD`](./instruction-set/#isa-section-add) and many others), has increased cost for each offset argument that is flagged as "indirect".
 
 > Implementation detail: an instruction's gas cost will roughly align with the number of rows it corresponds to in the SNARK execution trace including rows in the sub-operation table, memory table, chiplet tables, etc.
 
@@ -239,7 +235,7 @@ A message call's execution can end with a **normal halt** or **exceptional halt*
 
 ### Normal halting
 
-A normal halt occurs when the VM encounters an explicit halting instruction ([`RETURN`](./InstructionSet/#isa-section-return) or [`REVERT`](./InstructionSet/#isa-section-revert)). Such instructions consume gas normally and optionally initialize some output data before finally halting execution within the current context.
+A normal halt occurs when the VM encounters an explicit halting instruction ([`RETURN`](./instruction-set/#isa-section-return) or [`REVERT`](./instruction-set/#isa-section-revert)). Such instructions consume gas normally and optionally initialize some output data before finally halting execution within the current context.
 
 ```
 machineState.l1GasLeft -= instr.l1GasCost
@@ -248,7 +244,7 @@ machineState.l2GasLeft -= instr.l2GasCost
 results.output = machineState.memory[instr.args.retOffset:instr.args.retOffset+instr.args.retSize]
 ```
 
-> Definitions: `retOffset` and `retSize` here are arguments to the [`RETURN`](./InstructionSet/#isa-section-return) and [`REVERT`](./InstructionSet/#isa-section-revert) instructions. If `retSize` is 0, the context will have no output. Otherwise, these arguments point to a region of memory to output.
+> Definitions: `retOffset` and `retSize` here are arguments to the [`RETURN`](./instruction-set/#isa-section-return) and [`REVERT`](./instruction-set/#isa-section-revert) instructions. If `retSize` is 0, the context will have no output. Otherwise, these arguments point to a region of memory to output.
 
 > Note: `results.output` is only relevant when the caller is a message call itself. When a public execution request's initial message call halts normally, its `results.output` is ignored.
 
@@ -266,7 +262,7 @@ An exceptional halt is not explicitly triggered by an instruction but instead oc
    assert environment.bytecode[machineState.pc].opcode <= MAX_AVM_OPCODE
    ```
 1. **Failed memory tag check**
-   - Defined per-instruction in the [Instruction Set](./InstructionSet)
+   - Defined per-instruction in the [Instruction Set](./instruction-set)
 1. **Jump destination past end of bytecode**
    ```
    assert machineState.pc >= environment.bytecode.length
@@ -289,7 +285,7 @@ results.reverted = true
 
 ## Nested calls
 
-During a message call's execution, an instruction may be encountered that triggers another message call. A message call triggered in this way may be referred to as a **nested call**. The purpose of the [`CALL`](./InstructionSet/#isa-section-call), [`STATICCALL`](./InstructionSet/#isa-section-staticcall), and `DELEGATECALL` instructions is to initiate nested calls.
+During a message call's execution, an instruction may be encountered that triggers another message call. A message call triggered in this way may be referred to as a **nested call**. The purpose of the [`CALL`](./instruction-set/#isa-section-call), [`STATICCALL`](./instruction-set/#isa-section-staticcall), and `DELEGATECALL` instructions is to initiate nested calls.
 
 ### Context initialization for a nested call
 
@@ -369,7 +365,7 @@ context.l1GasLeft += subContext.machineState.l1GasLeft
 context.l2GasLeft += subContext.machineState.l2GasLeft
 ```
 
-If a nested call halts normally with a [`RETURN`](./InstructionSet/#isa-section-return) or [`REVERT`](./InstructionSet/#isa-section-revert), it may have some output data (`subContext.results.output`). The caller's `retOffset` and `retSize` arguments to the nested call instruction specify a region in memory to place output data when the nested call returns.
+If a nested call halts normally with a [`RETURN`](./instruction-set/#isa-section-return) or [`REVERT`](./instruction-set/#isa-section-revert), it may have some output data (`subContext.results.output`). The caller's `retOffset` and `retSize` arguments to the nested call instruction specify a region in memory to place output data when the nested call returns.
 
 ```
 if instr.args.retSize > 0:
@@ -384,4 +380,4 @@ if !subContext.results.reverted AND instr.opcode != STATICCALL_OP:
     context.accruedSubstate.append(subContext.accruedSubstate)
 ```
 
-> Reminder: a nested call cannot make updates to the world state or accrued substate if it is a [`STATICCALL`](./InstructionSet/#isa-section-staticcall).
+> Reminder: a nested call cannot make updates to the world state or accrued substate if it is a [`STATICCALL`](./instruction-set/#isa-section-staticcall).

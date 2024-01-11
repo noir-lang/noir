@@ -1,4 +1,4 @@
-# State Model
+# Memory State Model
 
 The goal of this note is to describe the VM state model and to specify "internal" VM abstractions that can be mapped to circuit designs.
 
@@ -55,8 +55,8 @@ Memory addresses must be tagged to be a `u32` type.
 - `in-tag`: an instruction's tag to check input operands against. Present for many but not all instructions.
 - `dst-tag`: the target type of a `CAST` instruction, also used to tag the destination memory cell
 - `ADD<X>`: shorthand for an `ADD` instruction with `in-tag = X`
-- `ADD<X> aOffset bOffset dstOffset`: an full `ADD` instruction with `in-tag = X`. See [here](./InstructionSet#isa-section-add) for more details.
-- `CAST<X>`: a `CAST` instruction with `dst-tag`: `X`. `CAST` is the only instruction with a `dst-tag`. See [here](./InstructionSet#isa-section-cast) for more details.
+- `ADD<X> aOffset bOffset dstOffset`: an full `ADD` instruction with `in-tag = X`. See [here](./instruction-set#isa-section-add) for more details.
+- `CAST<X>`: a `CAST` instruction with `dst-tag`: `X`. `CAST` is the only instruction with a `dst-tag`. See [here](./instruction-set#isa-section-cast) for more details.
 
 ### Tags and tagged memory
 
@@ -89,7 +89,7 @@ If case 2 is triggered, an error flag is raised and the current call's execution
 
 #### Writing into memory
 
-It is required that all VM instructions that write into main memory explicitly define the tag of the destination value and ensure the value is appropriately constrained to be consistent with the assigned tag. You can see an instruction's "**Tag updates**" in its section of the instruction set document (see [here for `ADD`](./InstructionSet#isa-section-add) and [here for `CAST`](./InstructionSet#isa-section-cast)).
+It is required that all VM instructions that write into main memory explicitly define the tag of the destination value and ensure the value is appropriately constrained to be consistent with the assigned tag. You can see an instruction's "**Tag updates**" in its section of the instruction set document (see [here for `ADD`](./instruction-set#isa-section-add) and [here for `CAST`](./instruction-set#isa-section-cast)).
 
 #### Standard tagging example: `ADD`
 
@@ -162,7 +162,7 @@ M[M[dstOffset]] = M[M[srcOffset]]          // perform move to indirect destinati
 
 #### Calldata/returndata and tag conversions
 
-All elements in calldata/returndata are implicitly tagged as field elements (i.e. maximum value is $p - 1$). To perform a tag conversion, calldata/returndata must be copied into main memory (via [`CALLDATACOPY`](./InstructionSet#isa-section-calldatacopy) or [`RETURN`'s `offset` and `size`](./InstructionSet#isa-section-return)), followed by an appropriate `CAST` instruction.
+All elements in calldata/returndata are implicitly tagged as field elements (i.e. maximum value is $p - 1$). To perform a tag conversion, calldata/returndata must be copied into main memory (via [`CALLDATACOPY`](./instruction-set#isa-section-calldatacopy) or [`RETURN`'s `offset` and `size`](./instruction-set#isa-section-return)), followed by an appropriate `CAST` instruction.
 
 ```
 # Copy calldata to memory and cast a word to u64
