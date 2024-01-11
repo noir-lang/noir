@@ -26,6 +26,8 @@ pub enum ParserErrorReason {
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
+    #[error("Modifiers are ignored on a trait impl method")]
+    TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
@@ -144,6 +146,11 @@ impl From<ParserError> for Diagnostic {
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(
+                        reason.to_string(),
+                        "".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::TraitImplFunctionModifiers => Diagnostic::simple_warning(
                         reason.to_string(),
                         "".into(),
                         error.span,

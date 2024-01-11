@@ -521,7 +521,7 @@ impl<'block> BrilligBlock<'block> {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
-            Instruction::Truncate { value, .. } => {
+            Instruction::Truncate { value, bit_size, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_register = self.variables.define_register_variable(
                     self.function_context,
@@ -530,23 +530,22 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let source_register = self.convert_ssa_register_value(*value, dfg);
-                self.brillig_context.truncate_instruction(destination_register, source_register);
-            }
-            Instruction::Cast(value, target_type) => {
-                let result_ids = dfg.instruction_results(instruction_id);
-                let destination_register = self.variables.define_register_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result_ids[0],
-                    dfg,
-                );
-                let source_register = self.convert_ssa_register_value(*value, dfg);
-                self.convert_cast(
+                self.brillig_context.truncate_instruction(
                     destination_register,
                     source_register,
-                    target_type,
-                    &dfg.type_of_value(*value),
+                    *bit_size,
                 );
+            }
+            Instruction::Cast(value, _) => {
+                let result_ids = dfg.instruction_results(instruction_id);
+                let destination_register = self.variables.define_register_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    result_ids[0],
+                    dfg,
+                );
+                let source_register = self.convert_ssa_register_value(*value, dfg);
+                self.convert_cast(destination_register, source_register);
             }
             Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -1092,43 +1091,11 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
     /// Casting is only necessary when shrinking the bit size of a numeric value.
-    fn convert_cast(
-        &mut self,
-        destination: RegisterIndex,
-        source: RegisterIndex,
-        target_type: &Type,
-        source_type: &Type,
-    ) {
-        fn numeric_to_bit_size(typ: &NumericType) -> u32 {
-            match typ {
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => *bit_size,
-                NumericType::NativeField => FieldElement::max_num_bits(),
-            }
-        }
-        // Casting is only valid for numeric types
-        // This should be checked by the frontend, so we panic if this is the case
-        let (source_numeric_type, target_numeric_type) = match (source_type, target_type) {
-            (Type::Numeric(source_numeric_type), Type::Numeric(target_numeric_type)) => {
-                (source_numeric_type, target_numeric_type)
-            }
-            _ => unimplemented!("The cast operation is only valid for integers."),
-        };
-        let source_bit_size = numeric_to_bit_size(source_numeric_type);
-        let target_bit_size = numeric_to_bit_size(target_numeric_type);
-        // Casting from a larger bit size to a smaller bit size (narrowing cast)
-        // requires a cast instruction.
-        // If its a widening cast, ie casting from a smaller bit size to a larger bit size
-        // we simply put a mov instruction as a no-op
-        //
-        // Field elements by construction always have the largest bit size
-        // This means that casting to a Field element, will always be a widening cast
-        // and therefore a no-op. Conversely, casting from a Field element
-        // will always be a narrowing cast and therefore a cast instruction
-        if source_bit_size > target_bit_size {
-            self.brillig_context.cast_instruction(destination, source, target_bit_size);
-        } else {
-            self.brillig_context.mov_instruction(destination, source);
-        }
+    fn convert_cast(&mut self, destination: RegisterIndex, source: RegisterIndex) {
+        // We assume that `source` is a valid `target_type` as it's expected that a truncate instruction was emitted
+        // to ensure this is the case.
+
+        self.brillig_context.mov_instruction(destination, source);
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
