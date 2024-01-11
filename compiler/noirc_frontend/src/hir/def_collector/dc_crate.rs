@@ -70,7 +70,6 @@ impl UnresolvedFunctions {
     }
 }
 
-#[derive(Clone)]
 pub struct UnresolvedStruct {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
@@ -309,7 +308,7 @@ impl DefCollector {
 
         errors.extend(resolve_traits(context, def_collector.collected_traits, crate_id));
         // Must resolve structs before we resolve globals.
-        errors.extend(resolve_structs(context, def_collector.collected_types.clone(), crate_id));
+        errors.extend(resolve_structs(context, def_collector.collected_types, crate_id));
 
         // We must wait to resolve non-integer globals until after we resolve structs since structs
         // globals will need to reference the struct type they're initialized to to ensure they are valid.

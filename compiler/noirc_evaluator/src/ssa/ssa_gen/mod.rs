@@ -644,14 +644,6 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
-        // for value in values.clone().flatten().into_iter() {
-        //     let value = value.eval(self);
-        //     let value_typ = self.builder.type_of_value(value);
-        //     if value_typ.is_nested_slice() {
-        //         return Err(RuntimeError::NestedSlice { call_stack: self.builder.get_call_stack() });
-        //     }
-        // }
-
         values = values.map(|value| {
             let value = value.eval(self);
 
