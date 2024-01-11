@@ -1208,8 +1208,8 @@ impl NodeInterner {
 
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
-        if !force_type_check && methods.is_some() {
-            if let Some(method) = methods.unwrap().get_unambiguous() {
+        if !force_type_check {
+            if let Some(method) = methods.and_then(|m| m.get_unambiguous()) {
                 return Some(method);
             }
         }
@@ -1224,7 +1224,8 @@ impl NodeInterner {
         methods: Option<&Methods>,
         method_name: &str,
     ) -> Option<FuncId> {
-        if let Some(method) = methods?.find_matching_method(typ, self) {
+        println!("find matching method");
+        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self)) {
             Some(method)
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
