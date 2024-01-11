@@ -54,7 +54,7 @@ struct Context {
     instructions_to_remove: HashSet<InstructionId>,
 
     /// IncrementRc instructions must be revisited after the main DIE pass since
-    /// they are technically side-effectful but we stil want to remove them if their
+    /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     increment_rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 }
