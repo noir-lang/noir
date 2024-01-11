@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-./scripts/noir-abi-build.sh
+.github/scripts/noir-abi-build.sh
 
 .github/scripts/install_wasm-bindgen.sh
 yarn workspace @noir-lang/noir_wasm build
