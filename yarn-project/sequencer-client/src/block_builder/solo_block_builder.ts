@@ -36,6 +36,7 @@ import {
   RootRollupPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
+  StateDiffHints,
   StateReference,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -645,22 +646,22 @@ export class SoloBlockBuilder implements BlockBuilder {
     );
 
     // Get the subtree sibling paths for the circuit
-    const newCommitmentsSubtreeSiblingPathArray = await this.getSubtreeSiblingPath(
+    const noteHashSubtreeSiblingPathArray = await this.getSubtreeSiblingPath(
       MerkleTreeId.NOTE_HASH_TREE,
       NOTE_HASH_SUBTREE_HEIGHT,
     );
 
-    const newCommitmentsSubtreeSiblingPath = makeTuple(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, i =>
-      i < newCommitmentsSubtreeSiblingPathArray.length ? newCommitmentsSubtreeSiblingPathArray[i] : Fr.ZERO,
+    const noteHashSubtreeSiblingPath = makeTuple(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, i =>
+      i < noteHashSubtreeSiblingPathArray.length ? noteHashSubtreeSiblingPathArray[i] : Fr.ZERO,
     );
 
-    const newContractsSubtreeSiblingPathArray = await this.getSubtreeSiblingPath(
+    const contractSubtreeSiblingPathArray = await this.getSubtreeSiblingPath(
       MerkleTreeId.CONTRACT_TREE,
       CONTRACT_SUBTREE_HEIGHT,
     );
 
-    const newContractsSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, i =>
-      i < newContractsSubtreeSiblingPathArray.length ? newContractsSubtreeSiblingPathArray[i] : Fr.ZERO,
+    const contractSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, i =>
+      i < contractSubtreeSiblingPathArray.length ? contractSubtreeSiblingPathArray[i] : Fr.ZERO,
     );
 
     // Update the contract and note hash trees with the new items being inserted to get the new roots
@@ -697,47 +698,53 @@ export class SoloBlockBuilder implements BlockBuilder {
     }
 
     // Extract witness objects from returned data
-    const lowNullifierMembershipWitnesses: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>[] =
+    const nullifierPredecessorMembershipWitnessesWithoutPadding: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>[] =
       nullifierWitnessLeaves.map(l =>
         MembershipWitness.fromBufferArray(l.index, assertLength(l.siblingPath.toBufferArray(), NULLIFIER_TREE_HEIGHT)),
       );
 
-    const newNullifiersSubtreeSiblingPathArray = newNullifiersSubtreeSiblingPath.toFieldArray();
+    const nullifierSubtreeSiblingPathArray = newNullifiersSubtreeSiblingPath.toFieldArray();
 
-    return BaseRollupInputs.from({
-      constants,
-      start,
-      sortedPublicDataWrites: txPublicDataUpdateRequestInfo.sortedPublicDataWrites,
-      sortedPublicDataWritesIndexes: txPublicDataUpdateRequestInfo.sortedPublicDataWritesIndexes,
-      lowPublicDataWritesPreimages: txPublicDataUpdateRequestInfo.lowPublicDataWritesPreimages,
-      lowPublicDataWritesMembershipWitnesses: txPublicDataUpdateRequestInfo.lowPublicDataWritesMembershipWitnesses,
-      publicDataWritesSubtreeSiblingPath: txPublicDataUpdateRequestInfo.newPublicDataSubtreeSiblingPath,
+    const nullifierSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, i =>
+      i < nullifierSubtreeSiblingPathArray.length ? nullifierSubtreeSiblingPathArray[i] : Fr.ZERO,
+    );
 
-      sortedNewNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => Fr.fromBuffer(sortedNewNullifiers[i])),
-      sortedNewNullifiersIndexes: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => sortedNewLeavesIndexes[i]),
-      newCommitmentsSubtreeSiblingPath,
-      newContractsSubtreeSiblingPath,
+    const publicDataSiblingPath = txPublicDataUpdateRequestInfo.newPublicDataSubtreeSiblingPath;
 
-      newNullifiersSubtreeSiblingPath: makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, i =>
-        i < newNullifiersSubtreeSiblingPathArray.length ? newNullifiersSubtreeSiblingPathArray[i] : Fr.ZERO,
-      ),
-
-      publicDataReadsPreimages: txPublicDataReadsInfo.newPublicDataReadsPreimages,
-
-      publicDataReadsMembershipWitnesses: txPublicDataReadsInfo.newPublicDataReadsWitnesses,
-
-      lowNullifierLeafPreimages: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
+    const stateDiffHints = StateDiffHints.from({
+      nullifierPredecessorPreimages: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
         i < nullifierWitnessLeaves.length
           ? (nullifierWitnessLeaves[i].leafPreimage as NullifierLeafPreimage)
           : NullifierLeafPreimage.empty(),
       ),
-      lowNullifierMembershipWitness: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
-        i < lowNullifierMembershipWitnesses.length
-          ? lowNullifierMembershipWitnesses[i]
+      nullifierPredecessorMembershipWitnesses: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
+        i < nullifierPredecessorMembershipWitnessesWithoutPadding.length
+          ? nullifierPredecessorMembershipWitnessesWithoutPadding[i]
           : this.makeEmptyMembershipWitness(NULLIFIER_TREE_HEIGHT),
       ),
+      sortedNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => Fr.fromBuffer(sortedNewNullifiers[i])),
+      sortedNullifierIndexes: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => sortedNewLeavesIndexes[i]),
+      noteHashSubtreeSiblingPath,
+      nullifierSubtreeSiblingPath,
+      contractSubtreeSiblingPath,
+      publicDataSiblingPath,
+    });
+
+    return BaseRollupInputs.from({
       kernelData: this.getKernelDataFor(tx),
+      start,
+      stateDiffHints,
+
+      sortedPublicDataWrites: txPublicDataUpdateRequestInfo.sortedPublicDataWrites,
+      sortedPublicDataWritesIndexes: txPublicDataUpdateRequestInfo.sortedPublicDataWritesIndexes,
+      lowPublicDataWritesPreimages: txPublicDataUpdateRequestInfo.lowPublicDataWritesPreimages,
+      lowPublicDataWritesMembershipWitnesses: txPublicDataUpdateRequestInfo.lowPublicDataWritesMembershipWitnesses,
+      publicDataReadsPreimages: txPublicDataReadsInfo.newPublicDataReadsPreimages,
+      publicDataReadsMembershipWitnesses: txPublicDataReadsInfo.newPublicDataReadsWitnesses,
+
       archiveRootMembershipWitness: await this.getHistoricalTreesMembershipWitnessFor(tx),
+
+      constants,
     });
   }
 

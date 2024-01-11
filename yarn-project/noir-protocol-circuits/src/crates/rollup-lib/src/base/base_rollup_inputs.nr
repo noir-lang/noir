@@ -1,6 +1,7 @@
 use crate::abis::public_data_tree_leaf::{PublicDataTreeLeaf, PublicDataTreeLeafPreimage};
 use crate::abis::constant_rollup_data::ConstantRollupData;
 use crate::abis::base_or_merge_rollup_public_inputs::{BaseOrMergeRollupPublicInputs, BASE_ROLLUP_TYPE};
+use crate::base::state_diff_hints::StateDiffHints;
 use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 use crate::components;
 use dep::types::utils::uint256::U256;
@@ -40,23 +41,14 @@ struct BaseRollupInputs {
     kernel_data: PreviousKernelData,
     start: PartialStateReference,
 
-    sorted_new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_TX],
-    sorted_new_nullifiers_indexes: [u32; MAX_NEW_NULLIFIERS_PER_TX],
-    low_nullifier_leaf_preimages: [NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX],
-    low_nullifier_membership_witness: [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX],
+    state_diff_hints: StateDiffHints,
 
-    // For inserting the new subtrees into their respective trees:
-    // Note: the insertion leaf index can be derived from the above snapshots' `next_available_leaf_index` values.
-    new_commitments_subtree_sibling_path: [Field; NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH],
-    new_nullifiers_subtree_sibling_path: [Field; NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH],
-    public_data_writes_subtree_sibling_path: [Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH],
-    new_contracts_subtree_sibling_path: [Field; CONTRACT_SUBTREE_SIBLING_PATH_LENGTH],
-
+    // TODO: The following 6 values are eventually going to be nuked from here. See discussion:
+    // https://aztecprotocol.slack.com/archives/C060PU5R327/p1701965354071269
     sorted_public_data_writes: [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     sorted_public_data_writes_indexes: [u32; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    
     public_data_reads_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_READS_PER_TX],
     public_data_reads_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_READS_PER_TX],
 
@@ -86,7 +78,7 @@ impl BaseRollupInputs {
 
         let end_note_hash_tree_snapshot = components::insert_subtree_to_snapshot_tree(
             self.start.note_hash_tree,
-            self.new_commitments_subtree_sibling_path,
+            self.state_diff_hints.note_hash_subtree_sibling_path,
             empty_commitments_subtree_root,
             commitments_tree_subroot,
             NOTE_HASH_SUBTREE_HEIGHT as u8,
@@ -96,7 +88,7 @@ impl BaseRollupInputs {
         let empty_contracts_subtree_root = calculate_empty_tree_root(CONTRACT_SUBTREE_HEIGHT);
         let end_contract_tree_snapshot = components::insert_subtree_to_snapshot_tree(
             self.start.contract_tree,
-            self.new_contracts_subtree_sibling_path,
+            self.state_diff_hints.contract_subtree_sibling_path,
             empty_contracts_subtree_root,
             contracts_tree_subroot,
             CONTRACT_SUBTREE_HEIGHT as u8,
@@ -171,11 +163,11 @@ impl BaseRollupInputs {
         crate::indexed_tree::batch_insert(
             self.start.nullifier_tree,
             self.kernel_data.public_inputs.end.new_nullifiers.map(|nullifier: SideEffectLinkedToNoteHash| nullifier.value),
-            self.sorted_new_nullifiers,
-            self.sorted_new_nullifiers_indexes,
-            self.new_nullifiers_subtree_sibling_path,
-            self.low_nullifier_leaf_preimages,
-            self.low_nullifier_membership_witness.map(|witness: NullifierMembershipWitness| {
+            self.state_diff_hints.sorted_nullifiers,
+            self.state_diff_hints.sorted_nullifier_indexes,
+            self.state_diff_hints.nullifier_subtree_sibling_path,
+            self.state_diff_hints.nullifier_predecessor_preimages,
+            self.state_diff_hints.nullifier_predecessor_membership_witnesses.map(|witness: NullifierMembershipWitness| {
                 MembershipWitness {
                     leaf_index: witness.leaf_index,
                     sibling_path: witness.sibling_path,
@@ -241,7 +233,7 @@ impl BaseRollupInputs {
             self.sorted_public_data_writes_indexes,
             self.low_public_data_writes_preimages,
             self.low_public_data_writes_witnesses,
-            self.public_data_writes_subtree_sibling_path,
+            self.state_diff_hints.public_data_sibling_path,
         );
 
         end_public_data_tree_snapshot
@@ -556,11 +548,14 @@ fn test_u256_greater_than() {
 
 mod tests {
     use crate::{
-        base::base_rollup_inputs::{
-            CALL_DATA_HASH_FULL_FIELDS,
-            CALL_DATA_HASH_LOG_FIELDS,
-            BaseRollupInputs,
-            full_field_less_than,
+        base::{
+            base_rollup_inputs::{
+                CALL_DATA_HASH_FULL_FIELDS,
+                CALL_DATA_HASH_LOG_FIELDS,
+                BaseRollupInputs,
+                full_field_less_than,
+            },
+            state_diff_hints::StateDiffHints,
         },
         merkle_tree::{calculate_subtree, calculate_empty_tree_root},
         abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs,
@@ -767,21 +762,21 @@ mod tests {
             [Field; MAX_NEW_NULLIFIERS_PER_TX],
             [u32; MAX_NEW_NULLIFIERS_PER_TX],
         ) {
-            let mut low_nullifier_leaf_preimages: [NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX] = dep::std::unsafe::zeroed();
+            let mut nullifier_predecessor_preimages: [NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX] = dep::std::unsafe::zeroed();
             let mut low_nullifier_membership_witness: [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX] = dep::std::unsafe::zeroed();
 
             let sorted_new_nullifier_tuples = sort_high_to_low(self.new_nullifiers.storage.map(|insertion: NullifierInsertion| insertion.value), full_field_less_than);
 
-            let mut sorted_new_nullifiers = [0; MAX_NEW_NULLIFIERS_PER_TX];
-            let mut sorted_new_nullifiers_indexes = [0; MAX_NEW_NULLIFIERS_PER_TX];
+            let mut sorted_nullifiers = [0; MAX_NEW_NULLIFIERS_PER_TX];
+            let mut sorted_nullifiers_indexes = [0; MAX_NEW_NULLIFIERS_PER_TX];
 
             for i in 0..MAX_NEW_NULLIFIERS_PER_TX {
                 if (i as u32) < (MAX_NEW_NULLIFIERS_PER_TEST as u32) {
-                    sorted_new_nullifiers[i] = sorted_new_nullifier_tuples[i].value;
-                    sorted_new_nullifiers_indexes[i] = sorted_new_nullifier_tuples[i].original_index;
+                    sorted_nullifiers[i] = sorted_new_nullifier_tuples[i].value;
+                    sorted_nullifiers_indexes[i] = sorted_new_nullifier_tuples[i].original_index;
                 } else {
-                    sorted_new_nullifiers[i] = 0;
-                    sorted_new_nullifiers_indexes[i] = i as u32;
+                    sorted_nullifiers[i] = 0;
+                    sorted_nullifiers_indexes[i] = i as u32;
                 }
             }
 
@@ -798,7 +793,7 @@ mod tests {
                     kernel_data.public_inputs.end.new_nullifiers[original_index].value = new_nullifier;
 
                     let mut low_preimage = pre_existing_nullifiers[low_index];
-                    low_nullifier_leaf_preimages[i] = low_preimage;
+                    nullifier_predecessor_preimages[i] = low_preimage;
                     low_nullifier_membership_witness[i] = NullifierMembershipWitness {
                         leaf_index: low_index as Field,
                         sibling_path: nullifier_tree.get_sibling_path(low_index as Field)
@@ -812,7 +807,7 @@ mod tests {
                 }
             }
 
-            (low_nullifier_leaf_preimages, low_nullifier_membership_witness, sorted_new_nullifiers, sorted_new_nullifiers_indexes)
+            (nullifier_predecessor_preimages, low_nullifier_membership_witness, sorted_nullifiers, sorted_nullifiers_indexes)
         }
 
         fn build_inputs(mut self) -> BaseRollupInputs {
@@ -823,7 +818,7 @@ mod tests {
                 root: start_note_hash_tree.get_root(),
                 next_available_leaf_index: start_note_hash_tree.get_next_available_index() as u32,
             };
-            let new_commitments_subtree_sibling_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(start_note_hash_tree.get_sibling_path(self.pre_existing_notes.len()), [0; NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH]);
+            let note_hash_subtree_sibling_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(start_note_hash_tree.get_sibling_path(self.pre_existing_notes.len()), [0; NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH]);
 
             let mut start_nullifier_tree = NonEmptyMerkleTree::new(
                 self.pre_existing_nullifiers.map(|preimage: NullifierLeafPreimage| preimage.hash()), 
@@ -842,7 +837,7 @@ mod tests {
                 root: start_contract_tree.get_root(),
                 next_available_leaf_index: start_contract_tree.get_next_available_index() as u32,
             };
-            let new_contracts_subtree_sibling_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(start_contract_tree.get_sibling_path(self.pre_existing_contracts.len()), [0; CONTRACT_SUBTREE_SIBLING_PATH_LENGTH]);
+            let contract_subtree_sibling_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(start_contract_tree.get_sibling_path(self.pre_existing_contracts.len()), [0; CONTRACT_SUBTREE_SIBLING_PATH_LENGTH]);
 
             let mut start_public_data_tree = NonEmptyMerkleTree::new(
                 self.pre_existing_public_data.map(|preimage: PublicDataTreeLeafPreimage| preimage.hash()),
@@ -862,16 +857,16 @@ mod tests {
             };
 
             let (
-                low_nullifier_leaf_preimages, 
-                low_nullifier_membership_witness,
-                sorted_new_nullifiers,
-                sorted_new_nullifiers_indexes
+                nullifier_predecessor_preimages, 
+                nullifier_predecessor_membership_witnesses,
+                sorted_nullifiers,
+                sorted_nullifier_indexes
             ) = self.update_nullifier_tree_with_new_leaves(&mut start_nullifier_tree, &mut kernel_data, start_nullifier_tree_snapshot);
 
-            let new_nullifiers_subtree_sibling_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(start_nullifier_tree.get_sibling_path(self.pre_existing_nullifiers.len()), [0; NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH]);
+            let nullifier_subtree_sibling_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(start_nullifier_tree.get_sibling_path(self.pre_existing_nullifiers.len()), [0; NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH]);
 
             let (
-                public_data_writes_subtree_sibling_path,
+                public_data_sibling_path,
                 sorted_public_data_writes,
                 sorted_public_data_writes_indexes,
                 low_public_data_writes_preimages,
@@ -894,20 +889,21 @@ mod tests {
                 public_data_tree: start_public_data_tree_snapshot
             };
 
+            let state_diff_hints = StateDiffHints {
+                nullifier_predecessor_preimages,
+                nullifier_predecessor_membership_witnesses,
+                sorted_nullifiers,
+                sorted_nullifier_indexes,
+                note_hash_subtree_sibling_path,
+                nullifier_subtree_sibling_path,
+                contract_subtree_sibling_path,
+                public_data_sibling_path,
+            };
+
             BaseRollupInputs {
-                kernel_data: kernel_data,
+                kernel_data,
                 start,
-
-                sorted_new_nullifiers,
-                sorted_new_nullifiers_indexes,
-
-                low_nullifier_leaf_preimages,
-                low_nullifier_membership_witness,
-
-                new_commitments_subtree_sibling_path, 
-                new_nullifiers_subtree_sibling_path, 
-                public_data_writes_subtree_sibling_path,
-                new_contracts_subtree_sibling_path, 
+                state_diff_hints,
 
                 sorted_public_data_writes,
                 sorted_public_data_writes_indexes,

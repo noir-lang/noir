@@ -3,14 +3,8 @@ import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 
 import {
   ARCHIVE_HEIGHT,
-  CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
-  NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
-  NULLIFIER_TREE_HEIGHT,
-  PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../constants.gen.js';
 import { FieldsOf } from '../../utils/jsUtils.js';
@@ -23,6 +17,7 @@ import { UInt32 } from '../shared.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { NullifierLeaf, NullifierLeafPreimage } from './nullifier_leaf/index.js';
 import { PublicDataTreeLeaf, PublicDataTreeLeafPreimage } from './public_data_leaf/index.js';
+import { StateDiffHints } from './state_diff_hints.js';
 
 export { NullifierLeaf, NullifierLeafPreimage, PublicDataTreeLeaf, PublicDataTreeLeafPreimage };
 
@@ -93,48 +88,13 @@ export class ConstantRollupData {
  */
 export class BaseRollupInputs {
   constructor(
-    /**
-     * Data of the 2 kernels that preceded this base rollup circuit.
-     */
+    /** Data of the 2 kernels that preceded this base rollup circuit. */
     public kernelData: PreviousKernelData,
-    /**
-     * Partial state reference at the start of the rollup.
-     */
+    /** Partial state reference at the start of the rollup. */
     public start: PartialStateReference,
-    /**
-     * The nullifiers to be inserted in the tree, sorted high to low.
-     */
-    public sortedNewNullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
-    /**
-     * The indexes of the sorted nullifiers to the original ones.
-     */
-    public sortedNewNullifiersIndexes: Tuple<UInt32, typeof MAX_NEW_NULLIFIERS_PER_TX>,
-    /**
-     * The nullifiers which need to be updated to perform the batch insertion of the new nullifiers.
-     * See `StandardIndexedTree.batchInsert` function for more details.
-     */
-    public lowNullifierLeafPreimages: Tuple<NullifierLeafPreimage, typeof MAX_NEW_NULLIFIERS_PER_TX>,
-    /**
-     * Membership witnesses for the nullifiers which need to be updated to perform the batch insertion of the new
-     * nullifiers.
-     */
-    public lowNullifierMembershipWitness: Tuple<
-      MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>,
-      typeof MAX_NEW_NULLIFIERS_PER_TX
-    >,
+    /** Hints used while proving state diff validity. */
+    public stateDiffHints: StateDiffHints,
 
-    /**
-     * Sibling path "pointing to" where the new commitments subtree should be inserted into the note hash tree.
-     */
-    public newCommitmentsSubtreeSiblingPath: Tuple<Fr, typeof NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH>,
-    /**
-     * Sibling path "pointing to" where the new nullifiers subtree should be inserted into the nullifier tree.
-     */
-    public newNullifiersSubtreeSiblingPath: Tuple<Fr, typeof NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH>,
-    /**
-     * Sibling path "pointing to" where the new contracts subtree should be inserted into the contract tree.
-     */
-    public newContractsSubtreeSiblingPath: Tuple<Fr, typeof CONTRACT_SUBTREE_SIBLING_PATH_LENGTH>,
     /**
      * The public data writes to be inserted in the tree, sorted high slot to low slot.
      */
@@ -160,11 +120,6 @@ export class BaseRollupInputs {
       MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
       typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
-
-    /**
-     * Sibling path "pointing to" where the new public data subtree should be inserted into the public data tree.
-     */
-    public publicDataWritesSubtreeSiblingPath: Tuple<Fr, typeof PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH>,
 
     /**
      * Preimages of leaves which are to be read by the public data reads.
@@ -197,18 +152,11 @@ export class BaseRollupInputs {
     return [
       fields.kernelData,
       fields.start,
-      fields.sortedNewNullifiers,
-      fields.sortedNewNullifiersIndexes,
-      fields.lowNullifierLeafPreimages,
-      fields.lowNullifierMembershipWitness,
-      fields.newCommitmentsSubtreeSiblingPath,
-      fields.newNullifiersSubtreeSiblingPath,
-      fields.newContractsSubtreeSiblingPath,
+      fields.stateDiffHints,
       fields.sortedPublicDataWrites,
       fields.sortedPublicDataWritesIndexes,
       fields.lowPublicDataWritesPreimages,
       fields.lowPublicDataWritesMembershipWitnesses,
-      fields.publicDataWritesSubtreeSiblingPath,
       fields.publicDataReadsPreimages,
       fields.publicDataReadsMembershipWitnesses,
       fields.archiveRootMembershipWitness,

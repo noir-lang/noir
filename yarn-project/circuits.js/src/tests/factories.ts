@@ -91,6 +91,7 @@ import {
   RootRollupPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
+  StateDiffHints,
   StateReference,
   TxContext,
   TxRequest,
@@ -941,6 +942,48 @@ export function makePublicDataTreeLeafPreimage(seed = 0): PublicDataTreeLeafPrei
 }
 
 /**
+ * Creates an instance of StateDiffHints with arbitrary values based on the provided seed.
+ * @param seed - The seed to use for generating the hints.
+ * @returns A StateDiffHints object.
+ */
+export function makeStateDiffHints(seed = 1): StateDiffHints {
+  const nullifierPredecessorPreimages = makeTuple(
+    MAX_NEW_NULLIFIERS_PER_TX,
+    x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), BigInt(x + 0x200)),
+    seed + 0x1000,
+  );
+
+  const nullifierPredecessorMembershipWitnesses = makeTuple(
+    MAX_NEW_NULLIFIERS_PER_TX,
+    x => makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
+    seed + 0x2000,
+  );
+
+  const sortedNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x3000);
+
+  const sortedNullifierIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => i, seed + 0x4000);
+
+  const noteHashSubtreeSiblingPath = makeTuple(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x5000);
+
+  const nullifierSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x6000);
+
+  const contractSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x7000);
+
+  const publicDataSiblingPath = makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x8000);
+
+  return new StateDiffHints(
+    nullifierPredecessorPreimages,
+    nullifierPredecessorMembershipWitnesses,
+    sortedNullifiers,
+    sortedNullifierIndexes,
+    noteHashSubtreeSiblingPath,
+    nullifierSubtreeSiblingPath,
+    contractSubtreeSiblingPath,
+    publicDataSiblingPath,
+  );
+}
+
+/**
  * Makes arbitrary base rollup inputs.
  * @param seed - The seed to use for generating the base rollup inputs.
  * @returns A base rollup inputs.
@@ -950,24 +993,7 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
 
   const start = makePartialStateReference(seed + 0x100);
 
-  const lowNullifierLeafPreimages = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_TX,
-    x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), BigInt(x + 0x200)),
-    seed + 0x1000,
-  );
-
-  const lowNullifierMembershipWitness = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_TX,
-    x => makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
-    seed + 0x2000,
-  );
-
-  const newCommitmentsSubtreeSiblingPath = makeTuple(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x3000);
-  const newNullifiersSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x4000);
-  const newContractsSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x5000);
-
-  const sortedNewNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x6000);
-  const sortedNewNullifiersIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => i, seed + 0x7000);
+  const stateDiffHints = makeStateDiffHints(seed + 0x600);
 
   const sortedPublicDataWrites = makeTuple(
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -989,8 +1015,6 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     seed + 0x8400,
   );
 
-  const publicDataWritesSubtreeSiblingPath = makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x8600);
-
   const publicDataReadsPreimages = makeTuple(
     MAX_PUBLIC_DATA_READS_PER_TX,
     makePublicDataTreeLeafPreimage,
@@ -1009,19 +1033,12 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
 
   return BaseRollupInputs.from({
     kernelData,
-    lowNullifierMembershipWitness,
     start,
-    sortedNewNullifiers,
-    sortedNewNullifiersIndexes,
-    lowNullifierLeafPreimages,
-    newCommitmentsSubtreeSiblingPath,
-    newNullifiersSubtreeSiblingPath,
-    newContractsSubtreeSiblingPath,
+    stateDiffHints,
     sortedPublicDataWrites,
     sortedPublicDataWritesIndexes,
     lowPublicDataWritesPreimages,
     lowPublicDataWritesMembershipWitnesses,
-    publicDataWritesSubtreeSiblingPath,
     publicDataReadsPreimages,
     publicDataReadsMembershipWitnesses,
     archiveRootMembershipWitness,

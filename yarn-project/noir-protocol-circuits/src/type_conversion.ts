@@ -67,6 +67,7 @@ import {
   RootRollupPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
+  StateDiffHints,
   StateReference,
   TxContext,
   TxRequest,
@@ -129,6 +130,7 @@ import {
   PublicDataMembershipWitness as PublicDataMembershipWitnessNoir,
   PublicDataTreeLeaf as PublicDataTreeLeafNoir,
   PublicDataTreeLeafPreimage as PublicDataTreeLeafPreimageNoir,
+  StateDiffHints as StateDiffHintsNoir,
 } from './types/rollup_base_types.js';
 import { MergeRollupInputs as MergeRollupInputsNoir } from './types/rollup_merge_types.js';
 import {
@@ -1451,6 +1453,27 @@ export function mapPartialStateReferenceToNoir(
 }
 
 /**
+ * Maps state diff hints to a noir state diff hints.
+ * @param hints - The state diff hints.
+ * @returns The noir state diff hints.
+ */
+export function mapStateDiffHintsToNoir(hints: StateDiffHints): StateDiffHintsNoir {
+  return {
+    nullifier_predecessor_preimages: mapTuple(hints.nullifierPredecessorPreimages, mapNullifierLeafPreimageToNoir),
+    nullifier_predecessor_membership_witnesses: mapTuple(
+      hints.nullifierPredecessorMembershipWitnesses,
+      mapNullifierMembershipWitnessToNoir,
+    ),
+    sorted_nullifiers: mapTuple(hints.sortedNullifiers, mapFieldToNoir),
+    sorted_nullifier_indexes: mapTuple(hints.sortedNullifierIndexes, (index: number) => mapNumberToNoir(index)),
+    note_hash_subtree_sibling_path: mapTuple(hints.noteHashSubtreeSiblingPath, mapFieldToNoir),
+    nullifier_subtree_sibling_path: mapTuple(hints.nullifierSubtreeSiblingPath, mapFieldToNoir),
+    contract_subtree_sibling_path: mapTuple(hints.contractSubtreeSiblingPath, mapFieldToNoir),
+    public_data_sibling_path: mapTuple(hints.publicDataSiblingPath, mapFieldToNoir),
+  };
+}
+
+/**
  * Maps the inputs to the base rollup to noir.
  * @param input - The circuits.js base rollup inputs.
  * @returns The noir base rollup inputs.
@@ -1459,19 +1482,7 @@ export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupI
   return {
     kernel_data: mapPreviousKernelDataToNoir(inputs.kernelData),
     start: mapPartialStateReferenceToNoir(inputs.start),
-    sorted_new_nullifiers: mapTuple(inputs.sortedNewNullifiers, mapFieldToNoir),
-    sorted_new_nullifiers_indexes: mapTuple(inputs.sortedNewNullifiersIndexes, (index: number) =>
-      mapNumberToNoir(index),
-    ),
-    low_nullifier_leaf_preimages: mapTuple(inputs.lowNullifierLeafPreimages, mapNullifierLeafPreimageToNoir),
-    low_nullifier_membership_witness: mapTuple(
-      inputs.lowNullifierMembershipWitness,
-      mapNullifierMembershipWitnessToNoir,
-    ),
-    new_commitments_subtree_sibling_path: mapTuple(inputs.newCommitmentsSubtreeSiblingPath, mapFieldToNoir),
-    new_nullifiers_subtree_sibling_path: mapTuple(inputs.newNullifiersSubtreeSiblingPath, mapFieldToNoir),
-    public_data_writes_subtree_sibling_path: mapTuple(inputs.publicDataWritesSubtreeSiblingPath, mapFieldToNoir),
-    new_contracts_subtree_sibling_path: mapTuple(inputs.newContractsSubtreeSiblingPath, mapFieldToNoir),
+    state_diff_hints: mapStateDiffHintsToNoir(inputs.stateDiffHints),
 
     sorted_public_data_writes: mapTuple(inputs.sortedPublicDataWrites, mapPublicDataTreeLeafToNoir),
 

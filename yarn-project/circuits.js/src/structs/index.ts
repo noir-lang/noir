@@ -30,6 +30,7 @@ export * from './rollup/previous_rollup_data.js';
 export * from './rollup/root_rollup.js';
 export * from './shared.js';
 export * from './side_effects.js';
+export * from './rollup/state_diff_hints.js';
 export * from './tx_context.js';
 export * from './tx_request.js';
 export * from './verification_key.js';
