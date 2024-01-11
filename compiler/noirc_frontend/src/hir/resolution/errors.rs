@@ -82,6 +82,8 @@ pub enum ResolverError {
     NonCrateFunctionCalled { name: String, span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { span: Span },
+    #[error("Nested slices are not supported")]
+    NestedSlices { span: Span },
 }
 
 impl ResolverError {
@@ -304,6 +306,11 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
                 "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
+            ResolverError::NestedSlices { span } => Diagnostic::simple_error(
+                "Nested slices are not supported".into(),
+                "Try to use a constant sized array instead".into(),
+                span,
+            ),
         }
     }
 }

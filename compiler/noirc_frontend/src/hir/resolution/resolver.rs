@@ -682,7 +682,12 @@ impl<'a> Resolver<'a> {
 
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, &mut vec![])
+        let span = typ.span ;
+        let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
+        if self.is_nested_slice(&resolved_type) {
+            self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
+        }
+        resolved_type
     }
 
     pub fn resolve_type_aliases(
@@ -759,9 +764,49 @@ impl<'a> Resolver<'a> {
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        let fields = vecmap(unresolved.fields, |(ident, typ)| {
+            let typ = self.resolve_type(typ);
+             (ident, typ)
+        });
 
         (generics, fields, self.errors)
+    }
+
+    fn is_nested_slice(&self, typ: &Type) -> bool {
+        match typ {
+            Type::Array(size, elem) => {
+                if let Type::NotConstant = size.as_ref() {
+                    self.is_slice(elem.as_ref())
+                } else {
+                    false
+                }
+            }
+            Type::Struct(struct_typ, generics) => {
+                let fields = struct_typ.borrow().get_fields(generics);
+                let mut has_nested_slice = false;
+                // dbg!(fields.clone());
+                for field in fields.iter() {
+                    has_nested_slice = self.is_nested_slice(&field.1);
+                    if has_nested_slice {
+                        break;
+                    }
+                }
+                has_nested_slice
+            }
+            _ => false,
+        }
+    }
+
+    fn is_slice(&self, typ: &Type) -> bool {
+        match typ {
+            Type::Array(size, elem) => {
+                match size.as_ref() {
+                    Type::NotConstant => return true,
+                    _ => return false,
+                }
+            }
+            _ => false,
+        }
     }
 
     fn resolve_local_globals(&mut self) {

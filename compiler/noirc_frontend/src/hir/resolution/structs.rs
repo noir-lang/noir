@@ -26,15 +26,32 @@ pub(crate) fn resolve_structs(
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     // Resolve each field in each struct.
     // Each struct should already be present in the NodeInterner after def collection.
-    for (type_id, typ) in structs {
+    for (type_id, typ) in structs.clone() {
         let file_id = typ.file_id;
         let (generics, fields, resolver_errors) = resolve_struct_fields(context, crate_id, typ);
         errors.extend(vecmap(resolver_errors, |err| (err.into(), file_id)));
         context.def_interner.update_struct(type_id, |struct_def| {
             struct_def.set_fields(fields);
             struct_def.generics = generics;
-        });
+        });    
     }
+
+    // Check whether the struct fields have nested slices 
+    // We need to check after all structs are resolved as to avoid 
+    for id in structs {
+        let struct_type = context.def_interner.get_struct(id.0);
+        // Only handle structs without generics as any generics args will be checked
+        // after monomorphization when performing SSA codegen
+        if struct_type.borrow().generics.len() == 0 {
+            let fields = struct_type.borrow().get_fields(&[]);
+            for field in fields.iter() {
+                if is_nested_slice(&field.1) {
+                    errors.push((ResolverError::NestedSlices { span: struct_type.borrow().location.span }.into(), struct_type.borrow().location.file));
+                }
+            }
+        }
+    }
+
     errors
 }
 
@@ -49,5 +66,48 @@ fn resolve_struct_fields(
     let (generics, fields, errors) =
         Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file_id)
             .resolve_struct_fields(unresolved.struct_def);
+
     (generics, fields, errors)
+}
+
+fn is_nested_slice(typ: &Type) -> bool {
+    match typ {
+        Type::Array(size, elem) => {
+            if let Type::NotConstant = size.as_ref() {
+                is_slice(elem.as_ref())
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+fn is_slice(typ: &Type) -> bool {
+    match typ {
+        Type::Array(size, _) => {
+            match size.as_ref() {
+                Type::NotConstant => return true,
+                _ => return false,
+            }
+        }
+        Type::Struct(struct_typ, generics) => {
+            let fields = struct_typ.borrow().get_fields(generics);
+            for field in fields.iter() {
+                if is_slice(&field.1) {
+                    return true;
+                }
+            }
+            false
+        }
+        Type::Tuple(types) => {
+            for typ in types.iter() {
+                if is_slice(typ) {
+                    return false;
+                }
+            }
+            false
+        }
+        _ => false,
+    }
 }
