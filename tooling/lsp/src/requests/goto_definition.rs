@@ -116,6 +116,11 @@ where
     }
 }
 
+/// Calculates the byte offset of a given character in a line.
+/// LSP Clients (editors, eg. neovim) use a different coordinate (LSP Positions) system than the compiler.
+///
+/// LSP Positions navigate through line numbers and character numbers, eg. `(line: 1, character: 5)`
+/// meanwhile byte indexes are used within the compiler to navigate through the source code.
 fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
     let line_len = line.len();
     let mut character_offset = 0;
@@ -197,5 +202,27 @@ mod goto_definition_tests {
             .expect("Could execute on_goto_definition_request");
 
         assert!(&response.is_some());
+    }
+}
+
+#[cfg(test)]
+mod character_to_line_offset_tests {
+    use super::*;
+
+    #[test]
+    fn test_character_to_line_offset() {
+        let line = "Hello, dark!";
+        let character = 8;
+
+        let result = character_to_line_offset(line, character).unwrap();
+        assert_eq!(result, 8);
+
+        // In the case of a multi-byte character, the offset should be the byte index of the character
+        // byte offset for 8 character (黑) is expected to be 10
+        let line = "Hello, 黑!";
+        let character = 8;
+
+        let result = character_to_line_offset(line, character).unwrap();
+        assert_eq!(result, 10);
     }
 }

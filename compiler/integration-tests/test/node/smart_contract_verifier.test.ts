@@ -7,7 +7,7 @@ import toml from 'toml';
 
 import { PathToFileSourceMap, compile, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend, flattenPublicInputs } from '@noir-lang/backend_barretenberg';
+import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 compilerLogLevel('INFO');
 
@@ -61,7 +61,7 @@ test_cases.forEach((testInfo) => {
 
     const contract = await ethers.deployContract(testInfo.compiled, []);
 
-    const result = await contract.verify(proofData.proof, flattenPublicInputs(proofData.publicInputs));
+    const result = await contract.verify(proofData.proof, proofData.publicInputs);
 
     expect(result).to.be.true;
   });
