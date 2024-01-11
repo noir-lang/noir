@@ -170,6 +170,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         OuterBuilder outer_circuit;
         RecursiveVerifier verifier{ &outer_circuit, instance->verification_key };
         auto pairing_points = verifier.verify_proof(inner_proof);
+        info("Recursive Verifier Ultra: num gates = ", outer_circuit.num_gates);
 
         // Check for a failure flag in the recursive verifier circuit
         EXPECT_EQ(outer_circuit.failed(), false) << outer_circuit.err();

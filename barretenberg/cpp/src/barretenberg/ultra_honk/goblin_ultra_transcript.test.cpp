@@ -33,6 +33,8 @@ class GoblinUltraTranscriptTests : public ::testing::Test {
         auto log_n = numeric::get_msb(circuit_size);
 
         size_t MAX_PARTIAL_RELATION_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
+        size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
+
         size_t size_FF = sizeof(FF);
         size_t size_G = 2 * size_FF;
         size_t size_uni = MAX_PARTIAL_RELATION_LENGTH * size_FF;
@@ -64,20 +66,27 @@ class GoblinUltraTranscriptTests : public ::testing::Test {
         manifest_expected.add_entry(round, "LOOKUP_INVERSES", size_G);
         manifest_expected.add_entry(round, "Z_PERM", size_G);
         manifest_expected.add_entry(round, "Z_LOOKUP", size_G);
-        manifest_expected.add_challenge(round, "alpha");
 
-        round++;
-        manifest_expected.add_challenge(round, "Sumcheck:zeta");
+        for (size_t i = 0; i < NUM_SUBRELATIONS - 1; i++) {
+            std::string label = "Sumcheck:alpha_" + std::to_string(i);
+            manifest_expected.add_challenge(round, label);
+            round++;
+        }
+
+        for (size_t i = 0; i < log_n; i++) {
+            std::string label = "Sumcheck:gate_challenge_" + std::to_string(i);
+            manifest_expected.add_challenge(round, label);
+            round++;
+        }
 
         for (size_t i = 0; i < log_n; ++i) {
-            round++;
             std::string idx = std::to_string(i);
             manifest_expected.add_entry(round, "Sumcheck:univariate_" + idx, size_uni);
             std::string label = "Sumcheck:u_" + idx;
             manifest_expected.add_challenge(round, label);
+            round++;
         }
 
-        round++;
         manifest_expected.add_entry(round, "Sumcheck:evaluations", size_evals);
         manifest_expected.add_challenge(round, "rho");
 

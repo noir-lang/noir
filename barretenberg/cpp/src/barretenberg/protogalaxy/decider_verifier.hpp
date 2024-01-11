@@ -6,23 +6,17 @@
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace proof_system::honk {
-template <typename Flavor> class UltraVerifier_ {
+template <typename Flavor> class DeciderVerifier_ {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
     using VerificationKey = typename Flavor::VerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Transcript = typename Flavor::Transcript;
-    using RelationSeparator = typename Flavor::RelationSeparator;
 
   public:
-    explicit UltraVerifier_(const std::shared_ptr<Transcript>& transcript,
-                            const std::shared_ptr<VerificationKey>& verifier_key = nullptr);
-
-    explicit UltraVerifier_(const std::shared_ptr<VerificationKey>& verifier_key);
-    UltraVerifier_(UltraVerifier_&& other);
-
-    UltraVerifier_& operator=(const UltraVerifier_& other) = delete;
-    UltraVerifier_& operator=(UltraVerifier_&& other);
+    explicit DeciderVerifier_();
+    explicit DeciderVerifier_(const std::shared_ptr<Transcript>& transcript,
+                              const std::shared_ptr<VerificationKey>& verifier_key = nullptr);
 
     bool verify_proof(const plonk::proof& proof);
 
@@ -32,10 +26,9 @@ template <typename Flavor> class UltraVerifier_ {
     std::shared_ptr<Transcript> transcript;
 };
 
-extern template class UltraVerifier_<honk::flavor::Ultra>;
-extern template class UltraVerifier_<honk::flavor::GoblinUltra>;
+extern template class DeciderVerifier_<honk::flavor::Ultra>;
+extern template class DeciderVerifier_<honk::flavor::GoblinUltra>;
 
-using UltraVerifier = UltraVerifier_<honk::flavor::Ultra>;
-using GoblinUltraVerifier = UltraVerifier_<honk::flavor::GoblinUltra>;
+using DeciderVerifier = DeciderVerifier_<honk::flavor::Ultra>;
 
 } // namespace proof_system::honk

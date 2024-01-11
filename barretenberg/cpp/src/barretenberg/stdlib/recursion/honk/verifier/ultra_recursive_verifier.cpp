@@ -1,6 +1,5 @@
 #include "barretenberg/stdlib/recursion/honk/verifier/ultra_recursive_verifier.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
-#include "barretenberg/honk/proof_system/power_polynomial.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
 #include "barretenberg/transcript/transcript.hpp"
@@ -103,11 +102,19 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
 
     // Execute Sumcheck Verifier and extract multivariate opening point u = (u_0, ..., u_{d-1}) and purported
     // multivariate evaluations at u
-    auto sumcheck = Sumcheck(key->circuit_size);
-    auto alpha = transcript->get_challenge("alpha");
-    auto [multivariate_challenge, claimed_evaluations, verified] =
-        sumcheck.verify(relation_parameters, alpha, transcript);
+    const size_t log_circuit_size = numeric::get_msb(static_cast<uint32_t>(circuit_size.get_value()));
+    auto sumcheck = Sumcheck(log_circuit_size, transcript);
+    RelationSeparator alpha;
+    for (size_t idx = 0; idx < alpha.size(); idx++) {
+        alpha[idx] = transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+    }
 
+    auto gate_challenges = std::vector<FF>(log_circuit_size);
+    for (size_t idx = 0; idx < log_circuit_size; idx++) {
+        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+    }
+    auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
+        sumcheck.verify(relation_parameters, alpha, gate_challenges);
     // Execute ZeroMorph multilinear PCS evaluation verifier
     auto pairing_points = ZeroMorph::verify(commitments.get_unshifted(),
                                             commitments.get_to_be_shifted(),

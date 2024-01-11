@@ -86,6 +86,12 @@ template <typename BuilderType> class UltraRecursive_ {
     static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = MAX_PARTIAL_RELATION_LENGTH + 1;
     static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
 
+    // For instances of this flavour, used in folding, we need a unique sumcheck batching challenges for each
+    // subrelation to avoid increasing the degree of Protogalaxy polynomial $G$ (the
+    // combiner) too much.
+    static constexpr size_t NUM_SUBRELATIONS = compute_number_of_subrelations<Relations>();
+    using RelationSeparator = std::array<FF, NUM_SUBRELATIONS - 1>;
+
     // define the container for storing the univariate contribution from each relation in Sumcheck
     using SumcheckTupleOfTuplesOfUnivariates = decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations>());
     using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());

@@ -54,10 +54,14 @@ class Ultra {
                                  proof_system::AuxiliaryRelation<FF>>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
-    static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
     static_assert(MAX_PARTIAL_RELATION_LENGTH == 6);
+    static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
     static_assert(MAX_TOTAL_RELATION_LENGTH == 12);
-    static constexpr size_t NUMBER_OF_SUBRELATIONS = compute_number_of_subrelations<Relations>();
+    static constexpr size_t NUM_SUBRELATIONS = compute_number_of_subrelations<Relations>();
+    // For instances of this flavour, used in folding, we need a unique sumcheck batching challenge for each
+    // subrelation. This is because using powers of alpha would increase the degree of Protogalaxy polynomial $G$ (the
+    // combiner) too much.
+    using RelationSeparator = std::array<FF, NUM_SUBRELATIONS - 1>;
 
     // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
     // random polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation
@@ -74,6 +78,8 @@ class Ultra {
 
     // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
     static constexpr bool has_zero_row = true;
+
+    static constexpr bool is_decider = true;
 
   private:
     /**
@@ -400,6 +406,11 @@ class Ultra {
         };
     };
 
+    /**
+     * @brief A container encapsulating all the commitments that the verifier receives (to precomputed polynomials and
+     * witness polynomials).
+     *
+     */
     class VerifierCommitments : public AllEntities<Commitment> {
       public:
         VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
@@ -430,12 +441,44 @@ class Ultra {
             lagrange_first = verification_key->lagrange_first;
             lagrange_last = verification_key->lagrange_last;
         }
-    };
 
-    class FoldingParameters {
-      public:
-        std::vector<FF> gate_challenges;
-        FF target_sum;
+        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
+                            const WitnessCommitments& witness_commitments)
+        {
+            q_m = verification_key->q_m;
+            q_c = verification_key->q_c;
+            q_l = verification_key->q_l;
+            q_r = verification_key->q_r;
+            q_o = verification_key->q_o;
+            q_4 = verification_key->q_4;
+            q_arith = verification_key->q_arith;
+            q_sort = verification_key->q_sort;
+            q_elliptic = verification_key->q_elliptic;
+            q_aux = verification_key->q_aux;
+            q_lookup = verification_key->q_lookup;
+            sigma_1 = verification_key->sigma_1;
+            sigma_2 = verification_key->sigma_2;
+            sigma_3 = verification_key->sigma_3;
+            sigma_4 = verification_key->sigma_4;
+            id_1 = verification_key->id_1;
+            id_2 = verification_key->id_2;
+            id_3 = verification_key->id_3;
+            id_4 = verification_key->id_4;
+            table_1 = verification_key->table_1;
+            table_2 = verification_key->table_2;
+            table_3 = verification_key->table_3;
+            table_4 = verification_key->table_4;
+            lagrange_first = verification_key->lagrange_first;
+            lagrange_last = verification_key->lagrange_last;
+
+            w_l = witness_commitments.w_l;
+            w_r = witness_commitments.w_r;
+            w_o = witness_commitments.w_o;
+            sorted_accum = witness_commitments.sorted_accum;
+            w_4 = witness_commitments.w_4;
+            z_perm = witness_commitments.z_perm;
+            z_lookup = witness_commitments.z_lookup;
+        }
     };
 
     /**

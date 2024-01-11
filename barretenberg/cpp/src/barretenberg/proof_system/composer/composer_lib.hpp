@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/flavor/flavor.hpp"
-#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/proof_system/polynomial_store/polynomial_store.hpp"
+
 #include <memory>
 
 namespace proof_system {

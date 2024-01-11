@@ -68,7 +68,6 @@ class GoblinUltra {
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
     static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
-    static constexpr size_t NUMBER_OF_SUBRELATIONS = compute_number_of_subrelations<Relations>();
 
     // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
     // random polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation
@@ -76,6 +75,12 @@ class GoblinUltra {
     static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = MAX_PARTIAL_RELATION_LENGTH + 1;
     static constexpr size_t BATCHED_RELATION_TOTAL_LENGTH = MAX_TOTAL_RELATION_LENGTH + 1;
     static constexpr size_t NUM_RELATIONS = std::tuple_size_v<Relations>;
+
+    // For instances of this flavour, used in folding, we need a unique sumcheck batching challenges for each
+    // subrelation. This
+    // is because using powers of alpha would increase the degree of Protogalaxy polynomial $G$ (the combiner) to much.
+    static constexpr size_t NUM_SUBRELATIONS = compute_number_of_subrelations<Relations>();
+    using RelationSeparator = std::array<FF, NUM_SUBRELATIONS - 1>;
 
     template <size_t NUM_INSTANCES>
     using ProtogalaxyTupleOfTuplesOfUnivariates =
@@ -85,7 +90,6 @@ class GoblinUltra {
 
     // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
     static constexpr bool has_zero_row = true;
-
     /**
      * @brief A base class labelling precomputed entities and (ordered) subsets of interest.
      * @details Used to build the proving key and verification key.
@@ -448,14 +452,58 @@ class GoblinUltra {
             this->lagrange_ecc_op = verification_key->lagrange_ecc_op;
             this->databus_id = verification_key->databus_id;
         }
+
+        VerifierCommitments_(const std::shared_ptr<VerificationKey>& verification_key,
+                             const WitnessCommitments& witness_commitments)
+        {
+            this->q_m = verification_key->q_m;
+            this->q_l = verification_key->q_l;
+            this->q_r = verification_key->q_r;
+            this->q_o = verification_key->q_o;
+            this->q_4 = verification_key->q_4;
+            this->q_c = verification_key->q_c;
+            this->q_arith = verification_key->q_arith;
+            this->q_sort = verification_key->q_sort;
+            this->q_elliptic = verification_key->q_elliptic;
+            this->q_aux = verification_key->q_aux;
+            this->q_lookup = verification_key->q_lookup;
+            this->q_busread = verification_key->q_busread;
+            this->q_poseidon2_external = verification_key->q_poseidon2_external;
+            this->q_poseidon2_internal = verification_key->q_poseidon2_internal;
+            this->sigma_1 = verification_key->sigma_1;
+            this->sigma_2 = verification_key->sigma_2;
+            this->sigma_3 = verification_key->sigma_3;
+            this->sigma_4 = verification_key->sigma_4;
+            this->id_1 = verification_key->id_1;
+            this->id_2 = verification_key->id_2;
+            this->id_3 = verification_key->id_3;
+            this->id_4 = verification_key->id_4;
+            this->table_1 = verification_key->table_1;
+            this->table_2 = verification_key->table_2;
+            this->table_3 = verification_key->table_3;
+            this->table_4 = verification_key->table_4;
+            this->lagrange_first = verification_key->lagrange_first;
+            this->lagrange_last = verification_key->lagrange_last;
+            this->lagrange_ecc_op = verification_key->lagrange_ecc_op;
+            this->databus_id = verification_key->databus_id;
+
+            this->w_l = witness_commitments.w_l;
+            this->w_r = witness_commitments.w_r;
+            this->w_o = witness_commitments.w_o;
+            this->sorted_accum = witness_commitments.sorted_accum;
+            this->w_4 = witness_commitments.w_4;
+            this->z_perm = witness_commitments.z_perm;
+            this->z_lookup = witness_commitments.z_lookup;
+            this->ecc_op_wire_1 = witness_commitments.ecc_op_wire_1;
+            this->ecc_op_wire_2 = witness_commitments.ecc_op_wire_2;
+            this->ecc_op_wire_3 = witness_commitments.ecc_op_wire_3;
+            this->calldata = witness_commitments.calldata;
+            this->calldata = witness_commitments.calldata_read_counts;
+            this->lookup_inverses = witness_commitments.lookup_inverses;
+        }
     };
     // Specialize for GoblinUltra (general case used in GoblinUltraRecursive).
     using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
-    class FoldingParameters {
-      public:
-        std::vector<FF> gate_challenges;
-        FF target_sum;
-    };
 
     /**
      * @brief Derived class that defines proof structure for GoblinUltra proofs, as well as supporting functions.

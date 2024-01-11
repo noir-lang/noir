@@ -415,11 +415,9 @@ template <class Flavor> void ProverInstance_<Flavor>::compute_grand_product_poly
 {
     auto public_input_delta =
         compute_public_input_delta<Flavor>(public_inputs, beta, gamma, proving_key->circuit_size, pub_inputs_offset);
-
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
     relation_parameters.public_input_delta = public_input_delta;
-
     auto lookup_grand_product_delta = compute_lookup_grand_product_delta(beta, gamma, proving_key->circuit_size);
     relation_parameters.lookup_grand_product_delta = lookup_grand_product_delta;
 

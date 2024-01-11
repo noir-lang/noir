@@ -1,7 +1,5 @@
 #pragma once
-#include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/flavor/goblin_ultra_recursive.hpp"
-#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/flavor/ultra_recursive.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
@@ -17,6 +15,7 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     using NativeVerificationKey = typename Flavor::NativeVerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Builder = typename Flavor::CircuitBuilder;
+    using RelationSeparator = typename Flavor::RelationSeparator;
     using PairingPoints = std::array<GroupElement, 2>;
 
     explicit UltraRecursiveVerifier_(Builder* builder,

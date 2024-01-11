@@ -34,6 +34,7 @@ class ToyFlavor {
     using CommitmentHandle = G1::affine_element;
     using CommitmentKey = pcs::CommitmentKey<Curve>;
     using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
+    using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 1;
     static constexpr size_t NUM_WITNESS_ENTITIES = 16;

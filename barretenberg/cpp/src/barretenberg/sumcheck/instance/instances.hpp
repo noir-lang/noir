@@ -8,9 +8,9 @@ template <typename Flavor_, size_t NUM_> struct ProverInstances_ {
   public:
     static_assert(NUM_ > 0, "Must have at least one prover instance");
     using Flavor = Flavor_;
-    using FoldingParameters = typename Flavor::FoldingParameters;
     using FF = typename Flavor::FF;
     static constexpr size_t NUM = NUM_;
+    static constexpr size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
     using Instance = ProverInstance_<Flavor>;
 
     using ArrayType = std::array<std::shared_ptr<Instance>, NUM_>;
@@ -18,10 +18,10 @@ template <typename Flavor_, size_t NUM_> struct ProverInstances_ {
     static constexpr size_t EXTENDED_LENGTH = (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (NUM - 1) + 1;
     static constexpr size_t BATCHED_EXTENDED_LENGTH = (Flavor::MAX_TOTAL_RELATION_LENGTH - 1 + NUM - 1) * (NUM - 1) + 1;
     using RelationParameters = proof_system::RelationParameters<Univariate<FF, EXTENDED_LENGTH>>;
-    using AlphaType = Univariate<FF, BATCHED_EXTENDED_LENGTH>;
+    using RelationSeparator = std::array<Univariate<FF, BATCHED_EXTENDED_LENGTH>, NUM_SUBRELATIONS - 1>;
     ArrayType _data;
     RelationParameters relation_parameters;
-    AlphaType alpha;
+    RelationSeparator alphas;
     std::vector<FF> next_gate_challenges;
 
     std::shared_ptr<Instance> const& operator[](size_t idx) const { return _data[idx]; }
@@ -65,7 +65,7 @@ template <typename Flavor_, size_t NUM_> struct ProverInstances_ {
         for (auto& get_all : insts_prover_polynomials_views) {
             // Iterate over all columns in the trace execution of an instance and extract their value at row_idx.
             for (auto [result, poly_ptr] : zip_view(results, get_all)) {
-                result.evaluations[instance_idx] = (poly_ptr)[row_idx];
+                result.evaluations[instance_idx] = poly_ptr[row_idx];
             }
             instance_idx++;
         }

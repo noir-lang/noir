@@ -1,6 +1,8 @@
 #pragma once
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
+#include "barretenberg/protogalaxy/decider_prover.hpp"
+#include "barretenberg/protogalaxy/decider_verifier.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_verifier.hpp"
 #include "barretenberg/srs/global_crs.hpp"
@@ -66,6 +68,17 @@ template <UltraFlavor Flavor> class UltraComposer_ {
         const std::shared_ptr<Instance>&,
         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
+    DeciderProver_<Flavor> create_decider_prover(
+        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+    DeciderProver_<Flavor> create_decider_prover(
+        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<CommitmentKey>&,
+        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+
+    DeciderVerifier_<Flavor> create_decider_verifier(
+        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
     UltraVerifier_<Flavor> create_verifier(CircuitBuilder& circuit);
 
     UltraVerifier_<Flavor> create_ultra_with_keccak_verifier(CircuitBuilder& circuit);

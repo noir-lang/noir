@@ -34,6 +34,7 @@ class GoblinTranslator {
     using BF = Curve::BaseField;
     using Polynomial = barretenberg::Polynomial<FF>;
     using PolynomialHandle = std::span<FF>;
+    using RelationSeparator = FF;
 
     // The size of the circuit which is filled with non-zero values for most polynomials. Most relations (everything
     // except for Permutation and GenPermSort) can be evaluated just on the first chunk

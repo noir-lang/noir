@@ -17,6 +17,9 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
     using VerificationKey = typename Flavor::VerificationKey;
     using WitnessCommitments = typename Flavor::WitnessCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
+    using RelationSeparator = typename Flavor::RelationSeparator;
+
+    static constexpr size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
 
     VerifierInstances instances;
 
@@ -47,10 +50,9 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
     {
         auto log_instance_size = gate_challenges.size();
         std::vector<FF> next_gate_challenges(log_instance_size);
-        next_gate_challenges[0] = 1;
 
-        for (size_t idx = 1; idx < log_instance_size; idx++) {
-            next_gate_challenges[idx] = gate_challenges[idx] + perturbator_challenge * round_challenges[idx - 1];
+        for (size_t idx = 0; idx < log_instance_size; idx++) {
+            next_gate_challenges[idx] = gate_challenges[idx] + perturbator_challenge * round_challenges[idx];
         }
         return next_gate_challenges;
     }

@@ -351,8 +351,7 @@
         "acvm_backend.wasm",
         "barretenberg",
         "wasi",
-        "env",
-        "honk_tests"
+        "env"
       ]
     },
     {

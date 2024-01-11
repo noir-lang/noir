@@ -10,10 +10,11 @@
 
 namespace proof_system::honk {
 
-template <UltraFlavor Flavor> class UltraProver_ {
+template <UltraFlavor Flavor> class DeciderProver_ {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
     using CommitmentKey = typename Flavor::CommitmentKey;
+    using ProvingKey = typename Flavor::ProvingKey;
     using Polynomial = typename Flavor::Polynomial;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
@@ -23,22 +24,18 @@ template <UltraFlavor Flavor> class UltraProver_ {
     using RelationSeparator = typename Flavor::RelationSeparator;
 
   public:
-    explicit UltraProver_(const std::shared_ptr<Instance>&,
-                          const std::shared_ptr<CommitmentKey>&,
-                          const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+    explicit DeciderProver_(const std::shared_ptr<Instance>&,
+                            const std::shared_ptr<CommitmentKey>&,
+                            const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     BBERG_PROFILE void execute_preamble_round();
-    BBERG_PROFILE void execute_wire_commitments_round();
-    BBERG_PROFILE void execute_sorted_list_accumulator_round();
-    BBERG_PROFILE void execute_log_derivative_inverse_round();
-    BBERG_PROFILE void execute_grand_product_computation_round();
     BBERG_PROFILE void execute_relation_check_rounds();
     BBERG_PROFILE void execute_zeromorph_rounds();
 
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    std::shared_ptr<Instance> instance;
+    std::shared_ptr<Instance> accumulator;
 
     std::shared_ptr<Transcript> transcript;
 
@@ -58,10 +55,9 @@ template <UltraFlavor Flavor> class UltraProver_ {
     plonk::proof proof;
 };
 
-extern template class UltraProver_<honk::flavor::Ultra>;
-extern template class UltraProver_<honk::flavor::GoblinUltra>;
+extern template class DeciderProver_<honk::flavor::Ultra>;
+extern template class DeciderProver_<honk::flavor::GoblinUltra>;
 
-using UltraProver = UltraProver_<honk::flavor::Ultra>;
-using GoblinUltraProver = UltraProver_<honk::flavor::GoblinUltra>;
+using DeciderProver = DeciderProver_<honk::flavor::Ultra>;
 
 } // namespace proof_system::honk

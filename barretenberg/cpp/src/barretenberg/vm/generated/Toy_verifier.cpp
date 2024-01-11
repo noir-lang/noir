@@ -2,7 +2,6 @@
 
 #include "./Toy_verifier.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
-#include "barretenberg/honk/proof_system/power_polynomial.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
@@ -84,11 +83,15 @@ bool ToyVerifier::verify_proof(const plonk::proof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_xor_counts);
 
     // Execute Sumcheck Verifier
-    auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
-
-    auto alpha = transcript->get_challenge("alpha");
+    const size_t log_circuit_size = numeric::get_msb(circuit_size);
+    auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
+    FF alpha = transcript->get_challenge("Sumcheck:alpha");
+    auto gate_challenges = std::vector<FF>(log_circuit_size);
+    for (size_t idx = 0; idx < log_circuit_size; idx++) {
+        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+    }
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
-        sumcheck.verify(relation_parameters, alpha, transcript);
+        sumcheck.verify(relation_parameters, alpha, gate_challenges);
 
     // If Sumcheck did not verify, return false
     if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {

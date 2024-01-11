@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/ref_vector.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <array>
 
@@ -38,17 +39,15 @@ template <typename T> struct RelationParameters {
                                    { T(0), T(0), T(0), T(0), T(0) } } };
 
     static constexpr int NUM_TO_FOLD = 5;
-    std::array<std::reference_wrapper<T>, NUM_TO_FOLD> to_fold = {
-        eta, beta, gamma, public_input_delta, lookup_grand_product_delta
-    };
+    RefVector<T> get_to_fold() { return { eta, beta, gamma, public_input_delta, lookup_grand_product_delta }; }
 
     static RelationParameters get_random()
     {
         RelationParameters result;
         result.eta = T::random_element();
+        result.beta = T::random_element();
         result.beta_sqr = result.beta * result.beta;
         result.beta_cube = result.beta_sqr * result.beta;
-        result.beta = T::random_element();
         result.gamma = T::random_element();
         result.public_input_delta = T::random_element();
         result.lookup_grand_product_delta = T::random_element();

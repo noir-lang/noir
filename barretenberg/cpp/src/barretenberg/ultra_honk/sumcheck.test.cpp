@@ -36,6 +36,7 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
     using Flavor = flavor::Ultra;
     using FF = typename Flavor::FF;
     using Transcript = typename Flavor::Transcript;
+    using RelationSeparator = typename Flavor::RelationSeparator;
 
     // Create a composer and a dummy circuit with a few gates
     auto builder = proof_system::UltraCircuitBuilder();
@@ -162,16 +163,38 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
 
     auto prover_transcript = Transcript::prover_init_empty();
     auto circuit_size = instance->proving_key->circuit_size;
-    instance->alpha = prover_transcript->get_challenge("alpha");
-    auto sumcheck_prover = SumcheckProver<Flavor>(circuit_size, prover_transcript);
+    auto log_circuit_size = numeric::get_msb(circuit_size);
 
+    RelationSeparator prover_alphas;
+    for (size_t idx = 0; idx < prover_alphas.size(); idx++) {
+        prover_alphas[idx] = prover_transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+    }
+
+    instance->alphas = prover_alphas;
+    auto sumcheck_prover = SumcheckProver<Flavor>(circuit_size, prover_transcript);
+    std::vector<FF> prover_gate_challenges(log_circuit_size);
+    for (size_t idx = 0; idx < log_circuit_size; idx++) {
+        prover_gate_challenges[idx] =
+            prover_transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+    }
+    instance->gate_challenges = prover_gate_challenges;
     auto prover_output = sumcheck_prover.prove(instance);
 
     auto verifier_transcript = Transcript::verifier_init_empty(prover_transcript);
 
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(circuit_size);
-    FF alpha = verifier_transcript->get_challenge("alpha");
-    auto verifier_output = sumcheck_verifier.verify(instance->relation_parameters, alpha, verifier_transcript);
+    auto sumcheck_verifier = SumcheckVerifier<Flavor>(log_circuit_size, verifier_transcript);
+    RelationSeparator verifier_alphas;
+    for (size_t idx = 0; idx < verifier_alphas.size(); idx++) {
+        verifier_alphas[idx] = verifier_transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+    }
+
+    std::vector<FF> verifier_gate_challenges(log_circuit_size);
+    for (size_t idx = 0; idx < log_circuit_size; idx++) {
+        verifier_gate_challenges[idx] =
+            verifier_transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+    }
+    auto verifier_output =
+        sumcheck_verifier.verify(instance->relation_parameters, verifier_alphas, verifier_gate_challenges);
 
     auto verified = verifier_output.verified.value();
 

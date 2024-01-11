@@ -1,5 +1,4 @@
 #include "ultra_prover.hpp"
-#include "barretenberg/honk/proof_system/power_polynomial.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace proof_system::honk {
@@ -148,9 +147,18 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_c
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_check_rounds()
 {
     using Sumcheck = sumcheck::SumcheckProver<Flavor>;
-
-    auto sumcheck = Sumcheck(instance->proving_key->circuit_size, transcript);
-    instance->alpha = transcript->get_challenge("alpha");
+    auto circuit_size = instance->proving_key->circuit_size;
+    auto sumcheck = Sumcheck(circuit_size, transcript);
+    RelationSeparator alphas;
+    for (size_t idx = 0; idx < alphas.size(); idx++) {
+        alphas[idx] = transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+    }
+    instance->alphas = alphas;
+    std::vector<FF> gate_challenges(numeric::get_msb(circuit_size));
+    for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
+        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+    }
+    instance->gate_challenges = gate_challenges;
     sumcheck_output = sumcheck.prove(instance);
 }
 

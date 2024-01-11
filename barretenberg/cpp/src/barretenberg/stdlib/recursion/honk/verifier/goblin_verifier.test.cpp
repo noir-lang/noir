@@ -187,7 +187,7 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
         OuterBuilder outer_circuit;
         RecursiveVerifier verifier{ &outer_circuit, instance->verification_key };
         auto pairing_points = verifier.verify_proof(inner_proof);
-        info("Recursive Verifier: num gates = ", outer_circuit.num_gates);
+        info("Recursive Verifier Goblin: num gates = ", outer_circuit.num_gates);
 
         // Check for a failure flag in the recursive verifier circuit
         EXPECT_EQ(outer_circuit.failed(), false) << outer_circuit.err();
