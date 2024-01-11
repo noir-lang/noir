@@ -235,6 +235,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@aztec/bb.js@npm:0.17.0":
+  version: 0.17.0
+  resolution: "@aztec/bb.js@npm:0.17.0"
+  dependencies:
+    comlink: ^4.4.1
+    commander: ^10.0.1
+    debug: ^4.3.4
+    tslib: ^2.4.0
+  bin:
+    bb.js: dest/node/main.js
+  checksum: 459838076e4db7e6ca17f95acbd5c83028ea3b5c21e016a1561cec065a95d20e8d65906ad63e44e071556bc331070ceda6d48c058f5accdb76b3c6daab8ef1a5
+  languageName: node
+  linkType: hard
+
 "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.10.4, @babel/code-frame@npm:^7.12.11, @babel/code-frame@npm:^7.16.0, @babel/code-frame@npm:^7.22.13, @babel/code-frame@npm:^7.23.5, @babel/code-frame@npm:^7.8.3":
   version: 7.23.5
   resolution: "@babel/code-frame@npm:7.23.5"
@@ -3958,7 +3972,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
-    "@aztec/bb.js": 0.16.0
+    "@aztec/bb.js": 0.17.0
     "@noir-lang/types": "workspace:*"
     "@types/node": ^20.6.2
     "@types/prettier": ^3
@@ -3980,7 +3994,6 @@ __metadata:
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/types": "workspace:*"
     "@types/chai": ^4
-    "@types/lodash": ^4
     "@types/mocha": ^10.0.1
     "@types/node": ^20.6.2
     "@types/prettier": ^3
@@ -3988,7 +4001,6 @@ __metadata:
     eslint: ^8.50.0
     eslint-plugin-prettier: ^5.0.0
     glob: ^10.3.10
-    lodash: ^4.17.21
     mocha: ^10.2.0
     prettier: 3.0.3
     ts-command-line-args: ^2.5.1
@@ -5337,13 +5349,6 @@ __metadata:
     "@types/koa-compose": "*"
     "@types/node": "*"
   checksum: 4a2e7e19bf91779d0a3c46b8838d6faba5ee0e9a888e5ef8683722c21aa8efcf35f86d1a661adb56ca9f239f7724e306055e33bfa1b2dc008b9c0fa9fcc12bee
-  languageName: node
-  linkType: hard
-
-"@types/lodash@npm:^4":
-  version: 4.14.202
-  resolution: "@types/lodash@npm:4.14.202"
-  checksum: a91acf3564a568c6f199912f3eb2c76c99c5a0d7e219394294213b3f2d54f672619f0fde4da22b29dc5d4c31457cd799acc2e5cb6bd90f9af04a1578483b6ff7
   languageName: node
   linkType: hard
 

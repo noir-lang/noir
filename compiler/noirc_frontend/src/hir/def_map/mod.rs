@@ -64,6 +64,7 @@ pub struct CrateDefMap {
 
     pub(crate) krate: CrateId,
 
+    /// Maps an external dependency's name to its root module id.
     pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
 }
 
