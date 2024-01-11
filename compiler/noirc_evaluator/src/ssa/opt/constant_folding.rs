@@ -187,7 +187,7 @@ mod test {
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
-            value::{Value, ValueId},
+            value::Value,
         },
     };
 

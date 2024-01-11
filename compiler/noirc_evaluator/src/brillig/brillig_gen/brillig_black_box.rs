@@ -41,6 +41,19 @@ pub(crate) fn convert_black_box_call(
                 unreachable!("ICE: Blake2s expects one array argument and one array result")
             }
         }
+        BlackBoxFunc::Blake3 => {
+            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
+                (function_arguments, function_results)
+            {
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::Blake3 {
+                    message: message_vector.to_heap_vector(),
+                    output: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!("ICE: Blake3 expects one array argument and one array result")
+            }
+        }
         BlackBoxFunc::Keccak256 => {
             if let (
                 [message, BrilligVariable::Simple(array_size)],
@@ -169,6 +182,42 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
+        BlackBoxFunc::EmbeddedCurveAdd => {
+            if let (
+                [BrilligVariable::Simple(input1_x), BrilligVariable::Simple(input1_y), BrilligVariable::Simple(input2_x), BrilligVariable::Simple(input2_y)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveAdd {
+                    input1_x: *input1_x,
+                    input1_y: *input1_y,
+                    input2_x: *input2_x,
+                    input2_y: *input2_y,
+                    result: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!(
+                    "ICE: EmbeddedCurveAdd expects four register arguments and one array result"
+                )
+            }
+        }
+        BlackBoxFunc::EmbeddedCurveDouble => {
+            if let (
+                [BrilligVariable::Simple(input1_x), BrilligVariable::Simple(input1_y)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveDouble {
+                    input1_x: *input1_x,
+                    input1_y: *input1_y,
+                    result: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!(
+                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                )
+            }
+        }
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
         }
@@ -181,9 +230,6 @@ pub(crate) fn convert_black_box_call(
         BlackBoxFunc::RecursiveAggregation => unimplemented!(
             "ICE: `BlackBoxFunc::RecursiveAggregation` is not implemented by the Brillig VM"
         ),
-        BlackBoxFunc::Blake3 => {
-            unimplemented!("ICE: `BlackBoxFunc::Blake3` is not implemented by the Brillig VM")
-        }
         BlackBoxFunc::Keccakf1600 => {
             unimplemented!("ICE: `BlackBoxFunc::Keccakf1600` is not implemented by the Brillig VM")
         }

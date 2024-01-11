@@ -47,6 +47,18 @@ pub trait BlackBoxFunctionSolver {
         low: &FieldElement,
         high: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
+    fn ec_add(
+        &self,
+        input1_x: &FieldElement,
+        input1_y: &FieldElement,
+        input2_x: &FieldElement,
+        input2_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
+    fn ec_double(
+        &self,
+        input_x: &FieldElement,
+        input_x: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
 }
 
 pub fn sha256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {

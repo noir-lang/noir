@@ -353,6 +353,9 @@ impl DebugShow {
             BlackBoxOp::Blake2s { message, output } => {
                 debug_println!(self.enable_debug_trace, "  BLAKE2S {} -> {}", message, output);
             }
+            BlackBoxOp::Blake3 { message, output } => {
+                debug_println!(self.enable_debug_trace, "  BLAKE3 {} -> {}", message, output);
+            }
             BlackBoxOp::EcdsaSecp256k1 {
                 hashed_msg,
                 public_key_x,
@@ -393,6 +396,26 @@ impl DebugShow {
                     "  FIXED_BASE_SCALAR_MUL {} {} -> {}",
                     low,
                     high,
+                    result
+                );
+            }
+            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {}",
+                    input1_x,
+                    input1_y,
+                    input2_x,
+                    input2_y,
+                    result
+                );
+            }
+            BlackBoxOp::EmbeddedCurveDouble { input1_x, input1_y, result } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  EMBEDDED_CURVE_DOUBLE ({} {}) -> {}",
+                    input1_x,
+                    input1_y,
                     result
                 );
             }

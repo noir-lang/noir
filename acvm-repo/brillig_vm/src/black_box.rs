@@ -1,7 +1,7 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
-    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256,
+    blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256,
     BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
@@ -55,6 +55,12 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::Blake2s { message, output } => {
             let message = to_u8_vec(read_heap_vector(memory, registers, message));
             let bytes = blake2s(message.as_slice())?;
+            memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
+            Ok(())
+        }
+        BlackBoxOp::Blake3 { message, output } => {
+            let message = to_u8_vec(read_heap_vector(memory, registers, message));
+            let bytes = blake3(message.as_slice())?;
             memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
             Ok(())
         }
@@ -136,6 +142,22 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
             Ok(())
         }
+        BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
+            let input1_x = registers.get(*input1_x).to_field();
+            let input1_y = registers.get(*input1_y).to_field();
+            let input2_x = registers.get(*input2_x).to_field();
+            let input2_y = registers.get(*input2_y).to_field();
+            let (x, y) = solver.ec_add(&input1_x, &input1_y, &input2_x, &input2_y)?;
+            memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
+            Ok(())
+        }
+        BlackBoxOp::EmbeddedCurveDouble { input1_x, input1_y, result } => {
+            let input1_x = registers.get(*input1_x).to_field();
+            let input1_y = registers.get(*input1_y).to_field();
+            let (x, y) = solver.ec_double(&input1_x, &input1_y)?;
+            memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
+            Ok(())
+        }
         BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
                 read_heap_vector(memory, registers, inputs).iter().map(|x| x.to_field()).collect();
@@ -171,6 +193,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
     match op {
         BlackBoxOp::Sha256 { .. } => BlackBoxFunc::SHA256,
         BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
+        BlackBoxOp::Blake3 { .. } => BlackBoxFunc::Blake3,
         BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
         BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
@@ -178,6 +201,8 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
         BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
         BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
+        BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
+        BlackBoxOp::EmbeddedCurveDouble { .. } => BlackBoxFunc::EmbeddedCurveDouble,
     }
 }
 

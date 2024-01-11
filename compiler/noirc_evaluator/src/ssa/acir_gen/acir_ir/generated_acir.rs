@@ -205,6 +205,18 @@ impl GeneratedAcir {
                 high: inputs[1][0],
                 outputs: (outputs[0], outputs[1]),
             },
+            BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
+                input1_x: inputs[0][0],
+                input1_y: inputs[1][0],
+                input2_x: inputs[2][0],
+                input2_y: inputs[3][0],
+                outputs: (outputs[0], outputs[1]),
+            },
+            BlackBoxFunc::EmbeddedCurveDouble => BlackBoxFuncCall::EmbeddedCurveDouble {
+                input_x: inputs[0][0],
+                input_y: inputs[1][0],
+                outputs: (outputs[0], outputs[1]),
+            },
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = match inputs.to_vec().pop() {
                     Some(var_message_size) => var_message_size[0],
@@ -579,6 +591,10 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::FixedBaseScalarMul => Some(2),
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
+        // Addition over the embedded curve: input are coordinates (x1,y1) and (x2,y2) of the Grumpkin points 
+        BlackBoxFunc::EmbeddedCurveAdd => Some(4),
+        // Doubling over the embedded curve: input is (x,y) coordinate of the point.
+        BlackBoxFunc::EmbeddedCurveDouble => Some(2),
     }
 }
 
@@ -606,9 +622,11 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
-        // Output of fixed based scalar mul over the embedded curve
+        // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul => Some(2),
+        BlackBoxFunc::FixedBaseScalarMul 
+        | BlackBoxFunc::EmbeddedCurveAdd
+        | BlackBoxFunc::EmbeddedCurveDouble => Some(2),
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
     }

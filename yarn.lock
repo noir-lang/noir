@@ -11520,6 +11520,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+<<<<<<< HEAD
+"fast-fifo@npm:^1.1.0, fast-fifo@npm:^1.2.0":
+  version: 1.3.2
+  resolution: "fast-fifo@npm:1.3.2"
+  checksum: 6bfcba3e4df5af7be3332703b69a7898a8ed7020837ec4395bb341bd96cc3a6d86c3f6071dd98da289618cf2234c70d84b2a6f09a33dd6f988b1ff60d8e54275
+  languageName: node
+  linkType: hard
+
+"fast-glob@npm:^3.2.11, fast-glob@npm:^3.2.12, fast-glob@npm:^3.2.9, fast-glob@npm:^3.3.0":
+||||||| a3366d645
+"fast-glob@npm:^3.2.11, fast-glob@npm:^3.2.12, fast-glob@npm:^3.2.9, fast-glob@npm:^3.3.0":
+=======
 "fast-equals@npm:^5.0.1":
   version: 5.0.1
   resolution: "fast-equals@npm:5.0.1"
@@ -11535,6 +11547,7 @@ __metadata:
   linkType: hard
 
 "fast-glob@npm:^3.2.11, fast-glob@npm:^3.2.12, fast-glob@npm:^3.2.9, fast-glob@npm:^3.3.0, fast-glob@npm:^3.3.2":
+>>>>>>> refs/subrepo/noir/fetch
   version: 3.3.2
   resolution: "fast-glob@npm:3.3.2"
   dependencies:
@@ -12133,6 +12146,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+<<<<<<< HEAD
+"fwd-stream@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "fwd-stream@npm:1.0.4"
+  dependencies:
+    readable-stream: ~1.0.26-4
+  checksum: db4dcf68f214b3fabd6cd9658630dfd1d7ed8d43f7f45408027a90220cd75276e782d1e958821775d7a3a4a83034778e75a097bdc7002c758e8896f76213c65d
+  languageName: node
+  linkType: hard
+
+||||||| a3366d645
+=======
 "fwd-stream@npm:^1.0.4":
   version: 1.0.4
   resolution: "fwd-stream@npm:1.0.4"
@@ -12149,6 +12174,7 @@ __metadata:
   languageName: node
   linkType: hard
 
+>>>>>>> refs/subrepo/noir/fetch
 "gensync@npm:^1.0.0-beta.1, gensync@npm:^1.0.0-beta.2":
   version: 1.0.0-beta.2
   resolution: "gensync@npm:1.0.0-beta.2"
@@ -13365,6 +13391,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+<<<<<<< HEAD
+"import-local@npm:^3.0.2":
+  version: 3.1.0
+  resolution: "import-local@npm:3.1.0"
+  dependencies:
+    pkg-dir: ^4.2.0
+    resolve-cwd: ^3.0.0
+  bin:
+    import-local-fixture: fixtures/cli.js
+  checksum: bfcdb63b5e3c0e245e347f3107564035b128a414c4da1172a20dc67db2504e05ede4ac2eee1252359f78b0bfd7b19ef180aec427c2fce6493ae782d73a04cddd
+  languageName: node
+  linkType: hard
+
+||||||| a3366d645
+=======
 "import-local@npm:^3.0.2":
   version: 3.1.0
   resolution: "import-local@npm:3.1.0"
@@ -13384,6 +13425,7 @@ __metadata:
   languageName: node
   linkType: hard
 
+>>>>>>> refs/subrepo/noir/fetch
 "imurmurhash@npm:^0.1.4":
   version: 0.1.4
   resolution: "imurmurhash@npm:0.1.4"
