@@ -12,9 +12,8 @@ use noirc_errors::{Location, Span};
 pub struct TraitFunction {
     pub name: Ident,
     pub typ: Type,
-    pub span: Span,
+    pub location: Location,
     pub default_impl: Option<Box<NoirFunction>>,
-    pub default_impl_file_id: fm::FileId,
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
 }
 
