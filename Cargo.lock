@@ -2872,6 +2872,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "rust-embed",
  "serde",
  "tracing-subscriber",
  "tracing-web",

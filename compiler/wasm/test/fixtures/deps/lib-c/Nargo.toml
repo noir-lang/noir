@@ -1,0 +1,7 @@
+[package]
+name = "lib_c"
+authors = [""]
+compiler_version = ">=0.18.0"
+type = "lib"
+
+[dependencies]
