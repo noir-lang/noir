@@ -8,6 +8,7 @@ ecdsa_secp256k1_verify(
    signature): boolean
 ```
 
+Calculates the Blake2s256 hash of the input bytes and represents these as a single field element.
 Verifies a ECDSA signature over the secp256k1 curve.
 
 ## Parameters

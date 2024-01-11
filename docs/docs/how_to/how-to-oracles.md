@@ -11,44 +11,50 @@ keywords:
 sidebar_position: 1
 ---
 
-This guide shows you how to use oracles in your Noir program. It is interface-agnostic, as we will give examples in both Nargo and NoirJS.
-
-For the sake of clarity, it is assumed that:
+This guide shows you how to use oracles in your Noir program. For the sake of clarity, it is assumed that:
 
 - You have read the [explainer on Oracles](../explainers/explainer-oracle.md) and are comfortable with the concept
-- You already have your own NoirJS and/or Nargo app. You can use the [Vite Hardhat](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat) as a boilerplate (for example, by using its [devcontainer in codespaces](../how_to/using-devcontainers.md))
+- You already have your own NoirJS and/or Nargo app. If you don't, you can use the [vite-hardhat starter](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat) as a boilerplate (for example, by using its [devcontainer in codespaces](./using-devcontainers.mdx))
 - You understand the concept of a JSON-RPC server. Visit the [JSON-RPC website](https://www.jsonrpc.org/) if you need a refresher.
-- You are comfortable with server-side javascript. For the sake of brevity, will skip any details on installing Node, packages, etc.
+- You are comfortable with server-side javascript. Will skip any details on installing Node, packages, etc, so as to keep the guide short and straight to the point.
 
-If you are looking for an end-to-end guide with a code example you can clone and play around, follow the [Oracle Tutorial](../tutorials/oracles.md) instead.
+If you are looking for an end-to-end guide example with a repository you can clone and play around, follow the [Oracle Tutorial](../tutorials/oracles.md) instead.
+
+## Rundown
+
+This guide has 3 major steps:
+
+1. How to modify our circuit to make use of oracle calls as unconstrained functions.
+2. How to write a JSON RPC Server to resolve these oracle calls with Nargo
+3. How to use them in Nargo and how to provide a custom resolver in NoirJS
 
 ## Step 1 - Modify your circuit
 
-An oracle is defined in a circuit by two things:
+An oracle is defined in a circuit by defining two methods:
 
-- An unconstrained method - This tells the Noir compiler that it is executing a Brillig block so it won't constrain it
+- An unconstrained method - This tells the Noir compiler that it is executing a Brillig block.
 - A decorated oracle method - This tells the compiler that this method is an RPC call.
 
 An example of an oracle that returns a `Field` would be:
 
 ```rust
 #[oracle(getSquared)]
-unconstrained fn squared() -> Field { }
+unconstrained fn squared(number: Field) -> Field { }
 
-unconstrained fn get_squared() -> Field {
-    squared()
+unconstrained fn get_squared(number: Field) -> Field {
+    squared(number)
 }
 ```
 
-In this example, we're wrapping our oracle function in a unconstrained method, and decorating it with `oracle(getSquared)`. `getSquared` is the actual RPC method being called by Brillig.
-
-You can then call the unconstrained function as you would call any other function:
+In this example, we're wrapping our oracle function in a unconstrained method, and decorating it with `oracle(getSquared)`. We can then call the unconstrained function as we would call any other function:
 
 ```rust
 fn main(input: Field) {
     let squared = get_squared(input);
 }
 ```
+
+In the next section, we will make this `getSquared` be a method of the RPC server Noir will use.
 
 :::danger
 
@@ -63,18 +69,22 @@ fn main(input: Field, target: Field) {
 
 :::
 
-You can work with arrays, and pass parameters as long as they're of fixed size. Currently, you can only work with single params or array params.
+:::info
+
+Currently, oracles only work with single params or array params. For example:
 
 ```rust
 #[oracle(getSquared)]
 unconstrained fn squared([Field; 2]) -> [Field; 2] { }
 ```
 
+:::
+
 ## Step 2 - Write an RPC server
 
 Brillig will call *one* RPC server. Most likely you will have to write your own, and you can do it in whatever language you prefer. In this guide, we will do it in Javascript.
 
-Let's use the above example of an oracle that consumes an array with two Fields and squares them:
+Let's use the above example of an oracle that consumes an array with two `Field` and squares them:
 
 ```rust
 #[oracle(getSquared)]
@@ -116,18 +126,20 @@ app.post("/", (req, res) => {
 app.listen(5555);
 ```
 
-Now, add our `getSquared` method, as expected by the `#[oracle(getSquared)]` decorator in our Noir code. It simply maps through the params array and squares the values:
+Now, we will add our `getSquared` method, as expected by the `#[oracle(getSquared)]` decorator in our Noir code. It maps through the params array and squares the values:
 
 ```js
 server.addMethod("getSquared", async (params) => {
-    const values = params[0].Array.map((x) => {
-        return { inner: `${x.inner * x.inner}` };
-    });
-    return { values: [{ Array: values }] };
+  const values = params[0].Array.map(({ inner }) => {
+    return { inner: `${inner * inner}` };
+  });
+  return { values: [{ Array: values }] };
 });
 ```
 
-While the syntax can be improved here, this is due to how the oracle expects types. In short, it expects an object with an array of values. Each value is an object declaring to be `Single` or `Array` and returning a `inner` property *as a string*. For example:
+:::tip
+
+Brillig expects an object with an array of values. Each value is an object declaring to be `Single` or `Array` and returning a `inner` property *as a string*. For example:
 
 ```json
 { "values": [{ "Array": [{ "inner": "1" }, { "inner": "2"}]}]}
@@ -135,7 +147,7 @@ While the syntax can be improved here, this is due to how the oracle expects typ
 { "values": [{ "Single": { "inner": "1" }}, { "Array": [{ "inner": "1", { "inner": "2" }}]}]}
 ```
 
-If you're using Typescript, the following types may be helpful in understanding the expected return value and making sure it is easy to follow:
+If you're using Typescript, the following types may be helpful in understanding the expected return value and making sure they're easy to follow:
 
 ```js
 interface Value {
@@ -157,23 +169,23 @@ interface ForeignCallResult {
 }
 ```
 
-## Step 3 - Running tests and proving
+:::
 
-### Nargo CLI
+## Step 3 - Usage with Nargo
 
-Using the [`nargo` CLI tool](../getting_started/installation/index.md), you can use oracles in the `nargo test`, `nargo execute` and `nargo prove` commands, for example:
+Using the [`nargo` CLI tool](../getting_started/installation/index.md), you can use oracles in the `nargo test`, `nargo execute` and `nargo prove` commands by passing a value to `--oracle-resolver`. For example:
 
 ```bash
 nargo test --oracle-resolver http://localhost:5555
 ```
 
-This tells `nargo` to use your RPC Server URL whenever it finds an oracle decorator
+This tells `nargo` to use your RPC Server URL whenever it finds an oracle decorator.
 
-### NoirJS - Is it all RPCs?
+## Step 4 - Usage with NoirJS
 
-In a JS environment, you don't necessarily need an RPC server, as you're already working with a programming language that allows you to get values however you want. NoirJS simply expects that you pass a callback function when you generate proofs, and that callback function can be anything.
+In a JS environment, an RPC server is not strictly necessary, as you may want to resolve your oracles without needing any JSON call at all. NoirJS simply expects that you pass a callback function when you generate proofs, and that callback function can be anything.
 
-For example, if your circuit expects the host machine to provide CPU pseudo-randomness, you could simply pass it as the `foreignCallHandler`:
+For example, if your circuit expects the host machine to provide CPU pseudo-randomness, you could simply pass it as the `foreignCallHandler`. You don't strictly need to create an RPC server to serve pseudo-randomness, as you may as well get it directly in your app:
 
 ```js
 const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
@@ -181,17 +193,17 @@ const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
 await noir.generateFinalProof(inputs, foreignCallHandler)
 ```
 
-In NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) function means "a callback function that returns a value of type [`ForeignCallOutput`]("../reference/NoirJS/noir_js/type-aliases/ForeignCallOutput.md)".
+As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) function simply means "a callback function that returns a value of type [`ForeignCallOutput`](../reference/NoirJS/noir_js/type-aliases/ForeignCallOutput.md). It doesn't have to be an RPC call like in the case for Nargo.
 
-:::note
+:::tip
 
-Does this mean you don't have to write an RPC server like in [Step #2](#step-2---write-an-rpc-server)? You don't technically have to, but then how would you run `nargo test` or `nargo prove`?
+Does this mean you don't have to write an RPC server like in [Step #2](#step-2---write-an-rpc-server)?
 
-To use both `Nargo` and `NoirJS` in your development flow, you will most certainly have to write a JSON RPC server anyway.
+You don't technically have to, but then how would you run `nargo test` or `nargo prove`? To use both `Nargo` and `NoirJS` in your development flow, you will most certainly have to write a JSON RPC server anyway.
 
 :::
 
-In this case, let's make `foreignCallHandler` call the same JSON RPC Server, by making it a JSON RPC Client. For example, using the same `getSquared` circuit in [Step #1](#step-1---modify-your-circuit):
+In this case, let's make `foreignCallHandler` call the JSON RPC Server we created in [Step #2](#step-2---write-an-rpc-server), by making it a JSON RPC Client. For example, using the same `getSquared` circuit in [Step #1](#step-1---modify-your-circuit) (comments in the code):
 
 ```js
 import { JSONRPCClient } from "json-rpc-2.0";
@@ -231,15 +243,15 @@ const input = { numbers: [1, 2], target: [1, 4] };
 const { witness } = await noir.execute(numbers, foreignCallHandler);
 ```
 
-:::note
+:::tip
 
-If you're in a NoirJS environment running your RPC server together with a frontend app, you'll probably hit a familiar problem in full-stack development: requests being blocked by CORS policy. In development, you can simply install and use the `cors` npm package to get around the problem:
+If you're in a NoirJS environment running your RPC server together with a frontend app, you'll probably hit a familiar problem in full-stack development: requests being blocked by [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) policy. For development only, you can simply install and use the [`cors` npm package](https://www.npmjs.com/package/cors) to get around the problem:
 
 ```bash
-yarn add cors # npm i cors
+yarn add cors
 ```
 
-and use it as a middleware right after starting your express server:
+and use it as a middleware:
 
 ```js
 import cors from "cors";
