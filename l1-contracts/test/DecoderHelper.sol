@@ -28,8 +28,6 @@ contract DecoderHelper {
     pure
     returns (bytes32, uint256)
   {
-    (bytes32 logsHash, uint256 offset) = Decoder.computeKernelLogsHash(0, _kernelLogs);
-
-    return (logsHash, offset);
+    return Decoder.computeKernelLogsHash(0, _kernelLogs);
   }
 }

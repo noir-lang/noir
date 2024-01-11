@@ -69,7 +69,7 @@ contract Rollup is IRollup {
     }
 
     // Decode the cross-chain messages
-    (bytes32 inHash,, bytes32[] memory l2ToL1Msgs, bytes32[] memory l1ToL2Msgs) =
+    (bytes32 inHash,, bytes32[] memory l1ToL2Msgs, bytes32[] memory l2ToL1Msgs) =
       MessagesDecoder.decode(_l2Block[HeaderDecoder.BLOCK_HEADER_SIZE:]);
 
     bytes32 publicInputHash =

@@ -44,6 +44,7 @@ import {
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
+import * as fs from 'fs';
 import { default as levelup } from 'levelup';
 import memdown from 'memdown';
 import {
@@ -100,6 +101,9 @@ describe('L1Publisher integration', () => {
   let prevGlobals: GlobalVariables;
 
   const chainId = createEthereumChain(config.rpcUrl, config.apiKey).chainInfo.id;
+
+  // To overwrite the test data, set this to true and run the tests.
+  const OVERWRITE_TEST_DATA = false;
 
   beforeEach(async () => {
     deployerAccount = privateKeyToAccount(deployerPK);
@@ -233,6 +237,49 @@ describe('L1Publisher integration', () => {
     return Fr.fromString(entry);
   };
 
+  /**
+   * Creates a json object that can be used to test the solidity contract.
+   * The json object must be put into
+   */
+  const writeJson = (
+    fileName: string,
+    block: L2Block,
+    l1ToL2Messages: Fr[],
+    l1ToL2Content: Fr[],
+    recipientAddress: AztecAddress,
+    deployerAddress: `0x${string}`,
+  ) => {
+    if (!OVERWRITE_TEST_DATA) {
+      return;
+    }
+    // Path relative to the package.json in the end-to-end folder
+    const path = `../../l1-contracts/test/fixtures/${fileName}.json`;
+    const jsonObject = {
+      populate: {
+        l1ToL2Content: l1ToL2Content.map(c => `0x${c.toBuffer().toString('hex').padStart(64, '0')}`),
+        recipient: `0x${recipientAddress.toBuffer().toString('hex').padStart(64, '0')}`,
+        sender: deployerAddress,
+      },
+      messages: {
+        l1ToL2Messages: l1ToL2Messages.map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
+        l2ToL1Messages: block.newL2ToL1Msgs.map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
+      },
+      block: {
+        blockNumber: block.number,
+        startStateHash: `0x${block.getStartStateHash().toString('hex').padStart(64, '0')}`,
+        endStateHash: `0x${block.getEndStateHash().toString('hex').padStart(64, '0')}`,
+        publicInputsHash: `0x${block.getPublicInputsHash().toBuffer().toString('hex').padStart(64, '0')}`,
+        calldataHash: `0x${block.getCalldataHash().toString('hex').padStart(64, '0')}`,
+        l1ToL2MessagesHash: `0x${block.getL1ToL2MessagesHash().toString('hex').padStart(64, '0')}`,
+        body: `0x${block.toBufferWithLogs().toString('hex')}`,
+        timestamp: Number(block.globalVariables.timestamp.toBigInt()), // The json formatting in forge is a bit brittle, so we convert to a number here. This should not be a problem for testing as longs as the timestamp is not larger than u32.
+      },
+    };
+
+    const output = JSON.stringify(jsonObject, null, 2);
+    fs.writeFileSync(path, output, 'utf8');
+  };
+
   it(`Build ${numberOfConsecutiveBlocks} blocks of 4 bloated txs building on each other`, async () => {
     const stateInRollup_ = await rollup.read.rollupStateHash();
     expect(hexStringToBuffer(stateInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
@@ -303,14 +350,7 @@ describe('L1Publisher integration', () => {
         expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString()])).toBeFalsy();
       }
 
-      // Useful for sol tests block generation
-      /* const encoded = block.encode();
-      console.log(`Size (${encoded.length}): ${encoded.toString('hex')}`);
-      console.log(`calldata hash: 0x${block.getCalldataHash().toString('hex')}`);
-      console.log(`l1 to l2 message hash: 0x${block.getL1ToL2MessagesHash().toString('hex')}`);
-      console.log(`start state hash: 0x${block.getStartStateHash().toString('hex')}`);
-      console.log(`end state hash: 0x${block.getEndStateHash().toString('hex')}`);
-      console.log(`public inputs hash: 0x${block.getPublicInputsHash().toBuffer().toString('hex')}`); */
+      writeJson(`mixed_block_${i}`, block, l1ToL2Messages, l1ToL2Content, recipientAddress, deployerAccount.address);
 
       await publisher.processL2Block(block);
 
@@ -385,6 +425,8 @@ describe('L1Publisher integration', () => {
       );
       const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
       prevGlobals = globalVariables;
+
+      writeJson(`empty_block_${i}`, block, l1ToL2Messages, [], AztecAddress.ZERO, deployerAccount.address);
 
       await publisher.processL2Block(block);
 

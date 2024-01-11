@@ -44,18 +44,22 @@ library MessagesDecoder {
   /**
    * @notice Computes consumables for the block
    * @param _body - The L2 block calldata.
-   * @return l1ToL2MsgsHash - The hash of the L1 to L2 messages
-   * @return l2ToL1MsgsHash - The hash of the L1 to L2 messages
-   * @return l2ToL1Msgs - The L2 to L1 messages of the block
+   * @return inHash - The hash of the L1 to L2 messages
+   * @return outHash - The hash of the L1 to L2 messages
    * @return l1ToL2Msgs - The L1 to L2 messages of the block
+   * @return l2ToL1Msgs - The L2 to L1 messages of the block
    */
   function decode(bytes calldata _body)
     internal
     pure
-    returns (bytes32, bytes32, bytes32[] memory, bytes32[] memory)
+    returns (
+      bytes32 inHash,
+      bytes32 outHash,
+      bytes32[] memory l1ToL2Msgs,
+      bytes32[] memory l2ToL1Msgs
+    )
   {
-    bytes32[] memory l1ToL2Msgs = new bytes32[](Constants.NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
-    bytes32[] memory l2ToL1Msgs;
+    l1ToL2Msgs = new bytes32[](Constants.NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
 
     uint256 offset = 0;
 
@@ -91,10 +95,10 @@ library MessagesDecoder {
       calldatacopy(add(l1ToL2Msgs, 0x20), add(_body.offset, add(offset, 0x04)), mul(count, 0x20))
     }
 
-    bytes32 l1ToL2MsgsHash = sha256(abi.encodePacked(l1ToL2Msgs));
-    bytes32 l2ToL1MsgsHash = sha256(abi.encodePacked(l2ToL1Msgs));
+    inHash = sha256(abi.encodePacked(l1ToL2Msgs));
+    outHash = sha256(abi.encodePacked(l2ToL1Msgs));
 
-    return (l1ToL2MsgsHash, l2ToL1MsgsHash, l2ToL1Msgs, l1ToL2Msgs);
+    return (inHash, outHash, l1ToL2Msgs, l2ToL1Msgs);
   }
 
   /**
