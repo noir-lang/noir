@@ -172,7 +172,7 @@ export function extractPrivateCircuitPublicInputs(
     frToBoolean(witnessReader.readField()),
     frToBoolean(witnessReader.readField()),
     frToBoolean(witnessReader.readField()),
-    witnessReader.readField(),
+    frToNumber(witnessReader.readField()),
   );
 
   const argsHash = witnessReader.readField();
@@ -251,7 +251,7 @@ export function extractPublicCircuitPublicInputs(partialWitness: ACVMWitness, ac
     frToBoolean(witnessReader.readField()),
     frToBoolean(witnessReader.readField()),
     frToBoolean(witnessReader.readField()),
-    witnessReader.readField(),
+    frToNumber(witnessReader.readField()),
   );
 
   const argsHash = witnessReader.readField();

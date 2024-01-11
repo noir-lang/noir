@@ -19,6 +19,8 @@ import {
   PrivateKernelPublicInputs,
   ReadRequestMembershipWitness,
   SideEffect,
+  SideEffectLinkedToNoteHash,
+  SideEffectType,
   TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -166,19 +168,30 @@ export class KernelProver {
       assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
     );
 
-    const readCommitmentHints = this.getReadRequestHints(
-      output.publicInputs.end.readRequests,
-      output.publicInputs.end.newCommitments,
-    );
+    const [sortedCommitments, sortedCommitmentsIndexes] = this.sortSideEffects<
+      SideEffect,
+      typeof MAX_NEW_COMMITMENTS_PER_TX
+    >(output.publicInputs.end.newCommitments);
+
+    const [sortedNullifiers, sortedNullifiersIndexes] = this.sortSideEffects<
+      SideEffectLinkedToNoteHash,
+      typeof MAX_NEW_NULLIFIERS_PER_TX
+    >(output.publicInputs.end.newNullifiers);
+
+    const readCommitmentHints = this.getReadRequestHints(output.publicInputs.end.readRequests, sortedCommitments);
 
     const nullifierCommitmentHints = this.getNullifierHints(
-      mapTuple(output.publicInputs.end.newNullifiers, n => n.noteHash),
-      output.publicInputs.end.newCommitments,
+      mapTuple(sortedNullifiers, n => n.noteHash),
+      sortedCommitments,
     );
 
     const privateInputs = new PrivateKernelInputsOrdering(
       previousKernelData,
+      sortedCommitments,
+      sortedCommitmentsIndexes,
       readCommitmentHints,
+      sortedNullifiers,
+      sortedNullifiersIndexes,
       nullifierCommitmentHints,
     );
     const outputFinal = await this.proofCreator.createProofOrdering(privateInputs);
@@ -188,6 +201,27 @@ export class KernelProver {
     const outputNotes = finalNewCommitments.map(c => newNotes[c.value.toString()]).filter(c => !!c);
 
     return { ...outputFinal, outputNotes };
+  }
+
+  private sortSideEffects<T extends SideEffectType, K extends number>(
+    sideEffects: Tuple<T, K>,
+  ): [Tuple<T, K>, Tuple<number, K>] {
+    const sorted = sideEffects
+      .map((sideEffect, index) => ({ sideEffect, index }))
+      .sort((a, b) => {
+        // Empty ones go to the right
+        if (a.sideEffect.isEmpty()) {
+          return 1;
+        }
+        return Number(a.sideEffect.counter.toBigInt() - b.sideEffect.counter.toBigInt());
+      });
+
+    const originalToSorted = sorted.map(() => 0);
+    sorted.forEach(({ index }, i) => {
+      originalToSorted[index] = i;
+    });
+
+    return [sorted.map(({ sideEffect }) => sideEffect) as Tuple<T, K>, originalToSorted as Tuple<number, K>];
   }
 
   private async createPrivateCallData(

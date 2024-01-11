@@ -327,7 +327,7 @@ pub fn contract_logic(
         let new_contract_address_nullifier = compute_new_contract_address_hash(new_contract_address);
 
         public_inputs.end.new_nullifiers.push(
-            SideEffectLinkedToNoteHash { value: new_contract_address_nullifier, note_hash: 0, counter: 0 }
+            SideEffectLinkedToNoteHash { value: new_contract_address_nullifier, note_hash: 0, counter: 1 }
         );
     } else {
         // non-contract deployments must specify contract address being interacted with

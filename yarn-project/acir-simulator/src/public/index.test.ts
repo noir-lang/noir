@@ -62,7 +62,7 @@ describe('ACIR public execution simulator', () => {
           isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: Fr.ZERO,
+          startSideEffectCounter: 0,
         });
 
         publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintArtifact.bytecode, 'base64'));
@@ -140,7 +140,7 @@ describe('ACIR public execution simulator', () => {
           isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: Fr.ZERO,
+          startSideEffectCounter: 0,
         });
 
         recipientStorageSlot = computeSlotForMapping(new Fr(6n), recipient.toField());
@@ -236,7 +236,7 @@ describe('ACIR public execution simulator', () => {
           isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: Fr.ZERO,
+          startSideEffectCounter: 0,
         });
 
         // eslint-disable-next-line require-await
@@ -305,7 +305,7 @@ describe('ACIR public execution simulator', () => {
         isContractDeployment: false,
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: Fr.ZERO,
+        startSideEffectCounter: 0,
       });
 
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(shieldArtifact.bytecode, 'base64'));
@@ -338,7 +338,7 @@ describe('ACIR public execution simulator', () => {
         isContractDeployment: false,
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: Fr.ZERO,
+        startSideEffectCounter: 0,
       });
 
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createL2ToL1MessagePublicArtifact.bytecode, 'base64'));
@@ -388,7 +388,7 @@ describe('ACIR public execution simulator', () => {
         isContractDeployment: false,
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: Fr.ZERO,
+        startSideEffectCounter: 0,
       });
 
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintPublicArtifact.bytecode, 'base64'));
@@ -431,7 +431,7 @@ describe('ACIR public execution simulator', () => {
         isContractDeployment: false,
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: Fr.ZERO,
+        startSideEffectCounter: 0,
       });
 
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createNullifierPublicArtifact.bytecode, 'base64'));

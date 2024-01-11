@@ -38,7 +38,7 @@ struct PrivateCircuitPublicInputs {
     private_call_stack_hashes: [Field; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack_hashes: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
-    end_side_effect_counter : Field,
+    end_side_effect_counter : u32,
 
     encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
@@ -76,7 +76,7 @@ impl Hash for PrivateCircuitPublicInputs {
         fields.push_array(self.private_call_stack_hashes);
         fields.push_array(self.public_call_stack_hashes);
         fields.push_array(self.new_l2_to_l1_msgs);
-        fields.push(self.end_side_effect_counter);
+        fields.push(self.end_side_effect_counter as Field);
         fields.push_array(self.encrypted_logs_hash);
         fields.push_array(self.unencrypted_logs_hash);
         fields.push(self.encrypted_log_preimages_length);
@@ -111,7 +111,7 @@ impl PrivateCircuitPublicInputs {
         fields.push_array(self.private_call_stack_hashes);
         fields.push_array(self.public_call_stack_hashes);
         fields.push_array(self.new_l2_to_l1_msgs);
-        fields.push(self.end_side_effect_counter);
+        fields.push(self.end_side_effect_counter as Field);
         fields.push_array(self.encrypted_logs_hash);
         fields.push_array(self.unencrypted_logs_hash);
         fields.push(self.encrypted_log_preimages_length);

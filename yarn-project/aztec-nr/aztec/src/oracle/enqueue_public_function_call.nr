@@ -6,21 +6,28 @@ use dep::protocol_types::{
 // contract_address + 
 // args_hash +
 // crate::abi::FUNCTION_DATA_SIZE +
-// crate::abi::CALL_CONTEXT_SIZE + side_effect_counter
-// = 2 + 4 + 7 + 1
+// crate::abi::CALL_CONTEXT_SIZE
+// = 2 + 4 + 8
 global ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE: Field = 14;
 
 #[oracle(enqueuePublicFunctionCall)]
 fn enqueue_public_function_call_oracle(
     _contract_address: AztecAddress,
     _function_selector: FunctionSelector,
-    _args_hash: Field
+    _args_hash: Field,
+    _side_effect_counter: u32
 ) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE] {}
 
 unconstrained pub fn enqueue_public_function_call_internal(
     contract_address: AztecAddress,
     function_selector: FunctionSelector,
-    args_hash: Field
+    args_hash: Field,
+    side_effect_counter: u32
 ) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE] {
-    enqueue_public_function_call_oracle(contract_address, function_selector, args_hash)
+    enqueue_public_function_call_oracle(
+        contract_address,
+        function_selector,
+        args_hash,
+        side_effect_counter
+    )
 }

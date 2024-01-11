@@ -39,10 +39,6 @@ export class PublicCallRequest {
      * Function arguments.
      */
     public args: Fr[],
-    /**
-     * Optional side effect counter tracking position of this event in tx execution.
-     */
-    public sideEffectCounter: number,
   ) {}
 
   /**
@@ -50,13 +46,7 @@ export class PublicCallRequest {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(
-      this.contractAddress,
-      this.functionData,
-      this.callContext,
-      new Vector(this.args),
-      this.sideEffectCounter,
-    );
+    return serializeToBuffer(this.contractAddress, this.functionData, this.callContext, new Vector(this.args));
   }
 
   /**
@@ -71,7 +61,6 @@ export class PublicCallRequest {
       FunctionData.fromBuffer(reader),
       CallContext.fromBuffer(reader),
       reader.readVector(Fr),
-      reader.readNumber(),
     );
   }
 
@@ -90,13 +79,7 @@ export class PublicCallRequest {
    * @returns The array.
    */
   static getFields(fields: FieldsOf<PublicCallRequest>) {
-    return [
-      fields.contractAddress,
-      fields.functionData,
-      fields.callContext,
-      fields.args,
-      fields.sideEffectCounter,
-    ] as const;
+    return [fields.contractAddress, fields.functionData, fields.callContext, fields.args] as const;
   }
 
   /**

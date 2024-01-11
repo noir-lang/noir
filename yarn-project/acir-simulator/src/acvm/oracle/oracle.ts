@@ -291,11 +291,13 @@ export class Oracle {
     [contractAddress]: ACVMField[],
     [functionSelector]: ACVMField[],
     [argsHash]: ACVMField[],
+    [sideffectCounter]: ACVMField[],
   ): Promise<ACVMField[]> {
     const callStackItem = await this.typedOracle.callPrivateFunction(
       AztecAddress.fromField(fromACVMField(contractAddress)),
       FunctionSelector.fromField(fromACVMField(functionSelector)),
       fromACVMField(argsHash),
+      frToNumber(fromACVMField(sideffectCounter)),
     );
     return toAcvmCallPrivateStackItem(callStackItem);
   }
@@ -317,11 +319,13 @@ export class Oracle {
     [contractAddress]: ACVMField[],
     [functionSelector]: ACVMField[],
     [argsHash]: ACVMField[],
+    [sideffectCounter]: ACVMField[],
   ) {
     const enqueuedRequest = await this.typedOracle.enqueuePublicFunctionCall(
       AztecAddress.fromString(contractAddress),
       FunctionSelector.fromField(fromACVMField(functionSelector)),
       fromACVMField(argsHash),
+      frToNumber(fromACVMField(sideffectCounter)),
     );
     return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
   }

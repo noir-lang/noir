@@ -113,16 +113,7 @@ describe('Private kernel', () => {
       Fr.ZERO,
     );
 
-    const callContext = new CallContext(
-      AztecAddress.ZERO,
-      contractAddress,
-      Fr.ZERO,
-      selector,
-      false,
-      false,
-      true,
-      Fr.ZERO,
-    );
+    const callContext = new CallContext(AztecAddress.ZERO, contractAddress, Fr.ZERO, selector, false, false, true, 0);
 
     const blockHeader = new BlockHeader(
       Fr.fromString('0x16642d9ccd8346c403aa4c3fa451178b22534a27035cdaa6ec34ae53b29c50cb'),
@@ -204,20 +195,30 @@ describe('Private kernel', () => {
     );
 
     const newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => SideEffectLinkedToNoteHash.empty());
+    const sortedNewNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => newNullifiers[i]);
+
     newNullifiers[0] = new SideEffectLinkedToNoteHash(
       Fr.fromString('0x0faf656089e5a8d321b64f420fc008005736a0b4f0b8588891241392c82655b9'),
       Fr.ZERO,
-      Fr.ZERO,
+      new Fr(1),
     );
     newNullifiers[1] = new SideEffectLinkedToNoteHash(
       Fr.fromString('0x4a5d6bc34e84c5a3d7a625a3772f4d2f84c7d46637691ef64ee2711e6c6202'),
       Fr.ZERO,
-      Fr.ZERO,
+      new Fr(2),
     );
     newNullifiers[2] = new SideEffectLinkedToNoteHash(
       Fr.fromString('0x19085a4478c4aa3994d4a5935eaf5e0d58726a758d398a97f634df22d33d388a'),
       Fr.ZERO,
       Fr.ZERO,
+    );
+
+    sortedNewNullifiers[0] = newNullifiers[2];
+    sortedNewNullifiers[1] = newNullifiers[0];
+    sortedNewNullifiers[2] = newNullifiers[1];
+
+    const sortedNewNullifiersIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
+      sortedNewNullifiers.indexOf(newNullifiers[i]),
     );
 
     const combinedAccumulatedData = new CombinedAccumulatedData(
@@ -269,7 +270,11 @@ describe('Private kernel', () => {
 
     const kernelInputs = new PrivateKernelInputsOrdering(
       previousKernelData,
+      newCommitments,
+      makeTuple(MAX_NEW_COMMITMENTS_PER_TX, i => i),
       makeTuple(MAX_READ_REQUESTS_PER_TX, () => Fr.ZERO),
+      sortedNewNullifiers,
+      sortedNewNullifiersIndexes,
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => Fr.ZERO),
     );
 

@@ -33,8 +33,8 @@ struct CallRequest {
     hash: Field,
     caller_contract_address: AztecAddress,
     caller_context: CallerContext,
-    start_side_effect_counter: Field,
-    end_side_effect_counter: Field,
+    start_side_effect_counter: u32,
+    end_side_effect_counter: u32,
 }
 
 impl Eq for CallRequest {

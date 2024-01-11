@@ -67,7 +67,7 @@ use dep::std::option::Option;
 struct PrivateContext {
     // docs:start:private-context
     inputs: PrivateContextInputs,
-    side_effect_counter: Field,
+    side_effect_counter: u32,
 
     args_hash : Field,
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
@@ -93,9 +93,7 @@ impl PrivateContext {
     pub fn new(inputs: PrivateContextInputs, args_hash: Field) -> PrivateContext {
         PrivateContext {
             inputs: inputs,
-            // starts at 1 because all private calls have txhash nullifier as 0th nullifier
-            // and therefore 0th sideeffect. increment this for each side effect in this context
-            side_effect_counter: 1,
+            side_effect_counter: inputs.call_context.start_side_effect_counter,
 
             args_hash: args_hash,
             return_values: BoundedVec::new(0),
@@ -270,6 +268,7 @@ impl PrivateContext {
             contract_address,
             function_selector, 
             args_hash,
+            self.side_effect_counter,
         );
         let mut reader = Reader::new(fields);
 
@@ -290,7 +289,7 @@ impl PrivateContext {
                     is_delegate_call : reader.read() as bool,
                     is_static_call : reader.read() as bool,
                     is_contract_deployment: reader.read() as bool,
-                    start_side_effect_counter: reader.read(),
+                    start_side_effect_counter: reader.read() as u32,
                 },
                 args_hash: reader.read(),
                 return_values: reader.read_array([0; RETURN_VALUES_LENGTH]), // +1
@@ -300,7 +299,7 @@ impl PrivateContext {
                 private_call_stack_hashes: reader.read_array([0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL]),
                 public_call_stack_hashes: reader.read_array([0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL]),
                 new_l2_to_l1_msgs: reader.read_array([0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL]),
-                end_side_effect_counter: reader.read(),
+                end_side_effect_counter: reader.read() as u32,
                 encrypted_logs_hash: reader.read_array([0; NUM_FIELDS_PER_SHA256]),
                 unencrypted_logs_hash: reader.read_array([0; NUM_FIELDS_PER_SHA256]),
                 encrypted_log_preimages_length: reader.read(),
@@ -332,6 +331,9 @@ impl PrivateContext {
         };
 
         reader.finish();
+
+        assert_eq(item.public_inputs.call_context.start_side_effect_counter, self.side_effect_counter);
+        self.side_effect_counter = item.public_inputs.end_side_effect_counter + 1;
         
         assert(contract_address.eq(item.contract_address));
         assert(function_selector.eq(item.function_data.selector));
@@ -383,28 +385,32 @@ impl PrivateContext {
         let fields = enqueue_public_function_call_internal(
             contract_address, 
             function_selector, 
-            args_hash
+            args_hash,
+            self.side_effect_counter
         );
+
+        let mut reader = Reader::new(fields);
+
         let item = PublicCallStackItem {
-            contract_address:  AztecAddress::from_field(fields[0]),
+            contract_address:  AztecAddress::from_field(reader.read()),
             function_data: FunctionData {
-                selector: FunctionSelector::from_field(fields[1]),
-                is_internal: fields[2] as bool,
-                is_private: fields[3] as bool,
-                is_constructor: fields[4] as bool,
+                selector: FunctionSelector::from_field(reader.read()),
+                is_internal: reader.read() as bool,
+                is_private: reader.read() as bool,
+                is_constructor: reader.read() as bool,
             },
             public_inputs: PublicCircuitPublicInputs {
                 call_context: CallContext {
-                    msg_sender : AztecAddress::from_field(fields[5]),
-                    storage_contract_address : AztecAddress::from_field(fields[6]),
-                    portal_contract_address : EthAddress::from_field(fields[7]),
-                    function_selector: FunctionSelector::from_field(fields[8]), // practically same as fields[1]
-                    is_delegate_call : fields[9] as bool,
-                    is_static_call : fields[10] as bool,
-                    is_contract_deployment: fields[11] as bool,
-                    start_side_effect_counter: fields[12],
+                    msg_sender : AztecAddress::from_field(reader.read()),
+                    storage_contract_address : AztecAddress::from_field(reader.read()),
+                    portal_contract_address : EthAddress::from_field(reader.read()),
+                    function_selector: FunctionSelector::from_field(reader.read()), // practically same as fields[1]
+                    is_delegate_call : reader.read() as bool,
+                    is_static_call : reader.read() as bool,
+                    is_contract_deployment: reader.read() as bool,
+                    start_side_effect_counter: reader.read() as u32,
                 },
-                args_hash: fields[13],
+                args_hash: reader.read(),
                 return_values: [0; RETURN_VALUES_LENGTH],
                 contract_storage_update_requests: [StorageUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL],
                 contract_storage_reads: [StorageRead::empty(); MAX_PUBLIC_DATA_READS_PER_CALL],
@@ -419,9 +425,14 @@ impl PrivateContext {
             },
             is_execution_request: true,
         };
+        reader.finish();
 
         assert(contract_address.eq(item.contract_address));
         assert(function_selector.eq(item.function_data.selector));
+
+        assert_eq(item.public_inputs.call_context.start_side_effect_counter, self.side_effect_counter);
+        // We increment the sideffect counter by one, to account for the call itself being a side effect.
+        self.side_effect_counter = self.side_effect_counter + 1;
         
         assert(args_hash == item.public_inputs.args_hash);
 
@@ -441,7 +452,7 @@ impl PrivateContext {
 
 struct PublicContext {
     inputs: PublicContextInputs,
-    side_effect_counter: Field,
+    side_effect_counter: u32,
 
     args_hash : Field,
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
@@ -468,7 +479,7 @@ impl PublicContext {
         let empty_storage_update = StorageUpdateRequest::empty();
         PublicContext {
             inputs: inputs,
-            side_effect_counter: 0, // no initial nullifier in new public context.  increment on every side effect
+            side_effect_counter: inputs.call_context.start_side_effect_counter,
 
             args_hash: args_hash,
             return_values: BoundedVec::new(0),

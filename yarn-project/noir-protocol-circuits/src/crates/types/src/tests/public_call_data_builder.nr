@@ -115,8 +115,8 @@ impl PublicCallDataBuilder {
                     caller_contract_address: self.contract_address,
                     caller_context,
                     // todo: real values?
-                    start_side_effect_counter: i,
-                    end_side_effect_counter: i + 1,
+                    start_side_effect_counter: i as u32,
+                    end_side_effect_counter: (i + 1) as u32,
 
                 };
                 self.public_inputs.public_call_stack_hashes.push(hash);

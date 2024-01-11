@@ -527,7 +527,7 @@ mod tests {
         for i in 0..MAX_NEW_COMMITMENTS_PER_TX {
             full_new_commitments[i] = SideEffect {
                 value: i + 1,
-                counter: i,
+                counter: i as u32,
             };
         }
         builder.previous_kernel.end.new_commitments.push_array(full_new_commitments);

@@ -1,3 +1,5 @@
+use dep::std::cmp::Eq;
+
 // Trait: is_empty
 //
 // The general is_empty trait checks if a data type is is empty,

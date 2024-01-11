@@ -24,7 +24,6 @@ import {
   toACVMContractDeploymentData,
   toACVMWitness,
 } from '../acvm/index.js';
-import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { DBOracle } from './db_oracle.js';
 import { ExecutionNoteCache } from './execution_note_cache.js';
@@ -71,7 +70,6 @@ export class ClientExecutionContext extends ViewDataOracle {
     protected readonly authWitnesses: AuthWitness[],
     private readonly packedArgsCache: PackedArgsCache,
     private readonly noteCache: ExecutionNoteCache,
-    private readonly sideEffectCounter: SideEffectCounter,
     protected readonly db: DBOracle,
     private readonly curve: Grumpkin,
     protected log = createDebugLogger('aztec:simulator:client_execution_context'),
@@ -301,9 +299,15 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param targetContractAddress - The address of the contract to call.
    * @param functionSelector - The function selector of the function to call.
    * @param argsHash - The packed arguments to pass to the function.
+   * @param sideffectCounter - The side effect counter at the start of the call.
    * @returns The execution result.
    */
-  async callPrivateFunction(targetContractAddress: AztecAddress, functionSelector: FunctionSelector, argsHash: Fr) {
+  async callPrivateFunction(
+    targetContractAddress: AztecAddress,
+    functionSelector: FunctionSelector,
+    argsHash: Fr,
+    sideffectCounter: number,
+  ) {
     this.log(
       `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
     );
@@ -320,7 +324,13 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.txContext.version,
     );
 
-    const derivedCallContext = await this.deriveCallContext(targetContractAddress, targetArtifact, false, false);
+    const derivedCallContext = await this.deriveCallContext(
+      targetContractAddress,
+      targetArtifact,
+      sideffectCounter,
+      false,
+      false,
+    );
 
     const context = new ClientExecutionContext(
       targetContractAddress,
@@ -331,7 +341,6 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.authWitnesses,
       this.packedArgsCache,
       this.noteCache,
-      this.sideEffectCounter,
       this.db,
       this.curve,
     );
@@ -355,23 +364,29 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param targetContractAddress - The address of the contract to call.
    * @param functionSelector - The function selector of the function to call.
    * @param argsHash - The packed arguments to pass to the function.
+   * @param sideEffectCounter - The side effect counter at the start of the call.
    * @returns The public call stack item with the request information.
    */
   public async enqueuePublicFunctionCall(
     targetContractAddress: AztecAddress,
     functionSelector: FunctionSelector,
     argsHash: Fr,
+    sideEffectCounter: number,
   ): Promise<PublicCallRequest> {
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
-    const derivedCallContext = await this.deriveCallContext(targetContractAddress, targetArtifact, false, false);
+    const derivedCallContext = await this.deriveCallContext(
+      targetContractAddress,
+      targetArtifact,
+      sideEffectCounter,
+      false,
+      false,
+    );
     const args = this.packedArgsCache.unpack(argsHash);
-    const sideEffectCounter = this.sideEffectCounter.count();
     const enqueuedRequest = PublicCallRequest.from({
       args,
       callContext: derivedCallContext,
       functionData: FunctionData.fromAbi(targetArtifact),
       contractAddress: targetContractAddress,
-      sideEffectCounter,
     });
 
     // TODO($846): if enqueued public calls are associated with global
@@ -391,6 +406,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * Derives the call context for a nested execution.
    * @param targetContractAddress - The address of the contract being called.
    * @param targetArtifact - The artifact of the function being called.
+   * @param startSideEffectCounter - The side effect counter at the start of the call.
    * @param isDelegateCall - Whether the call is a delegate call.
    * @param isStaticCall - Whether the call is a static call.
    * @returns The derived call context.
@@ -398,6 +414,7 @@ export class ClientExecutionContext extends ViewDataOracle {
   private async deriveCallContext(
     targetContractAddress: AztecAddress,
     targetArtifact: FunctionArtifact,
+    startSideEffectCounter: number,
     isDelegateCall = false,
     isStaticCall = false,
   ) {
@@ -410,7 +427,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       isDelegateCall,
       isStaticCall,
       false,
-      Fr.ZERO,
+      startSideEffectCounter,
     );
   }
 }

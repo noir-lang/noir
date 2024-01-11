@@ -50,7 +50,7 @@ export class CallContext {
     /**
      * The start side effect counter for this call context.
      */
-    public startSideEffectCounter: Fr,
+    public startSideEffectCounter: number,
   ) {
     this.portalContractAddress =
       portalContractAddress instanceof EthAddress ? portalContractAddress : EthAddress.fromField(portalContractAddress);
@@ -69,7 +69,7 @@ export class CallContext {
       false,
       false,
       false,
-      Fr.ZERO,
+      0,
     );
   }
 
@@ -79,7 +79,7 @@ export class CallContext {
       this.storageContractAddress.isZero() &&
       this.portalContractAddress.isZero() &&
       this.functionSelector.isEmpty() &&
-      this.startSideEffectCounter.isZero()
+      Fr.ZERO
     );
   }
 
@@ -123,7 +123,7 @@ export class CallContext {
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readBoolean(),
-      reader.readObject(Fr),
+      reader.readNumber(),
     );
   }
 

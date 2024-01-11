@@ -8,13 +8,20 @@ use dep::protocol_types::{
 fn call_private_function_oracle(
     _contract_address: AztecAddress,
     _function_selector: FunctionSelector,
-    _args_hash: Field
+    _args_hash: Field,
+    _start_side_effect_counter: u32
 ) -> [Field; CALL_PRIVATE_FUNCTION_RETURN_SIZE] {}
 
 unconstrained pub fn call_private_function_internal(
     contract_address: AztecAddress,
     function_selector: FunctionSelector,
-    args_hash: Field
+    args_hash: Field,
+    start_side_effect_counter: u32
 ) -> [Field; CALL_PRIVATE_FUNCTION_RETURN_SIZE] {
-    call_private_function_oracle(contract_address, function_selector, args_hash)
+    call_private_function_oracle(
+        contract_address,
+        function_selector,
+        args_hash,
+        start_side_effect_counter
+    )
 }
