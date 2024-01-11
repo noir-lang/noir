@@ -1,17 +1,20 @@
 {
   "compilerOptions": {
-    "moduleResolution": "node",
-    "outDir": "lib",
-    "target": "ESNext",
-    "module": "ESNext",
+    "declaration": true,
+    "declarationDir": "dist/types",
     "strict": true,
+    "baseUrl": ".",
     "experimentalDecorators": true,
-    "esModuleInterop": true,
     "noImplicitAny": true,
     "removeComments": false,
     "preserveConstEnums": true,
     "sourceMap": true,
-    "resolveJsonModule": true,
-    "importHelpers": true
+    "importHelpers": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "target": "ESNext",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "allowJs": true,
   }
 }
