@@ -1,6 +1,0 @@
-[package]
-name="lib_b"
-type="lib"
-authors = [""]
-
-[dependencies]

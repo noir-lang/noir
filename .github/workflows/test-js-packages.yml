@@ -47,6 +47,7 @@ jobs:
           retention-days: 3
 
   build-noir-wasm:
+    needs: [build-noirc-abi]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -54,27 +55,33 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          key: noir-wasm
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build wasm package
-        run: |
-          nix build -L .#noir_wasm
+      - name: Download noirc_abi_wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
 
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/noir_wasm)" >> $GITHUB_ENV
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noir_wasm
+        run: yarn workspace @noir-lang/noir_wasm build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: noir_wasm
-          path: ${{ env.UPLOAD_PATH }}
+          path: ./compiler/wasm
           retention-days: 3
-
 
   build-acvm-js:
     runs-on: ubuntu-latest
@@ -289,25 +296,24 @@ jobs:
           name: noir_wasm
           path: ./compiler/wasm
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
       - name: Download nargo binary
         uses: actions/download-artifact@v3
         with:
           name: nargo
           path: ./nargo
 
-      - name: Compile fixtures with Nargo CLI
-        working-directory: ./compiler/wasm/fixtures
+      - name: Set nargo on PATH
         run: |
-          nargo_binary=${{ github.workspace }}/nargo/nargo
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
           chmod +x $nargo_binary
-          for dir in $(ls -d */); do
-            pushd $dir/noir-script
-            $nargo_binary compile
-            popd
-          done
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
 
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
+      - name: Build fixtures
+        run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright

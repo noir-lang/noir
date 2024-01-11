@@ -1,0 +1,7 @@
+[package]
+name="lib_a"
+type="lib"
+authors = [""]
+
+[dependencies]
+lib_b = { path = "../lib-b" }

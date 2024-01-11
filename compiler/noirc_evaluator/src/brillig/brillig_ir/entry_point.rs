@@ -209,7 +209,7 @@ impl BrilligContext {
     /// Adds the instructions needed to handle return parameters
     /// The runtime expects the results in the first `n` registers.
     /// Arrays are expected to be returned as pointers to the first element with all the nested arrays flattened.
-    /// However, the function called returns variables (that have extra data) and the returned arrays are unflattened.
+    /// However, the function called returns variables (that have extra data) and the returned arrays are deflattened.
     fn exit_point_instruction(&mut self, return_parameters: Vec<BrilligParameter>) {
         // First, we allocate the registers that hold the returned variables from the function call.
         self.set_allocated_registers(vec![]);
@@ -227,7 +227,7 @@ impl BrilligContext {
                 BrilligParameter::Slice(..) => unreachable!("ICE: Cannot return slices"),
             })
             .collect();
-        // Now, we unflatten the returned arrays
+        // Now, we deflatten the returned arrays
         for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {
             if let BrilligParameter::Array(item_type, item_count) = return_param {
                 if item_type.iter().any(|item| !matches!(item, BrilligParameter::Simple)) {
