@@ -117,9 +117,13 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     this.log('Stopping world state...');
     this.stopping = true;
     await this.l2BlockDownloader.stop();
+    this.log('Cancelling job queue...');
     await this.jobQueue.cancel();
+    this.log('Stopping Merkle trees');
     await this.merkleTreeDb.stop();
+    this.log('Awaiting promise');
     await this.runningPromise;
+    this.log('Commiting current block number');
     await this.commitCurrentL2BlockNumber();
     this.setCurrentState(WorldStateRunningState.STOPPED);
   }

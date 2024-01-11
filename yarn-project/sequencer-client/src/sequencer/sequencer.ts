@@ -83,6 +83,7 @@ export class Sequencer {
    * Stops the sequencer from processing txs and moves to STOPPED state.
    */
   public async stop(): Promise<void> {
+    this.log(`Stopping sequencer`);
     await this.runningPromise?.stop();
     this.publisher.interrupt();
     this.state = SequencerState.STOPPED;
