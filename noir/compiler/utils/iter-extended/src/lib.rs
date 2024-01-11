@@ -44,7 +44,7 @@ where
 }
 
 /// Given an iterator over a Result, filter out the Ok values from the Err values
-/// and return both in separate Vecs. Unlike other collect-like functions over Results,
+/// and return both in separate `Vec`s. Unlike other collect-like functions over Results,
 /// this function will always consume the entire iterator.
 pub fn partition_results<It, T, E, F>(iterable: It, mut f: F) -> (Vec<T>, Vec<E>)
 where

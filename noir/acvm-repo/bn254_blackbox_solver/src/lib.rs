@@ -90,18 +90,18 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
 
     fn ec_add(
         &self,
-        input1_x: &FieldElement,
-        input1_y: &FieldElement,
-        input2_x: &FieldElement,
-        input2_y: &FieldElement,
+        _input1_x: &FieldElement,
+        _input1_y: &FieldElement,
+        _input2_x: &FieldElement,
+        _input2_y: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         todo!();
     }
 
     fn ec_double(
         &self,
-        input_x: &FieldElement,
-        input_y: &FieldElement,
+        _input_x: &FieldElement,
+        _input_y: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         todo!();
     }
