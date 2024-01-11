@@ -141,16 +141,15 @@ impl NodeInterner {
     /// This is used by LSP to resolve the location.
     ///
     /// ### Example:
-    /// ```
-    /// // Noir
+    /// ```nr
     /// trait Fieldable {
     ///     fn to_field(self) -> Field;
-    /// //     ^------------------------------|
-    /// } //                                  |    
-    /// //                                    |
-    /// fn main(x: u32) { //                  |
-    ///     assert(x.to_field() == 15); //    |
-    /// //            \.......................|
+    ///        ^------------------------------\
+    /// }                                     |    
+    ///                                       |
+    /// fn main_func(x: u32) {                |
+    ///     assert(x.to_field() == 15);       |
+    ///               \......................./
     /// }
     /// ```
     ///
