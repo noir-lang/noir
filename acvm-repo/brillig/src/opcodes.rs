@@ -22,13 +22,20 @@ impl From<usize> for RegisterIndex {
 /// Describes the memory layout for an array/vector element
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum HeapValueType {
+    // A single field element is enough to represent the value
     Simple,
+    // The value read should be interpreted as a pointer to a heap array, which
+    // consists of a pointer to a slice of memory of size elements, and a
+    // reference count
     Array { value_types: Vec<HeapValueType>, size: usize },
+    // The value read should be interpreted as a pointer to a heap vector, which
+    // consists of a pointer to a slice of memory, a number of elements in that
+    // slice, and a reference count
     Vector { value_types: Vec<HeapValueType> },
 }
 
 impl HeapValueType {
-    pub fn all_simple(types: &Vec<HeapValueType>) -> bool {
+    pub fn all_simple(types: &[HeapValueType]) -> bool {
         types.iter().all(|typ| matches!(typ, HeapValueType::Simple))
     }
 }

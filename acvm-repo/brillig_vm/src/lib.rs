@@ -267,7 +267,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                                     }
                                 }
                             } else {
-                                unimplemented!("unflattening heap arrays");
+                                unimplemented!("deflattening heap arrays from foreign calls");
                             }
                         }
                         RegisterOrMemory::HeapVector(HeapVector { pointer: pointer_index,
@@ -289,7 +289,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                                     }
                                 }
                             } else {
-                                unimplemented!("unflattening heap vectors");
+                                unimplemented!("deflattening heap vectors from foreign calls");
                             }
                         }
                     }
@@ -381,26 +381,60 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 size,
                 value_types,
             }) => {
-                if HeapValueType::all_simple(&value_types) {
-                    let start = self.registers.get(pointer_index);
-                    self.memory.read_slice(start.to_usize(), size).to_vec().into()
-                } else {
-                    unimplemented!("flattening heap arrays");
-                }
+                let ptr = self.registers.get(pointer_index).to_usize();
+                self.read_slice_of_values_from_memory(ptr, size, &value_types).into()
             }
             RegisterOrMemory::HeapVector(HeapVector {
                 pointer: pointer_index,
                 size: size_index,
                 value_types,
             }) => {
-                if HeapValueType::all_simple(&value_types) {
-                    let start = self.registers.get(pointer_index);
-                    let size = self.registers.get(size_index);
-                    self.memory.read_slice(start.to_usize(), size.to_usize()).to_vec().into()
-                } else {
-                    unimplemented!("flattening heap vectors");
-                }
+                let ptr = self.registers.get(pointer_index).to_usize();
+                let size = self.registers.get(size_index).to_usize();
+                self.read_slice_of_values_from_memory(ptr, size, &value_types).into()
             }
+        }
+    }
+
+    /// Reads an array/vector from memory but recursively reads pointers to
+    /// nested arrays/vectors according to the sequence of value types.
+    fn read_slice_of_values_from_memory(
+        &self,
+        ptr: usize,
+        size: usize,
+        value_types: &[HeapValueType],
+    ) -> Vec<Value> {
+        if HeapValueType::all_simple(value_types) {
+            self.memory.read_slice(ptr, size).to_vec()
+        } else {
+            // Check that the sequence of value types fit an integer number of
+            // times inside the given size.
+            assert!(
+                0 == size % value_types.len(),
+                "array/vector does not contain a whole number of elements"
+            );
+            (0..size)
+                .zip(value_types.iter().cycle())
+                .flat_map(|(i, value_type)| {
+                    let value = self.memory.read(ptr + i);
+                    match value_type {
+                        HeapValueType::Simple => vec![value],
+                        HeapValueType::Array { value_types, size } => {
+                            let inner_ptr = self.memory.read(value.to_usize()).to_usize();
+                            self.read_slice_of_values_from_memory(inner_ptr, *size, value_types)
+                        }
+                        HeapValueType::Vector { value_types } => {
+                            let inner_ptr = self.memory.read(value.to_usize()).to_usize();
+                            let inner_size = self.memory.read(value.to_usize() + 1).to_usize();
+                            self.read_slice_of_values_from_memory(
+                                inner_ptr,
+                                inner_size,
+                                value_types,
+                            )
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
         }
     }
 
