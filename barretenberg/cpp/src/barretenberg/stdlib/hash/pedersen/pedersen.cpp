@@ -6,7 +6,7 @@ using namespace barretenberg;
 using namespace proof_system;
 
 template <typename C>
-field_t<C> pedersen_hash<C>::hash(const std::vector<field_t>& inputs, const GeneratorContext context)
+field_t<C> pedersen_hash<C>::hash(const std::vector<field_ct>& inputs, const GeneratorContext context)
 {
     using cycle_scalar = typename cycle_group::cycle_scalar;
     using Curve = EmbeddedCurve;
@@ -15,7 +15,7 @@ field_t<C> pedersen_hash<C>::hash(const std::vector<field_t>& inputs, const Gene
 
     std::vector<cycle_scalar> scalars;
     std::vector<cycle_group> points;
-    scalars.emplace_back(cycle_scalar::create_from_bn254_scalar(field_t(inputs.size())));
+    scalars.emplace_back(cycle_scalar::create_from_bn254_scalar(field_ct(inputs.size())));
     points.emplace_back(crypto::pedersen_hash_base<Curve>::length_generator);
     for (size_t i = 0; i < inputs.size(); ++i) {
         scalars.emplace_back(cycle_scalar::create_from_bn254_scalar(inputs[i]));
@@ -28,7 +28,7 @@ field_t<C> pedersen_hash<C>::hash(const std::vector<field_t>& inputs, const Gene
 }
 
 template <typename C>
-field_t<C> pedersen_hash<C>::hash_skip_field_validation(const std::vector<field_t>& inputs,
+field_t<C> pedersen_hash<C>::hash_skip_field_validation(const std::vector<field_ct>& inputs,
                                                         const GeneratorContext context)
 {
     using cycle_scalar = typename cycle_group::cycle_scalar;
@@ -38,7 +38,7 @@ field_t<C> pedersen_hash<C>::hash_skip_field_validation(const std::vector<field_
 
     std::vector<cycle_scalar> scalars;
     std::vector<cycle_group> points;
-    scalars.emplace_back(cycle_scalar::create_from_bn254_scalar(field_t(inputs.size())));
+    scalars.emplace_back(cycle_scalar::create_from_bn254_scalar(field_ct(inputs.size())));
     points.emplace_back(crypto::pedersen_hash_base<Curve>::length_generator);
     for (size_t i = 0; i < inputs.size(); ++i) {
         // `true` param = skip primality test when performing a scalar mul
@@ -52,7 +52,7 @@ field_t<C> pedersen_hash<C>::hash_skip_field_validation(const std::vector<field_
 }
 
 /**
- * Hash a byte_array.
+ * @brief Hash a byte_array.
  *
  * TODO(@zac-williamson #2796) Once Poseidon is implemented, replace this method with a more canonical hash algorithm
  * (that is less efficient)
@@ -64,7 +64,7 @@ field_t<C> pedersen_hash<C>::hash_buffer(const stdlib::byte_array<C>& input, Gen
     const size_t bytes_per_element = 31;
     size_t num_elements = static_cast<size_t>(num_bytes % bytes_per_element != 0) + (num_bytes / bytes_per_element);
 
-    std::vector<field_t> elements;
+    std::vector<field_ct> elements;
     for (size_t i = 0; i < num_elements; ++i) {
         size_t bytes_to_slice = 0;
         if (i == num_elements - 1) {
@@ -72,13 +72,10 @@ field_t<C> pedersen_hash<C>::hash_buffer(const stdlib::byte_array<C>& input, Gen
         } else {
             bytes_to_slice = bytes_per_element;
         }
-        auto element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice));
+        auto element = static_cast<field_ct>(input.slice(i * bytes_per_element, bytes_to_slice));
         elements.emplace_back(element);
     }
-    for (auto& x : elements) {
-        std::cout << x << std::endl;
-    }
-    field_t hashed;
+    field_ct hashed;
     if (elements.size() < 2) {
         hashed = hash(elements, context);
     } else {

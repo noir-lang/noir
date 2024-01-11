@@ -18,6 +18,7 @@ TESTS=(
   crypto_ecdsa_tests
   crypto_pedersen_commitment_tests
   crypto_pedersen_hash_tests
+  crypto_poseidon2_tests
   crypto_schnorr_tests
   crypto_sha256_tests
   dsl_tests

@@ -138,19 +138,29 @@ template <typename FF> struct databus_lookup_gate_ {
     uint32_t value;
 };
 
+/* External gate data for poseidon2 external round*/
 template <typename FF> struct poseidon2_external_gate_ {
     uint32_t a;
     uint32_t b;
     uint32_t c;
     uint32_t d;
-    uint32_t round_idx;
+    size_t round_idx;
 };
 
+/* Internal gate data for poseidon2 internal round*/
 template <typename FF> struct poseidon2_internal_gate_ {
     uint32_t a;
     uint32_t b;
     uint32_t c;
     uint32_t d;
-    uint32_t round_idx;
+    size_t round_idx;
+};
+
+/* Last gate for poseidon2, needed because poseidon2 gates compare against the shifted wires. */
+template <typename FF> struct poseidon2_end_gate_ {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
 };
 } // namespace proof_system

@@ -7,7 +7,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 
 namespace crypto {
 
@@ -123,6 +122,13 @@ template <typename Params> class Poseidon2Permutation {
         }
     }
 
+    /**
+     * @brief Native form of Poseidon2 permutation from https://eprint.iacr.org/2023/323.
+     * @details The permutation consists of one initial linear layer, then a set of external rounds, a set of internal
+     * rounds, and a set of external rounds.
+     * @param input
+     * @return constexpr State
+     */
     static constexpr State permutation(const State& input)
     {
         // deep copy
@@ -131,6 +137,7 @@ template <typename Params> class Poseidon2Permutation {
         // Apply 1st linear layer
         matrix_multiplication_external(current_state);
 
+        // First set of external rounds
         constexpr size_t rounds_f_beginning = rounds_f / 2;
         for (size_t i = 0; i < rounds_f_beginning; ++i) {
             add_round_constants(current_state, round_constants[i]);
@@ -138,6 +145,7 @@ template <typename Params> class Poseidon2Permutation {
             matrix_multiplication_external(current_state);
         }
 
+        // Internal rounds
         const size_t p_end = rounds_f_beginning + rounds_p;
         for (size_t i = rounds_f_beginning; i < p_end; ++i) {
             current_state[0] += round_constants[i][0];
@@ -145,6 +153,7 @@ template <typename Params> class Poseidon2Permutation {
             matrix_multiplication_internal(current_state);
         }
 
+        // Remaining external rounds
         for (size_t i = p_end; i < NUM_ROUNDS; ++i) {
             add_round_constants(current_state, round_constants[i]);
             apply_sbox(current_state);

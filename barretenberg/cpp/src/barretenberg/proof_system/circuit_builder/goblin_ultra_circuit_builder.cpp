@@ -260,6 +260,9 @@ void GoblinUltraCircuitBuilder_<FF>::create_calldata_lookup_gate(const databus_l
     ++this->num_gates;
 }
 
+/**
+ * @brief Poseidon2 external round gate, activates the q_poseidon2_external selector and relation
+ */
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in)
 {
@@ -284,6 +287,9 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseid
     ++this->num_gates;
 }
 
+/**
+ * @brief Poseidon2 internal round gate, activates the q_poseidon2_internal selector and relation
+ */
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in)
 {
@@ -305,6 +311,36 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseid
     this->q_busread().emplace_back(0);
     this->q_poseidon2_external().emplace_back(0);
     this->q_poseidon2_internal().emplace_back(1);
+    ++this->num_gates;
+}
+
+/**
+ * @brief Poseidon2 end round gate, needed because poseidon2 rounds compare with shifted wires
+ * @details The Poseidon2 permutation is 64 rounds, but needs to be a block of 65 rows, since the result of applying a
+ * round of Poseidon2 is stored in the next row (the shifted row). As a result, we need this end row to compare with the
+ * result from the 64th round of Poseidon2. Note that it does not activate any selectors since it only serves as a
+ * comparison through the shifted wires.
+ */
+template <typename FF> void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_end_gate(const poseidon2_end_gate_<FF>& in)
+{
+    this->w_l().emplace_back(in.a);
+    this->w_r().emplace_back(in.b);
+    this->w_o().emplace_back(in.c);
+    this->w_4().emplace_back(in.d);
+    this->q_m().emplace_back(0);
+    this->q_1().emplace_back(0);
+    this->q_2().emplace_back(0);
+    this->q_3().emplace_back(0);
+    this->q_c().emplace_back(0);
+    this->q_arith().emplace_back(0);
+    this->q_4().emplace_back(0);
+    this->q_sort().emplace_back(0);
+    this->q_lookup_type().emplace_back(0);
+    this->q_elliptic().emplace_back(0);
+    this->q_aux().emplace_back(0);
+    this->q_busread().emplace_back(0);
+    this->q_poseidon2_external().emplace_back(0);
+    this->q_poseidon2_internal().emplace_back(0);
     ++this->num_gates;
 }
 

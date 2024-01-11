@@ -10,9 +10,8 @@ grumpkin::fq poseidon_function(const size_t count)
     for (size_t i = 0; i < count; ++i) {
         inputs[i] = grumpkin::fq::random_element();
     }
-    std::span tmp(inputs);
     // hash count many field elements
-    inputs[0] = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(tmp);
+    inputs[0] = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(inputs);
     return inputs[0];
 }
 

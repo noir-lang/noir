@@ -30,16 +30,14 @@ std::vector<typename Curve::BaseField> pedersen_hash_base<Curve>::convert_buffer
     };
 
     std::vector<Fq> elements;
-    for (size_t i = 0; i < num_elements; ++i) {
-        size_t bytes_to_slice = 0;
-        if (i == num_elements - 1) {
-            bytes_to_slice = num_bytes - (i * bytes_per_element);
-        } else {
-            bytes_to_slice = bytes_per_element;
-        }
+    for (size_t i = 0; i < num_elements - 1; ++i) {
+        size_t bytes_to_slice = bytes_per_element;
         Fq element = slice(input, i * bytes_per_element, bytes_to_slice);
         elements.emplace_back(element);
     }
+    size_t bytes_to_slice = num_bytes - ((num_elements - 1) * bytes_per_element);
+    Fq element = slice(input, (num_elements - 1) * bytes_per_element, bytes_to_slice);
+    elements.emplace_back(element);
     return elements;
 }
 

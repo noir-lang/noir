@@ -10,7 +10,7 @@ auto& engine = numeric::random::get_debug_engine();
 }
 
 namespace poseidon2_tests {
-TEST(Poseidon2, BasicTests)
+TEST(Poseidon2, HashBasicTests)
 {
 
     barretenberg::fr a = barretenberg::fr::random_element(&engine);
@@ -32,17 +32,33 @@ TEST(Poseidon2, BasicTests)
 // N.B. these hardcoded values were extracted from the algorithm being tested. These are NOT independent test vectors!
 // TODO(@zac-williamson #3132): find independent test vectors we can compare against! (very hard to find given
 // flexibility of Poseidon's parametrisation)
-TEST(Poseidon2, ConsistencyCheck)
+TEST(Poseidon2, HashConsistencyCheck)
 {
     barretenberg::fr a(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
     barretenberg::fr b(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
     barretenberg::fr c(std::string("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
     barretenberg::fr d(std::string("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
 
-    std::array<barretenberg::fr, 4> input{ a, b, c, d };
+    std::vector<barretenberg::fr> input{ a, b, c, d };
     auto result = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(input);
 
-    barretenberg::fr expected(std::string("0x150c19ae11b3290c137c7a4d760d9482a6581d731535f560c3601d6a766b0937"));
+    barretenberg::fr expected(std::string("0x2f43a0f83b51a6f5fc839dea0ecec74947637802a579fa9841930a25a0bcec11"));
+
+    EXPECT_EQ(result, expected);
+}
+
+TEST(Poseidon2, HashBufferConsistencyCheck)
+{
+    // 31 byte inputs because hash_buffer slicing is only injective with 31 bytes, as it slices 31 bytes for each field
+    // element
+    barretenberg::fr a(std::string("00000b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
+
+    auto input_vec = to_buffer(a);      // takes field element and converts it to 32 bytes
+    input_vec.erase(input_vec.begin()); // erase first byte since we want 31 bytes
+    std::vector<barretenberg::fr> input{ a };
+    auto expected = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(input);
+
+    barretenberg::fr result = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash_buffer(input_vec);
 
     EXPECT_EQ(result, expected);
 }

@@ -18,17 +18,17 @@ using namespace barretenberg;
 template <typename Builder> class pedersen_hash {
 
   private:
-    using field_t = stdlib::field_t<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
     using bool_t = stdlib::bool_t<Builder>;
     using EmbeddedCurve = typename cycle_group<Builder>::Curve;
     using GeneratorContext = crypto::GeneratorContext<EmbeddedCurve>;
     using cycle_group = stdlib::cycle_group<Builder>;
 
   public:
-    static field_t hash(const std::vector<field_t>& in, GeneratorContext context = {});
+    static field_ct hash(const std::vector<field_ct>& in, GeneratorContext context = {});
     // TODO health warnings!
-    static field_t hash_skip_field_validation(const std::vector<field_t>& in, GeneratorContext context = {});
-    static field_t hash_buffer(const stdlib::byte_array<Builder>& input, GeneratorContext context = {});
+    static field_ct hash_skip_field_validation(const std::vector<field_ct>& in, GeneratorContext context = {});
+    static field_ct hash_buffer(const stdlib::byte_array<Builder>& input, GeneratorContext context = {});
 };
 
 EXTERN_STDLIB_TYPE(pedersen_hash);
