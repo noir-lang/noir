@@ -116,7 +116,7 @@ export default {
     prism: {
       theme: lightTheme,
       darkTheme: darkTheme,
-      additionalLanguages: ['rust', 'powershell', 'solidity', 'toml'],
+      additionalLanguages: ['rust', 'powershell', 'solidity', 'toml', 'json', 'bash', 'docker'],
     },
     stylesheets: [
       {
