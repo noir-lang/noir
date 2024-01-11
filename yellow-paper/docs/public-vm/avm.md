@@ -1,3 +1,7 @@
+---
+sidebar_position: 0
+---
+
 # Aztec Virtual Machine
 
 :::note reference
