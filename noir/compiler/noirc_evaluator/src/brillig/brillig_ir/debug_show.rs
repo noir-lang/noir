@@ -353,6 +353,9 @@ impl DebugShow {
             BlackBoxOp::Blake2s { message, output } => {
                 debug_println!(self.enable_debug_trace, "  BLAKE2S {} -> {}", message, output);
             }
+            BlackBoxOp::Blake3 { message, output } => {
+                debug_println!(self.enable_debug_trace, "  BLAKE3 {} -> {}", message, output);
+            }
             BlackBoxOp::EcdsaSecp256k1 {
                 hashed_msg,
                 public_key_x,
