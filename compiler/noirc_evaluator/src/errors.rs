@@ -132,8 +132,7 @@ impl RuntimeError {
             | RuntimeError::AssertConstantFailed { call_stack }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
-            | RuntimeError::NestedSlice { call_stack, .. }
-             => call_stack,
+            | RuntimeError::NestedSlice { call_stack, .. } => call_stack,
         }
     }
 }

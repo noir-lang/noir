@@ -193,7 +193,8 @@ impl<'a> FunctionContext<'a> {
                     ast::Type::Slice(_) => {
                         let slice_length =
                             self.builder.field_constant(array.contents.len() as u128);
-                        let slice_contents = self.codegen_array_checked(elements, typ[1].clone())?;
+                        let slice_contents =
+                            self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
                     _ => unreachable!(
@@ -233,9 +234,13 @@ impl<'a> FunctionContext<'a> {
     }
 
     // Codegen an array but make sure that we do not have a nested slice
-    fn codegen_array_checked(&mut self, elements: Vec<Values>, typ: Type) -> Result<Values, RuntimeError> {
+    fn codegen_array_checked(
+        &mut self,
+        elements: Vec<Values>,
+        typ: Type,
+    ) -> Result<Values, RuntimeError> {
         if typ.is_nested_slice() {
-            return Err(RuntimeError::NestedSlice { call_stack: self.builder.get_call_stack() })
+            return Err(RuntimeError::NestedSlice { call_stack: self.builder.get_call_stack() });
         }
         Ok(self.codegen_array(elements, typ))
     }
@@ -265,7 +270,7 @@ impl<'a> FunctionContext<'a> {
                 array.push_back(element);
             });
         }
-        
+
         self.builder.array_constant(array, typ).into()
     }
 

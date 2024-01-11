@@ -32,7 +32,7 @@ use crate::node_interner::{
     TraitImplId, TraitImplKind,
 };
 use crate::{
-    hir::{def_map::CrateDefMap, resolution::{path_resolver::PathResolver, resolve_structs}},
+    hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     StatementKind,
 };
@@ -682,7 +682,7 @@ impl<'a> Resolver<'a> {
 
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        let span = typ.span ;
+        let span = typ.span;
         let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
         if resolved_type.is_nested_slice() {
             self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
@@ -766,7 +766,7 @@ impl<'a> Resolver<'a> {
 
         let fields = vecmap(unresolved.fields, |(ident, typ)| {
             let typ = self.resolve_type(typ);
-             (ident, typ)
+            (ident, typ)
         });
 
         (generics, fields, self.errors)

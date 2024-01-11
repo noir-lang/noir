@@ -33,20 +33,24 @@ pub(crate) fn resolve_structs(
         context.def_interner.update_struct(type_id, |struct_def| {
             struct_def.set_fields(fields);
             struct_def.generics = generics;
-        });    
+        });
     }
 
-    // Check whether the struct fields have nested slices 
-    // We need to check after all structs are resolved as to avoid 
+    // Check whether the struct fields have nested slices
+    // We need to check after all structs are resolved as to avoid
     for id in structs {
         let struct_type = context.def_interner.get_struct(id.0);
         // Only handle structs without generics as any generics args will be checked
         // after monomorphization when performing SSA codegen
-        if struct_type.borrow().generics.len() == 0 {
+        if struct_type.borrow().generics.is_empty() {
             let fields = struct_type.borrow().get_fields(&[]);
             for field in fields.iter() {
                 if field.1.is_nested_slice() {
-                    errors.push((ResolverError::NestedSlices { span: struct_type.borrow().location.span }.into(), struct_type.borrow().location.file));
+                    errors.push((
+                        ResolverError::NestedSlices { span: struct_type.borrow().location.span }
+                            .into(),
+                        struct_type.borrow().location.file,
+                    ));
                 }
             }
         }

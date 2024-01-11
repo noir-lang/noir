@@ -159,12 +159,7 @@ impl Type {
 
     fn contains_slice(&self) -> bool {
         match self {
-            Type::Array(size, _) => {
-                match size.as_ref() {
-                    Type::NotConstant => return true,
-                    _ => return false,
-                }
-            }
+            Type::Array(size, _) => matches!(size.as_ref(), Type::NotConstant),
             Type::Struct(struct_typ, generics) => {
                 let fields = struct_typ.borrow().get_fields(generics);
                 for field in fields.iter() {
