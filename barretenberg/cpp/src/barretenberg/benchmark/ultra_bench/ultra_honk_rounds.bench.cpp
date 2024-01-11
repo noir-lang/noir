@@ -9,7 +9,15 @@ using namespace benchmark;
 using namespace proof_system;
 
 // The rounds to measure
-enum { PREAMBLE, WIRE_COMMITMENTS, SORTED_LIST_ACCUMULATOR, GRAND_PRODUCT_COMPUTATION, RELATION_CHECK, ZEROMORPH };
+enum {
+    PREAMBLE,
+    WIRE_COMMITMENTS,
+    SORTED_LIST_ACCUMULATOR,
+    LOG_DERIVATIVE_INVERSE,
+    GRAND_PRODUCT_COMPUTATION,
+    RELATION_CHECK,
+    ZEROMORPH
+};
 
 /**
  * @details Benchmark ultrahonk by performing all the rounds, but only measuring one.
@@ -34,6 +42,7 @@ BBERG_PROFILE static void test_round_inner(State& state, honk::UltraProver& prov
     time_if_index(PREAMBLE, [&] { prover.execute_preamble_round(); });
     time_if_index(WIRE_COMMITMENTS, [&] { prover.execute_wire_commitments_round(); });
     time_if_index(SORTED_LIST_ACCUMULATOR, [&] { prover.execute_sorted_list_accumulator_round(); });
+    time_if_index(LOG_DERIVATIVE_INVERSE, [&] { prover.execute_log_derivative_inverse_round(); });
     time_if_index(GRAND_PRODUCT_COMPUTATION, [&] { prover.execute_grand_product_computation_round(); });
     time_if_index(RELATION_CHECK, [&] { prover.execute_relation_check_rounds(); });
     time_if_index(ZEROMORPH, [&] { prover.execute_zeromorph_rounds(); });
@@ -65,6 +74,7 @@ BBERG_PROFILE static void test_round(State& state, size_t index) noexcept
 ROUND_BENCHMARK(PREAMBLE)->Iterations(1);
 ROUND_BENCHMARK(WIRE_COMMITMENTS)->Iterations(1);
 ROUND_BENCHMARK(SORTED_LIST_ACCUMULATOR)->Iterations(1);
+ROUND_BENCHMARK(LOG_DERIVATIVE_INVERSE)->Iterations(1);
 ROUND_BENCHMARK(GRAND_PRODUCT_COMPUTATION)->Iterations(1);
 ROUND_BENCHMARK(RELATION_CHECK);
 ROUND_BENCHMARK(ZEROMORPH);
