@@ -24,9 +24,13 @@ pub(crate) fn resolve_structs(
     crate_id: CrateId,
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    // This is necessary to avoid cloning the entire struct map 
+    // when adding checks after each struct field is resolved.
+    let struct_ids = structs.keys().copied().collect::<Vec<_>>();
+
     // Resolve each field in each struct.
     // Each struct should already be present in the NodeInterner after def collection.
-    for (type_id, typ) in structs.clone() {
+    for (type_id, typ) in structs {
         let file_id = typ.file_id;
         let (generics, fields, resolver_errors) = resolve_struct_fields(context, crate_id, typ);
         errors.extend(vecmap(resolver_errors, |err| (err.into(), file_id)));
@@ -37,9 +41,10 @@ pub(crate) fn resolve_structs(
     }
 
     // Check whether the struct fields have nested slices
-    // We need to check after all structs are resolved as to avoid
-    for id in structs {
-        let struct_type = context.def_interner.get_struct(id.0);
+    // We need to check after all structs are resolved to 
+    // make sure every struct's fields is accurately set.
+    for id in struct_ids {
+        let struct_type = context.def_interner.get_struct(id);
         // Only handle structs without generics as any generics args will be checked
         // after monomorphization when performing SSA codegen
         if struct_type.borrow().generics.is_empty() {
