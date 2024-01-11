@@ -328,18 +328,25 @@ acir_format circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
     return af;
 }
 
+/**
+ * @brief Converts from the ACIR-native `WitnessMap` format to Barretenberg's internal `WitnessVector` format.
+ *
+ * @param buf Serialized representation of a `WitnessMap`.
+ * @return A `WitnessVector` equivalent to the passed `WitnessMap`.
+ * @note This transformation results in all unassigned witnesses within the `WitnessMap` being assigned the value 0.
+ *       Converting the `WitnessVector` back to a `WitnessMap` is unlikely to return the exact same `WitnessMap`.
+ */
 WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
 {
     auto w = WitnessMap::WitnessMap::bincodeDeserialize(buf);
     WitnessVector wv;
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): Does "index" need to be initialized to 0 once we
-    // get rid of the +1 offeet in noir?
+    // get rid of the +1 offset in noir?
     size_t index = 1;
     for (auto& e : w.value) {
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/824): Document what this mechanism is doing. It
-        // appears to be somewhat unrelated to the const 0 issue (but see discussion in issue for caveats). See 2_div
-        // for an example of when this gets used. Seems like a mechanism for adding 0s intermittently between known
-        // witness values.
+        // ACIR uses a sparse format for WitnessMap where unused witness indices may be left unassigned.
+        // To ensure that witnesses sit at the correct indices in the `WitnessVector`, we fill any indices
+        // which do not exist within the `WitnessMap` with the dummy value of zero.
         while (index < e.first.value) {
             wv.push_back(barretenberg::fr(0));
             index++;
