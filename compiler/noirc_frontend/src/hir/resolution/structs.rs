@@ -24,7 +24,7 @@ pub(crate) fn resolve_structs(
     crate_id: CrateId,
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
-    // This is necessary to avoid cloning the entire struct map 
+    // This is necessary to avoid cloning the entire struct map
     // when adding checks after each struct field is resolved.
     let struct_ids = structs.keys().copied().collect::<Vec<_>>();
 
@@ -41,7 +41,7 @@ pub(crate) fn resolve_structs(
     }
 
     // Check whether the struct fields have nested slices
-    // We need to check after all structs are resolved to 
+    // We need to check after all structs are resolved to
     // make sure every struct's fields is accurately set.
     for id in struct_ids {
         let struct_type = context.def_interner.get_struct(id);
