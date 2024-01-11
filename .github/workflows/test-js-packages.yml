@@ -80,7 +80,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/{dist,build}
+          path: |
+            ./compiler/wasm/dist
+            ./compiler/wasm/build
           retention-days: 3
 
   build-acvm-js:
@@ -294,7 +296,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/{dist,build}
+          path: ./compiler/
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -398,7 +400,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/
+          path: ./compiler/
 
       - name: Download noirc_abi package artifact
         uses: actions/download-artifact@v3
