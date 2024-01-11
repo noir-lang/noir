@@ -159,9 +159,8 @@ fn resolve_trait_methods(
             functions.push(TraitFunction {
                 name: name.clone(),
                 typ: Type::Forall(generics, Box::new(function_type)),
-                span: name.span(),
+                location: Location::new(name.span(), unresolved_trait.file_id),
                 default_impl,
-                default_impl_file_id: unresolved_trait.file_id,
                 default_impl_module_id: unresolved_trait.module_id,
             });
 

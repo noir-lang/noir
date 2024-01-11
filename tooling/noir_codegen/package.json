@@ -19,7 +19,6 @@
   "dependencies": {
     "@noir-lang/types": "workspace:*",
     "glob": "^10.3.10",
-    "lodash": "^4.17.21",
     "ts-command-line-args": "^2.5.1"
   },
   "files": [
@@ -49,7 +48,6 @@
   "devDependencies": {
     "@noir-lang/noir_js": "workspace:*",
     "@types/chai": "^4",
-    "@types/lodash": "^4",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.2",
     "@types/prettier": "^3",

@@ -1,6 +1,15 @@
 Dockerfile*
 .dockerignore
 
+# Yarn
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
 packages
 **/package.tgz
 **/target

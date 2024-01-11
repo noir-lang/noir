@@ -95,7 +95,7 @@ pub struct Resolver<'a> {
 
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
-    /// be overriden for impls. Impls are an odd case since the methods within resolve
+    /// be overridden for impls. Impls are an odd case since the methods within resolve
     /// as if they're in the parent module, but should be placed in a child module.
     /// Since they should be within a child module, in_contract is manually set to false
     /// for these so we can still resolve them in the parent module without them being in a contract.
