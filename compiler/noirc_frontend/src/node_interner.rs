@@ -1471,12 +1471,9 @@ impl NodeInterner {
             .and_then(|(func_id, _func_meta)| {
                 let (_, trait_id) = self.get_function_trait(func_id)?;
 
-                self.traits
-                    .get(&trait_id)?
-                    .methods
-                    .iter()
-                    .find(|method| method.name.0.contents == self.function_name(func_id))
-                    .map(|method| method.location)
+                let methods = self.traits.get(&trait_id)?.methods.iter();
+                let method = methods.find(|method| method.name.0.contents == self.function_name(func_id));
+                method.map(|method| method.location)
             })
     }
 }
