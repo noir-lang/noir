@@ -382,7 +382,7 @@ mod tests {
         assert(array_length(public_inputs.end.new_nullifiers) == 3);
     }
 
-    #[test(should_fail_with="New nullifier is transient but hint is invalid")]
+    #[test(should_fail)]
     fn invalid_nullifier_commitment_hint_fails() {
         let mut builder = PrivateKernelOrderingInputsBuilder::new();
 

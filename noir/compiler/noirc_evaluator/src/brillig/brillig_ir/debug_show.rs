@@ -326,7 +326,7 @@ impl DebugShow {
     }
 
     /// Debug function for cast_instruction
-    pub(crate) fn cast_instruction(
+    pub(crate) fn truncate_instruction(
         &self,
         destination: RegisterIndex,
         source: RegisterIndex,
@@ -334,7 +334,7 @@ impl DebugShow {
     ) {
         debug_println!(
             self.enable_debug_trace,
-            "  CAST {} FROM {} TO {} BITS",
+            "  TRUNCATE {} FROM {} TO {} BITS",
             destination,
             source,
             target_bit_size

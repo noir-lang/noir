@@ -86,6 +86,7 @@
         "jsdoc",
         "Jubjub",
         "keccak",
+        "keccakf",
         "krate",
         "lvalue",
         "mathbb",
