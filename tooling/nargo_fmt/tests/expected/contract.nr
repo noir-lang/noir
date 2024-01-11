@@ -3,6 +3,8 @@
 // Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
 // Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 contract Benchmarking {
+    use dep::protocol_types::abis::function_selector::FunctionSelector;
+
     use dep::value_note::{
         utils::{increment, decrement},
         value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
@@ -11,7 +13,6 @@ contract Benchmarking {
     use dep::aztec::{
         context::{Context},
         note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        selector::compute_selector,
         log::emit_unencrypted_log,
         state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
@@ -59,7 +60,7 @@ contract Benchmarking {
         storage.balances.at(owner).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
-            compute_selector("broadcast(Field)"),
+            FunctionSelector::from_signature("broadcast(Field)"),
             [owner]
         );
     }
@@ -71,7 +72,7 @@ contract Benchmarking {
     }
 
     unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: Field,
+        contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
         preimage: [Field; VALUE_NOTE_LEN]

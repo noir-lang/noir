@@ -166,11 +166,31 @@ impl DataFlowGraph {
                 SimplifiedToMultiple(simplification)
             }
             SimplifyResult::Remove => InstructionRemoved,
-            result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
-                let instruction = result.instruction().unwrap_or(instruction);
-                let id = self.make_instruction(instruction, ctrl_typevars);
-                self.blocks[block].insert_instruction(id);
-                self.locations.insert(id, call_stack);
+            result @ (SimplifyResult::SimplifiedToInstruction(_)
+            | SimplifyResult::SimplifiedToInstructionMultiple(_)
+            | SimplifyResult::None) => {
+                let instructions = result.instructions().unwrap_or(vec![instruction]);
+
+                if instructions.len() > 1 {
+                    // There's currently no way to pass results from one instruction in `instructions` on to the next.
+                    // We then restrict this to only support multiple instructions if they're all `Instruction::Constrain`
+                    // as this instruction type does not have any results.
+                    assert!(
+                        instructions.iter().all(|instruction| matches!(instruction, Instruction::Constrain(..))),
+                        "`SimplifyResult::SimplifiedToInstructionMultiple` only supports `Constrain` instructions"
+                    );
+                }
+
+                let mut last_id = None;
+
+                for instruction in instructions {
+                    let id = self.make_instruction(instruction, ctrl_typevars.clone());
+                    self.blocks[block].insert_instruction(id);
+                    self.locations.insert(id, call_stack.clone());
+                    last_id = Some(id);
+                }
+
+                let id = last_id.expect("There should be at least 1 simplified instruction");
                 InsertInstructionResult::Results(id, self.instruction_results(id))
             }
         }

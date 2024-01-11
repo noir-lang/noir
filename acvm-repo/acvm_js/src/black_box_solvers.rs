@@ -40,21 +40,6 @@ pub fn keccak256(inputs: &[u8]) -> Vec<u8> {
     acvm::blackbox_solver::keccak256(inputs).unwrap().into()
 }
 
-/// Calculates the Blake2s256 hash of the input bytes and represents these as a single field element.
-// #[wasm_bindgen]
-// pub fn hash_to_field_128_security(inputs: Vec<JsString>) -> JsString {
-//     let input_bytes: Vec<u8> = inputs
-//         .into_iter()
-//         .flat_map(|field_string| {
-//             let field_element = js_value_to_field_element(field_string.into()).unwrap();
-//             witness_assignment.fetch_nearest_bytes(FieldElement::max_num_bits());
-//         })
-//         .collect();
-//     field_element_to_js_string(
-//         &acvm::blackbox_solver::hash_to_field_128_security(&input_bytes).unwrap(),
-//     )
-// }
-
 /// Verifies a ECDSA signature over the secp256k1 curve.
 #[wasm_bindgen]
 pub fn ecdsa_secp256k1_verify(
