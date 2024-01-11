@@ -1,6 +1,7 @@
 name: Test Nargo and JS packages
 
 on:
+  pull_request:
   push:
     branches:
       - 'master'
