@@ -1,0 +1,6 @@
+[package]
+name = "exporting_lib"
+type = "lib"
+authors = [""]
+
+[dependencies]

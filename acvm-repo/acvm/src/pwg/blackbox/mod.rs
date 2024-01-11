@@ -3,12 +3,12 @@ use acir::{
     native_types::{Witness, WitnessMap},
     FieldElement,
 };
-use acvm_blackbox_solver::{blake2s, keccak256, sha256};
+use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
 use self::pedersen::pedersen_hash;
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
-use crate::BlackBoxFunctionSolver;
+use crate::{pwg::witness_to_value, BlackBoxFunctionSolver};
 
 mod fixed_base_scalar_mul;
 mod hash;
@@ -19,7 +19,7 @@ mod signature;
 
 use fixed_base_scalar_mul::fixed_base_scalar_mul;
 // Hash functions should eventually be exposed for external consumers.
-use hash::{solve_generic_256_hash_opcode, solve_hash_to_field};
+use hash::solve_generic_256_hash_opcode;
 use logic::{and, xor};
 use pedersen::pedersen;
 use range::solve_range_opcode;
@@ -83,6 +83,14 @@ pub(crate) fn solve(
             blake2s,
             bb_func.get_black_box_func(),
         ),
+        BlackBoxFuncCall::Blake3 { inputs, outputs } => solve_generic_256_hash_opcode(
+            initial_witness,
+            inputs,
+            None,
+            outputs,
+            blake3,
+            bb_func.get_black_box_func(),
+        ),
         BlackBoxFuncCall::Keccak256 { inputs, outputs } => solve_generic_256_hash_opcode(
             initial_witness,
             inputs,
@@ -101,8 +109,21 @@ pub(crate) fn solve(
                 bb_func.get_black_box_func(),
             )
         }
-        BlackBoxFuncCall::HashToField128Security { inputs, output } => {
-            solve_hash_to_field(initial_witness, inputs, output)
+        BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
+            let mut state = [0; 25];
+            for (i, input) in inputs.iter().enumerate() {
+                let witness = input.witness;
+                let num_bits = input.num_bits as usize;
+                assert_eq!(num_bits, 64);
+                let witness_assignment = witness_to_value(initial_witness, witness)?;
+                let lane = witness_assignment.try_to_u64();
+                state[i] = lane.unwrap();
+            }
+            let state = keccakf1600(state)?;
+            for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+                insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
+            }
+            Ok(())
         }
         BlackBoxFuncCall::SchnorrVerify {
             public_key_x,
@@ -156,13 +177,7 @@ pub(crate) fn solve(
         BlackBoxFuncCall::FixedBaseScalarMul { low, high, outputs } => {
             fixed_base_scalar_mul(backend, initial_witness, *low, *high, *outputs)
         }
-        BlackBoxFuncCall::RecursiveAggregation { output_aggregation_object, .. } => {
-            // Solve the output of the recursive aggregation to zero to prevent missing assignment errors
-            // The correct value will be computed by the backend
-            for witness in output_aggregation_object {
-                insert_value(witness, FieldElement::zero(), initial_witness)?;
-            }
-            Ok(())
-        }
+        // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
+        BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
     }
 }

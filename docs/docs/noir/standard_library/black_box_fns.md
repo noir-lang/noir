@@ -31,7 +31,6 @@ Here is a list of the current black box functions that are supported by UltraPlo
 - [Blake2s](./cryptographic_primitives/hashes#blake2s)
 - [Pedersen Hash](./cryptographic_primitives/hashes#pedersen_hash)
 - [Pedersen Commitment](./cryptographic_primitives/hashes#pedersen_commitment)
-- [HashToField128Security](./cryptographic_primitives/hashes#hash_to_field)
 - [ECDSA signature verification](./cryptographic_primitives/ecdsa_sig_verification)
 - [Fixed base scalar multiplication](./cryptographic_primitives/scalar)
 - [Compute merkle root](./merkle_trees#compute_merkle_root)
