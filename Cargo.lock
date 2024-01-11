@@ -60,6 +60,7 @@ dependencies = [
  "blake2",
  "blake3",
  "k256",
+ "keccak",
  "p256",
  "sha2",
  "sha3",
