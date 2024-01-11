@@ -1224,7 +1224,6 @@ impl NodeInterner {
         methods: Option<&Methods>,
         method_name: &str,
     ) -> Option<FuncId> {
-        println!("find matching method");
         if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self)) {
             Some(method)
         } else {
