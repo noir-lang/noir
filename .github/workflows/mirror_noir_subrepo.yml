@@ -41,6 +41,9 @@ jobs:
           if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=$BRANCH; then
             git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
             git push
+          else
+            echo "Problems syncing noir. We may need to pull the subrepo."
+            exit 1
           fi
 
       - name: Checkout
