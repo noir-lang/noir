@@ -1713,18 +1713,7 @@ impl Context {
                 Ok(Self::convert_vars_to_values(vars, dfg, result_ids))
             }
             Intrinsic::ApplyRangeConstraint => {
-                let field = self.convert_value(arguments[0], dfg).into_var()?;
-
-                let bit_size = self.convert_value(arguments[1], dfg).into_var()?;
-                let bit_size = self.acir_context.constant(bit_size).to_u128() as u32;
-
-                self.acir_context.range_constrain_var(
-                    field,
-                    &NumericType::Unsigned { bit_size },
-                    Some("call to apply_range_constraint".to_owned()),
-                )?;
-
-                Ok(Vec::new())
+                unreachable!("ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`");
             }
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;

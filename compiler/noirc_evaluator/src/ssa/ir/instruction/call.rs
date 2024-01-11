@@ -233,7 +233,20 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ApplyRangeConstraint => SimplifyResult::None,
+        Intrinsic::ApplyRangeConstraint => {
+            let value = arguments[0];
+            let max_bit_size = dfg.get_numeric_constant(arguments[1]);
+            if let Some(max_bit_size) = max_bit_size {
+                let max_bit_size = max_bit_size.to_u128() as u32;
+                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                    value,
+                    max_bit_size,
+                    assert_message: Some("call to apply_range_constraint".to_owned()),
+                })
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
         Intrinsic::AsField => {
