@@ -296,7 +296,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/
+          path: ./compiler/wasm
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -400,7 +400,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/
+          path: ./compiler/wasm
 
       - name: Download noirc_abi package artifact
         uses: actions/download-artifact@v3
