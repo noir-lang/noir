@@ -398,7 +398,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm/{dist,build}
+          path: ./compiler/wasm/
 
       - name: Download noirc_abi package artifact
         uses: actions/download-artifact@v3
