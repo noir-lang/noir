@@ -187,10 +187,10 @@ However, in order to write these opcodes we need the result of the division whic
 In summary, solving a Brillig opcode performs the computation defined by its bytecode, on the provided inputs, and assign the result to the outputs witnesses, without adding any constraint.
 
 ### Directive
-This opcode is a specialisation of Brillig opcode. Instead of having some generic assembly code like Brillig, a directive has a hardcoded name which tells the solver which computation to do: with Brillig, the computation refers to the compiled bytecode of an unconstrained Noir function, but with a directive, the computation is hardcoded inside the compiler. Directives will be replaced by Brillig opcodes in the future.
+This opcode is a specialization of Brillig opcode. Instead of having some generic assembly code like Brillig, a directive has a hardcoded name which tells the solver which computation to do: with Brillig, the computation refers to the compiled bytecode of an unconstrained Noir function, but with a directive, the computation is hardcoded inside the compiler. Directives will be replaced by Brillig opcodes in the future.
 
 ### MemoryOp: memory abstraction for ACIR
-ACIR is able to address any array of witnesses. Each array is assigned an id (BlockId) and needs to be initialised with the MemoryInit opcode. Then it is possible to read and write from/to an array by providing the index and the value we read/write, as arithmetic expression. Note that ACIR arrays all have a known fixed length (given in the MemoryInit opcode below)
+ACIR is able to address any array of witnesses. Each array is assigned an id (BlockId) and needs to be initialized with the MemoryInit opcode. Then it is possible to read and write from/to an array by providing the index and the value we read/write, as arithmetic expression. Note that ACIR arrays all have a known fixed length (given in the MemoryInit opcode below)
 - block_id: identifier of the array
 - op: describe the memory operation to perform
 	- operation: constant expression having value 1 for a write to memory and 0 for a read
@@ -199,7 +199,7 @@ ACIR is able to address any array of witnesses. Each array is assigned an id (Bl
 - predicate: an arithmetic expression that disable the opcode when it is null.
 
 ### MemoryInit
-Initialise an ACIR array from a vector of witnesses.
+Initialize an ACIR array from a vector of witnesses.
 - block_id: identifier of the array
 - init: Vector of witnesses specifying the initial value of the arrays
 

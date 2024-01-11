@@ -141,7 +141,7 @@ mod backend {
 
     #[test]
     fn raises_error_on_missing_binary() {
-        let bad_backend = Backend::new("i_dont_exist".to_string());
+        let bad_backend = Backend::new("i_don't_exist".to_string());
 
         let binary_path = bad_backend.assert_binary_exists();
 

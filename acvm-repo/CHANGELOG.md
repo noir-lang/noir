@@ -648,7 +648,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-* add optimisations to fallback black box functions on booleans ([#446](https://github.com/noir-lang/acvm/issues/446)) ([2cfb2a8](https://github.com/noir-lang/acvm/commit/2cfb2a8cf911a81eedbd9da13ab2c616abd67f83))
+* add optimizations to fallback black box functions on booleans ([#446](https://github.com/noir-lang/acvm/issues/446)) ([2cfb2a8](https://github.com/noir-lang/acvm/commit/2cfb2a8cf911a81eedbd9da13ab2c616abd67f83))
 * **stdlib:** Add fallback implementation of `Keccak256` black box function ([#445](https://github.com/noir-lang/acvm/issues/445)) ([f7ebb03](https://github.com/noir-lang/acvm/commit/f7ebb03653c971f119700ff8126d9eb5ff01be0f))
 
 ## [0.20.0](https://github.com/noir-lang/acvm/compare/root-v0.19.1...root-v0.20.0) (2023-07-20)
@@ -718,7 +718,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Chores
 
-* **acvm:** Remove `CircuitSimplifer` ([#421](https://github.com/noir-lang/acvm/issues/421)) ([e07a56d](https://github.com/noir-lang/acvm/commit/e07a56d9c542a7f03ce156761054cd403de0bd23))
+* **acvm:** Remove `CircuitSimplifier` ([#421](https://github.com/noir-lang/acvm/issues/421)) ([e07a56d](https://github.com/noir-lang/acvm/commit/e07a56d9c542a7f03ce156761054cd403de0bd23))
 
 ## [0.17.0](https://github.com/noir-lang/acvm/compare/root-v0.16.0...root-v0.17.0) (2023-07-07)
 
@@ -1114,7 +1114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **acir:** make PublicInputs use a BTreeSet rather than Vec ([#99](https://github.com/noir-lang/acvm/issues/99))
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58))
 * **acir:** Add keccak256 Opcode ([#91](https://github.com/noir-lang/acvm/issues/91))
-* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
+* reorganize compiler in terms of optimizers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
 
 ### Features
 
@@ -1138,7 +1138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Chores
 
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58)) ([2427a27](https://github.com/noir-lang/acvm/commit/2427a275048e598c6d651cce8348a4c55148f235))
-* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))
+* reorganize compiler in terms of optimizers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))
 
 ## [0.4.1] - 2023-02-08
 
