@@ -466,6 +466,15 @@ struct BlackBoxOp {
         static Keccak256 bincodeDeserialize(std::vector<uint8_t>);
     };
 
+    struct Keccakf1600 {
+        Circuit::HeapVector message;
+        Circuit::HeapArray output;
+
+        friend bool operator==(const Keccakf1600&, const Keccakf1600&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
+    };
+
     struct EcdsaSecp256k1 {
         Circuit::HeapVector hashed_msg;
         Circuit::HeapArray public_key_x;
@@ -558,6 +567,7 @@ struct BlackBoxOp {
                  Blake2s,
                  Blake3,
                  Keccak256,
+                 Keccakf1600,
                  EcdsaSecp256k1,
                  EcdsaSecp256r1,
                  SchnorrVerify,
@@ -3141,6 +3151,58 @@ Circuit::BlackBoxOp::Keccak256 serde::Deserializable<Circuit::BlackBoxOp::Keccak
     Deserializer& deserializer)
 {
     Circuit::BlackBoxOp::Keccak256 obj;
+    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
+    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+inline bool operator==(const BlackBoxOp::Keccakf1600& lhs, const BlackBoxOp::Keccakf1600& rhs)
+{
+    if (!(lhs.message == rhs.message)) {
+        return false;
+    }
+    if (!(lhs.output == rhs.output)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> BlackBoxOp::Keccakf1600::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BlackBoxOp::Keccakf1600>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BlackBoxOp::Keccakf1600 BlackBoxOp::Keccakf1600::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BlackBoxOp::Keccakf1600>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxOp::Keccakf1600>::serialize(const Circuit::BlackBoxOp::Keccakf1600& obj,
+                                                                      Serializer& serializer)
+{
+    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
+    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxOp::Keccakf1600 serde::Deserializable<Circuit::BlackBoxOp::Keccakf1600>::deserialize(
+    Deserializer& deserializer)
+{
+    Circuit::BlackBoxOp::Keccakf1600 obj;
     obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
