@@ -9,7 +9,7 @@ on:
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || gitdisthub.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -80,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm
+          path: ./compiler/wasm/dist
           retention-days: 3
 
   build-acvm-js:
@@ -294,7 +294,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm
+          path: ./compiler/wasm/dist
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -398,7 +398,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm
+          path: ./compiler/wasm/dist
 
       - name: Download noirc_abi package artifact
         uses: actions/download-artifact@v3
