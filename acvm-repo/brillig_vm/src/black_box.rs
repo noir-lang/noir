@@ -1,8 +1,8 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
-    blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256,
-    BlackBoxFunctionSolver, BlackBoxResolutionError,
+    blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, keccakf1600,
+    sha256, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
 use crate::{Memory, Registers};
@@ -68,6 +68,20 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             let message = to_u8_vec(read_heap_vector(memory, registers, message));
             let bytes = keccak256(message.as_slice())?;
             memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
+            Ok(())
+        }
+        BlackBoxOp::Keccakf1600 { message, output } => {
+            let state_vec: Vec<u64> = read_heap_vector(memory, registers, message)
+                .iter()
+                .map(|value| value.to_field().try_to_u64().unwrap())
+                .collect();
+            let state: [u64; 25] = state_vec.try_into().unwrap();
+
+            let new_state = keccakf1600(state)?;
+
+            let new_state: Vec<Value> =
+                new_state.into_iter().map(|x| Value::from(x as usize)).collect();
+            memory.write_slice(registers.get(output.pointer).to_usize(), &new_state);
             Ok(())
         }
         BlackBoxOp::EcdsaSecp256k1 {
@@ -195,6 +209,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
         BlackBoxOp::Blake3 { .. } => BlackBoxFunc::Blake3,
         BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
+        BlackBoxOp::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
         BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
         BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
