@@ -27,10 +27,10 @@ import {
   Fr,
   Note,
   computeMessageSecretHash,
-  createAccount,
   createPXEClient,
   waitForPXE,
 } from "@aztec/aztec.js";
+import { createAccount } from '@aztec/accounts/testing';
 import { TokenContractArtifact } from "@aztec/noir-contracts/Token";
 
 const {
