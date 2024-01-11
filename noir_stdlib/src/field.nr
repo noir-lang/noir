@@ -20,8 +20,8 @@ impl Field {
 
     pub fn assert_maximum_bit_size(self: Self, bit_size: u32) {
         crate::assert_constant(bit_size);
+        assert(bit_size < modulus_num_bits());
         self.__assert_maximum_bit_size(bit_size);
-        assert(bit_size < modulus_num_bits())
     }
 
     pub fn to_le_bytes(self: Self, byte_size: u32) -> [u8] {
