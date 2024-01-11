@@ -139,7 +139,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noir_wasm
-          path: /usr/src/noir/compiler/wasm/outputs/out/noir_wasm
+          path: /usr/src/noir/compiler/wasm
           retention-days: 10
       
   test-noir-wasm:
