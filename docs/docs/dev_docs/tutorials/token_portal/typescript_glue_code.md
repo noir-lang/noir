@@ -11,77 +11,37 @@ cd src/test
 touch cross_chain_messaging.test.ts
 ```
 
-Open `cross_chain_messaging.test.ts`.
-
-We will write two tests:
-
-1. Test the deposit and withdraw in the private flow
-2. Do the same in the public flow
-
 ## Test imports and setup
 
 We need some helper files that can keep our code clean. Inside your `src/test` directory:
 
 ```bash
-cd fixtures
+mkdir fixtures && cd fixtures
 touch utils.ts
+cd .. && mkdir shared && cd shared
 touch cross_chain_test_harness.ts
 ```
 
-In `utils.ts`, put:
+In `utils.ts`, we need a delay function. Put this:
 
-```typescript
-import * as fs from "fs";
-import { AztecAddress, EthAddress, TxStatus, Wallet } from "@aztec/aztec.js";
-import { TokenContract } from "@aztec/noir-contracts/Token";
-import {
-  Account,
-  Chain,
-  Hex,
-  HttpTransport,
-  PublicClient,
-  WalletClient,
-  getContract,
-} from "viem";
-import type { Abi, Narrow } from "abitype";
-
-import { TokenBridgeContract } from "./TokenBridge.js";
-
-const PATH = "../../packages/l1-contracts/artifacts/contracts";
-const EXT = ".sol";
-function getL1ContractABIAndBytecode(contractName: string) {
-  const pathToArtifact = `${PATH}/${contractName}${EXT}/${contractName}.json`;
-  const artifacts = JSON.parse(fs.readFileSync(pathToArtifact, "utf-8"));
-  return [artifacts.abi, artifacts.bytecode];
-}
-
-const [PortalERC20Abi, PortalERC20Bytecode] =
-  getL1ContractABIAndBytecode("PortalERC20");
-const [TokenPortalAbi, TokenPortalBytecode] =
-  getL1ContractABIAndBytecode("TokenPortal");
-
-#include_code deployL1Contract /yarn-project/ethereum/src/deploy_l1_contracts.ts raw
-
-#include_code deployAndInitializeTokenAndBridgeContracts /yarn-project/end-to-end/src/shared/cross_chain_test_harness.ts raw
-
-#include_code delay /yarn-project/end-to-end/src/fixtures/utils.ts raw
-```
-
-This code
-
-- gets your Solidity contract ABIs
-- uses viem to deploy them to Ethereum
-- uses Aztec.js to deploy the token and token bridge contract on L2, sets the bridge's portal address to `tokenPortalAddress` and initializes all the contracts
-
-Now let's create another util file to can handle interaction with these contracts to mint/deposit the functions:
+#include_code delay yarn-project/end-to-end/src/fixtures/utils.ts typescript
 
 In `cross_chain_test_harness.ts`, add:
 
 #include_code cross_chain_test_harness /yarn-project/end-to-end/src/shared/cross_chain_test_harness.ts typescript
 
-This is a class that holds all contracts as objects and exposes easy to use helper methods to interact with our contracts.
+This
+- gets your Solidity contract ABIs
+- uses Aztec.js to deploy them to Ethereum
+- uses Aztec.js to deploy the token and token bridge contract on L2, sets the bridge's portal address to `tokenPortalAddress` and initializes all the contracts
+- exposes easy to use helper methods to interact with our contracts.
 
 Now let's write our tests.
+
+We will write two tests:
+
+1. Test the deposit and withdraw in the private flow
+2. Do the same in the public flow
 
 Open `cross_chain_messaging.test.ts` and paste the initial description of the test:
 
