@@ -15,6 +15,14 @@ impl Field {
     #[builtin(to_be_bits)]
     fn __to_be_bits(_self: Self, _bit_size: u32) -> [u1] {}
 
+    #[builtin(apply_range_constraint)]
+    fn __apply_range_constraint(_self: Self, _bit_size: u32) {}
+
+    pub fn apply_range_constraint(self: Self, bit_size: u32) {
+        crate::assert_constant(bit_size);
+        self.__apply_range_constraint(bit_size);
+    }
+
     pub fn to_le_bytes(self: Self, byte_size: u32) -> [u8] {
         self.to_le_radix(256, byte_size)
     }
