@@ -1,5 +1,5 @@
 import { ContractNotFoundError } from '@aztec/acir-simulator';
-import { MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, PublicKey } from '@aztec/circuits.js';
+import { MAX_NEW_COMMITMENTS_PER_TX, PublicKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -121,10 +121,6 @@ export class NoteProcessor {
           indexOfTxInABlock * MAX_NEW_COMMITMENTS_PER_TX,
           (indexOfTxInABlock + 1) * MAX_NEW_COMMITMENTS_PER_TX,
         );
-        const newNullifiers = block.newNullifiers.slice(
-          indexOfTxInABlock * MAX_NEW_NULLIFIERS_PER_TX,
-          (indexOfTxInABlock + 1) * MAX_NEW_NULLIFIERS_PER_TX,
-        );
         // Note: Each tx generates a `TxL2Logs` object and for this reason we can rely on its index corresponding
         //       to the index of a tx in a block.
         const txFunctionLogs = txLogs[indexOfTxInABlock].functionLogs;
@@ -136,14 +132,12 @@ export class NoteProcessor {
             if (payload) {
               // We have successfully decrypted the data.
               const txHash = blockContext.getTxHash(indexOfTxInABlock);
-              const txNullifier = newNullifiers[0];
               try {
                 const noteDao = await produceNoteDao(
                   this.simulator,
                   this.publicKey,
                   payload,
                   txHash,
-                  txNullifier,
                   newCommitments,
                   dataStartIndexForTx,
                   excludedIndices,
@@ -160,7 +154,6 @@ export class NoteProcessor {
                     payload.contractAddress,
                     payload.storageSlot,
                     txHash,
-                    txNullifier,
                     newCommitments,
                     dataStartIndexForTx,
                   );
@@ -254,8 +247,7 @@ export class NoteProcessor {
     const excludedIndices: Set<number> = new Set();
     const noteDaos: NoteDao[] = [];
     for (const deferredNote of deferredNoteDaos) {
-      const { note, contractAddress, storageSlot, txHash, txNullifier, newCommitments, dataStartIndexForTx } =
-        deferredNote;
+      const { note, contractAddress, storageSlot, txHash, newCommitments, dataStartIndexForTx } = deferredNote;
       const payload = new L1NotePayload(note, contractAddress, storageSlot);
 
       try {
@@ -264,7 +256,6 @@ export class NoteProcessor {
           this.publicKey,
           payload,
           txHash,
-          txNullifier,
           newCommitments,
           dataStartIndexForTx,
           excludedIndices,

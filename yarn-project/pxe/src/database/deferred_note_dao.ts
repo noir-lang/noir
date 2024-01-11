@@ -17,10 +17,8 @@ export class DeferredNoteDao {
     public contractAddress: AztecAddress,
     /** The specific storage location of the note on the contract. */
     public storageSlot: Fr,
-    /** The hash of the tx the note was created in. */
+    /** The hash of the tx the note was created in. Equal to the first nullifier */
     public txHash: TxHash,
-    /** The first nullifier emitted by the transaction */
-    public txNullifier: Fr,
     /** New commitments in this transaction, one of which belongs to this note */
     public newCommitments: Fr[],
     /** The next available leaf index for the note hash tree for this transaction */
@@ -34,7 +32,6 @@ export class DeferredNoteDao {
       this.contractAddress.toBuffer(),
       this.storageSlot.toBuffer(),
       this.txHash.toBuffer(),
-      this.txNullifier.toBuffer(),
       new Vector(this.newCommitments),
       this.dataStartIndexForTx,
     );
@@ -47,7 +44,6 @@ export class DeferredNoteDao {
       reader.readObject(AztecAddress),
       reader.readObject(Fr),
       reader.readObject(TxHash),
-      reader.readObject(Fr),
       reader.readVector(Fr),
       reader.readNumber(),
     );

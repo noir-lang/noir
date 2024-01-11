@@ -13,8 +13,7 @@ import { NoteDao } from '../database/note_dao.js';
  *
  * @param publicKey - The public counterpart to the private key to be used in note decryption.
  * @param payload - An instance of l1NotePayload.
- * @param txHash - The hash of the transaction that created the note.
- * @param txNullifier - The first nullifier emitted by the transaction.
+ * @param txHash - The hash of the transaction that created the note. Equivalent to the first nullifier of the transaction.
  * @param newCommitments - New commitments in this transaction, one of which belongs to this note.
  * @param dataStartIndexForTx - The next available leaf index for the note hash tree for this transaction.
  * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same l1NotePayload, we need to find a different index for each replicate.
@@ -26,7 +25,6 @@ export async function produceNoteDao(
   publicKey: PublicKey,
   payload: L1NotePayload,
   txHash: TxHash,
-  txNullifier: Fr,
   newCommitments: Fr[],
   dataStartIndexForTx: number,
   excludedIndices: Set<number>,
@@ -34,7 +32,7 @@ export async function produceNoteDao(
   const { commitmentIndex, nonce, innerNoteHash, siloedNullifier } = await findNoteIndexAndNullifier(
     simulator,
     newCommitments,
-    txNullifier,
+    txHash,
     payload,
     excludedIndices,
   );
@@ -61,7 +59,7 @@ export async function produceNoteDao(
  * contract address, and the note associated with the l1NotePayload.
  * This method assists in identifying spent commitments in the private state.
  * @param commitments - Commitments in the tx. One of them should be the note's commitment.
- * @param firstNullifier - First nullifier in the tx.
+ * @param txHash - First nullifier in the tx.
  * @param l1NotePayload - An instance of l1NotePayload.
  * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same
  * l1NotePayload. We need to find a different index for each replicate.
@@ -71,7 +69,7 @@ export async function produceNoteDao(
 async function findNoteIndexAndNullifier(
   simulator: AcirSimulator,
   commitments: Fr[],
-  firstNullifier: Fr,
+  txHash: TxHash,
   { contractAddress, storageSlot, note }: L1NotePayload,
   excludedIndices: Set<number>,
 ) {
@@ -81,6 +79,8 @@ async function findNoteIndexAndNullifier(
   let siloedNoteHash: Fr | undefined;
   let uniqueSiloedNoteHash: Fr | undefined;
   let innerNullifier: Fr | undefined;
+  const firstNullifier = Fr.fromBuffer(txHash.toBuffer());
+
   for (; commitmentIndex < commitments.length; ++commitmentIndex) {
     if (excludedIndices.has(commitmentIndex)) {
       continue;

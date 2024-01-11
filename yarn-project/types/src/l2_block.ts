@@ -25,6 +25,7 @@ import { L2Tx } from './l2_tx.js';
 import { LogType, TxL2Logs } from './logs/index.js';
 import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
 import { PublicDataWrite } from './public_data_write.js';
+import { TxHash } from './tx/tx_hash.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -620,13 +621,7 @@ export class L2Block {
    * @returns The tx.
    */
   getTx(txIndex: number) {
-    if (txIndex >= this.numberOfTxs) {
-      throw new Error(
-        `Failed to get tx ${txIndex}. Block ${this.header.globalVariables.blockNumber.toBigInt()} only has ${
-          this.numberOfTxs
-        } txs.`,
-      );
-    }
+    this.assertIndexInRange(txIndex);
 
     const newCommitments = this.newCommitments
       .slice(MAX_NEW_COMMITMENTS_PER_TX * txIndex, MAX_NEW_COMMITMENTS_PER_TX * (txIndex + 1))
@@ -660,6 +655,19 @@ export class L2Block {
   }
 
   /**
+   * A lightweight method to get the tx hash of a tx in the block.
+   * @param txIndex - the index of the tx in the block
+   * @returns a hash of the tx, which is the first nullifier in the tx
+   */
+  getTxHash(txIndex: number): TxHash {
+    this.assertIndexInRange(txIndex);
+
+    const firstNullifier = this.newNullifiers[txIndex * MAX_NEW_NULLIFIERS_PER_TX];
+
+    return new TxHash(firstNullifier.toBuffer());
+  }
+
+  /**
    * Get all the transaction in an L2 block.
    * @returns The tx.
    */
@@ -688,6 +696,16 @@ export class L2Block {
       ...encryptedLogsStats,
       ...unencryptedLogsStats,
     };
+  }
+
+  assertIndexInRange(txIndex: number) {
+    if (txIndex < 0 || txIndex >= this.numberOfTxs) {
+      throw new IndexOutOfRangeError({
+        txIndex,
+        numberOfTxs: this.numberOfTxs,
+        blockNumber: this.number,
+      });
+    }
   }
 
   // /**
@@ -763,5 +781,31 @@ export class L2Block {
     }
 
     return kernelPublicInputsLogsHash;
+  }
+}
+
+/**
+ * Custom error class for when a requested tx index is out of range.
+ */
+export class IndexOutOfRangeError extends Error {
+  constructor({
+    txIndex,
+    numberOfTxs,
+    blockNumber,
+  }: {
+    /**
+     * The requested index of the tx in the block.
+     */
+    txIndex: number;
+    /**
+     * The number of txs in the block.
+     */
+    numberOfTxs: number;
+    /**
+     * The number of the block.
+     */
+    blockNumber: number;
+  }) {
+    super(`IndexOutOfRangeError: Failed to get tx at index ${txIndex}. Block ${blockNumber} has ${numberOfTxs} txs.`);
   }
 }
