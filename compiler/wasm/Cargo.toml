@@ -30,5 +30,11 @@ tracing-web.workspace = true
 # so that we can enable the js feature in getrandom.
 getrandom = { workspace = true, features = ["js"] }
 
+# This is an unused dependency, we are adding it
+# so that we can enable the debug-embed feature in rust-embed.
+# This is needed for rust-embed to include the stdlib sources in dev mode
+# while simultaneously allowing us to deactivate wasm-opt for speed.
+rust-embed = { workspace = true, features = ["debug-embed"] }
+
 [build-dependencies]
 build-data.workspace = true
