@@ -1,9 +1,13 @@
 ---
 title: Oracles
-description: 
+description: This guide provides an in-depth understanding of how Oracles work in Noir programming. Learn how to use outside calculations in your programs, constrain oracles, and understand their uses and limitations.
 keywords:
-  [
-  ]
+  - Noir Programming
+  - Oracles
+  - JSON-RPC
+  - Foreign Call Handlers
+  - Constrained Functions
+  - Blockchain Programming
 sidebar_position: 1
 ---
 
