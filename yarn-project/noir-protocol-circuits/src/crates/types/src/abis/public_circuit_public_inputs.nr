@@ -5,6 +5,7 @@ use crate::constants::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
+    NUM_FIELDS_PER_SHA256,
     RETURN_VALUES_LENGTH,
     GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
@@ -21,7 +22,6 @@ use crate::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
     },
-    hash::{NUM_FIELDS_PER_SHA256},
     utils::bounded_vec::BoundedVec,
 };
 

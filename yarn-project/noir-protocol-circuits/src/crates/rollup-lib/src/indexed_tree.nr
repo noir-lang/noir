@@ -1,7 +1,9 @@
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 
-use dep::types::abis::membership_witness::MembershipWitness;
+use dep::types::abis::{
+    append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+    membership_witness::MembershipWitness,
+};
 
 fn check_permutation<T, N>(
     original_array: [T; N],

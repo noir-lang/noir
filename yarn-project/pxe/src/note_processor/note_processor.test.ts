@@ -41,6 +41,7 @@ describe('Note Processor', () => {
   const firstBlockNum = 123;
   const numCommitmentsPerBlock = TXS_PER_BLOCK * MAX_NEW_COMMITMENTS_PER_TX;
   const firstBlockDataStartIndex = (firstBlockNum - 1) * numCommitmentsPerBlock;
+  const firstBlockDataEndIndex = firstBlockNum * numCommitmentsPerBlock;
 
   const computeMockNoteHash = (note: Note) => Fr.fromBuffer(pedersenHash(note.items.map(i => i.toBuffer())));
 
@@ -93,7 +94,8 @@ describe('Note Processor', () => {
     const numberOfBlocks = prependedBlocks + appendedBlocks + 1;
     for (let i = 0; i < numberOfBlocks; ++i) {
       const block = L2Block.random(firstBlockNum + i, TXS_PER_BLOCK);
-      block.startNoteHashTreeSnapshot.nextAvailableLeafIndex = firstBlockDataStartIndex + i * numCommitmentsPerBlock;
+      block.header.state.partial.noteHashTree.nextAvailableLeafIndex =
+        firstBlockDataEndIndex + i * numCommitmentsPerBlock;
 
       const isTargetBlock = i === prependedBlocks;
       const {

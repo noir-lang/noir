@@ -28,7 +28,7 @@ export class EmptyRollupProver implements RollupProver {
    * @param publicInputs - Public inputs of the circuit obtained via simulation, modified by this call.
    */
   async getBaseRollupProof(_input: BaseRollupInputs, publicInputs: BaseOrMergeRollupPublicInputs): Promise<Proof> {
-    publicInputs.endAggregationObject = AggregationObject.makeFake();
+    publicInputs.aggregationObject = AggregationObject.makeFake();
     return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }
 
@@ -38,7 +38,7 @@ export class EmptyRollupProver implements RollupProver {
    * @param publicInputs - Public inputs of the circuit obtained via simulation, modified by this call.
    */
   async getMergeRollupProof(_input: MergeRollupInputs, publicInputs: BaseOrMergeRollupPublicInputs): Promise<Proof> {
-    publicInputs.endAggregationObject = AggregationObject.makeFake();
+    publicInputs.aggregationObject = AggregationObject.makeFake();
     return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }
   /**
@@ -47,7 +47,7 @@ export class EmptyRollupProver implements RollupProver {
    * @param publicInputs - Public inputs of the circuit obtained via simulation, modified by this call.
    */
   async getRootRollupProof(_input: RootRollupInputs, publicInputs: RootRollupPublicInputs): Promise<Proof> {
-    publicInputs.endAggregationObject = AggregationObject.makeFake();
+    publicInputs.aggregationObject = AggregationObject.makeFake();
     return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }
 }

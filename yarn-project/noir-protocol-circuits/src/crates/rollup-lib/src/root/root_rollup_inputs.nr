@@ -1,9 +1,10 @@
 use crate::abis::previous_rollup_data::PreviousRollupData;
-
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 use crate::abis::constant_rollup_data::ConstantRollupData;
 use dep::types::{
-    abis::nullifier_leaf_preimage::NullifierLeafPreimage,
+    abis::{
+        append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+        nullifier_leaf_preimage::NullifierLeafPreimage,
+    },
     constants::{
         NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
         L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,

@@ -551,12 +551,12 @@ export class MerkleTrees implements MerkleTreeDb {
    */
   private async _handleL2Block(l2Block: L2Block): Promise<HandleL2BlockResult> {
     const treeRootWithIdPairs = [
-      [l2Block.endContractTreeSnapshot.root, MerkleTreeId.CONTRACT_TREE],
-      [l2Block.endNullifierTreeSnapshot.root, MerkleTreeId.NULLIFIER_TREE],
-      [l2Block.endNoteHashTreeSnapshot.root, MerkleTreeId.NOTE_HASH_TREE],
-      [l2Block.endPublicDataTreeSnapshot.root, MerkleTreeId.PUBLIC_DATA_TREE],
-      [l2Block.endL1ToL2MessageTreeSnapshot.root, MerkleTreeId.L1_TO_L2_MESSAGE_TREE],
-      [l2Block.endArchiveSnapshot.root, MerkleTreeId.ARCHIVE],
+      [l2Block.header.state.partial.contractTree.root, MerkleTreeId.CONTRACT_TREE],
+      [l2Block.header.state.partial.nullifierTree.root, MerkleTreeId.NULLIFIER_TREE],
+      [l2Block.header.state.partial.noteHashTree.root, MerkleTreeId.NOTE_HASH_TREE],
+      [l2Block.header.state.partial.publicDataTree.root, MerkleTreeId.PUBLIC_DATA_TREE],
+      [l2Block.header.state.l1ToL2MessageTree.root, MerkleTreeId.L1_TO_L2_MESSAGE_TREE],
+      [l2Block.archive.root, MerkleTreeId.ARCHIVE],
     ] as const;
     const compareRoot = (root: Fr, treeId: MerkleTreeId) => {
       const treeRoot = this.trees[treeId].getRoot(true);
@@ -601,7 +601,7 @@ export class MerkleTrees implements MerkleTreeDb {
       }
 
       // Sync and add the block to the blocks tree
-      const globalVariablesHash = computeGlobalsHash(l2Block.globalVariables);
+      const globalVariablesHash = computeGlobalsHash(l2Block.header.globalVariables);
       await this._updateLatestGlobalVariablesHash(globalVariablesHash);
       this.log(`Synced global variables with hash ${globalVariablesHash}`);
 

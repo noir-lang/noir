@@ -6,7 +6,6 @@ use crate::{
     },
     contrakt::deployment_data::ContractDeploymentData,
     hash::{
-        NUM_FIELDS_PER_SHA256,
         pedersen_hash,
     },
     utils::bounded_vec::BoundedVec,
@@ -18,6 +17,7 @@ use crate::constants::{
         MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
         MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+        NUM_FIELDS_PER_SHA256,
         RETURN_VALUES_LENGTH,
         PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
         PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,

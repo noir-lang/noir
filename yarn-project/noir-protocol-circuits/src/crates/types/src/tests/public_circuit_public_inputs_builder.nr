@@ -10,7 +10,6 @@ use crate::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
     },
-    hash::NUM_FIELDS_PER_SHA256,
     tests::fixtures,
     utils::bounded_vec::BoundedVec,
 };
@@ -21,6 +20,7 @@ use crate::constants::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
+    NUM_FIELDS_PER_SHA256,
     RETURN_VALUES_LENGTH,
 };
 

@@ -4,7 +4,7 @@ use dep::types::hash::{accumulate_sha256, assert_check_membership, root_from_sib
 use dep::types::utils::uint128::U128;
 use dep::types::constants::NUM_FIELDS_PER_SHA256;
 use crate::abis::previous_rollup_data::PreviousRollupData;
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
+use dep::types::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 
 /**
  * Create an aggregation object for the proofs that are provided
@@ -18,7 +18,7 @@ pub fn aggregate_proofs(
     right: BaseOrMergeRollupPublicInputs
 ) -> AggregationObject {
     // TODO: Similar to cpp code this does not do anything.
-    left.end_aggregation_object
+    left.aggregation_object
 }
 
 /**
@@ -64,16 +64,16 @@ pub fn assert_prev_rollups_follow_on_from_each_other(
     right: BaseOrMergeRollupPublicInputs
 ) {
     assert(
-        left.end_note_hash_tree_snapshot.eq(right.start_note_hash_tree_snapshot), "input proofs have different note hash tree snapshots"
+        left.end.note_hash_tree.eq(right.start.note_hash_tree), "input proofs have different note hash tree snapshots"
     );
     assert(
-        left.end_nullifier_tree_snapshot.eq(right.start_nullifier_tree_snapshot), "input proofs have different nullifier tree snapshots"
+        left.end.nullifier_tree.eq(right.start.nullifier_tree), "input proofs have different nullifier tree snapshots"
     );
     assert(
-        left.end_contract_tree_snapshot.eq(right.start_contract_tree_snapshot), "input proofs have different contract tree snapshots"
+        left.end.contract_tree.eq(right.start.contract_tree), "input proofs have different contract tree snapshots"
     );
     assert(
-        left.end_public_data_tree_snapshot.eq(right.start_public_data_tree_snapshot), "input proofs have different public data tree snapshots"
+        left.end.public_data_tree.eq(right.start.public_data_tree), "input proofs have different public data tree snapshots"
     );
 }
 

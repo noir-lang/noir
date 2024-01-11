@@ -23,6 +23,7 @@ import {
   FunctionData,
   FunctionSelector,
   GlobalVariables,
+  Header,
   KernelCircuitPublicInputs,
   KernelCircuitPublicInputsFinal,
   MAX_NEW_COMMITMENTS_PER_TX,
@@ -43,6 +44,7 @@ import {
   NullifierLeafPreimage,
   OptionallyRevealedData,
   PUBLIC_DATA_TREE_HEIGHT,
+  PartialStateReference,
   Point,
   PreviousKernelData,
   PreviousRollupData,
@@ -65,6 +67,7 @@ import {
   RootRollupPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
+  StateReference,
   TxContext,
   TxRequest,
 } from '@aztec/circuits.js';
@@ -133,9 +136,12 @@ import {
   BaseOrMergeRollupPublicInputs as BaseOrMergeRollupPublicInputsNoir,
   ConstantRollupData as ConstantRollupDataNoir,
   GlobalVariables as GlobalVariablesNoir,
+  Header as HeaderNoir,
+  PartialStateReference as PartialStateReferenceNoir,
   PreviousRollupData as PreviousRollupDataNoir,
   RootRollupInputs as RootRollupInputsNoir,
   RootRollupPublicInputs as RootRollupPublicInputsNoir,
+  StateReference as StateReferenceNoir,
 } from './types/rollup_root_types.js';
 
 /* eslint-disable camelcase */
@@ -1087,7 +1093,7 @@ export function mapGlobalVariablesFromNoir(globalVariables: GlobalVariablesNoir)
  */
 export function mapConstantRollupDataToNoir(constantRollupData: ConstantRollupData): ConstantRollupDataNoir {
   return {
-    archive_snapshot: mapAppendOnlyTreeSnapshotToNoir(constantRollupData.archiveSnapshot),
+    last_archive: mapAppendOnlyTreeSnapshotToNoir(constantRollupData.lastArchive),
     private_kernel_vk_tree_root: mapFieldToNoir(constantRollupData.privateKernelVkTreeRoot),
     public_kernel_vk_tree_root: mapFieldToNoir(constantRollupData.publicKernelVkTreeRoot),
     base_rollup_vk_hash: mapFieldToNoir(constantRollupData.baseRollupVkHash),
@@ -1131,7 +1137,7 @@ export function mapPublicCircuitPublicInputsToNoir(
  */
 export function mapConstantRollupDataFromNoir(constantRollupData: ConstantRollupDataNoir): ConstantRollupData {
   return new ConstantRollupData(
-    mapAppendOnlyTreeSnapshotFromNoir(constantRollupData.archive_snapshot),
+    mapAppendOnlyTreeSnapshotFromNoir(constantRollupData.last_archive),
     mapFieldFromNoir(constantRollupData.private_kernel_vk_tree_root),
     mapFieldFromNoir(constantRollupData.public_kernel_vk_tree_root),
     mapFieldFromNoir(constantRollupData.base_rollup_vk_hash),
@@ -1151,28 +1157,10 @@ export function mapBaseOrMergeRollupPublicInputsToNoir(
   return {
     rollup_type: mapFieldToNoir(new Fr(baseOrMergeRollupPublicInputs.rollupType)),
     rollup_subtree_height: mapFieldToNoir(new Fr(baseOrMergeRollupPublicInputs.rollupSubtreeHeight)),
-    end_aggregation_object: {},
+    aggregation_object: {},
     constants: mapConstantRollupDataToNoir(baseOrMergeRollupPublicInputs.constants),
-    start_note_hash_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(
-      baseOrMergeRollupPublicInputs.startNoteHashTreeSnapshot,
-    ),
-    end_note_hash_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(baseOrMergeRollupPublicInputs.endNoteHashTreeSnapshot),
-    start_nullifier_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(
-      baseOrMergeRollupPublicInputs.startNullifierTreeSnapshot,
-    ),
-    end_nullifier_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(
-      baseOrMergeRollupPublicInputs.endNullifierTreeSnapshot,
-    ),
-    start_contract_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(
-      baseOrMergeRollupPublicInputs.startContractTreeSnapshot,
-    ),
-    end_contract_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(baseOrMergeRollupPublicInputs.endContractTreeSnapshot),
-    start_public_data_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(
-      baseOrMergeRollupPublicInputs.startPublicDataTreeSnapshot,
-    ),
-    end_public_data_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(
-      baseOrMergeRollupPublicInputs.endPublicDataTreeSnapshot,
-    ),
+    start: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.start),
+    end: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.end),
     calldata_hash: mapTuple(baseOrMergeRollupPublicInputs.calldataHash, mapFieldToNoir),
   };
 }
@@ -1218,14 +1206,8 @@ export function mapBaseOrMergeRollupPublicInputsFromNoir(
     mapFieldFromNoir(baseOrMergeRollupPublicInputs.rollup_subtree_height),
     AggregationObject.makeFake(),
     mapConstantRollupDataFromNoir(baseOrMergeRollupPublicInputs.constants),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.start_note_hash_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.end_note_hash_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.start_nullifier_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.end_nullifier_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.start_contract_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.end_contract_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.start_public_data_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(baseOrMergeRollupPublicInputs.end_public_data_tree_snapshot),
+    mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.start),
+    mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.end),
     mapTupleFromNoir(baseOrMergeRollupPublicInputs.calldata_hash, 2, mapFieldFromNoir),
   );
 }
@@ -1316,21 +1298,51 @@ export function mapRootRollupPublicInputsFromNoir(
 ): RootRollupPublicInputs {
   return new RootRollupPublicInputs(
     AggregationObject.makeFake(),
-    mapGlobalVariablesFromNoir(rootRollupPublicInputs.global_variables),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_note_hash_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_note_hash_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_nullifier_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_nullifier_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_contract_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_contract_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_public_data_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_public_data_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_l1_to_l2_message_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_l1_to_l2_message_tree_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.start_archive_snapshot),
-    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.end_archive_snapshot),
-    mapTupleFromNoir(rootRollupPublicInputs.calldata_hash, 2, mapFieldFromNoir),
+    mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.archive),
+    mapHeaderFromNoir(rootRollupPublicInputs.header),
     mapTupleFromNoir(rootRollupPublicInputs.l1_to_l2_messages_hash, 2, mapFieldFromNoir),
+  );
+}
+
+/**
+ * Maps header from Noir.
+ * @param header - The header.
+ * @returns Header.
+ */
+export function mapHeaderFromNoir(header: HeaderNoir): Header {
+  return new Header(
+    mapAppendOnlyTreeSnapshotFromNoir(header.last_archive),
+    mapTupleFromNoir(header.body_hash, 2, mapFieldFromNoir),
+    mapStateReferenceFromNoir(header.state),
+    mapGlobalVariablesFromNoir(header.global_variables),
+  );
+}
+
+/**
+ * Maps state reference from Noir.
+ * @param stateReference - The state reference.
+ * @returns State reference
+ */
+export function mapStateReferenceFromNoir(stateReference: StateReferenceNoir): StateReference {
+  return new StateReference(
+    mapAppendOnlyTreeSnapshotFromNoir(stateReference.l1_to_l2_message_tree),
+    mapPartialStateReferenceFromNoir(stateReference.partial),
+  );
+}
+
+/**
+ * Maps partial state reference from Noir.
+ * @param partialStateReference - The state reference.
+ * @returns Partial state reference
+ */
+export function mapPartialStateReferenceFromNoir(
+  partialStateReference: PartialStateReferenceNoir,
+): PartialStateReference {
+  return new PartialStateReference(
+    mapAppendOnlyTreeSnapshotFromNoir(partialStateReference.note_hash_tree),
+    mapAppendOnlyTreeSnapshotFromNoir(partialStateReference.nullifier_tree),
+    mapAppendOnlyTreeSnapshotFromNoir(partialStateReference.contract_tree),
+    mapAppendOnlyTreeSnapshotFromNoir(partialStateReference.public_data_tree),
   );
 }
 
@@ -1423,6 +1435,22 @@ export function mapPublicDataTreePreimageToNoir(preimage: PublicDataTreeLeafPrei
 }
 
 /**
+ * Maps a partial state reference to a noir partial state reference.
+ * @param partialStateReference - The partial state reference.
+ * @returns The noir partial state reference.
+ */
+export function mapPartialStateReferenceToNoir(
+  partialStateReference: PartialStateReference,
+): PartialStateReferenceNoir {
+  return {
+    note_hash_tree: mapAppendOnlyTreeSnapshotToNoir(partialStateReference.noteHashTree),
+    nullifier_tree: mapAppendOnlyTreeSnapshotToNoir(partialStateReference.nullifierTree),
+    contract_tree: mapAppendOnlyTreeSnapshotToNoir(partialStateReference.contractTree),
+    public_data_tree: mapAppendOnlyTreeSnapshotToNoir(partialStateReference.publicDataTree),
+  };
+}
+
+/**
  * Maps the inputs to the base rollup to noir.
  * @param input - The circuits.js base rollup inputs.
  * @returns The noir base rollup inputs.
@@ -1430,13 +1458,9 @@ export function mapPublicDataTreePreimageToNoir(preimage: PublicDataTreeLeafPrei
 export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupInputsNoir {
   return {
     kernel_data: mapPreviousKernelDataToNoir(inputs.kernelData),
-    start_note_hash_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startNoteHashTreeSnapshot),
-    start_nullifier_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startNullifierTreeSnapshot),
-    start_contract_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startContractTreeSnapshot),
-    start_public_data_tree_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.startPublicDataTreeSnapshot),
-    archive_snapshot: mapAppendOnlyTreeSnapshotToNoir(inputs.archiveSnapshot),
+    start: mapPartialStateReferenceToNoir(inputs.start),
     sorted_new_nullifiers: mapTuple(inputs.sortedNewNullifiers, mapFieldToNoir),
-    sorted_new_nullifiers_indexes: mapTuple(inputs.sortednewNullifiersIndexes, (index: number) =>
+    sorted_new_nullifiers_indexes: mapTuple(inputs.sortedNewNullifiersIndexes, (index: number) =>
       mapNumberToNoir(index),
     ),
     low_nullifier_leaf_preimages: mapTuple(inputs.lowNullifierLeafPreimages, mapNullifierLeafPreimageToNoir),

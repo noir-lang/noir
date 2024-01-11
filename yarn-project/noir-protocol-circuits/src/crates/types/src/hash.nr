@@ -14,6 +14,7 @@ use crate::constants::{
         CONTRACT_TREE_HEIGHT, 
         FUNCTION_TREE_HEIGHT, 
         NOTE_HASH_TREE_HEIGHT,
+        NUM_FIELDS_PER_SHA256,
         GENERATOR_INDEX__SILOED_COMMITMENT,
         GENERATOR_INDEX__OUTER_NULLIFIER,
         GENERATOR_INDEX__VK,
@@ -230,9 +231,6 @@ pub fn compute_constructor_hash(
         GENERATOR_INDEX__CONSTRUCTOR
     )
 }
-
-// sha256 hash is stored in two fields to accommodate all 256-bits of the hash
-global NUM_FIELDS_PER_SHA256 : Field = 2;
 
 // Computes sha256 hash of 2 input hashes stored in 4 fields.
 // 

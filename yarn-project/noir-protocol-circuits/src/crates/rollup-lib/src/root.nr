@@ -2,9 +2,17 @@ mod root_rollup_inputs;
 use root_rollup_inputs::RootRollupInputs;
 mod root_rollup_public_inputs;
 use root_rollup_public_inputs::RootRollupPublicInputs;
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
-use dep::types::utils::uint256::U256;
-use dep::types::constants::{NUM_FIELDS_PER_SHA256,NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,L1_TO_L2_MSG_SUBTREE_HEIGHT};
+use dep::types::{
+    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+    constants::{
+        NUM_FIELDS_PER_SHA256,
+        NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+        L1_TO_L2_MSG_SUBTREE_HEIGHT,
+    },
+    header::Header,
+    state_reference::StateReference,
+    utils::uint256::U256,
+};
 use crate::{components, hash::compute_block_hash_with_globals};
 use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 
@@ -36,17 +44,20 @@ impl RootRollupInputs {
             L1_TO_L2_MSG_SUBTREE_HEIGHT as u8 
         );
 
+        let state = StateReference {
+            l1_to_l2_message_tree : new_l1_to_l2_message_tree_snapshot,
+            partial: right.end,
+        };
+
         // Build the block hash for this iteration from the tree roots and global variables
         // Then insert the block into the archive tree
-        let block_hash = compute_block_hash_with_globals(left.constants.global_variables,
-                                                      right.end_note_hash_tree_snapshot.root,
-                                                      right.end_nullifier_tree_snapshot.root,
-                                                      right.end_contract_tree_snapshot.root,
-                                                      new_l1_to_l2_message_tree_snapshot.root,
-                                                      right.end_public_data_tree_snapshot.root);
+        let block_hash = compute_block_hash_with_globals(
+            left.constants.global_variables,
+            state,
+        );
 
         // Update the archive
-        let end_archive_snapshot = components::insert_subtree_to_snapshot_tree(
+        let archive = components::insert_subtree_to_snapshot_tree(
             self.start_archive_snapshot,
             self.new_archive_sibling_path,
             0,
@@ -59,22 +70,18 @@ impl RootRollupInputs {
             next_available_leaf_index : 0
         };
 
+        let header = Header {
+            last_archive: left.constants.last_archive,
+            body_hash: components::compute_calldata_hash(self.previous_rollup_data),
+            state,
+            global_variables : left.constants.global_variables
+        };
+
         RootRollupPublicInputs{
-            end_aggregation_object : aggregation_object,
-            global_variables : left.constants.global_variables,
-            start_note_hash_tree_snapshot : left.start_note_hash_tree_snapshot,
-            end_note_hash_tree_snapshot : right.end_note_hash_tree_snapshot,
-            start_nullifier_tree_snapshot : left.start_nullifier_tree_snapshot,
-            end_nullifier_tree_snapshot : right.end_nullifier_tree_snapshot,
-            start_contract_tree_snapshot : left.start_contract_tree_snapshot,
-            end_contract_tree_snapshot : right.end_contract_tree_snapshot,
-            start_public_data_tree_snapshot : left.start_public_data_tree_snapshot,
-            end_public_data_tree_snapshot : right.end_public_data_tree_snapshot,
-            start_l1_to_l2_message_tree_snapshot : self.start_l1_to_l2_message_tree_snapshot,
-            end_l1_to_l2_message_tree_snapshot : new_l1_to_l2_message_tree_snapshot,
-            start_archive_snapshot : self.start_archive_snapshot,
-            end_archive_snapshot : end_archive_snapshot,
-            calldata_hash : components::compute_calldata_hash(self.previous_rollup_data),
+            aggregation_object,
+            archive,
+            header,
+            // TODO(#3938): Nuke this once body hash/calldata hash is updated
             l1_to_l2_messages_hash : compute_messages_hash(self.new_l1_to_l2_messages),
         }
     }
@@ -155,56 +162,30 @@ mod tests {
         let outputs = inputs.root_rollup_circuit();
 
         // check calldata hash
-        assert_eq(outputs.calldata_hash, expected_calldata_hash);
+        assert_eq(outputs.header.body_hash, expected_calldata_hash);
         // Check messages hash
         assert_eq(outputs.l1_to_l2_messages_hash, expected_messages_hash);
     }
 
     #[test]
-    fn start_and_end_snapshots() {
+    fn end_state() {
         let inputs = default_root_rollup_inputs();
         let outputs = inputs.root_rollup_circuit();
 
         assert(
-            outputs.start_note_hash_tree_snapshot.eq(
-                inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_note_hash_tree_snapshot
-            )
-        );
-        assert(
-            outputs.end_note_hash_tree_snapshot.eq(
-                inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_note_hash_tree_snapshot
-            )
+            outputs.header.state.partial.note_hash_tree.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end.note_hash_tree)
         );
 
         assert(
-            outputs.start_nullifier_tree_snapshot.eq(
-                inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_nullifier_tree_snapshot
-            )
-        );
-        assert(
-            outputs.end_nullifier_tree_snapshot.eq(
-                inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_nullifier_tree_snapshot
-            )
+            outputs.header.state.partial.nullifier_tree.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end.nullifier_tree)
         );
 
         assert(
-            outputs.start_contract_tree_snapshot.eq(
-                inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_contract_tree_snapshot
-            )
-        );
-        assert(
-            outputs.end_contract_tree_snapshot.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot)
+            outputs.header.state.partial.contract_tree.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end.contract_tree)
         );
 
         assert(
-            outputs.start_public_data_tree_snapshot.eq(
-                inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_public_data_tree_snapshot
-            )
-        );
-        assert(
-            outputs.end_public_data_tree_snapshot.eq(
-                inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_public_data_tree_snapshot
-            )
+            outputs.header.state.partial.public_data_tree.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end.public_data_tree)
         );
     }
 }

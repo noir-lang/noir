@@ -276,15 +276,15 @@ export class Synchronizer {
       return;
     }
 
-    const globalsHash = computeGlobalsHash(latestBlock.block.globalVariables);
+    const globalsHash = computeGlobalsHash(latestBlock.block.header.globalVariables);
     const blockHeader = new BlockHeader(
-      block.endNoteHashTreeSnapshot.root,
-      block.endNullifierTreeSnapshot.root,
-      block.endContractTreeSnapshot.root,
-      block.endL1ToL2MessageTreeSnapshot.root,
-      block.endArchiveSnapshot.root,
+      block.header.state.partial.noteHashTree.root,
+      block.header.state.partial.nullifierTree.root,
+      block.header.state.partial.contractTree.root,
+      block.header.state.l1ToL2MessageTree.root,
+      block.archive.root,
       Fr.ZERO, // todo: private kernel vk tree root
-      block.endPublicDataTreeSnapshot.root,
+      block.header.state.partial.publicDataTree.root,
       globalsHash,
     );
 

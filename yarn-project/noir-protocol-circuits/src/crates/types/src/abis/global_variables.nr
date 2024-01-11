@@ -1,6 +1,8 @@
-use dep::types::constants::GENERATOR_INDEX__GLOBAL_VARIABLES;
 use dep::std::cmp::Eq;
-use dep::types::traits::Hash;
+use crate::{
+    constants::GENERATOR_INDEX__GLOBAL_VARIABLES,
+    traits::Hash,
+};
 
 struct GlobalVariables {
     chain_id : Field,

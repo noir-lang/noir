@@ -13,7 +13,7 @@ The representation of a proof
 | Member | Type | Description |
 | :------ | :------ | :------ |
 | `proof` | `Uint8Array` | **Description**<br /><br />An byte array representing the proof |
-| `publicInputs` | `WitnessMap` | **Description**<br /><br />Public inputs of a proof |
+| `publicInputs` | `string`[] | **Description**<br /><br />Public inputs of a proof |
 
 ***
 

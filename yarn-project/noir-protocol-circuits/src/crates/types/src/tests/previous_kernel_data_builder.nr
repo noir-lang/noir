@@ -12,7 +12,6 @@ use crate::{
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
     address::{AztecAddress, EthAddress},
-    hash::NUM_FIELDS_PER_SHA256,
     mocked::{Proof, VerificationKey},
     tests::{
         fixtures,
@@ -25,6 +24,7 @@ use crate::constants::{
         MAX_NEW_NULLIFIERS_PER_TX,
         MAX_PUBLIC_DATA_READS_PER_TX,
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+        NUM_FIELDS_PER_SHA256,
         VK_TREE_HEIGHT,
 };
 

@@ -76,6 +76,7 @@ global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: Field = 12;
 // MISC CONSTANTS
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
 global MAPPING_SLOT_PEDERSEN_SEPARATOR: Field = 4;
+// sha256 hash is stored in two fields to accommodate all 256-bits of the hash
 global NUM_FIELDS_PER_SHA256: Field = 2;
 global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
 global ARGS_HASH_CHUNK_COUNT: u32 = 16;

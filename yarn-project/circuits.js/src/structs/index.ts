@@ -7,6 +7,7 @@ export * from './complete_address.js';
 export * from './function_data.js';
 export * from './function_leaf_preimage.js';
 export * from './global_variables.js';
+export * from './header.js';
 export * from './kernel/combined_accumulated_data.js';
 export * from './kernel/combined_constant_data.js';
 export * from './kernel/block_header.js';
@@ -32,6 +33,8 @@ export * from './side_effects.js';
 export * from './tx_context.js';
 export * from './tx_request.js';
 export * from './verification_key.js';
+export * from './state_reference.js';
+export * from './partial_state_reference.js';
 
 export { FunctionSelector } from '@aztec/foundation/abi';
 export * from '@aztec/foundation/aztec-address';

@@ -1,7 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
+import { FieldsOf } from '@aztec/foundation/types';
 
-import { FieldsOf } from '../index.js';
 import { serializeToBuffer } from '../utils/index.js';
 
 /**

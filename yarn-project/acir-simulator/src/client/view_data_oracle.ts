@@ -120,14 +120,14 @@ export class ViewDataOracle extends TypedOracle {
       return undefined;
     }
     return new BlockHeader(
-      block.endNoteHashTreeSnapshot.root,
-      block.endNullifierTreeSnapshot.root,
-      block.endContractTreeSnapshot.root,
-      block.endL1ToL2MessageTreeSnapshot.root,
-      block.endArchiveSnapshot.root,
+      block.header.state.partial.noteHashTree.root,
+      block.header.state.partial.nullifierTree.root,
+      block.header.state.partial.contractTree.root,
+      block.header.state.l1ToL2MessageTree.root,
+      block.archive.root,
       new Fr(0), // TODO(#3441) privateKernelVkTreeRoot is not present in L2Block and it's not yet populated in noir
-      block.endPublicDataTreeSnapshot.root,
-      computeGlobalsHash(block.globalVariables),
+      block.header.state.partial.publicDataTree.root,
+      computeGlobalsHash(block.header.globalVariables),
     );
   }
 
@@ -145,10 +145,10 @@ export class ViewDataOracle extends TypedOracle {
       if (!block) {
         throw new Error(`Block ${i} not found`);
       }
-      if (block.endNullifierTreeSnapshot.root.equals(nullifierTreeRoot)) {
+      if (block.header.state.partial.nullifierTree.root.equals(nullifierTreeRoot)) {
         return i;
       }
-      if (block.startNullifierTreeSnapshot.root.equals(nullifierTreeRoot)) {
+      if (block.header.state.partial.nullifierTree.root.equals(nullifierTreeRoot)) {
         return i - 1;
       }
     }

@@ -1,6 +1,10 @@
+mod append_only_tree_snapshot;
+
 mod function_selector;
 mod function_data;
 mod function_leaf_preimage;
+
+mod global_variables;
 
 mod membership_witness;
 

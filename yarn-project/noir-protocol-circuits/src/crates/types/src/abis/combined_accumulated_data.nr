@@ -7,7 +7,6 @@ use crate::{
         public_data_update_request::PublicDataUpdateRequest,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
-    hash::NUM_FIELDS_PER_SHA256,
     mocked::AggregationObject,
     utils::bounded_vec::BoundedVec
 };
@@ -21,7 +20,8 @@ use crate::constants::{
     MAX_NEW_CONTRACTS_PER_TX,
     MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_TX
+    MAX_PUBLIC_DATA_READS_PER_TX,
+    NUM_FIELDS_PER_SHA256,
 };
 
 struct CombinedAccumulatedData {

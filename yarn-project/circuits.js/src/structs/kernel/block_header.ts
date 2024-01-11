@@ -12,6 +12,7 @@ const STRING_ENCODING: BufferEncoding = 'hex';
 /**
  * Information about the tree roots used for both public and private kernels.
  */
+// TODO(#3937): Nuke this
 export class BlockHeader {
   constructor(
     /**

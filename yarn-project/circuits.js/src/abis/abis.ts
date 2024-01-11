@@ -280,6 +280,7 @@ export function siloNullifier(contract: AztecAddress, innerNullifier: Fr): Fr {
  * @param publicDataTreeRoot - The root of the public data tree.
  * @returns The block hash.
  */
+// TODO(#3941)
 export function computeBlockHashWithGlobals(
   globals: GlobalVariables,
   noteHashTreeRoot: Fr,

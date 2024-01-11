@@ -12,12 +12,14 @@ import {
   NULLIFIER_SUBTREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PUBLIC_DATA_SUBTREE_HEIGHT,
+  PartialStateReference,
   Proof,
   PublicDataTreeLeaf,
   PublicDataUpdateRequest,
   RootRollupPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
+  StateReference,
   makeTuple,
   range,
 } from '@aztec/circuits.js';
@@ -157,11 +159,11 @@ describe('sequencer/solo_block_builder', () => {
   const updateArchive = async () => {
     const blockHash = computeBlockHashWithGlobals(
       globalVariables,
-      rootRollupOutput.endNoteHashTreeSnapshot.root,
-      rootRollupOutput.endNullifierTreeSnapshot.root,
-      rootRollupOutput.endContractTreeSnapshot.root,
-      rootRollupOutput.endL1ToL2MessageTreeSnapshot.root,
-      rootRollupOutput.endPublicDataTreeSnapshot.root,
+      rootRollupOutput.header.state.partial.noteHashTree.root,
+      rootRollupOutput.header.state.partial.nullifierTree.root,
+      rootRollupOutput.header.state.partial.contractTree.root,
+      rootRollupOutput.header.state.l1ToL2MessageTree.root,
+      rootRollupOutput.header.state.partial.publicDataTree.root,
     );
     await expectsDb.appendLeaves(MerkleTreeId.ARCHIVE, [blockHash.toBuffer()]);
   };
@@ -169,6 +171,22 @@ describe('sequencer/solo_block_builder', () => {
   const getTreeSnapshot = async (tree: MerkleTreeId) => {
     const treeInfo = await expectsDb.getTreeInfo(tree);
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
+  };
+
+  const getPartialStateReference = async () => {
+    return new PartialStateReference(
+      await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE),
+      await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE),
+      await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE),
+      await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE),
+    );
+  };
+
+  const getStateReference = async () => {
+    return new StateReference(
+      await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE),
+      await getPartialStateReference(),
+    );
   };
 
   const buildMockSimulatorInputs = async () => {
@@ -190,32 +208,21 @@ describe('sequencer/solo_block_builder', () => {
 
     // Calculate what would be the tree roots after the first tx and update mock circuit output
     await updateExpectedTreesFromTxs([txs[0]]);
-    baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-    baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-    baseRollupOutputLeft.endNoteHashTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE);
-    baseRollupOutputLeft.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
+    baseRollupOutputLeft.end = await getPartialStateReference();
 
     // Same for the tx on the right
     await updateExpectedTreesFromTxs([txs[1]]);
-    baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-    baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-    baseRollupOutputRight.endNoteHashTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE);
-    baseRollupOutputRight.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
+    baseRollupOutputRight.end = await getPartialStateReference();
 
     // Update l1 to l2 data tree
     // And update the root trees now to create proper output to the root rollup circuit
     await updateL1ToL2MessageTree(mockL1ToL2Messages);
-    rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-    rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-    rootRollupOutput.endNoteHashTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE);
-    rootRollupOutput.endPublicDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
-
-    rootRollupOutput.endL1ToL2MessageTreeSnapshot = await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE);
+    rootRollupOutput.header.state = await getStateReference();
 
     // Calculate block hash
-    rootRollupOutput.globalVariables = globalVariables;
+    rootRollupOutput.header.globalVariables = globalVariables;
     await updateArchive();
-    rootRollupOutput.endArchiveSnapshot = await getTreeSnapshot(MerkleTreeId.ARCHIVE);
+    rootRollupOutput.archive = await getTreeSnapshot(MerkleTreeId.ARCHIVE);
 
     const newNullifiers = txs.flatMap(tx => tx.data.end.newNullifiers);
     const newCommitments = txs.flatMap(tx => tx.data.end.newCommitments);
@@ -231,22 +238,10 @@ describe('sequencer/solo_block_builder', () => {
     const newUnencryptedLogs = new L2BlockL2Logs(txs.map(tx => tx.unencryptedLogs || new TxL2Logs([])));
 
     const l2Block = L2Block.fromFields({
-      number: blockNumber,
-      globalVariables,
-      startNoteHashTreeSnapshot: rootRollupOutput.startNoteHashTreeSnapshot,
-      endNoteHashTreeSnapshot: rootRollupOutput.endNoteHashTreeSnapshot,
-      startNullifierTreeSnapshot: rootRollupOutput.startNullifierTreeSnapshot,
-      endNullifierTreeSnapshot: rootRollupOutput.endNullifierTreeSnapshot,
-      startContractTreeSnapshot: rootRollupOutput.startContractTreeSnapshot,
-      endContractTreeSnapshot: rootRollupOutput.endContractTreeSnapshot,
-      startPublicDataTreeSnapshot: rootRollupOutput.startPublicDataTreeSnapshot,
-      endPublicDataTreeSnapshot: rootRollupOutput.endPublicDataTreeSnapshot,
-      startL1ToL2MessageTreeSnapshot: rootRollupOutput.startL1ToL2MessageTreeSnapshot,
-      endL1ToL2MessageTreeSnapshot: rootRollupOutput.endL1ToL2MessageTreeSnapshot,
-      startArchiveSnapshot: rootRollupOutput.startArchiveSnapshot,
-      endArchiveSnapshot: rootRollupOutput.endArchiveSnapshot,
-      newCommitments: newCommitments.map((sideeffect: SideEffect) => sideeffect.value),
-      newNullifiers: newNullifiers.map((sideeffect: SideEffectLinkedToNoteHash) => sideeffect.value),
+      archive: rootRollupOutput.archive,
+      header: rootRollupOutput.header,
+      newCommitments: newCommitments.map((sideEffect: SideEffect) => sideEffect.value),
+      newNullifiers: newNullifiers.map((sideEffect: SideEffectLinkedToNoteHash) => sideEffect.value),
       newContracts,
       newContractData,
       newPublicDataWrites,
@@ -260,7 +255,7 @@ describe('sequencer/solo_block_builder', () => {
     const high = Fr.fromBuffer(callDataHash.slice(0, 16));
     const low = Fr.fromBuffer(callDataHash.slice(16, 32));
 
-    rootRollupOutput.calldataHash = [high, low];
+    rootRollupOutput.header.bodyHash = [high, low];
 
     return txs;
   };

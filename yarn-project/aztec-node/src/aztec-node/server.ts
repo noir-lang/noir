@@ -561,6 +561,7 @@ export class AztecNodeService implements AztecNode {
    * Returns the currently committed block header.
    * @returns The current committed block header.
    */
+  // TODO(#3937): Nuke this
   public async getBlockHeader(): Promise<BlockHeader> {
     const committedDb = await this.#getWorldState('latest');
     const [roots, globalsHash] = await Promise.all([this.getTreeRoots(), committedDb.getLatestGlobalVariablesHash()]);
@@ -585,7 +586,8 @@ export class AztecNodeService implements AztecNode {
     this.log.info(`Simulating tx ${await tx.getTxHash()}`);
     const blockNumber = (await this.blockSource.getBlockNumber()) + 1;
     const newGlobalVariables = await this.globalVariableBuilder.buildGlobalVariables(new Fr(blockNumber));
-    const prevGlobalVariables = (await this.blockSource.getBlock(-1))?.globalVariables ?? GlobalVariables.empty();
+    const prevGlobalVariables =
+      (await this.blockSource.getBlock(-1))?.header.globalVariables ?? GlobalVariables.empty();
 
     // Instantiate merkle trees so uncommitted updates by this simulation are local to it.
     // TODO we should be able to remove this after https://github.com/AztecProtocol/aztec-packages/issues/1869

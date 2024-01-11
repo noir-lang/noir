@@ -1,38 +1,25 @@
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
-use crate::abis::constant_rollup_data::ConstantRollupData;
-use crate::abis::global_variables::GlobalVariables;
 use dep::types::{
-    abis::nullifier_leaf_preimage::NullifierLeafPreimage,
+    abis::{
+        append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+        global_variables::GlobalVariables,
+    },
     constants::{
         NUM_FIELDS_PER_SHA256
     },
+    header::Header,
 };
 use dep::types::mocked::AggregationObject;
 
 struct RootRollupPublicInputs {
     // All below are shared between the base and merge rollups
-    end_aggregation_object : AggregationObject,
+    aggregation_object : AggregationObject,
 
-    global_variables : GlobalVariables,
+    // Snapshot of archive tree after this block/rollup been processed
+    archive: AppendOnlyTreeSnapshot,
 
-    start_note_hash_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_note_hash_tree_snapshot : AppendOnlyTreeSnapshot,
+    // New block header
+    header: Header,
 
-    start_nullifier_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_nullifier_tree_snapshot : AppendOnlyTreeSnapshot,
-
-    start_contract_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_contract_tree_snapshot : AppendOnlyTreeSnapshot,
-
-    start_public_data_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_public_data_tree_snapshot : AppendOnlyTreeSnapshot,
-
-    start_l1_to_l2_message_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_l1_to_l2_message_tree_snapshot : AppendOnlyTreeSnapshot,
-
-    start_archive_snapshot : AppendOnlyTreeSnapshot,
-    end_archive_snapshot : AppendOnlyTreeSnapshot,
-
-    calldata_hash : [Field; NUM_FIELDS_PER_SHA256],
+    // TODO(#3938): Nuke this once body hash/calldata hash is updated
     l1_to_l2_messages_hash : [Field; NUM_FIELDS_PER_SHA256],
 }

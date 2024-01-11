@@ -4,8 +4,8 @@ import { BufferReader } from '@aztec/foundation/serialize';
 import { NUM_FIELDS_PER_SHA256 } from '../../constants.gen.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject } from '../aggregation_object.js';
+import { PartialStateReference } from '../partial_state_reference.js';
 import { RollupTypes } from '../shared.js';
-import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { ConstantRollupData } from './base_rollup.js';
 
 /**
@@ -26,48 +26,19 @@ export class BaseOrMergeRollupPublicInputs {
     /**
      * Native aggregation state at the end of the rollup circuit.
      */
-    public endAggregationObject: AggregationObject,
+    public aggregationObject: AggregationObject,
     /**
      * Data which is forwarded through the rollup circuits unchanged.
      */
     public constants: ConstantRollupData,
-
     /**
-     * Snapshot of the note hash tree at the start of the rollup circuit.
+     * Partial state reference at the start of the rollup circuit.
      */
-    public startNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
+    public start: PartialStateReference,
     /**
-     * Snapshot of the note hash tree at the end of the rollup circuit.
+     * Partial state reference at the end of the rollup circuit.
      */
-    public endNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
-
-    /**
-     * Snapshot of the nullifier tree at the start of the rollup circuit.
-     */
-    public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the nullifier tree at the end of the rollup circuit.
-     */
-    public endNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
-
-    /**
-     * Snapshot of the contract tree at the start of the rollup circuit.
-     */
-    public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the contract tree at the end of the rollup circuit.
-     */
-    public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
-
-    /**
-     * Snapshot of the public data tree at the start of the rollup circuit.
-     */
-    public startPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the public data tree at the end of the rollup circuit.
-     */
-    public endPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
-
+    public end: PartialStateReference,
     /**
      * SHA256 hashes of calldata. Used to make public inputs constant-sized (to then be unpacked on-chain).
      * Note: Length 2 for high and low.
@@ -88,14 +59,8 @@ export class BaseOrMergeRollupPublicInputs {
       Fr.fromBuffer(reader),
       reader.readObject(AggregationObject),
       reader.readObject(ConstantRollupData),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(PartialStateReference),
+      reader.readObject(PartialStateReference),
       reader.readArray(NUM_FIELDS_PER_SHA256, Fr) as [Fr, Fr],
     );
   }
@@ -108,20 +73,11 @@ export class BaseOrMergeRollupPublicInputs {
     return serializeToBuffer(
       this.rollupType,
       this.rollupSubtreeHeight,
-      this.endAggregationObject,
+      this.aggregationObject,
       this.constants,
 
-      this.startNoteHashTreeSnapshot,
-      this.endNoteHashTreeSnapshot,
-
-      this.startNullifierTreeSnapshot,
-      this.endNullifierTreeSnapshot,
-
-      this.startContractTreeSnapshot,
-      this.endContractTreeSnapshot,
-
-      this.startPublicDataTreeSnapshot,
-      this.endPublicDataTreeSnapshot,
+      this.start,
+      this.end,
 
       this.calldataHash,
     );

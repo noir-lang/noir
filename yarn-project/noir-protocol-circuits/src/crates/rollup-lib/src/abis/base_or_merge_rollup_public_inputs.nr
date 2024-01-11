@@ -1,6 +1,8 @@
-// TODO(Kev): This constant is also defined in private-kernel-lib
-use dep::types::constants::NUM_FIELDS_PER_SHA256;
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
+use dep::types::{
+    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+    constants::NUM_FIELDS_PER_SHA256,
+    partial_state_reference::PartialStateReference,
+};
 use crate::abis::constant_rollup_data::ConstantRollupData;
 use dep::types::mocked::AggregationObject;
 
@@ -13,26 +15,19 @@ struct BaseOrMergeRollupPublicInputs {
     rollup_type : u32,
     // subtree height is always 0 for base.
     // so that we always pass-in two base/merge circuits of the same height into the next level of recursion
+    // TODO(benesjan): rename to height_in_block_tree
     rollup_subtree_height : Field,
-    end_aggregation_object : AggregationObject,
+    aggregation_object : AggregationObject,
     constants : ConstantRollupData,
 
-    start_note_hash_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_note_hash_tree_snapshot : AppendOnlyTreeSnapshot,
-    
-    start_nullifier_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_nullifier_tree_snapshot : AppendOnlyTreeSnapshot,
+    start: PartialStateReference,
+    end: PartialStateReference,
 
-    start_contract_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_contract_tree_snapshot : AppendOnlyTreeSnapshot,
-
-    start_public_data_tree_snapshot : AppendOnlyTreeSnapshot,
-    end_public_data_tree_snapshot : AppendOnlyTreeSnapshot,
-    
     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
     // U128 isn't safe if it's an input to the circuit (it won't automatically constrain the witness)
     // So we want to constrain it when casting these fields to U128
 
+    // TODO(#3938): split this to txs_hash and out_hash
     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
     calldata_hash : [Field; 2],
 }

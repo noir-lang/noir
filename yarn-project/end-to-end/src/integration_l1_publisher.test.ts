@@ -272,7 +272,7 @@ describe('L1Publisher integration', () => {
         calldataHash: `0x${block.getCalldataHash().toString('hex').padStart(64, '0')}`,
         l1ToL2MessagesHash: `0x${block.getL1ToL2MessagesHash().toString('hex').padStart(64, '0')}`,
         body: `0x${block.toBufferWithLogs().toString('hex')}`,
-        timestamp: Number(block.globalVariables.timestamp.toBigInt()), // The json formatting in forge is a bit brittle, so we convert to a number here. This should not be a problem for testing as longs as the timestamp is not larger than u32.
+        timestamp: Number(block.header.globalVariables.timestamp.toBigInt()), // The json formatting in forge is a bit brittle, so we convert to a number here. This should not be a problem for testing as longs as the timestamp is not larger than u32.
       },
     };
 

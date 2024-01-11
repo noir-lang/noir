@@ -7,7 +7,7 @@ use crate::{
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
     contrakt::deployment_data::ContractDeploymentData,
-    hash::{compute_constructor_hash, NUM_FIELDS_PER_SHA256, hash_args},
+    hash::{compute_constructor_hash, hash_args},
     tests::{
         fixtures,
         testing_harness::build_contract_deployment_data,
@@ -21,6 +21,7 @@ use crate::constants::{
         MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
         MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+        NUM_FIELDS_PER_SHA256,
         RETURN_VALUES_LENGTH,
 };
 

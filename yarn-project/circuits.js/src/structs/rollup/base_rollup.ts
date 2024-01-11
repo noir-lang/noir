@@ -18,6 +18,7 @@ import { serializeToBuffer } from '../../utils/serialize.js';
 import { GlobalVariables } from '../global_variables.js';
 import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
 import { MembershipWitness } from '../membership_witness.js';
+import { PartialStateReference } from '../partial_state_reference.js';
 import { UInt32 } from '../shared.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { NullifierLeaf, NullifierLeafPreimage } from './nullifier_leaf/index.js';
@@ -30,10 +31,8 @@ export { NullifierLeaf, NullifierLeafPreimage, PublicDataTreeLeaf, PublicDataTre
  */
 export class ConstantRollupData {
   constructor(
-    /**
-     * Snapshot of the blocks tree at the start of the rollup.
-     */
-    public archiveSnapshot: AppendOnlyTreeSnapshot,
+    /** Archive tree snapshot at the very beginning of the entire rollup. */
+    public lastArchive: AppendOnlyTreeSnapshot,
 
     /**
      * Root of the private kernel verification key tree.
@@ -75,7 +74,7 @@ export class ConstantRollupData {
 
   static getFields(fields: FieldsOf<ConstantRollupData>) {
     return [
-      fields.archiveSnapshot,
+      fields.lastArchive,
       fields.privateKernelVkTreeRoot,
       fields.publicKernelVkTreeRoot,
       fields.baseRollupVkHash,
@@ -99,26 +98,9 @@ export class BaseRollupInputs {
      */
     public kernelData: PreviousKernelData,
     /**
-     * Snapshot of the note hash tree at the start of the base rollup circuit.
+     * Partial state reference at the start of the rollup.
      */
-    public startNoteHashTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the nullifier tree at the start of the base rollup circuit.
-     */
-    public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the contract tree at the start of the base rollup circuit.
-     */
-    public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the public data tree at the start of the base rollup circuit.
-     */
-    public startPublicDataTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the blocks tree at the start of the base rollup circuit.
-     */
-    public archiveSnapshot: AppendOnlyTreeSnapshot,
-
+    public start: PartialStateReference,
     /**
      * The nullifiers to be inserted in the tree, sorted high to low.
      */
@@ -126,7 +108,7 @@ export class BaseRollupInputs {
     /**
      * The indexes of the sorted nullifiers to the original ones.
      */
-    public sortednewNullifiersIndexes: Tuple<UInt32, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    public sortedNewNullifiersIndexes: Tuple<UInt32, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * The nullifiers which need to be updated to perform the batch insertion of the new nullifiers.
      * See `StandardIndexedTree.batchInsert` function for more details.
@@ -214,13 +196,9 @@ export class BaseRollupInputs {
   static getFields(fields: FieldsOf<BaseRollupInputs>) {
     return [
       fields.kernelData,
-      fields.startNoteHashTreeSnapshot,
-      fields.startNullifierTreeSnapshot,
-      fields.startContractTreeSnapshot,
-      fields.startPublicDataTreeSnapshot,
-      fields.archiveSnapshot,
+      fields.start,
       fields.sortedNewNullifiers,
-      fields.sortednewNullifiersIndexes,
+      fields.sortedNewNullifiersIndexes,
       fields.lowNullifierLeafPreimages,
       fields.lowNullifierMembershipWitness,
       fields.newCommitmentsSubtreeSiblingPath,

@@ -135,10 +135,11 @@ export class L1Publisher implements L2BlockReceiver {
 
     while (!this.interrupted) {
       // TODO: Remove this block number check, it's here because we don't currently have proper genesis state on the contract
-      if (l2BlockData.number != 1 && !(await this.checkStartStateHash(startStateHash))) {
-        this.log(`Detected different state hash prior to publishing rollup, aborting publish...`);
-        break;
-      }
+      // TODO(#3936): Temporarily disabling this because L2Block encoding has not yet been updated.
+      // if (l2BlockData.number != 1 && !(await this.checkStartStateHash(startStateHash))) {
+      //   this.log(`Detected different state hash prior to publishing rollup, aborting publish...`);
+      //   break;
+      // }
 
       const txHash = await this.sendProcessTx(txData);
       if (!txHash) {

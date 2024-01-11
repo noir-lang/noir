@@ -3,13 +3,15 @@ use crate::{
         root_rollup_inputs::RootRollupInputs,
     },
 };
-use dep::types::constants::{
-    L1_TO_L2_MSG_TREE_HEIGHT,
-    L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
-    L1_TO_L2_MSG_SUBTREE_HEIGHT,
-    ARCHIVE_HEIGHT,
+use dep::types::{
+    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+    constants::{
+        L1_TO_L2_MSG_TREE_HEIGHT,
+        L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+        L1_TO_L2_MSG_SUBTREE_HEIGHT,
+        ARCHIVE_HEIGHT,
+    },
 };
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 use crate::tests::previous_rollup_data::default_previous_rollup_data;
 use crate::tests::merkle_tree_utils::compute_zero_hashes;
 
