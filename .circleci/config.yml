@@ -998,6 +998,11 @@ jobs:
             deploy_dockerhub aztec-faucet
             deploy_dockerhub mainnet-fork
       - run:
+          name: "Release canary to NPM: bb.js"
+          command: |
+            should_release || exit 0
+            deploy_npm bb.js canary
+      - run:
           name: "Release canary to NPM: yarn-project"
           command: |
             should_release || exit 0

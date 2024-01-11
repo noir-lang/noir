@@ -23,6 +23,8 @@ PROJECT=$(cat $ROOT_PATH/PROJECT)
 COMMIT_MESSAGE=$(git log -n 1 --pretty=format:"%s" $COMMIT_HASH)
 PATH=$PATH:$BUILD_SYSTEM_PATH/scripts
 
+check_env
+
 export BRANCH
 
 echo "COMMIT_HASH=$COMMIT_HASH"

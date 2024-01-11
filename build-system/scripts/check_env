@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# check that the current system is able to run the build system.
+
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+# check that our bash version is new enough.
+major_version=${BASH_VERSION%%.*}
+
+# Check if the major version is less than 4
+if [[ $major_version -lt 4 ]]; then
+    echo "Bash version 4 or greater is required."
+    exit 1
+fi
