@@ -30,7 +30,7 @@ impl From<&PathBuf> for PathString {
         PathString::from(pb.to_owned())
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileMap {
     files: SimpleFiles<PathString, String>,
     name_to_id: HashMap<PathString, FileId>,

@@ -99,7 +99,7 @@ impl FromStr for OpcodeLocation {
                     let brillig_index = parts[1].parse()?;
                     Ok(OpcodeLocation::Brillig { acir_index, brillig_index })
                 }
-                _ => unreachable!(),
+                _ => unreachable!("`OpcodeLocation` has too many components"),
             }
         }
 
@@ -250,6 +250,64 @@ mod tests {
             input: FunctionInput { witness: Witness(1), num_bits: 8 },
         })
     }
+    fn keccakf1600_opcode() -> Opcode {
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 {
+            inputs: vec![
+                FunctionInput { witness: Witness(1), num_bits: 64 },
+                FunctionInput { witness: Witness(2), num_bits: 64 },
+                FunctionInput { witness: Witness(3), num_bits: 64 },
+                FunctionInput { witness: Witness(4), num_bits: 64 },
+                FunctionInput { witness: Witness(5), num_bits: 64 },
+                FunctionInput { witness: Witness(6), num_bits: 64 },
+                FunctionInput { witness: Witness(7), num_bits: 64 },
+                FunctionInput { witness: Witness(8), num_bits: 64 },
+                FunctionInput { witness: Witness(9), num_bits: 64 },
+                FunctionInput { witness: Witness(10), num_bits: 64 },
+                FunctionInput { witness: Witness(11), num_bits: 64 },
+                FunctionInput { witness: Witness(12), num_bits: 64 },
+                FunctionInput { witness: Witness(13), num_bits: 64 },
+                FunctionInput { witness: Witness(14), num_bits: 64 },
+                FunctionInput { witness: Witness(15), num_bits: 64 },
+                FunctionInput { witness: Witness(16), num_bits: 64 },
+                FunctionInput { witness: Witness(17), num_bits: 64 },
+                FunctionInput { witness: Witness(18), num_bits: 64 },
+                FunctionInput { witness: Witness(19), num_bits: 64 },
+                FunctionInput { witness: Witness(20), num_bits: 64 },
+                FunctionInput { witness: Witness(21), num_bits: 64 },
+                FunctionInput { witness: Witness(22), num_bits: 64 },
+                FunctionInput { witness: Witness(23), num_bits: 64 },
+                FunctionInput { witness: Witness(24), num_bits: 64 },
+                FunctionInput { witness: Witness(25), num_bits: 64 },
+            ],
+            outputs: vec![
+                Witness(26),
+                Witness(27),
+                Witness(28),
+                Witness(29),
+                Witness(30),
+                Witness(31),
+                Witness(32),
+                Witness(33),
+                Witness(34),
+                Witness(35),
+                Witness(36),
+                Witness(37),
+                Witness(38),
+                Witness(39),
+                Witness(40),
+                Witness(41),
+                Witness(42),
+                Witness(43),
+                Witness(44),
+                Witness(45),
+                Witness(46),
+                Witness(47),
+                Witness(48),
+                Witness(49),
+                Witness(50),
+            ],
+        })
+    }
 
     #[test]
     fn serialization_roundtrip() {
@@ -277,13 +335,14 @@ mod tests {
         let circuit = Circuit {
             current_witness_index: 0,
             opcodes: vec![
-                Opcode::Arithmetic(crate::native_types::Expression {
+                Opcode::AssertZero(crate::native_types::Expression {
                     mul_terms: vec![],
                     linear_combinations: vec![],
                     q_c: FieldElement::from(8u128),
                 }),
                 range_opcode(),
                 and_opcode(),
+                keccakf1600_opcode(),
             ],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),

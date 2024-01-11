@@ -1,43 +1,78 @@
 {
   "name": "@noir-lang/noir_wasm",
-  "collaborators": [
+  "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.20.0",
+  "version": "0.22.0",
   "license": "(MIT OR Apache-2.0)",
-  "main": "./nodejs/noir_wasm.js",
-  "types": "./web/noir_wasm.d.ts",
-  "module": "./web/noir_wasm.js",
+  "main": "dist/main.js",
+  "types": "./dist/types/src/index.d.cts",
+  "exports": {
+    "node": "./dist/node/main.js",
+    "default": "./dist/web/main.mjs",
+    "import": "./dist/web/main.mjs",
+    "require": "./dist/node/main.js"
+  },
   "files": [
-    "nodejs",
-    "web",
+    "dist",
     "package.json"
   ],
   "sideEffects": false,
+  "homepage": "https://noir-lang.org/",
   "repository": {
-    "type": "git",
-    "url": "https://github.com/noir-lang/noir.git"
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "compiler/wasm",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
   },
   "scripts": {
-    "build": "bash ./build.sh",
-    "test": "yarn test:node && yarn test:browser",
-    "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\"}' mocha",
+    "build": "WASM_OPT=$(bash -c ./wasm-opt-check.sh) webpack",
+    "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
+    "test:build_fixtures": "./build-fixtures.sh",
     "test:browser": "web-test-runner",
-    "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
+    "test:node": "NODE_NO_WARNINGS=1 mocha --config ./.mocharc.json",
+    "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
-    "build:nix": "nix build -L .#noir_wasm",
-    "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noir_wasm/nodejs ./ && cp -rL ./result/noir_wasm/web ./"
-  },
-  "peerDependencies": {
-    "@noir-lang/source-resolver": "workspace:*"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
+    "@ltd/j-toml": "^1.38.0",
+    "@noir-lang/noirc_abi": "workspace:*",
+    "@types/adm-zip": "^0.5.0",
+    "@types/chai": "^4",
+    "@types/mocha": "^10.0.6",
+    "@types/mocha-each": "^2",
+    "@types/node": "^20.10.5",
+    "@types/path-browserify": "^1",
+    "@types/readable-stream": "^4",
+    "@types/sinon": "^17",
+    "@wasm-tool/wasm-pack-plugin": "^1.7.0",
     "@web/dev-server-esbuild": "^0.3.6",
-    "@web/test-runner": "^0.15.3",
-    "@web/test-runner-playwright": "^0.10.0",
-    "mocha": "^10.2.0"
+    "@web/test-runner": "^0.18.0",
+    "@web/test-runner-playwright": "^0.11.0",
+    "adm-zip": "^0.5.0",
+    "assert": "^2.1.0",
+    "browserify-fs": "^1.0.0",
+    "chai": "^4.3.10",
+    "copy-webpack-plugin": "^11.0.0",
+    "html-webpack-plugin": "^5.5.4",
+    "memfs": "^4.6.0",
+    "mocha": "^10.2.0",
+    "mocha-each": "^2.0.1",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "readable-stream": "^4.4.2",
+    "sinon": "^17.0.1",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.1",
+    "typescript": "~5.2.2",
+    "unzipit": "^1.4.3",
+    "url": "^0.11.3",
+    "webpack": "^5.49.0",
+    "webpack-cli": "^4.7.2"
   }
 }

@@ -40,6 +40,7 @@ impl Ssa {
     /// Performs constant folding on each instruction.
     ///
     /// See [`constant_folding`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             constant_fold(function);
@@ -183,7 +184,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
-            instruction::{BinaryOp, Instruction, TerminatorInstruction},
+            instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             map::Id,
             types::Type,
             value::{Value, ValueId},
@@ -247,6 +248,117 @@ mod test {
     }
 
     #[test]
+    fn redundant_truncation() {
+        // fn main f0 {
+        //   b0(v0: u16, v1: u16):
+        //     v2 = div v0, v1
+        //     v3 = truncate v2 to 8 bits, max_bit_size: 16
+        //     return v3
+        // }
+        //
+        // After constructing this IR, we set the value of v1 to 2^8.
+        // The expected return afterwards should be v2.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::unsigned(16));
+        let v1 = builder.add_parameter(Type::unsigned(16));
+
+        // Note that this constant guarantees that `v0/constant < 2^8`. We then do not need to truncate the result.
+        let constant = 2_u128.pow(8);
+        let constant = builder.numeric_constant(constant, Type::field());
+
+        let v2 = builder.insert_binary(v0, BinaryOp::Div, v1);
+        let v3 = builder.insert_truncate(v2, 8, 16);
+        builder.terminate_with_return(vec![v3]);
+
+        let mut ssa = builder.finish();
+        let main = ssa.main_mut();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 2); // The final return is not counted
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(Field 2: Field):
+        //     return Field 9
+        // }
+        main.dfg.set_value_from_id(v1, constant);
+
+        let ssa = ssa.fold_constants();
+        let main = ssa.main();
+
+        println!("{ssa}");
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 1);
+        let instruction = &main.dfg[instructions[0]];
+
+        assert_eq!(
+            instruction,
+            &Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Div, rhs: constant })
+        );
+    }
+
+    #[test]
+    fn non_redundant_truncation() {
+        // fn main f0 {
+        //   b0(v0: u16, v1: u16):
+        //     v2 = div v0, v1
+        //     v3 = truncate v2 to 8 bits, max_bit_size: 16
+        //     return v3
+        // }
+        //
+        // After constructing this IR, we set the value of v1 to 2^8 - 1.
+        // This should not result in the truncation being removed.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::unsigned(16));
+        let v1 = builder.add_parameter(Type::unsigned(16));
+
+        // Note that this constant does not guarantee that `v0/constant < 2^8`. We must then truncate the result.
+        let constant = 2_u128.pow(8) - 1;
+        let constant = builder.numeric_constant(constant, Type::field());
+
+        let v2 = builder.insert_binary(v0, BinaryOp::Div, v1);
+        let v3 = builder.insert_truncate(v2, 8, 16);
+        builder.terminate_with_return(vec![v3]);
+
+        let mut ssa = builder.finish();
+        let main = ssa.main_mut();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 2); // The final return is not counted
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: u16, Field 255: Field):
+        //      v5 = div v0, Field 255
+        //      v6 = truncate v5 to 8 bits, max_bit_size: 16
+        //      return v6
+        // }
+        main.dfg.set_value_from_id(v1, constant);
+
+        let ssa = ssa.fold_constants();
+        let main = ssa.main();
+
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 2);
+
+        assert_eq!(
+            &main.dfg[instructions[0]],
+            &Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Div, rhs: constant })
+        );
+        assert_eq!(
+            &main.dfg[instructions[1]],
+            &Instruction::Truncate { value: ValueId::test_new(5), bit_size: 8, max_bit_size: 16 }
+        );
+    }
+
+    #[test]
     fn arrays_elements_are_updated() {
         // fn main f0 {
         //   b0(v0: Field):
@@ -279,11 +391,11 @@ mod test {
 
         let return_value_id = match entry_block.unwrap_terminator() {
             TerminatorInstruction::Return { return_values, .. } => return_values[0],
-            _ => unreachable!(),
+            _ => unreachable!("Should have terminator instruction"),
         };
         let return_element = match &main.dfg[return_value_id] {
             Value::Array { array, .. } => array[0],
-            _ => unreachable!(),
+            _ => unreachable!("Return type should be array"),
         };
         // The return element is expected to refer to the new add instruction result.
         assert_eq!(main.dfg.resolve(new_add_instr_result), main.dfg.resolve(return_element));
@@ -292,7 +404,7 @@ mod test {
     #[test]
     fn instruction_deduplication() {
         // fn main f0 {
-        //   b0(v0: Field):
+        //   b0(v0: u16):
         //     v1 = cast v0 as u32
         //     v2 = cast v0 as u32
         //     constrain v1 v2
@@ -307,7 +419,7 @@ mod test {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
-        let v0 = builder.add_parameter(Type::field());
+        let v0 = builder.add_parameter(Type::unsigned(16));
 
         let v1 = builder.insert_cast(v0, Type::unsigned(32));
         let v2 = builder.insert_cast(v0, Type::unsigned(32));
@@ -321,7 +433,7 @@ mod test {
         // Expected output:
         //
         // fn main f0 {
-        //   b0(v0: Field):
+        //   b0(v0: u16):
         //     v1 = cast v0 as u32
         // }
         let ssa = ssa.fold_constants();
@@ -331,6 +443,69 @@ mod test {
         assert_eq!(instructions.len(), 1);
         let instruction = &main.dfg[instructions[0]];
 
-        assert_eq!(instruction, &Instruction::Cast(ValueId::test_new(0), Type::unsigned(32)));
+        assert_eq!(instruction, &Instruction::Cast(v0, Type::unsigned(32)));
+    }
+
+    #[test]
+    fn constraint_decomposition() {
+        // fn main f0 {
+        //   b0(v0: u1, v1: u1, v2: u1):
+        //     v3 = mul v0 v1
+        //     v4 = not v2
+        //     v5 = mul v3 v4
+        //     constrain v4 u1 1
+        // }
+        //
+        // When constructing this IR, we should automatically decompose the constraint to be in terms of `v0`, `v1` and `v2`.
+        //
+        // The mul instructions are retained and will be removed in the dead instruction elimination pass.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::bool());
+        let v1 = builder.add_parameter(Type::bool());
+        let v2 = builder.add_parameter(Type::bool());
+
+        let v3 = builder.insert_binary(v0, BinaryOp::Mul, v1);
+        let v4 = builder.insert_not(v2);
+        let v5 = builder.insert_binary(v3, BinaryOp::Mul, v4);
+
+        // This constraint is automatically decomposed when it is inserted.
+        let v_true = builder.numeric_constant(true, Type::bool());
+        builder.insert_constrain(v5, v_true, None);
+
+        let v_false = builder.numeric_constant(false, Type::bool());
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: u1, v1: u1, v2: u1):
+        //     v3 = mul v0 v1
+        //     v4 = not v2
+        //     v5 = mul v3 v4
+        //     constrain v0 u1 1
+        //     constrain v1 u1 1
+        //     constrain v2 u1 0
+        // }
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+
+        assert_eq!(instructions.len(), 6);
+
+        assert_eq!(
+            main.dfg[instructions[0]],
+            Instruction::Binary(Binary { lhs: v0, operator: BinaryOp::Mul, rhs: v1 })
+        );
+        assert_eq!(main.dfg[instructions[1]], Instruction::Not(v2));
+        assert_eq!(
+            main.dfg[instructions[2]],
+            Instruction::Binary(Binary { lhs: v3, operator: BinaryOp::Mul, rhs: v4 })
+        );
+        assert_eq!(main.dfg[instructions[3]], Instruction::Constrain(v0, v_true, None));
+        assert_eq!(main.dfg[instructions[4]], Instruction::Constrain(v1, v_true, None));
+        assert_eq!(main.dfg[instructions[5]], Instruction::Constrain(v2, v_false, None));
     }
 }

@@ -53,6 +53,9 @@ pub(crate) enum CliError {
     #[error(transparent)]
     LspError(#[from] async_lsp::Error),
 
+    #[error(transparent)]
+    DapError(#[from] dap::errors::ServerError),
+
     /// Error from Nargo
     #[error(transparent)]
     NargoError(#[from] NargoError),

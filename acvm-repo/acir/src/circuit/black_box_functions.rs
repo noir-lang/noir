@@ -1,8 +1,5 @@
 //! Black box functions are ACIR opcodes which rely on backends implementing support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were implemented in more basic constraints.
-//!
-//! It is possible to fallback to less efficient implementations written in ACIR in some cases.
-//! These are implemented inside the ACVM stdlib.
 
 use serde::{Deserialize, Serialize};
 #[cfg(test)]
@@ -22,6 +19,8 @@ pub enum BlackBoxFunc {
     SHA256,
     /// Calculates the Blake2s hash of the inputs.
     Blake2s,
+    /// Calculates the Blake3 hash of the inputs.
+    Blake3,
     /// Verifies a Schnorr signature over a curve which is "pairing friendly" with the curve on which the ACIR circuit is defined.
     ///
     /// The exact curve which this signature uses will vary based on the curve being used by ACIR.
@@ -33,12 +32,6 @@ pub enum BlackBoxFunc {
     PedersenCommitment,
     /// Calculates a Pedersen hash to the inputs.
     PedersenHash,
-    /// Hashes a set of inputs and applies the field modulus to the result
-    /// to return a value which can be represented as a [`FieldElement`][acir_field::FieldElement]
-    ///
-    /// This is implemented using the `Blake2s` hash function.
-    /// The "128" in the name specifies that this function should have 128 bits of security.
-    HashToField128Security,
     /// Verifies a ECDSA signature over the secp256k1 curve.
     EcdsaSecp256k1,
     /// Verifies a ECDSA signature over the secp256r1 curve.
@@ -47,6 +40,8 @@ pub enum BlackBoxFunc {
     FixedBaseScalarMul,
     /// Calculates the Keccak256 hash of the inputs.
     Keccak256,
+    /// Keccak Permutation function of 1600 width
+    Keccakf1600,
     /// Compute a recursive aggregation object when verifying a proof inside another circuit.
     /// This outputted aggregation object will then be either checked in a top-level verifier or aggregated upon again.
     RecursiveAggregation,
@@ -64,15 +59,16 @@ impl BlackBoxFunc {
             BlackBoxFunc::SHA256 => "sha256",
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
-            BlackBoxFunc::PedersenCommitment => "pedersen",
+            BlackBoxFunc::Blake3 => "blake3",
+            BlackBoxFunc::PedersenCommitment => "pedersen_commitment",
             BlackBoxFunc::PedersenHash => "pedersen_hash",
-            BlackBoxFunc::HashToField128Security => "hash_to_field_128_security",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
             BlackBoxFunc::FixedBaseScalarMul => "fixed_base_scalar_mul",
             BlackBoxFunc::AND => "and",
             BlackBoxFunc::XOR => "xor",
             BlackBoxFunc::RANGE => "range",
             BlackBoxFunc::Keccak256 => "keccak256",
+            BlackBoxFunc::Keccakf1600 => "keccakf1600",
             BlackBoxFunc::RecursiveAggregation => "recursive_aggregation",
             BlackBoxFunc::EcdsaSecp256r1 => "ecdsa_secp256r1",
         }
@@ -82,9 +78,9 @@ impl BlackBoxFunc {
             "sha256" => Some(BlackBoxFunc::SHA256),
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
-            "pedersen" => Some(BlackBoxFunc::PedersenCommitment),
+            "blake3" => Some(BlackBoxFunc::Blake3),
+            "pedersen_commitment" => Some(BlackBoxFunc::PedersenCommitment),
             "pedersen_hash" => Some(BlackBoxFunc::PedersenHash),
-            "hash_to_field_128_security" => Some(BlackBoxFunc::HashToField128Security),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),
             "ecdsa_secp256r1" => Some(BlackBoxFunc::EcdsaSecp256r1),
             "fixed_base_scalar_mul" => Some(BlackBoxFunc::FixedBaseScalarMul),
@@ -92,6 +88,7 @@ impl BlackBoxFunc {
             "xor" => Some(BlackBoxFunc::XOR),
             "range" => Some(BlackBoxFunc::RANGE),
             "keccak256" => Some(BlackBoxFunc::Keccak256),
+            "keccakf1600" => Some(BlackBoxFunc::Keccakf1600),
             "recursive_aggregation" => Some(BlackBoxFunc::RecursiveAggregation),
             _ => None,
         }

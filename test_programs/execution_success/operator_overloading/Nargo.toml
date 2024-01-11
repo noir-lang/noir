@@ -1,0 +1,7 @@
+[package]
+name = "operator_overloading"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.20.0"
+
+[dependencies]

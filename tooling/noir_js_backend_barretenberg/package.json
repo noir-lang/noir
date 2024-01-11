@@ -1,12 +1,21 @@
 {
   "name": "@noir-lang/backend_barretenberg",
-  "collaborators": [
+  "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.20.0",
+  "version": "0.22.0",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
+  "homepage": "https://noir-lang.org/",
+  "repository": {
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "tooling/noir_js_backend_barretenberg",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
+  },
   "source": "src/index.ts",
   "main": "lib/cjs/index.js",
   "module": "lib/esm/index.js",
@@ -33,7 +42,7 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "dependencies": {
-    "@aztec/bb.js": "0.16.0",
+    "@aztec/bb.js": "0.17.0",
     "@noir-lang/types": "workspace:*",
     "fflate": "^0.8.0"
   },

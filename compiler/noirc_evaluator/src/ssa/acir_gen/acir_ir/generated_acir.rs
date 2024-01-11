@@ -155,10 +155,7 @@ impl GeneratedAcir {
             BlackBoxFunc::Blake2s => {
                 BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
             }
-            BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
-                inputs: inputs[0].clone(),
-                output: outputs[0],
-            },
+            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 { inputs: inputs[0].clone(), outputs },
             BlackBoxFunc::SchnorrVerify => {
                 BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: inputs[0][0],
@@ -226,26 +223,15 @@ impl GeneratedAcir {
                     outputs,
                 }
             }
-            BlackBoxFunc::RecursiveAggregation => {
-                let has_previous_aggregation = self.opcodes.iter().any(|op| {
-                    matches!(
-                        op,
-                        AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
-                    )
-                });
-
-                let input_aggregation_object =
-                    if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
-
-                BlackBoxFuncCall::RecursiveAggregation {
-                    verification_key: inputs[0].clone(),
-                    proof: inputs[1].clone(),
-                    public_inputs: inputs[2].clone(),
-                    key_hash: inputs[3][0],
-                    input_aggregation_object,
-                    output_aggregation_object: outputs,
-                }
+            BlackBoxFunc::Keccakf1600 => {
+                BlackBoxFuncCall::Keccakf1600 { inputs: inputs[0].clone(), outputs }
             }
+            BlackBoxFunc::RecursiveAggregation => BlackBoxFuncCall::RecursiveAggregation {
+                verification_key: inputs[0].clone(),
+                proof: inputs[1].clone(),
+                public_inputs: inputs[2].clone(),
+                key_hash: inputs[3][0],
+            },
         };
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -372,7 +358,7 @@ impl GeneratedAcir {
     /// If `expr` is not zero, then the constraint system will
     /// fail upon verification.
     pub(crate) fn assert_is_zero(&mut self, expr: Expression) {
-        self.push_opcode(AcirOpcode::Arithmetic(expr));
+        self.push_opcode(AcirOpcode::AssertZero(expr));
     }
 
     /// Returns a `Witness` that is constrained to be:
@@ -552,7 +538,7 @@ impl GeneratedAcir {
 
         // Constrain the network output to out_expr
         for (b, o) in b.iter().zip(out_expr) {
-            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+            self.push_opcode(AcirOpcode::AssertZero(b - o));
         }
         Ok(())
     }
@@ -573,9 +559,11 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3
         | BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
-        | BlackBoxFunc::HashToField128Security => None,
+        | BlackBoxFunc::PedersenHash => None,
+
+        BlackBoxFunc::Keccakf1600 => Some(25),
 
         // Can only apply a range constraint to one
         // witness at a time.
@@ -602,9 +590,11 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // or the operation.
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
         // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
-        // Hash to field returns a field element
-        BlackBoxFunc::HashToField128Security => Some(1),
+        BlackBoxFunc::Keccak256
+        | BlackBoxFunc::SHA256
+        | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3 => Some(32),
+        BlackBoxFunc::Keccakf1600 => Some(25),
         // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),
         // Pedersen hash returns a field

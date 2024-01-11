@@ -6,14 +6,14 @@ use super::{
 use crate::backends::Backend;
 use crate::errors::CliError;
 
-use acvm::Language;
-use backend_interface::BackendOpcodeSupport;
-use bb_abstraction_leaks::ACVM_BACKEND_BARRETENBERG;
+use acvm::ExpressionWidth;
 use clap::Args;
+use fm::FileManager;
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 /// Generates a Solidity verifier smart contract for the program
@@ -46,15 +46,18 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
-    let (np_language, opcode_support) = backend.get_backend_info()?;
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+
+    let expression_width = backend.get_backend_info()?;
     for package in &workspace {
         let smart_contract_string = smart_contract_for_package(
+            &workspace_file_manager,
             &workspace,
             backend,
             package,
             &args.compile_options,
-            np_language,
-            &opcode_support,
+            expression_width,
         )?;
 
         let contract_dir = workspace.contracts_directory_path(package);
@@ -69,22 +72,15 @@ pub(crate) fn run(
 }
 
 fn smart_contract_for_package(
+    file_manager: &FileManager,
     workspace: &Workspace,
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
-    np_language: Language,
-    opcode_support: &BackendOpcodeSupport,
+    expression_width: ExpressionWidth,
 ) -> Result<String, CliError> {
     let program =
-        compile_bin_package(workspace, package, compile_options, np_language, opcode_support)?;
+        compile_bin_package(file_manager, workspace, package, compile_options, expression_width)?;
 
-    let mut smart_contract_string = backend.eth_contract(&program.circuit)?;
-
-    if backend.name() == ACVM_BACKEND_BARRETENBERG {
-        smart_contract_string =
-            bb_abstraction_leaks::complete_barretenberg_verifier_contract(smart_contract_string);
-    }
-
-    Ok(smart_contract_string)
+    Ok(backend.eth_contract(&program.circuit)?)
 }

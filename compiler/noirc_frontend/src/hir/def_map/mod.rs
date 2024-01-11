@@ -64,6 +64,7 @@ pub struct CrateDefMap {
 
     pub(crate) krate: CrateId,
 
+    /// Maps an external dependency's name to its root module id.
     pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
 }
 
@@ -173,6 +174,29 @@ impl CrateDefMap {
             })
         })
     }
+
+    /// Go through all modules in this crate, and find all functions in
+    /// each module with the #[export] attribute
+    pub fn get_all_exported_functions<'a>(
+        &'a self,
+        interner: &'a NodeInterner,
+    ) -> impl Iterator<Item = FuncId> + 'a {
+        self.modules.iter().flat_map(|(_, module)| {
+            module.value_definitions().filter_map(|id| {
+                if let Some(func_id) = id.as_function() {
+                    let attributes = interner.function_attributes(&func_id);
+                    if attributes.secondary.contains(&SecondaryAttribute::Export) {
+                        Some(func_id)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+        })
+    }
+
     /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
     /// and collect them all into a Vec.
     pub fn get_all_contracts(&self, interner: &NodeInterner) -> Vec<Contract> {
@@ -270,8 +294,8 @@ pub struct Contract {
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
-    let file = fm.fetch_file(file_id);
-    parse_program(file.source())
+    let file_source = fm.fetch_file(file_id);
+    parse_program(file_source)
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

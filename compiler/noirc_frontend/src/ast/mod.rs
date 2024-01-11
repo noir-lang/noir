@@ -257,7 +257,20 @@ impl UnresolvedTypeExpression {
                     BinaryOpKind::Multiply => BinaryTypeOperator::Multiplication,
                     BinaryOpKind::Divide => BinaryTypeOperator::Division,
                     BinaryOpKind::Modulo => BinaryTypeOperator::Modulo,
-                    _ => unreachable!(), // impossible via operator_allowed check
+
+                    BinaryOpKind::Equal
+                    | BinaryOpKind::NotEqual
+                    | BinaryOpKind::Less
+                    | BinaryOpKind::LessEqual
+                    | BinaryOpKind::Greater
+                    | BinaryOpKind::GreaterEqual
+                    | BinaryOpKind::And
+                    | BinaryOpKind::Or
+                    | BinaryOpKind::Xor
+                    | BinaryOpKind::ShiftRight
+                    | BinaryOpKind::ShiftLeft => {
+                        unreachable!("impossible via `operator_allowed` check")
+                    }
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
             }

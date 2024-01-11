@@ -61,6 +61,13 @@ impl ModuleDefId {
             ModuleDefId::GlobalId(_) => "global",
         }
     }
+
+    pub fn as_module(&self) -> Option<ModuleId> {
+        match self {
+            Self::ModuleId(v) => Some(*v),
+            _ => None,
+        }
+    }
 }
 
 impl From<ModuleId> for ModuleDefId {

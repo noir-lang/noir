@@ -1,15 +1,20 @@
 Dockerfile*
 .dockerignore
 
+# Yarn
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
 packages
 **/package.tgz
 **/target
 **/node_modules
 **/outputs
-
-# Source resolver
-compiler/source-resolver/lib
-compiler/source-resolver/lib-node
 
 # Noir.js
 tooling/noir_js/lib

@@ -10,6 +10,7 @@ use crate::node_interner::{FuncId, NodeInterner, StructId};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use noirc_errors::Location;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use self::def_map::TestFunction;
@@ -17,11 +18,14 @@ use self::def_map::TestFunction;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-pub struct Context {
+pub struct Context<'file_manager> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
-    pub file_manager: FileManager,
+    // In the WASM context, we take ownership of the file manager,
+    // which is why this needs to be a Cow. In all use-cases, the file manager
+    // is read-only however, once it has been passed to the Context.
+    pub file_manager: Cow<'file_manager, FileManager>,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
@@ -35,14 +39,24 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+impl Context<'_> {
+    pub fn new(file_manager: FileManager) -> Context<'static> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
-            crate_graph,
-            file_manager,
+            crate_graph: CrateGraph::default(),
+            file_manager: Cow::Owned(file_manager),
+        }
+    }
+
+    pub fn from_ref_file_manager(file_manager: &FileManager) -> Context<'_> {
+        Context {
+            def_interner: NodeInterner::default(),
+            def_maps: BTreeMap::new(),
+            visited_files: BTreeMap::new(),
+            crate_graph: CrateGraph::default(),
+            file_manager: Cow::Borrowed(file_manager),
         }
     }
 
@@ -138,7 +152,7 @@ impl Context {
         None
     }
 
-    pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
+    pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
         self.def_interner.function_meta(func_id)
     }
 
@@ -180,12 +194,17 @@ impl Context {
             .collect()
     }
 
-    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
-    /// Returns [None] when definition is not found.
-    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
+    pub fn get_all_exported_functions_in_crate(&self, crate_id: &CrateId) -> Vec<(String, FuncId)> {
         let interner = &self.def_interner;
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
 
-        interner.find_location_index(location).and_then(|index| interner.resolve_location(index))
+        def_map
+            .get_all_exported_functions(interner)
+            .map(|function_id| {
+                let function_name = self.function_name(&function_id).to_owned();
+                (function_name, function_id)
+            })
+            .collect()
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain

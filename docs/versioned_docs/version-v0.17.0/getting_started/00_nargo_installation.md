@@ -14,7 +14,7 @@ Alternatively, the interactions can also be performed in [NoirJS](../noir_js/noi
 
 ### UltraPlonk
 
-Nargo versions <0.5.0 of `aztec_backend` and `aztec_wasm_backend` are based on the TurboPlonk
+Nargo versions \<0.5.0 of `aztec_backend` and `aztec_wasm_backend` are based on the TurboPlonk
 version of Aztec Backend, which lacks efficient implementations of useful primitives (e.g. Keccak256 in 18k constraints, ECDSA verification in 36k constraints) that the UltraPlonk version offers.
 
 ## Installation
@@ -140,9 +140,9 @@ Commands:
 
 ### Option 3: Compile from Source
 
-Due to the large number of native dependencies, Noir projects uses [Nix](https://nixos.org/) and [direnv](https://direnv.net/) to streamline the development experience. It helps mitigating ssues commonly associated with dependency management, such as conflicts between required package versions for different projects (often referred to as "dependency hell").
+Due to the large number of native dependencies, Noir projects uses [Nix](https://nixos.org/) and [direnv](https://direnv.net/) to streamline the development experience. It helps mitigating issues commonly associated with dependency management, such as conflicts between required package versions for different projects (often referred to as "dependency hell").
 
-Combined with direnv, which automatically sets or unsets environment variables based on the directory, it further simplifies the development process by seamlessly integrating with the developer's shell, facilitating an efficient and reliable workflow for managing and deploying Noir projects with multiple dependencies.
+Combined with direnv, which automatically sets or clears environment variables based on the directory, it further simplifies the development process by seamlessly integrating with the developer's shell, facilitating an efficient and reliable workflow for managing and deploying Noir projects with multiple dependencies.
 
 #### Setting up your environment
 

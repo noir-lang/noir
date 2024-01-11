@@ -1,12 +1,10 @@
 name: Publish documentation
 
 on:
-  workflow_dispatch:
-    inputs:
-      noir-ref:
-        description: The noir reference to checkout
-        required: false
-        default: 'master'
+  push:
+    branches:
+      - master
+    paths: [docs/**]
 
 jobs:
   publish-docs:
@@ -16,9 +14,6 @@ jobs:
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.noir-ref }}
-          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v2
@@ -51,6 +46,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-github-deployment: false
           deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.noir-ref }}"
+          enable-commit-comment: false
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

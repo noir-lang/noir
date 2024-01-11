@@ -2,31 +2,45 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
 import { readFileSync } from 'node:fs';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 import toml from 'toml';
 
-import { compile, CompiledProgram, init_log_level as compilerLogLevel } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend, flattenPublicInputs } from '@noir-lang/backend_barretenberg';
+import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { Field, InputMap } from '@noir-lang/noirc_abi';
 
-compilerLogLevel('INFO');
+import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
 it(`smart contract can verify a recursive proof`, async () => {
-  const inner_source_path = resolve(`../../test_programs/execution_success/assert_statement/src/main.nr`);
-  const inner_program = (compile(inner_source_path) as { program: CompiledProgram }).program;
+  const basePath = resolve(join(__dirname, '../../../../'));
+  const fm = createFileManager(basePath);
+  const innerCompilationResult = await compile(
+    fm,
+    join(basePath, './test_programs/execution_success/assert_statement'),
+  );
+  if (!('program' in innerCompilationResult)) {
+    throw new Error('Compilation failed');
+  }
+  const innerProgram = innerCompilationResult.program;
 
-  const recursion_source_path = resolve(`./circuits/recursion/src/main.nr`);
-  const recursion_program = (compile(recursion_source_path) as { program: CompiledProgram }).program;
+  const recursionCompilationResult = await compile(
+    fm,
+    join(basePath, './compiler/integration-tests/circuits/recursion'),
+  );
+  if (!('program' in recursionCompilationResult)) {
+    throw new Error('Compilation failed');
+  }
+  const recursionProgram = recursionCompilationResult.program;
 
   // Intermediate proof
 
-  const inner_backend = new BarretenbergBackend(inner_program);
-  const inner = new Noir(inner_program);
+  const inner_backend = new BarretenbergBackend(innerProgram);
+  const inner = new Noir(innerProgram);
 
   const inner_prover_toml = readFileSync(
-    resolve(`../../test_programs/execution_success/assert_statement/Prover.toml`),
+    join(basePath, `./test_programs/execution_success/assert_statement/Prover.toml`),
   ).toString();
+
   const inner_inputs = toml.parse(inner_prover_toml);
 
   const { witness: main_witness } = await inner.execute(inner_inputs);
@@ -41,8 +55,8 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   // Final proof
 
-  const recursion_backend = new BarretenbergBackend(recursion_program);
-  const recursion = new Noir(recursion_program, recursion_backend);
+  const recursion_backend = new BarretenbergBackend(recursionProgram);
+  const recursion = new Noir(recursionProgram, recursion_backend);
 
   const recursion_inputs: InputMap = {
     verification_key: vkAsFields,
@@ -58,10 +72,7 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   const contract = await ethers.deployContract('contracts/recursion.sol:UltraVerifier', []);
 
-  const result = await contract.verify.staticCall(
-    recursion_proof.proof,
-    flattenPublicInputs(recursion_proof.publicInputs),
-  );
+  const result = await contract.verify.staticCall(recursion_proof.proof, recursion_proof.publicInputs);
 
   expect(result).to.be.true;
 });

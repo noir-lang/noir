@@ -14,6 +14,7 @@ impl Ssa {
     /// Map arrays with the last instruction that uses it
     /// For this we simply process all the instructions in execution order
     /// and update the map whenever there is a match
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn find_last_array_uses(&self) -> HashMap<ValueId, InstructionId> {
         let mut array_use = HashMap::default();
         for func in self.functions.values() {

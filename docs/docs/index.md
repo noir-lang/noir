@@ -1,5 +1,5 @@
 ---
-title: Introducing Noir
+title: Noir
 description:
   Learn about the public alpha release of Noir, a domain specific language heavily influenced by Rust that compiles to
   an intermediate language which can be compiled to an arithmetic circuit or a rank-1 constraint system.
@@ -17,18 +17,20 @@ keywords:
     Proving System,
     Smart Contract Language,
   ]
+sidebar_position: 0
 ---
 
 ## What's new about Noir?
 
 Noir, a domain-specific language crafted for SNARK proving systems, stands out with its simplicity, flexibility,
-and robust capabilities. Unlike conventional approaches that compile directly to a fixed NP-complete language, 
-Noir takes a two-pronged path. It first compiles to an adaptable intermediate language known as ACIR. From there, 
-depending on the project's needs, ACIR can be further compiled into an arithmetic circuit for integration with Aztec's 
-barretenberg backend or transformed into a rank-1 constraint system suitable for R1CS backends like Arkwork's Marlin 
-backend, among others.
+and robust capabilities. Unlike conventional approaches that compile directly to a fixed NP-complete language,
+Noir takes a two-pronged path. First, Noir compiles to an adaptable intermediate language known as ACIR. 
 
-This innovative design introduces unique challenges, yet it strategically separates the programming language from the 
+From there, depending on a given project's needs, ACIR can be further compiled into an arithmetic circuit for integration with Aztec's
+barretenberg backend, or transformed into a rank-1 constraint system suitable for R1CS backends like Arkworks' Marlin
+backend (among others).
+
+This innovative design introduces unique challenges; however, this approach also strategically separates the programming language from the
 backend. Noir's approach echoes the modular philosophy of LLVM, offering developers a versatile toolkit for cryptographic
 programming.
 
@@ -36,32 +38,31 @@ programming.
 
 ### Solidity Developers
 
-Noir streamlines the creation of Solidity contracts that interface with SNARK systems. 
-[`Utilize the nargo codegen-verifier`](./nargo/commands#nargo-codegen-verifier) command to construct verifier 
-contracts efficiently. While the current alpha version offers this as a direct feature, future updates aim 
+Noir streamlines the creation of Solidity contracts that interface with SNARK systems.
+[`Utilize the nargo codegen-verifier`](./reference/nargo_commands.md#nargo-codegen-verifier) command to construct verifier
+contracts efficiently. While the current alpha version offers this as a direct feature, future updates aim
 to modularize this process for even greater ease of use.
 
 Noir currently includes a command to create a Solidity contract which verifies your Noir program. This will be
-modularised in the future; however, as of the alpha, you can use the
- command to create a verifier contract.
+modularized in the future; however, as of the alpha, you can use the `nargo codegen-verifier` command to create a verifier contract.
 
 ### Protocol Developers
 
-Should the Aztec backend not align with your existing tech stack, or if you're inclined to integrate alternative 
-proving systems, Noir's agnostic compilation to a proof-agnostic intermediate language offers unmatched flexibility. 
-This allows protocol engineers the freedom to substitute the default PLONK-based system with an alternative of their 
+Should the Aztec backend not align with your existing tech stack, or if you're inclined to integrate alternative
+proving systems, Noir's agnostic compilation to a proof-agnostic intermediate language offers unmatched flexibility.
+This allows protocol engineers the freedom to substitute the default PLONK-based system with an alternative of their
 choice, tailoring the proving system to their specific needs.
 
 ### Blockchain developers
 
-Blockchain developers often face environmental constraints, such as predetermined proving systems and smart contract 
-languages. Noir addresses this by enabling the implementation of custom proving system backends and smart contract 
-interfaces, ensuring seamless integration with your blockchain's architecture, and expanding the horizons for innovation 
+Blockchain developers often face environmental constraints, such as predetermined proving systems and smart contract
+languages. Noir addresses this by enabling the implementation of custom proving system backends and smart contract
+interfaces, ensuring seamless integration with your blockchain's architecture, and expanding the horizons for innovation
 within your projects.
 
 ## Libraries
 
-Noir does not currently have an official package manager. You can find a list of available Noir libraries in the
+Noir does not currently have an official package manager. You can find a list of some of the available Noir libraries in the
 [awesome-noir repo here](https://github.com/noir-lang/awesome-noir#libraries).
 
 Some libraries that are available today include:
@@ -81,4 +82,4 @@ Some libraries that are available today include:
 - [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir,
   allowing results that aren't whole numbers
 
-See the section on [dependencies](./modules_packages_crates/dependencies) for more information.
+See the section on [dependencies](noir/modules_packages_crates/dependencies.md) for more information.
