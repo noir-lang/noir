@@ -2,7 +2,7 @@ import { EthAddress } from '@aztec/circuits.js';
 
 import { L2Block } from './l2_block.js';
 import { L2Tx } from './l2_tx.js';
-import { TxHash } from './tx/index.js';
+import { TxHash } from './tx/tx_hash.js';
 
 /**
  * Interface of classes allowing for the retrieval of L2 blocks.

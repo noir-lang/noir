@@ -91,47 +91,76 @@ describe('Synchronizer', () => {
   });
 
   it('note processor successfully catches up', async () => {
-    const block = L2Block.random(1, 4);
+    const blocks = [L2Block.random(1, 4), L2Block.random(2, 4)];
 
-    // getBlocks is called by both synchronizer.work and synchronizer.workNoteProcessorCatchUp
-    aztecNode.getBlocks.mockResolvedValue([L2Block.fromFields(omit(block, 'newEncryptedLogs', 'newUnencryptedLogs'))]);
+    aztecNode.getBlocks
+      // called by synchronizer.work
+      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[0], 'newEncryptedLogs', 'newUnencryptedLogs'))])
+      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[1], 'newEncryptedLogs', 'newUnencryptedLogs'))])
+      // called by synchronizer.workNoteProcessorCatchUp
+      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[0], 'newEncryptedLogs', 'newUnencryptedLogs'))])
+      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[1], 'newEncryptedLogs', 'newUnencryptedLogs'))]);
+
     aztecNode.getLogs
-      .mockResolvedValueOnce([block.newEncryptedLogs!]) // called by synchronizer.work
-      .mockResolvedValueOnce([block.newUnencryptedLogs!]) // called by synchronizer.work
-      .mockResolvedValueOnce([block.newEncryptedLogs!]); // called by synchronizer.workNoteProcessorCatchUp
+      // called by synchronizer.work
+      .mockResolvedValueOnce([blocks[0].newEncryptedLogs!])
+      .mockResolvedValueOnce([blocks[0].newUnencryptedLogs!])
+      .mockResolvedValueOnce([blocks[1].newEncryptedLogs!])
+      .mockResolvedValueOnce([blocks[1].newUnencryptedLogs!])
+      // called by synchronizer.workNoteProcessorCatchUp
+      .mockResolvedValueOnce([blocks[0].newEncryptedLogs!])
+      .mockResolvedValueOnce([blocks[1].newEncryptedLogs!]);
+
+    aztecNode.getBlockNumber.mockResolvedValue(INITIAL_L2_BLOCK_NUM + 1);
 
     // Sync the synchronizer so that note processor has something to catch up to
-    await synchronizer.work();
-
-    // Used in synchronizer.isAccountStateSynchronized
-    aztecNode.getBlockNumber.mockResolvedValueOnce(1);
+    // There are two blocks, and we have a limit of 1 block per work call
+    await synchronizer.work(1);
+    expect(await synchronizer.isGlobalStateSynchronized()).toBe(false);
+    await synchronizer.work(1);
+    expect(await synchronizer.isGlobalStateSynchronized()).toBe(true);
 
     // Manually adding account to database so that we can call synchronizer.isAccountStateSynchronized
     const keyStore = new TestKeyStore(new Grumpkin(), await AztecLmdbStore.create(EthAddress.random()));
-    const privateKey = GrumpkinScalar.random();
-    await keyStore.addAccount(privateKey);
-    const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, Fr.random());
-    await database.addCompleteAddress(completeAddress);
+    const addAddress = async (startingBlockNum: number) => {
+      const privateKey = GrumpkinScalar.random();
+      await keyStore.addAccount(privateKey);
+      const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, Fr.random());
+      await database.addCompleteAddress(completeAddress);
+      synchronizer.addAccount(completeAddress.publicKey, keyStore, startingBlockNum);
+      return completeAddress;
+    };
 
-    // Add the account which will add the note processor to the synchronizer
-    synchronizer.addAccount(completeAddress.publicKey, keyStore, INITIAL_L2_BLOCK_NUM);
+    const [completeAddressA, completeAddressB, completeAddressC] = await Promise.all([
+      addAddress(INITIAL_L2_BLOCK_NUM),
+      addAddress(INITIAL_L2_BLOCK_NUM),
+      addAddress(INITIAL_L2_BLOCK_NUM + 1),
+    ]);
 
     await synchronizer.workNoteProcessorCatchUp();
 
-    expect(await synchronizer.isAccountStateSynchronized(completeAddress.address)).toBe(true);
+    expect(await synchronizer.isAccountStateSynchronized(completeAddressA.address)).toBe(false);
+    expect(await synchronizer.isAccountStateSynchronized(completeAddressB.address)).toBe(false);
+    expect(await synchronizer.isAccountStateSynchronized(completeAddressC.address)).toBe(false);
+
+    await synchronizer.workNoteProcessorCatchUp();
+
+    expect(await synchronizer.isAccountStateSynchronized(completeAddressA.address)).toBe(true);
+    expect(await synchronizer.isAccountStateSynchronized(completeAddressB.address)).toBe(true);
+    expect(await synchronizer.isAccountStateSynchronized(completeAddressC.address)).toBe(true);
   });
 });
 
 class TestSynchronizer extends Synchronizer {
-  public work() {
-    return super.work();
+  public work(limit = 1) {
+    return super.work(limit);
   }
 
   public initialSync(): Promise<void> {
     return super.initialSync();
   }
 
-  public workNoteProcessorCatchUp(): Promise<boolean> {
-    return super.workNoteProcessorCatchUp();
+  public workNoteProcessorCatchUp(limit = 1): Promise<boolean> {
+    return super.workNoteProcessorCatchUp(limit);
   }
 }

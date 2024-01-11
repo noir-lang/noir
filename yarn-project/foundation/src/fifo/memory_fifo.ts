@@ -57,15 +57,18 @@ export class MemoryFifo<T> {
   /**
    * Put an item onto back of the queue.
    * @param item - The item to enqueue.
+   * @returns A boolean indicating whether the item was successfully added to the queue.
    */
-  public put(item: T) {
+  public put(item: T): boolean {
     if (this.flushing) {
       this.log.warn('Discarding item because queue is flushing');
-      return;
+      return false;
     } else if (this.waiting.length) {
       this.waiting.shift()!(item);
+      return true;
     } else {
       this.items.push(item);
+      return true;
     }
   }
 

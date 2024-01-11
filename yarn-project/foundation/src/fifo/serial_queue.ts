@@ -54,11 +54,11 @@ export class SerialQueue {
    * Enqueues fn for execution on the serial queue.
    * Returns the result of the function after execution.
    * @param fn - The function to enqueue.
-   * @returns A resolution promise.
+   * @returns A resolution promise. Rejects if the function does, or if the function could not be enqueued.
    */
   public put<T>(fn: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.queue.put(async () => {
+      const accepted = this.queue.put(async () => {
         try {
           const res = await fn();
           resolve(res);
@@ -66,6 +66,9 @@ export class SerialQueue {
           reject(e);
         }
       });
+      if (!accepted) {
+        reject(new Error('Could not enqueue function'));
+      }
     });
   }
 

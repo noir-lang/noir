@@ -76,7 +76,6 @@ export class PXEService implements PXE {
   // serialize synchronizer and calls to simulateTx.
   // ensures that state is not changed while simulating
   private jobQueue = new SerialQueue();
-  private running = false;
 
   constructor(
     private keyStore: KeyStore,
@@ -105,7 +104,6 @@ export class PXEService implements PXE {
     await this.restoreNoteProcessors();
     const info = await this.getNodeInfo();
     this.log.info(`Started PXE connected to chain ${info.chainId} version ${info.protocolVersion}`);
-    this.running = true;
   }
 
   private async restoreNoteProcessors() {
@@ -355,9 +353,6 @@ export class PXEService implements PXE {
     if (txRequest.functionData.isInternal === undefined) {
       throw new Error(`Unspecified internal are not allowed`);
     }
-    if (!this.running) {
-      throw new Error('PXE Service is not running');
-    }
 
     // all simulations must be serialized w.r.t. the synchronizer
     return await this.jobQueue.put(async () => {
@@ -398,10 +393,6 @@ export class PXEService implements PXE {
     to: AztecAddress,
     _from?: AztecAddress,
   ): Promise<DecodedReturn> {
-    if (!this.running) {
-      throw new Error('PXE Service is not running');
-    }
-
     // all simulations must be serialized w.r.t. the synchronizer
     return await this.jobQueue.put(async () => {
       // TODO - Should check if `from` has the permission to call the view function.
