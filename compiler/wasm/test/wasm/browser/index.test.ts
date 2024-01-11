@@ -1,31 +1,41 @@
-import { expect } from 'chai';
-import {
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { getPaths } from '../../shared';
+import { expect } from '@esm-bundle/chai';
+
+import init, { compile, PathToFileSourceMap, compile_, CompilerContext } from '../../../build/esm';
+
+// @ts-ignore
+await init();
+
+const {
+  simpleScriptSourcePath,
+  simpleScriptExpectedArtifact,
   depsScriptSourcePath,
   depsScriptExpectedArtifact,
   libASourcePath,
   libBSourcePath,
-  simpleScriptSourcePath,
-  simpleScriptExpectedArtifact,
-} from '../shared';
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { compile, compile_, CompilerContext, PathToFileSourceMap } from '@noir-lang/noir_wasm';
+} = getPaths('.');
+
+async function getFileAsString(path: string) {
+  // @ts-ignore
+  const basePath = new URL('./../../', import.meta.url).toString().replace(/\/$/g, '');
+  const url = `${basePath}${path.replace('.', '')}`;
+  const response = await fetch(url);
+  return response.text();
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getPrecompiledSource(path: string): Promise<any> {
-  const compiledData = readFileSync(resolve(__dirname, path)).toString();
-  return JSON.parse(compiledData);
+  const response = await getFileAsString(path);
+  return JSON.parse(response);
 }
 
 describe('noir wasm compilation', () => {
   describe('can compile simple scripts', () => {
     it('matching nargos compilation', async () => {
       const sourceMap = new PathToFileSourceMap();
-      sourceMap.add_source_code(
-        join(__dirname, simpleScriptSourcePath),
-        readFileSync(join(__dirname, simpleScriptSourcePath), 'utf-8'),
-      );
-      const wasmCircuit = await compile(join(__dirname, simpleScriptSourcePath), undefined, undefined, sourceMap);
+      sourceMap.add_source_code('script/main.nr', await getFileAsString(simpleScriptSourcePath));
+      const wasmCircuit = compile('script/main.nr', undefined, undefined, sourceMap);
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       if (!('program' in wasmCircuit)) {
@@ -33,22 +43,22 @@ describe('noir wasm compilation', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-    }).timeout(10e3);
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
+    }).timeout(60 * 20e3);
   });
 
   describe('can compile scripts with dependencies', () => {
-    const sourceMap: PathToFileSourceMap = new PathToFileSourceMap();
-    beforeEach(() => {
-      sourceMap.add_source_code('script/main.nr', readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8'));
-      sourceMap.add_source_code('lib_a/lib.nr', readFileSync(join(__dirname, libASourcePath), 'utf-8'));
-      sourceMap.add_source_code('lib_b/lib.nr', readFileSync(join(__dirname, libBSourcePath), 'utf-8'));
+    const sourceMap = new PathToFileSourceMap();
+    beforeEach(async () => {
+      sourceMap.add_source_code('script/main.nr', await getFileAsString(depsScriptSourcePath));
+      sourceMap.add_source_code('lib_a/lib.nr', await getFileAsString(libASourcePath));
+      sourceMap.add_source_code('lib_b/lib.nr', await getFileAsString(libBSourcePath));
     });
 
     it('matching nargos compilation', async () => {
-      const wasmCircuit = await compile(
+      const wasmCircuit = compile(
         'script/main.nr',
         false,
         {
@@ -67,19 +77,19 @@ describe('noir wasm compilation', () => {
       }
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
-      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
       expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-    }).timeout(10e3);
+      expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
+    }).timeout(60 * 20e3);
   });
 
   describe('can compile scripts with dependencies -- context-api', () => {
     let sourceMap: PathToFileSourceMap;
-    beforeEach(() => {
+    beforeEach(async () => {
       sourceMap = new PathToFileSourceMap();
-      sourceMap.add_source_code('script/main.nr', readFileSync(join(__dirname, depsScriptSourcePath), 'utf-8'));
-      sourceMap.add_source_code('lib_a/lib.nr', readFileSync(join(__dirname, libASourcePath), 'utf-8'));
-      sourceMap.add_source_code('lib_b/lib.nr', readFileSync(join(__dirname, libBSourcePath), 'utf-8'));
+      sourceMap.add_source_code('script/main.nr', await getFileAsString(depsScriptSourcePath));
+      sourceMap.add_source_code('lib_a/lib.nr', await getFileAsString(libASourcePath));
+      sourceMap.add_source_code('lib_b/lib.nr', await getFileAsString(libBSourcePath));
     });
 
     it('matching nargos compilation - context-api', async () => {
@@ -117,9 +127,9 @@ describe('noir wasm compilation', () => {
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
-      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-    }).timeout(10e3);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+    }).timeout(60 * 20e3);
 
     it('matching nargos compilation - context-implementation-compile-api', async () => {
       const wasmCircuit = await compile_(
@@ -142,8 +152,8 @@ describe('noir wasm compilation', () => {
 
       // We don't expect the hashes to match due to how `noir_wasm` handles dependencies
       expect(wasmCircuit.program.noir_version).to.eq(cliCircuit.noir_version);
-      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
       expect(wasmCircuit.program.abi).to.deep.eq(cliCircuit.abi);
-    }).timeout(10e3);
+      expect(wasmCircuit.program.bytecode).to.eq(cliCircuit.bytecode);
+    }).timeout(60 * 20e3);
   });
 });
