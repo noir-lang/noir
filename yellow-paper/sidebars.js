@@ -21,35 +21,55 @@ const sidebars = {
   yellowPaperSidebar: [
     "intro",
     {
-      "Addresses & keys": [
-        "addresses-and-keys/index",
+      label: "Addresses & Keys",
+      type: "category",
+      link: { type: "doc", id: "addresses-and-keys/index" },
+      items: [
         "addresses-and-keys/specification",
         "addresses-and-keys/precompiles",
         "addresses-and-keys/diversified-and-stealth",
       ],
-      State: [
-        "state/index",
+    },
+    {
+      label: "State",
+      type: "category",
+      link: { type: "doc", id: "state/index" },
+      items: [
         "state/tree-implementations",
         "state/archive",
         "state/note-hash-tree",
         "state/nullifier-tree",
         "state/public-data-tree",
       ],
-      Transactions: [
-        "transactions/index",
+    },
+    {
+      label: "Transactions",
+      type: "category",
+      link: { type: "doc", id: "transactions/index" },
+      items: [
         "transactions/local-execution",
         "transactions/public-execution",
         "transactions/tx-object",
         "transactions/validity",
       ],
-      Bytecode: ["bytecode/index"],
-      "Contract Deployment": [
-        "contract-deployment/index",
-        "contract-deployment/classes",
-        "contract-deployment/instances",
-      ],
-      Calls: [
-        "calls/index",
+    },
+    {
+      label: "Bytecode",
+      type: "category",
+      link: { type: "doc", id: "bytecode/index" },
+      items: [],
+    },
+    {
+      label: "Contract Deployment",
+      type: "category",
+      link: { type: "doc", id: "contract-deployment/index" },
+      items: ["contract-deployment/classes", "contract-deployment/instances"],
+    },
+    {
+      label: "Calls",
+      type: "category",
+      link: { type: "doc", id: "calls/index" },
+      items: [
         "calls/sync-calls",
         "calls/enqueued-calls",
         "calls/batched-calls",
@@ -58,32 +78,62 @@ const sidebars = {
         "calls/unconstrained-calls",
         "calls/public-private-messaging",
       ],
-      "Cross-chain communication": [
-        "cross-chain-communication/index",
-        "cross-chain-communication/da",
-      ],
-      Logs: ["logs/index"],
-      "Private Message Delivery": [
-        "private-message-delivery/index",
+    },
+    {
+      label: "Cross-chain communication",
+      type: "category",
+      link: { type: "doc", id: "cross-chain-communication/index" },
+      items: ["cross-chain-communication/da"],
+    },
+    {
+      label: "Logs",
+      type: "category",
+      link: { type: "doc", id: "logs/index" },
+      items: [],
+    },
+    {
+      label: "Private Message Delivery",
+      type: "category",
+      link: { type: "doc", id: "private-message-delivery/index" },
+      items: [
         "private-message-delivery/private-msg-delivery", // renamed to avoid routing problems
         "private-message-delivery/note-discovery",
         "private-message-delivery/encryption-and-decryption",
         "private-message-delivery/registry",
         "private-message-delivery/send-note-guidelines",
       ],
-      "Gas & Fees": ["gas-and-fees/gas-and-fees"],
-      Decentralization: [
+    },
+    {
+      label: "Gas & Fees",
+      type: "category",
+      link: { type: "doc", id: "gas-and-fees/gas-and-fees" },
+      items: [],
+    },
+    {
+      label: "Decentralization",
+      type: "category",
+      link: { type: "doc", id: "decentralization/governance" },
+      items: [
         "decentralization/governance",
         "decentralization/block-production",
         "decentralization/p2p-network",
       ],
-      Cryptography: [
+    },
+    {
+      label: "Cryptography",
+      type: "category",
+      link: { type: "doc", id: "cryptography/performance-targets" },
+      items: [
         "cryptography/performance-targets",
         "cryptography/protocol-overview",
       ],
-      // Protocol Statements?
-      Circuits: [
-        "circuits/high-level-topology",
+    },
+    // Protocol Statements?
+    {
+      label: "Circuits",
+      type: "category",
+      link: { type: "doc", id: "circuits/high-level-topology" },
+      items: [
         "circuits/private-function",
         "circuits/private-kernel-initial",
         "circuits/private-kernel-inner",
@@ -93,14 +143,22 @@ const sidebars = {
         "circuits/public-kernel-inner",
         "circuits/public-kernel-tail",
       ],
-      "Rollup Circuits": [
-        "rollup-circuits/index",
+    },
+    {
+      label: "Rollup Circuits",
+      type: "category",
+      link: { type: "doc", id: "rollup-circuits/index" },
+      items: [
         "rollup-circuits/base-rollup",
         "rollup-circuits/merge-rollup",
         "rollup-circuits/root-rollup",
       ],
-      "Public VM": [
-        "public-vm/avm",
+    },
+    {
+      label: "Public VM",
+      type: "category",
+      link: { type: "doc", id: "public-vm/avm" },
+      items: [
         "public-vm/alu",
         "public-vm/bytecode-validation-circuit",
         "public-vm/control-flow",

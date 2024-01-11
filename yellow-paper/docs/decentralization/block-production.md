@@ -29,7 +29,7 @@ We should probably introduce the PXE somewhere
 - **Network**: 40KB for a transaction with proof (see [P2P network](./p2p-network.md#network-bandwidth)). Assuming gossiping grows the data upload/download 10x, ~400KB per tx. With 10 tx/s that's 4MB/s or 32mb/s.
 - **Storage**: [~1548 bytes per transaction](../cross-chain-communication/da.md#aztec-specific-data) + tree overhead, ~ 0.4 TB per year.
 - **RAM**: Help
-  :::
+:::
 
 ### Sequencers
 
@@ -113,7 +113,7 @@ Anyone ->> Network: eligible as a sequencer
 - In Diagram
   - add a dedicated timeline from the block production's PoV
   - get rid of "pre-confirmed"
-    :::
+:::
 
 ![Governance Summary Image](./images/Aztec-Block-Production-1.png)
 

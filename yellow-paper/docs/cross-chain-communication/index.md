@@ -11,7 +11,7 @@ The purpose of the L1 contracts are simple:
 
 - Facilitate cross-chain communication such that L1 liquidity can be used on L2
 - Act as a validating light node for L2 that every L1 node implicitly run
-  :::
+:::
 
 ## Overview
 

@@ -22,7 +22,7 @@ Security is often used quite in an unspecific manner, "good" security etc, witho
 
 - **Liveness**: Eventually something good will happen.
 - **Safety**: Nothing bad will happen.
-  :::
+:::
 
 In the context of blockchain, this _security_ is defined by the confirmation rule, while this can be chosen individually by the user, our validating light node (L1 bridge) can be seen as a user, after all, it's "just" another node. For the case of a validity proof based blockchain, a good confirmation rule should satisfy the following sub-properties (inspired by [Sreeram's framing](https://twitter.com/sreeramkannan/status/1683735050897207296)):
 
