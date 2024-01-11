@@ -86,3 +86,44 @@ void parallel_for(size_t num_iterations, const std::function<void(size_t)>& func
 #endif
 #endif
 }
+
+/**
+ * @brief Split a loop into several loops running in parallel
+ *
+ * @details Splits the num_points into appropriate number of chunks to do parallel processing on and calls the function
+ * that should contain the work loop
+ * @param num_points Total number of elements
+ * @param func A function or lambda expression with a for loop inside, for example:
+ * [](size_t start, size_t end){for (size_t i=start; i<end; i++){(void)i;}}
+ * @param no_multhreading_if_less_or_equal If num points is less or equal to this value, run without parallelization
+ *
+ */
+void run_loop_in_parallel(size_t num_points,
+                          const std::function<void(size_t, size_t)>& func,
+                          size_t no_multhreading_if_less_or_equal)
+{
+    if (num_points <= no_multhreading_if_less_or_equal) {
+        func(0, num_points);
+        return;
+    }
+    // Get number of cpus we can split into
+    const size_t num_cpus = get_num_cpus();
+
+    // Compute the size of a single chunk
+    const size_t chunk_size = (num_points / num_cpus) + (num_points % num_cpus == 0 ? 0 : 1);
+    // Parallelize over chunks
+    parallel_for(num_cpus, [num_points, chunk_size, &func](size_t chunk_index) {
+        // If num_points is small, sometimes we need fewer CPUs
+        if (chunk_size * chunk_index > num_points) {
+            return;
+        }
+        // Compute the current chunk size (can differ in case it's the last chunk)
+        size_t current_chunk_size = std::min(num_points - (chunk_size * chunk_index), chunk_size);
+        if (current_chunk_size == 0) {
+            return;
+        }
+        size_t start = chunk_index * chunk_size;
+        size_t end = chunk_index * chunk_size + current_chunk_size;
+        func(start, end);
+    });
+};

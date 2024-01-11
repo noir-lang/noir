@@ -92,7 +92,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     static void batch_normalize(element* elements, size_t num_elements) noexcept;
     static std::vector<affine_element<Fq, Fr, Params>> batch_mul_with_endomorphism(
-        const std::vector<affine_element<Fq, Fr, Params>>& points, const Fr& exponent) noexcept;
+        const std::span<affine_element<Fq, Fr, Params>>& points, const Fr& exponent) noexcept;
 
     Fq x;
     Fq y;
