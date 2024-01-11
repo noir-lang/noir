@@ -3,9 +3,9 @@ use acir::{
     native_types::{Witness, WitnessMap},
     FieldElement,
 };
-use acvm_blackbox_solver::{blake2s, blake3, keccak256, sha256};
+use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
-use self::{hash::keccakf1600, pedersen::pedersen_hash};
+use self::pedersen::pedersen_hash;
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
 use crate::{pwg::witness_to_value, BlackBoxFunctionSolver};
@@ -119,7 +119,7 @@ pub(crate) fn solve(
                 let lane = witness_assignment.try_to_u64();
                 state[i] = lane.unwrap();
             }
-            keccakf1600(&mut state);
+            let state = keccakf1600(state)?;
             for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
                 insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
             }
