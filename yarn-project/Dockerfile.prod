@@ -7,8 +7,8 @@ FROM node:18.19.0 AS builder
 RUN apt update && apt install -y jq && rm -rf /var/lib/apt/lists/* && apt-get clean
 COPY --from=yarn-project /usr/src /usr/src
 WORKDIR /usr/src/yarn-project
-ARG COMMIT_TAG=""
 # TODO: Use release-please to update package.json directly, and remove this!
+ARG COMMIT_TAG=""
 RUN ./scripts/version_packages.sh
 # Productionify. See comment in yarn-project-base/Dockerfile.
 RUN yarn workspaces focus @aztec/cli @aztec/aztec-sandbox @aztec/aztec-faucet @aztec/aztec.js --production && \
@@ -28,6 +28,8 @@ RUN rm -rf /usr/src/noir/target
 # We could also use distroless, to get us about 20mb off, but meh. It's actually useful to shell into containers.
 #FROM gcr.io/distroless/nodejs18-debian12
 FROM ubuntu:lunar
+ARG COMMIT_TAG=""
+ENV COMMIT_TAG=$COMMIT_TAG
 # RUN apt update && apt install -y nodejs && rm -rf /var/lib/apt/lists/* && apt-get clean
 RUN apt update && apt install -y curl && rm -rf /var/lib/apt/lists/* && apt-get clean
 ENV NODE_VERSION=18.19.0
