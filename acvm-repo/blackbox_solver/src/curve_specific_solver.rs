@@ -33,6 +33,15 @@ pub trait BlackBoxFunctionSolver {
 
 pub struct StubbedBlackBoxSolver;
 
+impl StubbedBlackBoxSolver {
+    fn fail(black_box_function: BlackBoxFunc) -> BlackBoxResolutionError {
+        BlackBoxResolutionError::Failed(
+            black_box_function,
+            format!("{} is not supported", black_box_function.name()),
+        )
+    }
+}
+
 impl BlackBoxFunctionSolver for StubbedBlackBoxSolver {
     fn schnorr_verify(
         &self,
@@ -41,39 +50,27 @@ impl BlackBoxFunctionSolver for StubbedBlackBoxSolver {
         _signature: &[u8],
         _message: &[u8],
     ) -> Result<bool, BlackBoxResolutionError> {
-        Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::SchnorrVerify,
-            "SchnorrVerify is not supported".to_string(),
-        ))
+        Err(Self::fail(BlackBoxFunc::SchnorrVerify))
     }
     fn pedersen_commitment(
         &self,
         _inputs: &[FieldElement],
         _domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::PedersenCommitment,
-            "PedersenCommitment is not supported".to_string(),
-        ))
+        Err(Self::fail(BlackBoxFunc::PedersenCommitment))
     }
     fn pedersen_hash(
         &self,
         _inputs: &[FieldElement],
         _domain_separator: u32,
     ) -> Result<FieldElement, BlackBoxResolutionError> {
-        Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::PedersenHash,
-            "PedersenHash is not supported".to_string(),
-        ))
+        Err(Self::fail(BlackBoxFunc::PedersenHash))
     }
     fn fixed_base_scalar_mul(
         &self,
         _low: &FieldElement,
         _high: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::FixedBaseScalarMul,
-            "FixedBaseScalarMul is not supported".to_string(),
-        ))
+        Err(Self::fail(BlackBoxFunc::FixedBaseScalarMul))
     }
 }
