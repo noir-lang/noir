@@ -120,8 +120,7 @@ fn resolve_trait_methods(
         {
             let the_trait = interner.get_trait(trait_id);
             let self_typevar = the_trait.self_type_typevar.clone();
-            let self_type =
-                Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
+            let self_type = Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
             let name_span = the_trait.name.span();
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
@@ -143,12 +142,13 @@ fn resolve_trait_methods(
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let return_type = resolver.resolve_type(return_type.get_type().into_owned());
 
-            let generics = vecmap(resolver.get_generics(), |(_, type_var, _)| match &*type_var
-                .borrow()
-            {
-                TypeBinding::Unbound(id) => (*id, type_var.clone()),
-                TypeBinding::Bound(binding) => unreachable!("Trait generic was bound to {binding}"),
-            });
+            let generics =
+                vecmap(resolver.get_generics(), |(_, type_var, _)| match &*type_var.borrow() {
+                    TypeBinding::Unbound(id) => (*id, type_var.clone()),
+                    TypeBinding::Bound(binding) => {
+                        unreachable!("Trait generic was bound to {binding}")
+                    }
+                });
 
             // Ensure the trait is generic over the Self type as well
             // let the_trait = resolver.interner.get_trait(trait_id);
@@ -471,6 +471,7 @@ pub(crate) fn resolve_trait_impls(
                 trait_id,
                 trait_generics,
                 impl_id,
+                impl_generics,
                 resolved_trait_impl,
             ) {
                 let error = DefCollectorErrorKind::OverlappingImpl {

@@ -1100,22 +1100,29 @@ impl NodeInterner {
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
 
-        for (existing_object_type, impl_kind) in impls {
+        for (existing_object_type2, impl_kind) in impls {
+            // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
-                existing_object_type.instantiate(self);
+                existing_object_type2.instantiate(self);
 
-            eprintln!("Testing impl for {}", existing_object_type);
+            eprintln!(
+                "Testing impl for {},  pre-instantiated: {:?}",
+                existing_object_type, existing_object_type2
+            );
 
             let mut fresh_bindings = TypeBindings::new();
 
             let mut check_trait_generics = |impl_generics: &[Type]| {
-                trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
-                    let impl_generic = impl_generic.substitute(&instantiation_bindings);
+                trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic2)| {
+                    let impl_generic = impl_generic2.substitute(&instantiation_bindings);
                     if trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok() {
                         eprintln!("  generic {} == {}", trait_generic, impl_generic);
                         true
                     } else {
-                        eprintln!("  generic {} != {}", trait_generic, impl_generic);
+                        eprintln!(
+                            "  generic {} != {}  (pre-instantiated: {:?})",
+                            trait_generic, impl_generic, impl_generic2
+                        );
                         false
                     }
                 })
@@ -1232,6 +1239,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: Vec<Type>,
         impl_id: TraitImplId,
+        impl_generics: Vec<Type>,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
         assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
@@ -1242,6 +1250,8 @@ impl NodeInterner {
         // It should never happen since impls are defined at global scope, but even
         // if they were, we should never prevent defining a new impl because a where
         // clause already assumes it exists.
+
+        // FIXME: Instantiate from impl generics
         let (instantiated_object_type, substitutions) =
             object_type.instantiate_type_variables(self);
 
@@ -1262,7 +1272,13 @@ impl NodeInterner {
 
         // The object type is generalized so that a generic impl will apply
         // to any type T, rather than just the generic type named T.
+        // WRONG!! FIXME
         let generalized_object_type = object_type.generalize_from_substitutions(substitutions);
+        eprintln!(
+            "\n\n\n     impl generics len = {} \n\n\n",
+            trait_impl.borrow().impl_generics.len()
+        );
+
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
         Ok(())
