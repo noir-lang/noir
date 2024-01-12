@@ -70,6 +70,11 @@ jobs:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
 
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.12.1
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
