@@ -14,41 +14,42 @@ struct U256 {
 
 impl U256 {
     pub fn from_bytes32(bytes : [u8;32]) -> U256 {
+        // We use addition rather than a bitwise OR as the bitshifts ensure that none of the bytes overlap each other.
         let high_0 = ((bytes[0] as u64) << 56)
-                | ((bytes[1] as u64) << 48)
-                | ((bytes[2] as u64) << 40)
-                | ((bytes[3] as u64) << 32)
-                | ((bytes[4] as u64) << 24)
-                | ((bytes[5] as u64) << 16)
-                | ((bytes[6] as u64) << 8)
-                |  (bytes[7] as u64);
+                + ((bytes[1] as u64) << 48)
+                + ((bytes[2] as u64) << 40)
+                + ((bytes[3] as u64) << 32)
+                + ((bytes[4] as u64) << 24)
+                + ((bytes[5] as u64) << 16)
+                + ((bytes[6] as u64) << 8)
+                +  (bytes[7] as u64);
         
         let high_1 = ((bytes[8] as u64) << 56)
-                | ((bytes[9] as u64) << 48)
-                | ((bytes[10] as u64) << 40)
-                | ((bytes[11] as u64) << 32)
-                | ((bytes[12] as u64) << 24)
-                | ((bytes[13] as u64) << 16)
-                | ((bytes[14] as u64) << 8)
-                |  (bytes[15] as u64);
+                + ((bytes[9] as u64) << 48)
+                + ((bytes[10] as u64) << 40)
+                + ((bytes[11] as u64) << 32)
+                + ((bytes[12] as u64) << 24)
+                + ((bytes[13] as u64) << 16)
+                + ((bytes[14] as u64) << 8)
+                +  (bytes[15] as u64);
         
         let low_0 = ((bytes[16] as u64) << 56)
-                | ((bytes[17] as u64) << 48)
-                | ((bytes[18] as u64) << 40)
-                | ((bytes[19] as u64) << 32)
-                | ((bytes[20] as u64) << 24)
-                | ((bytes[21] as u64) << 16)
-                | ((bytes[22] as u64) << 8)
-                |  (bytes[23] as u64);
+                + ((bytes[17] as u64) << 48)
+                + ((bytes[18] as u64) << 40)
+                + ((bytes[19] as u64) << 32)
+                + ((bytes[20] as u64) << 24)
+                + ((bytes[21] as u64) << 16)
+                + ((bytes[22] as u64) << 8)
+                +  (bytes[23] as u64);
         
         let low_1 = ((bytes[24] as u64) << 56)
-                | ((bytes[25] as u64) << 48)
-                | ((bytes[26] as u64) << 40)
-                | ((bytes[27] as u64) << 32)
-                | ((bytes[28] as u64) << 24)
-                | ((bytes[29] as u64) << 16)
-                | ((bytes[30] as u64) << 8)
-                |  (bytes[31] as u64);
+                + ((bytes[25] as u64) << 48)
+                + ((bytes[26] as u64) << 40)
+                + ((bytes[27] as u64) << 32)
+                + ((bytes[28] as u64) << 24)
+                + ((bytes[29] as u64) << 16)
+                + ((bytes[30] as u64) << 8)
+                +  (bytes[31] as u64);
 
         U256{inner : [high_0, high_1, low_0, low_1]}
     }
