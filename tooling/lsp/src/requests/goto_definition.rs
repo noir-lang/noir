@@ -80,19 +80,17 @@ fn on_goto_definition_inner(
 #[cfg(test)]
 mod goto_definition_tests {
 
+    use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use async_lsp::ClientSocket;
     use lsp_types::{Position, Url};
     use tokio::test;
-
-    use crate::solver::MockBackend;
 
     use super::*;
 
     #[test]
     async fn test_on_goto_definition() {
         let client = ClientSocket::new_closed();
-        let solver = MockBackend;
-        let mut state = LspState::new(&client, solver);
+        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
 
         let root_path = std::env::current_dir()
             .unwrap()

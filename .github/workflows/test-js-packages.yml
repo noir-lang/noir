@@ -70,6 +70,11 @@ jobs:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
 
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.12.1
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
@@ -80,7 +85,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: noir_wasm
-          path: ./compiler/wasm
+          path: |
+            ./compiler/wasm/dist
+            ./compiler/wasm/build
           retention-days: 3
 
   build-acvm-js:

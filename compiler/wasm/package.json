@@ -9,9 +9,10 @@
   "types": "./dist/types/src/index.d.cts",
   "exports": {
     "node": "./dist/node/main.js",
-    "default": "./dist/web/main.mjs",
     "import": "./dist/web/main.mjs",
-    "require": "./dist/node/main.js"
+    "require": "./dist/node/main.js",
+    "types": "./dist/types/src/index.d.cts",
+    "default": "./dist/web/main.mjs"
   },
   "files": [
     "dist",

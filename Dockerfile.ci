@@ -25,7 +25,6 @@ COPY ./tooling/noir_js_backend_barretenberg/package.json ./tooling/noir_js_backe
 COPY ./tooling/noir_js/package.json ./tooling/noir_js/
 COPY ./tooling/noir_codegen/package.json ./tooling/noir_codegen/
 COPY ./compiler/integration-tests/package.json ./compiler/integration-tests/
-COPY ./release-tests/package.json ./release-tests/
 COPY ./docs/package.json ./docs/
 RUN yarn --immutable
 COPY . .
