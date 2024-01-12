@@ -2,14 +2,11 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
-#include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
 #include "barretenberg/dsl/types.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
-#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
 #include "contract.hpp"
 
@@ -20,55 +17,36 @@ AcirComposer::AcirComposer(size_t size_hint, bool verbose)
     , verbose_(verbose)
 {}
 
-template <typename Builder> void AcirComposer::create_circuit(acir_format::acir_format& constraint_system)
+/**
+ * @brief Populate acir_composer-owned builder with circuit generated from constraint system and an optional witness
+ *
+ * @tparam Builder
+ * @param constraint_system
+ * @param witness
+ */
+template <typename Builder>
+void AcirComposer::create_circuit(acir_format::acir_format& constraint_system, WitnessVector const& witness)
 {
-    // this seems to have made sense for plonk but no longer makes sense for Honk? if we return early then the
-    // sizes below never get set and that eventually causes too few srs points to be extracted
-    if (builder_.get_num_gates() > 1) {
-        return;
-    }
     vinfo("building circuit...");
-    builder_ = acir_format::create_circuit<Builder>(constraint_system, size_hint_);
-    exact_circuit_size_ = builder_.get_num_gates();
-    total_circuit_size_ = builder_.get_total_circuit_size();
-    circuit_subgroup_size_ = builder_.get_circuit_subgroup_size(total_circuit_size_);
-    size_hint_ = circuit_subgroup_size_;
+    builder_ = acir_format::create_circuit<Builder>(constraint_system, size_hint_, witness);
     vinfo("gates: ", builder_.get_total_circuit_size());
 }
 
-template void AcirComposer::create_circuit<proof_system::UltraCircuitBuilder>(
-    acir_format::acir_format& constraint_system);
-
-std::shared_ptr<proof_system::plonk::proving_key> AcirComposer::init_proving_key(
-    acir_format::acir_format& constraint_system)
+std::shared_ptr<proof_system::plonk::proving_key> AcirComposer::init_proving_key()
 {
-    create_circuit(constraint_system);
     acir_format::Composer composer;
     vinfo("computing proving key...");
     proving_key_ = composer.compute_proving_key(builder_);
     return proving_key_;
 }
 
-std::vector<uint8_t> AcirComposer::create_proof(acir_format::acir_format& constraint_system,
-                                                acir_format::WitnessVector& witness,
-                                                bool is_recursive)
+std::vector<uint8_t> AcirComposer::create_proof(bool is_recursive)
 {
-    vinfo("building circuit with witness...");
-    builder_ = acir_format::create_circuit(constraint_system, size_hint_, witness);
+    if (!proving_key_) {
+        throw_or_abort("Must compute proving key before constructing proof.");
+    }
 
-    vinfo("gates: ", builder_.get_total_circuit_size());
-
-    auto composer = [&]() {
-        if (proving_key_) {
-            return acir_format::Composer(proving_key_, nullptr);
-        }
-
-        acir_format::Composer composer;
-        vinfo("computing proving key...");
-        proving_key_ = composer.compute_proving_key(builder_);
-        vinfo("done.");
-        return composer;
-    }();
+    acir_format::Composer composer(proving_key_, nullptr);
 
     vinfo("creating proof...");
     std::vector<uint8_t> proof;
@@ -207,5 +185,8 @@ std::vector<barretenberg::fr> AcirComposer::serialize_verification_key_into_fiel
 {
     return acir_format::export_key_in_recursion_format(verification_key_);
 }
+
+template void AcirComposer::create_circuit<UltraCircuitBuilder>(acir_format::acir_format& constraint_system,
+                                                                WitnessVector const& witness);
 
 } // namespace acir_proofs

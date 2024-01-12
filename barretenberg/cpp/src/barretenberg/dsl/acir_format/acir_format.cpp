@@ -1,7 +1,5 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
-#include "barretenberg/dsl/acir_format/pedersen.hpp"
-#include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include <cstddef>
 
