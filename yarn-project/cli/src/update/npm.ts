@@ -9,7 +9,7 @@ import { SemVer, parse } from 'semver';
 import { atomicUpdateFile } from '../utils.js';
 import { DependencyChanges } from './common.js';
 
-const deprecatedNpmPackages = new Set<string>([]);
+const deprecatedNpmPackages = new Set<string>(['@aztec/cli', '@aztec/aztec-sandbox']);
 const npmDeprecationMessage = `
 The following packages have been deprecated and will no longer be updated on the npm registry:
 ${Array.from(deprecatedNpmPackages)
