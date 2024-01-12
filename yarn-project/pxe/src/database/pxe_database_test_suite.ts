@@ -1,6 +1,6 @@
+import { INITIAL_L2_BLOCK_NUM, MerkleTreeId, NoteFilter, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, BlockHeader, CompleteAddress } from '@aztec/circuits.js';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { INITIAL_L2_BLOCK_NUM, MerkleTreeId, NoteFilter, randomTxHash } from '@aztec/types';
 
 import { NoteDao } from './note_dao.js';
 import { randomNoteDao } from './note_dao.test.js';

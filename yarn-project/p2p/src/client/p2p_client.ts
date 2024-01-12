@@ -1,5 +1,3 @@
-import { createDebugLogger } from '@aztec/foundation/log';
-import { AztecKVStore, AztecSingleton } from '@aztec/kv-store';
 import {
   INITIAL_L2_BLOCK_NUM,
   L2Block,
@@ -8,7 +6,9 @@ import {
   L2BlockSource,
   Tx,
   TxHash,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { AztecKVStore, AztecSingleton } from '@aztec/kv-store';
 
 import { getP2PConfigEnvVars } from '../config.js';
 import { P2PService } from '../service/service.js';

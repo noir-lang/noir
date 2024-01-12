@@ -1,4 +1,4 @@
-import { PXE, TxHash, TxReceipt, TxStatus } from '@aztec/types';
+import { PXE, TxHash, TxReceipt, TxStatus } from '@aztec/circuit-types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 

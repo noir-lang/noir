@@ -11,7 +11,7 @@
       "path": "../foundation/tsconfig.dest.json"
     },
     {
-      "path": "../types/tsconfig.dest.json"
+      "path": "../circuit-types/tsconfig.dest.json"
     }
   ],
   "exclude": ["src/**/*.test.ts"]

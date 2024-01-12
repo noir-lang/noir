@@ -7,25 +7,6 @@ import {
   resolveOpcodeLocations,
 } from '@aztec/acir-simulator';
 import {
-  AztecAddress,
-  CallRequest,
-  CompleteAddress,
-  FunctionData,
-  GrumpkinPrivateKey,
-  KernelCircuitPublicInputsFinal,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  PartialAddress,
-  PublicCallRequest,
-} from '@aztec/circuits.js';
-import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
-import { DecodedReturn, encodeArguments } from '@aztec/foundation/abi';
-import { padArrayEnd } from '@aztec/foundation/collection';
-import { Fr } from '@aztec/foundation/fields';
-import { SerialQueue } from '@aztec/foundation/fifo';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { Timer } from '@aztec/foundation/timer';
-import { NoirWasmVersion } from '@aztec/noir-compiler/versions';
-import {
   AuthWitness,
   AztecNode,
   ContractDao,
@@ -52,8 +33,27 @@ import {
   TxStatus,
   getNewContractPublicFunctions,
   isNoirCallStackUnresolved,
-} from '@aztec/types';
-import { TxPXEProcessingStats } from '@aztec/types/stats';
+} from '@aztec/circuit-types';
+import { TxPXEProcessingStats } from '@aztec/circuit-types/stats';
+import {
+  AztecAddress,
+  CallRequest,
+  CompleteAddress,
+  FunctionData,
+  GrumpkinPrivateKey,
+  KernelCircuitPublicInputsFinal,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  PartialAddress,
+  PublicCallRequest,
+} from '@aztec/circuits.js';
+import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
+import { DecodedReturn, encodeArguments } from '@aztec/foundation/abi';
+import { padArrayEnd } from '@aztec/foundation/collection';
+import { Fr } from '@aztec/foundation/fields';
+import { SerialQueue } from '@aztec/foundation/fifo';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { Timer } from '@aztec/foundation/timer';
+import { NoirWasmVersion } from '@aztec/noir-compiler/versions';
 
 import { PXEServiceConfig, getPackageInfo } from '../config/index.js';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';

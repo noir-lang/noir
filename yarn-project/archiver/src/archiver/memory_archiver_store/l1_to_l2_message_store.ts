@@ -1,5 +1,5 @@
+import { L1ToL2Message } from '@aztec/circuit-types';
 import { Fr } from '@aztec/foundation/fields';
-import { L1ToL2Message } from '@aztec/types';
 
 /**
  * A simple in-memory implementation of an L1 to L2 message store

@@ -1,7 +1,7 @@
 import { ContractNotFoundError } from '@aztec/acir-simulator';
+import { ContractDatabase, StateInfoProvider } from '@aztec/circuit-types';
 import { AztecAddress, ContractFunctionDao, MembershipWitness, VK_TREE_HEIGHT } from '@aztec/circuits.js';
 import { FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
-import { ContractDatabase, StateInfoProvider } from '@aztec/types';
 
 import { ContractTree } from '../contract_tree/index.js';
 

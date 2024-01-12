@@ -1,5 +1,5 @@
 import { AztecAddress, Fr } from '@aztec/aztec.js';
-import { CompleteAddress, PXE } from '@aztec/types';
+import { CompleteAddress, PXE } from '@aztec/circuit-types';
 
 import { InvalidArgumentError } from 'commander';
 import { MockProxy, mock } from 'jest-mock-extended';

@@ -10,6 +10,9 @@
       "path": "../aztec.js"
     },
     {
+      "path": "../circuit-types"
+    },
+    {
       "path": "../circuits.js"
     },
     {
@@ -17,9 +20,6 @@
     },
     {
       "path": "../foundation"
-    },
-    {
-      "path": "../types"
     }
   ],
   "include": ["src", "src/**/*.json"]

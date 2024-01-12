@@ -1,8 +1,3 @@
-import { BlockHeader, PublicKey } from '@aztec/circuits.js';
-import { computeGlobalsHash, siloNullifier } from '@aztec/circuits.js/abis';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
 import {
   AuthWitness,
   AztecNode,
@@ -11,7 +6,12 @@ import {
   MerkleTreeId,
   NullifierMembershipWitness,
   PublicDataWitness,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
+import { BlockHeader, PublicKey } from '@aztec/circuits.js';
+import { computeGlobalsHash, siloNullifier } from '@aztec/circuits.js/abis';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 import { NoteData, TypedOracle } from '../acvm/index.js';
 import { DBOracle } from './db_oracle.js';

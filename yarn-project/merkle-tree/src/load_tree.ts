@@ -1,4 +1,4 @@
-import { Hasher } from '@aztec/types';
+import { Hasher } from '@aztec/circuit-types';
 
 import { LevelUp } from 'levelup';
 

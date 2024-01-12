@@ -108,7 +108,7 @@ export {
   emptyFunctionCall,
   merkleTreeIds,
   mockTx,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
 
 // TODO: These kinds of things have no place on our public api.
 // External devs will almost certainly have their own methods of doing these things.

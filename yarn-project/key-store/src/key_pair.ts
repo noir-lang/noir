@@ -1,6 +1,6 @@
+import { KeyPair, PublicKey } from '@aztec/circuit-types';
 import { GrumpkinPrivateKey, GrumpkinScalar } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { KeyPair, PublicKey } from '@aztec/types';
 
 /**
  * The ConstantKeyPair class is an implementation of the KeyPair interface, which allows generation and management of

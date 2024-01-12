@@ -1,5 +1,5 @@
+import { ContractDataSource, L1ToL2MessageSource, L2BlockSource } from '@aztec/circuit-types';
 import { P2P } from '@aztec/p2p';
-import { ContractDataSource, L1ToL2MessageSource, L2BlockSource } from '@aztec/types';
 import { WorldStateSynchronizer } from '@aztec/world-state';
 
 import { SoloBlockBuilder } from '../block_builder/solo_block_builder.js';

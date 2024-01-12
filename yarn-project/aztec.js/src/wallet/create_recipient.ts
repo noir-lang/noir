@@ -1,5 +1,5 @@
+import { PXE } from '@aztec/circuit-types';
 import { CompleteAddress } from '@aztec/circuits.js';
-import { PXE } from '@aztec/types';
 
 /**
  * Creates a random address and registers it as a recipient on the pxe server. Useful for testing.

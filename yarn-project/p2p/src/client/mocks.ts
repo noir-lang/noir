@@ -1,5 +1,5 @@
+import { L2Block, L2BlockSource, L2Tx, TxHash } from '@aztec/circuit-types';
 import { EthAddress } from '@aztec/circuits.js';
-import { L2Block, L2BlockSource, L2Tx, TxHash } from '@aztec/types';
 
 /**
  * A mocked implementation of L2BlockSource to be used in p2p tests.

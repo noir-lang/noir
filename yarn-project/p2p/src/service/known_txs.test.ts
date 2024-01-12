@@ -1,4 +1,4 @@
-import { randomTxHash } from '@aztec/types';
+import { randomTxHash } from '@aztec/circuit-types';
 
 import { expect } from '@jest/globals';
 import { Ed25519PeerId, PeerId } from '@libp2p/interface-peer-id';

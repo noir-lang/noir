@@ -1,4 +1,4 @@
-import { Hasher, SiblingPath } from '@aztec/types';
+import { Hasher, SiblingPath } from '@aztec/circuit-types';
 
 import { randomBytes } from 'crypto';
 import { default as levelup } from 'levelup';

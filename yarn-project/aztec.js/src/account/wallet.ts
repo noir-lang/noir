@@ -1,4 +1,4 @@
-import { PXE } from '@aztec/types';
+import { PXE } from '@aztec/circuit-types';
 
 import { AccountInterface } from './interface.js';
 

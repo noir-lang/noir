@@ -1,3 +1,4 @@
+import { Hasher, L2Block, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
   CONTRACT_TREE_HEIGHT,
@@ -31,7 +32,6 @@ import {
   loadTree,
   newTree,
 } from '@aztec/merkle-tree';
-import { Hasher, L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 
 import { default as levelup } from 'levelup';
 

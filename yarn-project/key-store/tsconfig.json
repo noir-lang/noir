@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../circuit-types"
+    },
+    {
       "path": "../circuits.js"
     },
     {
@@ -14,9 +17,6 @@
     },
     {
       "path": "../kv-store"
-    },
-    {
-      "path": "../types"
     }
   ],
   "include": ["src"]

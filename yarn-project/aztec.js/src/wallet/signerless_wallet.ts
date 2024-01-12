@@ -1,5 +1,5 @@
+import { AuthWitness, FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
 import { CompleteAddress, Fr, TxContext } from '@aztec/circuits.js';
-import { AuthWitness, FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
 
 import { BaseWallet } from './base_wallet.js';
 

@@ -25,6 +25,7 @@
     "aztec-sandbox",
     "aztec.js",
     "circuits.js",
+    "circuit-types",
     "cli",
     "docs",
     "end-to-end",
@@ -42,7 +43,6 @@
     "rollup-provider",
     "sequencer-client",
     "scripts",
-    "types",
     "world-state",
     "yarn-project-base",
     "kv-store"

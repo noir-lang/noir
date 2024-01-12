@@ -1,3 +1,4 @@
+import { PXE, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/circuit-types';
 import {
   AztecAddress,
   CompleteAddress,
@@ -9,7 +10,6 @@ import {
 import { ContractArtifact, FunctionArtifact, encodeArguments } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { PXE, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/types';
 
 import { Wallet } from '../account/index.js';
 import { BaseContractInteraction, SendMethodOptions } from './base_contract_interaction.js';

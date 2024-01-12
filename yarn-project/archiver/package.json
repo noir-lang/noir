@@ -34,11 +34,11 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
-    "@aztec/types": "workspace:^",
     "@types/lodash.omit": "^4.5.7",
     "debug": "^4.3.4",
     "lmdb": "^2.9.1",

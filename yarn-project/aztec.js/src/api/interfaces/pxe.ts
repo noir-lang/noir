@@ -1,1 +1,1 @@
-export { PXE } from '@aztec/types/interfaces';
+export { PXE } from '@aztec/circuit-types/interfaces';

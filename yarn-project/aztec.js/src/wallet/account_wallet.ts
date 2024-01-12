@@ -1,6 +1,6 @@
+import { AuthWitness, FunctionCall, PXE, TxExecutionRequest } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { ABIParameterVisibility, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
-import { AuthWitness, FunctionCall, PXE, TxExecutionRequest } from '@aztec/types';
 
 import { AccountInterface } from '../account/interface.js';
 import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';

@@ -13,6 +13,9 @@
       "path": "../aztec.js"
     },
     {
+      "path": "../circuit-types"
+    },
+    {
       "path": "../ethereum"
     },
     {
@@ -26,9 +29,6 @@
     },
     {
       "path": "../noir-contracts"
-    },
-    {
-      "path": "../types"
     }
   ],
   "include": ["src"],

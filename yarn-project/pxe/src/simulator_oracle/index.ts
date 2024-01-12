@@ -1,5 +1,13 @@
 import { DBOracle, FunctionArtifactWithDebugMetadata, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import {
+  KeyStore,
+  L2Block,
+  MerkleTreeId,
+  NullifierMembershipWitness,
+  PublicDataWitness,
+  StateInfoProvider,
+} from '@aztec/circuit-types';
+import {
   AztecAddress,
   BlockHeader,
   CompleteAddress,
@@ -10,14 +18,6 @@ import {
   PublicKey,
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import {
-  KeyStore,
-  L2Block,
-  MerkleTreeId,
-  NullifierMembershipWitness,
-  PublicDataWitness,
-  StateInfoProvider,
-} from '@aztec/types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { PxeDatabase } from '../database/index.js';

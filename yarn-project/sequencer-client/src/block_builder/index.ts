@@ -1,6 +1,6 @@
+import { L2Block } from '@aztec/circuit-types';
 import { GlobalVariables, Proof } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
-import { L2Block } from '@aztec/types';
 
 import { ProcessedTx } from '../sequencer/processed_tx.js';
 

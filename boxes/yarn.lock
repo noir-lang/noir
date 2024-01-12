@@ -37,7 +37,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
-    "@aztec/types": "workspace:^"
+    "@aztec/circuit-types": "workspace:^"
     tslib: "npm:^2.4.0"
   languageName: node
   linkType: soft
@@ -68,7 +68,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
-    "@aztec/types": "workspace:^"
+    "@aztec/circuit-types": "workspace:^"
     lodash.every: "npm:^4.6.0"
     lodash.partition: "npm:^4.6.0"
     tslib: "npm:^2.4.0"
@@ -281,9 +281,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A.":
+"@aztec/circuit-types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A."
+  resolution: "@aztec/circuit-types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A."
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"

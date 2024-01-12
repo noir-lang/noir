@@ -1,10 +1,4 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
-import { EthAddress, Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { pedersenHash } from '@aztec/foundation/crypto';
-import { Point } from '@aztec/foundation/fields';
-import { ConstantKeyPair } from '@aztec/key-store';
-import { AztecLmdbStore } from '@aztec/kv-store';
 import {
   AztecNode,
   FunctionL2Logs,
@@ -17,7 +11,13 @@ import {
   L2BlockL2Logs,
   Note,
   TxL2Logs,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
+import { EthAddress, Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { pedersenHash } from '@aztec/foundation/crypto';
+import { Point } from '@aztec/foundation/fields';
+import { ConstantKeyPair } from '@aztec/key-store';
+import { AztecLmdbStore } from '@aztec/kv-store';
 
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';

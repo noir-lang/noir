@@ -1,9 +1,9 @@
+import { Hasher, SiblingPath } from '@aztec/circuit-types';
+import { TreeInsertionStats } from '@aztec/circuit-types/stats';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { IndexedTreeLeaf, IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { Hasher, SiblingPath } from '@aztec/types';
-import { TreeInsertionStats } from '@aztec/types/stats';
 
 import { LevelUp } from 'levelup';
 

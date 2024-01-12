@@ -1,5 +1,5 @@
+import { Note, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, Fr, Point } from '@aztec/circuits.js';
-import { Note, randomTxHash } from '@aztec/types';
 
 import { NoteDao } from './note_dao.js';
 

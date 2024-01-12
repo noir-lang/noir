@@ -1,5 +1,5 @@
+import { TreeInsertionStats } from '@aztec/circuit-types/stats';
 import { Timer } from '@aztec/foundation/timer';
-import { TreeInsertionStats } from '@aztec/types/stats';
 
 import { AppendOnlySnapshotBuilder, TreeSnapshot } from '../index.js';
 import { AppendOnlyTree } from '../interfaces/append_only_tree.js';

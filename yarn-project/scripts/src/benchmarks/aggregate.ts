@@ -8,7 +8,6 @@
 //
 // And then run this script from the yarn-project/scripts folder
 // LOG_FOLDER=../end-to-end/log yarn bench-aggregate
-import { createConsoleLogger } from '@aztec/foundation/log';
 import {
   BENCHMARK_BLOCK_SIZES,
   BENCHMARK_HISTORY_BLOCK_SIZE,
@@ -28,7 +27,8 @@ import {
   TxAddedToPoolStats,
   TxPXEProcessingStats,
   TxSequencerProcessingStats,
-} from '@aztec/types/stats';
+} from '@aztec/circuit-types/stats';
+import { createConsoleLogger } from '@aztec/foundation/log';
 
 import * as fs from 'fs';
 import { mkdirpSync } from 'fs-extra';

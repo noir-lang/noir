@@ -23,8 +23,8 @@
     "../package.common.json"
   ],
   "dependencies": {
+    "@aztec/circuit-types": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/types": "workspace:^",
     "fs-extra": "^11.1.1",
     "lodash.pick": "^4.4.0",
     "tslib": "^2.4.0"

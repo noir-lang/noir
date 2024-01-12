@@ -14,7 +14,7 @@ const resolutions: { [key: string]: string } = {
   '@aztec/circuits.js': 'portal:.aztec-packages/yarn-project/circuits.js',
   '@aztec/foundation': 'portal:.aztec-packages/yarn-project/foundation',
   '@aztec/bb.js': 'portal:.aztec-packages/barretenberg/ts',
-  '@aztec/types': 'portal:.aztec-packages/yarn-project/types',
+  '@aztec/circuit-types': 'portal:.aztec-packages/yarn-project/circuit-types',
   '@aztec/ethereum': 'portal:.aztec-packages/yarn-project/ethereum',
 };
 

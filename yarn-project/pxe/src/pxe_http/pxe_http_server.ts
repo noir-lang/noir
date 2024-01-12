@@ -1,8 +1,3 @@
-import { FunctionSelector } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
-import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 import {
   AuthWitness,
   CompleteAddress,
@@ -20,7 +15,12 @@ import {
   TxExecutionRequest,
   TxHash,
   TxReceipt,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
+import { FunctionSelector } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
+import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 
 import http from 'http';
 import { foundry } from 'viem/chains';

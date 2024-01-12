@@ -1,5 +1,5 @@
+import { CancelledL1ToL2Message, ExtendedContractData, L2Block, PendingL1ToL2Message } from '@aztec/circuit-types';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { CancelledL1ToL2Message, ExtendedContractData, L2Block, PendingL1ToL2Message } from '@aztec/types';
 
 import { PublicClient } from 'viem';
 

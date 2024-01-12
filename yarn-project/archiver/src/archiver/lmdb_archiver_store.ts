@@ -1,7 +1,3 @@
-import { Fr } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { createDebugLogger } from '@aztec/foundation/log';
 import {
   CancelledL1ToL2Message,
   ContractData,
@@ -19,7 +15,11 @@ import {
   PendingL1ToL2Message,
   TxHash,
   UnencryptedL2Log,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
+import { Fr } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 import { Database, RangeOptions, RootDatabase } from 'lmdb';
 

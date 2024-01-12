@@ -1,3 +1,4 @@
+import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx, TxHash, mockTx } from '@aztec/circuit-types';
 import {
   BlockHeader,
   Fr,
@@ -6,7 +7,6 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
-import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx, TxHash, mockTx } from '@aztec/types';
 import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchronizer } from '@aztec/world-state';
 
 import { MockProxy, mock, mockFn } from 'jest-mock-extended';

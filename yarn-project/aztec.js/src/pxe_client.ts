@@ -1,14 +1,4 @@
 import {
-  AztecAddress,
-  CompleteAddress,
-  EthAddress,
-  Fr,
-  FunctionSelector,
-  GrumpkinScalar,
-  Point,
-} from '@aztec/circuits.js';
-import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
-import {
   AuthWitness,
   ContractData,
   ExtendedContractData,
@@ -24,7 +14,17 @@ import {
   TxExecutionRequest,
   TxHash,
   TxReceipt,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
+import {
+  AztecAddress,
+  CompleteAddress,
+  EthAddress,
+  Fr,
+  FunctionSelector,
+  GrumpkinScalar,
+  Point,
+} from '@aztec/circuits.js';
+import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
 
 export { makeFetch } from '@aztec/foundation/json-rpc/client';
 

@@ -1,4 +1,16 @@
 import {
+  ContractData,
+  ExtendedContractData,
+  L2Block,
+  L2BlockL2Logs,
+  MerkleTreeId,
+  PublicDataWrite,
+  Tx,
+  TxL2Logs,
+  makeEmptyLogs,
+  mockTx,
+} from '@aztec/circuit-types';
+import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
   Fr,
@@ -37,18 +49,6 @@ import {
 } from '@aztec/circuits.js/factories';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { to2Fields } from '@aztec/foundation/serialize';
-import {
-  ContractData,
-  ExtendedContractData,
-  L2Block,
-  L2BlockL2Logs,
-  MerkleTreeId,
-  PublicDataWrite,
-  Tx,
-  TxL2Logs,
-  makeEmptyLogs,
-  mockTx,
-} from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';

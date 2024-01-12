@@ -1,7 +1,7 @@
 // Generate a markdown file with a table summary of the aggregated benchmarks.
 // If a benchmark-base file is available, shows the comparison against base (ie master in a PR).
+import { BENCHMARK_HISTORY_BLOCK_SIZE, Metrics } from '@aztec/circuit-types/stats';
 import { createConsoleLogger } from '@aztec/foundation/log';
-import { BENCHMARK_HISTORY_BLOCK_SIZE, Metrics } from '@aztec/types/stats';
 
 import * as fs from 'fs';
 import pick from 'lodash.pick';

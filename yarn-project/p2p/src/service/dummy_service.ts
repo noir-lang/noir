@@ -1,4 +1,4 @@
-import { Tx, TxHash } from '@aztec/types';
+import { Tx, TxHash } from '@aztec/circuit-types';
 
 import { P2PService } from './service.js';
 

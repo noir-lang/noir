@@ -1,4 +1,4 @@
-import { Tx, mockTx, randomTxHash } from '@aztec/types';
+import { Tx, mockTx, randomTxHash } from '@aztec/circuit-types';
 
 import { expect } from '@jest/globals';
 

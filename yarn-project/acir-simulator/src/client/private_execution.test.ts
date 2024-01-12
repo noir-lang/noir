@@ -1,3 +1,4 @@
+import { Note, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
 import {
   BlockHeader,
   CallContext,
@@ -38,7 +39,6 @@ import {
   TestContractArtifact,
   TokenContractArtifact,
 } from '@aztec/noir-contracts';
-import { Note, PackedArguments, TxExecutionRequest } from '@aztec/types';
 
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';

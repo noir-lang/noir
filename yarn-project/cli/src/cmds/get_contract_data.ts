@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/aztec.js';
+import { ContractData } from '@aztec/circuit-types';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
-import { ContractData } from '@aztec/types';
 
 import { createCompatibleClient } from '../client.js';
 

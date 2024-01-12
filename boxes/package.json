@@ -17,7 +17,7 @@
     "@aztec/circuits.js": "portal:../yarn-project/circuits.js",
     "@aztec/foundation": "portal:../yarn-project/foundation",
     "@aztec/bb.js": "portal:../barretenberg/ts",
-    "@aztec/types": "portal:../yarn-project/types",
+    "@aztec/circuit-types": "portal:../yarn-project/circuit-types",
     "@aztec/ethereum": "portal:../yarn-project/ethereum"
   }
 }

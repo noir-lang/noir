@@ -1,6 +1,6 @@
+import { BufferReader, Note, TxHash } from '@aztec/circuit-types';
 import { AztecAddress, Fr, Point, PublicKey, Vector } from '@aztec/circuits.js';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
-import { BufferReader, Note, TxHash } from '@aztec/types';
 
 /**
  * A note that is intended for us, but we cannot decode it yet because the contract is not yet in our database.

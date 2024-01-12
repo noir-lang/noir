@@ -1,11 +1,18 @@
 import { ContractNotFoundError } from '@aztec/acir-simulator';
+import {
+  AztecNode,
+  INITIAL_L2_BLOCK_NUM,
+  KeyStore,
+  L1NotePayload,
+  L2BlockContext,
+  L2BlockL2Logs,
+} from '@aztec/circuit-types';
+import { NoteProcessorStats } from '@aztec/circuit-types/stats';
 import { MAX_NEW_COMMITMENTS_PER_TX, PublicKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
-import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L1NotePayload, L2BlockContext, L2BlockL2Logs } from '@aztec/types';
-import { NoteProcessorStats } from '@aztec/types/stats';
 
 import { DeferredNoteDao } from '../database/deferred_note_dao.js';
 import { PxeDatabase } from '../database/index.js';

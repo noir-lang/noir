@@ -1,3 +1,4 @@
+import { ExtendedContractData, Tx, TxHash, TxL2Logs } from '@aztec/circuit-types';
 import {
   BlockHeader,
   CombinedAccumulatedData,
@@ -6,7 +7,6 @@ import {
   PublicKernelPublicInputs,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { ExtendedContractData, Tx, TxHash, TxL2Logs } from '@aztec/types';
 
 /**
  * Represents a tx that has been processed by the sequencer public processor,

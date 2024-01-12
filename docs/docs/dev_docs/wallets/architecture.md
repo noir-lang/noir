@@ -24,7 +24,7 @@ Refer to the page on [writing an account contract](./writing_an_account_contract
 
 A wallet exposes the PXE interface to dapps by running an PXE instance. The PXE requires a keystore and a database implementation for storing keys, private state, and recipient encryption public keys.
 
-#include_code pxe-interface /yarn-project/types/src/interfaces/pxe.ts typescript
+#include_code pxe-interface /yarn-project/circuit-types/src/interfaces/pxe.ts typescript
 
 
 

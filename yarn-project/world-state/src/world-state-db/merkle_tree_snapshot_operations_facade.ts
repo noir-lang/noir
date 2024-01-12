@@ -1,7 +1,7 @@
+import { MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
-import { MerkleTreeId, SiblingPath } from '@aztec/types';
 
 import { MerkleTreeDb } from './merkle_tree_db.js';
 import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';

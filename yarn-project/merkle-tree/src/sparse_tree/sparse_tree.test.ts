@@ -1,5 +1,5 @@
+import { Hasher, SiblingPath } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { Hasher, SiblingPath } from '@aztec/types';
 
 import { randomBytes } from 'crypto';
 import { default as levelup } from 'levelup';

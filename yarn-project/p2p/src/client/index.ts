@@ -1,5 +1,5 @@
+import { L2BlockSource } from '@aztec/circuit-types';
 import { AztecKVStore } from '@aztec/kv-store';
-import { L2BlockSource } from '@aztec/types';
 
 import { P2PClient } from '../client/p2p_client.js';
 import { P2PConfig } from '../config.js';

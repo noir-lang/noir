@@ -1,7 +1,7 @@
 import { NoteData } from '@aztec/acir-simulator';
+import { BufferReader, Note, TxHash } from '@aztec/circuit-types';
 import { AztecAddress, Fr, Point, PublicKey } from '@aztec/circuits.js';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { BufferReader, Note, TxHash } from '@aztec/types';
 
 /**
  * A note with contextual data.

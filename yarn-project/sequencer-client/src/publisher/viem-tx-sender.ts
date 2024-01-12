@@ -1,7 +1,7 @@
+import { BLOB_SIZE_IN_BYTES, ExtendedContractData } from '@aztec/circuit-types';
 import { createEthereumChain } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ContractDeploymentEmitterAbi, RollupAbi } from '@aztec/l1-artifacts';
-import { BLOB_SIZE_IN_BYTES, ExtendedContractData } from '@aztec/types';
 
 import {
   GetContractReturnType,

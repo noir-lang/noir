@@ -1,6 +1,6 @@
+import { Hasher, SiblingPath } from '@aztec/circuit-types';
 import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { Hasher, SiblingPath } from '@aztec/types';
 
 import { LevelUp, LevelUpChain } from 'levelup';
 

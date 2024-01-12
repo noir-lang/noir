@@ -19,6 +19,9 @@
       "path": "../aztec.js"
     },
     {
+      "path": "../circuit-types"
+    },
+    {
       "path": "../circuits.js"
     },
     {
@@ -47,9 +50,6 @@
     },
     {
       "path": "../sequencer-client"
-    },
-    {
-      "path": "../types"
     },
     {
       "path": "../world-state"

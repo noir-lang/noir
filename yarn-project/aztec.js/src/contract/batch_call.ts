@@ -1,4 +1,4 @@
-import { FunctionCall, TxExecutionRequest } from '@aztec/types';
+import { FunctionCall, TxExecutionRequest } from '@aztec/circuit-types';
 
 import { Wallet } from '../account/index.js';
 import { BaseContractInteraction } from './base_contract_interaction.js';

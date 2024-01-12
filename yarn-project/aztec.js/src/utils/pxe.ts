@@ -1,6 +1,6 @@
+import { PXE } from '@aztec/circuit-types';
 import { DebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
-import { PXE } from '@aztec/types';
 
 export const waitForPXE = async (pxe: PXE, logger?: DebugLogger) => {
   await retryUntil(async () => {

@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/types';
+import { L2Block } from '@aztec/circuit-types';
 
 import { ArchiverDataStore } from '../archiver_store.js';
 import { describeArchiverDataStore } from '../archiver_store_test_suite.js';

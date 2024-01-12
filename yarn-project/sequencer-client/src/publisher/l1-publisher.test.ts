@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/types';
+import { L2Block } from '@aztec/circuit-types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 

@@ -1,5 +1,3 @@
-import { Fr } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
 import {
   CancelledL1ToL2Message,
   ContractData,
@@ -13,7 +11,9 @@ import {
   LogType,
   PendingL1ToL2Message,
   TxHash,
-} from '@aztec/types';
+} from '@aztec/circuit-types';
+import { Fr } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 /**
  * Interface describing a data store to be used by the archiver to store all its relevant data

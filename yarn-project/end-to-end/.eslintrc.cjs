@@ -8,7 +8,7 @@ const e2eConfig = {
         'no-restricted-imports': [
           'off',
           {
-            name: '@aztec/types/stats',
+            name: '@aztec/circuit-types/stats',
           },
         ],
       },
@@ -19,9 +19,9 @@ const e2eConfig = {
         'no-restricted-imports': [
           'error',
           {
-            name: '@aztec/types',
+            name: '@aztec/circuit-types',
             message:
-              'Please do not import from @aztec/types directly. Instead, export the required type from @aztec/aztec.js.',
+              'Please do not import from @aztec/circuit-types directly. Instead, export the required type from @aztec/aztec.js.',
           },
         ],
       },

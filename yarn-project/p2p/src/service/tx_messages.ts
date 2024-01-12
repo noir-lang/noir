@@ -1,6 +1,6 @@
+import { ExtendedContractData, Tx, TxHash, TxL2Logs } from '@aztec/circuit-types';
 import { KernelCircuitPublicInputsFinal, MAX_NEW_CONTRACTS_PER_TX, Proof, PublicCallRequest } from '@aztec/circuits.js';
 import { Tuple, numToUInt32BE } from '@aztec/foundation/serialize';
-import { ExtendedContractData, Tx, TxHash, TxL2Logs } from '@aztec/types';
 
 /**
  * Enumeration of P2P message types.

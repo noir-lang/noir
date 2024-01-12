@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../circuit-types"
+    },
+    {
       "path": "../circuits.js"
     },
     {
@@ -17,9 +20,6 @@
     },
     {
       "path": "../l1-artifacts"
-    },
-    {
-      "path": "../types"
     }
   ],
   "include": ["src"]

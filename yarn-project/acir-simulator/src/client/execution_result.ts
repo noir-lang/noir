@@ -1,7 +1,7 @@
+import { FunctionL2Logs, Note } from '@aztec/circuit-types';
 import { PrivateCallStackItem, PublicCallRequest, ReadRequestMembershipWitness } from '@aztec/circuits.js';
 import { DecodedReturn } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
-import { FunctionL2Logs, Note } from '@aztec/types';
 
 import { ACVMField } from '../acvm/index.js';
 

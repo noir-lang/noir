@@ -32,10 +32,10 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/kv-store": "workspace:^",
-    "@aztec/types": "workspace:^",
     "@chainsafe/libp2p-noise": "^13.0.0",
     "@chainsafe/libp2p-yamux": "^5.0.0",
     "@libp2p/bootstrap": "^9.0.4",

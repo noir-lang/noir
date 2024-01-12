@@ -1,4 +1,4 @@
-import { PXE, Tx, TxExecutionRequest } from '@aztec/types';
+import { PXE, Tx, TxExecutionRequest } from '@aztec/circuit-types';
 
 import { SentTx } from './sent_tx.js';
 

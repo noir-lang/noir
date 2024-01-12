@@ -1,4 +1,4 @@
-import { FailingFunction, NoirCallStack, SimulationError } from '@aztec/types';
+import { FailingFunction, NoirCallStack, SimulationError } from '@aztec/circuit-types';
 
 /**
  * An error that occurred during the execution of a function.

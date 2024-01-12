@@ -1,8 +1,8 @@
+import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/circuit-types';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
 import { ContractArtifact, FunctionSelector, getFunctionDebugMetadata } from '@aztec/foundation/abi';
 import { sha256 } from '@aztec/foundation/crypto';
-import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/types';
 
 import { FunctionArtifactWithDebugMetadata } from '../index.js';
 

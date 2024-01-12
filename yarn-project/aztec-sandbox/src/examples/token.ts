@@ -1,8 +1,8 @@
 import { getSingleKeyAccount } from '@aztec/accounts/single_key';
 import { AccountWallet, Fr, GrumpkinScalar, Note, computeMessageSecretHash, createPXEClient } from '@aztec/aztec.js';
+import { ExtendedNote } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts/Token';
-import { ExtendedNote } from '@aztec/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
 

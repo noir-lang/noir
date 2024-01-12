@@ -14,7 +14,7 @@ Aztec.js is a library that provides APIs for managing accounts and interacting w
 
 ```typescript
 import { getSchnorrAccount } from "@aztec/aztec.js";
-import { GrumpkinPrivateKey } from "@aztec/types";
+import { GrumpkinPrivateKey } from "@aztec/circuit-types";
 
 const encryptionPrivateKey = GrumpkinPrivateKey.random();
 const signingPrivateKey = GrumpkinPrivateKey.random();

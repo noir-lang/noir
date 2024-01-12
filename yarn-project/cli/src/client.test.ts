@@ -1,4 +1,4 @@
-import { NodeInfo, PXE } from '@aztec/types';
+import { NodeInfo, PXE } from '@aztec/circuit-types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 

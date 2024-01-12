@@ -1,7 +1,7 @@
+import { KeyPair, KeyStore, PublicKey } from '@aztec/circuit-types';
 import { GrumpkinPrivateKey, GrumpkinScalar, Point } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
-import { KeyPair, KeyStore, PublicKey } from '@aztec/types';
 
 import { ConstantKeyPair } from './key_pair.js';
 

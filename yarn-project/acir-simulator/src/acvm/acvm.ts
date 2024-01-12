@@ -1,6 +1,6 @@
+import { NoirCallStack, SourceCodeLocation } from '@aztec/circuit-types';
 import { FunctionDebugMetadata, OpcodeLocation } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { NoirCallStack, SourceCodeLocation } from '@aztec/types';
 
 import {
   ExecutionError,

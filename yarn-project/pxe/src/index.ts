@@ -2,7 +2,7 @@ export * from './pxe_service/index.js';
 export * from './pxe_http/index.js';
 export * from './config/index.js';
 
-export { Tx, TxHash } from '@aztec/types';
+export { Tx, TxHash } from '@aztec/circuit-types';
 
 export { TxRequest, PartialAddress } from '@aztec/circuits.js';
 export * from '@aztec/foundation/fields';

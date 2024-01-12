@@ -10,6 +10,9 @@
       "path": "../acir-simulator"
     },
     {
+      "path": "../circuit-types"
+    },
+    {
       "path": "../circuits.js"
     },
     {
@@ -29,9 +32,6 @@
     },
     {
       "path": "../p2p"
-    },
-    {
-      "path": "../types"
     },
     {
       "path": "../world-state"

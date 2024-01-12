@@ -1,5 +1,5 @@
+import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/circuit-types';
 import { Fr } from '@aztec/foundation/fields';
-import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/types';
 
 import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
 

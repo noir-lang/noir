@@ -1,7 +1,7 @@
+import { MerkleTreeId } from '@aztec/circuit-types';
 import { AztecAddress, Fr, PublicDataTreeLeafPreimage } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/abis';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { MerkleTreeId } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';

@@ -1,5 +1,5 @@
+import { Note } from '@aztec/circuit-types';
 import { Fr } from '@aztec/foundation/fields';
-import { Note } from '@aztec/types';
 
 /**
  * Configuration for selecting values.
