@@ -4,7 +4,7 @@ description:
   Learn about mutable variables, constants, and globals in Noir programming language. Discover how
   to declare, modify, and use them in your programs.
 keywords: [noir programming language, mutability in noir, mutable variables, constants, globals]
-sidebar_position: 7
+sidebar_position: 8
 ---
 
 Variables in noir can be declared mutable via the `mut` keyword. Mutable variables can be reassigned

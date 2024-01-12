@@ -146,10 +146,10 @@ mod tests {
     use tempfile::tempdir;
 
     fn create_test_dir_structure(temp_dir: &Path) -> std::io::Result<()> {
-        fs::create_dir(temp_dir.join("subdir1"))?;
-        File::create(temp_dir.join("subdir1/file1.txt"))?;
-        fs::create_dir(temp_dir.join("subdir2"))?;
-        File::create(temp_dir.join("subdir2/file2.txt"))?;
+        fs::create_dir(temp_dir.join("sub_dir1"))?;
+        File::create(temp_dir.join("sub_dir1/file1.txt"))?;
+        fs::create_dir(temp_dir.join("sub_dir2"))?;
+        File::create(temp_dir.join("sub_dir2/file2.txt"))?;
         File::create(temp_dir.join("file3.txt"))?;
         Ok(())
     }
@@ -166,8 +166,8 @@ mod tests {
         // This should be the paths to all of the files in the directory and the subdirectory
         let expected_paths = vec![
             temp_dir.path().join("file3.txt"),
-            temp_dir.path().join("subdir1/file1.txt"),
-            temp_dir.path().join("subdir2/file2.txt"),
+            temp_dir.path().join("sub_dir1/file1.txt"),
+            temp_dir.path().join("sub_dir2/file2.txt"),
         ];
 
         assert_eq!(paths.len(), expected_paths.len());

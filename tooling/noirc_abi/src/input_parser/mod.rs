@@ -215,7 +215,7 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
     })
 }
 
-fn parse_str_to_signed(value: &str, witdh: u32) -> Result<FieldElement, InputParserError> {
+fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputParserError> {
     let big_num = if let Some(hex) = value.strip_prefix("0x") {
         BigInt::from_str_radix(hex, 16)
     } else {
@@ -225,7 +225,7 @@ fn parse_str_to_signed(value: &str, witdh: u32) -> Result<FieldElement, InputPar
     big_num.map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string())).and_then(|bigint| {
         let modulus: BigInt = FieldElement::modulus().into();
         let bigint = if bigint.sign() == num_bigint::Sign::Minus {
-            BigInt::from(2).pow(witdh) + bigint
+            BigInt::from(2).pow(width) + bigint
         } else {
             bigint
         };

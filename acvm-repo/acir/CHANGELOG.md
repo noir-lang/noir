@@ -507,7 +507,7 @@
 * **acir:** make PublicInputs use a BTreeSet rather than Vec ([#99](https://github.com/noir-lang/acvm/issues/99))
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58))
 * **acir:** Add keccak256 Opcode ([#91](https://github.com/noir-lang/acvm/issues/91))
-* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
+* reorganize compiler in terms of optimizers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
 
 ### Features
 
@@ -518,4 +518,4 @@
 ### Miscellaneous Chores
 
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58)) ([2427a27](https://github.com/noir-lang/acvm/commit/2427a275048e598c6d651cce8348a4c55148f235))
-* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))
+* reorganize compiler in terms of optimizers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))
