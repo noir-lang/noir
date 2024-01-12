@@ -32,7 +32,7 @@ contract Uniswap {
 
     struct Storage {
         // like with account contracts, stores the approval message on a slot and tracks if they are active
-        approved_action: Map<PublicState<bool, BOOL_SERIALIZED_LEN>>,
+        approved_action: Map<Field, PublicState<bool, BOOL_SERIALIZED_LEN>>,
         // tracks the nonce used to create the approval message for burning funds
         // gets incremented each time after use to prevent replay attacks
         nonce_for_burn_approval: PublicState<Field, FIELD_SERIALIZED_LEN>,

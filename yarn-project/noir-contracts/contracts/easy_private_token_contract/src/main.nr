@@ -20,7 +20,7 @@ contract EasyPrivateToken {
     use dep::easy_private_state::easy_private_state::EasyPrivateUint;
 
     struct Storage {
-        balances: Map<EasyPrivateUint>,
+        balances: Map<AztecAddress, EasyPrivateUint>,
     }
 
     impl Storage {
@@ -44,7 +44,7 @@ contract EasyPrivateToken {
     fn constructor(initial_supply: u120, owner: AztecAddress) {
         let balances = storage.balances;
 
-        balances.at(owner.to_field()).add(initial_supply, owner);
+        balances.at(owner).add(initial_supply, owner);
     }
 
     // Mints `amount` of tokens to `owner`.
@@ -52,7 +52,7 @@ contract EasyPrivateToken {
     fn mint(amount: u120, owner: AztecAddress) {
         let balances = storage.balances;
 
-        balances.at(owner.to_field()).add(amount, owner);
+        balances.at(owner).add(amount, owner);
     }
 
     // Transfers `amount` of tokens from `sender` to a `recipient`.
@@ -60,8 +60,8 @@ contract EasyPrivateToken {
     fn transfer(amount: u120, sender: AztecAddress, recipient: AztecAddress) {
         let balances = storage.balances;
 
-        balances.at(sender.to_field()).sub(amount, sender);
-        balances.at(recipient.to_field()).add(amount, recipient);
+        balances.at(sender).sub(amount, sender);
+        balances.at(recipient).add(amount, recipient);
     }
 
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
@@ -69,7 +69,7 @@ contract EasyPrivateToken {
         let balances = storage.balances;
 
         // Return the sum of all notes in the set.
-        balance_utils::get_balance(balances.at(owner.to_field()).set)
+        balance_utils::get_balance(balances.at(owner).set)
     }
 
     // Computes note hash and nullifier.

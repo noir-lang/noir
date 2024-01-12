@@ -4,9 +4,11 @@ use crate::types::balance_set::BalanceSet;
 use dep::aztec::hash::pedersen_hash;
 use dep::protocol_types::address::AztecAddress;
 
+use crate::types::token_note::{TokenNote, TOKEN_NOTE_LEN, TokenNoteMethods};
+use dep::aztec::state_vars::{map::Map, set::Set};
+
 struct BalancesMap {
-    context: Context,
-    storage_slot: Field,
+    store: Map<AztecAddress, Set<TokenNote, TOKEN_NOTE_LEN>>,
 }
 
 impl BalancesMap {
@@ -14,15 +16,20 @@ impl BalancesMap {
         context: Context,
         storage_slot: Field,
     ) -> Self {
-        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
+        let store = Map::new(context, storage_slot, |context, storage_slot| {
+            Set {
+                context,
+                storage_slot,
+                note_interface: TokenNoteMethods,
+            }
+        });
         Self {
-            context,
-            storage_slot,
+            store,
         }
     }
 
     pub fn at(self, owner: AztecAddress) -> BalanceSet {
-        let derived_storage_slot = pedersen_hash([self.storage_slot, owner.to_field()], 0);
-        BalanceSet::new(self.context, owner, derived_storage_slot)
+        let set = self.store.at(owner);
+        BalanceSet::new(set, owner)
     }
 }

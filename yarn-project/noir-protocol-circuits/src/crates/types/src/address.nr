@@ -8,7 +8,7 @@ use crate::{
     grumpkin_point::GrumpkinPoint,
 };
 use dep::std::cmp::Eq;
-use crate::traits::Empty;
+use crate::traits::{Empty, ToField};
 
 // Aztec address
 struct AztecAddress {
@@ -26,6 +26,12 @@ impl Empty for AztecAddress {
         Self {
             inner : 0
         }
+    }
+}
+
+impl ToField for AztecAddress {
+    fn to_field(self) -> Field {
+        self.inner
     }
 }
 
@@ -49,10 +55,6 @@ impl AztecAddress {
                 GENERATOR_INDEX__CONTRACT_ADDRESS
             )
         )
-    }
-
-    pub fn to_field(self) -> Field {
-        self.inner
     }
 
     pub fn is_zero(self) -> bool {
@@ -99,6 +101,12 @@ impl Empty for EthAddress {
     }
 }
 
+impl ToField for EthAddress {
+    fn to_field(self) -> Field {
+        self.inner
+    }
+}
+
 impl EthAddress{
     pub fn zero() -> Self {
         Self {
@@ -110,10 +118,6 @@ impl EthAddress{
         Self {
             inner : field
         }
-    }
-
-    pub fn to_field(self) -> Field{
-        self.inner
     }
 
     pub fn is_zero(self) -> bool {
@@ -145,6 +149,12 @@ impl EthAddress{
 // Partial address
 struct PartialAddress {
     inner : Field
+}
+
+impl ToField for PartialAddress {
+    fn to_field(self) -> Field {
+        self.inner
+    }
 }
 
 impl PartialAddress {

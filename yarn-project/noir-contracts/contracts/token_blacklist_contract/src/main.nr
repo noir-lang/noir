@@ -62,7 +62,7 @@ contract TokenBlacklist {
         balances: BalancesMap,
         total_supply: PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>,
         pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
-        public_balances: Map<PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>,
+        public_balances: Map<AztecAddress, PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>,
         slow_update: ImmutableSingleton<FieldNote, FIELD_NOTE_LEN>,
         public_slow_update: PublicState<AztecAddress, AZTEC_ADDRESS_SERIALIZED_LEN>,
     }
@@ -183,10 +183,10 @@ contract TokenBlacklist {
         assert(caller_roles.is_minter, "caller is not minter");
 
         let amount = SafeU120::new(amount);
-        let new_balance = storage.public_balances.at(to.to_field()).read().add(amount);
+        let new_balance = storage.public_balances.at(to).read().add(amount);
         let supply = storage.total_supply.read().add(amount);
 
-        storage.public_balances.at(to.to_field()).write(new_balance);
+        storage.public_balances.at(to).write(new_balance);
         storage.total_supply.write(supply);
     }
 
@@ -218,12 +218,12 @@ contract TokenBlacklist {
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = storage.public_balances.at(from.to_field()).read().sub(amount);
+        let from_balance = storage.public_balances.at(from).read().sub(amount);
 
         let pending_shields = storage.pending_shields;
         let mut note = TransparentNote::new(amount.value as Field, secret_hash);
 
-        storage.public_balances.at(from.to_field()).write(from_balance);
+        storage.public_balances.at(from).write(from_balance);
         pending_shields.insert_from_public(&mut note);
     }
 
@@ -242,11 +242,11 @@ contract TokenBlacklist {
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = storage.public_balances.at(from.to_field()).read().sub(amount);
-        storage.public_balances.at(from.to_field()).write(from_balance);
+        let from_balance = storage.public_balances.at(from).read().sub(amount);
+        storage.public_balances.at(from).write(from_balance);
 
-        let to_balance = storage.public_balances.at(to.to_field()).read().add(amount);
-        storage.public_balances.at(to.to_field()).write(to_balance);
+        let to_balance = storage.public_balances.at(to).read().add(amount);
+        storage.public_balances.at(to).write(to_balance);
     }
 
     #[aztec(public)]
@@ -262,8 +262,8 @@ contract TokenBlacklist {
         }
 
         let amount = SafeU120::new(amount);
-        let from_balance = storage.public_balances.at(from.to_field()).read().sub(amount);
-        storage.public_balances.at(from.to_field()).write(from_balance);
+        let from_balance = storage.public_balances.at(from).read().sub(amount);
+        storage.public_balances.at(from).write(from_balance);
 
         let new_supply = storage.total_supply.read().sub(amount);
         storage.total_supply.write(new_supply);
@@ -354,8 +354,8 @@ contract TokenBlacklist {
 
     #[aztec(public)]
     internal fn _increase_public_balance(to: AztecAddress, amount: Field) {
-        let new_balance = storage.public_balances.at(to.to_field()).read().add(SafeU120::new(amount));
-        storage.public_balances.at(to.to_field()).write(new_balance);
+        let new_balance = storage.public_balances.at(to).read().add(SafeU120::new(amount));
+        storage.public_balances.at(to).write(new_balance);
     }
 
     #[aztec(public)]
@@ -376,7 +376,7 @@ contract TokenBlacklist {
     }
 
     unconstrained fn balance_of_public(owner: AztecAddress) -> pub u120 {
-        storage.public_balances.at(owner.to_field()).read().value
+        storage.public_balances.at(owner).read().value
     }
 
     // Below this point is the stuff of nightmares.

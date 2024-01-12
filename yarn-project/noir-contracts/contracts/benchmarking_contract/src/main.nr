@@ -24,8 +24,8 @@ contract Benchmarking {
     };
 
     struct Storage {
-        notes: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
-        balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        notes: Map<AztecAddress, Set<ValueNote, VALUE_NOTE_LEN>>,
+        balances: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
@@ -43,7 +43,7 @@ contract Benchmarking {
     // Creates a new value note for the target owner. Use this method to seed an initial set of notes.
     #[aztec(private)]
     fn create_note(owner: AztecAddress, value: Field) {
-        increment(storage.notes.at(owner.to_field()), value, owner);
+        increment(storage.notes.at(owner), value, owner);
     }
 
     // Deletes a note at a specific index in the set and creates a new one with the same value.
@@ -53,7 +53,7 @@ contract Benchmarking {
     // by @rahul-kothari for a full explanation on why this is needed.
     #[aztec(private)]
     fn recreate_note(owner: AztecAddress, index: u32) {
-        let owner_notes = storage.notes.at(owner.to_field());
+        let owner_notes = storage.notes.at(owner);
         let getter_options = NoteGetterOptions::new().set_limit(1).set_offset(index);
         let notes = owner_notes.get_notes(getter_options);
         let note = notes[0].unwrap_unchecked();
@@ -64,8 +64,8 @@ contract Benchmarking {
     // Reads and writes to public storage and enqueues a call to another public function.
     #[aztec(public)]
     fn increment_balance(owner: AztecAddress, value: Field) {
-        let current = storage.balances.at(owner.to_field()).read();
-        storage.balances.at(owner.to_field()).write(current + value);
+        let current = storage.balances.at(owner).read();
+        storage.balances.at(owner).write(current + value);
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
             FunctionSelector::from_signature("broadcast((Field))"),
@@ -76,7 +76,7 @@ contract Benchmarking {
     // Emits a public log.
     #[aztec(public)]
     fn broadcast(owner: AztecAddress) {
-        emit_unencrypted_log(&mut context, storage.balances.at(owner.to_field()).read());
+        emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
     }
 
     unconstrained fn compute_note_hash_and_nullifier(

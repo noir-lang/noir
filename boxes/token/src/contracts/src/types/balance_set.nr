@@ -30,21 +30,13 @@ use crate::types::token_note::{TokenNote, TOKEN_NOTE_LEN, TokenNoteMethods};
 // Does not require spending key, but only knowledge.
 // Spending key requirement should be enforced by the contract using this.
 struct BalanceSet {
-  context: Context,
-  owner: AztecAddress,
-  set: Set<TokenNote, TOKEN_NOTE_LEN>
+    owner: AztecAddress,
+    set: Set<TokenNote, TOKEN_NOTE_LEN>
 }
 
 impl BalanceSet {
-  pub fn new(context: Context, owner: AztecAddress, storage_slot: Field) -> Self {
-    assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-    let set = Set {
-        context,
-        storage_slot,
-        note_interface: TokenNoteMethods,
-    };
+  pub fn new(set: Set<TokenNote, TOKEN_NOTE_LEN>, owner: AztecAddress) -> Self {
     Self {
-        context,
         owner,
         set,
     }
@@ -114,7 +106,10 @@ impl BalanceSet {
     }
 }
 
-pub fn filter_notes_min_sum(notes: [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL], min_sum: SafeU120) -> [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL] {
+pub fn filter_notes_min_sum(
+    notes: [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL],
+    min_sum: SafeU120
+) -> [Option<TokenNote>; MAX_READ_REQUESTS_PER_CALL] {
     let mut selected = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let mut sum = SafeU120::min();
     for i in 0..notes.len() {

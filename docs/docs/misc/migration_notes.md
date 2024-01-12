@@ -113,3 +113,25 @@ Now, just remove the `src` folder,:
 easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.17.0", directory = "yarn-project/noir-contracts/contracts/easy_private_token_contract"}
 ```
 
+### [Aztec.nr] key type definition in Map
+
+The `Map` class now requires defining the key type in its declaration which *must* implement the `ToField` trait.
+
+Before:
+```rust
+struct Storage {
+    balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>
+}
+
+let user_balance = balances.at(owner.to_field())
+```
+
+Now:
+```rust
+struct Storage {
+    balances: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>
+}
+
+let user_balance = balances.at(owner)
+```
+

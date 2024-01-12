@@ -20,8 +20,8 @@ contract StatefulTest {
     };
 
     struct Storage {
-        notes: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
-        public_values: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        notes: Map<AztecAddress, Set<ValueNote, VALUE_NOTE_LEN>>,
+        public_values: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
@@ -51,14 +51,14 @@ contract StatefulTest {
 
     #[aztec(private)]
     fn constructor(owner: AztecAddress, value: Field) {
-        let loc = storage.notes.at(owner.to_field());
+        let loc = storage.notes.at(owner);
         increment(loc, value, owner);
     }
 
     #[aztec(private)]
     fn create_note(owner: AztecAddress, value: Field) {
         if (value != 0) {
-            let loc = storage.notes.at(owner.to_field());
+            let loc = storage.notes.at(owner);
             increment(loc, value, owner);
         }
     }
@@ -67,15 +67,15 @@ contract StatefulTest {
     fn destroy_and_create(recipient: AztecAddress, amount: Field) {
         let sender = context.msg_sender();
 
-        let sender_notes = storage.notes.at(sender.to_field());
+        let sender_notes = storage.notes.at(sender);
         decrement(sender_notes, amount, sender);
 
-        let recipient_notes = storage.notes.at(recipient.to_field());
+        let recipient_notes = storage.notes.at(recipient);
         increment(recipient_notes, amount, recipient);
     }
 
     unconstrained fn summed_values(owner: AztecAddress) -> pub Field {
-        let owner_balance = storage.notes.at(owner.to_field());
+        let owner_balance = storage.notes.at(owner);
 
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance)

@@ -18,7 +18,7 @@ contract EasyPrivateVoting {
     // docs:start:storage_struct
     struct Storage {
         admin: PublicState<AztecAddress, AZTEC_ADDRESS_SERIALIZED_LEN>, // admin can end vote
-        tally: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>, // we will store candidate as key and number of votes as value
+        tally: Map<Field, PublicState<Field, FIELD_SERIALIZED_LEN>>, // we will store candidate as key and number of votes as value
         voteEnded: PublicState<bool, BOOL_SERIALIZED_LEN>, // voteEnded is boolean
     }
     // docs:end:storage_struct

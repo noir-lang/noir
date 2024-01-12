@@ -38,9 +38,9 @@ contract Lending {
     struct Storage {
         collateral_asset: PublicState<AztecAddress, 1>,
         stable_coin: PublicState<AztecAddress, 1>,
-        assets: Map<PublicState<Asset, ASSET_SERIALIZED_LEN>>,
-        collateral: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
-        static_debt: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>, // abusing keys very heavily
+        assets: Map<Field, PublicState<Asset, ASSET_SERIALIZED_LEN>>,
+        collateral: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        static_debt: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>, // abusing keys very heavily
     }
 
     impl Storage {
@@ -200,7 +200,7 @@ contract Lending {
         let coll_asset = storage.collateral_asset.read();
         assert(coll_asset.eq(collateral_asset));
 
-        let coll_loc = storage.collateral.at(owner.to_field());
+        let coll_loc = storage.collateral.at(owner);
         let collateral = coll_loc.read();
         coll_loc.write(collateral + amount);
     }
@@ -231,10 +231,10 @@ contract Lending {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let price = PriceFeed::at(asset.oracle).get_price(context);
 
-        let coll_loc = storage.collateral.at(owner.to_field());
+        let coll_loc = storage.collateral.at(owner);
         let collateral: Field = coll_loc.read();
 
-        let debt_loc = storage.static_debt.at(owner.to_field());
+        let debt_loc = storage.static_debt.at(owner);
         let static_debt: Field = debt_loc.read();
 
         // debt_covered will revert if decrease would leave insufficient collateral to cover debt.
@@ -284,15 +284,15 @@ contract Lending {
         let price = PriceFeed::at(asset.oracle).get_price(context);
 
         // Fetch collateral and static_debt, compute health of current position
-        let collateral = storage.collateral.at(owner.to_field()).read() as u120;
-        let static_debt = storage.static_debt.at(owner.to_field()).read() as u120;
+        let collateral = storage.collateral.at(owner).read() as u120;
+        let static_debt = storage.static_debt.at(owner).read() as u120;
 
         let debt_covered = covered_by_collateral(price, asset.loan_to_value, collateral, 0, 0);
         let debt_returns = debt_updates(asset.interest_accumulator, static_debt, amount as u120, 0);
 
         assert(debt_returns.debt_value < debt_covered);
 
-        storage.static_debt.at(owner.to_field()).write(debt_returns.static_debt as Field);
+        storage.static_debt.at(owner).write(debt_returns.static_debt as Field);
 
         // @todo @LHerskind Need to support both private and public minting.
         let stable_coin = storage.stable_coin.read();
@@ -336,10 +336,10 @@ contract Lending {
         // To ensure that private is using the correct token.
         assert(stable_coin.eq(storage.stable_coin.read()));
 
-        let static_debt = storage.static_debt.at(owner.to_field()).read() as u120;
+        let static_debt = storage.static_debt.at(owner).read() as u120;
         let debt_returns = debt_updates(asset.interest_accumulator, static_debt, 0, amount as u120);
 
-        storage.static_debt.at(owner.to_field()).write(debt_returns.static_debt as Field);
+        storage.static_debt.at(owner).write(debt_returns.static_debt as Field);
     }
 
     unconstrained fn get_asset(assetId: Field) -> pub Asset {
@@ -347,8 +347,8 @@ contract Lending {
     }
 
     unconstrained fn get_position(owner: AztecAddress) -> pub Position {
-        let collateral = storage.collateral.at(owner.to_field()).read();
-        let static_debt = storage.static_debt.at(owner.to_field()).read();
+        let collateral = storage.collateral.at(owner).read();
+        let static_debt = storage.static_debt.at(owner).read();
         let asset = storage.assets.at(0).read();
         let debt = debt_value(static_debt as u120, asset.interest_accumulator as u120) as Field;
         Position { collateral, static_debt, debt }

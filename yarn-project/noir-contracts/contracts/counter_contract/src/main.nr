@@ -22,7 +22,7 @@ contract Counter {
     // docs:start:storage_struct
 
     struct Storage {
-        counters: Map<EasyPrivateUint>,
+        counters: Map<AztecAddress, EasyPrivateUint>,
     }
 
     // docs:end:storage_struct
@@ -47,7 +47,7 @@ contract Counter {
     #[aztec(private)]
     fn constructor(headstart: u120, owner: AztecAddress) {
         let counters = storage.counters;
-        counters.at(owner.to_field()).add(headstart, owner);
+        counters.at(owner).add(headstart, owner);
     }
     // docs:end:constructor
 
@@ -55,14 +55,14 @@ contract Counter {
     #[aztec(private)]
       fn increment(owner: AztecAddress) {
         let counters = storage.counters;
-        counters.at(owner.to_field()).add(1, owner);
+        counters.at(owner).add(1, owner);
     }
     // docs:end:increment
 
     // docs:start:get_counter
     unconstrained fn get_counter(owner: AztecAddress) -> pub Field {
         let counters = storage.counters;
-        balance_utils::get_balance(counters.at(owner.to_field()).set)
+        balance_utils::get_balance(counters.at(owner).set)
     }
     // docs:end:get_counter
 

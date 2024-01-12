@@ -8,7 +8,7 @@ use crate::auth::IS_VALID_SELECTOR;
 struct AccountActions {
   context: Context,
   is_valid_impl: fn(&mut PrivateContext, Field) -> bool,
-  approved_action: Map<PublicState<bool, BOOL_SERIALIZED_LEN>>,
+  approved_action: Map<Field, PublicState<bool, BOOL_SERIALIZED_LEN>>,
 }
 
 impl AccountActions {

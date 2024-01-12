@@ -138,19 +138,19 @@ unconstrained pub fn get_total_points(state_var: Set<CardNote, CARD_NOTE_LEN>, a
 
 // docs:start:state_vars-MapAtSingletonInit
 pub fn add_new_profile(
-    state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
+    state_var: Map<AztecAddress, Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
     account: AztecAddress,
     profile: &mut ProfileNote
 ) {
-    state_var.at(account.to_field()).initialize(profile, Option::some(account), true);
+    state_var.at(account).initialize(profile, Option::some(account), true);
 }
 // docs:end:state_vars-MapAtSingletonInit
 
 // docs:start:state_vars-MapAtSingletonGet
 pub fn get_profile(
-    state_var: Map<Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
+    state_var: Map<AztecAddress, Singleton<ProfileNote, PROFILE_NOTE_LEN>>,
     account: AztecAddress
 ) -> ProfileNote {
-    state_var.at(account.to_field()).get_note(true)
+    state_var.at(account).get_note(true)
 }
 // docs:end:state_vars-MapAtSingletonGet

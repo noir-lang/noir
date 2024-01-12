@@ -14,7 +14,7 @@ contract PriceFeed {
 
     // Storage structure, containing all storage, and specifying what slots they use.
     struct Storage {
-        assets: Map<PublicState<Asset, ASSET_SERIALIZED_LEN>>,
+        assets: Map<Field, PublicState<Asset, ASSET_SERIALIZED_LEN>>,
     }
 
     impl Storage {

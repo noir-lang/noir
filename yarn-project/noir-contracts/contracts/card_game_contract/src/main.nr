@@ -54,9 +54,9 @@ contract CardGame {
     };
 
     struct Storage {
-        collections: Map<Deck>,
-        game_decks: Map<Map<Deck>>,
-        games: Map<PublicState<Game, GAME_SERIALIZED_LEN>>,
+        collections: Map<AztecAddress, Deck>,
+        game_decks: Map<Field, Map<AztecAddress, Deck>>,
+        games: Map<Field, PublicState<Game, GAME_SERIALIZED_LEN>>,
     }
 
     impl Storage {
@@ -114,7 +114,7 @@ contract CardGame {
         let buyer = context.msg_sender();
         let mut cards = get_pack_cards(seed, buyer);
 
-        let mut collection = storage.collections.at(buyer.to_field());
+        let mut collection = storage.collections.at(buyer);
         let _inserted_cards = collection.add_cards(cards, buyer);
     }
 
@@ -124,9 +124,9 @@ contract CardGame {
 
         let player = context.msg_sender();
 
-        let mut collection = storage.collections.at(player.to_field());
+        let mut collection = storage.collections.at(player);
         collection.remove_cards(cards, player);
-        let mut game_deck = storage.game_decks.at(game as Field).at(player.to_field());
+        let mut game_deck = storage.game_decks.at(game as Field).at(player);
         let _added_to_game_deck = game_deck.add_cards(cards, player);
         let selector = FunctionSelector::from_signature("on_game_joined(u32,(Field),u32)");
         let strength = compute_deck_strength(cards);
@@ -160,7 +160,7 @@ contract CardGame {
     fn play_card(game: u32, card: Card) {
         let player = context.msg_sender();
 
-        let mut game_deck = storage.game_decks.at(game as Field).at(player.to_field());
+        let mut game_deck = storage.game_decks.at(game as Field).at(player);
         game_deck.remove_cards([card], player);
 
         let selector = FunctionSelector::from_signature("on_card_played(u32,(Field),Field)");
@@ -192,7 +192,7 @@ contract CardGame {
         let player = context.msg_sender();
         let cards = cards_fields.map(|card_field| Card::from_field(card_field));
 
-        let mut collection = storage.collections.at(player.to_field());
+        let mut collection = storage.collections.at(player);
         let _inserted_cards = collection.add_cards(cards, player);
 
         let selector = FunctionSelector::from_signature("on_cards_claimed(u32,(Field),Field)");
@@ -220,13 +220,13 @@ contract CardGame {
     }
 
     unconstrained fn view_collection_cards(owner: AztecAddress, offset: u32) -> pub [Option<Card>; MAX_NOTES_PER_PAGE] {
-        let collection = storage.collections.at(owner.to_field());
+        let collection = storage.collections.at(owner);
 
         collection.view_cards(offset)
     }
 
     unconstrained fn view_game_cards(game: u32, player: AztecAddress, offset: u32) -> pub [Option<Card>; MAX_NOTES_PER_PAGE] {
-        let game_deck = storage.game_decks.at(game as Field).at(player.to_field());
+        let game_deck = storage.game_decks.at(game as Field).at(player);
 
         game_deck.view_cards(offset)
     }

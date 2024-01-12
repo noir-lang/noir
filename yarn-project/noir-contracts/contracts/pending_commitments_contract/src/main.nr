@@ -26,7 +26,7 @@ contract PendingCommitments {
     };
 
     struct Storage {
-        balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+        balances: Map<AztecAddress, Set<ValueNote, VALUE_NOTE_LEN>>,
     }
 
     impl Storage {
@@ -54,7 +54,7 @@ contract PendingCommitments {
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
     #[aztec(private)]
     fn test_insert_then_get_then_nullify_flat(amount: Field, owner: AztecAddress) -> Field {
-        let owner_balance = storage.balances.at(owner.to_field());
+        let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
 
         // Insert note
@@ -76,7 +76,7 @@ contract PendingCommitments {
     // Confirm cannot access commitments inserted later in same function
     #[aztec(private)]
     fn test_bad_get_then_insert_flat(amount: Field, owner: AztecAddress) -> Field {
-        let owner_balance = storage.balances.at(owner.to_field());
+        let owner_balance = storage.balances.at(owner);
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note (note inserted at bottom of function shouldn't exist yet)
@@ -99,7 +99,7 @@ contract PendingCommitments {
     // Nested/inner function to create and insert a note
     #[aztec(private)]
     fn insert_note(amount: Field, owner: AztecAddress) {
-        let owner_balance = storage.balances.at(owner.to_field());
+        let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
 
         // Insert note
@@ -109,7 +109,7 @@ contract PendingCommitments {
     // Nested/inner function to get a note and confirm it matches the expected value
     #[aztec(private)]
     fn get_then_nullify_note(expected_value: Field, owner: AztecAddress) -> Field {
-        let owner_balance = storage.balances.at(owner.to_field());
+        let owner_balance = storage.balances.at(owner);
 
         let options = NoteGetterOptions::new().set_limit(1);
         let note = owner_balance.get_notes(options)[0].unwrap();
@@ -124,7 +124,7 @@ contract PendingCommitments {
     // Nested/inner function to get a note and confirms that none is returned
     #[aztec(private)]
     fn get_note_zero_balance(owner: AztecAddress) {
-        let owner_balance = storage.balances.at(owner.to_field());
+        let owner_balance = storage.balances.at(owner);
 
         let options = NoteGetterOptions::new();
         let maybe_notes = owner_balance.get_notes(options);
