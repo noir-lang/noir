@@ -1,8 +1,7 @@
 #!/bin/bash
 
-cd ./compiler/wasm/fixtures
-for dir in $(ls -d */); do
-    pushd $dir/noir-script
-    nargo compile
-    popd
-done
+fixtures_dir="./compiler/wasm/test/fixtures"
+
+nargo compile --program-dir=$fixtures_dir/noir-contract
+nargo compile --program-dir=$fixtures_dir/simple
+nargo compile --program-dir=$fixtures_dir/with-deps
