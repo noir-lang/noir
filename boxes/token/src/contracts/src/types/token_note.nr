@@ -4,7 +4,7 @@ use dep::aztec::{
         constants::{
             MAX_READ_REQUESTS_PER_CALL
         },
-    }
+    },
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
