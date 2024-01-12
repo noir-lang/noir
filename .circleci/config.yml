@@ -245,7 +245,7 @@ jobs:
       # NOTE: we usually use alpine build image when making spot images, but
       # we are not able to upload to S3 with it
       image: ubuntu-2204:2023.07.2
-    resource_class: medium 
+    resource_class: medium
     steps:
       - *checkout
       - *setup_env
@@ -1059,6 +1059,11 @@ defaults: &defaults
   filters:
     tags:
       only: /^aztec-packages-v.*/
+    branches:
+      ignore:
+        - /^release-please--.*/
+      only:
+        - /.*/
   context:
     - build
     - slack
