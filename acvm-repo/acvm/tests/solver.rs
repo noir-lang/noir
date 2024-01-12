@@ -11,46 +11,8 @@ use acir::{
     FieldElement,
 };
 
-use acvm::{
-    pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM},
-    BlackBoxFunctionSolver,
-};
-use acvm_blackbox_solver::BlackBoxResolutionError;
-
-pub(crate) struct StubbedBackend;
-
-impl BlackBoxFunctionSolver for StubbedBackend {
-    fn schnorr_verify(
-        &self,
-        _public_key_x: &FieldElement,
-        _public_key_y: &FieldElement,
-        _signature: &[u8],
-        _message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-    fn pedersen_commitment(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-    fn pedersen_hash(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<FieldElement, BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-    fn fixed_base_scalar_mul(
-        &self,
-        _low: &FieldElement,
-        _high: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-}
+use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
+use acvm_blackbox_solver::StubbedSolver;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
@@ -135,7 +97,7 @@ fn inversion_brillig_oracle_equivalence() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedSolver, &opcodes, witness_assignments);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
 
@@ -264,7 +226,7 @@ fn double_inversion_brillig_oracle() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedSolver, &opcodes, witness_assignments);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -385,7 +347,7 @@ fn oracle_dependent_execution() {
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedSolver, &opcodes, witness_assignments);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -484,7 +446,7 @@ fn brillig_oracle_predicate() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedSolver, &opcodes, witness_assignments);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
@@ -517,7 +479,7 @@ fn unsatisfied_opcode_resolved() {
     values.insert(d, FieldElement::from(2_i128));
 
     let opcodes = vec![Opcode::AssertZero(opcode_a)];
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, values);
+    let mut acvm = ACVM::new(&StubbedSolver, &opcodes, values);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -597,7 +559,7 @@ fn unsatisfied_opcode_resolved_brillig() {
 
     let opcodes = vec![brillig_opcode, Opcode::AssertZero(opcode_a)];
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, values);
+    let mut acvm = ACVM::new(&StubbedSolver, &opcodes, values);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -641,7 +603,7 @@ fn memory_operations() {
 
     let opcodes = vec![init, read_op, expression];
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, initial_witness);
+    let mut acvm = ACVM::new(&StubbedSolver, &opcodes, initial_witness);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
