@@ -135,6 +135,13 @@ impl AcirContext {
         self.add_data(constant_data)
     }
 
+    /// Returns the constant represented by the given variable.
+    ///
+    /// Panics: if the variable does not represent a constant.
+    pub(crate) fn constant(&self, var: AcirVar) -> FieldElement {
+        self.vars[&var].as_constant().expect("ICE - expected the variable to be a constant value")
+    }
+
     /// Adds a Variable to the context, whose exact value is resolved at
     /// runtime.
     pub(crate) fn add_variable(&mut self) -> AcirVar {

@@ -1,21 +1,12 @@
 import { expect } from '@esm-bundle/chai';
 import * as TOML from 'smol-toml';
 
-import newCompiler, {
-  CompiledProgram,
-  PathToFileSourceMap,
-  compile,
-  init_log_level as compilerLogLevel,
-} from '@noir-lang/noir_wasm';
+import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 import { getFile } from './utils.js';
-
-await newCompiler();
-
-compilerLogLevel('INFO');
 
 const test_cases = [
   {
@@ -32,12 +23,11 @@ const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
 
 suite.timeout(60 * 20e3); //20mins
 
-function getCircuit(noirSource: string): CompiledProgram {
-  const sourceMap = new PathToFileSourceMap();
-  sourceMap.add_source_code('main.nr', noirSource);
-
-  // We're ignoring this in the resolver but pass in something sensible.
-  const result = compile('main.nr', undefined, undefined, sourceMap);
+async function getCircuit(projectPath: string) {
+  const fm = createFileManager('/');
+  await fm.writeFile('./src/main.nr', await getFile(`${projectPath}/src/main.nr`));
+  await fm.writeFile('./Nargo.toml', await getFile(`${projectPath}/Nargo.toml`));
+  const result = await compile(fm);
   if (!('program' in result)) {
     throw new Error('Compilation failed');
   }
@@ -51,11 +41,9 @@ test_cases.forEach((testInfo) => {
     const base_relative_path = '../../../../..';
     const test_case = testInfo.case;
 
-    const noir_source = await getFile(`${base_relative_path}/${test_case}/src/main.nr`);
-
-    let noir_program: CompiledProgram;
+    let noir_program;
     try {
-      noir_program = getCircuit(noir_source);
+      noir_program = await getCircuit(`${base_relative_path}/${test_case}`);
 
       expect(noir_program, 'Compile output ').to.be.an('object');
     } catch (e) {
@@ -66,7 +54,7 @@ test_cases.forEach((testInfo) => {
     const backend = new BarretenbergBackend(noir_program);
     const program = new Noir(noir_program, backend);
 
-    const prover_toml = await getFile(`${base_relative_path}/${test_case}/Prover.toml`);
+    const prover_toml = await new Response(await getFile(`${base_relative_path}/${test_case}/Prover.toml`)).text();
     const inputs: InputMap = TOML.parse(prover_toml) as InputMap;
 
     // JS Proving
