@@ -1,8 +1,8 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
-    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, hash_to_field_128_security, keccak256,
-    sha256, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    blake2s, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256,
+    BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
 use crate::{Memory, Registers};
@@ -64,13 +64,6 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
             Ok(())
         }
-        BlackBoxOp::HashToField128Security { message, output } => {
-            let field = hash_to_field_128_security(&to_u8_vec(read_heap_vector(
-                memory, registers, message,
-            )))?;
-            registers.set(*output, field.into());
-            Ok(())
-        }
         BlackBoxOp::EcdsaSecp256k1 {
             hashed_msg,
             public_key_x,
@@ -85,11 +78,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             signature,
             result: result_register,
         } => {
-            let bb_func = match op {
-                BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
-                BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
-                _ => unreachable!(),
-            };
+            let bb_func = black_box_function_from_op(op);
 
             let public_key_x: [u8; 32] = to_u8_vec(read_heap_array(
                 memory,
@@ -124,7 +113,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                 BlackBoxOp::EcdsaSecp256r1 { .. } => {
                     ecdsa_secp256r1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
                 }
-                _ => unreachable!(),
+                _ => unreachable!("`BlackBoxOp` is guarded against being a non-ecdsa operation"),
             };
 
             registers.set(*result_register, result.into());
@@ -175,6 +164,20 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             registers.set(*output, hash.into());
             Ok(())
         }
+    }
+}
+
+fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
+    match op {
+        BlackBoxOp::Sha256 { .. } => BlackBoxFunc::SHA256,
+        BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
+        BlackBoxOp::Keccak256 { .. } => BlackBoxFunc::Keccak256,
+        BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
+        BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
+        BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
+        BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
+        BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
+        BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
     }
 }
 

@@ -18,6 +18,28 @@ pub enum NumericType {
     NativeField,
 }
 
+impl NumericType {
+    /// Returns the bit size of the provided numeric type.
+    pub(crate) fn bit_size(self: &NumericType) -> u32 {
+        match self {
+            NumericType::NativeField => FieldElement::max_num_bits(),
+            NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => *bit_size,
+        }
+    }
+
+    /// Returns true if the given Field value is within the numeric limits
+    /// for the current NumericType.
+    pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
+        match self {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                let max = 2u128.pow(bit_size) - 1;
+                field <= max.into()
+            }
+            NumericType::NativeField => true,
+        }
+    }
+}
+
 /// All types representable in the IR.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum Type {
@@ -25,7 +47,7 @@ pub(crate) enum Type {
     Numeric(NumericType),
 
     /// A reference to some value, such as an array
-    Reference,
+    Reference(Rc<Type>),
 
     /// An immutable array value with the given element type and length
     Array(Rc<CompositeType>, usize),
@@ -68,6 +90,18 @@ impl Type {
         Type::Numeric(NumericType::NativeField)
     }
 
+    /// Returns the bit size of the provided numeric type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is not a [`Type::Numeric`]
+    pub(crate) fn bit_size(&self) -> u32 {
+        match self {
+            Type::Numeric(numeric_type) => numeric_type.bit_size(),
+            other => panic!("bit_size: Expected numeric type, found {other}"),
+        }
+    }
+
     /// Returns the size of the element type for this array/slice.
     /// The size of a type is defined as representing how many Fields are needed
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
@@ -86,43 +120,38 @@ impl Type {
             }
             Type::Slice(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference => false,
+            Type::Reference(_) => false,
             Type::Function => false,
         }
     }
 
     /// Returns the flattened size of a Type
     pub(crate) fn flattened_size(&self) -> usize {
-        let mut size = 0;
         match self {
             Type::Array(elements, len) => {
-                size = elements.iter().fold(size, |sum, elem| sum + (elem.flattened_size() * len));
+                elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size() * len))
             }
             Type::Slice(_) => {
                 unimplemented!("ICE: cannot fetch flattened slice size");
             }
-            _ => size += 1,
+            _ => 1,
         }
-        size
     }
-}
 
-impl NumericType {
-    /// Returns true if the given Field value is within the numeric limits
-    /// for the current NumericType.
-    pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
+    pub(crate) fn is_nested_slice(&self) -> bool {
+        if let Type::Slice(element_types) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+        } else {
+            false
+        }
+    }
+
+    /// True if this type is an array (or slice) or internally contains an array (or slice)
+    pub(crate) fn contains_an_array(&self) -> bool {
         match self {
-            NumericType::Signed { bit_size } => {
-                let min = -(2i128.pow(bit_size - 1));
-                let max = 2u128.pow(bit_size - 1) - 1;
-                // Signed integers are odd since they will overflow the field value
-                field <= max.into() || field >= min.into()
-            }
-            NumericType::Unsigned { bit_size } => {
-                let max = 2u128.pow(bit_size) - 1;
-                field <= max.into()
-            }
-            NumericType::NativeField => true,
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(_, _) | Type::Slice(_) => true,
+            Type::Reference(element) => element.contains_an_array(),
         }
     }
 }
@@ -136,7 +165,7 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
-            Type::Reference => write!(f, "reference"),
+            Type::Reference(element) => write!(f, "&mut {element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 write!(f, "[{}; {length}]", elements.join(", "))

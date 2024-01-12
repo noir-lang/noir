@@ -15,6 +15,7 @@ pub use expression::*;
 pub use function::*;
 
 use noirc_errors::Span;
+use serde::{Deserialize, Serialize};
 pub use statement::*;
 pub use structure::*;
 pub use traits::*;
@@ -40,6 +41,8 @@ pub enum UnresolvedTypeData {
     String(Option<UnresolvedTypeExpression>),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
+
+    Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
@@ -152,6 +155,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
+            Parenthesized(typ) => write!(f, "({typ})"),
         }
     }
 }
@@ -230,10 +234,13 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_u64() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
-                None => Err(expr),
-            },
+            ExpressionKind::Literal(Literal::Integer(int, sign)) => {
+                assert!(!sign, "Negative literal is not allowed here");
+                match int.try_to_u64() {
+                    Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                    None => Err(expr),
+                }
+            }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
@@ -250,7 +257,20 @@ impl UnresolvedTypeExpression {
                     BinaryOpKind::Multiply => BinaryTypeOperator::Multiplication,
                     BinaryOpKind::Divide => BinaryTypeOperator::Division,
                     BinaryOpKind::Modulo => BinaryTypeOperator::Modulo,
-                    _ => unreachable!(), // impossible via operator_allowed check
+
+                    BinaryOpKind::Equal
+                    | BinaryOpKind::NotEqual
+                    | BinaryOpKind::Less
+                    | BinaryOpKind::LessEqual
+                    | BinaryOpKind::Greater
+                    | BinaryOpKind::GreaterEqual
+                    | BinaryOpKind::And
+                    | BinaryOpKind::Or
+                    | BinaryOpKind::Xor
+                    | BinaryOpKind::ShiftRight
+                    | BinaryOpKind::ShiftLeft => {
+                        unreachable!("impossible via `operator_allowed` check")
+                    }
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
             }
@@ -278,13 +298,16 @@ pub enum FunctionVisibility {
     PublicCrate,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
+    /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
+    /// it is useful for recursion and is handled by the proving system.
+    DataBus,
 }
 
 impl std::fmt::Display for Visibility {
@@ -292,6 +315,7 @@ impl std::fmt::Display for Visibility {
         match self {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
+            Self::DataBus => write!(f, "databus"),
         }
     }
 }

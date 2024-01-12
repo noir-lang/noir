@@ -50,25 +50,32 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     type_checker.current_function = Some(func_id);
 
     let meta = type_checker.interner.function_meta(&func_id);
+    let parameters = meta.parameters.clone();
+    let expected_return_type = meta.return_type.clone();
+    let expected_trait_constraints = meta.trait_constraints.clone();
+    let name_span = meta.name.location.span;
+
     let mut errors = Vec::new();
 
     // Temporarily add any impls in this function's `where` clause to scope
-    for constraint in &meta.trait_constraints {
+    for constraint in &expected_trait_constraints {
         let object = constraint.typ.clone();
         let trait_id = constraint.trait_id;
 
         if !type_checker.interner.add_assumed_trait_implementation(object, trait_id) {
-            let trait_name = type_checker.interner.get_trait(trait_id).name.to_string();
-            let typ = constraint.typ.clone();
-            let span = meta.name.location.span;
-            errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
+                let trait_name = the_trait.name.to_string();
+                let typ = constraint.typ.clone();
+                let span = name_span;
+                errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+            }
         }
     }
 
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
     // Definition object of the parameter in the NodeInterner is given the correct type.
-    for param in meta.parameters.into_iter() {
+    for param in parameters {
         type_checker.bind_pattern(&param.0, param.1);
     }
 
@@ -91,7 +98,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     errors.append(&mut type_checker.errors);
 
     // Now remove all the `where` clause constraints we added
-    for constraint in &meta.trait_constraints {
+    for constraint in &expected_trait_constraints {
         interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
     }
 
@@ -99,13 +106,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(t) = &declared_return_type {
-            if interner.lookup_trait_implementation(&function_last_type, t.id).is_err() {
+        if let Type::TraitAsType(trait_id, _) = &declared_return_type {
+            if interner.lookup_trait_implementation(&function_last_type, *trait_id).is_err() {
                 let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type,
                     span: func_span,
-                    source: Source::Return(meta.return_type, expr_span),
+                    source: Source::Return(expected_return_type, expr_span),
                 };
                 errors.push(error);
             }
@@ -120,7 +127,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                         expected: declared_return_type.clone(),
                         actual: function_last_type.clone(),
                         span: func_span,
-                        source: Source::Return(meta.return_type, expr_span),
+                        source: Source::Return(expected_return_type, expr_span),
                     };
 
                     if empty_function {
@@ -239,7 +246,7 @@ mod test {
         function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
-    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TraitMethodId};
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -252,25 +259,29 @@ mod test {
     #[test]
     fn basic_let() {
         let mut interner = NodeInterner::default();
-
-        // Add a simple let Statement into the interner
-        // let z = x + y;
-        //
-        // Push x variable
-        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None));
+        interner.populate_dummy_operator_traits();
 
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
         let location = Location::new(Span::default(), file);
 
+        // Add a simple let Statement into the interner
+        // let z = x + y;
+        //
+        // Push x variable
+        let x_id =
+            interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
+
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None));
+        let y_id =
+            interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None));
+        let z_id =
+            interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -279,7 +290,9 @@ mod test {
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
-        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
+        let trait_id = TraitId(ModuleId::dummy_id());
+        let trait_method_id = TraitMethodId { trait_id, method_index: 0 };
+        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id, trait_method_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
@@ -302,7 +315,12 @@ mod test {
 
         let name = HirIdent {
             location,
-            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None)),
+            id: interner.push_definition(
+                "test_func".into(),
+                false,
+                DefinitionKind::Local(None),
+                location,
+            ),
         };
 
         // Add function meta
@@ -459,6 +477,7 @@ mod test {
     ) {
         let (program, errors) = parse_program(src);
         let mut interner = NodeInterner::default();
+        interner.populate_dummy_operator_traits();
 
         assert_eq!(
             errors.len(),

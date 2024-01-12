@@ -2,7 +2,9 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
-use crate::{hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness};
+use crate::{
+    hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness, Visibility,
+};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -243,6 +245,7 @@ pub struct Program {
     /// forwarding to the next phase.
     pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
+    pub return_visibility: Visibility,
 }
 
 impl Program {
@@ -251,8 +254,15 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
         return_location: Option<Location>,
+        return_visibility: Visibility,
     ) -> Program {
-        Program { functions, main_function_signature, return_distinctness, return_location }
+        Program {
+            functions,
+            main_function_signature,
+            return_distinctness,
+            return_location,
+            return_visibility,
+        }
     }
 
     pub fn main(&self) -> &Function {
@@ -342,7 +352,7 @@ impl std::fmt::Display for Type {
                 };
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
-            Type::Slice(element) => write!(f, "[{element}"),
+            Type::Slice(element) => write!(f, "[{element}]"),
             Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }

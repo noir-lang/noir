@@ -163,6 +163,7 @@ impl Ssa {
     /// This pass will modify any instructions with side effects in particular, often multiplying
     /// them by jump conditions to maintain correctness even when all branches of a jmpif are inlined.
     /// For more information, see the module-level comment at the top of this file.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
         flatten_function_cfg(self.main_mut());
         self
@@ -643,6 +644,9 @@ impl<'f> Context<'f> {
 
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let argument_type = self.inserter.function.dfg.type_of_value(lhs);
+                    // Sanity check that we're not constraining non-primitive types
+                    assert!(matches!(argument_type, Type::Numeric(_)));
+
                     let casted_condition = self.insert_instruction(
                         Instruction::Cast(condition, argument_type),
                         call_stack.clone(),
@@ -656,6 +660,7 @@ impl<'f> Context<'f> {
                         Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
                         call_stack,
                     );
+
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
@@ -817,7 +822,7 @@ mod test {
     #[test]
     fn merge_stores() {
         // fn main f0 {
-        //   b0(v0: u1, v1: ref):
+        //   b0(v0: u1, v1: &mut Field):
         //     jmpif v0, then: b1, else: b2
         //   b1():
         //     store v1, Field 5
@@ -832,7 +837,7 @@ mod test {
         let b2 = builder.insert_block();
 
         let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::Reference);
+        let v1 = builder.add_parameter(Type::Reference(Rc::new(Type::field())));
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
@@ -894,7 +899,7 @@ mod test {
         let b3 = builder.insert_block();
 
         let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::Reference);
+        let v1 = builder.add_parameter(Type::Reference(Rc::new(Type::field())));
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
@@ -935,7 +940,6 @@ mod test {
         // }
         let ssa = ssa.flatten_cfg();
         let main = ssa.main();
-        println!("{ssa}");
         assert_eq!(main.reachable_blocks().len(), 1);
 
         let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));
@@ -993,7 +997,7 @@ mod test {
         let c1 = builder.add_parameter(Type::bool());
         let c4 = builder.add_parameter(Type::bool());
 
-        let r1 = builder.insert_allocate();
+        let r1 = builder.insert_allocate(Type::field());
 
         let store_value = |builder: &mut FunctionBuilder, value: u128| {
             let value = builder.field_constant(value);
@@ -1098,7 +1102,7 @@ mod test {
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
             Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
-            _ => unreachable!(),
+            _ => unreachable!("Should have terminator instruction"),
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
@@ -1144,7 +1148,7 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        let v2 = builder.insert_allocate();
+        let v2 = builder.insert_allocate(Type::field());
         let zero = builder.field_constant(0u128);
         builder.insert_store(v2, zero);
         let _v4 = builder.insert_load(v2, Type::field());
@@ -1313,7 +1317,7 @@ mod test {
         let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
         let v9 = builder.insert_cast(v8, Type::bool());
 
-        let v10 = builder.insert_allocate();
+        let v10 = builder.insert_allocate(Type::field());
         builder.insert_store(v10, zero);
 
         builder.terminate_with_jmpif(v9, b1, b2);
@@ -1412,9 +1416,9 @@ mod test {
         let ten = builder.field_constant(10u128);
         let one_hundred = builder.field_constant(100u128);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate(Type::field());
         builder.insert_store(v0, zero);
-        let v2 = builder.insert_allocate();
+        let v2 = builder.insert_allocate(Type::field());
         builder.insert_store(v2, two);
         let v4 = builder.insert_load(v2, Type::field());
         let v5 = builder.insert_binary(v4, BinaryOp::Lt, two);
@@ -1469,7 +1473,7 @@ mod test {
                     None => unreachable!("Expected constant 200 for return value"),
                 }
             }
-            _ => unreachable!(),
+            _ => unreachable!("Should have terminator instruction"),
         }
     }
 }

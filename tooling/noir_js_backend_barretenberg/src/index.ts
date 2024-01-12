@@ -3,7 +3,9 @@ import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
+import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
 
+export { publicInputsToWitnessMap } from './public_inputs.js';
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;
@@ -18,7 +20,7 @@ export class BarretenbergBackend implements Backend {
   private acirUncompressedBytecode: Uint8Array;
 
   constructor(
-    acirCircuit: CompiledCircuit,
+    private acirCircuit: CompiledCircuit,
     private options: BackendOptions = { threads: 1 },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
@@ -31,7 +33,7 @@ export class BarretenbergBackend implements Backend {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-ignore
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-      const api = await Barretenberg.new(this.options.threads);
+      const api = await Barretenberg.new({ threads: this.options.threads });
 
       const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);
@@ -91,16 +93,8 @@ export class BarretenbergBackend implements Backend {
     const splitIndex = proofWithPublicInputs.length - numBytesInProofWithoutPublicInputs;
 
     const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
-
-    const publicInputSize = 32;
-    const publicInputs: Uint8Array[] = [];
-
-    for (let i = 0; i < publicInputsConcatenated.length; i += publicInputSize) {
-      const publicInput = publicInputsConcatenated.slice(i, i + publicInputSize);
-      publicInputs.push(publicInput);
-    }
-
     const proof = proofWithPublicInputs.slice(splitIndex);
+    const publicInputs = deflattenPublicInputs(publicInputsConcatenated);
 
     return { proof, publicInputs };
   }
@@ -132,7 +126,9 @@ export class BarretenbergBackend implements Backend {
   }> {
     await this.instantiate();
     const proof = reconstructProofWithPublicInputs(proofData);
-    const proofAsFields = await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs);
+    const proofAsFields = (
+      await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs)
+    ).slice(numOfPublicInputs);
 
     // TODO: perhaps we should put this in the init function. Need to benchmark
     // TODO how long it takes.
@@ -185,25 +181,12 @@ export class BarretenbergBackend implements Backend {
 
 function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Array {
   // Flatten publicInputs
-  const publicInputsConcatenated = flattenUint8Arrays(proofData.publicInputs);
+  const publicInputsConcatenated = flattenPublicInputsAsArray(proofData.publicInputs);
 
   // Concatenate publicInputs and proof
   const proofWithPublicInputs = Uint8Array.from([...publicInputsConcatenated, ...proofData.proof]);
 
   return proofWithPublicInputs;
-}
-
-function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((acc, val) => acc + val.length, 0);
-  const result = new Uint8Array(totalLength);
-
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-
-  return result;
 }
 
 // typedoc exports

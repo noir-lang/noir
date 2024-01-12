@@ -1,9 +1,9 @@
-use acvm::brillig_vm::brillig::RegisterOrMemory;
 use iter_extended::vecmap;
 
 use crate::{
     brillig::brillig_ir::{
         artifact::{BrilligParameter, Label},
+        brillig_variable::BrilligVariable,
         BrilligContext,
     },
     ssa::ir::{
@@ -21,7 +21,7 @@ use super::{brillig_block_variables::allocate_value, variable_liveness::Variable
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
-    pub(crate) ssa_value_allocations: HashMap<ValueId, RegisterOrMemory>,
+    pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
     /// Block parameters are pre allocated at the function level.
     pub(crate) block_parameters: HashMap<BasicBlockId, Vec<ValueId>>,
     /// The block ids of the function in reverse post order.
@@ -72,7 +72,7 @@ impl FunctionContext {
 
     fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
-            Type::Numeric(_) | Type::Reference => BrilligParameter::Simple,
+            Type::Numeric(_) | Type::Reference(_) => BrilligParameter::Simple,
             Type::Array(item_type, size) => BrilligParameter::Array(
                 vecmap(item_type.iter(), |item_typ| {
                     FunctionContext::ssa_type_to_parameter(item_typ)

@@ -37,7 +37,7 @@ Note that mutability in noir is local and everything is passed by value, so if a
 mutates its parameters then the parent function will keep the old value of the parameters.
 
 ```rust
-fn main() -> Field {
+fn main() -> pub Field {
     let x = 3;
     helper(x);
     x // x is still 3
@@ -69,11 +69,11 @@ fn main(x : Field, y : [Field; N]) {
 
     assert(res == y[0]);
 
-    let res2 = x * mysubmodule::N;
+    let res2 = x * my_submodule::N;
     assert(res != res2);
 }
 
-mod mysubmodule {
+mod my_submodule {
     use dep::std;
 
     global N: Field = 10;

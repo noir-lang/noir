@@ -78,7 +78,7 @@ impl HirBinaryOp {
 pub enum HirLiteral {
     Array(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement),
+    Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
     FmtStr(String, Vec<ExprId>),
     Unit,
@@ -101,6 +101,12 @@ pub struct HirInfixExpression {
     pub lhs: ExprId,
     pub operator: HirBinaryOp,
     pub rhs: ExprId,
+
+    /// The trait method id for the operator trait method that corresponds to this operator.
+    /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
+    /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
+    /// after the call to `Eq::eq` to get the result of the `!=` operator.
+    pub trait_method_id: TraitMethodId,
 }
 
 /// This is always a struct field access `my_struct.field`

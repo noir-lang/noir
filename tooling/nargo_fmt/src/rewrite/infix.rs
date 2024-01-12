@@ -3,8 +3,9 @@ use std::iter::zip;
 use noirc_frontend::{Expression, ExpressionKind};
 
 use crate::{
+    rewrite,
     utils::{first_line_width, is_single_line},
-    visitor::{ExpressionType, FmtVisitor, Shape},
+    visitor::{FmtVisitor, Shape},
 };
 
 pub(crate) fn rewrite(visitor: FmtVisitor, expr: Expression, shape: Shape) -> String {
@@ -16,9 +17,9 @@ pub(crate) fn rewrite(visitor: FmtVisitor, expr: Expression, shape: Shape) -> St
 
             format!(
                 "{} {} {}",
-                visitor.format_sub_expr(infix.lhs),
+                rewrite::sub_expr(&visitor, shape, infix.lhs),
                 infix.operator.contents.as_string(),
-                visitor.format_sub_expr(infix.rhs)
+                rewrite::sub_expr(&visitor, shape, infix.rhs)
             )
         }
     }
@@ -87,10 +88,10 @@ pub(crate) fn flatten(
             }
             _ => {
                 let rewrite = if result.is_empty() {
-                    visitor.format_expr(node.clone(), ExpressionType::SubExpression)
+                    rewrite::sub_expr(&visitor, visitor.shape(), node.clone())
                 } else {
                     visitor.indent.block_indent(visitor.config);
-                    visitor.format_expr(node.clone(), ExpressionType::SubExpression)
+                    rewrite::sub_expr(&visitor, visitor.shape(), node.clone())
                 };
 
                 result.push(rewrite);

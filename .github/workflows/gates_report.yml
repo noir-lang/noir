@@ -50,9 +50,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
+      - uses: actions/checkout@v4
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -69,10 +67,10 @@ jobs:
           nargo -V
 
       - name: Generate gates report
-        working-directory: ./tooling/nargo_cli/tests
+        working-directory: ./test_programs
         run: |
           ./gates_report.sh
-          mv gates_report.json ../../../gates_report.json
+          mv gates_report.json ../gates_report.json
        
       - name: Compare gates reports
         id: gates_diff

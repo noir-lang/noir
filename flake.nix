@@ -73,7 +73,7 @@
       # Configuration shared between builds
       config = {
         # x-release-please-start-version
-        version = "0.19.2";
+        version = "0.22.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -118,9 +118,6 @@
       native-cargo-artifacts = craneLib.buildDepsOnly (nativeConfig // {
         pname = "nargo";
       });
-      noir-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
-        pname = "noir_wasm";
-      });
       noirc-abi-wasm-cargo-artifacts = craneLib.buildDepsOnly (wasmConfig // {
         pname = "noirc_abi_wasm";
       });
@@ -137,25 +134,6 @@
         inherit GIT_COMMIT GIT_DIRTY;
 
         cargoArtifacts = native-cargo-artifacts;
-
-        # We don't want to run tests because they don't work in the Nix sandbox
-        doCheck = false;
-      });
-
-      noir_wasm = craneLib.buildPackage (wasmConfig // {
-        pname = "noir_wasm";
-
-        inherit GIT_COMMIT GIT_DIRTY;
-
-        cargoArtifacts = noir-wasm-cargo-artifacts;
-
-        buildPhaseCargoCommand = ''
-          bash compiler/wasm/buildPhaseCargoCommand.sh release
-        '';
-
-        installPhase = ''
-          bash compiler/wasm/installPhase.sh
-        '';
 
         # We don't want to run tests because they don't work in the Nix sandbox
         doCheck = false;
@@ -248,19 +226,17 @@
 
         # Nix flakes cannot build more than one derivation in one command (see https://github.com/NixOS/nix/issues/5591)
         # so we use `symlinkJoin` to build everything as the "all" package.
-        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noir_wasm noirc_abi_wasm noir_lsp_wasm acvm_js ]; };
-        all_wasm = pkgs.symlinkJoin { name = "all_wasm"; paths = [ noir_wasm noirc_abi_wasm acvm_js ]; };
+        all = pkgs.symlinkJoin { name = "all"; paths = [ nargo noirc_abi_wasm noir_lsp_wasm acvm_js ]; };
+        all_wasm = pkgs.symlinkJoin { name = "all_wasm"; paths = [ noirc_abi_wasm acvm_js ]; };
 
         # We also export individual packages to enable `nix build .#nargo -L`, etc.
         inherit nargo;
-        inherit noir_wasm;
         inherit noirc_abi_wasm;
         inherit noir_lsp_wasm;
         inherit acvm_js;
 
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
-        inherit noir-wasm-cargo-artifacts;
         inherit noirc-abi-wasm-cargo-artifacts;
         inherit noir-lsp-wasm-cargo-artifacts;
         inherit acvm-js-cargo-artifacts;
@@ -271,7 +247,6 @@
       devShells.default = pkgs.mkShell (environment // {
         inputsFrom = [
           nargo
-          noir_wasm
           noirc_abi_wasm
           acvm_js
         ];

@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
     rc::Rc,
@@ -6,18 +7,15 @@ use std::{
 
 use crate::{
     hir::type_check::TypeCheckError,
-    node_interner::{ExprId, NodeInterner, TypeAliasId},
+    node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, Ident, Signedness};
 
-use super::{
-    expr::{HirCallExpression, HirExpression, HirIdent},
-    traits::Trait,
-};
+use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
@@ -65,7 +63,10 @@ pub enum Type {
     /// different argument types each time.
     TypeVariable(TypeVariable, TypeVariableKind),
 
-    TraitAsType(Trait),
+    /// `impl Trait` when used in a type position.
+    /// These are only matched based on the TraitId. The trait name paramer is only
+    /// used for displaying error messages using the name of the trait.
+    TraitAsType(TraitId, /*name:*/ Rc<String>),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -75,7 +76,7 @@ pub enum Type {
     /// the environment should be `Unit` by default,
     /// for closures it should contain a `Tuple` type with the captured
     /// variable types.
-    Function(Vec<Type>, Box<Type>, Box<Type>),
+    Function(Vec<Type>, /*return_type:*/ Box<Type>, /*environment:*/ Box<Type>),
 
     /// &mut T
     MutableReference(Box<Type>),
@@ -103,6 +104,47 @@ pub enum Type {
     Error,
 }
 
+impl Type {
+    /// Returns the number of field elements required to represent the type once encoded.
+    pub fn field_count(&self) -> u32 {
+        match self {
+            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
+            Type::Array(size, typ) => {
+                let length = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized arrays as a parameter to main");
+                let typ = typ.as_ref();
+                (length as u32) * typ.field_count()
+            }
+            Type::Struct(ref def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+            }
+            Type::Tuple(fields) => {
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
+            }
+            Type::String(size) => {
+                let size = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                size as u32
+            }
+            Type::FmtString(_, _)
+            | Type::Unit
+            | Type::TypeVariable(_, _)
+            | Type::TraitAsType(..)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Constant(_)
+            | Type::NotConstant
+            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
+        }
+    }
+}
+
 /// A list of TypeVariableIds to bind to a type. Storing the
 /// TypeVariable in addition to the matching TypeVariableId allows
 /// the binding to later be undone if needed.
@@ -125,7 +167,7 @@ pub struct StructType {
     fields: Vec<(Ident, Type)>,
 
     pub generics: Generics,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source
@@ -150,11 +192,12 @@ impl StructType {
     pub fn new(
         id: StructId,
         name: Ident,
-        span: Span,
+
+        location: Location,
         fields: Vec<(Ident, Type)>,
         generics: Generics,
     ) -> StructType {
-        StructType { id, fields, name, span, generics }
+        StructType { id, fields, name, location, generics }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -372,7 +415,66 @@ pub enum TypeVariableKind {
 
 /// A TypeVariable is a mutable reference that is either
 /// bound to some type, or unbound with a given TypeVariableId.
-pub type TypeVariable = Shared<TypeBinding>;
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
+
+impl TypeVariable {
+    pub fn unbound(id: TypeVariableId) -> Self {
+        TypeVariable(id, Shared::new(TypeBinding::Unbound(id)))
+    }
+
+    /// Bind this type variable to a value.
+    ///
+    /// Panics if this TypeVariable is already Bound.
+    /// Also Panics if the ID of this TypeVariable occurs within the given
+    /// binding, as that would cause an infinitely recursive type.
+    pub fn bind(&self, typ: Type) {
+        let id = match &*self.1.borrow() {
+            TypeBinding::Bound(binding) => {
+                unreachable!("TypeVariable::bind, cannot bind bound var {} to {}", binding, typ)
+            }
+            TypeBinding::Unbound(id) => *id,
+        };
+
+        assert!(!typ.occurs(id));
+        *self.1.borrow_mut() = TypeBinding::Bound(typ);
+    }
+
+    pub fn try_bind(&self, binding: Type, span: Span) -> Result<(), TypeCheckError> {
+        let id = match &*self.1.borrow() {
+            TypeBinding::Bound(binding) => {
+                unreachable!("Expected unbound, found bound to {binding}")
+            }
+            TypeBinding::Unbound(id) => *id,
+        };
+
+        if binding.occurs(id) {
+            Err(TypeCheckError::TypeAnnotationsNeeded { span })
+        } else {
+            *self.1.borrow_mut() = TypeBinding::Bound(binding);
+            Ok(())
+        }
+    }
+
+    /// Borrows this TypeVariable to (e.g.) manually match on the inner TypeBinding.
+    pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
+        self.1.borrow()
+    }
+
+    /// Unbind this type variable, setting it to Unbound(id).
+    ///
+    /// This is generally a logic error to use outside of monomorphization.
+    pub fn unbind(&self, id: TypeVariableId) {
+        *self.1.borrow_mut() = TypeBinding::Unbound(id);
+    }
+
+    /// Forcibly bind a type variable to a new type - even if the type
+    /// variable is already bound to a different type. This generally
+    /// a logic error to use outside of monomorphization.
+    pub fn force_bind(&self, typ: Type) {
+        *self.1.borrow_mut() = TypeBinding::Bound(typ);
+    }
+}
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
@@ -385,24 +487,6 @@ pub enum TypeBinding {
 impl TypeBinding {
     pub fn is_unbound(&self) -> bool {
         matches!(self, TypeBinding::Unbound(_))
-    }
-
-    pub fn bind_to(&mut self, binding: Type, span: Span) -> Result<(), TypeCheckError> {
-        match self {
-            TypeBinding::Bound(_) => panic!("Tried to bind an already bound type variable!"),
-            TypeBinding::Unbound(id) => {
-                if binding.occurs(*id) {
-                    Err(TypeCheckError::TypeAnnotationsNeeded { span })
-                } else {
-                    *self = TypeBinding::Bound(binding);
-                    Ok(())
-                }
-            }
-        }
-    }
-
-    pub fn unbind(&mut self, id: TypeVariableId) {
-        *self = TypeBinding::Unbound(id);
     }
 }
 
@@ -420,7 +504,8 @@ impl Type {
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {
-        Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)), TypeVariableKind::Normal)
+        let var = TypeVariable::unbound(id);
+        Type::TypeVariable(var, TypeVariableKind::Normal)
     }
 
     /// Returns a TypeVariable(_, TypeVariableKind::Constant(length)) to bind to
@@ -428,13 +513,15 @@ impl Type {
     pub fn constant_variable(length: u64, interner: &mut NodeInterner) -> Type {
         let id = interner.next_type_variable_id();
         let kind = TypeVariableKind::Constant(length);
-        Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)), kind)
+        let var = TypeVariable::unbound(id);
+        Type::TypeVariable(var, kind)
     }
 
     pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
         let id = interner.next_type_variable_id();
         let kind = TypeVariableKind::IntegerOrField;
-        Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)), kind)
+        let var = TypeVariable::unbound(id);
+        Type::TypeVariable(var, kind)
     }
 
     /// A bit of an awkward name for this function - this function returns
@@ -489,7 +576,7 @@ impl Type {
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
             | Type::Forall(_, _)
-            | Type::TraitAsType(_) => false,
+            | Type::TraitAsType(..) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -576,15 +663,6 @@ impl Type {
         }
     }
 
-    /// Takes a monomorphic type and generalizes it over each of the given type variables.
-    pub(crate) fn generalize_from_variables(
-        self,
-        type_vars: HashMap<TypeVariableId, TypeVariable>,
-    ) -> Type {
-        let polymorphic_type_vars = vecmap(type_vars, |type_var| type_var);
-        Type::Forall(polymorphic_type_vars, Box::new(self))
-    }
-
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
@@ -592,14 +670,23 @@ impl Type {
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
-    /// Takes a monomorphic type and generalizes it over each type variable found within.
-    ///
-    /// Note that Noir's type system assumes any Type::Forall are only present at top-level,
-    /// and thus all type variable's within a type are free.
-    pub(crate) fn generalize(self) -> Type {
-        let mut type_variables = HashMap::new();
-        self.find_all_unbound_type_variables(&mut type_variables);
-        self.generalize_from_variables(type_variables)
+    /// Return this type as a monomorphic type - without a `Type::Forall` if there is one.
+    /// This is only a shallow check since Noir's type system prohibits `Type::Forall` anywhere
+    /// inside other types.
+    pub fn as_monotype(&self) -> &Type {
+        match self {
+            Type::Forall(_, typ) => typ.as_ref(),
+            other => other,
+        }
+    }
+
+    /// Return the generics and type within this `Type::Forall`.
+    /// Panics if `self` is not `Type::Forall`
+    pub fn unwrap_forall(&self) -> (Cow<Generics>, &Type) {
+        match self {
+            Type::Forall(generics, typ) => (Cow::Borrowed(generics), typ.as_ref()),
+            other => (Cow::Owned(Generics::new()), other),
+        }
     }
 }
 
@@ -620,7 +707,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Type::TypeVariable(id, TypeVariableKind::Normal) => write!(f, "{}", id.borrow()),
+            Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
                     // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
@@ -647,8 +734,8 @@ impl std::fmt::Display for Type {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(tr) => {
-                write!(f, "impl {}", tr.name)
+            Type::TraitAsType(_id, name) => {
+                write!(f, "impl {}", name)
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -720,58 +807,63 @@ pub struct UnificationError;
 
 impl Type {
     /// Try to bind a MaybeConstant variable to self, succeeding if self is a Constant,
-    /// MaybeConstant, or type variable.
-    pub fn try_bind_to_maybe_constant(
+    /// MaybeConstant, or type variable. If successful, the binding is placed in the
+    /// given TypeBindings map rather than linked immediately.
+    fn try_bind_to_maybe_constant(
         &self,
         var: &TypeVariable,
         target_length: u64,
+        bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
         };
 
-        match self {
+        let this = self.substitute(bindings);
+
+        match &this {
             Type::Constant(length) if *length == target_length => {
-                *var.borrow_mut() = TypeBinding::Bound(self.clone());
+                bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
             Type::NotConstant => {
-                *var.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                bindings.insert(target_id, (var.clone(), Type::NotConstant));
                 Ok(())
             }
-            Type::TypeVariable(binding, kind) => {
-                let borrow = binding.borrow();
+            // A TypeVariable is less specific than a MaybeConstant, so we bind
+            // to the other type variable instead.
+            Type::TypeVariable(new_var, kind) => {
+                let borrow = new_var.borrow();
                 match &*borrow {
-                    TypeBinding::Bound(typ) => typ.try_bind_to_maybe_constant(var, target_length),
+                    TypeBinding::Bound(typ) => {
+                        typ.try_bind_to_maybe_constant(var, target_length, bindings)
+                    }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
-                    TypeBinding::Unbound(_) => match kind {
+                    TypeBinding::Unbound(new_target_id) => match kind {
                         TypeVariableKind::Normal => {
-                            drop(borrow);
                             let clone = Type::TypeVariable(
                                 var.clone(),
                                 TypeVariableKind::Constant(target_length),
                             );
-                            *binding.borrow_mut() = TypeBinding::Bound(clone);
+                            bindings.insert(*new_target_id, (new_var.clone(), clone));
                             Ok(())
                         }
                         TypeVariableKind::Constant(length) if *length == target_length => {
-                            drop(borrow);
                             let clone = Type::TypeVariable(
                                 var.clone(),
                                 TypeVariableKind::Constant(target_length),
                             );
-                            *binding.borrow_mut() = TypeBinding::Bound(clone);
+                            bindings.insert(*new_target_id, (new_var.clone(), clone));
                             Ok(())
                         }
                         // The lengths don't match, but neither are set in stone so we can
                         // just set them both to NotConstant. See issue 2370
                         TypeVariableKind::Constant(_) => {
                             // *length != target_length
-                            drop(borrow);
-                            *var.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
-                            *binding.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                            bindings.insert(target_id, (var.clone(), Type::NotConstant));
+                            bindings.insert(*new_target_id, (new_var.clone(), Type::NotConstant));
                             Ok(())
                         }
                         TypeVariableKind::IntegerOrField => Err(UnificationError),
@@ -783,27 +875,33 @@ impl Type {
     }
 
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
-    /// other PolymorphicInt type, or type variable.
-    pub fn try_bind_to_polymorphic_int(&self, var: &TypeVariable) -> Result<(), UnificationError> {
+    /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
+    /// given TypeBindings map rather than linked immediately.
+    pub fn try_bind_to_polymorphic_int(
+        &self,
+        var: &TypeVariable,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
         };
 
-        match self {
+        let this = self.substitute(bindings);
+
+        match &this {
             Type::FieldElement | Type::Integer(..) => {
-                *var.borrow_mut() = TypeBinding::Bound(self.clone());
+                bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
             Type::TypeVariable(self_var, TypeVariableKind::IntegerOrField) => {
                 let borrow = self_var.borrow();
                 match &*borrow {
-                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var),
+                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var, bindings),
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
-                        drop(borrow);
-                        *var.borrow_mut() = TypeBinding::Bound(self.clone());
+                        bindings.insert(target_id, (var.clone(), this.clone()));
                         Ok(())
                     }
                 }
@@ -811,16 +909,15 @@ impl Type {
             Type::TypeVariable(binding, TypeVariableKind::Normal) => {
                 let borrow = binding.borrow();
                 match &*borrow {
-                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var),
+                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var, bindings),
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
-                    TypeBinding::Unbound(_) => {
-                        drop(borrow);
-                        // PolymorphicInt is more specific than TypeVariable so we bind the type
-                        // variable to PolymorphicInt instead.
+                    TypeBinding::Unbound(new_target_id) => {
+                        // IntegerOrField is more specific than TypeVariable so we bind the type
+                        // variable to IntegerOrField instead.
                         let clone =
                             Type::TypeVariable(var.clone(), TypeVariableKind::IntegerOrField);
-                        *binding.borrow_mut() = TypeBinding::Bound(clone);
+                        bindings.insert(*new_target_id, (binding.clone(), clone));
                         Ok(())
                     }
                 }
@@ -829,102 +926,113 @@ impl Type {
         }
     }
 
-    pub fn try_bind_to(&self, var: &TypeVariable) -> Result<(), UnificationError> {
+    /// Try to bind the given type variable to self. Although the given type variable
+    /// is expected to be of TypeVariableKind::Normal, this binding can still fail
+    /// if the given type variable occurs within `self` as that would create a recursive type.
+    ///
+    /// If successful, the binding is placed in the
+    /// given TypeBindings map rather than linked immediately.
+    fn try_bind_to(
+        &self,
+        var: &TypeVariable,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id) => *id,
         };
 
-        if let Some(binding) = self.get_inner_type_variable() {
+        let this = self.substitute(bindings);
+
+        if let Some(binding) = this.get_inner_type_variable() {
             match &*binding.borrow() {
-                TypeBinding::Bound(typ) => return typ.try_bind_to(var),
+                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id) if *id == target_id => return Ok(()),
                 _ => (),
             }
         }
 
-        // Check if the target id occurs within self before binding. Otherwise this could
+        // Check if the target id occurs within `this` before binding. Otherwise this could
         // cause infinitely recursive types
-        if self.occurs(target_id) {
+        if this.occurs(target_id) {
             Err(UnificationError)
         } else {
-            *var.borrow_mut() = TypeBinding::Bound(self.clone());
+            bindings.insert(target_id, (var.clone(), this.clone()));
             Ok(())
         }
     }
 
     fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
         match self {
-            Type::TypeVariable(var, _) | Type::NamedGeneric(var, _) => Some(var.clone()),
+            Type::TypeVariable(var, _) | Type::NamedGeneric(var, _) => Some(var.1.clone()),
             _ => None,
         }
     }
 
     /// Try to unify this type with another, setting any type variables found
-    /// equal to the other type in the process. Unification is more strict
-    /// than sub-typing but less strict than Eq. Returns true if the unification
-    /// succeeded. Note that any bindings performed in a failed unification are
-    /// not undone. This may cause further type errors later on.
+    /// equal to the other type in the process. When comparing types, unification
+    /// (including try_unify) are almost always preferred over Type::eq as unification
+    /// will correctly handle generic types.
     pub fn unify(
         &self,
         expected: &Type,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        if let Err(UnificationError) = self.try_unify(expected) {
-            errors.push(make_error());
+        let mut bindings = TypeBindings::new();
+
+        match self.try_unify(expected, &mut bindings) {
+            Ok(()) => {
+                // Commit any type bindings on success
+                Self::apply_type_bindings(bindings);
+            }
+            Err(UnificationError) => errors.push(make_error()),
         }
     }
 
     /// `try_unify` is a bit of a misnomer since although errors are not committed,
     /// any unified bindings are on success.
-    pub fn try_unify(&self, other: &Type) -> Result<(), UnificationError> {
+    pub fn try_unify(
+        &self,
+        other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
         use Type::*;
         use TypeVariableKind as Kind;
 
         match (self, other) {
             (Error, _) | (_, Error) => Ok(()),
 
-            (TypeVariable(binding, Kind::IntegerOrField), other)
-            | (other, TypeVariable(binding, Kind::IntegerOrField)) => {
-                // If it is already bound, unify against what it is bound to
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    return link.try_unify(other);
-                }
-
-                // Otherwise, check it is unified against an integer and bind it
-                other.try_bind_to_polymorphic_int(binding)
+            (TypeVariable(var, Kind::IntegerOrField), other)
+            | (other, TypeVariable(var, Kind::IntegerOrField)) => {
+                other.try_unify_to_type_variable(var, bindings, |bindings| {
+                    other.try_bind_to_polymorphic_int(var, bindings)
+                })
             }
 
-            (TypeVariable(binding, Kind::Normal), other)
-            | (other, TypeVariable(binding, Kind::Normal)) => {
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    return link.try_unify(other);
-                }
-
-                other.try_bind_to(binding)
+            (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
+                other.try_unify_to_type_variable(var, bindings, |bindings| {
+                    other.try_bind_to(var, bindings)
+                })
             }
 
-            (TypeVariable(binding, Kind::Constant(length)), other)
-            | (other, TypeVariable(binding, Kind::Constant(length))) => {
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    return link.try_unify(other);
-                }
-
-                other.try_bind_to_maybe_constant(binding, *length)
-            }
+            (TypeVariable(var, Kind::Constant(length)), other)
+            | (other, TypeVariable(var, Kind::Constant(length))) => other
+                .try_unify_to_type_variable(var, bindings, |bindings| {
+                    other.try_bind_to_maybe_constant(var, *length, bindings)
+                }),
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
-                len_a.try_unify(len_b)?;
-                elem_a.try_unify(elem_b)
+                len_a.try_unify(len_b, bindings)?;
+                elem_a.try_unify(elem_b, bindings)
             }
 
-            (String(len_a), String(len_b)) => len_a.try_unify(len_b),
+            (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings),
 
             (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
-                len_a.try_unify(len_b)?;
-                elements_a.try_unify(elements_b)
+                len_a.try_unify(len_b, bindings)?;
+                elements_a.try_unify(elements_b, bindings)
             }
 
             (Tuple(elements_a), Tuple(elements_b)) => {
@@ -932,7 +1040,7 @@ impl Type {
                     Err(UnificationError)
                 } else {
                     for (a, b) in elements_a.iter().zip(elements_b) {
-                        a.try_unify(b)?;
+                        a.try_unify(b, bindings)?;
                     }
                     Ok(())
                 }
@@ -944,7 +1052,7 @@ impl Type {
             (Struct(id_a, args_a), Struct(id_b, args_b)) => {
                 if id_a == id_b && args_a.len() == args_b.len() {
                     for (a, b) in args_a.iter().zip(args_b) {
-                        a.try_unify(b)?;
+                        a.try_unify(b, bindings)?;
                     }
                     Ok(())
                 } else {
@@ -952,24 +1060,18 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding, _), other) if !binding.borrow().is_unbound() => {
+            (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
+                if !binding.borrow().is_unbound() =>
+            {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    link.try_unify(other)
-                } else {
-                    unreachable!("If guard ensures binding is bound")
-                }
-            }
-
-            (other, NamedGeneric(binding, _)) if !binding.borrow().is_unbound() => {
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    other.try_unify(link)
+                    link.try_unify(other, bindings)
                 } else {
                     unreachable!("If guard ensures binding is bound")
                 }
             }
 
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                // Unbound NamedGenerics are caught by the checks above
+                // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
@@ -983,23 +1085,53 @@ impl Type {
             (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
-                        a.try_unify(b)?;
+                        a.try_unify(b, bindings)?;
                     }
 
-                    env_a.try_unify(env_b)?;
-                    ret_b.try_unify(ret_a)
+                    env_a.try_unify(env_b, bindings)?;
+                    ret_b.try_unify(ret_a, bindings)
                 } else {
                     Err(UnificationError)
                 }
             }
 
-            (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.try_unify(elem_b),
+            (MutableReference(elem_a), MutableReference(elem_b)) => {
+                elem_a.try_unify(elem_b, bindings)
+            }
 
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
                 } else {
                     Err(UnificationError)
+                }
+            }
+        }
+    }
+
+    /// Try to unify a type variable to `self`.
+    /// This is a helper function factored out from try_unify.
+    fn try_unify_to_type_variable(
+        &self,
+        type_variable: &TypeVariable,
+        bindings: &mut TypeBindings,
+
+        // Bind the type variable to a type. This is factored out since depending on the
+        // TypeVariableKind, there are different methods to check whether the variable can
+        // bind to the given type or not.
+        bind_variable: impl FnOnce(&mut TypeBindings) -> Result<(), UnificationError>,
+    ) -> Result<(), UnificationError> {
+        match &*type_variable.borrow() {
+            // If it is already bound, unify against what it is bound to
+            TypeBinding::Bound(link) => link.try_unify(self, bindings),
+            TypeBinding::Unbound(id) => {
+                // We may have already "bound" this type variable in this call to
+                // try_unify, so check those bindings as well.
+                match bindings.get(id) {
+                    Some((_, binding)) => binding.clone().try_unify(self, bindings),
+
+                    // Otherwise, bind it
+                    None => bind_variable(bindings),
                 }
             }
         }
@@ -1018,10 +1150,14 @@ impl Type {
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        if let Err(UnificationError) = self.try_unify(expected) {
+        let mut bindings = TypeBindings::new();
+
+        if let Err(UnificationError) = self.try_unify(expected, &mut bindings) {
             if !self.try_array_to_slice_coercion(expected, expression, interner) {
                 errors.push(make_error());
             }
+        } else {
+            Type::apply_type_bindings(bindings);
         }
     }
 
@@ -1044,13 +1180,23 @@ impl Type {
             if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
-                if element1.try_unify(element2).is_ok() {
+                let mut bindings = TypeBindings::new();
+                if element1.try_unify(element2, &mut bindings).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, interner);
+                    Self::apply_type_bindings(bindings);
                     return true;
                 }
             }
         }
         false
+    }
+
+    /// Apply the given type bindings, making them permanently visible for each
+    /// clone of each type variable bound.
+    pub fn apply_type_bindings(bindings: TypeBindings) {
+        for (type_variable, binding) in bindings.values() {
+            type_variable.bind(binding.clone());
+        }
     }
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
@@ -1119,7 +1265,7 @@ impl Type {
                     })
                     .collect();
 
-                let instantiated = typ.substitute(&replacements);
+                let instantiated = typ.force_substitute(&replacements);
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
@@ -1153,7 +1299,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::TraitAsType(_)
+            | Type::TraitAsType(..)
             | Type::Constant(_)
             | Type::NotConstant
             | Type::Error => (),
@@ -1206,70 +1352,112 @@ impl Type {
     /// given bindings if found. If a type variable is not found within
     /// the given TypeBindings, it is unchanged.
     pub fn substitute(&self, type_bindings: &TypeBindings) -> Type {
+        self.substitute_helper(type_bindings, false)
+    }
+
+    /// Forcibly substitute any type variables found within this type with the
+    /// given bindings if found. If a type variable is not found within
+    /// the given TypeBindings, it is unchanged.
+    ///
+    /// Compared to `substitute`, this function will also substitute any type variables
+    /// from type_bindings, even if they are bound in `self`. Since this can undo previous
+    /// bindings, this function should be avoided unless necessary. Currently, it is only
+    /// needed when handling bindings between trait methods and their corresponding impl
+    /// method during monomorphization.
+    pub fn force_substitute(&self, type_bindings: &TypeBindings) -> Type {
+        self.substitute_helper(type_bindings, true)
+    }
+
+    /// This helper function only differs in the additional parameter which, if set,
+    /// allows substitutions on already-bound type variables. This should be `false`
+    /// for most uses, but is currently needed during monomorphization when instantiating
+    /// trait functions to shed any previous bindings from recursive parent calls to the
+    /// same trait.
+    fn substitute_helper(
+        &self,
+        type_bindings: &TypeBindings,
+        substitute_bound_typevars: bool,
+    ) -> Type {
         if type_bindings.is_empty() {
             return self.clone();
         }
 
-        let substitute_binding = |binding: &TypeVariable| match &*binding.borrow() {
-            TypeBinding::Bound(binding) => binding.substitute(type_bindings),
-            TypeBinding::Unbound(id) => match type_bindings.get(id) {
-                Some((_, binding)) => binding.clone(),
-                None => self.clone(),
-            },
+        let substitute_binding = |binding: &TypeVariable| {
+            // Check the id first to allow substituting to
+            // type variables that have already been bound over.
+            // This is needed for monomorphizing trait impl methods.
+            match type_bindings.get(&binding.0) {
+                Some((_, binding)) if substitute_bound_typevars => binding.clone(),
+                _ => match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        binding.substitute_helper(type_bindings, substitute_bound_typevars)
+                    }
+                    TypeBinding::Unbound(id) => match type_bindings.get(id) {
+                        Some((_, binding)) => binding.clone(),
+                        None => self.clone(),
+                    },
+                },
+            }
         };
 
         match self {
             Type::Array(size, element) => {
-                let size = Box::new(size.substitute(type_bindings));
-                let element = Box::new(element.substitute(type_bindings));
-                Type::Array(size, element)
+                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
+                let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::Array(Box::new(size), Box::new(element))
             }
             Type::String(size) => {
-                let size = Box::new(size.substitute(type_bindings));
-                Type::String(size)
+                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::String(Box::new(size))
             }
             Type::FmtString(size, fields) => {
-                let size = Box::new(size.substitute(type_bindings));
-                let fields = Box::new(fields.substitute(type_bindings));
-                Type::FmtString(size, fields)
+                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
+                let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::FmtString(Box::new(size), Box::new(fields))
             }
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 substitute_binding(binding)
             }
-            // Do not substitute fields, it can lead to infinite recursion
+            // Do not substitute_helper fields, it ca, substitute_bound_typevarsn lead to infinite recursion
             // and we should not match fields when type checking anyway.
             Type::Struct(fields, args) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
                 Type::Struct(fields.clone(), args)
             }
             Type::Tuple(fields) => {
-                let fields = vecmap(fields, |field| field.substitute(type_bindings));
+                let fields = vecmap(fields, |field| {
+                    field.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
                 Type::Tuple(fields)
             }
-            Type::TraitAsType(_) => todo!(),
             Type::Forall(typevars, typ) => {
-                // Trying to substitute a variable defined within a nested Forall
+                // Trying to substitute_helper a variable de, substitute_bound_typevarsfined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
                 for (var, _) in typevars {
                     assert!(!type_bindings.contains_key(var));
                 }
-                let typ = Box::new(typ.substitute(type_bindings));
+                let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Forall(typevars.clone(), typ)
             }
             Type::Function(args, ret, env) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
-                let ret = Box::new(ret.substitute(type_bindings));
-                let env = Box::new(env.substitute(type_bindings));
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
+                let ret = Box::new(ret.substitute_helper(type_bindings, substitute_bound_typevars));
+                let env = Box::new(env.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Function(args, ret, env)
             }
-            Type::MutableReference(element) => {
-                Type::MutableReference(Box::new(element.substitute(type_bindings)))
-            }
+            Type::MutableReference(element) => Type::MutableReference(Box::new(
+                element.substitute_helper(type_bindings, substitute_bound_typevars),
+            )),
 
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
+            | Type::TraitAsType(..)
             | Type::Error
             | Type::NotConstant
             | Type::Unit => self.clone(),
@@ -1286,7 +1474,6 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::TraitAsType(_) => todo!(),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
@@ -1309,6 +1496,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_)
+            | Type::TraitAsType(..)
             | Type::Error
             | Type::NotConstant
             | Type::Unit => false,
@@ -1356,7 +1544,7 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(_)
+            TraitAsType(..)
             | FieldElement
             | Integer(_, _)
             | Bool
@@ -1464,7 +1652,7 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
-            Type::TraitAsType(_) => unreachable!(),
+            Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),

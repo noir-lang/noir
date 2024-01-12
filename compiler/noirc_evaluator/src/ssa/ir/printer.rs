@@ -172,6 +172,9 @@ pub(crate) fn display_instruction(
                 show(*value)
             )
         }
+        Instruction::IncrementRc { value } => {
+            writeln!(f, "inc_rc {}", show(*value))
+        }
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
         }

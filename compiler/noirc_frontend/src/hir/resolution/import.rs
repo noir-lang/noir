@@ -1,5 +1,4 @@
-use iter_extended::partition_results;
-use noirc_errors::CustomDiagnostic;
+use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::graph::CrateId;
 use std::collections::BTreeMap;
@@ -12,6 +11,7 @@ pub struct ImportDirective {
     pub module_id: LocalModuleId,
     pub path: Path,
     pub alias: Option<Ident>,
+    pub is_prelude: bool,
 }
 
 pub type PathResolution = Result<PerNs, PathResolutionError>;
@@ -30,6 +30,7 @@ pub struct ResolvedImport {
     pub resolved_namespace: PerNs,
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
+    pub is_prelude: bool,
 }
 
 impl From<PathResolutionError> for CustomDiagnostic {
@@ -49,24 +50,27 @@ impl From<PathResolutionError> for CustomDiagnostic {
     }
 }
 
-pub fn resolve_imports(
+pub fn resolve_import(
     crate_id: CrateId,
-    imports_to_resolve: Vec<ImportDirective>,
+    import_directive: ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> (Vec<ResolvedImport>, Vec<(PathResolutionError, LocalModuleId)>) {
+) -> Result<ResolvedImport, (PathResolutionError, LocalModuleId)> {
     let def_map = &def_maps[&crate_id];
 
-    partition_results(imports_to_resolve, |import_directive| {
-        let allow_contracts =
-            allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
+    let allow_contracts =
+        allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
-        let module_scope = import_directive.module_id;
-        let resolved_namespace =
-            resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
-                .map_err(|error| (error, module_scope))?;
+    let module_scope = import_directive.module_id;
+    let resolved_namespace =
+        resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
+            .map_err(|error| (error, module_scope))?;
 
-        let name = resolve_path_name(&import_directive);
-        Ok(ResolvedImport { name, resolved_namespace, module_scope })
+    let name = resolve_path_name(&import_directive);
+    Ok(ResolvedImport {
+        name,
+        resolved_namespace,
+        module_scope,
+        is_prelude: import_directive.is_prelude,
     })
 }
 
@@ -202,9 +206,17 @@ fn resolve_external_dep(
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
 
-    let path = Path { segments: path_without_crate_name.to_vec(), kind: PathKind::Plain };
-    let dep_directive =
-        ImportDirective { module_id: dep_module.local_id, path, alias: directive.alias.clone() };
+    let path = Path {
+        segments: path_without_crate_name.to_vec(),
+        kind: PathKind::Plain,
+        span: Span::default(),
+    };
+    let dep_directive = ImportDirective {
+        module_id: dep_module.local_id,
+        path,
+        alias: directive.alias.clone(),
+        is_prelude: false,
+    };
 
     let dep_def_map = def_maps.get(&dep_module.krate).unwrap();
 

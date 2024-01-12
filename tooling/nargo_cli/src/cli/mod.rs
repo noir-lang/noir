@@ -14,8 +14,10 @@ mod backend_cmd;
 mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
+mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
+mod export_cmd;
 mod fmt_cmd;
 mod info_cmd;
 mod init_cmd;
@@ -60,7 +62,6 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Backend(backend_cmd::BackendCommand),
     Check(check_cmd::CheckCommand),
-    #[command(hide = true)] // Hidden while the feature has not been extensively tested
     Fmt(fmt_cmd::FormatCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     #[command(alias = "build")]
@@ -69,12 +70,16 @@ enum NargoCommand {
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
     #[command(hide = true)] // Hidden while the feature is being built out
+    Export(export_cmd::ExportCommand),
+    #[command(hide = true)] // Hidden while the feature is being built out
     Debug(debug_cmd::DebugCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
+    #[command(hide = true)]
+    Dap(dap_cmd::DapCommand),
 }
 
 pub(crate) fn start_cli() -> eyre::Result<()> {
@@ -92,6 +97,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             | NargoCommand::Init(_)
             | NargoCommand::Lsp(_)
             | NargoCommand::Backend(_)
+            | NargoCommand::Dap(_)
     ) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
@@ -101,11 +107,12 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
-        NargoCommand::Init(args) => init_cmd::run(&backend, args, config),
+        NargoCommand::Init(args) => init_cmd::run(args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
+        NargoCommand::Export(args) => export_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
@@ -113,6 +120,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Backend(args) => backend_cmd::run(args),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
+        NargoCommand::Dap(args) => dap_cmd::run(&backend, args, config),
         NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
     }?;
 

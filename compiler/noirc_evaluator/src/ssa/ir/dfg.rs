@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::ssa::ir::instruction::SimplifyResult;
+use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -47,7 +47,7 @@ pub(crate) struct DataFlowGraph {
     constants: HashMap<(FieldElement, Type), ValueId>,
 
     /// Contains each function that has been imported into the current function.
-    /// Each function's Value::Function is uniqued here so any given FunctionId
+    /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
     /// will always have the same ValueId within this function.
     functions: HashMap<FunctionId, ValueId>,
 
@@ -57,7 +57,7 @@ pub(crate) struct DataFlowGraph {
     intrinsics: HashMap<Intrinsic, ValueId>,
 
     /// Contains each foreign function that has been imported into the current function.
-    /// This map is used to ensure that the ValueId for any given foreign functôn is always
+    /// This map is used to ensure that the ValueId for any given foreign function is always
     /// represented by only 1 ValueId within this function.
     foreign_functions: HashMap<String, ValueId>,
 
@@ -80,6 +80,8 @@ pub(crate) struct DataFlowGraph {
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
     locations: HashMap<InstructionId, CallStack>,
+
+    pub(crate) data_bus: DataBus,
 }
 
 pub(crate) type CallStack = im::Vector<Location>;
@@ -158,17 +160,37 @@ impl DataFlowGraph {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
-        match instruction.simplify(self, block, ctrl_typevars.clone()) {
+        match instruction.simplify(self, block, ctrl_typevars.clone(), &call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
                 SimplifiedToMultiple(simplification)
             }
             SimplifyResult::Remove => InstructionRemoved,
-            result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
-                let instruction = result.instruction().unwrap_or(instruction);
-                let id = self.make_instruction(instruction, ctrl_typevars);
-                self.blocks[block].insert_instruction(id);
-                self.locations.insert(id, call_stack);
+            result @ (SimplifyResult::SimplifiedToInstruction(_)
+            | SimplifyResult::SimplifiedToInstructionMultiple(_)
+            | SimplifyResult::None) => {
+                let instructions = result.instructions().unwrap_or(vec![instruction]);
+
+                if instructions.len() > 1 {
+                    // There's currently no way to pass results from one instruction in `instructions` on to the next.
+                    // We then restrict this to only support multiple instructions if they're all `Instruction::Constrain`
+                    // as this instruction type does not have any results.
+                    assert!(
+                        instructions.iter().all(|instruction| matches!(instruction, Instruction::Constrain(..))),
+                        "`SimplifyResult::SimplifiedToInstructionMultiple` only supports `Constrain` instructions"
+                    );
+                }
+
+                let mut last_id = None;
+
+                for instruction in instructions {
+                    let id = self.make_instruction(instruction, ctrl_typevars.clone());
+                    self.blocks[block].insert_instruction(id);
+                    self.locations.insert(id, call_stack.clone());
+                    last_id = Some(id);
+                }
+
+                let id = last_id.expect("There should be at least 1 simplified instruction");
                 InsertInstructionResult::Results(id, self.instruction_results(id))
             }
         }
@@ -318,7 +340,7 @@ impl DataFlowGraph {
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type(), Type::Reference)
+        matches!(self.values[value].get_type(), Type::Reference(_))
     }
 
     /// Appends a result type to the instruction.
@@ -521,13 +543,13 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::ir::instruction::Instruction;
+    use crate::ssa::ir::{instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate;
-        let ins_id = dfg.make_instruction(ins, None);
+        let ins_id = dfg.make_instruction(ins, Some(vec![Type::field()]));
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);

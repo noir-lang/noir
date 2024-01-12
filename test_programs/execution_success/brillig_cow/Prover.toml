@@ -1,0 +1,7 @@
+original = [0, 1, 2, 3, 4]
+index = 2
+
+[expected_result]
+original = [0, 1, 2, 3, 4]
+modified_once = [0, 1, 27, 3, 4]
+modified_twice = [0, 1, 27, 27, 4]

@@ -69,11 +69,15 @@ pub enum ManifestError {
 
     #[error(transparent)]
     SemverError(SemverError),
+
+    #[error("Cyclic package dependency found when processing {cycle}")]
+    CyclicDependency { cycle: String },
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum SemverError {
-    #[error("Incompatible compiler version in package {package_name}. Required compiler version is {required_compiler_version} but the compiler version is {compiler_version_found}.\n Update the compiler_version field in Nargo.toml to >={compiler_version_found} or compile this project with version {compiler_version_found}")]
+    #[error("Incompatible compiler version in package {package_name}. Required compiler version is {required_compiler_version} but the compiler version is {compiler_version_found}.\n Update the compiler_version field in Nargo.toml to >={required_compiler_version} or compile this project with version {required_compiler_version}")]
     IncompatibleVersion {
         package_name: CrateName,
         required_compiler_version: String,
@@ -81,4 +85,6 @@ pub enum SemverError {
     },
     #[error("Could not parse the required compiler version for package {package_name} in Nargo.toml. Error: {error}")]
     CouldNotParseRequiredVersion { package_name: String, error: String },
+    #[error("Could not parse the package version for package {package_name} in Nargo.toml. Error: {error}")]
+    CouldNotParsePackageVersion { package_name: String, error: String },
 }

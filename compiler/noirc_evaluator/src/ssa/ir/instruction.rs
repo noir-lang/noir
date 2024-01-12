@@ -40,13 +40,13 @@ pub(crate) enum Intrinsic {
     SlicePopFront,
     SliceInsert,
     SliceRemove,
+    ApplyRangeConstraint,
     StrAsBytes,
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
     FromField,
     AsField,
-    WrappingShiftLeft,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -62,6 +62,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::SliceInsert => write!(f, "slice_insert"),
             Intrinsic::SliceRemove => write!(f, "slice_remove"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
+            Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
             Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
@@ -69,7 +70,6 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
-            Intrinsic::WrappingShiftLeft => write!(f, "wrapping_shift_left"),
         }
     }
 }
@@ -80,7 +80,7 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant => true,
+            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint => true,
 
             Intrinsic::Sort
             | Intrinsic::ArrayLen
@@ -94,8 +94,7 @@ impl Intrinsic {
             | Intrinsic::ToBits(_)
             | Intrinsic::ToRadix(_)
             | Intrinsic::FromField
-            | Intrinsic::AsField
-            | Intrinsic::WrappingShiftLeft => false,
+            | Intrinsic::AsField => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
@@ -109,6 +108,7 @@ impl Intrinsic {
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
             "slice_pop_back" => Some(Intrinsic::SlicePopBack),
@@ -122,7 +122,6 @@ impl Intrinsic {
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
             "from_field" => Some(Intrinsic::FromField),
             "as_field" => Some(Intrinsic::AsField),
-            "wrapping_shift_left" => Some(Intrinsic::WrappingShiftLeft),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -186,6 +185,13 @@ pub(crate) enum Instruction {
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
     ArraySet { array: ValueId, index: ValueId, value: ValueId },
+
+    /// An instruction to increment the reference count of a value.
+    ///
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// IncrementRc instructions are ignored.
+    IncrementRc { value: ValueId },
 }
 
 impl Instruction {
@@ -199,18 +205,19 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Allocate { .. } => InstructionResultType::Known(Type::Reference),
             Instruction::Not(value) | Instruction::Truncate { value, .. } => {
                 InstructionResultType::Operand(*value)
             }
             Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
-            | Instruction::EnableSideEffects { .. }
-            | Instruction::RangeCheck { .. } => InstructionResultType::None,
-            Instruction::Load { .. } | Instruction::ArrayGet { .. } | Instruction::Call { .. } => {
-                InstructionResultType::Unknown
-            }
+            | Instruction::IncrementRc { .. }
+            | Instruction::RangeCheck { .. }
+            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            Instruction::Allocate { .. }
+            | Instruction::Load { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::Call { .. } => InstructionResultType::Unknown,
         }
     }
 
@@ -228,10 +235,11 @@ impl Instruction {
         use Instruction::*;
 
         match self {
-            Binary(_) | Cast(_, _) | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
-
-            // Unclear why this instruction causes problems.
-            Truncate { .. } => false,
+            Binary(bin) => {
+                // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
+                bin.operator != BinaryOp::Div
+            }
+            Cast(_, _) | Truncate { .. } | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
 
             // These either have side-effects or interact with memory
             Constrain(..)
@@ -239,6 +247,7 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | Store { .. }
+            | IncrementRc { .. }
             | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
@@ -270,7 +279,11 @@ impl Instruction {
             | ArrayGet { .. }
             | ArraySet { .. } => false,
 
-            Constrain(..) | Store { .. } | EnableSideEffects { .. } | RangeCheck { .. } => true,
+            Constrain(..)
+            | Store { .. }
+            | EnableSideEffects { .. }
+            | IncrementRc { .. }
+            | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -327,6 +340,7 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
+            Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -378,7 +392,7 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
             }
-            Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
         }
@@ -394,6 +408,7 @@ impl Instruction {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
+        call_stack: &CallStack,
     ) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
@@ -419,12 +434,12 @@ impl Instruction {
                     _ => None,
                 }
             }
-            Instruction::Constrain(lhs, rhs, ..) => {
-                if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
-                    // Remove trivial case `assert_eq(x, x)`
-                    SimplifyResult::Remove
+            Instruction::Constrain(lhs, rhs, msg) => {
+                let constraints = decompose_constrain(*lhs, *rhs, msg.clone(), dfg);
+                if constraints.is_empty() {
+                    Remove
                 } else {
-                    SimplifyResult::None
+                    SimplifiedToInstructionMultiple(constraints)
                 }
             }
             Instruction::ArrayGet { array, index } => {
@@ -453,17 +468,56 @@ impl Instruction {
                 }
                 None
             }
-            Instruction::Truncate { value, bit_size, .. } => {
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                     let integer_modulus = 2_u128.pow(*bit_size);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
                     SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
+                    match &dfg[*instruction] {
+                        Instruction::Truncate { bit_size: src_bit_size, .. } => {
+                            // If we're truncating the value to fit into the same or larger bit size then this is a noop.
+                            if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
+                                SimplifiedTo(*value)
+                            } else {
+                                None
+                            }
+                        }
+
+                        Instruction::Binary(Binary {
+                            lhs, rhs, operator: BinaryOp::Div, ..
+                        }) if dfg.is_constant(*rhs) => {
+                            // If we're truncating the result of a division by a constant denominator, we can
+                            // reason about the maximum bit size of the result and whether a truncation is necessary.
+
+                            let numerator_type = dfg.type_of_value(*lhs);
+                            let max_numerator_bits = numerator_type.bit_size();
+
+                            let divisor = dfg
+                                .get_numeric_constant(*rhs)
+                                .expect("rhs is checked to be constant.");
+                            let divisor_bits = divisor.num_bits();
+
+                            // 2^{max_quotient_bits} = 2^{max_numerator_bits} / 2^{divisor_bits}
+                            // => max_quotient_bits = max_numerator_bits - divisor_bits
+                            //
+                            // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
+                            let max_quotient_bits = max_numerator_bits - divisor_bits;
+                            if max_quotient_bits < *bit_size {
+                                SimplifiedTo(*value)
+                            } else {
+                                None
+                            }
+                        }
+
+                        _ => None,
+                    }
                 } else {
                     None
                 }
             }
             Instruction::Call { func, arguments } => {
-                simplify_call(*func, arguments, dfg, block, ctrl_typevars)
+                simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
             }
             Instruction::EnableSideEffects { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
@@ -478,6 +532,7 @@ impl Instruction {
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
+            Instruction::IncrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
                     if numeric_constant.num_bits() < *max_bit_size {
@@ -494,6 +549,14 @@ impl Instruction {
 /// that value is returned. Otherwise None is returned.
 fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> SimplifyResult {
     use SimplifyResult::*;
+    let value = dfg.resolve(value);
+
+    if let Value::Instruction { instruction, .. } = &dfg[value] {
+        if let Instruction::Cast(original_value, _) = &dfg[*instruction] {
+            return SimplifiedToInstruction(Instruction::Cast(*original_value, dst_typ.clone()));
+        }
+    }
+
     if let Some(constant) = dfg.get_numeric_constant(value) {
         let src_typ = dfg.type_of_value(value);
         match (src_typ, dst_typ) {
@@ -529,6 +592,129 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
         SimplifiedTo(value)
     } else {
         None
+    }
+}
+
+/// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
+/// all the values which are used to compute the values which were being constrained.
+fn decompose_constrain(
+    lhs: ValueId,
+    rhs: ValueId,
+    msg: Option<String>,
+    dfg: &mut DataFlowGraph,
+) -> Vec<Instruction> {
+    let lhs = dfg.resolve(lhs);
+    let rhs = dfg.resolve(rhs);
+
+    if lhs == rhs {
+        // Remove trivial case `assert_eq(x, x)`
+        Vec::new()
+    } else {
+        match (&dfg[lhs], &dfg[rhs]) {
+            (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
+            | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
+                if *typ == Type::bool() =>
+            {
+                match dfg[*instruction] {
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq })
+                        if constant.is_one() =>
+                    {
+                        // Replace an explicit two step equality assertion
+                        //
+                        // v2 = eq v0, u32 v1
+                        // constrain v2 == u1 1
+                        //
+                        // with a direct assertion of equality between the two values
+                        //
+                        // v2 = eq v0, u32 v1
+                        // constrain v0 == v1
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+
+                        vec![Instruction::Constrain(lhs, rhs, msg)]
+                    }
+
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul })
+                        if constant.is_one() && dfg.type_of_value(lhs) == Type::bool() =>
+                    {
+                        // Replace an equality assertion on a boolean multiplication
+                        //
+                        // v2 = mul v0, v1
+                        // constrain v2 == u1 1
+                        //
+                        // with a direct assertion that each value is equal to 1
+                        //
+                        // v2 = mul v0, v1
+                        // constrain v0 == 1
+                        // constrain v1 == 1
+                        //
+                        // This is due to the fact that for `v2` to be 1 then both `v0` and `v1` are 1.
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        let one = FieldElement::one();
+                        let one = dfg.make_constant(one, Type::bool());
+
+                        [
+                            decompose_constrain(lhs, one, msg.clone(), dfg),
+                            decompose_constrain(rhs, one, msg, dfg),
+                        ]
+                        .concat()
+                    }
+
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Or })
+                        if constant.is_zero() =>
+                    {
+                        // Replace an equality assertion on an OR
+                        //
+                        // v2 = or v0, v1
+                        // constrain v2 == u1 0
+                        //
+                        // with a direct assertion that each value is equal to 0
+                        //
+                        // v2 = or v0, v1
+                        // constrain v0 == 0
+                        // constrain v1 == 0
+                        //
+                        // This is due to the fact that for `v2` to be 0 then both `v0` and `v1` are 0.
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        let zero = FieldElement::zero();
+                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
+
+                        [
+                            decompose_constrain(lhs, zero, msg.clone(), dfg),
+                            decompose_constrain(rhs, zero, msg, dfg),
+                        ]
+                        .concat()
+                    }
+
+                    Instruction::Not(value) => {
+                        // Replace an assertion that a not instruction is truthy
+                        //
+                        // v1 = not v0
+                        // constrain v1 == u1 1
+                        //
+                        // with an assertion that the not instruction input is falsy
+                        //
+                        // v1 = not v0
+                        // constrain v0 == u1 0
+                        //
+                        // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        let reversed_constant = FieldElement::from(!constant.is_one());
+                        let reversed_constant = dfg.make_constant(reversed_constant, Type::bool());
+                        decompose_constrain(value, reversed_constant, msg, dfg)
+                    }
+
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+                }
+            }
+
+            _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+        }
     }
 }
 
@@ -768,10 +954,19 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if operand_type.is_unsigned() && rhs_is_zero {
-                    // Unsigned values cannot be less than zero.
-                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
-                    return SimplifyResult::SimplifiedTo(zero);
+                if operand_type.is_unsigned() {
+                    if rhs_is_zero {
+                        // Unsigned values cannot be less than zero.
+                        let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                        return SimplifyResult::SimplifiedTo(zero);
+                    } else if rhs_is_one {
+                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                            BinaryOp::Eq,
+                            self.lhs,
+                            zero,
+                        ));
+                    }
                 }
             }
             BinaryOp::And => {
@@ -1011,6 +1206,10 @@ pub(crate) enum SimplifyResult {
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
 
+    /// Replace this function with a set of simpler but equivalent instructions.
+    /// This is currently only to be used for [`Instruction::Constrain`].
+    SimplifiedToInstructionMultiple(Vec<Instruction>),
+
     /// Remove the instruction, it is unnecessary
     Remove,
 
@@ -1019,9 +1218,10 @@ pub(crate) enum SimplifyResult {
 }
 
 impl SimplifyResult {
-    pub(crate) fn instruction(self) -> Option<Instruction> {
+    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
         match self {
-            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
+            SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
             _ => None,
         }
     }

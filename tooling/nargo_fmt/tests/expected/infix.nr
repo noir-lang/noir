@@ -9,10 +9,12 @@ fn foo() {
 }
 
 fn big() {
-    assert(bjj_affine.contains(bjj_affine.gen)
+    assert(
+        bjj_affine.contains(bjj_affine.gen)
         & bjj_affine.contains(p1_affine)
         & bjj_affine.contains(p2_affine)
         & bjj_affine.contains(p3_affine)
         & bjj_affine.contains(p4_affine)
-        & bjj_affine.contains(p5_affine));
+        & bjj_affine.contains(p5_affine)
+    );
 }

@@ -26,7 +26,7 @@ pub enum RuntimeError {
     },
     #[error(transparent)]
     InternalError(#[from] InternalError),
-    #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
+    #[error("Index out of bounds, array has size {array_size}, but index was {index}")]
     IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
@@ -106,7 +106,7 @@ pub enum InternalError {
     #[error("ICE: Undeclared AcirVar")]
     UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
-    UnExpected { expected: String, found: String, call_stack: CallStack },
+    Unexpected { expected: String, found: String, call_stack: CallStack },
 }
 
 impl RuntimeError {
@@ -119,7 +119,7 @@ impl RuntimeError {
                 | InternalError::MissingArg { call_stack, .. }
                 | InternalError::NotAConstant { call_stack, .. }
                 | InternalError::UndeclaredAcirVar { call_stack }
-                | InternalError::UnExpected { call_stack, .. },
+                | InternalError::Unexpected { call_stack, .. },
             )
             | RuntimeError::FailedConstraint { call_stack, .. }
             | RuntimeError::IndexOutOfBounds { call_stack, .. }

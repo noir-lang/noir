@@ -34,7 +34,7 @@ export CARGO_TARGET_DIR=$self_path/target
 rm -rf $self_path/outputs >/dev/null 2>&1
 rm -rf $self_path/result >/dev/null 2>&1
 
-if [ -v out ]; then
+if [ -n "$out" ]; then
   echo "Will install package to $out (defined outside installPhase.sh script)"
 else
   export out="$self_path/outputs/out"

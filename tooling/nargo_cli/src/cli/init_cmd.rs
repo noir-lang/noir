@@ -1,4 +1,3 @@
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
@@ -34,12 +33,7 @@ const BIN_EXAMPLE: &str = include_str!("./noir_template_files/binary.nr");
 const CONTRACT_EXAMPLE: &str = include_str!("./noir_template_files/contract.nr");
 const LIB_EXAMPLE: &str = include_str!("./noir_template_files/library.nr");
 
-pub(crate) fn run(
-    // Backend is currently unused, but we might want to use it to inform the "new" template in the future
-    _backend: &Backend,
-    args: InitCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError> {
     let package_name = match args.name {
         Some(name) => name,
         None => {

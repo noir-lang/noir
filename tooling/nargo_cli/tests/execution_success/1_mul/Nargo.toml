@@ -1,6 +1,0 @@
-[package]
-name = "1_mul"
-type = "bin"
-authors = [""]
-
-[dependencies]

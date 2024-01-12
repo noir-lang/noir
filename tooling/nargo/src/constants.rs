@@ -7,6 +7,8 @@ pub const PROOFS_DIR: &str = "proofs";
 pub const SRC_DIR: &str = "src";
 /// The directory to store circuits' serialized ACIR representations.
 pub const TARGET_DIR: &str = "target";
+/// The directory to store serialized ACIR representations of exported library functions.
+pub const EXPORT_DIR: &str = "export";
 
 // Files
 /// The file from which Nargo pulls prover inputs
@@ -20,4 +22,4 @@ pub const PKG_FILE: &str = "Nargo.toml";
 /// The extension for files containing circuit proofs.
 pub const PROOF_EXT: &str = "proof";
 /// The extension for files containing proof witnesses.
-pub const WITNESS_EXT: &str = "tr";
+pub const WITNESS_EXT: &str = "gz";
