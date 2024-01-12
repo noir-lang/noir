@@ -41,6 +41,15 @@ pub enum TraitItem {
     },
 }
 
+/// AST node for trait combinations:
+/// `trait name: anotherTrait + someOtherTrait...`
+#[derive(Clone, Debug)]
+pub struct NoirTraitCombination {
+    pub name: Ident,
+    pub span: Span,
+    pub bounds: Vec<TraitBound>,
+}
+
 /// Ast node for an impl of a concrete type
 /// `impl object_type<generics> { ... methods ... }`
 #[derive(Clone, Debug)]
@@ -211,5 +220,12 @@ impl Display for TraitImplItem {
                 write!(f, "let {name}: {typ} = {value};")
             }
         }
+    }
+}
+
+impl Display for NoirTraitCombination {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let bounds = vecmap(&self.bounds, ToString::to_string);
+        writeln!(f, "impl {}: {}", self.name, bounds.join(" + "))
     }
 }

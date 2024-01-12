@@ -14,8 +14,8 @@ mod parser;
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    Ident, LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable,
-    StatementKind, TypeImpl, UseTree,
+    Ident, LetStatement, NoirFunction, NoirTrait, NoirTraitCombination, NoirTraitImpl,
+    NoirTypeAlias, Recoverable, StatementKind, TypeImpl, UseTree,
 };
 
 use chumsky::prelude::*;
@@ -33,6 +33,7 @@ pub(crate) enum TopLevelStatement {
     Struct(NoirStruct),
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
+    TraitCombination(NoirTraitCombination),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     SubModule(ParsedSubModule),
@@ -215,6 +216,7 @@ pub struct SortedModule {
     pub types: Vec<NoirStruct>,
     pub traits: Vec<NoirTrait>,
     pub trait_impls: Vec<NoirTraitImpl>,
+    pub trait_combinations: Vec<NoirTraitCombination>,
     pub impls: Vec<TypeImpl>,
     pub type_aliases: Vec<NoirTypeAlias>,
     pub globals: Vec<LetStatement>,
@@ -281,6 +283,9 @@ impl ParsedModule {
                 ItemKind::Struct(typ) => module.push_type(typ),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
+                ItemKind::TraitCombination(trait_combination) => {
+                    module.push_trait_combination(trait_combination)
+                }
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
                 ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
                 ItemKind::Global(global) => module.push_global(global),
@@ -306,6 +311,7 @@ pub enum ItemKind {
     Struct(NoirStruct),
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
+    TraitCombination(NoirTraitCombination),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     Global(LetStatement),
@@ -365,6 +371,10 @@ impl SortedModule {
 
     fn push_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
         self.trait_impls.push(trait_impl);
+    }
+
+    fn push_trait_combination(&mut self, trait_combination: NoirTraitCombination) {
+        self.trait_combinations.push(trait_combination);
     }
 
     fn push_impl(&mut self, r#impl: TypeImpl) {
@@ -477,6 +487,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
             TopLevelStatement::Trait(t) => t.fmt(f),
             TopLevelStatement::TraitImpl(i) => i.fmt(f),
+            TopLevelStatement::TraitCombination(c) => c.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
             TopLevelStatement::TypeAlias(t) => t.fmt(f),

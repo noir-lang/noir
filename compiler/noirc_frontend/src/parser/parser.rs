@@ -40,9 +40,9 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
     IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement,
-    TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    NoirTraitCombination, NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -86,6 +86,9 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Struct(s) => push_item(ItemKind::Struct(s)),
                     TopLevelStatement::Trait(t) => push_item(ItemKind::Trait(t)),
                     TopLevelStatement::TraitImpl(t) => push_item(ItemKind::TraitImpl(t)),
+                    TopLevelStatement::TraitCombination(t) => {
+                        push_item(ItemKind::TraitCombination(t))
+                    }
                     TopLevelStatement::Impl(i) => push_item(ItemKind::Impl(i)),
                     TopLevelStatement::TypeAlias(t) => push_item(ItemKind::TypeAlias(t)),
                     TopLevelStatement::SubModule(s) => push_item(ItemKind::Submodules(s)),
@@ -421,6 +424,20 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
                 ));
             }
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
+        })
+}
+
+fn trait_combination() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Trait)
+        .ignore_then(ident())
+        .then_ignore(just(Token::Colon))
+        .then(trait_bounds())
+        .validate(|(name, trait_bounds), span, emit| {
+            TopLevelStatement::TraitCombination(NoirTraitCombination {
+                name,
+                span,
+                bounds: trait_bounds,
+            })
         })
 }
 
