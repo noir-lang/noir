@@ -59,13 +59,13 @@ pub(super) fn on_did_change_text_document(
     let _ = check_crate(&mut context, crate_id, false, false);
 
     let workspace = match resolve_workspace_for_source_path(
-        params.text_document.uri.to_file_path().unwrap().as_path(),
+        &params.text_document.uri.to_file_path().unwrap(),
     ) {
         Ok(workspace) => workspace,
         Err(lsp_error) => {
             return ControlFlow::Break(Err(ResponseError::new(
                 ErrorCode::REQUEST_FAILED,
-                lsp_error.to_string(),
+                lsp_error,
             )
             .into()))
         }

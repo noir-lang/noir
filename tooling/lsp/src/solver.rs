@@ -55,7 +55,10 @@ impl BlackBoxFunctionSolver for MockBackend {
         _signature: &[u8],
         _message: &[u8],
     ) -> Result<bool, acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Failed(
+            acvm::acir::BlackBoxFunc::SchnorrVerify,
+            "Unsupported opcode".to_owned(),
+        ))
     }
 
     fn pedersen_commitment(
@@ -63,7 +66,10 @@ impl BlackBoxFunctionSolver for MockBackend {
         _inputs: &[acvm::FieldElement],
         _domain_separator: u32,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Failed(
+            acvm::acir::BlackBoxFunc::PedersenCommitment,
+            "Unsupported opcode".to_owned(),
+        ))
     }
 
     fn fixed_base_scalar_mul(
@@ -71,7 +77,10 @@ impl BlackBoxFunctionSolver for MockBackend {
         _low: &acvm::FieldElement,
         _high: &acvm::FieldElement,
     ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Failed(
+            acvm::acir::BlackBoxFunc::FixedBaseScalarMul,
+            "Unsupported opcode".to_owned(),
+        ))
     }
 
     fn pedersen_hash(
@@ -79,6 +88,9 @@ impl BlackBoxFunctionSolver for MockBackend {
         _inputs: &[acvm::FieldElement],
         _domain_separator: u32,
     ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
-        unimplemented!()
+        Err(acvm::BlackBoxResolutionError::Failed(
+            acvm::acir::BlackBoxFunc::PedersenHash,
+            "Unsupported opcode".to_owned(),
+        ))
     }
 }
