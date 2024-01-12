@@ -591,7 +591,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::FixedBaseScalarMul => Some(2),
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
-        // Addition over the embedded curve: input are coordinates (x1,y1) and (x2,y2) of the Grumpkin points 
+        // Addition over the embedded curve: input are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
         BlackBoxFunc::EmbeddedCurveAdd => Some(4),
         // Doubling over the embedded curve: input is (x,y) coordinate of the point.
         BlackBoxFunc::EmbeddedCurveDouble => Some(2),
@@ -624,7 +624,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul 
+        BlackBoxFunc::FixedBaseScalarMul
         | BlackBoxFunc::EmbeddedCurveAdd
         | BlackBoxFunc::EmbeddedCurveDouble => Some(2),
         // Recursive aggregation has a variable number of outputs

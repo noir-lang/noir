@@ -483,6 +483,24 @@ mod tests {
         ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
             unimplemented!();
         }
+
+        fn ec_add(
+            &self,
+            _input1_x: &FieldElement,
+            _input1_y: &FieldElement,
+            _input2_x: &FieldElement,
+            _input2_y: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
+            unimplemented!();
+        }
+
+        fn ec_double(
+            &self,
+            _input_x: &FieldElement,
+            _input_y: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
+            unimplemented!();
+        }
     }
 
     #[test]

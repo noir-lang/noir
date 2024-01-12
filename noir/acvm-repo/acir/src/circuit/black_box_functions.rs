@@ -48,7 +48,7 @@ pub enum BlackBoxFunc {
     /// Addition over the embedded curve on which [`FieldElement`][acir_field::FieldElement] is defined.
     EmbeddedCurveAdd,
     /// Point doubling over the embedded curve on which [`FieldElement`][acir_field::FieldElement] is defined.
-    EmbeddedCurveDouble
+    EmbeddedCurveDouble,
 }
 
 impl std::fmt::Display for BlackBoxFunc {
