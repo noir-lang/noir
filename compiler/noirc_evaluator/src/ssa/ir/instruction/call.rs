@@ -241,7 +241,7 @@ pub(super) fn simplify_call(
                 SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
                     value,
                     max_bit_size,
-                    assert_message: Some("call to apply_range_constraint".to_owned()),
+                    assert_message: Some("call to assert_max_bit_size".to_owned()),
                 })
             } else {
                 SimplifyResult::None
