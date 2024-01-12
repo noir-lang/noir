@@ -339,23 +339,6 @@ fn transform_module(
         }
     }
 
-    if module.functions.len() > MAX_CONTRACT_FUNCTIONS {
-        let crate_graph = &context.crate_graph[crate_id];
-        return Err((
-            AztecMacroError::AztecContractHasTooManyFunctions { span: Span::default() }.into(),
-            crate_graph.root_file_id,
-        ));
-    }
-
-    let constructor_defined = module.functions.iter().any(|func| func.name() == "constructor");
-    if !constructor_defined {
-        let crate_graph = &context.crate_graph[crate_id];
-        return Err((
-            AztecMacroError::AztecContractConstructorMissing { span: Span::default() }.into(),
-            crate_graph.root_file_id,
-        ));
-    }
-
     for func in module.functions.iter_mut() {
         for secondary_attribute in func.def.attributes.secondary.clone() {
             if is_custom_attribute(&secondary_attribute, "aztec(private)") {
@@ -372,6 +355,28 @@ fn transform_module(
             has_transformed_module = true;
         }
     }
+
+    if has_transformed_module {
+        // We only want to run these checks if the macro processor has found the module to be an Aztec contract.
+
+        if module.functions.len() > MAX_CONTRACT_FUNCTIONS {
+            let crate_graph = &context.crate_graph[crate_id];
+            return Err((
+                AztecMacroError::AztecContractHasTooManyFunctions { span: Span::default() }.into(),
+                crate_graph.root_file_id,
+            ));
+        }
+
+        let constructor_defined = module.functions.iter().any(|func| func.name() == "constructor");
+        if !constructor_defined {
+            let crate_graph = &context.crate_graph[crate_id];
+            return Err((
+                AztecMacroError::AztecContractConstructorMissing { span: Span::default() }.into(),
+                crate_graph.root_file_id,
+            ));
+        }
+    }
+
     Ok(has_transformed_module)
 }
 
