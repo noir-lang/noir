@@ -1325,4 +1325,113 @@ mod tests {
         // Ensure the foreign call counter has been incremented
         assert_eq!(vm.foreign_call_counter, 1);
     }
+
+    #[test]
+    fn foreign_call_opcode_nested_arrays_and_slices_input() {
+        // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]
+
+        let v2 = vec![Value::from(2u128), Value::from(3u128)];
+        let a4 = vec![Value::from(4u128)];
+        let v6 = vec![Value::from(6u128), Value::from(7u128), Value::from(8u128)];
+        let a9 = vec![Value::from(9u128)];
+
+        // construct memory by declaring all inner arrays/vectors first
+        let v2_ptr = 0u128;
+        let mut memory = v2.clone();
+        let v2_start = memory.len();
+        memory.extend(vec![Value::from(v2_ptr), Value::from(v2.len()), Value::from(1u128)]);
+        let a4_ptr = memory.len();
+        memory.extend(a4.clone());
+        let a4_start = memory.len();
+        memory.extend(vec![Value::from(a4_ptr), Value::from(1u128)]);
+        let v6_ptr = memory.len();
+        memory.extend(v6.clone());
+        let v6_start = memory.len();
+        memory.extend(vec![Value::from(v6_ptr), Value::from(v6.len()), Value::from(1u128)]);
+        let a9_ptr = memory.len();
+        memory.extend(a9.clone());
+        let a9_start = memory.len();
+        memory.extend(vec![Value::from(a9_ptr), Value::from(1u128)]);
+        // finally we add the contents of the outer array
+        let outer_ptr = memory.len();
+        let outer_array = vec![
+            Value::from(1u128),
+            Value::from(v2.len()),
+            Value::from(v2_start),
+            Value::from(a4_start),
+            Value::from(5u128),
+            Value::from(v6.len()),
+            Value::from(v6_start),
+            Value::from(a9_start),
+        ];
+        memory.extend(outer_array.clone());
+
+        let input_array_value_types = vec![
+            HeapValueType::Simple,
+            HeapValueType::Simple, // size of following vector
+            HeapValueType::Vector { value_types: vec![HeapValueType::Simple] },
+            HeapValueType::Array { value_types: vec![HeapValueType::Simple], size: 1 },
+        ];
+
+        let r_input = RegisterIndex::from(0);
+        let r_output = RegisterIndex::from(1);
+
+        let program = vec![
+            // input = 0
+            Opcode::Const { destination: r_input, value: Value::from(outer_ptr) },
+            // some_function(input)
+            Opcode::ForeignCall {
+                function: "flat_sum".into(),
+                destinations: vec![RegisterOrMemory::RegisterIndex(r_output)],
+                inputs: vec![
+                    RegisterOrMemory::HeapArray(HeapArray {
+                        pointer: r_input,
+                        size: outer_array.len(),
+                        value_types: input_array_value_types,
+                    }),
+                ],
+            },
+        ];
+
+        let mut vm = brillig_execute_and_get_vm(memory, &program);
+
+        // Check that VM is waiting
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "flat_sum".into(),
+                inputs: vec![
+                    ForeignCallParam::Array(vec![
+                        Value::from(1u128),
+                        Value::from(2u128), // size of following vector
+                        Value::from(2u128),
+                        Value::from(3u128),
+                        Value::from(4u128),
+                        Value::from(5u128),
+                        Value::from(3u128), // size of following vector
+                        Value::from(6u128),
+                        Value::from(7u128),
+                        Value::from(8u128),
+                        Value::from(9u128),
+                    ])
+                ],
+            }
+        );
+
+        // Push result we're waiting for
+        vm.resolve_foreign_call(Value::from(45u128).into());
+
+        // Resume VM
+        brillig_execute(&mut vm);
+
+        // Check that VM finished once resumed
+        assert_eq!(vm.status, VMStatus::Finished);
+
+        // Check result
+        let result_value = vm.registers.get(r_output);
+        assert_eq!(result_value, Value::from(45u128));
+
+        // Ensure the foreign call counter has been incremented
+        assert_eq!(vm.foreign_call_counter, 1);
+    }
 }
