@@ -18,7 +18,7 @@ This guide shows you how to use oracles in your Noir program. For the sake of cl
 - You understand the concept of a JSON-RPC server. Visit the [JSON-RPC website](https://www.jsonrpc.org/) if you need a refresher.
 - You are comfortable with server-side javascript. Will skip any details on installing Node, packages, etc, so as to keep the guide short and straight to the point.
 
-If you are looking for an end-to-end guide example with a repository you can clone and play around, follow the [Oracle Tutorial](../tutorials/oracles.md) instead.
+For reference, you can find the snippets used in this tutorial on the [Aztec DevRel Repository](https://github.com/AztecProtocol/dev-rel/tree/main/how_to_oracles/code-snippets/how-to-oracles)
 
 ## Rundown
 
@@ -268,5 +268,3 @@ Hopefully by the end of this guide, you should be able to:
 
 - Write your own logic around Oracles and how to write a JSON RPC server to make them work with your Nargo commands.
 - Provide custom foreign call handlers for NoirJS.
-
-If you are looking for a more end-to-end guide with a code example you can clone and play around, follow the [Oracle Tutorial](../tutorials/oracles.md)
