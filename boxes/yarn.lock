@@ -34,10 +34,11 @@ __metadata:
   resolution: "@aztec/accounts@portal:../yarn-project/accounts::locator=%40aztec%2Fboxes%40workspace%3A."
   dependencies:
     "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
-    "@aztec/circuit-types": "workspace:^"
+    "@aztec/types": "workspace:^"
     tslib: "npm:^2.4.0"
   languageName: node
   linkType: soft
@@ -65,12 +66,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=%40aztec%2Fboxes%40workspace%3A."
   dependencies:
+    "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
-    "@aztec/circuit-types": "workspace:^"
-    lodash.every: "npm:^4.6.0"
-    lodash.partition: "npm:^4.6.0"
+    "@aztec/types": "workspace:^"
     tslib: "npm:^2.4.0"
   languageName: node
   linkType: soft
@@ -231,6 +231,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=%40aztec%2Fboxes%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=%40aztec%2Fboxes%40workspace%3A."
+  dependencies:
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
+    browserify-cipher: "npm:^1.0.1"
+    lodash.clonedeep: "npm:^4.5.0"
+    lodash.isequal: "npm:^4.5.0"
+    lodash.times: "npm:^4.3.2"
+    tslib: "npm:^2.5.0"
+  languageName: node
+  linkType: soft
+
 "@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=%40aztec%2Fboxes%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=%40aztec%2Fboxes%40workspace%3A."
@@ -281,18 +297,11 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/circuit-types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A.":
+"@aztec/types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/circuit-types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A."
+  resolution: "@aztec/types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A."
   dependencies:
-    "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
-    "@aztec/foundation": "workspace:^"
-    browserify-cipher: "npm:^1.0.1"
-    lodash.clonedeep: "npm:^4.5.0"
-    lodash.isequal: "npm:^4.5.0"
-    lodash.times: "npm:^4.3.2"
-    tslib: "npm:^2.5.0"
   languageName: node
   linkType: soft
 
@@ -9438,13 +9447,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.every@npm:^4.6.0":
-  version: 4.6.0
-  resolution: "lodash.every@npm:4.6.0"
-  checksum: 67dd78cf01e3a4dbeaf6095d766e6868a229bb71a9a438d4a0bf5425326fd8e8ceee97c0079961697dae984e1052db6c31d4e7c54da7899f36a88702ed13cee1
-  languageName: node
-  linkType: hard
-
 "lodash.isarguments@npm:^3.1.0":
   version: 3.1.0
   resolution: "lodash.isarguments@npm:3.1.0"
@@ -9470,13 +9472,6 @@ __metadata:
   version: 4.6.2
   resolution: "lodash.merge@npm:4.6.2"
   checksum: 402fa16a1edd7538de5b5903a90228aa48eb5533986ba7fa26606a49db2572bf414ff73a2c9f5d5fd36b31c46a5d5c7e1527749c07cbcf965ccff5fbdf32c506
-  languageName: node
-  linkType: hard
-
-"lodash.partition@npm:^4.6.0":
-  version: 4.6.0
-  resolution: "lodash.partition@npm:4.6.0"
-  checksum: a65f48f5f11a009656b3441a063948316923a48f7bfc9454064ba81f75e72ac038c61450c263f4874d8413052a20aacfc18a46dd6d8a9a287221a46e78733f45
   languageName: node
   linkType: hard
 

@@ -41,6 +41,7 @@
     { "path": "p2p-bootstrap/tsconfig.json" },
     { "path": "prover-client/tsconfig.json" },
     { "path": "sequencer-client/tsconfig.json" },
+    { "path": "types/tsconfig.json" },
     { "path": "world-state/tsconfig.json" },
     { "path": "scripts/tsconfig.json" }
   ],

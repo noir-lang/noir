@@ -66,6 +66,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
@@ -238,6 +239,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
@@ -296,6 +298,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     "@types/lodash.clonedeep": ^4.5.7
@@ -350,6 +353,7 @@ __metadata:
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@iarna/toml": ^2.2.5
     "@jest/globals": ^29.5.0
     "@libp2p/peer-id-factory": ^3.0.4
@@ -756,6 +760,7 @@ __metadata:
     "@aztec/kv-store": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
     "@aztec/noir-protocol-circuits": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     "@types/lodash.omit": ^4.5.7
@@ -839,6 +844,33 @@ __metadata:
     tslib: ^2.4.0
     typescript: ^5.0.4
     viem: ^1.2.5
+  languageName: unknown
+  linkType: soft
+
+"@aztec/types@workspace:^, @aztec/types@workspace:types":
+  version: 0.0.0-use.local
+  resolution: "@aztec/types@workspace:types"
+  dependencies:
+    "@aztec/ethereum": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@types/debug": ^4.1.7
+    "@types/detect-node": ^2.0.0
+    "@types/jest": ^29.5.0
+    "@types/supertest": ^2.0.12
+    "@typescript-eslint/eslint-plugin": ^6.2.1
+    "@typescript-eslint/parser": ^6.2.1
+    comlink: ^4.4.1
+    eslint: ^8.21.0
+    eslint-config-prettier: ^8.5.0
+    eslint-plugin-jsdoc: ^40.1.0
+    eslint-plugin-no-only-tests: ^3.1.0
+    eslint-plugin-tsdoc: ^0.2.17
+    jest: ^29.5.0
+    prettier: ^2.7.1
+    supertest: ^6.3.3
+    ts-jest: ^29.1.0
+    ts-node: ^10.9.1
+    typescript: ^5.0.4
   languageName: unknown
   linkType: soft
 

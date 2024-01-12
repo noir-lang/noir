@@ -1,4 +1,5 @@
 import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
+import { NodeInfo } from '@aztec/types/interfaces';
 
 import { AuthWitness } from '../auth_witness.js';
 import { ContractData, ExtendedContractData } from '../contract_data.js';
@@ -10,7 +11,6 @@ import { NoteFilter } from '../notes/note_filter.js';
 import { Tx, TxHash, TxReceipt } from '../tx/index.js';
 import { TxExecutionRequest } from '../tx_execution_request.js';
 import { DeployedContract } from './deployed-contract.js';
-import { NodeInfo } from './node-info.js';
 import { SyncStatus } from './sync-status.js';
 
 // docs:start:pxe-interface

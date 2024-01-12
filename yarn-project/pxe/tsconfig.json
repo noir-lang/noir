@@ -32,6 +32,9 @@
     },
     {
       "path": "../noir-protocol-circuits"
+    },
+    {
+      "path": "../types"
     }
   ],
   "include": ["src"]

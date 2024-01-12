@@ -18,6 +18,7 @@
     "@aztec/foundation": "portal:../yarn-project/foundation",
     "@aztec/bb.js": "portal:../barretenberg/ts",
     "@aztec/circuit-types": "portal:../yarn-project/circuit-types",
-    "@aztec/ethereum": "portal:../yarn-project/ethereum"
+    "@aztec/ethereum": "portal:../yarn-project/ethereum",
+    "@aztec/types": "portal:../yarn-project/types"
   }
 }

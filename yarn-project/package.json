@@ -43,6 +43,7 @@
     "rollup-provider",
     "sequencer-client",
     "scripts",
+    "types",
     "world-state",
     "yarn-project-base",
     "kv-store"

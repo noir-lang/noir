@@ -16,6 +16,7 @@ const resolutions: { [key: string]: string } = {
   '@aztec/bb.js': 'portal:.aztec-packages/barretenberg/ts',
   '@aztec/circuit-types': 'portal:.aztec-packages/yarn-project/circuit-types',
   '@aztec/ethereum': 'portal:.aztec-packages/yarn-project/ethereum',
+  '@aztec/types': 'portal:.aztec-packages/yarn-project/types',
 };
 
 /**
@@ -68,6 +69,7 @@ function copyDependenciesToBox(dirName: string, destPath: string) {
     'yarn-project/circuits.js',
     'yarn-project/foundation',
     'yarn-project/types',
+    'yarn-project/circuit-types',
     'yarn-project/ethereum',
   ].forEach(path =>
     cpSync(dirName + '/../../../../' + path, destPath + '/.aztec-packages/' + path, {
