@@ -20,8 +20,8 @@ contract Benchmarking {
     };
 
     struct Storage {
-        notes: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
-        balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        notes: Map<Field, Set<AztecAddress, ValueNote, VALUE_NOTE_LEN>>,
+        balances: Map<Field, PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
