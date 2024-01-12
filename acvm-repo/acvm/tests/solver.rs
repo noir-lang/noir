@@ -50,6 +50,24 @@ impl BlackBoxFunctionSolver for StubbedBackend {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         panic!("Path not trodden by this test")
     }
+
+    fn ec_add(
+        &self,
+        _input1_x: &FieldElement,
+        _input1_y: &FieldElement,
+        _input2_x: &FieldElement,
+        _input2_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        panic!("Path not trodden by this test")
+    }
+
+    fn ec_double(
+        &self,
+        _input_x: &FieldElement,
+        _input_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        panic!("Path not trodden by this test")
+    }
 }
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.

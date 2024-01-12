@@ -99,4 +99,22 @@ impl BlackBoxFunctionSolver for MockBackend {
     ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
         unimplemented!()
     }
+
+    fn ec_add(
+        &self,
+        _input1_x: &acvm::FieldElement,
+        _input1_y: &acvm::FieldElement,
+        _input2_x: &acvm::FieldElement,
+        _input2_y: &acvm::FieldElement,
+    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
+        unimplemented!();
+    }
+
+    fn ec_double(
+        &self,
+        _input_x: &acvm::FieldElement,
+        _input_y: &acvm::FieldElement,
+    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
+        unimplemented!();
+    }
 }
