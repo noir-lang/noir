@@ -5,6 +5,8 @@ on:
     branches:
       - master
   pull_request:
+    branches-ignore:
+      - release-please--*
 
 jobs:
   compare_protocol_circuits_gates:
@@ -82,7 +84,7 @@ jobs:
         run: |
           nargo info --json > protocol_circuits_report.json
           mv protocol_circuits_report.json ../../../protocol_circuits_report.json
-        env: 
+        env:
           NARGO_BACKEND_PATH: ../../../barretenberg/cpp/build/bin/bb
 
       - name: Compare gates reports

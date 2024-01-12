@@ -1062,8 +1062,6 @@ defaults: &defaults
     branches:
       ignore:
         - /^release-please--.*/
-      only:
-        - /.*/
   context:
     - build
     - slack
