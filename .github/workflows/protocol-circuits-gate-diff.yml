@@ -5,11 +5,10 @@ on:
     branches:
       - master
   pull_request:
-    branches-ignore:
-      - "release-please--*"
 
 jobs:
   compare_protocol_circuits_gates:
+    if: "!startsWith(github.head_ref, 'release-please--')"
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout Code
