@@ -63,6 +63,7 @@ function copyDependenciesToBox(dirName: string, destPath: string) {
     'barretenberg/ts',
     'yarn-project/aztec-nr',
     'yarn-project/noir-protocol-circuits',
+    'yarn-project/accounts',
     'yarn-project/aztec.js',
     'yarn-project/circuits.js',
     'yarn-project/foundation',
