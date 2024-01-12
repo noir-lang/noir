@@ -33,9 +33,13 @@ impl NodeInterner {
 
     /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
     /// Returns [None] when definition is not found.
-    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
+    pub fn get_definition_location_from(
+        &self,
+        location: Location,
+        return_type_location_instead: bool,
+    ) -> Option<Location> {
         self.find_location_index(location)
-            .and_then(|index| self.resolve_location(index))
+            .and_then(|index| self.resolve_location(index, return_type_location_instead))
             .or_else(|| self.try_resolve_trait_impl_location(location))
             .or_else(|| self.try_resolve_trait_method_declaration(location))
     }
@@ -43,7 +47,7 @@ impl NodeInterner {
     pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {
         self.try_resolve_trait_method_declaration(location).or_else(|| {
             self.find_location_index(location)
-                .and_then(|index| self.resolve_location(index))
+                .and_then(|index| self.resolve_location(index, false))
                 .and_then(|found_impl_location| {
                     self.try_resolve_trait_method_declaration(found_impl_location)
                 })
@@ -53,12 +57,20 @@ impl NodeInterner {
     /// For a given [Index] we return [Location] to which we resolved to
     /// We currently return None for features not yet implemented
     /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
-    fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
+    fn resolve_location(
+        &self,
+        index: impl Into<Index>,
+        return_type_location_instead: bool,
+    ) -> Option<Location> {
         let node = self.nodes.get(index.into())?;
 
         match node {
-            Node::Function(func) => self.resolve_location(func.as_expr()),
-            Node::Expression(expression) => self.resolve_expression_location(expression),
+            Node::Function(func) => {
+                self.resolve_location(func.as_expr(), return_type_location_instead)
+            }
+            Node::Expression(expression) => {
+                self.resolve_expression_location(expression, return_type_location_instead)
+            }
             _ => None,
         }
     }
@@ -66,7 +78,11 @@ impl NodeInterner {
     /// Resolves the [Location] of the definition for a given [HirExpression]
     ///
     /// Note: current the code returns None because some expressions are not yet implemented.
-    fn resolve_expression_location(&self, expression: &HirExpression) -> Option<Location> {
+    fn resolve_expression_location(
+        &self,
+        expression: &HirExpression,
+        return_type_location_instead: bool,
+    ) -> Option<Location> {
         match expression {
             HirExpression::Ident(ident) => {
                 let definition_info = self.definition(ident.id);
@@ -74,7 +90,16 @@ impl NodeInterner {
                     DefinitionKind::Function(func_id) => {
                         Some(self.function_meta(&func_id).location)
                     }
-                    DefinitionKind::Local(_local_id) => Some(definition_info.location),
+                    DefinitionKind::Local(local_id) => {
+                        if return_type_location_instead {
+                            match self.id_type(local_id?) {
+                                Type::Struct(struct_type, _) => Some(struct_type.borrow().location),
+                                _ => None,
+                            }
+                        } else {
+                            Some(definition_info.location)
+                        }
+                    }
                     _ => None,
                 }
             }
@@ -87,7 +112,7 @@ impl NodeInterner {
             }
             HirExpression::Call(expr_call) => {
                 let func = expr_call.func;
-                self.resolve_location(func)
+                self.resolve_location(func, return_type_location_instead)
             }
 
             _ => None,
