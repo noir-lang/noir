@@ -1,4 +1,5 @@
-import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/circuits.js';
+import { EventSelector } from '@aztec/foundation/abi';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import { randomBytes } from 'crypto';
@@ -17,17 +18,14 @@ export class UnencryptedL2Log {
      * TODO: Optimize this once it makes sense.
      */
     public readonly contractAddress: AztecAddress,
-    /**
-     * Selector of the event/log topic.
-     * TODO: https://github.com/AztecProtocol/aztec-packages/issues/2632
-     */
-    public readonly selector: FunctionSelector,
+    /** Selector of the event/log topic. */
+    public readonly selector: EventSelector,
     /** The data contents of the log. */
     public readonly data: Buffer,
   ) {}
 
   get length(): number {
-    return FunctionSelector.SIZE + this.data.length;
+    return EventSelector.SIZE + this.data.length;
   }
 
   /**
@@ -60,7 +58,7 @@ export class UnencryptedL2Log {
   public static fromBuffer(buffer: Buffer | BufferReader): UnencryptedL2Log {
     const reader = BufferReader.asReader(buffer);
     const contractAddress = AztecAddress.fromBuffer(reader);
-    const selector = FunctionSelector.fromBuffer(reader);
+    const selector = EventSelector.fromBuffer(reader);
     const data = reader.readBuffer();
     return new UnencryptedL2Log(contractAddress, selector, data);
   }
@@ -71,8 +69,8 @@ export class UnencryptedL2Log {
    */
   public static random(): UnencryptedL2Log {
     const contractAddress = AztecAddress.random();
-    const selector = new FunctionSelector(Math.floor(Math.random() * (2 ** (FunctionSelector.SIZE * 8) - 1)));
-    const dataLength = FunctionSelector.SIZE + Math.floor(Math.random() * 200);
+    const selector = new EventSelector(Math.floor(Math.random() * (2 ** (EventSelector.SIZE * 8) - 1)));
+    const dataLength = EventSelector.SIZE + Math.floor(Math.random() * 200);
     const data = randomBytes(dataLength);
     return new UnencryptedL2Log(contractAddress, selector, data);
   }

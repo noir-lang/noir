@@ -72,3 +72,16 @@ export function toHex(num: bigint, padTo32 = false): `0x${string}` {
   const paddedStr = str.padStart(padTo32 ? 64 : targetLen, '0');
   return `0x${paddedStr}`;
 }
+
+/**
+ * Converts a hex string to a buffer. Throws if input is not a valid hex string.
+ * @param value - The hex string to convert. May be 0x prefixed or not.
+ * @returns A buffer.
+ */
+export function fromHex(value: string): Buffer {
+  const hexRegex = /^(0x)?[0-9a-fA-F]*$/;
+  if (!hexRegex.test(value) || value.length % 2 !== 0) {
+    throw new Error(`Invalid hex string: ${value}`);
+  }
+  return Buffer.from(value.replace(/^0x/i, ''), 'hex');
+}
