@@ -1,8 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { NUM_FIELDS_PER_SHA256 } from '../constants.gen.js';
-import { serializeToBuffer } from '../utils/serialize.js';
 import { GlobalVariables } from './global_variables.js';
 import { AppendOnlyTreeSnapshot } from './rollup/append_only_tree_snapshot.js';
 import { StateReference } from './state_reference.js';

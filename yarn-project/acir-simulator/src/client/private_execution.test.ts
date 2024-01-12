@@ -4,7 +4,6 @@ import {
   CallContext,
   CompleteAddress,
   ContractDeploymentData,
-  FieldsOf,
   FunctionData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -29,6 +28,7 @@ import { pedersenHash } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { FieldsOf } from '@aztec/foundation/types';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
   ChildContractArtifact,

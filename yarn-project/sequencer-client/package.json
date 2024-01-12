@@ -41,6 +41,7 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/noir-protocol-circuits": "workspace:^",
     "@aztec/p2p": "workspace:^",
+    "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "lodash.chunk": "^4.2.0",
     "lodash.pick": "^4.4.0",

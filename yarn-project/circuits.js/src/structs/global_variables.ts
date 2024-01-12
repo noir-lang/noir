@@ -1,8 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
-
-import { serializeToBuffer } from '../utils/index.js';
 
 /**
  * Global variables of the L2 block.

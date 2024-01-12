@@ -1,5 +1,5 @@
 import { TxHash, TxReceipt } from '@aztec/circuit-types';
-import { FieldsOf } from '@aztec/circuits.js';
+import { FieldsOf } from '@aztec/foundation/types';
 
 import { Wallet } from '../account/index.js';
 import { DefaultWaitOpts, SentTx, WaitOpts } from '../contract/index.js';

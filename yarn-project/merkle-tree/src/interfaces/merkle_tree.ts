@@ -1,4 +1,4 @@
-import { SiblingPath } from '@aztec/circuit-types';
+import { SiblingPath } from '@aztec/types/membership';
 
 /**
  * Defines the interface for a source of sibling paths.

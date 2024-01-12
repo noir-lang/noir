@@ -1,4 +1,5 @@
-import { serializeToBuffer } from '../../utils/serialize.js';
+import { serializeToBuffer } from '@aztec/foundation/serialize';
+
 import { PreviousRollupData } from './previous_rollup_data.js';
 
 /**

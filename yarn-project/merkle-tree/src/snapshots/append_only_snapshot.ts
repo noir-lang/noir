@@ -1,4 +1,5 @@
-import { Hasher, SiblingPath } from '@aztec/circuit-types';
+import { Hasher } from '@aztec/types/interfaces';
+import { SiblingPath } from '@aztec/types/membership';
 
 import { LevelUp } from 'levelup';
 

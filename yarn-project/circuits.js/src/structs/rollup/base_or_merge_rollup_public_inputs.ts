@@ -1,8 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { NUM_FIELDS_PER_SHA256 } from '../../constants.gen.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { PartialStateReference } from '../partial_state_reference.js';
 import { RollupTypes } from '../shared.js';

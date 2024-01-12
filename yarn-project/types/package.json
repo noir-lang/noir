@@ -6,7 +6,8 @@
   "main": "./dest/index.js",
   "types": "./dest/index.d.ts",
   "exports": {
-    "./interfaces": "./dest/interfaces/index.js"
+    "./interfaces": "./dest/interfaces/index.js",
+    "./membership": "./dest/sibling-path/index.js"
   },
   "scripts": {
     "build": "yarn clean && tsc -b",
@@ -29,7 +30,8 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/ethereum": "workspace:^"
+    "@aztec/ethereum": "workspace:^",
+    "@aztec/foundation": "workspace:^"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

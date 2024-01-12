@@ -1,7 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { serializeToBuffer } from '../../utils/serialize.js';
 import { STRING_ENCODING, UInt32 } from '../shared.js';
 
 /**

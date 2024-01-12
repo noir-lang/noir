@@ -1,8 +1,8 @@
+import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { VK_TREE_HEIGHT, makeTuple } from '../../index.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
+import { VK_TREE_HEIGHT } from '../../index.js';
 import { Proof, makeEmptyProof } from '../proof.js';
 import { UInt32 } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';

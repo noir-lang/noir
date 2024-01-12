@@ -37,6 +37,9 @@
       "path": "../sequencer-client"
     },
     {
+      "path": "../types"
+    },
+    {
       "path": "../world-state"
     }
   ],

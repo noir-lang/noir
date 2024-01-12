@@ -1,8 +1,8 @@
-import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**
  * Interface of classes allowing for the retrieval of L1 to L2 messages.

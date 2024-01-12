@@ -13,10 +13,10 @@ import {
   StateReference,
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot, makeGlobalVariables, makeHeader } from '@aztec/circuits.js/factories';
-import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { keccak, sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import times from 'lodash.times';
 

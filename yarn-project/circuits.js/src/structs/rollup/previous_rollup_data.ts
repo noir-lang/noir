@@ -1,5 +1,6 @@
+import { serializeToBuffer } from '@aztec/foundation/serialize';
+
 import { ROLLUP_VK_TREE_HEIGHT } from '../../constants.gen.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { Proof } from '../proof.js';
 import { UInt32 } from '../shared.js';

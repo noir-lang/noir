@@ -1,4 +1,4 @@
-import { makeTuple } from '@aztec/circuits.js';
+import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
 import {
   Tuple,
@@ -7,7 +7,7 @@ import {
   serializeBufferArrayToVector,
 } from '@aztec/foundation/serialize';
 
-import { Hasher } from './interfaces/index.js';
+import { Hasher } from '../interfaces/index.js';
 
 /**
  * Contains functionality to compute and serialize/deserialize a sibling path.

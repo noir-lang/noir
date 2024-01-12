@@ -32,8 +32,6 @@ import {
   SideEffect,
   SideEffectLinkedToNoteHash,
   StateReference,
-  makeTuple,
-  range,
 } from '@aztec/circuits.js';
 import { computeBlockHashWithGlobals, computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
@@ -47,6 +45,7 @@ import {
   makePublicCallRequest,
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
+import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { to2Fields } from '@aztec/foundation/serialize';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';

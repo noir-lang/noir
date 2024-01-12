@@ -38,6 +38,7 @@
     "@aztec/p2p": "workspace:^",
     "@aztec/pxe": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
+    "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@noble/curves": "^1.0.0",

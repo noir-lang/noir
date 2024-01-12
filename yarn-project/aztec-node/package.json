@@ -43,6 +43,7 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
+    "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",

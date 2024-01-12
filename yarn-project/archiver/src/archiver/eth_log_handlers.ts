@@ -1,5 +1,4 @@
 import {
-  BufferReader,
   CancelledL1ToL2Message,
   ContractData,
   EncodedContractFunction,
@@ -13,6 +12,7 @@ import {
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
 import { ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 
 import { Hex, Log, PublicClient, decodeFunctionData, getAbiItem, getAddress, hexToBytes } from 'viem';

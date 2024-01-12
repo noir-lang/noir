@@ -7,13 +7,15 @@ import {
   Point,
   PublicKey,
 } from '@aztec/circuits.js';
-import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { numToInt32BE, serializeBufferArrayToVector } from '@aztec/foundation/serialize';
-
-export { BufferReader } from '@aztec/circuits.js/utils';
+import {
+  BufferReader,
+  numToInt32BE,
+  serializeBufferArrayToVector,
+  serializeToBuffer,
+} from '@aztec/foundation/serialize';
 
 /**
  * Used for retrieval of contract data (A3 address, portal contract address, bytecode).

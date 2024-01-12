@@ -25,8 +25,8 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
   makeEmptyProof,
-  makeTuple,
 } from '@aztec/circuits.js';
+import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Tuple, assertLength, mapTuple } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';

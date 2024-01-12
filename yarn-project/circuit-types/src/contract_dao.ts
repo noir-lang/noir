@@ -9,9 +9,9 @@ import {
   getFunctionDebugMetadata,
 } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { prefixBufferWithLength } from '@aztec/foundation/serialize';
+import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
-import { BufferReader, EncodedContractFunction } from './contract_data.js';
+import { EncodedContractFunction } from './contract_data.js';
 
 /**
  * A contract Data Access Object (DAO).

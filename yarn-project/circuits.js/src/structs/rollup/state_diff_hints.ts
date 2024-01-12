@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
+import { Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import {
@@ -10,7 +10,6 @@ import {
   NULLIFIER_TREE_HEIGHT,
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
 } from '../../constants.gen.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { NullifierLeafPreimage } from './nullifier_leaf/index.js';
 

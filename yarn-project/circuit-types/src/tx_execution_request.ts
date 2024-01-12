@@ -1,5 +1,6 @@
-import { AztecAddress, FieldsOf, Fr, FunctionData, TxContext, TxRequest, Vector } from '@aztec/circuits.js';
-import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
+import { AztecAddress, Fr, FunctionData, TxContext, TxRequest, Vector } from '@aztec/circuits.js';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { FieldsOf } from '@aztec/foundation/types';
 
 import { AuthWitness } from './auth_witness.js';
 import { PackedArguments } from './packed_arguments.js';

@@ -1,6 +1,5 @@
 import { Fr, NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage } from '@aztec/circuits.js';
-
-import { SiblingPath } from '../sibling_path.js';
+import { SiblingPath } from '@aztec/types/membership';
 
 /**
  * Nullifier membership witness.

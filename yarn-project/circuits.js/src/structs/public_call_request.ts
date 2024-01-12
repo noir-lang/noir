@@ -1,8 +1,7 @@
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { FieldsOf } from '@aztec/foundation/types';
 
 import { computeVarArgsHash } from '../abis/abis.js';
-import { FieldsOf } from '../index.js';
-import { serializeToBuffer } from '../utils/serialize.js';
 import { CallerContext } from './call_request.js';
 import {
   AztecAddress,

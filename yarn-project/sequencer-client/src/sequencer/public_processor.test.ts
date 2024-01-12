@@ -3,7 +3,6 @@ import {
   ExtendedContractData,
   FunctionCall,
   FunctionL2Logs,
-  SiblingPath,
   SimulationError,
   Tx,
   TxL2Logs,
@@ -27,7 +26,6 @@ import {
   PublicCallRequest,
   PublicKernelPublicInputs,
   makeEmptyProof,
-  makeTuple,
 } from '@aztec/circuits.js';
 import {
   makeAztecAddress,
@@ -35,7 +33,9 @@ import {
   makePublicCallRequest,
   makeSelector,
 } from '@aztec/circuits.js/factories';
+import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
+import { SiblingPath } from '@aztec/types/membership';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';

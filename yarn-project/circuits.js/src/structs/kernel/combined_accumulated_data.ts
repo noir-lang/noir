@@ -1,4 +1,5 @@
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+import { makeTuple } from '@aztec/foundation/array';
+import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
   MAX_NEW_COMMITMENTS_PER_TX,
@@ -14,8 +15,6 @@ import {
   MAX_READ_REQUESTS_PER_TX,
   NUM_FIELDS_PER_SHA256,
 } from '../../constants.gen.js';
-import { makeTuple } from '../../index.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
 import { CallRequest } from '../call_request.js';
 import {
   AggregationObject,

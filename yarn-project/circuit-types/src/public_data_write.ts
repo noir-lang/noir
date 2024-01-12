@@ -1,7 +1,6 @@
 import { STRING_ENCODING } from '@aztec/circuits.js';
-import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**
  * Write operations on the public state tree.

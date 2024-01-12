@@ -1,5 +1,5 @@
-import { Hasher } from '@aztec/circuit-types';
 import { randomBytes } from '@aztec/foundation/crypto';
+import { Hasher } from '@aztec/types/interfaces';
 
 import { default as levelup } from 'levelup';
 

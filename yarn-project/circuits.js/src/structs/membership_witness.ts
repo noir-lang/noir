@@ -1,10 +1,7 @@
+import { assertMemberLength } from '@aztec/foundation/array';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
-
-import { NOTE_HASH_TREE_HEIGHT } from '../constants.gen.js';
-import { assertMemberLength, range } from '../utils/jsUtils.js';
-import { serializeToBuffer } from '../utils/serialize.js';
+import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**
  * Contains information which can be used to prove that a leaf is a member of a Merkle tree.
@@ -29,14 +26,6 @@ export class MembershipWitness<N extends number> {
 
   toBuffer() {
     return serializeToBuffer(toBufferBE(this.leafIndex, 32), ...this.siblingPath);
-  }
-
-  static mock(size: number, start: number) {
-    return new MembershipWitness(
-      size,
-      BigInt(start),
-      range(size, start).map(x => new Fr(BigInt(x))) as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
-    );
   }
 
   /**

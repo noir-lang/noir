@@ -1,7 +1,6 @@
 import { MAX_NEW_CONTRACTS_PER_TX, PrivateKernelPublicInputsFinal, Proof, PublicCallRequest } from '@aztec/circuits.js';
-import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { ExtendedContractData } from '../contract_data.js';
 import { GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';

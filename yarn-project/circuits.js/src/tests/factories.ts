@@ -1,3 +1,4 @@
+import { makeHalfFullTuple, makeTuple, range } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
@@ -98,9 +99,6 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
   WitnessedPublicCallData,
-  makeHalfFullTuple,
-  makeTuple,
-  range,
 } from '../index.js';
 import { GlobalVariables } from '../structs/global_variables.js';
 import { Header } from '../structs/header.js';

@@ -52,9 +52,9 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
   makeEmptyProof,
-  makeTuple,
 } from '@aztec/circuits.js';
 import { computeCompleteAddress, computeFunctionLeaf, computeTxHash } from '@aztec/circuits.js/abis';
+import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';

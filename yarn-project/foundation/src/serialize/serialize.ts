@@ -1,3 +1,7 @@
+import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+
+import { numToUInt32BE } from './free_funcs.js';
+
 /**
  * For serializing an array of fixed length buffers.
  * TODO move to foundation pkg.
@@ -60,30 +64,6 @@ export function deserializeArrayFromVector<T>(
     arr[i] = elem;
   }
   return { elem: arr, adv: pos - offset };
-}
-
-/**
- * Serializes a number to 32 bit little-endian form.
- * @param n - The number to serialize.
- * @param bufferSize - The size of the buffer to return.
- * @returns Number in little-endian form.
- */
-export function numToUInt32LE(n: number, bufferSize = 4): Buffer {
-  const buf = Buffer.alloc(bufferSize);
-  buf.writeUInt32LE(n, bufferSize - 4);
-  return buf;
-}
-
-/**
- * Serializes a number to 32 bit big-endian form.
- * @param n - The number to serialize.
- * @param bufferSize - The size of the buffer to return.
- * @returns Number in big-endian form.
- */
-export function numToUInt32BE(n: number, bufferSize = 4): Buffer {
-  const buf = Buffer.alloc(bufferSize);
-  buf.writeUInt32BE(n, bufferSize - 4);
-  return buf;
 }
 
 /**
@@ -228,4 +208,86 @@ export function toFriendlyJSON(obj: object): string {
     },
     2,
   );
+}
+
+/**
+ * Serialize a BigInt value into a Buffer of specified width.
+ * The function converts the input BigInt into its big-endian representation and stores it in a Buffer of the given width.
+ * If the width is not provided, a default value of 32 bytes will be used. It is important to provide an appropriate width
+ * to avoid truncation or incorrect serialization of large BigInt values.
+ *
+ * @param n - The BigInt value to be serialized.
+ * @param width - The width (in bytes) of the output Buffer, optional with default value 32.
+ * @returns A Buffer containing the serialized BigInt value in big-endian format.
+ */
+export function serializeBigInt(n: bigint, width = 32) {
+  return toBufferBE(n, width);
+}
+
+/**
+ * Deserialize a big integer from a buffer, given an offset and width.
+ * Reads the specified number of bytes from the buffer starting at the offset, converts it to a big integer, and returns the deserialized result along with the number of bytes read (advanced).
+ *
+ * @param buf - The buffer containing the big integer to be deserialized.
+ * @param offset - The position in the buffer where the big integer starts. Defaults to 0.
+ * @param width - The number of bytes to read from the buffer for the big integer. Defaults to 32.
+ * @returns An object containing the deserialized big integer value ('elem') and the number of bytes advanced ('adv').
+ */
+export function deserializeBigInt(buf: Buffer, offset = 0, width = 32) {
+  return { elem: toBigIntBE(buf.subarray(offset, offset + width)), adv: width };
+}
+
+/**
+ * Serializes a Date object into a Buffer containing its timestamp as a big integer value.
+ * The resulting Buffer has a fixed width of 8 bytes, representing a 64-bit big-endian integer.
+ * This function is useful for converting date values into a binary format that can be stored or transmitted easily.
+ *
+ * @param date - The Date object to be serialized.
+ * @returns A Buffer containing the serialized timestamp of the input Date object.
+ */
+export function serializeDate(date: Date) {
+  return serializeBigInt(BigInt(date.getTime()), 8);
+}
+
+/**
+ * Deserialize a boolean value from a given buffer at the specified offset.
+ * Reads a single byte at the provided offset in the buffer and returns
+ * the deserialized boolean value along with the number of bytes read (adv).
+ *
+ * @param buf - The buffer containing the serialized boolean value.
+ * @param offset - The position in the buffer to start reading the boolean value.
+ * @returns An object containing the deserialized boolean value (elem) and the number of bytes read (adv).
+ */
+export function deserializeBool(buf: Buffer, offset = 0) {
+  const adv = 1;
+  return { elem: buf.readUInt8(offset), adv };
+}
+
+/**
+ * Deserialize a 4-byte unsigned integer from a buffer, starting at the specified offset.
+ * The deserialization reads 4 bytes from the given buffer and converts it into a number.
+ * Returns an object containing the deserialized unsigned integer and the number of bytes advanced (4).
+ *
+ * @param buf - The buffer containing the serialized unsigned integer.
+ * @param offset - The starting position in the buffer to deserialize from (default is 0).
+ * @returns An object with the deserialized unsigned integer as 'elem' and the number of bytes advanced ('adv') as 4.
+ */
+export function deserializeUInt32(buf: Buffer, offset = 0) {
+  const adv = 4;
+  return { elem: buf.readUInt32BE(offset), adv };
+}
+
+/**
+ * Deserialize a signed 32-bit integer from a buffer at the given offset.
+ * The input 'buf' should be a Buffer containing binary data, and 'offset' should be the position in the buffer
+ * where the signed 32-bit integer starts. Returns an object with both the deserialized integer (elem) and the
+ * number of bytes advanced in the buffer (adv, always equal to 4).
+ *
+ * @param buf - The buffer containing the binary data.
+ * @param offset - Optional, the position in the buffer where the signed 32-bit integer starts (default is 0).
+ * @returns An object with the deserialized integer as 'elem' and the number of bytes advanced as 'adv'.
+ */
+export function deserializeInt32(buf: Buffer, offset = 0) {
+  const adv = 4;
+  return { elem: buf.readInt32BE(offset), adv };
 }

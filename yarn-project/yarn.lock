@@ -175,6 +175,7 @@ __metadata:
     "@aztec/merkle-tree": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/sequencer-client": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@aztec/world-state": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
@@ -407,6 +408,7 @@ __metadata:
     "@aztec/p2p": "workspace:^"
     "@aztec/pxe": "workspace:^"
     "@aztec/sequencer-client": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@aztec/world-state": "workspace:^"
     "@jest/globals": ^29.5.0
     "@noble/curves": ^1.0.0
@@ -582,6 +584,7 @@ __metadata:
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     "@types/levelup": ^5.1.2
@@ -820,6 +823,7 @@ __metadata:
     "@aztec/merkle-tree": "workspace:^"
     "@aztec/noir-protocol-circuits": "workspace:^"
     "@aztec/p2p": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@aztec/world-state": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
@@ -852,6 +856,7 @@ __metadata:
   resolution: "@aztec/types@workspace:types"
   dependencies:
     "@aztec/ethereum": "workspace:^"
+    "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/debug": ^4.1.7
     "@types/detect-node": ^2.0.0
@@ -882,6 +887,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     "@types/levelup": ^5.1.2

@@ -18,8 +18,6 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PublicDataUpdateRequest,
   SideEffectLinkedToNoteHash,
-  makeTuple,
-  range,
 } from '@aztec/circuits.js';
 import {
   fr,
@@ -29,6 +27,7 @@ import {
   makeProof,
 } from '@aztec/circuits.js/factories';
 import { createEthereumChain } from '@aztec/ethereum';
+import { makeTuple, range } from '@aztec/foundation/array';
 import { DecoderHelperAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   EmptyRollupProver,

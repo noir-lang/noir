@@ -1,5 +1,6 @@
+import { assertMemberLength } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
+import { Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -7,8 +8,6 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../constants.gen.js';
-import { assertMemberLength } from '../../utils/jsUtils.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
 import { CallRequest } from '../call_request.js';
 import { PublicCallStackItem } from '../call_stack_item.js';
 import { MembershipWitness } from '../membership_witness.js';

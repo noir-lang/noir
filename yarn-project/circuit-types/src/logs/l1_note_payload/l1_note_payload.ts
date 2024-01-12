@@ -1,8 +1,7 @@
 import { AztecAddress, GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
 import { Note } from './note.js';

@@ -1,5 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { FieldsOf } from '@aztec/foundation/types';
 
 import {
   ARCHIVE_HEIGHT,
@@ -7,8 +8,6 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../constants.gen.js';
-import { FieldsOf } from '../../utils/jsUtils.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
 import { GlobalVariables } from '../global_variables.js';
 import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
 import { MembershipWitness } from '../membership_witness.js';

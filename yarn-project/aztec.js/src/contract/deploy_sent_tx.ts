@@ -1,5 +1,6 @@
 import { PXE, TxHash, TxReceipt } from '@aztec/circuit-types';
-import { AztecAddress, CompleteAddress, FieldsOf } from '@aztec/circuits.js';
+import { AztecAddress, CompleteAddress } from '@aztec/circuits.js';
+import { FieldsOf } from '@aztec/foundation/types';
 
 import { Wallet } from '../account/index.js';
 import { type Contract } from './contract.js';
