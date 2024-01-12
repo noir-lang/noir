@@ -107,7 +107,4 @@ template <class Flavor> class ProverInstance_ {
     void add_plookup_memory_records_to_wire_4(FF);
 };
 
-extern template class ProverInstance_<honk::flavor::Ultra>;
-extern template class ProverInstance_<honk::flavor::GoblinUltra>;
-
 } // namespace proof_system::honk

@@ -27,7 +27,4 @@ template <typename Builder> class logic {
                 return std::make_pair(left_chunk, right_chunk);
             });
 };
-
-EXTERN_STDLIB_TYPE(logic);
-
 } // namespace proof_system::plonk::stdlib

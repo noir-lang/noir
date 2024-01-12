@@ -75,6 +75,4 @@ template <typename T> inline std::ostream& operator<<(std::ostream& os, bool_t<T
     return os << v.get_value();
 }
 
-EXTERN_STDLIB_TYPE(bool_t);
-
 } // namespace proof_system::plonk::stdlib

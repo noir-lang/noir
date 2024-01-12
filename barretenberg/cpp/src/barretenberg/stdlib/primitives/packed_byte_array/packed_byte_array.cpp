@@ -266,7 +266,9 @@ template <typename Builder> std::string packed_byte_array<Builder>::get_value() 
     return bytes;
 }
 
-INSTANTIATE_STDLIB_TYPE(packed_byte_array);
+template class packed_byte_array<proof_system::StandardCircuitBuilder>;
+template class packed_byte_array<proof_system::UltraCircuitBuilder>;
+template class packed_byte_array<proof_system::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -56,8 +56,5 @@ template <typename Builder> class ram_table {
     mutable bool _all_entries_written_to_with_constant_index = false;
     mutable Builder* _context = nullptr;
 };
-
-EXTERN_STDLIB_ULTRA_TYPE(ram_table);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

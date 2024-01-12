@@ -74,7 +74,6 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
         commitment_key = std::make_shared<CommitmentKey>(circuit_size, crs_factory_);
     };
 };
-extern template class ECCVMComposer_<honk::flavor::ECCVM>;
 
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
 using ECCVMComposer = ECCVMComposer_<honk::flavor::ECCVM>;

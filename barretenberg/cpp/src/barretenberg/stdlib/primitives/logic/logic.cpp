@@ -113,5 +113,7 @@ field_t<Builder> logic<Builder>::create_logic_constraint(
         return field_t<Builder>::from_witness_index(ctx, out_idx);
     }
 }
-INSTANTIATE_STDLIB_TYPE(logic);
+template class logic<proof_system::StandardCircuitBuilder>;
+template class logic<proof_system::UltraCircuitBuilder>;
+template class logic<proof_system::GoblinUltraCircuitBuilder>;
 } // namespace proof_system::plonk::stdlib

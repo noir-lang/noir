@@ -179,7 +179,17 @@ template <typename Builder> packed_byte_array<Builder> sha256(const packed_byte_
     return packed_byte_array<Builder>(output, 4);
 }
 
-INSTANTIATE_STDLIB_METHOD(SHA256_BLOCK)
-INSTANTIATE_STDLIB_METHOD(SHA256)
+template byte_array<proof_system::StandardCircuitBuilder> sha256_block(
+    const byte_array<proof_system::StandardCircuitBuilder>& input);
+template byte_array<proof_system::UltraCircuitBuilder> sha256_block(
+    const byte_array<proof_system::UltraCircuitBuilder>& input);
+template byte_array<proof_system::GoblinUltraCircuitBuilder> sha256_block(
+    const byte_array<proof_system::GoblinUltraCircuitBuilder>& input);
+template packed_byte_array<proof_system::StandardCircuitBuilder> sha256(
+    const packed_byte_array<proof_system::StandardCircuitBuilder>& input);
+template packed_byte_array<proof_system::UltraCircuitBuilder> sha256(
+    const packed_byte_array<proof_system::UltraCircuitBuilder>& input);
+template packed_byte_array<proof_system::GoblinUltraCircuitBuilder> sha256(
+    const packed_byte_array<proof_system::GoblinUltraCircuitBuilder>& input);
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -201,10 +201,5 @@ template <typename Builder>
 using uint64 =
     typename std::conditional<HasPlookup<Builder>, uint_plookup<Builder, uint64_t>, uint<Builder, uint64_t>>::type;
 
-EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint8_t);
-EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint16_t);
-EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint32_t);
-EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint64_t);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -427,7 +427,4 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, fi
 {
     return os << v.get_value();
 }
-
-EXTERN_STDLIB_TYPE(field_t);
-
 } // namespace proof_system::plonk::stdlib

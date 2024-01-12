@@ -84,22 +84,4 @@ class table : public FixedBaseParams {
     }
 };
 
-extern template table::affine_element table::generate_generator_offset<table::BITS_PER_LO_SCALAR>(
-    const table::affine_element&);
-extern template table::affine_element table::generate_generator_offset<table::BITS_PER_HI_SCALAR>(
-    const table::affine_element&);
-extern template table::fixed_base_scalar_mul_tables table::generate_tables<table::BITS_PER_LO_SCALAR>(
-    const table::affine_element&);
-extern template table::fixed_base_scalar_mul_tables table::generate_tables<table::BITS_PER_HI_SCALAR>(
-    const table::affine_element&);
-
-extern template BasicTable table::generate_basic_fixed_base_table<0>(BasicTableId, size_t, size_t);
-extern template BasicTable table::generate_basic_fixed_base_table<1>(BasicTableId, size_t, size_t);
-extern template BasicTable table::generate_basic_fixed_base_table<2>(BasicTableId, size_t, size_t);
-extern template BasicTable table::generate_basic_fixed_base_table<3>(BasicTableId, size_t, size_t);
-extern template MultiTable table::get_fixed_base_table<0, table::BITS_PER_LO_SCALAR>(MultiTableId);
-extern template MultiTable table::get_fixed_base_table<1, table::BITS_PER_HI_SCALAR>(MultiTableId);
-extern template MultiTable table::get_fixed_base_table<2, table::BITS_PER_LO_SCALAR>(MultiTableId);
-extern template MultiTable table::get_fixed_base_table<3, table::BITS_PER_HI_SCALAR>(MultiTableId);
-
 } // namespace plookup::fixed_base

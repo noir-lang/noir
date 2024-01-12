@@ -146,8 +146,6 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     } circuit_schema;
 };
 
-extern template class StandardCircuitBuilder_<barretenberg::fr>;
-extern template class StandardCircuitBuilder_<grumpkin::fr>;
 using StandardCircuitBuilder = StandardCircuitBuilder_<barretenberg::fr>;
 using StandardGrumpkinCircuitBuilder = StandardCircuitBuilder_<grumpkin::fr>;
 } // namespace proof_system

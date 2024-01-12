@@ -202,7 +202,5 @@ template <typename Builder> class keccak {
                                                                Builder* context);
 };
 
-EXTERN_STDLIB_ULTRA_TYPE(keccak)
-
 } // namespace stdlib
 } // namespace proof_system::plonk

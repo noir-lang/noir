@@ -55,9 +55,6 @@ template <UltraFlavor Flavor> class DeciderProver_ {
     plonk::proof proof;
 };
 
-extern template class DeciderProver_<honk::flavor::Ultra>;
-extern template class DeciderProver_<honk::flavor::GoblinUltra>;
-
 using DeciderProver = DeciderProver_<honk::flavor::Ultra>;
 
 } // namespace proof_system::honk

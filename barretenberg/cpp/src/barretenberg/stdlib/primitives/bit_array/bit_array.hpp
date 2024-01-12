@@ -179,7 +179,5 @@ template <typename Builder> class bit_array {
     std::vector<bool_t<Builder>> values;
 };
 
-EXTERN_STDLIB_TYPE(bit_array);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

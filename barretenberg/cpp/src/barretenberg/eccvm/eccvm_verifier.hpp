@@ -39,7 +39,6 @@ template <typename Flavor> class ECCVMVerifier_ {
     std::shared_ptr<Transcript> transcript;
 };
 
-extern template class ECCVMVerifier_<honk::flavor::ECCVM>;
 using ECCVMVerifierGrumpkin = ECCVMVerifier_<honk::flavor::ECCVM>;
 
 } // namespace proof_system::honk

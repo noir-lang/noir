@@ -28,24 +28,4 @@ bool_t<C> signature_verification_result(const byte_array<C>& message,
                                         const cycle_group<C>& pub_key,
                                         const signature_bits<C>& sig);
 
-#define VERIFY_SIGNATURE_INTERNAL(circuit_type)                                                                        \
-    std::array<field_t<circuit_type>, 2> verify_signature_internal<circuit_type>(                                      \
-        const byte_array<circuit_type>&, const cycle_group<circuit_type>&, const signature_bits<circuit_type>&)
-
-#define VERIFY_SIGNATURE(circuit_type)                                                                                 \
-    void verify_signature<circuit_type>(                                                                               \
-        const byte_array<circuit_type>&, const cycle_group<circuit_type>&, const signature_bits<circuit_type>&)
-
-#define SIGNATURE_VERIFICATION_RESULT(circuit_type)                                                                    \
-    bool_t<circuit_type> signature_verification_result<circuit_type>(                                                  \
-        const byte_array<circuit_type>&, const cycle_group<circuit_type>&, const signature_bits<circuit_type>&)
-
-#define CONVERT_SIGNATURE(circuit_type)                                                                                \
-    signature_bits<circuit_type> convert_signature<circuit_type>(circuit_type*, const crypto::schnorr::signature&)
-
-EXTERN_STDLIB_METHOD(VERIFY_SIGNATURE_INTERNAL)
-EXTERN_STDLIB_METHOD(VERIFY_SIGNATURE)
-EXTERN_STDLIB_METHOD(SIGNATURE_VERIFICATION_RESULT)
-EXTERN_STDLIB_METHOD(CONVERT_SIGNATURE)
-
 } // namespace proof_system::plonk::stdlib::schnorr

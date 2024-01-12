@@ -38,8 +38,6 @@ template <typename Store> class NullifierTree : public MerkleTree<Store> {
     std::vector<WrappedNullifierLeaf> leaves;
 };
 
-extern template class NullifierTree<MemoryStore>;
-
 } // namespace merkle_tree
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -239,7 +239,9 @@ std::array<safe_uint_t<Builder>, 3> safe_uint_t<Builder>::slice(const uint8_t ms
     return result;
 }
 
-INSTANTIATE_STDLIB_TYPE(safe_uint_t);
+template class safe_uint_t<proof_system::StandardCircuitBuilder>;
+template class safe_uint_t<proof_system::UltraCircuitBuilder>;
+template class safe_uint_t<proof_system::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

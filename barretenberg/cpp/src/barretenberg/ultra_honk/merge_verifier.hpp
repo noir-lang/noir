@@ -36,7 +36,4 @@ template <typename Flavor> class MergeVerifier_ {
     bool verify_proof(const plonk::proof& proof);
 };
 
-extern template class MergeVerifier_<honk::flavor::Ultra>;
-extern template class MergeVerifier_<honk::flavor::GoblinUltra>;
-
 } // namespace proof_system::honk

@@ -21,10 +21,6 @@ class VerifierPlookupWidget {
                                                      std::map<std::string, Field>& scalars);
 };
 
-extern template class VerifierPlookupWidget<barretenberg::fr,
-                                            barretenberg::g1::affine_element,
-                                            transcript::StandardTranscript>;
-
 template <const size_t num_roots_cut_out_of_vanishing_polynomial = 4>
 class ProverPlookupWidget : public ProverRandomWidget {
   public:

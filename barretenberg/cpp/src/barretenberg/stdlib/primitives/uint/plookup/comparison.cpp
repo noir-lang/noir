@@ -74,9 +74,13 @@ template <typename Builder, typename Native> bool_t<Builder> uint_plookup<Builde
     return (field_t<Builder>(*this).is_zero()).normalize();
 }
 
-INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint8_t);
-INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint16_t);
-INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint32_t);
-INSTANTIATE_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint64_t);
+template class uint_plookup<proof_system::UltraCircuitBuilder, uint8_t>;
+template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint8_t>;
+template class uint_plookup<proof_system::UltraCircuitBuilder, uint16_t>;
+template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint16_t>;
+template class uint_plookup<proof_system::UltraCircuitBuilder, uint32_t>;
+template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint32_t>;
+template class uint_plookup<proof_system::UltraCircuitBuilder, uint64_t>;
+template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint64_t>;
 } // namespace stdlib
 } // namespace proof_system::plonk

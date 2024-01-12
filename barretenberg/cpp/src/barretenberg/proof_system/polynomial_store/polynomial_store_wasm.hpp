@@ -16,6 +16,4 @@ template <typename Fr> class PolynomialStoreWasm {
     Polynomial get(std::string const& key);
 };
 
-extern template class PolynomialStoreWasm<barretenberg::fr>;
-
 } // namespace proof_system

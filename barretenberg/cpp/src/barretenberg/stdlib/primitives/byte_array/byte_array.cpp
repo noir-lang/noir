@@ -380,7 +380,9 @@ typename byte_array<Builder>::byte_slice byte_array<Builder>::split_byte(const s
     return { low, scaled_high, bit };
 }
 
-INSTANTIATE_STDLIB_TYPE(byte_array);
+template class byte_array<proof_system::StandardCircuitBuilder>;
+template class byte_array<proof_system::UltraCircuitBuilder>;
+template class byte_array<proof_system::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

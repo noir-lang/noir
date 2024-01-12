@@ -209,8 +209,5 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, sa
 {
     return os << v.value;
 }
-
-EXTERN_STDLIB_TYPE(safe_uint_t);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -56,8 +56,5 @@ template <typename G1> class ecc_generator_table {
     static MultiTable get_xyprime_endo_table(const MultiTableId id, const BasicTableId basic_id);
 };
 
-extern template class ecc_generator_table<barretenberg::g1>;
-extern template class ecc_generator_table<secp256k1::g1>;
-
 } // namespace ecc_generator_tables
 } // namespace plookup

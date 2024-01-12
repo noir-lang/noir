@@ -86,7 +86,4 @@ template <> class FileVerifierCrs<curve::Grumpkin> : public VerifierCrs<curve::G
     std::shared_ptr<Curve::AffineElement[]> monomials_;
 };
 
-extern template class FileProverCrs<curve::BN254>;
-extern template class FileProverCrs<curve::Grumpkin>;
-
 } // namespace barretenberg::srs::factories

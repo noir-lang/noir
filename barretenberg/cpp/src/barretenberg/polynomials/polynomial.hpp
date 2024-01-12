@@ -273,10 +273,6 @@ template <typename Fr> inline std::ostream& operator<<(std::ostream& os, Polynom
               << "]";
 }
 
-extern template class Polynomial<barretenberg::fr>;
-// N.B. grumpkin polynomials don't support fast fourier transforms using roots of unity!
-extern template class Polynomial<grumpkin::fr>;
-
 using polynomial = Polynomial<barretenberg::fr>;
 
 } // namespace barretenberg

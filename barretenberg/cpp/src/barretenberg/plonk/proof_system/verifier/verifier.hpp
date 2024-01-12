@@ -28,11 +28,6 @@ template <typename program_settings> class VerifierBase {
     std::unique_ptr<CommitmentScheme> commitment_scheme;
 };
 
-extern template class VerifierBase<standard_verifier_settings>;
-extern template class VerifierBase<ultra_verifier_settings>;
-extern template class VerifierBase<ultra_to_standard_verifier_settings>;
-extern template class VerifierBase<ultra_with_keccak_verifier_settings>;
-
 typedef VerifierBase<standard_verifier_settings> Verifier;
 typedef VerifierBase<ultra_verifier_settings> UltraVerifier;
 typedef VerifierBase<ultra_to_standard_verifier_settings> UltraToStandardVerifier;

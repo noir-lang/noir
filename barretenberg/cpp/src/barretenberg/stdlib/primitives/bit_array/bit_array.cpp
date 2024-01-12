@@ -157,7 +157,9 @@ template <typename Builder> std::string bit_array<Builder>::get_witness_as_strin
     return output;
 }
 
-INSTANTIATE_STDLIB_TYPE(bit_array)
+template class bit_array<proof_system::StandardCircuitBuilder>;
+template class bit_array<proof_system::UltraCircuitBuilder>;
+template class bit_array<proof_system::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

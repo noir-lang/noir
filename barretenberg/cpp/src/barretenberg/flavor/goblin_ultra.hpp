@@ -17,7 +17,7 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/transcript/transcript.hpp"
-#include "relation_definitions_fwd.hpp"
+#include "relation_definitions.hpp"
 
 namespace proof_system::honk::flavor {
 

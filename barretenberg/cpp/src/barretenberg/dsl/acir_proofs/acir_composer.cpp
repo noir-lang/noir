@@ -10,6 +10,7 @@
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
 #include "contract.hpp"
 
 namespace acir_proofs {
@@ -34,6 +35,9 @@ template <typename Builder> void AcirComposer::create_circuit(acir_format::acir_
     size_hint_ = circuit_subgroup_size_;
     vinfo("gates: ", builder_.get_total_circuit_size());
 }
+
+template void AcirComposer::create_circuit<proof_system::UltraCircuitBuilder>(
+    acir_format::acir_format& constraint_system);
 
 std::shared_ptr<proof_system::plonk::proving_key> AcirComposer::init_proving_key(
     acir_format::acir_format& constraint_system)

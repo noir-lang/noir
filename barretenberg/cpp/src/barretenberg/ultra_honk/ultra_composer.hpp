@@ -134,8 +134,6 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     void compute_verification_key(const std::shared_ptr<Instance>&);
 };
 
-extern template class UltraComposer_<honk::flavor::Ultra>;
-extern template class UltraComposer_<honk::flavor::GoblinUltra>;
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
 using UltraComposer = UltraComposer_<honk::flavor::Ultra>;
 using GoblinUltraComposer = UltraComposer_<honk::flavor::GoblinUltra>;

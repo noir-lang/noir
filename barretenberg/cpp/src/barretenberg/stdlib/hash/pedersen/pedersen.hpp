@@ -31,6 +31,4 @@ template <typename Builder> class pedersen_hash {
     static field_ct hash_buffer(const stdlib::byte_array<Builder>& input, GeneratorContext context = {});
 };
 
-EXTERN_STDLIB_TYPE(pedersen_hash);
-
 } // namespace proof_system::plonk::stdlib

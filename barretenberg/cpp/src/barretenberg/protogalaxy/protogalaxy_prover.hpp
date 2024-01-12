@@ -434,6 +434,4 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         const FF& compressed_perturbator);
 };
 
-extern template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::Ultra, 2>>;
-extern template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::GoblinUltra, 2>>;
 } // namespace proof_system::honk

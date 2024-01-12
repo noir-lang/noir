@@ -472,14 +472,4 @@ GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_
                                                                           Fq previous_accumulator,
                                                                           Fq batching_challenge_v,
                                                                           Fq evaluation_input_x);
-extern template GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(barretenberg::fr,
-                                                                                          barretenberg::fr,
-                                                                                          barretenberg::fr,
-                                                                                          barretenberg::fr,
-                                                                                          barretenberg::fr,
-                                                                                          barretenberg::fr,
-                                                                                          barretenberg::fr,
-                                                                                          barretenberg::fq,
-                                                                                          barretenberg::fq,
-                                                                                          barretenberg::fq);
 } // namespace proof_system

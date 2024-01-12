@@ -20,6 +20,4 @@ template <typename CircuitBuilder> class pedersen_commitment {
     static cycle_group commit(const std::vector<std::pair<field_t, GeneratorContext>>& input_pairs);
 };
 
-EXTERN_STDLIB_TYPE(pedersen_commitment);
-
 } // namespace proof_system::plonk::stdlib

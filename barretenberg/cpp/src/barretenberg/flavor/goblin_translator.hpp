@@ -14,7 +14,7 @@
 #include "barretenberg/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_non_native_field_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_permutation_relation.hpp"
-#include "relation_definitions_fwd.hpp"
+#include "relation_definitions.hpp"
 
 namespace proof_system::honk::flavor {
 
@@ -1139,21 +1139,3 @@ class GoblinTranslator {
     using Transcript = BaseTranscript;
 };
 } // namespace proof_system::honk::flavor
-
-namespace proof_system {
-
-extern template class GoblinTranslatorPermutationRelationImpl<barretenberg::fr>;
-extern template class GoblinTranslatorGenPermSortRelationImpl<barretenberg::fr>;
-extern template class GoblinTranslatorOpcodeConstraintRelationImpl<barretenberg::fr>;
-extern template class GoblinTranslatorAccumulatorTransferRelationImpl<barretenberg::fr>;
-extern template class GoblinTranslatorDecompositionRelationImpl<barretenberg::fr>;
-extern template class GoblinTranslatorNonNativeFieldRelationImpl<barretenberg::fr>;
-
-DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorPermutationRelationImpl, honk::flavor::GoblinTranslator);
-DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorGenPermSortRelationImpl, honk::flavor::GoblinTranslator);
-DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorOpcodeConstraintRelationImpl, honk::flavor::GoblinTranslator);
-DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorAccumulatorTransferRelationImpl, honk::flavor::GoblinTranslator);
-DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorDecompositionRelationImpl, honk::flavor::GoblinTranslator);
-DECLARE_SUMCHECK_RELATION_CLASS(GoblinTranslatorNonNativeFieldRelationImpl, honk::flavor::GoblinTranslator);
-
-} // namespace proof_system

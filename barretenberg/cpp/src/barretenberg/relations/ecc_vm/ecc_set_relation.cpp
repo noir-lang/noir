@@ -1,5 +1,5 @@
 #include "barretenberg/flavor/ecc_vm.hpp"
-#include "barretenberg/flavor/relation_definitions_fwd.hpp"
+#include "barretenberg/flavor/relation_definitions.hpp"
 #include "ecc_msm_relation.hpp"
 
 namespace proof_system::honk::sumcheck {

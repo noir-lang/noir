@@ -233,7 +233,4 @@ inline std::ostream& operator<<(std::ostream& os, cycle_group<ComposerContext> c
 {
     return os << v.get_value();
 }
-
-EXTERN_STDLIB_TYPE(cycle_group);
-
 } // namespace proof_system::plonk::stdlib

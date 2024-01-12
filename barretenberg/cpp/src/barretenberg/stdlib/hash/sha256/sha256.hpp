@@ -24,11 +24,5 @@ template <typename Builder> field_t<Builder> sha256_to_field(const packed_byte_a
     return slices[1] + (slices[0] * (uint256_t(1) << 128));
 }
 
-#define SHA256_BLOCK(circuit_type) byte_array<circuit_type> sha256_block(const byte_array<circuit_type>& input)
-#define SHA256(circuit_type) packed_byte_array<circuit_type> sha256(const packed_byte_array<circuit_type>& input)
-
-EXTERN_STDLIB_METHOD(SHA256_BLOCK)
-EXTERN_STDLIB_METHOD(SHA256)
-
 } // namespace stdlib
 } // namespace proof_system::plonk

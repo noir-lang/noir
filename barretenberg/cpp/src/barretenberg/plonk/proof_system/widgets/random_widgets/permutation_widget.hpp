@@ -21,10 +21,6 @@ class VerifierPermutationWidget {
                                                      const Transcript& transcript);
 };
 
-extern template class VerifierPermutationWidget<barretenberg::fr,
-                                                barretenberg::g1::affine_element,
-                                                transcript::StandardTranscript>;
-
 template <size_t program_width, bool idpolys = false, const size_t num_roots_cut_out_of_vanishing_polynomial = 4>
 class ProverPermutationWidget : public ProverRandomWidget {
   public:

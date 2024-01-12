@@ -98,9 +98,6 @@ template <typename settings> class ProverBase {
   private:
     plonk::proof proof;
 };
-extern template class ProverBase<standard_settings>;
-extern template class ProverBase<ultra_settings>;
-extern template class ProverBase<ultra_to_standard_settings>;
 
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<ultra_settings> UltraProver; // TODO(Mike): maybe just return a templated proverbase so that I don't

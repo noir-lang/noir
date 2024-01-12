@@ -83,6 +83,4 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     plonk::proof proof;
 };
 
-extern template class ECCVMProver_<honk::flavor::ECCVM>;
-
 } // namespace proof_system::honk

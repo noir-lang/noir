@@ -42,8 +42,5 @@ template <typename Builder> class twin_rom_table {
     mutable bool initialized = false;
     mutable Builder* context = nullptr;
 };
-
-EXTERN_STDLIB_ULTRA_TYPE(twin_rom_table);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

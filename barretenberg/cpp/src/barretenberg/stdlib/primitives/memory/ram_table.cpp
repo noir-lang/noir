@@ -252,6 +252,7 @@ template <typename Builder> void ram_table<Builder>::write(const field_pt& index
     }
 }
 
-INSTANTIATE_STDLIB_ULTRA_TYPE(ram_table);
+template class ram_table<proof_system::UltraCircuitBuilder>;
+template class ram_table<proof_system::GoblinUltraCircuitBuilder>;
 } // namespace stdlib
 } // namespace proof_system::plonk

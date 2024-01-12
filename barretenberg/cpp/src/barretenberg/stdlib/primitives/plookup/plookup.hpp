@@ -25,8 +25,5 @@ template <typename Builder> class plookup_read {
                                                                const field_pt& key_b = 0,
                                                                const bool is_2_to_1_lookup = false);
 };
-
-EXTERN_STDLIB_ULTRA_TYPE(plookup_read);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

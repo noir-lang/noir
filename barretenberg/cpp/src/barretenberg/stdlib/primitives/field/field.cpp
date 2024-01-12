@@ -1146,7 +1146,9 @@ std::vector<bool_t<Builder>> field_t<Builder>::decompose_into_bits(
     return result;
 }
 
-INSTANTIATE_STDLIB_TYPE(field_t);
+template class field_t<proof_system::StandardCircuitBuilder>;
+template class field_t<proof_system::UltraCircuitBuilder>;
+template class field_t<proof_system::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

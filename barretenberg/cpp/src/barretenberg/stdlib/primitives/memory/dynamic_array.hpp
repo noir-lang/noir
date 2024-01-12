@@ -47,8 +47,5 @@ template <typename Builder> class DynamicArray {
     field_pt _length = 0;
     mutable ram_table<Builder> _inner_table;
 };
-
-EXTERN_STDLIB_ULTRA_TYPE(DynamicArray);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -26,7 +26,4 @@ template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
     PairingPoints verify_proof(const plonk::proof& proof);
 };
 
-extern template class MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
-extern template class MergeRecursiveVerifier_<UltraCircuitBuilder>;
-
 } // namespace proof_system::plonk::stdlib::recursion::goblin

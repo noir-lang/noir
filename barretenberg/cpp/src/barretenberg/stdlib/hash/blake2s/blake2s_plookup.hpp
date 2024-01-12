@@ -16,9 +16,6 @@ namespace blake2s_plookup {
 
 template <typename Builder> byte_array<Builder> blake2s(const byte_array<Builder>& input);
 
-#define BLAKE2S_ULTRA(ULTRA_TYPE) byte_array<ULTRA_TYPE> blake2s(const byte_array<ULTRA_TYPE>& input)
-
-EXTERN_STDLIB_ULTRA_METHOD(BLAKE2S_ULTRA)
 } // namespace blake2s_plookup
 
 } // namespace stdlib

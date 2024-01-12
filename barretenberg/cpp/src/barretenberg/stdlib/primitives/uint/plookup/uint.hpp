@@ -172,11 +172,5 @@ template <typename T, typename w> inline std::ostream& operator<<(std::ostream& 
 {
     return os << v.get_value();
 }
-
-EXTERN_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint8_t);
-EXTERN_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint16_t);
-EXTERN_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint32_t);
-EXTERN_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint64_t);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

@@ -548,7 +548,9 @@ template <typename Builder> bool_t<Builder> bool_t<Builder>::normalize() const
     return *this;
 }
 
-INSTANTIATE_STDLIB_TYPE(bool_t);
+template class bool_t<proof_system::StandardCircuitBuilder>;
+template class bool_t<proof_system::UltraCircuitBuilder>;
+template class bool_t<proof_system::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

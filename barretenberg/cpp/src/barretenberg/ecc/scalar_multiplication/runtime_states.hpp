@@ -114,8 +114,4 @@ template <typename Curve> struct pippenger_runtime_state {
     affine_product_runtime_state<Curve> get_affine_product_runtime_state(size_t num_threads, size_t thread_index);
 };
 
-extern template struct affine_product_runtime_state<curve::BN254>;
-extern template struct affine_product_runtime_state<curve::Grumpkin>;
-extern template struct pippenger_runtime_state<curve::BN254>;
-extern template struct pippenger_runtime_state<curve::Grumpkin>;
 } // namespace barretenberg::scalar_multiplication

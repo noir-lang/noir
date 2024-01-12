@@ -889,6 +889,8 @@ stdlib::byte_array<Builder> keccak<Builder>::sponge_squeeze_for_permutation_opco
     }
     return result;
 }
-INSTANTIATE_STDLIB_ULTRA_TYPE(keccak)
+template class keccak<proof_system::UltraCircuitBuilder>;
+template class keccak<proof_system::GoblinUltraCircuitBuilder>;
+
 } // namespace stdlib
 } // namespace proof_system::plonk

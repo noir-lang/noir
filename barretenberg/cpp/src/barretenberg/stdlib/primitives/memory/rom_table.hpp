@@ -40,8 +40,5 @@ template <typename Builder> class rom_table {
     mutable bool initialized = false;
     mutable Builder* context = nullptr;
 };
-
-EXTERN_STDLIB_ULTRA_TYPE(rom_table);
-
 } // namespace stdlib
 } // namespace proof_system::plonk

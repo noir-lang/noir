@@ -1167,7 +1167,5 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
 
     bool check_circuit();
 };
-extern template class UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
-extern template class UltraCircuitBuilder_<arithmetization::UltraHonk<barretenberg::fr>>;
 using UltraCircuitBuilder = UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
 } // namespace proof_system

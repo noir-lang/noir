@@ -1,5 +1,5 @@
 #include "barretenberg/flavor/ecc_vm.hpp"
-#include "barretenberg/flavor/relation_definitions_fwd.hpp"
+#include "barretenberg/flavor/relation_definitions.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "ecc_msm_relation.hpp"
 

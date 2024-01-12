@@ -254,6 +254,11 @@ template <typename Builder> byte_array<Builder> blake3s(const byte_array<Builder
     return result;
 }
 
-INSTANTIATE_STDLIB_METHOD(BLAKE3S)
+template byte_array<proof_system::StandardCircuitBuilder> blake3s(
+    const byte_array<proof_system::StandardCircuitBuilder>& input);
+template byte_array<proof_system::UltraCircuitBuilder> blake3s(
+    const byte_array<proof_system::UltraCircuitBuilder>& input);
+template byte_array<proof_system::GoblinUltraCircuitBuilder> blake3s(
+    const byte_array<proof_system::GoblinUltraCircuitBuilder>& input);
 } // namespace stdlib
 } // namespace proof_system::plonk

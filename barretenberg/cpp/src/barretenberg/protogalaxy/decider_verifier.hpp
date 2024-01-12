@@ -26,9 +26,6 @@ template <typename Flavor> class DeciderVerifier_ {
     std::shared_ptr<Transcript> transcript;
 };
 
-extern template class DeciderVerifier_<honk::flavor::Ultra>;
-extern template class DeciderVerifier_<honk::flavor::GoblinUltra>;
-
 using DeciderVerifier = DeciderVerifier_<honk::flavor::Ultra>;
 
 } // namespace proof_system::honk
