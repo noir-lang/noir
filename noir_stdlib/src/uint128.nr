@@ -116,6 +116,8 @@ impl U128 {
 
     pub fn from_integer<T>(i: T) -> U128 {
         let f = crate::as_field(i);
+        // Reject values which would overflow a u128
+        f.assert_max_bit_size(128);
         let lo = f as u64 as Field;
         let hi = (f-lo) / pow64;
         U128 {
