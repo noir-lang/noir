@@ -209,7 +209,7 @@ pub(crate) fn on_shutdown(
 
 #[cfg(test)]
 mod initialization {
-    use acvm::blackbox_solver::StubbedSolver;
+    use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use async_lsp::ClientSocket;
     use lsp_types::{
         CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
@@ -221,7 +221,7 @@ mod initialization {
     #[test]
     async fn test_on_initialize() {
         let client = ClientSocket::new_closed();
-        let mut state = LspState::new(&client, StubbedSolver);
+        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
         let params = InitializeParams::default();
         let response = on_initialize(&mut state, params).await.unwrap();
         assert!(matches!(

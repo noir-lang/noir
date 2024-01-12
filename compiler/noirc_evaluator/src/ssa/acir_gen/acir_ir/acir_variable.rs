@@ -1736,8 +1736,13 @@ fn execute_brillig(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let input_registers = Registers::load(input_register_values);
-    let mut vm =
-        VM::new(input_registers, input_memory, code, Vec::new(), &blackbox_solver::StubbedSolver);
+    let mut vm = VM::new(
+        input_registers,
+        input_memory,
+        code,
+        Vec::new(),
+        &blackbox_solver::StubbedBlackBoxSolver,
+    );
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

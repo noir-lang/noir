@@ -31,9 +31,9 @@ pub trait BlackBoxFunctionSolver {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
 }
 
-pub struct StubbedSolver;
+pub struct StubbedBlackBoxSolver;
 
-impl BlackBoxFunctionSolver for StubbedSolver {
+impl BlackBoxFunctionSolver for StubbedBlackBoxSolver {
     fn schnorr_verify(
         &self,
         _public_key_x: &FieldElement,

@@ -440,7 +440,7 @@ mod tests {
             },
             native_types::Expression,
         },
-        blackbox_solver::StubbedSolver,
+        blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
             BinaryFieldOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory,
         },
@@ -486,7 +486,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
         let mut context = DebugContext::new(
-            &StubbedSolver,
+            &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
@@ -578,7 +578,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
         let mut context = DebugContext::new(
-            &StubbedSolver,
+            &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
@@ -627,7 +627,7 @@ mod tests {
         let debug_artifact =
             DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
         let context = DebugContext::new(
-            &StubbedSolver,
+            &StubbedBlackBoxSolver,
             &circuit,
             &debug_artifact,
             WitnessMap::new(),

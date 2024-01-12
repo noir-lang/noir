@@ -16,7 +16,7 @@ use thiserror::Error;
 
 mod curve_specific_solver;
 
-pub use curve_specific_solver::{BlackBoxFunctionSolver, StubbedSolver};
+pub use curve_specific_solver::{BlackBoxFunctionSolver, StubbedBlackBoxSolver};
 
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum BlackBoxResolutionError {
