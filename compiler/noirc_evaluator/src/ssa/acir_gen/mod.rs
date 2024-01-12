@@ -1712,6 +1712,9 @@ impl Context {
 
                 Ok(Self::convert_vars_to_values(vars, dfg, result_ids))
             }
+            Intrinsic::ApplyRangeConstraint => {
+                unreachable!("ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`");
+            }
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
