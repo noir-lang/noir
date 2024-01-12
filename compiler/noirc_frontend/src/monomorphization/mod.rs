@@ -243,6 +243,9 @@ impl<'interner> Monomorphizer<'interner> {
 
         let parameters = self.parameters(&meta.parameters);
 
+        let t = meta.typ.as_monotype().follow_bindings();
+        eprintln!("Monomorphizing function with type {t}");
+
         let body = self.expr(body_expr_id);
         let unconstrained = modifiers.is_unconstrained
             || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
@@ -430,11 +433,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Constructor(constructor) => self.constructor(constructor, expr),
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
-
-            HirExpression::TraitMethodReference(method) => {
-                let function_type = self.interner.id_type(expr);
-                self.resolve_trait_method_reference(expr, function_type, method)
-            }
 
             HirExpression::MethodCall(hir_method_call) => {
                 unreachable!("Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}")
@@ -682,6 +680,12 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
+        let typ = self.interner.id_type(expr_id);
+
+        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
+            return self.resolve_trait_method_reference(expr_id, typ, method);
+        }
+
         let definition = self.interner.definition(ident.id);
         match &definition.kind {
             DefinitionKind::Function(func_id) => {
@@ -866,9 +870,29 @@ impl<'interner> Monomorphizer<'interner> {
                 self.interner.get_trait_implementation(impl_id).borrow().methods
                     [method.method_index]
             }
-            node_interner::TraitImplKind::Assumed { object_type } => {
-                match self.interner.lookup_trait_implementation(&object_type, method.trait_id) {
+            node_interner::TraitImplKind::Assumed { object_type, trait_generics } => {
+                match self.interner.lookup_trait_implementation(
+                    &object_type,
+                    method.trait_id,
+                    &trait_generics,
+                ) {
                     Ok(TraitImplKind::Normal(impl_id)) => {
+                        // TODO: Can this be removed?
+                        // if !trait_generics.is_empty() {
+                        //     let the_trait = self.interner.get_trait(method.trait_id);
+                        //     let bindings = the_trait
+                        //         .generics
+                        //         .iter()
+                        //         .zip(trait_generics)
+                        //         .map(|((id, var), binding)| {
+                        //             eprintln!(" Binding2 {} ({:?}) <- {}", id, var, binding);
+                        //             (*id, (var.clone(), binding))
+                        //         })
+                        //         .collect();
+
+                        //     function_type = function_type.substitute(&bindings);
+                        // }
+
                         self.interner.get_trait_implementation(impl_id).borrow().methods
                             [method.method_index]
                     }
@@ -889,13 +913,15 @@ impl<'interner> Monomorphizer<'interner> {
             }
         };
 
-        let func_def = self.lookup_function(func_id, expr_id, &function_type, Some(method));
-        let func_id = match func_def {
+        let func_id = match self.lookup_function(func_id, expr_id, &function_type, Some(method)) {
             Definition::Function(func_id) => func_id,
             _ => unreachable!(),
         };
 
         let the_trait = self.interner.get_trait(method.trait_id);
+
+        eprintln!("Raw fn type                = {:?}", function_type);
+        eprintln!("Converted type of trait fn = {}", self.convert_type(&function_type));
 
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),

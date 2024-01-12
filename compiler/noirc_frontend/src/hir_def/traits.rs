@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
-    Generics, Ident, NoirFunction, Type, TypeVariable, TypeVariableId,
+    Generics, Ident, NoirFunction, Type, TypeBindings, TypeVariable, TypeVariableId,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -71,6 +71,7 @@ pub struct TraitImpl {
     pub ident: Ident,
     pub typ: Type,
     pub trait_id: TraitId,
+    pub trait_generics: Vec<Type>,
     pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
@@ -91,6 +92,14 @@ pub struct TraitConstraint {
 impl TraitConstraint {
     pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>) -> Self {
         Self { typ, trait_id, trait_generics }
+    }
+
+    pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
+        self.typ = self.typ.substitute(type_bindings);
+
+        for typ in &mut self.trait_generics {
+            *typ = typ.substitute(type_bindings);
+        }
     }
 }
 

@@ -195,7 +195,7 @@ impl<'interner> TypeChecker<'interner> {
                     typ.follow_bindings()
                 };
 
-                (typ.clone(), HirLValue::Ident(*ident, typ), mutable)
+                (typ.clone(), HirLValue::Ident(ident.clone(), typ), mutable)
             }
             HirLValue::MemberAccess { object, field_name, .. } => {
                 let (lhs_type, object, mut mutable) = self.check_lvalue(object, assign_span);
@@ -216,8 +216,8 @@ impl<'interner> TypeChecker<'interner> {
                             // we eventually reassign to it.
                             let id = DefinitionId::dummy_id();
                             let location = Location::new(span, fm::FileId::dummy());
-                            let tmp_value =
-                                HirLValue::Ident(HirIdent { location, id }, Type::Error);
+                            let ident = HirIdent::non_trait_method(id, location);
+                            let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                             let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
                             *object_ref = Box::new(HirLValue::Dereference { lvalue, element_type });

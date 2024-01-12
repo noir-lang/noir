@@ -66,7 +66,7 @@ pub enum Type {
     /// `impl Trait` when used in a type position.
     /// These are only matched based on the TraitId. The trait name paramer is only
     /// used for displaying error messages using the name of the trait.
-    TraitAsType(TraitId, /*name:*/ Rc<String>),
+    TraitAsType(TraitId, /*name:*/ Rc<String>, /*generics:*/ Vec<Type>),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -734,8 +734,13 @@ impl std::fmt::Display for Type {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name) => {
-                write!(f, "impl {}", name)
+            Type::TraitAsType(_id, name, generics) => {
+                write!(f, "impl {}", name)?;
+                if !generics.is_empty() {
+                    let generics = vecmap(generics, ToString::to_string).join(", ");
+                    write!(f, "<{generics}>")?;
+                }
+                Ok(())
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -1251,6 +1256,29 @@ impl Type {
         }
     }
 
+    /// Instantiate this type with the given type bindings.
+    /// If any type variables which would be instantiated are contained in the
+    /// given type bindings instead, the value from the type bindings is used.
+    pub fn instantiate_with_bindings<'a>(
+        &'a self,
+        mut bindings: TypeBindings,
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
+        match self {
+            Type::Forall(typevars, typ) => {
+                for (id, var) in typevars {
+                    bindings
+                        .entry(*id)
+                        .or_insert_with(|| (var.clone(), interner.next_type_variable()));
+                }
+
+                let instantiated = typ.force_substitute(&bindings);
+                (instantiated, bindings)
+            }
+            other => (other.clone(), bindings),
+        }
+    }
+
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
@@ -1554,6 +1582,10 @@ impl Type {
             | NotConstant => self.clone(),
         }
     }
+
+    pub fn from_generics(generics: &Generics) -> Vec<Type> {
+        vecmap(generics, |(_, var)| Type::TypeVariable(var.clone(), TypeVariableKind::Normal))
+    }
 }
 
 /// Wraps a given `expression` in `expression.as_slice()`
@@ -1569,7 +1601,7 @@ fn convert_array_expression_to_slice(
 
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent { location, id: as_slice_id });
+    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location));
     let func = interner.push_expr(as_slice);
 
     let arguments = vec![expression];
