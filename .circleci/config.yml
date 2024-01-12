@@ -1272,6 +1272,9 @@ workflows:
             - e2e-browser
             - e2e-card-game
             - pxe
+            - boxes-blank
+            - boxes-blank-react
+            - boxes-token
             - cli-docs-sandbox
             - guides-writing-an-account-contract
             - guides-dapp-testing
