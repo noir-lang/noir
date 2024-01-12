@@ -221,20 +221,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.16.0":
-  version: 0.16.0
-  resolution: "@aztec/bb.js@npm:0.16.0"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: dest/node/main.js
-  checksum: 5f68b4ad16284a3a871e0ad21fea05aed670383bc639c9d07ab3bf9b7a9d15cc8a4e5cda404a9290775ad5023924739543a8aac37d602892dd1fb5087521970b
-  languageName: node
-  linkType: hard
-
 "@aztec/bb.js@npm:0.17.0":
   version: 0.17.0
   resolution: "@aztec/bb.js@npm:0.17.0"
@@ -4395,13 +4381,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/acvm_js@npm:0.35.0":
-  version: 0.35.0
-  resolution: "@noir-lang/acvm_js@npm:0.35.0"
-  checksum: 0a2209f60242d9dbef31e72b738d70ff802da71f12d4b4f278144d373941f30844c8d041518970e71ba82eb9337cf4cc3a40fbd4b2c50acff45d84d2ee7dd435
-  languageName: node
-  linkType: hard
-
 "@noir-lang/acvm_js@workspace:*, @noir-lang/acvm_js@workspace:acvm-repo/acvm_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/acvm_js@workspace:acvm-repo/acvm_js"
@@ -4420,18 +4399,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/backend_barretenberg@npm:^0.19.2":
-  version: 0.19.4
-  resolution: "@noir-lang/backend_barretenberg@npm:0.19.4"
-  dependencies:
-    "@aztec/bb.js": 0.16.0
-    "@noir-lang/types": 0.19.4
-    fflate: ^0.8.0
-  checksum: b84382e71f29f0e10415f8c3a68eb7bb0653f56df1b3e8afd66c22df7adc950fb9016124f32253abad3d05583bccf26b1d0c0cabc601218083fd27d0601a3c02
-  languageName: node
-  linkType: hard
-
-"@noir-lang/backend_barretenberg@workspace:*, @noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
+"@noir-lang/backend_barretenberg@^0.22.0, @noir-lang/backend_barretenberg@workspace:*, @noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
@@ -4475,18 +4443,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_js@npm:^0.19.2":
-  version: 0.19.4
-  resolution: "@noir-lang/noir_js@npm:0.19.4"
-  dependencies:
-    "@noir-lang/acvm_js": 0.35.0
-    "@noir-lang/noirc_abi": 0.19.4
-    "@noir-lang/types": 0.19.4
-  checksum: 1ee6140019861cee3a27d511951e6b3ed629925a83328b0fbe18791a534c36d26d33ae3ca3aa25252fac8932dfeefedc0d5f07169d5d08f1485d6290965d2491
-  languageName: node
-  linkType: hard
-
-"@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
+"@noir-lang/noir_js@^0.22.0, @noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
   dependencies:
@@ -4509,16 +4466,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_wasm@npm:^0.19.2":
-  version: 0.19.4
-  resolution: "@noir-lang/noir_wasm@npm:0.19.4"
-  peerDependencies:
-    "@noir-lang/source-resolver": 0.19.4
-  checksum: b69748240e27851f19b20b4ce1d0c57da7e9055b9d0e0c16f699338394912c00277e5586afcff77d3f6f08e17bbf1bc6253ff1ad156b8f4985c4435adad0ba49
-  languageName: node
-  linkType: hard
-
-"@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
+"@noir-lang/noir_wasm@^0.22.0, @noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@workspace:compiler/wasm"
   dependencies:
@@ -4560,13 +4508,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noirc_abi@npm:0.19.4":
-  version: 0.19.4
-  resolution: "@noir-lang/noirc_abi@npm:0.19.4"
-  checksum: 7446127935c954ae1b2bfdfa6cf111a9c14a2024f13a2d7e7e0a612319b0b4cc199acdbceaa94168e3bd5d82760b9d2fd2c9eec6677d57ed76e7b666e2b28c7d
-  languageName: node
-  linkType: hard
-
 "@noir-lang/noirc_abi@workspace:*, @noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm"
@@ -4597,23 +4538,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/source-resolver@npm:^0.19.2":
-  version: 0.19.4
-  resolution: "@noir-lang/source-resolver@npm:0.19.4"
-  checksum: f0e51bb54daa1197894a17e5d0d125481aa0872c49c0d955feec2629b8ff51b9b48144778def6539a87b723a9b4c5eacc79d6eb935f0da6a1893d8d403689683
-  languageName: node
-  linkType: hard
-
-"@noir-lang/types@npm:0.19.4, @noir-lang/types@npm:^0.19.2":
-  version: 0.19.4
-  resolution: "@noir-lang/types@npm:0.19.4"
-  dependencies:
-    "@noir-lang/noirc_abi": 0.19.4
-  checksum: 1d0ce99895c0bc98e9daf67028132f71e30f60b2dc0799ee99f311d917e84459a0d2a37c318f5ab14e594e7dd26f5e612e5fd9a7e0a20a692a7017d7c883bb4d
-  languageName: node
-  linkType: hard
-
-"@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
+"@noir-lang/types@^0.22.0, @noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
@@ -5333,16 +5258,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@signorecello/noir_playground@npm:^0.6.0":
-  version: 0.6.0
-  resolution: "@signorecello/noir_playground@npm:0.6.0"
+"@signorecello/noir_playground@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "@signorecello/noir_playground@npm:0.7.0"
   dependencies:
     "@monaco-editor/react": 4.6.0
-    "@noir-lang/backend_barretenberg": ^0.19.2
-    "@noir-lang/noir_js": ^0.19.2
-    "@noir-lang/noir_wasm": ^0.19.2
-    "@noir-lang/source-resolver": ^0.19.2
-    "@noir-lang/types": ^0.19.2
+    "@noir-lang/backend_barretenberg": ^0.22.0
+    "@noir-lang/noir_js": ^0.22.0
+    "@noir-lang/noir_wasm": ^0.22.0
+    "@noir-lang/types": ^0.22.0
     fflate: ^0.8.1
     js-base64: ^3.7.5
     monaco-editor: ^0.44.0
@@ -5350,7 +5274,7 @@ __metadata:
     monaco-textmate: ^3.0.1
     onigasm: ^2.2.5
     react-toastify: ^9.1.3
-  checksum: a1fa6f5b6aded80ad8ecdf8841dbbcd70e2a3faa479bc39f8077d3e96d65ceab53488f278db1a991a6cc8c6ce63206cc1627fe87e683187941359251e67c48ed
+  checksum: 360bd1dbc8964a6ab8a6e8d0eb0cd11d7446cc23bf63c253083b18b5d6d5ccf2ec6ca847614106cd93490bb815aac651a6e4584ac63ea0fda182cdb1aadf3f45
   languageName: node
   linkType: hard
 
@@ -10384,7 +10308,7 @@ __metadata:
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
     "@noir-lang/types": "workspace:*"
-    "@signorecello/noir_playground": ^0.6.0
+    "@signorecello/noir_playground": ^0.7.0
     "@types/prettier": ^3
     axios: ^1.4.0
     clsx: ^1.2.1
