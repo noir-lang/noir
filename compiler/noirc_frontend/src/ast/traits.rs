@@ -14,6 +14,7 @@ use crate::{
 pub struct NoirTrait {
     pub name: Ident,
     pub generics: Vec<Ident>,
+    pub combination_traits: Vec<TraitBound>,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<TraitItem>,
@@ -39,15 +40,6 @@ pub enum TraitItem {
     Type {
         name: Ident,
     },
-}
-
-/// AST node for trait combinations:
-/// `trait name: anotherTrait + someOtherTrait...`
-#[derive(Clone, Debug)]
-pub struct NoirTraitCombination {
-    pub name: Ident,
-    pub span: Span,
-    pub bounds: Vec<TraitBound>,
 }
 
 /// Ast node for an impl of a concrete type
@@ -220,12 +212,5 @@ impl Display for TraitImplItem {
                 write!(f, "let {name}: {typ} = {value};")
             }
         }
-    }
-}
-
-impl Display for NoirTraitCombination {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let bounds = vecmap(&self.bounds, ToString::to_string);
-        writeln!(f, "impl {}: {}", self.name, bounds.join(" + "))
     }
 }

@@ -380,6 +380,7 @@ impl<'a> ModCollector<'a> {
             };
 
             let mut method_ids = HashMap::new();
+
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {

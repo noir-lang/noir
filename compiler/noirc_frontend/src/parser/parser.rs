@@ -40,9 +40,9 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
     IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTraitCombination, NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement,
+    TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -86,9 +86,6 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Struct(s) => push_item(ItemKind::Struct(s)),
                     TopLevelStatement::Trait(t) => push_item(ItemKind::Trait(t)),
                     TopLevelStatement::TraitImpl(t) => push_item(ItemKind::TraitImpl(t)),
-                    TopLevelStatement::TraitCombination(t) => {
-                        push_item(ItemKind::TraitCombination(t))
-                    }
                     TopLevelStatement::Impl(i) => push_item(ItemKind::Impl(i)),
                     TopLevelStatement::TypeAlias(t) => push_item(ItemKind::TypeAlias(t)),
                     TopLevelStatement::SubModule(s) => push_item(ItemKind::Submodules(s)),
@@ -408,35 +405,33 @@ fn self_parameter() -> impl NoirParser<Param> {
         })
 }
 
+fn trait_combination() -> impl NoirParser<Vec<TraitBound>> {
+    just(Token::Colon).ignore_then(trait_bounds()).or_not().map(|bounds| bounds.unwrap_or_default())
+}
+
 fn trait_definition() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Trait)
         .ignore_then(ident())
         .then(generics())
+        .then(trait_combination())
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
-        .validate(|(((name, generics), where_clause), items), span, emit| {
+        .validate(|((((name, generics), combination_traits), where_clause), items), span, emit| {
             if !generics.is_empty() {
                 emit(ParserError::with_reason(
                     ParserErrorReason::ExperimentalFeature("Generic traits"),
                     span,
                 ));
             }
-            TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
-        })
-}
-
-fn trait_combination() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Trait)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Colon))
-        .then(trait_bounds())
-        .validate(|(name, trait_bounds), span, emit| {
-            TopLevelStatement::TraitCombination(NoirTraitCombination {
+            TopLevelStatement::Trait(NoirTrait {
                 name,
+                generics,
+                combination_traits,
+                where_clause,
                 span,
-                bounds: trait_bounds,
+                items,
             })
         })
 }
