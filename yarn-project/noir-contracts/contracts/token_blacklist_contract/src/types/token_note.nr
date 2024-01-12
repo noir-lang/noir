@@ -1,5 +1,5 @@
-use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
-use dep::protocol_types::address::AztecAddress;
+use dep::aztec::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
+use dep::aztec::protocol_types::address::AztecAddress;
 use dep::aztec::{
     note::{
         note_header::NoteHeader,

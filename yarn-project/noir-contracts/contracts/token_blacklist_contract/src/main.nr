@@ -17,7 +17,7 @@ contract TokenBlacklist {
     use dep::std::option::Option;
 
     use dep::safe_math::SafeU120;
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::AztecAddress,
     };

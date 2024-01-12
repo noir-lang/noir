@@ -1,5 +1,5 @@
 use dep::std::option::Option;
-use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
+use dep::aztec::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
 use crate::value_note::ValueNote;
 
 pub fn filter_notes_min_sum(

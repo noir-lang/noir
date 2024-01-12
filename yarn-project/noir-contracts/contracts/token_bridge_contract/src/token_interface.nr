@@ -1,5 +1,5 @@
 // docs:start:token_bridge_token_interface
-use dep::protocol_types::{
+use dep::aztec::protocol_types::{
     abis::function_selector::FunctionSelector,
     address::{
       AztecAddress,

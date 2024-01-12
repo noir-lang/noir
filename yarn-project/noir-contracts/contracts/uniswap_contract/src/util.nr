@@ -1,5 +1,5 @@
 // docs:start:uniswap_public_content_hash
-use dep::protocol_types::{
+use dep::aztec::protocol_types::{
     address::{
         AztecAddress,
         EthAddress,

@@ -20,7 +20,7 @@ contract PendingCommitments {
         },
         state_vars::{map::Map, set::Set},
     };
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         address::AztecAddress,
         abis::function_selector::FunctionSelector,
     };

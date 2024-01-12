@@ -1,6 +1,6 @@
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         address::AztecAddress,
         abis::function_selector::FunctionSelector,
     };

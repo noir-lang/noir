@@ -1,10 +1,10 @@
-use dep::protocol_types::{
-    address::AztecAddress,
-    constants::{
-        MAX_READ_REQUESTS_PER_CALL
-    },
-};
 use dep::aztec::{
+    protocol_types::{
+        address::AztecAddress,
+        constants::{
+            MAX_READ_REQUESTS_PER_CALL
+        },
+    }
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,

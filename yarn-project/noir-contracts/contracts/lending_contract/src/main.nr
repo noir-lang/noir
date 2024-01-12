@@ -11,7 +11,7 @@ mod interfaces;
 // - A way to repay all debt at once
 // - Liquidations
 contract Lending {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::AztecAddress,
     };

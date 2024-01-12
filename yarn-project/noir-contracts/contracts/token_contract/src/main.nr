@@ -32,7 +32,7 @@ contract Token {
                 u8_serialization::{U8SerializationMethods, U8_SERIALIZED_LEN},
         },
     };
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::AztecAddress,
     };

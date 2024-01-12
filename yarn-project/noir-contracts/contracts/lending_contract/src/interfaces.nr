@@ -4,7 +4,7 @@ use dep::aztec::context::{
 };
 
 use crate::asset::Asset;
-use dep::protocol_types::{
+use dep::aztec::protocol_types::{
     abis::function_selector::FunctionSelector,
     address::AztecAddress,
     constants::RETURN_VALUES_LENGTH,

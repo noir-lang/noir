@@ -29,12 +29,12 @@ contract Token {
                 bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
                 address_serialization::{AddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
         },
+        protocol_types::{
+            abis::function_selector::FunctionSelector,
+            address::AztecAddress,
+        }
     };
-    use dep::protocol_types::{
-        abis::function_selector::FunctionSelector,
-        address::AztecAddress,
-    };
-
+    
     // docs:start:import_authwit
     use dep::authwit::{
         auth::{

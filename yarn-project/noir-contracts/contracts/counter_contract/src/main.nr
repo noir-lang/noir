@@ -1,6 +1,6 @@
 contract Counter {
     // docs:start:imports
-    use dep::protocol_types::address::AztecAddress;
+    use dep::aztec::protocol_types::address::AztecAddress;
     use dep::aztec::{
         context::{PrivateContext, Context},
         note::{

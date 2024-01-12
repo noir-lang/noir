@@ -9,4 +9,3 @@ value_note = { path = "../../../../yarn-project/aztec-nr/value-note"}
 safe_math = { path = "../../../../yarn-project/aztec-nr/safe-math" }
 authwit = { path = "../../../../yarn-project/aztec-nr/authwit" }
 aztec = { path = "../../../../yarn-project/aztec-nr/aztec" }
-protocol_types = { path = "../../../../yarn-project/noir-protocol-circuits/src/crates/types" }

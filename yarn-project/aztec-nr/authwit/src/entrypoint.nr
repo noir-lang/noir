@@ -1,7 +1,7 @@
 use dep::aztec::abi;
 use dep::aztec::types::vec::BoundedVec;
 use dep::aztec::context::PrivateContext;
-use dep::protocol_types::{
+use dep::aztec::protocol_types::{
   abis::{
     call_stack_item::{
       PrivateCallStackItem,

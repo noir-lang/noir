@@ -12,7 +12,7 @@ use dep::aztec::{
     log::emit_encrypted_log,
     context::PrivateContext,
 };
-use dep::protocol_types::address::AztecAddress;
+use dep::aztec::protocol_types::address::AztecAddress;
 
 global PUBLIC_KEY_NOTE_LEN: Field = 3;
 

@@ -1,4 +1,4 @@
-use dep::protocol_types::address::AztecAddress;
+use dep::aztec::protocol_types::address::AztecAddress;
 use dep::aztec::types::type_serialization::TypeSerializationInterface;
 
 // Struct to be used to represent "totals". Generally, there should be one per asset.

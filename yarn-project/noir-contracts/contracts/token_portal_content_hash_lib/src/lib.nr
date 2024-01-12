@@ -1,5 +1,5 @@
 // docs:start:mint_public_content_hash_nr
-use dep::protocol_types::{
+use dep::aztec::protocol_types::{
     address::{
         AztecAddress,
         EthAddress,

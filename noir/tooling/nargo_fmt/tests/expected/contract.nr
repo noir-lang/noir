@@ -3,7 +3,7 @@
 // Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
 // Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 contract Benchmarking {
-    use dep::protocol_types::abis::function_selector::FunctionSelector;
+    use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
 
     use dep::value_note::{
         utils::{increment, decrement},

@@ -6,7 +6,7 @@ mod util;
 // Has two separate flows for private and public respectively
 // Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
 contract Uniswap {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::{
             AztecAddress,

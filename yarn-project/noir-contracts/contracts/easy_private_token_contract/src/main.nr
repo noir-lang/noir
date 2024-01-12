@@ -1,6 +1,6 @@
 // docs:start:easy_private_token_contract
 contract EasyPrivateToken {
-    use dep::protocol_types::address::AztecAddress;
+    use dep::aztec::protocol_types::address::AztecAddress;
     use dep::std::option::Option;
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},

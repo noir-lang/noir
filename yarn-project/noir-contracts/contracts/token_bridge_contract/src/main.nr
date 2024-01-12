@@ -7,7 +7,7 @@ mod token_interface;
 // Bridge has to be set as a minter on the token before it can be used
 
 contract TokenBridge {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::{
             AztecAddress,

@@ -8,4 +8,3 @@ type = "contract"
 aztec = { path = "../../../aztec-nr/aztec" }
 field_note = { path = "../../../aztec-nr/field-note" }
 token_portal_content_hash_lib = { path = "../token_portal_content_hash_lib" }
-protocol_types = { path = "../../../noir-protocol-circuits/src/crates/types" }

@@ -1,4 +1,4 @@
-use dep::protocol_types::address::AztecAddress;
+use dep::aztec::protocol_types::address::AztecAddress;
 use dep::aztec::{
     note::{
         note_header::NoteHeader,

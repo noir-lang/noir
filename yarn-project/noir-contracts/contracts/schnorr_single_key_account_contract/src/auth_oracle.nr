@@ -1,5 +1,5 @@
 use dep::authwit::auth_witness;
-use dep::protocol_types::{
+use dep::aztec::protocol_types::{
     address::PartialAddress,
     grumpkin_point::GrumpkinPoint,
 };

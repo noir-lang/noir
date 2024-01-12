@@ -2,7 +2,7 @@ use dep::aztec::context::{PrivateContext, PublicContext, Context};
 use dep::std::option::Option;
 use crate::types::balance_set::BalanceSet;
 use dep::aztec::hash::pedersen_hash;
-use dep::protocol_types::address::AztecAddress;
+use dep::aztec::protocol_types::address::AztecAddress;
 
 use crate::types::token_note::{TokenNote, TOKEN_NOTE_LEN, TokenNoteMethods};
 use dep::aztec::state_vars::{map::Map, set::Set};

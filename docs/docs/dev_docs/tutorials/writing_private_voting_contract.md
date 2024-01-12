@@ -50,7 +50,6 @@ compiler_version = ">=0.18.0"
 
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
 ```
 
 ## Initiate the contract and define imports

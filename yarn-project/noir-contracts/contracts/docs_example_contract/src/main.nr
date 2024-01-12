@@ -4,7 +4,7 @@ mod options;
 mod types;
 
 contract DocsExample {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         address::AztecAddress,
         abis::function_selector::FunctionSelector,
     };

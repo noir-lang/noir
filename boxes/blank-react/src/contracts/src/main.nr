@@ -4,9 +4,9 @@ contract Blank {
         oracle::{
             get_public_key::get_public_key,
         },
+        protocol_types::address::AztecAddress
     };
-    use dep::protocol_types::address::AztecAddress;
-
+    
     #[aztec(private)]
     fn constructor() {}
 

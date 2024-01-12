@@ -1,8 +1,8 @@
 // docs:start:encrypted_import
 use dep::aztec::log::emit_encrypted_log;
 // docs:end:encrypted_import
-use dep::protocol_types::address::AztecAddress;
 use dep::aztec::{
+    protocol_types::address::AztecAddress,
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,

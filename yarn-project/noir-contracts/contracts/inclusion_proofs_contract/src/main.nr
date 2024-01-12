@@ -1,6 +1,6 @@
 // A demonstration of inclusion and non-inclusion proofs.
 contract InclusionProofs {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::{
             AztecAddress,

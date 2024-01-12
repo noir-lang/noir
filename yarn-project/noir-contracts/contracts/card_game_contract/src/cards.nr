@@ -1,11 +1,11 @@
-use dep::protocol_types::{
-    address::AztecAddress,
-    constants::{
-        MAX_NOTES_PER_PAGE,
-        MAX_READ_REQUESTS_PER_CALL,
-    },
-};
 use dep::aztec::{
+    protocol_types::{
+        address::AztecAddress,
+        constants::{
+            MAX_NOTES_PER_PAGE,
+            MAX_READ_REQUESTS_PER_CALL,
+        },
+    },
     context::{PrivateContext, PublicContext, Context},
     note::{
         note_getter_options::NoteGetterOptions,

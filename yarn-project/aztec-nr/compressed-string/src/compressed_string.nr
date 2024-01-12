@@ -1,5 +1,5 @@
 use dep::aztec::types::type_serialization::TypeSerializationInterface;
-use dep::protocol_types::utils::field::field_from_bytes;
+use dep::aztec::protocol_types::utils::field::field_from_bytes;
 use dep::std;
 
 // A Fixedsize Compressed String.

@@ -1,7 +1,7 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
     use dep::std::option::Option;
-    use dep::protocol_types::address::{
+    use dep::aztec::protocol_types::address::{
         AztecAddress,
         EthAddress,
     };
@@ -9,7 +9,7 @@ contract Test {
     // It doesn't add the import because in the future we will re-export all the types via aztec-nr and aztec-nr is
     // already auto-imported by the macros.
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Remove this once the issue is fixed.
-    use dep::protocol_types;
+    use dep::aztec::protocol_types;
     // docs:start:unencrypted_import
     use dep::aztec::log::emit_unencrypted_log;
     // docs:end:unencrypted_import

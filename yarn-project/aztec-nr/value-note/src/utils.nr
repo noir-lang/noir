@@ -7,7 +7,7 @@ use crate::{
     filter::filter_notes_min_sum,
     value_note::{ValueNote, VALUE_NOTE_LEN},
 };
-use dep::protocol_types::address::AztecAddress;
+use dep::aztec::protocol_types::address::AztecAddress;
 
 // Sort the note values (0th field) in descending order.
 // Pick the fewest notes whose sum is equal to or greater than `amount`.

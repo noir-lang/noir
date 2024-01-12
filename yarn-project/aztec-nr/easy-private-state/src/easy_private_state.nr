@@ -1,5 +1,5 @@
-use dep::protocol_types::address::AztecAddress;
 use dep::aztec::{
+    protocol_types::address::AztecAddress,
     context::Context,
     note::note_getter_options::NoteGetterOptions,
     state_vars::set::Set,

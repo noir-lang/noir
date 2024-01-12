@@ -2,7 +2,7 @@ mod cards;
 mod game;
 
 contract CardGame {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::AztecAddress,
         constants::MAX_NOTES_PER_PAGE,

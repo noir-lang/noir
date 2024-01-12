@@ -1,10 +1,10 @@
 contract EasyPrivateVoting {
     // docs:start:imports
-    use dep::protocol_types::{
-        abis::function_selector::FunctionSelector,
-        address::AztecAddress,
-    };
     use dep::aztec::{
+        protocol_types::{
+            abis::function_selector::FunctionSelector,
+            address::AztecAddress,
+        },
         context::{PrivateContext, Context},
         oracle::get_secret_key::get_secret_key, // used to compute nullifier
         state_vars::{ map::Map, public_state::PublicState,}, 

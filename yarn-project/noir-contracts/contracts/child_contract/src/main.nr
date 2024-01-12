@@ -9,7 +9,7 @@ contract Child {
         state_vars::public_state::PublicState,
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
     };
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::AztecAddress,
     };

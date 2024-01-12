@@ -1,6 +1,6 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract StatefulTest {
-    use dep::protocol_types::address::AztecAddress;
+    use dep::aztec::protocol_types::address::AztecAddress;
     use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,

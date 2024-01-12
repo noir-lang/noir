@@ -6,7 +6,7 @@ mod types;
 // https://github.com/AztecProtocol/aztec-packages/issues/1291
 // This is made as a separate contract for one thing mainly. Making it simpler to use.
 contract SlowTree {
-    use dep::protocol_types::{
+    use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector,
         address::AztecAddress,
     };

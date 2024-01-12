@@ -1,4 +1,4 @@
-use dep::protocol_types::{
+use dep::aztec::protocol_types::{
     abis::function_selector::FunctionSelector,
     address::AztecAddress,
     constants::{
@@ -22,7 +22,11 @@ global IS_VALID_PUBLIC_SELECTOR = 0xf3661153;
 
 // docs:start:assert_valid_authwit
 // Assert that `on_behalf_of` have authorized `message_hash` with a valid authentication witness
-pub fn assert_valid_authwit(context: &mut PrivateContext, on_behalf_of: AztecAddress, message_hash: Field) {
+pub fn assert_valid_authwit(
+    context: &mut PrivateContext,
+    on_behalf_of: AztecAddress,
+    message_hash: Field
+) {
     let is_valid_selector = FunctionSelector::from_field(IS_VALID_SELECTOR);
     let result = context.call_private_function(on_behalf_of, is_valid_selector, [message_hash])[0];
     context.push_new_nullifier(message_hash, 0);
