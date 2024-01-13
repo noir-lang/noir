@@ -81,3 +81,5 @@ __Note:__ You don't want to commit the updated lockfile, as it will fail in CI!
 Noir is free and open source. It is distributed under a dual license. (MIT/APACHE)
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+
+test
