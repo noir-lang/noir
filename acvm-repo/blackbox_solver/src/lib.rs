@@ -7,58 +7,21 @@
 //! For functions that are backend-dependent, it provides a Trait [BlackBoxFunctionSolver] that must be implemented by the backend.
 //! For functions that have a reference implementation, such as [keccak256], this crate exports the reference implementation directly.
 
-use acir::{BlackBoxFunc, FieldElement};
+use acir::BlackBoxFunc;
 use blake2::digest::generic_array::GenericArray;
 use blake2::{Blake2s256, Digest};
 use sha2::Sha256;
 use sha3::Keccak256;
 use thiserror::Error;
 
+mod curve_specific_solver;
+
+pub use curve_specific_solver::{BlackBoxFunctionSolver, StubbedBlackBoxSolver};
+
 #[derive(Clone, PartialEq, Eq, Debug, Error)]
 pub enum BlackBoxResolutionError {
     #[error("failed to solve blackbox function: {0}, reason: {1}")]
     Failed(BlackBoxFunc, String),
-}
-
-/// This component will generate outputs for Blackbox function calls where the underlying [`acir::BlackBoxFunc`]
-/// doesn't have a canonical Rust implementation.
-///
-/// Returns an [`BlackBoxResolutionError`] if the backend does not support the given [`acir::BlackBoxFunc`].
-pub trait BlackBoxFunctionSolver {
-    fn schnorr_verify(
-        &self,
-        public_key_x: &FieldElement,
-        public_key_y: &FieldElement,
-        signature: &[u8],
-        message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError>;
-    fn pedersen_commitment(
-        &self,
-        inputs: &[FieldElement],
-        domain_separator: u32,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
-    fn pedersen_hash(
-        &self,
-        inputs: &[FieldElement],
-        domain_separator: u32,
-    ) -> Result<FieldElement, BlackBoxResolutionError>;
-    fn fixed_base_scalar_mul(
-        &self,
-        low: &FieldElement,
-        high: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
-    fn ec_add(
-        &self,
-        input1_x: &FieldElement,
-        input1_y: &FieldElement,
-        input2_x: &FieldElement,
-        input2_y: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
-    fn ec_double(
-        &self,
-        input_x: &FieldElement,
-        input_x: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
 }
 
 pub fn sha256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {

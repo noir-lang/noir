@@ -31,10 +31,15 @@ impl MacroProcessor for AztecMacro {
     }
 }
 
+const FUNCTION_TREE_HEIGHT: u32 = 5;
+const MAX_CONTRACT_FUNCTIONS: usize = 2_usize.pow(FUNCTION_TREE_HEIGHT);
+
 #[derive(Debug, Clone)]
 pub enum AztecMacroError {
     AztecNotFound,
     AztecComputeNoteHashAndNullifierNotFound { span: Span },
+    AztecContractHasTooManyFunctions { span: Span },
+    AztecContractConstructorMissing { span: Span },
 }
 
 impl From<AztecMacroError> for MacroError {
@@ -47,6 +52,16 @@ impl From<AztecMacroError> for MacroError {
             },
             AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span } => MacroError {
                 primary_message: "compute_note_hash_and_nullifier function not found. Define it in your contract. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#compute_note_hash_and_nullifier-function-not-found-define-it-in-your-contract".to_owned(),
+                secondary_message: None,
+                span: Some(span),
+            },
+            AztecMacroError::AztecContractHasTooManyFunctions { span } => MacroError {
+                primary_message: format!("Contract can only have a maximum of {} functions", MAX_CONTRACT_FUNCTIONS),
+                secondary_message: None,
+                span: Some(span),
+            },
+            AztecMacroError::AztecContractConstructorMissing { span } => MacroError {
+                primary_message: "Contract must have a constructor function".to_owned(),
                 secondary_message: None,
                 span: Some(span),
             },
@@ -340,6 +355,28 @@ fn transform_module(
             has_transformed_module = true;
         }
     }
+
+    if has_transformed_module {
+        // We only want to run these checks if the macro processor has found the module to be an Aztec contract.
+
+        if module.functions.len() > MAX_CONTRACT_FUNCTIONS {
+            let crate_graph = &context.crate_graph[crate_id];
+            return Err((
+                AztecMacroError::AztecContractHasTooManyFunctions { span: Span::default() }.into(),
+                crate_graph.root_file_id,
+            ));
+        }
+
+        let constructor_defined = module.functions.iter().any(|func| func.name() == "constructor");
+        if !constructor_defined {
+            let crate_graph = &context.crate_graph[crate_id];
+            return Err((
+                AztecMacroError::AztecContractConstructorMissing { span: Span::default() }.into(),
+                crate_graph.root_file_id,
+            ));
+        }
+    }
+
     Ok(has_transformed_module)
 }
 

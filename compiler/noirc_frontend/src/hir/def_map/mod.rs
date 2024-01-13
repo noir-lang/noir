@@ -91,14 +91,15 @@ impl CrateDefMap {
         let mut ast = ast.into_sorted();
 
         for macro_processor in &macro_processors {
-            ast = match macro_processor.process_untyped_ast(ast, &crate_id, context) {
-                Ok(ast) => ast,
+            match macro_processor.process_untyped_ast(ast.clone(), &crate_id, context) {
+                Ok(processed_ast) => {
+                    ast = processed_ast;
+                }
                 Err((error, file_id)) => {
                     let def_error = DefCollectorErrorKind::MacroError(error);
                     errors.push((def_error.into(), file_id));
-                    return errors;
                 }
-            };
+            }
         }
 
         // Allocate a default Module for the root, giving it a ModuleId
