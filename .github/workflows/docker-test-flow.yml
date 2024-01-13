@@ -3,8 +3,7 @@ name: Test Nargo and JS packages
 on:
   push:
     branches:
-      # - 'master'
-      - 'improve-temp-fix-docker-test-flow'
+      - 'master'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
