@@ -56,17 +56,23 @@ template <typename Curve> class IPA {
         // The SRS stored in the commitment key is the result after applying the pippenger point table so the
         // values at odd indices contain the point {srs[i-1].x * beta, srs[i-1].y}, where beta is the endomorphism
         // G_vec_local should use only the original SRS thus we extract only the even indices.
-        run_loop_in_parallel(
+        run_loop_in_parallel_if_effective(
             poly_degree,
             [&G_vec_local, srs_elements](size_t start, size_t end) {
                 for (size_t i = start * 2; i < end * 2; i += 2) {
                     G_vec_local[i >> 1] = srs_elements[i];
                 }
             },
-            /*no_multhreading_if_less_or_equal=*/16);
+            /*finite_field_additions_per_iteration=*/0,
+            /*finite_field_multiplications_per_iteration=*/0,
+            /*finite_field_inversions_per_iteration=*/0,
+            /*group_element_additions_per_iteration=*/0,
+            /*group_element_doublings_per_iteration=*/0,
+            /*scalar_multiplications_per_iteration=*/0,
+            /*sequential_copy_ops_per_iteration=*/1);
 
         std::vector<Fr> b_vec(poly_degree);
-        run_loop_in_parallel(
+        run_loop_in_parallel_if_effective(
             poly_degree,
             [&b_vec, &opening_pair](size_t start, size_t end) {
                 Fr b_power = opening_pair.challenge.pow(start);
@@ -75,7 +81,8 @@ template <typename Curve> class IPA {
                     b_power *= opening_pair.challenge;
                 }
             },
-            /*no_multhreading_if_less_or_equal=*/16);
+            /*finite_field_additions_per_iteration=*/0,
+            /*finite_field_multiplications_per_iteration=*/1);
 
         // Iterate for log(poly_degree) rounds to compute the round commitments.
         auto log_poly_degree = static_cast<size_t>(numeric::get_msb(poly_degree));
@@ -91,7 +98,7 @@ template <typename Curve> class IPA {
             Fr inner_prod_L = Fr::zero();
             Fr inner_prod_R = Fr::zero();
             // Run scalar product in parallel
-            run_loop_in_parallel(
+            run_loop_in_parallel_if_effective(
                 round_size,
                 [&a_vec, &b_vec, &inner_prod_L, &inner_prod_R, round_size, &addition_lock](size_t start, size_t end) {
                     Fr current_inner_prod_L = Fr::zero();
@@ -105,7 +112,8 @@ template <typename Curve> class IPA {
                     inner_prod_R += current_inner_prod_R;
                     addition_lock.unlock();
                 },
-                /*no_multhreading_if_less_or_equal=*/8);
+                /*finite_field_additions_per_iteration=*/2,
+                /*finite_field_multiplications_per_iteration=*/2);
 
             // L_i = < a_vec_lo, G_vec_hi > + inner_prod_L * aux_generator
             L_elements[i] = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
@@ -137,20 +145,20 @@ template <typename Curve> class IPA {
             // a_vec_next = a_vec_lo * round_challenge + a_vec_hi * round_challenge_inv
             // b_vec_next = b_vec_lo * round_challenge_inv + b_vec_hi * round_challenge
             // G_vec_next = G_vec_lo * round_challenge_inv + G_vec_hi * round_challenge
-            run_loop_in_parallel(
+            run_loop_in_parallel_if_effective(
                 round_size,
-                [&a_vec, &b_vec, &G_vec_local, &G_lo, &G_hi, round_challenge, round_challenge_inv, round_size](
-                    size_t start, size_t end) {
+                [&a_vec, &b_vec, round_challenge, round_challenge_inv, round_size](size_t start, size_t end) {
                     for (size_t j = start; j < end; j++) {
                         a_vec[j] *= round_challenge;
                         a_vec[j] += round_challenge_inv * a_vec[round_size + j];
                         b_vec[j] *= round_challenge_inv;
                         b_vec[j] += round_challenge * b_vec[round_size + j];
-
-                        G_vec_local[j] = G_lo[j] + G_hi[j];
                     }
                 },
-                /*no_multhreading_if_less_or_equal=*/4);
+                /*finite_field_additions_per_iteration=*/4,
+                /*finite_field_multiplications_per_iteration=*/8,
+                /*finite_field_inversions_per_iteration=*/1);
+            GroupElement::batch_affine_add(G_lo, G_hi, G_vec_local);
         }
 
         transcript->send_to_verifier("IPA:a_0", a_vec[0]);
@@ -218,7 +226,7 @@ template <typename Curve> class IPA {
         // Compute G_zero
         // First construct s_vec
         std::vector<Fr> s_vec(poly_degree);
-        run_loop_in_parallel(
+        run_loop_in_parallel_if_effective(
             poly_degree,
             [&s_vec, &round_challenges, &round_challenges_inv, log_poly_degree](size_t start, size_t end) {
                 for (size_t i = start; i < end; i++) {
@@ -235,7 +243,8 @@ template <typename Curve> class IPA {
                     s_vec[i] = s_vec_scalar;
                 }
             },
-            /*no_multhreading_if_less_or_equal=*/4);
+            /*finite_field_additions_per_iteration=*/0,
+            /*finite_field_multiplications_per_iteration=*/log_poly_degree);
 
         auto srs_elements = vk->srs->get_monomial_points();
 
@@ -245,14 +254,20 @@ template <typename Curve> class IPA {
         // The SRS stored in the commitment key is the result after applying the pippenger point table so the
         // values at odd indices contain the point {srs[i-1].x * beta, srs[i-1].y}, where beta is the endomorphism
         // G_vec_local should use only the original SRS thus we extract only the even indices.
-        run_loop_in_parallel(
+        run_loop_in_parallel_if_effective(
             poly_degree,
             [&G_vec_local, srs_elements](size_t start, size_t end) {
                 for (size_t i = start * 2; i < end * 2; i += 2) {
                     G_vec_local[i >> 1] = srs_elements[i];
                 }
             },
-            /*no_multhreading_if_less_or_equal=*/16);
+            /*finite_field_additions_per_iteration=*/0,
+            /*finite_field_multiplications_per_iteration=*/0,
+            /*finite_field_inversions_per_iteration=*/0,
+            /*group_element_additions_per_iteration=*/0,
+            /*group_element_doublings_per_iteration=*/0,
+            /*scalar_multiplications_per_iteration=*/0,
+            /*sequential_copy_ops_per_iteration=*/1);
 
         auto G_zero = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
             &s_vec[0], &G_vec_local[0], poly_degree, vk->pippenger_runtime_state);
