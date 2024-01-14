@@ -19,23 +19,23 @@ A Noir program is usually self-contained. You can pass certain inputs to it, and
 
 Oracles are functions that provide this feature.
 
-## Uses
+## Use cases
 
 An example usage for Oracles is proving something on-chain. For example, proving that the ETH-USDC quote was below a certain target at a certain block time. Or even making more complex proofs like proving the ownership of an NFT as an anonymous login method.
 
-Another interesting use case is to defer expensive calculations to be made outside of the circuit, and then constraining the result. This is no different from the example in the [unconstrained page](../noir/concepts//unconstrained.md).
+Another interesting use case is to defer expensive calculations to be made outside of the Noir program, and then constraining the result; similar to the use of [unconstrained functions](../noir/concepts//unconstrained.md).
 
-In short, anything that can be constrained in a circuit but needs to be fetched from an outside source is a great candidate to be used in oracles.
+In short, anything that can be constrained in a Noir program but needs to be fetched from an external source is a great candidate to be used in oracles.
 
 ## Constraining oracles
 
-Just like in Matrix, Oracles are powerful. But with great power, comes great responsibility. Just because you're using them in a Noir program, that doesn't mean they're true. Noir has no superpowers: if you want to prove that Portugal won the Euro Cup 2016, you're still relying on potentially untrusted information.
+Just like in The Matrix, Oracles are powerful. But with great power, comes great responsibility. Just because you're using them in a Noir program doesn't mean they're true. Noir has no superpowers. If you want to prove that Portugal won the Euro Cup 2016, you're still relying on potentially untrusted information.
 
 To give a concrete example, Alice wants to login to the [NounsDAO](https://nouns.wtf/) forum with her username "noir_nouner" by proving she owns a noun without revealing her ethereum address. Her Noir program could have a oracle call like this:
 
 ```rust
 #[oracle(getNoun)]
-unconstrained fn get_noun(address: u32) -> Field
+unconstrained fn get_noun(address: Field) -> Field
 ```
 
 This oracle could naively resolve with the number of Nouns she possesses. However, it is useless as a trusted source, as the oracle could resolve to anything Alice wants. In order to make this oracle call actually useful, Alice would need to constrain the response from the oracle, by proving her address and the noun count belongs to the state tree of the contract.
@@ -50,6 +50,8 @@ If you don't constrain the return of your oracle, you could be clearly opening a
 
 ## How to use Oracles
 
-Currently, Nargo will resolve oracles by making JSON RPC calls, which means an RPC node needs to be running. NoirJS, on the other hand, can provide whatever call handler as long as it matches the expected types.
+On CLI, Nargo resolves oracles by making JSON RPC calls, which means it would require an RPC node to be running.
+
+In JavaScript, NoirJS accepts and resolves arbitrary call handlers (that is, not limited to JSON) as long as they matches the expected types the developer defines. Refer to [Foreign Call Handler](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) to learn more about NoirJS's call handling.
 
 If you want to build using oracles, follow through to the [oracle guide](../how_to/how-to-oracles.md) for a simple example on how to do that.

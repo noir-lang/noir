@@ -11,28 +11,28 @@ keywords:
 sidebar_position: 1
 ---
 
-This guide shows you how to use oracles in your Noir program. For the sake of clarity, it is assumed that:
+This guide shows you how to use oracles in your Noir program. For the sake of clarity, it assumes that:
 
-- You have read the [explainer on Oracles](../explainers/explainer-oracle.md) and are comfortable with the concept
-- You already have your own NoirJS and/or Nargo app. If you don't, you can use the [vite-hardhat starter](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat) as a boilerplate (for example, by using its [devcontainer in codespaces](./using-devcontainers.mdx))
+- You have read the [explainer on Oracles](../explainers/explainer-oracle.md) and are comfortable with the concept.
+- You have a Noir program to add oracles to. You can create one using the [vite-hardhat starter](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat) as a boilerplate.
 - You understand the concept of a JSON-RPC server. Visit the [JSON-RPC website](https://www.jsonrpc.org/) if you need a refresher.
-- You are comfortable with server-side javascript. Will skip any details on installing Node, packages, etc, so as to keep the guide short and straight to the point.
+- You are comfortable with server-side JavaScript (e.g. Node.js, managing packages, etc.).
 
-For reference, you can find the snippets used in this tutorial on the [Aztec DevRel Repository](https://github.com/AztecProtocol/dev-rel/tree/main/how_to_oracles/code-snippets/how-to-oracles)
+For reference, you can find the snippets used in this tutorial on the [Aztec DevRel Repository](https://github.com/AztecProtocol/dev-rel/tree/main/how_to_oracles/code-snippets/how-to-oracles).
 
 ## Rundown
 
 This guide has 3 major steps:
 
-1. How to modify our circuit to make use of oracle calls as unconstrained functions.
+1. How to modify our Noir program to make use of oracle calls as unconstrained functions
 2. How to write a JSON RPC Server to resolve these oracle calls with Nargo
 3. How to use them in Nargo and how to provide a custom resolver in NoirJS
 
-## Step 1 - Modify your circuit
+## Step 1 - Modify your Noir program
 
-An oracle is defined in a circuit by defining two methods:
+An oracle is defined in a Noir program by defining two methods:
 
-- An unconstrained method - This tells the Noir compiler that it is executing a Brillig block.
+- An unconstrained method - This tells the compiler that it is executing an [unconstrained functions](../noir/concepts//unconstrained.md).
 - A decorated oracle method - This tells the compiler that this method is an RPC call.
 
 An example of an oracle that returns a `Field` would be:
@@ -54,7 +54,7 @@ fn main(input: Field) {
 }
 ```
 
-In the next section, we will make this `getSquared` be a method of the RPC server Noir will use.
+In the next section, we will make this `getSquared` (defined on the `squared` decorator) be a method of the RPC server Noir will use.
 
 :::danger
 
@@ -185,7 +185,7 @@ This tells `nargo` to use your RPC Server URL whenever it finds an oracle decora
 
 In a JS environment, an RPC server is not strictly necessary, as you may want to resolve your oracles without needing any JSON call at all. NoirJS simply expects that you pass a callback function when you generate proofs, and that callback function can be anything.
 
-For example, if your circuit expects the host machine to provide CPU pseudo-randomness, you could simply pass it as the `foreignCallHandler`. You don't strictly need to create an RPC server to serve pseudo-randomness, as you may as well get it directly in your app:
+For example, if your Noir program expects the host machine to provide CPU pseudo-randomness, you could simply pass it as the `foreignCallHandler`. You don't strictly need to create an RPC server to serve pseudo-randomness, as you may as well get it directly in your app:
 
 ```js
 const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
@@ -199,11 +199,13 @@ As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_j
 
 Does this mean you don't have to write an RPC server like in [Step #2](#step-2---write-an-rpc-server)?
 
-You don't technically have to, but then how would you run `nargo test` or `nargo prove`? To use both `Nargo` and `NoirJS` in your development flow, you will most certainly have to write a JSON RPC server anyway.
+You don't technically have to, but then how would you run `nargo test` or `nargo prove`? To use both `Nargo` and `NoirJS` in your development flow, you will have to write a JSON RPC server.
 
 :::
 
-In this case, let's make `foreignCallHandler` call the JSON RPC Server we created in [Step #2](#step-2---write-an-rpc-server), by making it a JSON RPC Client. For example, using the same `getSquared` circuit in [Step #1](#step-1---modify-your-circuit) (comments in the code):
+In this case, let's make `foreignCallHandler` call the JSON RPC Server we created in [Step #2](#step-2---write-an-rpc-server), by making it a JSON RPC Client.
+
+For example, using the same `getSquared` program in [Step #1](#step-1---modify-your-noir-program) (comments in the code):
 
 ```js
 import { JSONRPCClient } from "json-rpc-2.0";
