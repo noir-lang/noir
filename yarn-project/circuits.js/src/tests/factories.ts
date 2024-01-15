@@ -3,6 +3,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 
+import { randomBytes } from 'crypto';
+
 import { SchnorrSignature } from '../barretenberg/index.js';
 import {
   ARCHIVE_HEIGHT,
@@ -101,7 +103,7 @@ import {
   WitnessedPublicCallData,
 } from '../index.js';
 import { GlobalVariables } from '../structs/global_variables.js';
-import { Header } from '../structs/header.js';
+import { Header, NUM_BYTES_PER_SHA256 } from '../structs/header.js';
 
 /**
  * Creates an arbitrary side effect object with the given seed.
@@ -882,7 +884,7 @@ export function makeRootRollupPublicInputs(
 export function makeHeader(seed = 0, globalVariables: GlobalVariables | undefined): Header {
   return new Header(
     makeAppendOnlyTreeSnapshot(seed + 0x100),
-    [new Fr(5n), new Fr(6n)],
+    randomBytes(NUM_BYTES_PER_SHA256),
     makeStateReference(seed + 0x200),
     globalVariables ?? makeGlobalVariables((seed += 0x100)),
   );

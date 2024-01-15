@@ -250,11 +250,7 @@ describe('sequencer/solo_block_builder', () => {
       newUnencryptedLogs,
     });
 
-    const callDataHash = l2Block.getCalldataHash();
-    const high = Fr.fromBuffer(callDataHash.slice(0, 16));
-    const low = Fr.fromBuffer(callDataHash.slice(16, 32));
-
-    rootRollupOutput.header.bodyHash = [high, low];
+    rootRollupOutput.header.bodyHash = l2Block.getCalldataHash();
 
     return txs;
   };

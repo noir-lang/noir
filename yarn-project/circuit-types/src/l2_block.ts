@@ -8,6 +8,7 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  NUM_BYTES_PER_SHA256,
   PartialStateReference,
   STRING_ENCODING,
   StateReference,
@@ -223,7 +224,7 @@ export class L2Block {
        */
       newContractData: ContractData[];
       /**
-       * The L1 to L2 messages to be inserted into the L2 toL2 message tree.
+       * The L1 to L2 messages to be inserted into the L1 to L2 message tree.
        */
       newL1ToL2Messages: Fr[];
       /**
@@ -357,7 +358,7 @@ export class L2Block {
     );
     const state = new StateReference(endL1ToL2MessageTreeSnapshot, partial);
     // TODO(#3938): populate bodyHash
-    const header = new Header(startArchiveSnapshot, [Fr.ZERO, Fr.ZERO], state, globalVariables);
+    const header = new Header(startArchiveSnapshot, Buffer.alloc(NUM_BYTES_PER_SHA256), state, globalVariables);
 
     return L2Block.fromFields(
       {

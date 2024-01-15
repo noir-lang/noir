@@ -65,11 +65,6 @@ impl RootRollupInputs {
             0
         );
 
-        let zeroed_out_snapshot = AppendOnlyTreeSnapshot {
-            root : 0,
-            next_available_leaf_index : 0
-        };
-
         let header = Header {
             last_archive: left.constants.last_archive,
             body_hash: components::compute_calldata_hash(self.previous_rollup_data),

@@ -96,23 +96,6 @@ export class RootRollupPublicInputs {
   }
 
   /**
-   * Returns the sha256 hash of the calldata.
-   * @returns The sha256 hash of the calldata.
-   */
-  public sha256CalldataHash(): Buffer {
-    const high = this.header.bodyHash[0].toBuffer();
-    const low = this.header.bodyHash[1].toBuffer();
-
-    const hash = Buffer.alloc(32);
-    for (let i = 0; i < 16; i++) {
-      hash[i] = high[i + 16];
-      hash[i + 16] = low[i + 16];
-    }
-
-    return hash;
-  }
-
-  /**
    * Deserializes a buffer into a `RootRollupPublicInputs` object.
    * @param buffer - The buffer to deserialize.
    * @returns The deserialized `RootRollupPublicInputs` object.

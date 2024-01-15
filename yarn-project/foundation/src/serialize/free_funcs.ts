@@ -126,3 +126,22 @@ export function to2Fields(buf: Buffer): [Fr, Fr] {
 
   return [Fr.fromBuffer(buf1), Fr.fromBuffer(buf2)];
 }
+
+/**
+ * Reconstructs the original 32 bytes of data from 2 field elements.
+ * @param field1 - First field element
+ * @param field2 - Second field element
+ * @returns 32 bytes of data as a Buffer
+ */
+export function from2Fields(field1: Fr, field2: Fr): Buffer {
+  // Convert the field elements back to buffers
+  const buf1 = field1.toBuffer();
+  const buf2 = field2.toBuffer();
+
+  // Remove the padding (first 16 bytes) from each buffer
+  const originalPart1 = buf1.slice(16, 32);
+  const originalPart2 = buf2.slice(16, 32);
+
+  // Concatenate the two parts to form the original buffer
+  return Buffer.concat([originalPart1, originalPart2]);
+}

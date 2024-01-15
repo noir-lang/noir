@@ -53,6 +53,7 @@ export class GlobalVariables {
   }
 
   static getFields(fields: FieldsOf<GlobalVariables>) {
+    // Note: The order here must match the order in the HeaderDecoder solidity library.
     return [fields.chainId, fields.version, fields.blockNumber, fields.timestamp] as const;
   }
 
