@@ -18,7 +18,6 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
     (low, high)
 }
 
-#[field(bn254)]
 pub fn decompose(x: Field) -> (Field, Field) {
     let (xlo, xhi) = decompose_unsafe(x);
     let borrow = lt_unsafe(PLO, xlo, 16);
@@ -59,7 +58,6 @@ unconstrained fn lte_unsafe(x: Field, y: Field, num_bytes: u32) -> bool {
     lt_unsafe(x, y, num_bytes) | (x == y)
 }
 
-#[field(bn254)]
 pub fn assert_gt(a: Field, b: Field) {
     let (alo, ahi) = decompose(a);
     let (blo, bhi) = decompose(b);
@@ -73,12 +71,10 @@ pub fn assert_gt(a: Field, b: Field) {
     rhi.assert_max_bit_size(128);
 }
 
-#[field(bn254)]
 pub fn assert_lt(a: Field, b: Field) {
     assert_gt(b, a);
 }
 
-#[field(bn254)]
 pub fn gt(a: Field, b: Field) -> bool {
     if a == b {
         false
@@ -91,7 +87,6 @@ pub fn gt(a: Field, b: Field) -> bool {
     }
 }
 
-#[field(bn254)]
 pub fn lt(a: Field, b: Field) -> bool {
     gt(b, a)
 }

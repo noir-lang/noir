@@ -1,7 +1,6 @@
 use crate::hash::poseidon;
 use crate::ec::consts::te::baby_jubjub;
 use crate::ec::tecurve::affine::Point as TEPoint;
-use crate::field::bn254::lt as field_lt;
 
 // Returns true if signature is valid
 pub fn eddsa_poseidon_verify(
@@ -22,7 +21,7 @@ pub fn eddsa_poseidon_verify(
     let signature_r8 = TEPoint::new(signature_r8_x, signature_r8_y);
     assert(bjj.curve.contains(signature_r8));
     // Ensure S < Subgroup Order
-    assert(field_lt(signature_s, bjj.suborder));
+    assert(signature_s.lt(bjj.suborder));
     // Calculate the h = H(R, A, msg)
     let hash: Field = poseidon::bn254::hash_5([signature_r8_x, signature_r8_y, pub_key_x, pub_key_y, message]);
     // Calculate second part of the right side:  right2 = h*8*A
