@@ -57,7 +57,7 @@ jobs:
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
-          pr_title: 'feat: aztec-packages'
-          pr_body: 'Development from Aztec.'
+          pr_title: 'feat: Sync commits from `aztec-packages`'
+          pr_body: 'Development from [aztec-packages](https://github.com/AztecProtocol/aztec-packages).'
           destination_branch: 'master'
           source_branch: 'aztec-packages'
