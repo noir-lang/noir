@@ -92,40 +92,44 @@ mod test {
     #[test]
     fn check_trait_implemented_for_all_t() {
         let src = "
-        trait Default {
-            fn default() -> Self;
-        }
-        
+
         trait Eq {
             fn eq(self, other: Self) -> bool;
         }
-        
-        trait IsDefault {
-            fn is_default(self) -> bool;
+
+        trait Empty {
+            fn empty() -> Self;
+        }
+
+        trait ToField  {
+            fn to_field(self) -> Field;
+        }
+
+        trait Combo: Eq + Empty + ToField {
+            fn eq(self, other : Self) -> bool;
+            fn empty() -> Self;
+            fn to_field(self) -> Field;
         }
         
-        impl<T> IsDefault for T where T: Default + Eq {
-            fn is_default(self) -> bool {
-                self.eq(T::default())
+        impl<T> Combo for T where T: Eq + Empty + ToField {
+            fn eq(self, other: Self) -> bool {
+                self.eq(other)
             }
-        }
         
-        struct Foo {
-            a: u64,
-        }
-        
-        impl Eq for Foo {
-            fn eq(self, other: Foo) -> bool { self.a == other.a } 
-        }
-        
-        impl Default for Foo {
-            fn default() -> Self {
-                Foo { a: Default::default() }
+            fn empty() -> Self {
+                Self::empty()
             }
-        }
         
-        fn main(a: Foo) -> pub bool {
-            a.is_default()
+            fn to_field(self) -> Field {
+                self.to_field()
+            }
+        }        
+
+        fn check<T>(a: T, b: T) -> bool where T: Combo {
+            a.eq(b) & a.to_field().eq(b.to_field())
+        }
+
+        fn main() {
         }";
 
         let errors = get_program_errors(src);
