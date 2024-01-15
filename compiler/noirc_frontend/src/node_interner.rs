@@ -1179,12 +1179,12 @@ impl NodeInterner {
         method_name: &str,
         force_type_check: bool,
     ) -> Option<FuncId> {
-        let methods = self.struct_methods.get(&(id, method_name.to_owned()))?;
+        let methods = self.struct_methods.get(&(id, method_name.to_owned()));
 
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
-            if let Some(method) = methods.get_unambiguous() {
+            if let Some(method) = methods.and_then(|m| m.get_unambiguous()) {
                 return Some(method);
             }
         }
@@ -1196,10 +1196,10 @@ impl NodeInterner {
     fn find_matching_method(
         &self,
         typ: &Type,
-        methods: &Methods,
+        methods: Option<&Methods>,
         method_name: &str,
     ) -> Option<FuncId> {
-        if let Some(method) = methods.find_matching_method(typ, self) {
+        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self)) {
             Some(method)
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
@@ -1214,7 +1214,7 @@ impl NodeInterner {
     pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
         let methods = self.primitive_methods.get(&(key, method_name.to_owned()))?;
-        self.find_matching_method(typ, methods, method_name)
+        self.find_matching_method(typ, Some(methods), method_name)
     }
 
     pub fn lookup_primitive_trait_method_mut(
