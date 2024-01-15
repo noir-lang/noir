@@ -110,7 +110,7 @@ impl DebugInfo {
         encoder.write_all(json_str.as_bytes()).map_err(S::Error::custom)?;
         let compressed_data = encoder.finish().map_err(S::Error::custom)?;
 
-        let encoded_b64 = base64::prelude::BASE64_STANDARD.encode(&compressed_data);
+        let encoded_b64 = base64::prelude::BASE64_STANDARD.encode(compressed_data);
         s.serialize_str(&encoded_b64)
     }
 
@@ -123,7 +123,7 @@ impl DebugInfo {
         let encoded_b64: String = Deserialize::deserialize(deserializer)?;
 
         let compressed_data =
-            base64::prelude::BASE64_STANDARD.decode(&encoded_b64).map_err(D::Error::custom)?;
+            base64::prelude::BASE64_STANDARD.decode(encoded_b64).map_err(D::Error::custom)?;
 
         let mut decoder = DeflateDecoder::new(&compressed_data[..]);
         let mut decompressed_data = Vec::new();

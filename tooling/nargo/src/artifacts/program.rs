@@ -49,15 +49,15 @@ impl From<CompiledProgram> for ProgramArtifact {
     }
 }
 
-impl Into<CompiledProgram> for ProgramArtifact {
-    fn into(self) -> CompiledProgram {
+impl From<ProgramArtifact> for CompiledProgram {
+    fn from(program: ProgramArtifact) -> Self {
         CompiledProgram {
-            hash: self.hash,
-            abi: self.abi,
-            noir_version: self.noir_version,
-            circuit: self.bytecode,
-            debug: self.debug_symbols,
-            file_map: self.file_map,
+            hash: program.hash,
+            abi: program.abi,
+            noir_version: program.noir_version,
+            circuit: program.bytecode,
+            debug: program.debug_symbols,
+            file_map: program.file_map,
             warnings: vec![],
         }
     }

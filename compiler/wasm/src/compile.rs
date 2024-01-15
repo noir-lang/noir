@@ -272,7 +272,7 @@ pub(crate) fn generate_program_artifact(program: CompiledProgram) -> CompileResu
 
 pub(crate) fn generate_contract_artifact(contract: CompiledContract) -> CompileResult {
     let functions = contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
-    
+
     let contract_artifact = ContractArtifact {
         noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
         name: contract.name,
