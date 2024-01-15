@@ -305,17 +305,9 @@ impl FunctionBuilder {
                 }
                 let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
 
-                let mut max_lhs_bit = bit_size;
+                let max_lhs_bits = self.current_function.dfg.get_value_max_num_bits(lhs);
 
-                let dfg = &self.current_function.dfg;
-                if let Value::Instruction { instruction, .. } = dfg[lhs] {
-                    if let Instruction::Cast(original_lhs, _) = dfg[instruction] {
-                        let original_type = self.type_of_value(original_lhs);
-                        max_lhs_bit = original_type.bit_size();
-                    }
-                }
-
-                (max_lhs_bit + bit_shift_size, pow)
+                (max_lhs_bits + bit_shift_size, pow)
             } else {
                 // we use a predicate to nullify the result in case of overflow
                 let bit_size_var =

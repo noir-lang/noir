@@ -287,26 +287,6 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_binary(positive_predicate, BinaryOp::Add, negative_predicate)
     }
 
-    /// Returns the maximum possible number of bits that `value` can potentially be.
-    ///
-    /// Should `value` be a numeric constant then this function will return the exact number of bits required,
-    /// otherwise it will return the minimum number of bits based on type information.
-    fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        let dfg = &self.builder.current_function.dfg;
-        match dfg[value] {
-            IrValue::Instruction { instruction, .. } => {
-                if let Instruction::Cast(original_value, _) = dfg[instruction] {
-                    self.builder.type_of_value(original_value).bit_size()
-                } else {
-                    self.builder.type_of_value(value).bit_size()
-                }
-            }
-
-            IrValue::NumericConstant { constant, .. } => constant.num_bits(),
-            _ => self.builder.type_of_value(value).bit_size(),
-        }
-    }
-
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
     ///
     /// If the result is unsigned, we simply range check against the bit size
@@ -357,8 +337,8 @@ impl<'a> FunctionContext<'a> {
             Type::Numeric(NumericType::Unsigned { bit_size }) => {
                 let dfg = &self.builder.current_function.dfg;
 
-                let max_lhs_bits = self.get_value_max_num_bits(lhs);
-                let max_rhs_bits = self.get_value_max_num_bits(rhs);
+                let max_lhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(lhs);
+                let max_rhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(rhs);
 
                 match operator {
                     BinaryOpKind::Add => {
