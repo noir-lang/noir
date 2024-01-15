@@ -1,3 +1,5 @@
+mod bn254;
+
 impl Field {
     pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
         crate::assert_constant(bit_size);
