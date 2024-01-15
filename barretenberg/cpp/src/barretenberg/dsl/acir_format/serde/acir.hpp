@@ -813,27 +813,7 @@ struct Brillig {
     static Brillig bincodeDeserialize(std::vector<uint8_t>);
 };
 
-struct QuotientDirective {
-    Circuit::Expression a;
-    Circuit::Expression b;
-    Circuit::Witness q;
-    Circuit::Witness r;
-    std::optional<Circuit::Expression> predicate;
-
-    friend bool operator==(const QuotientDirective&, const QuotientDirective&);
-    std::vector<uint8_t> bincodeSerialize() const;
-    static QuotientDirective bincodeDeserialize(std::vector<uint8_t>);
-};
-
 struct Directive {
-
-    struct Quotient {
-        Circuit::QuotientDirective value;
-
-        friend bool operator==(const Quotient&, const Quotient&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Quotient bincodeDeserialize(std::vector<uint8_t>);
-    };
 
     struct ToLeRadix {
         Circuit::Expression a;
@@ -856,7 +836,7 @@ struct Directive {
         static PermutationSort bincodeDeserialize(std::vector<uint8_t>);
     };
 
-    std::variant<Quotient, ToLeRadix, PermutationSort> value;
+    std::variant<ToLeRadix, PermutationSort> value;
 
     friend bool operator==(const Directive&, const Directive&);
     std::vector<uint8_t> bincodeSerialize() const;
@@ -5038,53 +5018,6 @@ Circuit::Directive serde::Deserializable<Circuit::Directive>::deserialize(Deseri
 
 namespace Circuit {
 
-inline bool operator==(const Directive::Quotient& lhs, const Directive::Quotient& rhs)
-{
-    if (!(lhs.value == rhs.value)) {
-        return false;
-    }
-    return true;
-}
-
-inline std::vector<uint8_t> Directive::Quotient::bincodeSerialize() const
-{
-    auto serializer = serde::BincodeSerializer();
-    serde::Serializable<Directive::Quotient>::serialize(*this, serializer);
-    return std::move(serializer).bytes();
-}
-
-inline Directive::Quotient Directive::Quotient::bincodeDeserialize(std::vector<uint8_t> input)
-{
-    auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<Directive::Quotient>::deserialize(deserializer);
-    if (deserializer.get_buffer_offset() < input.size()) {
-        throw_or_abort("Some input bytes were not read");
-    }
-    return value;
-}
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::Directive::Quotient>::serialize(const Circuit::Directive::Quotient& obj,
-                                                                  Serializer& serializer)
-{
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Circuit::Directive::Quotient serde::Deserializable<Circuit::Directive::Quotient>::deserialize(
-    Deserializer& deserializer)
-{
-    Circuit::Directive::Quotient obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Circuit {
-
 inline bool operator==(const Directive::ToLeRadix& lhs, const Directive::ToLeRadix& rhs)
 {
     if (!(lhs.a == rhs.a)) {
@@ -6016,76 +5949,6 @@ Circuit::PublicInputs serde::Deserializable<Circuit::PublicInputs>::deserialize(
     deserializer.increase_container_depth();
     Circuit::PublicInputs obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    deserializer.decrease_container_depth();
-    return obj;
-}
-
-namespace Circuit {
-
-inline bool operator==(const QuotientDirective& lhs, const QuotientDirective& rhs)
-{
-    if (!(lhs.a == rhs.a)) {
-        return false;
-    }
-    if (!(lhs.b == rhs.b)) {
-        return false;
-    }
-    if (!(lhs.q == rhs.q)) {
-        return false;
-    }
-    if (!(lhs.r == rhs.r)) {
-        return false;
-    }
-    if (!(lhs.predicate == rhs.predicate)) {
-        return false;
-    }
-    return true;
-}
-
-inline std::vector<uint8_t> QuotientDirective::bincodeSerialize() const
-{
-    auto serializer = serde::BincodeSerializer();
-    serde::Serializable<QuotientDirective>::serialize(*this, serializer);
-    return std::move(serializer).bytes();
-}
-
-inline QuotientDirective QuotientDirective::bincodeDeserialize(std::vector<uint8_t> input)
-{
-    auto deserializer = serde::BincodeDeserializer(input);
-    auto value = serde::Deserializable<QuotientDirective>::deserialize(deserializer);
-    if (deserializer.get_buffer_offset() < input.size()) {
-        throw_or_abort("Some input bytes were not read");
-    }
-    return value;
-}
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::QuotientDirective>::serialize(const Circuit::QuotientDirective& obj,
-                                                                Serializer& serializer)
-{
-    serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.a)>::serialize(obj.a, serializer);
-    serde::Serializable<decltype(obj.b)>::serialize(obj.b, serializer);
-    serde::Serializable<decltype(obj.q)>::serialize(obj.q, serializer);
-    serde::Serializable<decltype(obj.r)>::serialize(obj.r, serializer);
-    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
-    serializer.decrease_container_depth();
-}
-
-template <>
-template <typename Deserializer>
-Circuit::QuotientDirective serde::Deserializable<Circuit::QuotientDirective>::deserialize(Deserializer& deserializer)
-{
-    deserializer.increase_container_depth();
-    Circuit::QuotientDirective obj;
-    obj.a = serde::Deserializable<decltype(obj.a)>::deserialize(deserializer);
-    obj.b = serde::Deserializable<decltype(obj.b)>::deserialize(deserializer);
-    obj.q = serde::Deserializable<decltype(obj.q)>::deserialize(deserializer);
-    obj.r = serde::Deserializable<decltype(obj.r)>::deserialize(deserializer);
-    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
 }

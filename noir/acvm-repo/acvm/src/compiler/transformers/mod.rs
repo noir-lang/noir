@@ -150,10 +150,6 @@ pub(super) fn transform_internal(
             }
             Opcode::Directive(ref directive) => {
                 match directive {
-                    Directive::Quotient(quotient_directive) => {
-                        transformer.mark_solvable(quotient_directive.q);
-                        transformer.mark_solvable(quotient_directive.r);
-                    }
                     Directive::ToLeRadix { b, .. } => {
                         for witness in b {
                             transformer.mark_solvable(*witness);
