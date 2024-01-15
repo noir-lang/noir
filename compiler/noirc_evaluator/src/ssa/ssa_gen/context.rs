@@ -17,7 +17,7 @@ use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
-use crate::ssa::ir::value::{Value as IrValue, ValueId};
+use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
 use fxhash::FxHashMap as HashMap;
