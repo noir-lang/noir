@@ -1,7 +1,23 @@
 import { abiEncode, InputMap } from '@noir-lang/noirc_abi';
 import { base64Decode } from './base64_decode.js';
-import { executeCircuit, WitnessMap, ForeignCallHandler, ForeignCallInput } from '@noir-lang/acvm_js';
+import {
+  WitnessMap,
+  ForeignCallHandler,
+  ForeignCallInput,
+  createBlackBoxSolver,
+  WasmBlackBoxFunctionSolver,
+  executeCircuitWithBlackBoxSolver,
+} from '@noir-lang/acvm_js';
 import { CompiledCircuit } from '@noir-lang/types';
+
+let solver: Promise<WasmBlackBoxFunctionSolver>;
+
+const getSolver = (): Promise<WasmBlackBoxFunctionSolver> => {
+  if (!solver) {
+    solver = createBlackBoxSolver();
+  }
+  return solver;
+};
 
 const defaultForeignCallHandler: ForeignCallHandler = async (name: string, args: ForeignCallInput[]) => {
   if (name == 'print') {
@@ -26,7 +42,12 @@ export async function generateWitness(
   // Execute the circuit to generate the rest of the witnesses and serialize
   // them into a Uint8Array.
   try {
-    const solvedWitness = await executeCircuit(base64Decode(compiledProgram.bytecode), witnessMap, foreignCallHandler);
+    const solvedWitness = await executeCircuitWithBlackBoxSolver(
+      await getSolver(),
+      base64Decode(compiledProgram.bytecode),
+      witnessMap,
+      foreignCallHandler,
+    );
     return solvedWitness;
   } catch (err) {
     throw new Error(`Circuit execution failed: ${err}`);
