@@ -313,9 +313,7 @@ impl FunctionBuilder {
                 let bit_size_var =
                     self.numeric_constant(FieldElement::from(bit_size as u128), typ.clone());
                 let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
-                let one = self.numeric_constant(FieldElement::one(), Type::unsigned(1));
-                let predicate = self.insert_binary(overflow, BinaryOp::Eq, one);
-                let predicate = self.insert_cast(predicate, typ.clone());
+                let predicate = self.insert_cast(overflow, typ.clone());
                 // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
                 let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
                 let pow = self.pow(base, rhs_unsigned);
