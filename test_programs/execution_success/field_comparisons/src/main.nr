@@ -16,26 +16,26 @@ fn check_plo_phi() {
     assert_eq(p_high, PHI);
 }
 
-fn test_decompose_unsafe() {
+fn check_decompose_unsafe() {
     assert_eq(decompose_unsafe(TWO_POW_128), (0, 1));
     assert_eq(decompose_unsafe(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
     assert_eq(decompose_unsafe(0x1234567890), (0x1234567890, 0));
 }
 
-fn test_decompose() {
+fn check_decompose() {
     assert_eq(decompose(TWO_POW_128), (0, 1));
     assert_eq(decompose(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
     assert_eq(decompose(0x1234567890), (0x1234567890, 0));
 }
 
-fn test_lt_unsafe() {
+fn check_lt_unsafe() {
     assert(lt_unsafe(0, 1, 16));
     assert(lt_unsafe(0, 0x100, 16));
     assert(lt_unsafe(0x100, TWO_POW_128 - 1, 16));
     assert(!lt_unsafe(0, TWO_POW_128, 16));
 }
 
-fn test_lte_unsafe() {
+fn check_lte_unsafe() {
     assert(lte_unsafe(0, 1, 16));
     assert(lte_unsafe(0, 0x100, 16));
     assert(lte_unsafe(0x100, TWO_POW_128 - 1, 16));
@@ -47,7 +47,7 @@ fn test_lte_unsafe() {
     assert(lte_unsafe(TWO_POW_128, TWO_POW_128, 16));
 }
 
-fn test_assert_gt() {
+fn check_assert_gt() {
     assert_gt(1, 0);
     assert_gt(0x100, 0);
     assert_gt((0 - 1), (0 - 2));
@@ -55,7 +55,7 @@ fn test_assert_gt() {
     assert_gt(0 - 1, 0);
 }
 
-fn test_gt() {
+fn check_gt() {
     assert(gt(1, 0));
     assert(gt(0x100, 0));
     assert(gt((0 - 1), (0 - 2)));
@@ -68,12 +68,12 @@ fn test_gt() {
 
 fn checks() {
     check_plo_phi();
-    test_decompose_unsafe();
-    test_decompose();
-    test_lt_unsafe();
-    test_lte_unsafe();
-    test_assert_gt();
-    test_gt();
+    check_decompose_unsafe();
+    check_decompose();
+    check_lt_unsafe();
+    check_lte_unsafe();
+    check_assert_gt();
+    check_gt();
 }
 
 unconstrained fn checks_in_brillig() {
