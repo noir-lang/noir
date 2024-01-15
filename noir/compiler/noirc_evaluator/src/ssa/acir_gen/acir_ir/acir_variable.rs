@@ -9,6 +9,7 @@ use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
+use acvm::blackbox_solver;
 use acvm::brillig_vm::{brillig::Value, Registers, VMStatus, VM};
 use acvm::{
     acir::{
@@ -19,7 +20,6 @@ use acvm::{
     },
     FieldElement,
 };
-use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
@@ -1711,75 +1711,6 @@ fn execute_brillig(
     code: &[BrilligOpcode],
     inputs: &[BrilligInputs],
 ) -> Option<(Registers, Vec<Value>)> {
-    struct NullBbSolver;
-
-    impl BlackBoxFunctionSolver for NullBbSolver {
-        fn schnorr_verify(
-            &self,
-            _public_key_x: &FieldElement,
-            _public_key_y: &FieldElement,
-            _signature: &[u8],
-            _message: &[u8],
-        ) -> Result<bool, BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::SchnorrVerify,
-                "SchnorrVerify is not supported".to_string(),
-            ))
-        }
-        fn pedersen_commitment(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::PedersenCommitment,
-                "PedersenCommitment is not supported".to_string(),
-            ))
-        }
-        fn pedersen_hash(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<FieldElement, BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::PedersenHash,
-                "PedersenHash is not supported".to_string(),
-            ))
-        }
-        fn fixed_base_scalar_mul(
-            &self,
-            _low: &FieldElement,
-            _high: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::FixedBaseScalarMul,
-                "FixedBaseScalarMul is not supported".to_string(),
-            ))
-        }
-        fn ec_add(
-            &self,
-            _input1_x: &FieldElement,
-            _input1_y: &FieldElement,
-            _input2_x: &FieldElement,
-            _input2_y: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::EmbeddedCurveAdd,
-                "EcAdd is not supported".to_string(),
-            ))
-        }
-        fn ec_double(
-            &self,
-            _input_x: &FieldElement,
-            _input_y: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::EmbeddedCurveDouble,
-                "EcDouble is not supported".to_string(),
-            ))
-        }
-    }
-
     // Set input values
     let mut input_register_values: Vec<Value> = Vec::with_capacity(inputs.len());
     let mut input_memory: Vec<Value> = Vec::new();
@@ -1805,7 +1736,13 @@ fn execute_brillig(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(input_registers, input_memory, code, Vec::new(), &NullBbSolver);
+    let mut vm = VM::new(
+        input_registers,
+        input_memory,
+        code,
+        Vec::new(),
+        &blackbox_solver::StubbedBlackBoxSolver,
+    );
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

@@ -116,6 +116,8 @@ impl U128 {
 
     pub fn from_integer<T>(i: T) -> U128 {
         let f = crate::as_field(i);
+        // Reject values which would overflow a u128
+        f.assert_max_bit_size(128);
         let lo = f as u64 as Field;
         let hi = (f-lo) / pow64;
         U128 {
@@ -146,7 +148,7 @@ impl U128 {
 }
 
 impl Add for U128 {
-    pub fn add(self: Self, b: U128) -> U128 {
+    fn add(self: Self, b: U128) -> U128 {
         let low = self.lo + b.lo;
         let lo = low as u64 as Field;
         let carry = (low - lo) / pow64;  
@@ -161,7 +163,7 @@ impl Add for U128 {
 }
 
 impl Sub for U128 {
-    pub fn sub(self: Self, b: U128) -> U128 {
+    fn sub(self: Self, b: U128) -> U128 {
         let low = pow64 + self.lo - b.lo;
         let lo = low as u64 as Field;
         let borrow = (low == lo) as Field;
@@ -176,7 +178,7 @@ impl Sub for U128 {
 }
 
 impl Mul for U128 {
-    pub fn mul(self: Self, b: U128) -> U128 {
+    fn mul(self: Self, b: U128) -> U128 {
         assert(self.hi*b.hi == 0, "attempt to multiply with overflow");
         let low = self.lo*b.lo;
         let lo = low as u64 as Field;
@@ -196,7 +198,7 @@ impl Mul for U128 {
 }
 
 impl Div for U128 {
-    pub fn div(self: Self, b: U128) -> U128 {
+    fn div(self: Self, b: U128) -> U128 {
         let (q,r) = self.unconstrained_div(b);
         let a = b * q + r;
         assert_eq(self, a);
@@ -206,7 +208,7 @@ impl Div for U128 {
 }
 
 impl Rem for U128 {
-    pub fn rem(self: Self, b: U128) -> U128 {
+    fn rem(self: Self, b: U128) -> U128 {
         let (q,r) = self.unconstrained_div(b);
         let a = b * q + r;
         assert_eq(self, a);
@@ -216,7 +218,7 @@ impl Rem for U128 {
 }
 
 impl Eq for U128 {
-    pub fn eq(self: Self, b: U128) -> bool {
+    fn eq(self: Self, b: U128) -> bool {
         (self.lo == b.lo) & (self.hi == b.hi)
     }
 }

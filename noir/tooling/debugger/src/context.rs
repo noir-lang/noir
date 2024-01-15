@@ -440,6 +440,7 @@ mod tests {
             },
             native_types::Expression,
         },
+        blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
             BinaryFieldOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory,
         },
@@ -447,69 +448,11 @@ mod tests {
     use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor};
     use std::collections::BTreeMap;
 
-    struct StubbedSolver;
-
-    impl BlackBoxFunctionSolver for StubbedSolver {
-        fn schnorr_verify(
-            &self,
-            _public_key_x: &FieldElement,
-            _public_key_y: &FieldElement,
-            _signature: &[u8],
-            _message: &[u8],
-        ) -> Result<bool, acvm::BlackBoxResolutionError> {
-            unimplemented!();
-        }
-
-        fn pedersen_commitment(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
-            unimplemented!();
-        }
-
-        fn pedersen_hash(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<FieldElement, acvm::BlackBoxResolutionError> {
-            unimplemented!();
-        }
-
-        fn fixed_base_scalar_mul(
-            &self,
-            _low: &FieldElement,
-            _high: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
-            unimplemented!();
-        }
-
-        fn ec_add(
-            &self,
-            _input1_x: &FieldElement,
-            _input1_y: &FieldElement,
-            _input2_x: &FieldElement,
-            _input2_y: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
-            unimplemented!();
-        }
-
-        fn ec_double(
-            &self,
-            _input_x: &FieldElement,
-            _input_y: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), acvm::BlackBoxResolutionError> {
-            unimplemented!();
-        }
-    }
-
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
         let fe_0 = FieldElement::zero();
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
-
-        let blackbox_solver = &StubbedSolver;
 
         let brillig_opcodes = Brillig {
             inputs: vec![BrilligInputs::Single(Expression {
@@ -543,7 +486,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
         let mut context = DebugContext::new(
-            blackbox_solver,
+            &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
@@ -590,8 +533,6 @@ mod tests {
         let w_y = Witness(2);
         let w_z = Witness(3);
 
-        let blackbox_solver = &StubbedSolver;
-
         // This Brillig block is equivalent to: z = x + y
         let brillig_opcodes = Brillig {
             inputs: vec![
@@ -637,7 +578,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
         let mut context = DebugContext::new(
-            blackbox_solver,
+            &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
@@ -666,7 +607,6 @@ mod tests {
 
     #[test]
     fn test_offset_opcode_location() {
-        let blackbox_solver = &StubbedSolver;
         let opcodes = vec![
             Opcode::Brillig(Brillig {
                 inputs: vec![],
@@ -687,7 +627,7 @@ mod tests {
         let debug_artifact =
             DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new(), warnings: vec![] };
         let context = DebugContext::new(
-            blackbox_solver,
+            &StubbedBlackBoxSolver,
             &circuit,
             &debug_artifact,
             WitnessMap::new(),

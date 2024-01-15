@@ -209,21 +209,19 @@ pub(crate) fn on_shutdown(
 
 #[cfg(test)]
 mod initialization {
+    use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use async_lsp::ClientSocket;
     use lsp_types::{
         CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
     use tokio::test;
 
-    use crate::{
-        requests::on_initialize, solver::MockBackend, types::ServerCapabilities, LspState,
-    };
+    use crate::{requests::on_initialize, types::ServerCapabilities, LspState};
 
     #[test]
     async fn test_on_initialize() {
         let client = ClientSocket::new_closed();
-        let solver = MockBackend;
-        let mut state = LspState::new(&client, solver);
+        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
         let params = InitializeParams::default();
         let response = on_initialize(&mut state, params).await.unwrap();
         assert!(matches!(
