@@ -48,7 +48,6 @@ mod tests {
         tests::merge_rollup_inputs::default_merge_rollup_inputs,
     };
     use dep::types::hash::accumulate_sha256;
-    use dep::types::utils::uint128::AztecU128;
 
     #[test(should_fail_with="input proofs are of different rollup types")]
     fn different_rollup_type_fails() {
@@ -141,10 +140,10 @@ mod tests {
         let mut inputs = default_merge_rollup_inputs();
         let expected_calldata_hash = accumulate_sha256(
             [
-            AztecU128::from_field(0),
-            AztecU128::from_field(1),
-            AztecU128::from_field(2),
-            AztecU128::from_field(3)
+            U128::from_integer(0),
+            U128::from_integer(1),
+            U128::from_integer(2),
+            U128::from_integer(3)
         ]
         );
         let outputs = inputs.merge_rollup_circuit();

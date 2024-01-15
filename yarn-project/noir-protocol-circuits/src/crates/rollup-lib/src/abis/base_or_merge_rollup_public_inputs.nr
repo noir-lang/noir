@@ -24,8 +24,8 @@ struct BaseOrMergeRollupPublicInputs {
     end: PartialStateReference,
 
     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
-    // AztecU128 isn't safe if it's an input to the circuit (it won't automatically constrain the witness)
-    // So we want to constrain it when casting these fields to AztecU128
+    // U128 isn't safe if it's an input to the circuit (it won't automatically constrain the witness)
+    // So we want to constrain it when casting these fields to U128
 
     // TODO(#3938): split this to txs_hash and out_hash
     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)

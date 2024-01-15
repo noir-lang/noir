@@ -30,7 +30,6 @@ use dep::types::{
     utils::{
         arrays::{array_length, array_to_bounded_vec},
         bounded_vec::BoundedVec,
-        uint128::AztecU128,
     },
     traits::is_empty_array
 };
@@ -280,10 +279,10 @@ pub fn accumulate_unencrypted_logs(
 
     let current_unencrypted_logs_hash = public_call_public_inputs.unencrypted_logs_hash;
     public_inputs.end.unencrypted_logs_hash = accumulate_sha256([
-        AztecU128::from_field(previous_unencrypted_logs_hash[0]),            
-        AztecU128::from_field(previous_unencrypted_logs_hash[1]),
-        AztecU128::from_field(current_unencrypted_logs_hash[0]),
-        AztecU128::from_field(current_unencrypted_logs_hash[1])
+        U128::from_integer(previous_unencrypted_logs_hash[0]),            
+        U128::from_integer(previous_unencrypted_logs_hash[1]),
+        U128::from_integer(current_unencrypted_logs_hash[0]),
+        U128::from_integer(current_unencrypted_logs_hash[1])
     ]);
 
     // Add log preimages lengths from current iteration to accumulated lengths

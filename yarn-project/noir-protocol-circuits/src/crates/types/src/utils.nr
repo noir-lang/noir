@@ -5,7 +5,6 @@
 mod arrays;
 mod bounded_vec;
 mod field;
-mod uint128;
 mod uint256;
 
 // if predicate == true then return lhs, else return rhs

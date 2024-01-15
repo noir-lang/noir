@@ -136,7 +136,6 @@ mod tests {
         },
         tests::root_rollup_inputs::default_root_rollup_inputs,
     };
-    use dep::types::utils::uint128::AztecU128;
     use dep::types::utils::uint256::U256;
     use dep::types::hash::accumulate_sha256;
 
@@ -146,10 +145,10 @@ mod tests {
 
         let expected_calldata_hash = accumulate_sha256(
             [
-            AztecU128::from_field(0),
-            AztecU128::from_field(1),
-            AztecU128::from_field(2),
-            AztecU128::from_field(3)
+            U128::from_integer(0),
+            U128::from_integer(1),
+            U128::from_integer(2),
+            U128::from_integer(3)
         ]
         );
 

@@ -5,7 +5,6 @@ use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::abis::new_contract_data::NewContractData as ContractLeafPreimage;
 use crate::abis::function_data::FunctionData;
 use crate::abis::side_effect::{SideEffect};
-use crate::utils::uint128::AztecU128;
 use crate::utils::uint256::U256;
 use crate::utils::bounded_vec::BoundedVec;
 use crate::constants::{
@@ -243,9 +242,9 @@ pub fn compute_constructor_hash(
 // Returning a Field would be desirable because then this can be replaced with 
 // poseidon without changing the rest of the code
 //
-pub fn accumulate_sha256(input: [AztecU128; 4]) -> [Field; NUM_FIELDS_PER_SHA256] {
+pub fn accumulate_sha256(input: [U128; 4]) -> [Field; NUM_FIELDS_PER_SHA256] {
     // This is a note about the cpp code, since it takes an array of Fields
-    // instead of a AztecU128.
+    // instead of a U128.
     // 4 Field elements when converted to bytes will usually 
     // occupy 4 * 32 = 128 bytes.
     // However, this function is making the assumption that each Field 
@@ -273,10 +272,10 @@ pub fn compute_logs_hash(
 ) -> [Field; NUM_FIELDS_PER_SHA256] {
     accumulate_sha256(
         [
-        AztecU128::from_field(previous_log_hash[0]),
-        AztecU128::from_field(previous_log_hash[1]),
-        AztecU128::from_field(current_log_hash[0]),
-        AztecU128::from_field(current_log_hash[1])
+        U128::from_integer(previous_log_hash[0]),
+        U128::from_integer(previous_log_hash[1]),
+        U128::from_integer(current_log_hash[0]),
+        U128::from_integer(current_log_hash[1])
     ]
     )
 }
