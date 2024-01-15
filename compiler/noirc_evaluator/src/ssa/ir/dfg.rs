@@ -337,6 +337,25 @@ impl DataFlowGraph {
         self.values[value].get_type().clone()
     }
 
+    /// Returns the maximum possible number of bits that `value` can potentially be.
+    ///
+    /// Should `value` be a numeric constant then this function will return the exact number of bits required,
+    /// otherwise it will return the minimum number of bits based on type information.
+    pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
+        match self[value] {
+            Value::Instruction { instruction, .. } => {
+                if let Instruction::Cast(original_value, _) = self[instruction] {
+                    self.type_of_value(original_value).bit_size()
+                } else {
+                    self.type_of_value(value).bit_size()
+                }
+            }
+
+            Value::NumericConstant { constant, .. } => constant.num_bits(),
+            _ => self.type_of_value(value).bit_size(),
+        }
+    }
+
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {

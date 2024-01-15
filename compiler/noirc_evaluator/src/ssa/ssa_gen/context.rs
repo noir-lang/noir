@@ -335,29 +335,71 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                let op_name = match operator {
-                    BinaryOpKind::Add => "add",
-                    BinaryOpKind::Subtract => "subtract",
-                    BinaryOpKind::Multiply => "multiply",
-                    BinaryOpKind::ShiftLeft => "left shift",
-                    _ => unreachable!("operator {} should not overflow", operator),
-                };
+                let dfg = &self.builder.current_function.dfg;
 
-                if operator == BinaryOpKind::Multiply && bit_size == 1 {
-                    result
-                } else if operator == BinaryOpKind::ShiftLeft
-                    || operator == BinaryOpKind::ShiftRight
-                {
-                    self.check_shift_overflow(result, rhs, bit_size, location, false)
-                } else {
-                    let message = format!("attempt to {} with overflow", op_name);
-                    self.builder.set_location(location).insert_range_check(
-                        result,
-                        bit_size,
-                        Some(message),
-                    );
-                    result
+                let max_lhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(lhs);
+                let max_rhs_bits = self.builder.current_function.dfg.get_value_max_num_bits(rhs);
+
+                match operator {
+                    BinaryOpKind::Add => {
+                        if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
+                            // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
+                            return result;
+                        }
+
+                        let message = "attempt to add with overflow".to_string();
+                        self.builder.set_location(location).insert_range_check(
+                            result,
+                            bit_size,
+                            Some(message),
+                        );
+                    }
+                    BinaryOpKind::Subtract => {
+                        if dfg.is_constant(lhs) && max_lhs_bits > max_rhs_bits {
+                            // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
+                            // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                            return result;
+                        }
+
+                        let message = "attempt to subtract with overflow".to_string();
+                        self.builder.set_location(location).insert_range_check(
+                            result,
+                            bit_size,
+                            Some(message),
+                        );
+                    }
+                    BinaryOpKind::Multiply => {
+                        if bit_size == 1 || max_lhs_bits + max_rhs_bits <= bit_size {
+                            // Either performing boolean multiplication (which cannot overflow),
+                            // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
+                            return result;
+                        }
+
+                        let message = "attempt to multiply with overflow".to_string();
+                        self.builder.set_location(location).insert_range_check(
+                            result,
+                            bit_size,
+                            Some(message),
+                        );
+                    }
+                    BinaryOpKind::ShiftLeft => {
+                        if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
+                            let bit_shift_size = rhs_const.to_u128() as u32;
+
+                            if max_lhs_bits + bit_shift_size <= bit_size {
+                                // `lhs` has been casted up from a smaller type such that shifting it by a constant
+                                // `rhs` is known not to exceed the maximum bit size.
+                                return result;
+                            }
+                        }
+
+                        self.check_shift_overflow(result, rhs, bit_size, location, false);
+                    }
+
+                    _ => unreachable!("operator {} should not overflow", operator),
                 }
+
+                result
             }
             _ => result,
         }
