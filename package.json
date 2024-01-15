@@ -10,7 +10,6 @@
     "tooling/noir_codegen",
     "tooling/noir_js_backend_barretenberg",
     "acvm-repo/acvm_js",
-    "release-tests",
     "docs"
   ],
   "scripts": {

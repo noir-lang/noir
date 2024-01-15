@@ -90,6 +90,50 @@ mod test {
     }
 
     #[test]
+    fn check_trait_implemented_for_all_t() {
+        let src = "
+        trait Default {
+            fn default() -> Self;
+        }
+        
+        trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+        
+        trait IsDefault {
+            fn is_default(self) -> bool;
+        }
+        
+        impl<T> IsDefault for T where T: Default + Eq {
+            fn is_default(self) -> bool {
+                self.eq(T::default())
+            }
+        }
+        
+        struct Foo {
+            a: u64,
+        }
+        
+        impl Eq for Foo {
+            fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        }
+        
+        impl Default for Foo {
+            fn default() -> Self {
+                Foo { a: Default::default() }
+            }
+        }
+        
+        fn main(a: Foo) -> pub bool {
+            a.is_default()
+        }";
+
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
+    }
+
+    #[test]
     fn check_trait_implementation_duplicate_method() {
         let src = "
         trait Default {
