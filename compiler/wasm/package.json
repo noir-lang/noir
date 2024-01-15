@@ -29,9 +29,10 @@
     "url": "https://github.com/noir-lang/noir/issues"
   },
   "scripts": {
-    "build": "WASM_OPT=$(bash -c ./wasm-opt-check.sh) webpack",
+    "install:wasm_pack": "./scripts/install_wasm-pack.sh",
+    "build": "yarn install:wasm_pack && WASM_OPT=$(./scripts/command-check.sh wasm-opt) webpack",
     "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
-    "test:build_fixtures": "./build-fixtures.sh",
+    "test:build_fixtures": "./scripts/build-fixtures.sh",
     "test:browser": "web-test-runner",
     "test:node": "NODE_NO_WARNINGS=1 mocha --config ./.mocharc.json",
     "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target",
