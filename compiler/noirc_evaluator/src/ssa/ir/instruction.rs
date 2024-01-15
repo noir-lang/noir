@@ -40,6 +40,7 @@ pub(crate) enum Intrinsic {
     SlicePopFront,
     SliceInsert,
     SliceRemove,
+    ApplyRangeConstraint,
     StrAsBytes,
     ToBits(Endian),
     ToRadix(Endian),
@@ -61,6 +62,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::SliceInsert => write!(f, "slice_insert"),
             Intrinsic::SliceRemove => write!(f, "slice_remove"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
+            Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
             Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
@@ -78,7 +80,7 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant => true,
+            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint => true,
 
             Intrinsic::Sort
             | Intrinsic::ArrayLen
@@ -106,6 +108,7 @@ impl Intrinsic {
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
             "slice_pop_back" => Some(Intrinsic::SlicePopBack),

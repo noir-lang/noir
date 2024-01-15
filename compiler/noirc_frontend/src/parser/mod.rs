@@ -208,7 +208,7 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
@@ -344,6 +344,7 @@ impl std::fmt::Display for SortedSubModule {
     }
 }
 
+#[derive(Clone)]
 pub struct SortedSubModule {
     pub name: Ident,
     pub contents: SortedModule,

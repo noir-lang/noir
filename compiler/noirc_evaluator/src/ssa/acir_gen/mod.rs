@@ -1712,6 +1712,9 @@ impl Context {
 
                 Ok(Self::convert_vars_to_values(vars, dfg, result_ids))
             }
+            Intrinsic::ApplyRangeConstraint => {
+                unreachable!("ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`");
+            }
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
@@ -2428,8 +2431,7 @@ impl Context {
     }
 }
 
-// We can omit the element size array for arrays which have elements of size 1 and do not contain slices.
-// TODO: remove restriction on size 1 elements.
+// We can omit the element size array for arrays which don't contain arrays or slices.
 fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
     if array_typ.contains_slice_element() {
         return false;
@@ -2438,5 +2440,5 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
         panic!("ICE: expected array type");
     };
 
-    types.len() == 1 && types[0].flattened_size() == 1
+    !types.iter().any(|typ| typ.contains_an_array())
 }
