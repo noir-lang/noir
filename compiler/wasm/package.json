@@ -33,6 +33,7 @@
     "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
     "test:build_fixtures": "./build-fixtures.sh",
     "test:browser": "web-test-runner",
+    "test:browser:docker": "docker run --rm -v $(cd ../.. && pwd):/usr/src/noir -w /usr/src/noir/compiler/wasm mcr.microsoft.com/playwright:v1.40.0-jammy yarn test:browser",
     "test:node": "NODE_NO_WARNINGS=1 mocha --config ./.mocharc.json",
     "clean": "rm -rf ./build ./target ./dist public/fixtures/simple/target public/fixtures/with-deps/target",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
