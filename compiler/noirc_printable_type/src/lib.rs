@@ -32,8 +32,13 @@ pub enum PrintableType {
     String {
         length: u64,
     },
-    Function,
-    MutableReference,
+    Function {
+        env: Box<PrintableType>,
+    },
+    MutableReference {
+        typ: Box<PrintableType>,
+    },
+    Unit,
 }
 
 impl PrintableType {
@@ -43,9 +48,7 @@ impl PrintableType {
             Self::Field
             | Self::SignedInteger { .. }
             | Self::UnsignedInteger { .. }
-            | Self::Boolean
-            | Self::Function
-            | Self::MutableReference => Some(1),
+            | Self::Boolean => Some(1),
             Self::Array { length, typ } => {
                 length.and_then(|len| typ.field_count().map(|x| x * (len as u32)))
             }
@@ -56,6 +59,9 @@ impl PrintableType {
                 count.and_then(|c| field_type.field_count().map(|fc| c + fc))
             }),
             Self::String { length } => Some(*length as u32),
+            Self::Function { env: typ } => Some(1 + typ.field_count().unwrap_or(0)),
+            Self::MutableReference { typ } => typ.field_count(),
+            Self::Unit => Some(0),
         }
     }
 }
@@ -126,41 +132,45 @@ fn convert_string_inputs(
 fn convert_fmt_string_inputs(
     foreign_call_inputs: &[ForeignCallParam],
 ) -> Result<PrintableValueDisplay, ForeignCallError> {
-    let (message, input_and_printable_values) =
+    let (message, input_and_printable_types) =
         foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
     let message_as_fields = vecmap(message.values(), |value| value.to_field());
     let message_as_string = decode_string_value(&message_as_fields);
 
-    let (num_values, input_and_printable_values) = input_and_printable_values
+    let (num_values, input_and_printable_types) = input_and_printable_types
         .split_first()
         .ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
     let mut output = Vec::new();
     let num_values = num_values.unwrap_value().to_field().to_u128() as usize;
 
-    for (i, printable_value) in input_and_printable_values
-        .iter()
-        .skip(input_and_printable_values.len() - num_values)
-        .enumerate()
+    let mut next_value_index = 0usize; // index to input_and_printable_values to the current value
+    for printable_type in
+        input_and_printable_types.iter().skip(input_and_printable_types.len() - num_values)
     {
-        let printable_type = fetch_printable_type(printable_value)?;
+        let printable_type = fetch_printable_type(printable_type)?;
         let field_count = printable_type.field_count();
         let value = match (field_count, &printable_type) {
             (_, PrintableType::Array { .. } | PrintableType::String { .. }) => {
                 // Arrays and strings are represented in a single value vector rather than multiple separate input values
-                let mut input_values_as_fields = input_and_printable_values[i]
+                let mut input_values_as_fields = input_and_printable_types[next_value_index]
                     .values()
                     .into_iter()
                     .map(|value| value.to_field());
+                // Arrays and strings are encoded as arrays, so we advance the index for the next value by 1
+                next_value_index += 1;
                 decode_value(&mut input_values_as_fields, &printable_type)
             }
             (Some(type_size), _) => {
                 // We must use a flat map here as each value in a struct will be in a separate input value
-                let mut input_values_as_fields = input_and_printable_values
-                    [i..(i + (type_size as usize))]
+                let mut input_values_as_fields = input_and_printable_types
+                    [next_value_index..(next_value_index + (type_size as usize))]
                     .iter()
                     .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
+                // Other types will be flattened, so we need to advance the
+                // index for the next value by the field count of the current value
+                next_value_index += type_size as usize;
                 decode_value(&mut input_values_as_fields, &printable_type)
             }
             (None, _) => {
@@ -212,7 +222,7 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function) => {
+        (PrintableValue::Field(_), PrintableType::Function { .. }) => {
             output.push_str("<<function>>");
         }
         (_, PrintableType::MutableReference { .. }) => {
@@ -268,6 +278,8 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
             }
             output.push(')');
         }
+
+        (_, PrintableType::Unit) => output.push_str("()"),
 
         _ => return None,
     };
@@ -339,9 +351,7 @@ fn decode_value(
         PrintableType::Field
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
-        | PrintableType::Boolean
-        | PrintableType::Function
-        | PrintableType::MutableReference => {
+        | PrintableType::Boolean => {
             let field_element = field_iterator.next().unwrap();
 
             PrintableValue::Field(field_element)
@@ -386,6 +396,18 @@ fn decode_value(
 
             PrintableValue::Struct(struct_map)
         }
+        PrintableType::Function { env } => {
+            let field_element = field_iterator.next().unwrap();
+            let func_ref = PrintableValue::Field(field_element);
+            // we want to consume the fields from the environment, but for now they are not actually printed
+            decode_value(field_iterator, env);
+            func_ref
+        }
+        PrintableType::MutableReference { typ } => {
+            // we decode the reference, but it's not really used for printing
+            decode_value(field_iterator, typ)
+        }
+        PrintableType::Unit => PrintableValue::Field(FieldElement::zero()),
     }
 }
 

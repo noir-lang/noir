@@ -1604,7 +1604,7 @@ impl From<&Type> for PrintableType {
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
             Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
+            Type::Unit => PrintableType::Unit,
             Type::Constant(_) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
@@ -1617,8 +1617,12 @@ impl From<&Type> for PrintableType {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => PrintableType::Function,
-            Type::MutableReference(_) => PrintableType::MutableReference,
+            Type::Function(_, _, env) => {
+                PrintableType::Function { env: Box::new(env.as_ref().into()) }
+            }
+            Type::MutableReference(typ) => {
+                PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
+            }
             Type::NotConstant => unreachable!(),
         }
     }
