@@ -10,11 +10,11 @@ pub fn arr_copy_slice<T, N, M>(src: [T; N], mut dst: [T; M], offset: Field) -> [
 
 // TODO to radix returns u8, so we cannot use bigger radixes. It'd be ideal to use a radix of the maximum range-constrained integer noir supports
 pub fn full_field_less_than(lhs: Field, rhs: Field) -> bool {
-    dep::std::eddsa::lt_bytes32(lhs, rhs)
+    lhs.lt(rhs)
 }
 
 pub fn full_field_greater_than(lhs: Field, rhs: Field) -> bool {
-    dep::std::eddsa::lt_bytes32(rhs, lhs)
+    rhs.lt(lhs)
 }
 
 struct Reader<N> {

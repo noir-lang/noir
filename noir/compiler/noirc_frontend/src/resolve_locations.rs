@@ -75,6 +75,7 @@ impl NodeInterner {
                         Some(self.function_meta(&func_id).location)
                     }
                     DefinitionKind::Local(_local_id) => Some(definition_info.location),
+                    DefinitionKind::Global(_global_id) => Some(definition_info.location),
                     _ => None,
                 }
             }
