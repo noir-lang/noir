@@ -47,20 +47,14 @@ impl PrintableType {
             | Self::Function
             | Self::MutableReference => Some(1),
             Self::Array { length, typ } => {
-                length.and_then(|len| {
-                    typ.field_count().map(|x| x*(len as u32))
-                })
-            },
-            Self::Tuple { types } => {
-                types.iter().fold(Some(0), |count,typ| {
-                    count.and_then(|c| typ.field_count().map(|fc| c + fc))
-                })
-            },
-            Self::Struct { fields, .. } => {
-                fields.iter().fold(Some(0), |count, (_, field_type)| {
-                    count.and_then(|c| field_type.field_count().map(|fc| c + fc))
-                })
-            },
+                length.and_then(|len| typ.field_count().map(|x| x * (len as u32)))
+            }
+            Self::Tuple { types } => types
+                .iter()
+                .fold(Some(0), |count, typ| count.and_then(|c| typ.field_count().map(|fc| c + fc))),
+            Self::Struct { fields, .. } => fields.iter().fold(Some(0), |count, (_, field_type)| {
+                count.and_then(|c| field_type.field_count().map(|fc| c + fc))
+            }),
             Self::String { length } => Some(*length as u32),
         }
     }
@@ -163,7 +157,8 @@ fn convert_fmt_string_inputs(
             }
             (Some(type_size), _) => {
                 // We must use a flat map here as each value in a struct will be in a separate input value
-                let mut input_values_as_fields = input_and_printable_values[i..(i + (type_size as usize))]
+                let mut input_values_as_fields = input_and_printable_values
+                    [i..(i + (type_size as usize))]
                     .iter()
                     .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
                 decode_value(&mut input_values_as_fields, &printable_type)
@@ -261,7 +256,7 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         }
 
         (PrintableValue::Vec(values), PrintableType::Tuple { types }) => {
-            output.push_str("(");
+            output.push('(');
             let mut elems = values.iter().zip(types).peekable();
             while let Some((value, typ)) = elems.next() {
                 output.push_str(
@@ -271,7 +266,7 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
                     output.push_str(", ");
                 }
             }
-            output.push_str(")");
+            output.push(')');
         }
 
         _ => return None,
@@ -352,7 +347,8 @@ fn decode_value(
             PrintableValue::Field(field_element)
         }
         PrintableType::Array { length: None, typ } => {
-            let length = field_iterator.next()
+            let length = field_iterator
+                .next()
                 .expect("not enough data to decode variable array length")
                 .to_u128() as usize;
             let mut array_elements = Vec::with_capacity(length);
@@ -361,7 +357,7 @@ fn decode_value(
             }
 
             PrintableValue::Vec(array_elements)
-        },
+        }
         PrintableType::Array { length: Some(length), typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
