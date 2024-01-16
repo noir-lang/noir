@@ -1,3 +1,6 @@
+mod bn254;
+use bn254::lt as bn254_lt;
+
 impl Field {
     pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
         crate::assert_constant(bit_size);
@@ -74,6 +77,15 @@ impl Field {
     pub fn sgn0(self) -> u1 {
         self as u1
     }
+
+    pub fn lt(self, another: Field) -> bool {
+        if crate::compat::is_bn254() {
+            bn254_lt(self, another)
+        } else {
+            lt_fallback(self, another)
+        }
+    }
+
 }
 
 #[builtin(modulus_num_bits)]
@@ -105,3 +117,24 @@ pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
     // Abuse that a % p + b % p = (a + b) % p and that low < p
     low + high * v
 }
+
+fn lt_fallback(x: Field, y: Field) -> bool {
+    let num_bytes = (modulus_num_bits() as u32 + 7) / 8;
+    let x_bytes = x.to_le_bytes(num_bytes);
+    let y_bytes = y.to_le_bytes(num_bytes);
+    let mut x_is_lt = false;
+    let mut done = false;
+    for i in 0..num_bytes {
+        if (!done) {
+            let x_byte = x_bytes[num_bytes - 1 - i] as u8;
+            let y_byte = y_bytes[num_bytes - 1 - i] as u8;
+            let bytes_match = x_byte == y_byte;
+            if !bytes_match {
+                x_is_lt = x_byte < y_byte;
+                done = true;
+            }
+        }
+    }
+    x_is_lt
+}
+
