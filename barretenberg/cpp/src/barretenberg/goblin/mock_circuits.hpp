@@ -7,7 +7,7 @@
 #include "barretenberg/srs/global_crs.hpp"
 #include "barretenberg/stdlib/recursion/honk/verifier/ultra_recursive_verifier.hpp"
 
-namespace barretenberg {
+namespace bb {
 class GoblinMockCircuits {
   public:
     using Curve = curve::BN254;
@@ -72,7 +72,7 @@ class GoblinMockCircuits {
         op_queue->set_size_data();
 
         // Manually compute the op queue transcript commitments (which would normally be done by the merge prover)
-        auto crs_factory_ = barretenberg::srs::get_crs_factory();
+        auto crs_factory_ = bb::srs::get_crs_factory();
         auto commitment_key = CommitmentKey(op_queue->get_current_size(), crs_factory_);
         std::array<Point, Flavor::NUM_WIRES> op_queue_commitments;
         size_t idx = 0;
@@ -126,4 +126,4 @@ class GoblinMockCircuits {
         pairing_points = verifier.verify_proof(kernel_input.proof);      // previous kernel proof
     }
 };
-} // namespace barretenberg
+} // namespace bb

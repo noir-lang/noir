@@ -8,5 +8,5 @@
 #include <fstream>
 #include <ios>
 
-std::vector<barretenberg::g1::affine_element> get_bn254_g1_data(const std::filesystem::path& path, size_t num_points);
-barretenberg::g2::affine_element get_bn254_g2_data(const std::filesystem::path& path);
+std::vector<bb::g1::affine_element> get_bn254_g1_data(const std::filesystem::path& path, size_t num_points);
+bb::g2::affine_element get_bn254_g2_data(const std::filesystem::path& path);

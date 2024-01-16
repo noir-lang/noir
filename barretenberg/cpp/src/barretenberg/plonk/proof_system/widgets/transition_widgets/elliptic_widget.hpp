@@ -149,7 +149,7 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
 } // namespace widget
 
 template <typename Settings>
-using ProverEllipticWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::EllipticKernel>;
+using ProverEllipticWidget = widget::TransitionWidget<bb::fr, Settings, widget::EllipticKernel>;
 
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierEllipticWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::EllipticKernel>;

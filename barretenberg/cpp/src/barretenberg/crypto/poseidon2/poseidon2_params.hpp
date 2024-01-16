@@ -9,7 +9,7 @@ namespace crypto {
 
 struct Poseidon2Bn254ScalarFieldParams {
 
-    using FF = barretenberg::fr;
+    using FF = bb::fr;
     static constexpr size_t t = 4;
     static constexpr size_t d = 5;
     static constexpr size_t rounds_f = 8;

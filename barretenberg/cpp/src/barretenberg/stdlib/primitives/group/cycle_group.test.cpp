@@ -18,7 +18,7 @@
     using witness_ct = stdlib::witness_t<Builder>;
 
 namespace stdlib_cycle_group_tests {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 namespace {

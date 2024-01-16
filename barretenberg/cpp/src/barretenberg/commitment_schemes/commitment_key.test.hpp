@@ -20,16 +20,16 @@ template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 template <> inline std::shared_ptr<CommitmentKey<curve::BN254>> CreateCommitmentKey<CommitmentKey<curve::BN254>>()
 {
     constexpr size_t n = 4096;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition", 4096));
+    std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory(
+        new bb::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition", 4096));
     return std::make_shared<CommitmentKey<curve::BN254>>(n, crs_factory);
 }
 // For IPA
 template <> inline std::shared_ptr<CommitmentKey<curve::Grumpkin>> CreateCommitmentKey<CommitmentKey<curve::Grumpkin>>()
 {
     constexpr size_t n = 4096;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 4096));
+    std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
+        new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 4096));
     return std::make_shared<CommitmentKey<curve::Grumpkin>>(n, crs_factory);
 }
 
@@ -46,8 +46,8 @@ inline std::shared_ptr<VerifierCommitmentKey<curve::BN254>> CreateVerifierCommit
     VerifierCommitmentKey<curve::BN254>>()
 {
     constexpr size_t n = 4096;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition", 4096));
+    std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory(
+        new bb::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition", 4096));
     return std::make_shared<VerifierCommitmentKey<curve::BN254>>(n, crs_factory);
 }
 // For IPA
@@ -56,8 +56,8 @@ inline std::shared_ptr<VerifierCommitmentKey<curve::Grumpkin>> CreateVerifierCom
     VerifierCommitmentKey<curve::Grumpkin>>()
 {
     constexpr size_t n = 4096;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 4096));
+    std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
+        new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 4096));
     return std::make_shared<VerifierCommitmentKey<curve::Grumpkin>>(n, crs_factory);
 }
 template <typename VK> inline std::shared_ptr<VK> CreateVerifierCommitmentKey()
@@ -71,7 +71,7 @@ template <typename Curve> class CommitmentTest : public ::testing::Test {
 
     using Fr = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
   public:
     CommitmentTest()
@@ -204,6 +204,6 @@ using CommitmentSchemeParams = ::testing::Types<curve::BN254>;
 using IpaCommitmentSchemeParams = ::testing::Types<curve::Grumpkin>;
 // IMPROVEMENT: reinstate typed-tests for multiple field types, i.e.:
 // using CommitmentSchemeParams =
-//     ::testing::Types<fake::Params<barretenberg::g1>, fake::Params<grumpkin::g1>, kzg::Params>;
+//     ::testing::Types<fake::Params<bb::g1>, fake::Params<grumpkin::g1>, kzg::Params>;
 
 } // namespace proof_system::honk::pcs

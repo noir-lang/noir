@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/fq.hpp"
 
-namespace barretenberg {
+namespace bb {
 struct TranslationEvaluations {
     fq op, Px, Py, z1, z2;
     std::vector<uint8_t> to_buffer()
@@ -19,4 +19,4 @@ struct TranslationEvaluations {
         return result;
     }
 };
-} // namespace barretenberg
+} // namespace bb

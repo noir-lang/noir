@@ -5,7 +5,7 @@
 
 using Flavor = proof_system::honk::flavor::AvmMiniFlavor;
 using FF = Flavor::FF;
-using Row = proof_system::AvmMiniFullRow<barretenberg::fr>;
+using Row = proof_system::AvmMiniFullRow<bb::fr>;
 
 namespace avm_trace {
 

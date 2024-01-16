@@ -75,8 +75,8 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
         accumulators[k] = (fr*)accumulators_ptrs[k].get();
     }
 
-    barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+    bb::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
+    bb::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     std::array<std::shared_ptr<fr[]>, program_width> lagrange_base_wires_ptr;
     std::array<std::shared_ptr<fr[]>, program_width> lagrange_base_sigmas_ptr;
@@ -149,11 +149,11 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     // So i will access a different element from 0..(n-1) each time.
     // Commented maths notation mirrors the indexing from the giant comment immediately above.
     parallel_for(key->small_domain.num_threads, [&](size_t j) {
-        barretenberg::fr thread_root = key->small_domain.root.pow(
-            static_cast<uint64_t>(j * key->small_domain.thread_size));              // effectively ω^{i} in inner loop
-        [[maybe_unused]] barretenberg::fr cur_root_times_beta = thread_root * beta; // β.ω^{i}
-        barretenberg::fr T0;
-        barretenberg::fr wire_plus_gamma;
+        bb::fr thread_root = key->small_domain.root.pow(
+            static_cast<uint64_t>(j * key->small_domain.thread_size));    // effectively ω^{i} in inner loop
+        [[maybe_unused]] bb::fr cur_root_times_beta = thread_root * beta; // β.ω^{i}
+        bb::fr T0;
+        bb::fr wire_plus_gamma;
         size_t start = j * key->small_domain.thread_size;
         size_t end = (j + 1) * key->small_domain.thread_size;
         for (size_t i = start; i < end; ++i) {
@@ -236,7 +236,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
         const size_t start = j * key->small_domain.thread_size;
         const size_t end =
             ((j + 1) * key->small_domain.thread_size) - ((j == key->small_domain.num_threads - 1) ? 1 : 0);
-        barretenberg::fr inversion_accumulator = fr::one();
+        bb::fr inversion_accumulator = fr::one();
         constexpr size_t inversion_index = (program_width == 1) ? 2 : program_width * 2 - 1;
         fr* inversion_coefficients = &accumulators[inversion_index][0];
         for (size_t i = start; i < end; ++i) {
@@ -262,7 +262,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     // z = [1 accumulators[0][0] accumulators[0][1] ... accumulators[0][n-2]]
     polynomial z_perm(key->circuit_size);
     z_perm[0] = fr::one();
-    barretenberg::polynomial_arithmetic::copy_polynomial(
+    bb::polynomial_arithmetic::copy_polynomial(
         accumulators[0], &z_perm[1], key->circuit_size - 1, key->circuit_size - 1);
 
     /*
@@ -329,7 +329,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
         work_queue::WorkType::FFT,
         nullptr,
         "z_perm",
-        barretenberg::fr(0),
+        bb::fr(0),
         0,
     });
 
@@ -337,14 +337,14 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
 }
 
 template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
-barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::
+bb::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::
     compute_quotient_contribution(const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
     const polynomial& z_perm_fft = key->polynomial_store.get("z_perm_fft");
 
-    barretenberg::fr alpha_squared = alpha_base.sqr();
-    barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+    bb::fr alpha_squared = alpha_base.sqr();
+    bb::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
+    bb::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     // Initialize the (n + 1)th coefficients of quotient parts so that reuse of proving
     // keys does not use some residual data from another proof.
@@ -399,10 +399,9 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     const polynomial& l_start = key->polynomial_store.get("lagrange_1_fft");
 
     // Compute our public input component
-    std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
+    std::vector<bb::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
 
-    barretenberg::fr public_input_delta =
-        compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
+    bb::fr public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
 
     const size_t block_mask = key->large_domain.size - 1;
     // Step 4: Set the quotient polynomial to be equal to
@@ -415,15 +414,15 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
         //
         // curr_root = ω^{j * num_threads} * g_{small} * β
         // curr_root will be used in denominator
-        barretenberg::fr cur_root_times_beta =
+        bb::fr cur_root_times_beta =
             key->large_domain.root.pow(static_cast<uint64_t>(j * key->large_domain.thread_size));
         cur_root_times_beta *= key->small_domain.generator;
         cur_root_times_beta *= beta;
 
-        barretenberg::fr wire_plus_gamma;
-        barretenberg::fr T0;
-        barretenberg::fr denominator;
-        barretenberg::fr numerator;
+        bb::fr wire_plus_gamma;
+        bb::fr T0;
+        bb::fr denominator;
+        bb::fr numerator;
         for (size_t i = start; i < end; ++i) {
             wire_plus_gamma = gamma + wire_ffts[0][i];
 
@@ -785,8 +784,6 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     return alpha_base * alpha_step.sqr() * alpha_step;
 }
 
-template class VerifierPermutationWidget<barretenberg::fr,
-                                         barretenberg::g1::affine_element,
-                                         transcript::StandardTranscript>;
+template class VerifierPermutationWidget<bb::fr, bb::g1::affine_element, transcript::StandardTranscript>;
 
 } // namespace proof_system::plonk

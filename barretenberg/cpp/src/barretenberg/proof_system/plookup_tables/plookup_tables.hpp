@@ -20,10 +20,10 @@ namespace plookup {
 
 const MultiTable& create_table(MultiTableId id);
 
-ReadData<barretenberg::fr> get_lookup_accumulators(MultiTableId id,
-                                                   const barretenberg::fr& key_a,
-                                                   const barretenberg::fr& key_b = 0,
-                                                   bool is_2_to_1_lookup = false);
+ReadData<bb::fr> get_lookup_accumulators(MultiTableId id,
+                                         const bb::fr& key_a,
+                                         const bb::fr& key_b = 0,
+                                         bool is_2_to_1_lookup = false);
 
 inline BasicTable create_basic_table(const BasicTableId id, const size_t index)
 {
@@ -98,32 +98,29 @@ inline BasicTable create_basic_table(const BasicTableId id, const size_t index)
         return uint_tables::generate_and_rotate_table<6, 0>(UINT_AND_ROTATE0, index);
     }
     case BN254_XLO_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_xlo_table(BN254_XLO_BASIC, index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_xlo_table(BN254_XLO_BASIC, index);
     }
     case BN254_XHI_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_xhi_table(BN254_XHI_BASIC, index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_xhi_table(BN254_XHI_BASIC, index);
     }
     case BN254_YLO_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_ylo_table(BN254_YLO_BASIC, index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_ylo_table(BN254_YLO_BASIC, index);
     }
     case BN254_YHI_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_yhi_table(BN254_YHI_BASIC, index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_yhi_table(BN254_YHI_BASIC, index);
     }
     case BN254_XYPRIME_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_xyprime_table(BN254_XYPRIME_BASIC,
-                                                                                                   index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_xyprime_table(BN254_XYPRIME_BASIC, index);
     }
     case BN254_XLO_ENDO_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_xlo_endo_table(
-            BN254_XLO_ENDO_BASIC, index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_xlo_endo_table(BN254_XLO_ENDO_BASIC, index);
     }
     case BN254_XHI_ENDO_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_xhi_endo_table(
-            BN254_XHI_ENDO_BASIC, index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_xhi_endo_table(BN254_XHI_ENDO_BASIC, index);
     }
     case BN254_XYPRIME_ENDO_BASIC: {
-        return ecc_generator_tables::ecc_generator_table<barretenberg::g1>::generate_xyprime_endo_table(
-            BN254_XYPRIME_ENDO_BASIC, index);
+        return ecc_generator_tables::ecc_generator_table<bb::g1>::generate_xyprime_endo_table(BN254_XYPRIME_ENDO_BASIC,
+                                                                                              index);
     }
     case SECP256K1_XLO_BASIC: {
         return ecc_generator_tables::ecc_generator_table<secp256k1::g1>::generate_xlo_table(SECP256K1_XLO_BASIC, index);

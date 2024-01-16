@@ -7,18 +7,17 @@
 #include "barretenberg/ecc/scalar_multiplication/point_table.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 
-namespace barretenberg::srs::factories {
+namespace bb::srs::factories {
 
 FileVerifierCrs<curve::BN254>::FileVerifierCrs(std::string const& path, const size_t)
-    : precomputed_g2_lines(
-          (barretenberg::pairing::miller_lines*)(aligned_alloc(64, sizeof(barretenberg::pairing::miller_lines) * 2)))
+    : precomputed_g2_lines((bb::pairing::miller_lines*)(aligned_alloc(64, sizeof(bb::pairing::miller_lines) * 2)))
 {
     using Curve = curve::BN254;
     auto point_buf = scalar_multiplication::point_table_alloc<Curve::AffineElement>(1);
     srs::IO<Curve>::read_transcript_g1(point_buf.get(), 1, path);
     srs::IO<curve::BN254>::read_transcript_g2(g2_x, path);
-    barretenberg::pairing::precompute_miller_lines(barretenberg::g2::one, precomputed_g2_lines[0]);
-    barretenberg::pairing::precompute_miller_lines(g2_x, precomputed_g2_lines[1]);
+    bb::pairing::precompute_miller_lines(bb::g2::one, precomputed_g2_lines[0]);
+    bb::pairing::precompute_miller_lines(g2_x, precomputed_g2_lines[1]);
     first_g1 = point_buf[0];
 }
 
@@ -54,7 +53,7 @@ FileCrsFactory<Curve>::FileCrsFactory(std::string path, size_t initial_degree)
 {}
 
 template <typename Curve>
-std::shared_ptr<barretenberg::srs::factories::ProverCrs<Curve>> FileCrsFactory<Curve>::get_prover_crs(size_t degree)
+std::shared_ptr<bb::srs::factories::ProverCrs<Curve>> FileCrsFactory<Curve>::get_prover_crs(size_t degree)
 {
     if (degree != degree_ || !prover_crs_) {
         prover_crs_ = std::make_shared<FileProverCrs<Curve>>(degree, path_);
@@ -64,7 +63,7 @@ std::shared_ptr<barretenberg::srs::factories::ProverCrs<Curve>> FileCrsFactory<C
 }
 
 template <typename Curve>
-std::shared_ptr<barretenberg::srs::factories::VerifierCrs<Curve>> FileCrsFactory<Curve>::get_verifier_crs(size_t degree)
+std::shared_ptr<bb::srs::factories::VerifierCrs<Curve>> FileCrsFactory<Curve>::get_verifier_crs(size_t degree)
 {
     if (degree != degree_ || !verifier_crs_) {
         verifier_crs_ = std::make_shared<FileVerifierCrs<Curve>>(path_, degree);
@@ -78,4 +77,4 @@ template class FileProverCrs<curve::Grumpkin>;
 template class FileCrsFactory<curve::BN254>;
 template class FileCrsFactory<curve::Grumpkin>;
 
-} // namespace barretenberg::srs::factories
+} // namespace bb::srs::factories

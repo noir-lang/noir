@@ -9,7 +9,7 @@
 #include <memory.h>
 #include <memory>
 
-namespace barretenberg::polynomial_arithmetic {
+namespace bb::polynomial_arithmetic {
 
 namespace {
 
@@ -1040,7 +1040,7 @@ Fr compute_kate_opening_coefficients(const Fr* src, Fr* dest, const Fr& z, const
  */
 template <typename Fr>
     requires SupportsFFT<Fr>
-barretenberg::polynomial_arithmetic::LagrangeEvaluations<Fr> get_lagrange_evaluations(
+bb::polynomial_arithmetic::LagrangeEvaluations<Fr> get_lagrange_evaluations(
     const Fr& zeta, const EvaluationDomain<Fr>& domain, const size_t num_roots_cut_out_of_vanishing_polynomial)
 {
     // Compute Z_H*(ʓ), l_start(ʓ), l_{end}(ʓ)
@@ -1101,7 +1101,7 @@ barretenberg::polynomial_arithmetic::LagrangeEvaluations<Fr> get_lagrange_evalua
     denominators[2] = (zeta * l_end_root) - Fr::one();
     Fr::batch_invert(denominators, 3);
 
-    barretenberg::polynomial_arithmetic::LagrangeEvaluations<Fr> result;
+    bb::polynomial_arithmetic::LagrangeEvaluations<Fr> result;
     result.vanishing_poly = numerator * denominators[0]; // (ʓ^n - 1) / (ʓ-ω^{-1}).(ʓ-ω^{-2})...(ʓ-ω^{-k}) =: Z_H*(ʓ)
     numerator = numerator * domain.domain_inverse;       // (ʓ^n - 1) / n
     result.l_start = numerator * denominators[1];        // (ʓ^n - 1) / (n.(ʓ - 1))         =: L_1(ʓ)
@@ -1441,4 +1441,4 @@ template void compute_efficient_interpolation<grumpkin::fr>(const grumpkin::fr*,
                                                             const grumpkin::fr*,
                                                             const size_t);
 
-} // namespace barretenberg::polynomial_arithmetic
+} // namespace bb::polynomial_arithmetic

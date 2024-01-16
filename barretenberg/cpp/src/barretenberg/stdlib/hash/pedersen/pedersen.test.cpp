@@ -6,7 +6,7 @@
 #include "pedersen.hpp"
 
 namespace test_StdlibPedersen {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -156,41 +156,41 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
         Builder builder;
 
         for (size_t i = 0; i < 7; ++i) {
-            std::vector<barretenberg::fr> inputs;
-            inputs.push_back(barretenberg::fr::random_element());
-            inputs.push_back(barretenberg::fr::random_element());
-            inputs.push_back(barretenberg::fr::random_element());
-            inputs.push_back(barretenberg::fr::random_element());
+            std::vector<bb::fr> inputs;
+            inputs.push_back(bb::fr::random_element());
+            inputs.push_back(bb::fr::random_element());
+            inputs.push_back(bb::fr::random_element());
+            inputs.push_back(bb::fr::random_element());
 
             if (i == 1) {
-                inputs[0] = barretenberg::fr(0);
+                inputs[0] = bb::fr(0);
             }
             if (i == 2) {
-                inputs[1] = barretenberg::fr(0);
-                inputs[2] = barretenberg::fr(0);
+                inputs[1] = bb::fr(0);
+                inputs[2] = bb::fr(0);
             }
             if (i == 3) {
-                inputs[3] = barretenberg::fr(0);
+                inputs[3] = bb::fr(0);
             }
             if (i == 4) {
-                inputs[0] = barretenberg::fr(0);
-                inputs[3] = barretenberg::fr(0);
+                inputs[0] = bb::fr(0);
+                inputs[3] = bb::fr(0);
             }
             if (i == 5) {
-                inputs[0] = barretenberg::fr(0);
-                inputs[1] = barretenberg::fr(0);
-                inputs[2] = barretenberg::fr(0);
-                inputs[3] = barretenberg::fr(0);
+                inputs[0] = bb::fr(0);
+                inputs[1] = bb::fr(0);
+                inputs[2] = bb::fr(0);
+                inputs[3] = bb::fr(0);
             }
             if (i == 6) {
-                inputs[1] = barretenberg::fr(1);
+                inputs[1] = bb::fr(1);
             }
             std::vector<fr_ct> witnesses;
             for (auto input : inputs) {
                 witnesses.push_back(witness_ct(&builder, input));
             }
 
-            barretenberg::fr expected = crypto::pedersen_hash::hash(inputs);
+            bb::fr expected = crypto::pedersen_hash::hash(inputs);
 
             fr_ct result = pedersen_hash::hash(witnesses);
             EXPECT_EQ(result.get_value(), expected);
@@ -211,7 +211,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
         std::vector<stdlib::field_t<Builder>> witness_inputs;
 
         for (size_t i = 0; i < 8; ++i) {
-            inputs.emplace_back(barretenberg::fr::random_element());
+            inputs.emplace_back(bb::fr::random_element());
             witness_inputs.emplace_back(witness_ct(&builder, inputs[i]));
         }
 
@@ -226,11 +226,11 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
     {
         Builder builder;
 
-        std::vector<barretenberg::fr> inputs;
+        std::vector<bb::fr> inputs;
         std::vector<stdlib::field_t<Builder>> witness_inputs;
 
         for (size_t i = 0; i < 8; ++i) {
-            inputs.push_back(barretenberg::fr::random_element());
+            inputs.push_back(bb::fr::random_element());
             if (i % 2 == 1) {
                 witness_inputs.push_back(witness_ct(&builder, inputs[i]));
             } else {
@@ -238,7 +238,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
             }
         }
 
-        barretenberg::fr expected = crypto::pedersen_hash::hash(inputs);
+        bb::fr expected = crypto::pedersen_hash::hash(inputs);
         auto result = pedersen_hash::hash(witness_inputs);
 
         EXPECT_EQ(result.get_value(), expected);

@@ -6,7 +6,7 @@
 #include "../../fields/field.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
-namespace barretenberg {
+namespace bb {
 class Bn254FqParams {
   public:
     static constexpr uint64_t modulus_0 = 0x3C208C16D87CFD47UL;
@@ -64,6 +64,6 @@ class Bn254FqParams {
 
 using fq = field<Bn254FqParams>;
 
-} // namespace barretenberg
+} // namespace bb
 
 // NOLINTEND(cppcoreguidelines-avoid-c-arrays)

@@ -4,9 +4,7 @@
 
 namespace join_split_example::proofs::notes::native::account {
 
-grumpkin::fq generate_account_commitment(const barretenberg::fr& alias_hash,
-                                         const barretenberg::fr& owner_x,
-                                         const barretenberg::fr& signing_x)
+grumpkin::fq generate_account_commitment(const bb::fr& alias_hash, const bb::fr& owner_x, const bb::fr& signing_x)
 {
     return crypto::pedersen_hash::hash({ alias_hash, owner_x, signing_x }, GeneratorIndex::ACCOUNT_NOTE_COMMITMENT);
 }

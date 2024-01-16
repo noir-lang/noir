@@ -9,7 +9,7 @@ namespace proof_system::plonk {
 
 class CommitmentScheme {
   public:
-    using fr = barretenberg::fr;
+    using fr = bb::fr;
 
     // Constructors for CommitmentScheme
     CommitmentScheme() {}

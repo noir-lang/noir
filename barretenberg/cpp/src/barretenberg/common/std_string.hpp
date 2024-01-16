@@ -1,7 +1,7 @@
 #include <string>
 #include <vector>
 
-namespace barretenberg::detail {
+namespace bb::detail {
 std::vector<std::string> split(const std::string& str, char delimiter);
 // trim from start (in place)
 void ltrim(std::string& s);
@@ -12,4 +12,4 @@ void trim(std::string& s);
 
 // Used to extract variables from a macro #__VA_ARGS__
 std::vector<std::string> split_and_trim(const std::string& str, char delimiter);
-} // namespace barretenberg::detail
+} // namespace bb::detail

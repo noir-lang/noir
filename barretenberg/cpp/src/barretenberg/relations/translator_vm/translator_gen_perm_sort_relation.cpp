@@ -126,7 +126,7 @@ void GoblinTranslatorGenPermSortRelationImpl<FF>::accumulate(ContainerOverSubrel
     }();
 };
 
-template class GoblinTranslatorGenPermSortRelationImpl<barretenberg::fr>;
+template class GoblinTranslatorGenPermSortRelationImpl<bb::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorGenPermSortRelationImpl, honk::flavor::GoblinTranslator);
 
 } // namespace proof_system

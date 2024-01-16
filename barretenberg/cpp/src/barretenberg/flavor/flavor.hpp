@@ -105,7 +105,7 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
 
     bool contains_recursive_proof;
     std::vector<uint32_t> recursive_proof_public_input_indices;
-    barretenberg::EvaluationDomain<FF> evaluation_domain;
+    bb::EvaluationDomain<FF> evaluation_domain;
 
     std::vector<std::string> get_labels() const
     {
@@ -118,7 +118,7 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
     ProvingKey_() = default;
     ProvingKey_(const size_t circuit_size, const size_t num_public_inputs)
     {
-        this->evaluation_domain = barretenberg::EvaluationDomain<FF>(circuit_size, circuit_size);
+        this->evaluation_domain = bb::EvaluationDomain<FF>(circuit_size, circuit_size);
         PrecomputedPolynomials::circuit_size = circuit_size;
         this->log_circuit_size = numeric::get_msb(circuit_size);
         this->num_public_inputs = num_public_inputs;

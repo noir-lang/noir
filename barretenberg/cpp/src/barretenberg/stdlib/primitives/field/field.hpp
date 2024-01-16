@@ -12,14 +12,14 @@ template <typename Builder> class field_t {
     using View = field_t;
 
     field_t(Builder* parent_context = nullptr);
-    field_t(Builder* parent_context, const barretenberg::fr& value);
+    field_t(Builder* parent_context, const bb::fr& value);
 
     field_t(const int value)
         : context(nullptr)
         , witness_index(IS_CONSTANT)
     {
-        additive_constant = barretenberg::fr(value);
-        multiplicative_constant = barretenberg::fr(0);
+        additive_constant = bb::fr(value);
+        multiplicative_constant = bb::fr(0);
     }
 
     // NOLINTNEXTLINE(google-runtime-int) intended behavior
@@ -27,16 +27,16 @@ template <typename Builder> class field_t {
         : context(nullptr)
         , witness_index(IS_CONSTANT)
     {
-        additive_constant = barretenberg::fr(value);
-        multiplicative_constant = barretenberg::fr(0);
+        additive_constant = bb::fr(value);
+        multiplicative_constant = bb::fr(0);
     }
 
     field_t(const unsigned int value)
         : context(nullptr)
         , witness_index(IS_CONSTANT)
     {
-        additive_constant = barretenberg::fr(value);
-        multiplicative_constant = barretenberg::fr(0);
+        additive_constant = bb::fr(value);
+        multiplicative_constant = bb::fr(0);
     }
 
     // NOLINTNEXTLINE(google-runtime-int) intended behavior
@@ -44,21 +44,21 @@ template <typename Builder> class field_t {
         : context(nullptr)
         , witness_index(IS_CONSTANT)
     {
-        additive_constant = barretenberg::fr(value);
-        multiplicative_constant = barretenberg::fr(0);
+        additive_constant = bb::fr(value);
+        multiplicative_constant = bb::fr(0);
     }
 
-    field_t(const barretenberg::fr& value)
+    field_t(const bb::fr& value)
         : context(nullptr)
         , additive_constant(value)
-        , multiplicative_constant(barretenberg::fr(1))
+        , multiplicative_constant(bb::fr(1))
         , witness_index(IS_CONSTANT)
     {}
 
     field_t(const uint256_t& value)
         : context(nullptr)
         , additive_constant(value)
-        , multiplicative_constant(barretenberg::fr(1))
+        , multiplicative_constant(bb::fr(1))
         , witness_index(IS_CONSTANT)
     {}
 
@@ -83,7 +83,7 @@ template <typename Builder> class field_t {
     ~field_t() = default;
 
     static constexpr bool is_composite = false;
-    static constexpr uint256_t modulus = barretenberg::fr::modulus;
+    static constexpr uint256_t modulus = bb::fr::modulus;
 
     static field_t from_witness_index(Builder* parent_context, uint32_t witness_index);
 
@@ -169,10 +169,10 @@ template <typename Builder> class field_t {
 
     static field_t coset_generator(const size_t generator_idx)
     {
-        return field_t(barretenberg::fr::coset_generator(generator_idx));
+        return field_t(bb::fr::coset_generator(generator_idx));
     }
 
-    static field_t external_coset_generator() { return field_t(barretenberg::fr::external_coset_generator()); }
+    static field_t external_coset_generator() { return field_t(bb::fr::external_coset_generator()); }
 
     field_t operator-() const
     {
@@ -245,7 +245,7 @@ template <typename Builder> class field_t {
      **/
     field_t normalize() const;
 
-    barretenberg::fr get_value() const;
+    bb::fr get_value() const;
 
     Builder* get_context() const { return context; }
 
@@ -279,10 +279,7 @@ template <typename Builder> class field_t {
         context->fix_witness(witness_index, get_value());
     }
 
-    static field_t from_witness(Builder* ctx, const barretenberg::fr& input)
-    {
-        return field_t(witness_t<Builder>(ctx, input));
-    }
+    static field_t from_witness(Builder* ctx, const bb::fr& input) { return field_t(witness_t<Builder>(ctx, input)); }
 
     /**
      * Fix a witness. The value of the witness is constrained with a selector
@@ -376,8 +373,8 @@ template <typename Builder> class field_t {
      *
      * This will add a constraint, as both zip and zap map to circuit witnesses.
      **/
-    mutable barretenberg::fr additive_constant;
-    mutable barretenberg::fr multiplicative_constant;
+    mutable bb::fr additive_constant;
+    mutable bb::fr multiplicative_constant;
 
     /**
      * Every builder object contains a vector `variables` (a.k.a. 'witnesses'); circuit variables that can be

@@ -48,14 +48,14 @@ secp256k1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256k1::g1::affi
 {
     uint256_t x_u256(input.x);
     uint256_t y_u256(input.y);
-    secp256k1_ct::fq_ct x(witness_ct(ctx, barretenberg::fr(x_u256.slice(0, secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2))),
-                          witness_ct(ctx,
-                                     barretenberg::fr(x_u256.slice(secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2,
-                                                                   secp256k1_ct::fq_ct::NUM_LIMB_BITS * 4))));
-    secp256k1_ct::fq_ct y(witness_ct(ctx, barretenberg::fr(y_u256.slice(0, secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2))),
-                          witness_ct(ctx,
-                                     barretenberg::fr(y_u256.slice(secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2,
-                                                                   secp256k1_ct::fq_ct::NUM_LIMB_BITS * 4))));
+    secp256k1_ct::fq_ct x(
+        witness_ct(ctx, bb::fr(x_u256.slice(0, secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2))),
+        witness_ct(
+            ctx, bb::fr(x_u256.slice(secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2, secp256k1_ct::fq_ct::NUM_LIMB_BITS * 4))));
+    secp256k1_ct::fq_ct y(
+        witness_ct(ctx, bb::fr(y_u256.slice(0, secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2))),
+        witness_ct(
+            ctx, bb::fr(y_u256.slice(secp256k1_ct::fq_ct::NUM_LIMB_BITS * 2, secp256k1_ct::fq_ct::NUM_LIMB_BITS * 4))));
 
     return { x, y };
 }

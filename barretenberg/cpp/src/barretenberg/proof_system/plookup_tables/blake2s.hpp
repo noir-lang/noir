@@ -17,7 +17,7 @@ static constexpr size_t SIZE_OF_LAST_SLICE = (1UL << BITS_IN_LAST_SLICE);
  * that the XOR operation works only on the two least significant bits.
  */
 template <uint64_t bits_per_slice, uint64_t num_rotated_output_bits, bool filter = false>
-inline std::array<barretenberg::fr, 2> get_xor_rotate_values_from_key(const std::array<uint64_t, 2> key)
+inline std::array<bb::fr, 2> get_xor_rotate_values_from_key(const std::array<uint64_t, 2> key)
 {
     uint64_t filtered_key0 = filter ? key[0] & 3ULL : key[0];
     uint64_t filtered_key1 = filter ? key[1] & 3ULL : key[1];
@@ -113,18 +113,17 @@ inline MultiTable get_blake2s_xor_table(const MultiTableId id = BLAKE_XOR)
 inline MultiTable get_blake2s_xor_rotate_16_table(const MultiTableId id = BLAKE_XOR_ROTATE_16)
 {
     const uint64_t base = 1 << 6;
-    constexpr barretenberg::fr coefficient_16 = barretenberg::fr(1) / barretenberg::fr(1 << 16);
+    constexpr bb::fr coefficient_16 = bb::fr(1) / bb::fr(1 << 16);
 
-    std::vector<barretenberg::fr> column_1_coefficients{ barretenberg::fr(1),       barretenberg::fr(1 << 6),
-                                                         barretenberg::fr(1 << 12), barretenberg::fr(1 << 18),
-                                                         barretenberg::fr(1 << 24), barretenberg::fr(1 << 30) };
+    std::vector<bb::fr> column_1_coefficients{ bb::fr(1),       bb::fr(1 << 6),  bb::fr(1 << 12),
+                                               bb::fr(1 << 18), bb::fr(1 << 24), bb::fr(1 << 30) };
 
-    std::vector<barretenberg::fr> column_3_coefficients{ barretenberg::fr(1),
-                                                         barretenberg::fr(1 << 6),
-                                                         coefficient_16,
-                                                         coefficient_16 * barretenberg::fr(1 << 2),
-                                                         coefficient_16 * barretenberg::fr(1 << 8),
-                                                         coefficient_16 * barretenberg::fr(1 << 14) };
+    std::vector<bb::fr> column_3_coefficients{ bb::fr(1),
+                                               bb::fr(1 << 6),
+                                               coefficient_16,
+                                               coefficient_16 * bb::fr(1 << 2),
+                                               coefficient_16 * bb::fr(1 << 8),
+                                               coefficient_16 * bb::fr(1 << 14) };
 
     MultiTable table(column_1_coefficients, column_1_coefficients, column_3_coefficients);
 
@@ -149,18 +148,17 @@ inline MultiTable get_blake2s_xor_rotate_16_table(const MultiTableId id = BLAKE_
 inline MultiTable get_blake2s_xor_rotate_8_table(const MultiTableId id = BLAKE_XOR_ROTATE_8)
 {
     const uint64_t base = 1 << 6;
-    constexpr barretenberg::fr coefficient_24 = barretenberg::fr(1) / barretenberg::fr(1 << 24);
+    constexpr bb::fr coefficient_24 = bb::fr(1) / bb::fr(1 << 24);
 
-    std::vector<barretenberg::fr> column_1_coefficients{ barretenberg::fr(1),       barretenberg::fr(1 << 6),
-                                                         barretenberg::fr(1 << 12), barretenberg::fr(1 << 18),
-                                                         barretenberg::fr(1 << 24), barretenberg::fr(1 << 30) };
+    std::vector<bb::fr> column_1_coefficients{ bb::fr(1),       bb::fr(1 << 6),  bb::fr(1 << 12),
+                                               bb::fr(1 << 18), bb::fr(1 << 24), bb::fr(1 << 30) };
 
-    std::vector<barretenberg::fr> column_3_coefficients{ barretenberg::fr(1),
-                                                         coefficient_24,
-                                                         coefficient_24 * barretenberg::fr(1 << 4),
-                                                         coefficient_24 * barretenberg::fr(1 << (4 + 6)),
-                                                         coefficient_24 * barretenberg::fr(1 << (4 + 12)),
-                                                         coefficient_24 * barretenberg::fr(1 << (4 + 18)) };
+    std::vector<bb::fr> column_3_coefficients{ bb::fr(1),
+                                               coefficient_24,
+                                               coefficient_24 * bb::fr(1 << 4),
+                                               coefficient_24 * bb::fr(1 << (4 + 6)),
+                                               coefficient_24 * bb::fr(1 << (4 + 12)),
+                                               coefficient_24 * bb::fr(1 << (4 + 18)) };
 
     MultiTable table(column_1_coefficients, column_1_coefficients, column_3_coefficients);
 
@@ -185,18 +183,17 @@ inline MultiTable get_blake2s_xor_rotate_8_table(const MultiTableId id = BLAKE_X
 inline MultiTable get_blake2s_xor_rotate_7_table(const MultiTableId id = BLAKE_XOR_ROTATE_7)
 {
     const uint64_t base = 1 << 6;
-    constexpr barretenberg::fr coefficient_25 = barretenberg::fr(1) / barretenberg::fr(1 << 25);
+    constexpr bb::fr coefficient_25 = bb::fr(1) / bb::fr(1 << 25);
 
-    std::vector<barretenberg::fr> column_1_coefficients{ barretenberg::fr(1),       barretenberg::fr(1 << 6),
-                                                         barretenberg::fr(1 << 12), barretenberg::fr(1 << 18),
-                                                         barretenberg::fr(1 << 24), barretenberg::fr(1 << 30) };
+    std::vector<bb::fr> column_1_coefficients{ bb::fr(1),       bb::fr(1 << 6),  bb::fr(1 << 12),
+                                               bb::fr(1 << 18), bb::fr(1 << 24), bb::fr(1 << 30) };
 
-    std::vector<barretenberg::fr> column_3_coefficients{ barretenberg::fr(1),
-                                                         coefficient_25,
-                                                         coefficient_25 * barretenberg::fr(1 << 5),
-                                                         coefficient_25 * barretenberg::fr(1 << (5 + 6)),
-                                                         coefficient_25 * barretenberg::fr(1 << (5 + 12)),
-                                                         coefficient_25 * barretenberg::fr(1 << (5 + 18)) };
+    std::vector<bb::fr> column_3_coefficients{ bb::fr(1),
+                                               coefficient_25,
+                                               coefficient_25 * bb::fr(1 << 5),
+                                               coefficient_25 * bb::fr(1 << (5 + 6)),
+                                               coefficient_25 * bb::fr(1 << (5 + 12)),
+                                               coefficient_25 * bb::fr(1 << (5 + 18)) };
 
     MultiTable table(column_1_coefficients, column_1_coefficients, column_3_coefficients);
 

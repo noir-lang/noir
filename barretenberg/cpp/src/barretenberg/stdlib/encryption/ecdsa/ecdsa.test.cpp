@@ -6,7 +6,7 @@
 #include "barretenberg/common/test.hpp"
 #include "ecdsa.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 namespace test_stdlib_ecdsa {

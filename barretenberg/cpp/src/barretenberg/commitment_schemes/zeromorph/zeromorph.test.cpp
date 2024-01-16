@@ -9,7 +9,7 @@ namespace proof_system::honk::pcs::zeromorph {
 template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
   public:
     using Fr = typename Curve::ScalarField;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
     using Commitment = typename Curve::AffineElement;
     using GroupElement = typename Curve::Element;
     using ZeroMorphProver = ZeroMorphProver_<Curve>;
@@ -104,7 +104,7 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
 template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentTest<Curve> {
   public:
     using Fr = typename Curve::ScalarField;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
     using Commitment = typename Curve::AffineElement;
     using GroupElement = typename Curve::Element;
     using ZeroMorphProver = ZeroMorphProver_<Curve>;
@@ -273,7 +273,7 @@ TYPED_TEST(ZeroMorphTest, QuotientConstruction)
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Fr = typename TypeParam::ScalarField;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
     // Define size parameters
     size_t N = 16;
@@ -320,7 +320,7 @@ TYPED_TEST(ZeroMorphTest, BatchedLiftedDegreeQuotient)
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Fr = typename TypeParam::ScalarField;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
     const size_t N = 8;
 
@@ -364,7 +364,7 @@ TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZeta)
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Fr = typename TypeParam::ScalarField;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
     const size_t N = 8;
 
@@ -446,7 +446,7 @@ TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZ)
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Fr = typename TypeParam::ScalarField;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
     const size_t N = 8;
     size_t log_N = numeric::get_msb(N);

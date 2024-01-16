@@ -3,7 +3,7 @@
 #include <functional>
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 using namespace proof_system;
 

@@ -11,7 +11,7 @@ namespace instance_tests {
 
 template <class Flavor> class InstanceTests : public testing::Test {
     using FF = typename Flavor::FF;
-    using Polynomial = barretenberg::Polynomial<FF>;
+    using Polynomial = bb::Polynomial<FF>;
     using Builder = typename Flavor::CircuitBuilder;
 
   public:

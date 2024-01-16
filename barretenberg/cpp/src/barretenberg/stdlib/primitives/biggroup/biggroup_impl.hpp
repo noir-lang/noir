@@ -3,7 +3,7 @@
 #include "../bit_array/bit_array.hpp"
 #include "../circuit_builders/circuit_builders.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system::plonk::stdlib {
 
@@ -56,7 +56,7 @@ element<C, Fq, Fr, G>& element<C, Fq, Fr, G>::operator=(element&& other)
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator+(const element& other) const
 {
-    if constexpr (IsGoblinBuilder<C> && std::same_as<G, barretenberg::g1>) {
+    if constexpr (IsGoblinBuilder<C> && std::same_as<G, bb::g1>) {
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/707) Optimize
         // Current gate count: 6398
         std::vector<element> points{ *this, other };
@@ -74,7 +74,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator+(const element& other) con
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator-(const element& other) const
 {
-    if constexpr (IsGoblinBuilder<C> && std::same_as<G, barretenberg::g1>) {
+    if constexpr (IsGoblinBuilder<C> && std::same_as<G, bb::g1>) {
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/707) Optimize
         std::vector<element> points{ *this, other };
         std::vector<Fr> scalars{ 1, -Fr(1) };
@@ -107,7 +107,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator-(const element& other) con
 template <typename C, class Fq, class Fr, class G>
 std::array<element<C, Fq, Fr, G>, 2> element<C, Fq, Fr, G>::add_sub(const element& other) const
 {
-    if constexpr (IsGoblinBuilder<C> && std::same_as<G, barretenberg::g1>) {
+    if constexpr (IsGoblinBuilder<C> && std::same_as<G, bb::g1>) {
         return { *this + other, *this - other };
     }
 
@@ -622,7 +622,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element
                                                        const size_t max_num_bits)
 {
     // Perform goblinized batched mul if available; supported only for BN254
-    if constexpr (IsGoblinBuilder<C> && std::same_as<G, barretenberg::g1>) {
+    if constexpr (IsGoblinBuilder<C> && std::same_as<G, bb::g1>) {
         return goblin_batch_mul(points, scalars);
     } else {
 
@@ -702,7 +702,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator*(const Fr& scalar) const
      *
      **/
 
-    if constexpr (IsGoblinBuilder<C> && std::same_as<G, barretenberg::g1>) {
+    if constexpr (IsGoblinBuilder<C> && std::same_as<G, bb::g1>) {
         std::vector<element> points{ *this };
         std::vector<Fr> scalars{ scalar };
         return goblin_batch_mul(points, scalars);

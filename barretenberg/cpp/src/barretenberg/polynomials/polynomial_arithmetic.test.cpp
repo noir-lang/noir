@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <utility>
 
-using namespace barretenberg;
+using namespace bb;
 
 /**
  * @brief Ensure evaluate() gives consistent result for polynomials of different size but same non-zero coefficients.
@@ -913,7 +913,7 @@ TEST(polynomials, fft_linear_poly_product)
 
 template <typename FF> class PolynomialTests : public ::testing::Test {};
 
-using FieldTypes = ::testing::Types<barretenberg::fr, grumpkin::fr>;
+using FieldTypes = ::testing::Types<bb::fr, grumpkin::fr>;
 
 TYPED_TEST_SUITE(PolynomialTests, FieldTypes);
 

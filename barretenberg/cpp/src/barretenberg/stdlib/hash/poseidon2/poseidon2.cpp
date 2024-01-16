@@ -2,7 +2,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 namespace proof_system::plonk::stdlib {
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system;
 
 /**

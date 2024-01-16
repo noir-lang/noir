@@ -6,9 +6,9 @@
 
 namespace proof_system {
 
-using namespace barretenberg;
-using Fr = barretenberg::fr;
-using Polynomial = barretenberg::Polynomial<Fr>;
+using namespace bb;
+using Fr = bb::fr;
+using Polynomial = bb::Polynomial<Fr>;
 
 // Test basic put and get functionality
 TEST(PolynomialStore, PutThenGet)

@@ -392,7 +392,7 @@ static constexpr std::array<test_vector, 73> test_vectors{
 
 TEST(MiscBlake3s, TestVectors)
 {
-    barretenberg::constexpr_for<0, 1, 73>([&]<size_t index>() {
+    bb::constexpr_for<0, 1, 73>([&]<size_t index>() {
         constexpr auto v = test_vectors[index];
         std::vector<uint8_t> input(v.input.begin(), v.input.end());
         auto result_vector = blake3::blake3s(input);

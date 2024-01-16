@@ -18,7 +18,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 template <typename Builder> class stdlib_field : public testing::Test {
@@ -74,8 +74,8 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
     static void generate_test_plonk_circuit(Builder& builder, size_t num_gates)
     {
-        field_ct a(public_witness_ct(&builder, barretenberg::fr::random_element()));
-        field_ct b(public_witness_ct(&builder, barretenberg::fr::random_element()));
+        field_ct a(public_witness_ct(&builder, bb::fr::random_element()));
+        field_ct b(public_witness_ct(&builder, bb::fr::random_element()));
 
         field_ct c(&builder);
         for (size_t i = 0; i < (num_gates / 4) - 4; ++i) {
@@ -193,13 +193,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        field_ct a = witness_ct(&builder, barretenberg::fr::random_element());
-        a *= barretenberg::fr::random_element();
-        a += barretenberg::fr::random_element();
+        field_ct a = witness_ct(&builder, bb::fr::random_element());
+        a *= bb::fr::random_element();
+        a += bb::fr::random_element();
 
-        field_ct b = witness_ct(&builder, barretenberg::fr::random_element());
-        b *= barretenberg::fr::random_element();
-        b += barretenberg::fr::random_element();
+        field_ct b = witness_ct(&builder, bb::fr::random_element());
+        b *= bb::fr::random_element();
+        b += bb::fr::random_element();
 
         // numerator constant
         field_ct out = field_ct(&builder, b.get_value()) / a;
@@ -394,7 +394,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
                      uint256_t(0x1122334455667788, 0x8877665544332211, 0xaabbccddeeff9933, 0x1122112211221122));
         field_ct c_2(&builder,
                      uint256_t(0xaabbccddeeff9933, 0x8877665544332211, 0x1122334455667788, 0x1122112211221122));
-        field_ct c_3(&builder, barretenberg::fr::one());
+        field_ct c_3(&builder, bb::fr::one());
 
         field_ct c_4 = c_1 + c_2;
         a = a * c_4 + c_4; // add some constant terms in to validate our normalization check works
@@ -619,13 +619,11 @@ template <typename Builder> class stdlib_field : public testing::Test {
             constexpr uint256_t modulus_minus_one = fr::modulus - 1;
             const fr p_lo = modulus_minus_one.slice(0, 130);
 
-            std::vector<barretenberg::fr> test_elements = {
-                barretenberg::fr::random_element(),
-                0,
-                -1,
-                barretenberg::fr(static_cast<uint256_t>(engine.get_random_uint8())),
-                barretenberg::fr((static_cast<uint256_t>(1) << 130) + 1 + p_lo)
-            };
+            std::vector<bb::fr> test_elements = { bb::fr::random_element(),
+                                                  0,
+                                                  -1,
+                                                  bb::fr(static_cast<uint256_t>(engine.get_random_uint8())),
+                                                  bb::fr((static_cast<uint256_t>(1) << 130) + 1 + p_lo) };
 
             for (auto a_expected : test_elements) {
                 field_ct a = witness_ct(&builder, a_expected);
@@ -716,13 +714,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        barretenberg::fr base_val(engine.get_random_uint256());
+        bb::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base = witness_ct(&builder, base_val);
         field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        barretenberg::fr expected = base_val.pow(exponent_val);
+        bb::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
@@ -735,14 +733,14 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        barretenberg::fr base_val(engine.get_random_uint256());
+        bb::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = 0;
 
         field_ct base = witness_ct(&builder, base_val);
         field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
 
-        EXPECT_EQ(result.get_value(), barretenberg::fr(1));
+        EXPECT_EQ(result.get_value(), bb::fr(1));
 
         info("num gates = ", builder.get_num_gates());
         bool check_result = builder.check_circuit();
@@ -753,7 +751,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        barretenberg::fr base_val(engine.get_random_uint256());
+        bb::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = 1;
 
         field_ct base = witness_ct(&builder, base_val);
@@ -773,13 +771,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
         const size_t num_gates_start = builder.num_gates;
 
-        barretenberg::fr base_val(engine.get_random_uint256());
+        bb::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base(&builder, base_val);
         field_ct exponent(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        barretenberg::fr expected = base_val.pow(exponent_val);
+        bb::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
@@ -791,13 +789,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        barretenberg::fr base_val(engine.get_random_uint256());
+        bb::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base(&builder, base_val);
         field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        barretenberg::fr expected = base_val.pow(exponent_val);
+        bb::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
@@ -810,13 +808,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        barretenberg::fr base_val(engine.get_random_uint256());
+        bb::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base = witness_ct(&builder, base_val);
         field_ct exponent(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        barretenberg::fr expected = base_val.pow(exponent_val);
+        bb::fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
         info("num gates = ", builder.get_num_gates());
@@ -829,14 +827,14 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        barretenberg::fr base_val(engine.get_random_uint256());
+        bb::fr base_val(engine.get_random_uint256());
         uint64_t exponent_val = engine.get_random_uint32();
         exponent_val += (uint64_t(1) << 32);
 
         field_ct base = witness_ct(&builder, base_val);
         field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        barretenberg::fr expected = base_val.pow(exponent_val);
+        bb::fr expected = base_val.pow(exponent_val);
 
         EXPECT_NE(result.get_value(), expected);
         EXPECT_EQ(builder.failed(), true);
@@ -847,7 +845,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        barretenberg::fr value(engine.get_random_uint256());
+        bb::fr value(engine.get_random_uint256());
         field_ct value_ct = witness_ct(&builder, value);
 
         field_ct first_copy = witness_ct(&builder, value_ct.get_value());

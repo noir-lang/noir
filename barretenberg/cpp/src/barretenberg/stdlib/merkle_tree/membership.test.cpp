@@ -13,7 +13,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 namespace proof_system::stdlib_merkle_test {
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 using namespace proof_system::plonk::stdlib;
 

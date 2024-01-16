@@ -17,7 +17,7 @@ template <typename Curve> class KZG {
     using Fr = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
     using GroupElement = typename Curve::Element;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
     /**
      * @brief Computes the KZG commitment to an opening proof polynomial at a single evaluation point

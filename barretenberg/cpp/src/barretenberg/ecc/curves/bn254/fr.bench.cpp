@@ -63,7 +63,7 @@ unsafe pippenger. 1048576 points. clock cycles = 3626871186
 unsafe pippenger clock cycles per mul = 3458
 unsafe_pippenger_bench/1048576             1717275300 ns   1640625000 ns            1
 */
-using namespace barretenberg;
+using namespace bb;
 
 void field_mixed_add(const fr& x1, const fr& y1, const fr& z1, const fr& x2, const fr& y2, fr& x3, fr& y3, fr& z3)
 {
@@ -126,8 +126,8 @@ uint64_t rdtsc()
 
 constexpr size_t NUM_POINTS = 1 << 24;
 constexpr size_t NUM_INVERSIONS = 1 << 20;
-std::vector<barretenberg::fr> oldx;
-std::vector<barretenberg::fr> oldy;
+std::vector<bb::fr> oldx;
+std::vector<bb::fr> oldy;
 
 fr accx;
 fr accy;

@@ -64,25 +64,25 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
     std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
     bool has_valid_witness_assignments = false);
 
-std::vector<barretenberg::fr> export_key_in_recursion_format(std::shared_ptr<verification_key> const& vkey);
-std::vector<barretenberg::fr> export_dummy_key_in_recursion_format(const PolynomialManifest& polynomial_manifest,
-                                                                   bool contains_recursive_proof = 0);
+std::vector<bb::fr> export_key_in_recursion_format(std::shared_ptr<verification_key> const& vkey);
+std::vector<bb::fr> export_dummy_key_in_recursion_format(const PolynomialManifest& polynomial_manifest,
+                                                         bool contains_recursive_proof = 0);
 
-std::vector<barretenberg::fr> export_transcript_in_recursion_format(const transcript::StandardTranscript& transcript);
-std::vector<barretenberg::fr> export_dummy_transcript_in_recursion_format(const transcript::Manifest& manifest,
-                                                                          const bool contains_recursive_proof);
+std::vector<bb::fr> export_transcript_in_recursion_format(const transcript::StandardTranscript& transcript);
+std::vector<bb::fr> export_dummy_transcript_in_recursion_format(const transcript::Manifest& manifest,
+                                                                const bool contains_recursive_proof);
 size_t recursion_proof_size_without_public_inputs();
 
 // In order to interact with a recursive aggregation state inside of a circuit, we need to represent its internal G1
 // elements as field elements. This happens in multiple locations when creating a recursion constraint. The struct and
 // method below export a g1 affine element as fields to use as part of the recursive circuit.
 struct G1AsFields {
-    barretenberg::fr x_lo;
-    barretenberg::fr x_hi;
-    barretenberg::fr y_lo;
-    barretenberg::fr y_hi;
+    bb::fr x_lo;
+    bb::fr x_hi;
+    bb::fr y_lo;
+    bb::fr y_hi;
 };
-G1AsFields export_g1_affine_element_as_fields(const barretenberg::g1::affine_element& group_element);
+G1AsFields export_g1_affine_element_as_fields(const bb::g1::affine_element& group_element);
 
 template <typename B> inline void read(B& buf, RecursionConstraint& constraint)
 {

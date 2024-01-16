@@ -152,7 +152,7 @@ std::optional<grumpkin::g1::affine_element> table::get_generator_offset_for_tabl
     return std::nullopt;
 }
 
-using function_ptr = std::array<barretenberg::fr, 2> (*)(const std::array<uint64_t, 2>);
+using function_ptr = std::array<bb::fr, 2> (*)(const std::array<uint64_t, 2>);
 using function_ptr_table =
     std::array<std::array<function_ptr, table::MAX_NUM_TABLES_IN_MULTITABLE>, table::NUM_FIXED_BASE_MULTI_TABLES>;
 /**
@@ -165,8 +165,8 @@ using function_ptr_table =
 constexpr function_ptr_table make_function_pointer_table()
 {
     function_ptr_table table;
-    barretenberg::constexpr_for<0, table::NUM_FIXED_BASE_MULTI_TABLES, 1>([&]<size_t i>() {
-        barretenberg::constexpr_for<0, table::MAX_NUM_TABLES_IN_MULTITABLE, 1>(
+    bb::constexpr_for<0, table::NUM_FIXED_BASE_MULTI_TABLES, 1>([&]<size_t i>() {
+        bb::constexpr_for<0, table::MAX_NUM_TABLES_IN_MULTITABLE, 1>(
             [&]<size_t j>() { table[i][j] = &table::get_basic_fixed_base_table_values<i, j>; });
     });
     return table;

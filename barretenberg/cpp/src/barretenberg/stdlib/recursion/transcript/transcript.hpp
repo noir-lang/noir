@@ -19,8 +19,8 @@ template <typename Builder> class Transcript {
   public:
     using field_pt = field_t<Builder>;
     using witness_pt = witness_t<Builder>;
-    using fq_pt = bigfield<Builder, barretenberg::Bn254FqParams>;
-    using group_pt = element<Builder, fq_pt, field_pt, barretenberg::g1>;
+    using fq_pt = bigfield<Builder, bb::Bn254FqParams>;
+    using group_pt = element<Builder, fq_pt, field_pt, bb::g1>;
     using Key = verification_key<stdlib::bn254<Builder>>;
 
     Transcript(Builder* in_context, const transcript::Manifest& input_manifest)
@@ -151,7 +151,7 @@ template <typename Builder> class Transcript {
     {
         uint256_t x = element.x.get_value().lo;
         uint256_t y = element.y.get_value().lo;
-        barretenberg::g1::affine_element converted{ barretenberg::fq(x), barretenberg::fq(y) };
+        bb::g1::affine_element converted{ bb::fq(x), bb::fq(y) };
         transcript_base.add_element(element_name, converted.to_buffer());
         group_keys.push_back(element_name);
         group_values.push_back(element);
@@ -159,7 +159,7 @@ template <typename Builder> class Transcript {
 
     void add_field_element_vector(const std::string& element_name, const std::vector<field_pt>& elements)
     {
-        std::vector<barretenberg::fr> values;
+        std::vector<bb::fr> values;
         for (size_t i = 0; i < elements.size(); ++i) {
             values.push_back(elements[i].get_value());
         }
@@ -310,8 +310,7 @@ template <typename Builder> class Transcript {
         if (cache_idx != -1) {
             return field_values[static_cast<size_t>(cache_idx)];
         }
-        barretenberg::fr value =
-            barretenberg::fr::serialize_from_buffer(&(transcript_base.get_element(element_name))[0]);
+        bb::fr value = bb::fr::serialize_from_buffer(&(transcript_base.get_element(element_name))[0]);
         field_pt result(witness_pt(context, value));
         field_keys.push_back(element_name);
         field_values.push_back(result);
@@ -324,7 +323,7 @@ template <typename Builder> class Transcript {
         if (cache_idx != -1) {
             return field_vector_values[static_cast<size_t>(cache_idx)];
         }
-        std::vector<barretenberg::fr> values = many_from_buffer<fr>(transcript_base.get_element(element_name));
+        std::vector<bb::fr> values = many_from_buffer<fr>(transcript_base.get_element(element_name));
         std::vector<field_pt> result;
 
         for (auto& value : values) {
@@ -366,17 +365,17 @@ template <typename Builder> class Transcript {
         if (cache_idx != -1) {
             return group_values[static_cast<size_t>(cache_idx)];
         }
-        barretenberg::g1::affine_element value =
-            barretenberg::g1::affine_element::serialize_from_buffer(&(transcript_base.get_element(element_name))[0]);
+        bb::g1::affine_element value =
+            bb::g1::affine_element::serialize_from_buffer(&(transcript_base.get_element(element_name))[0]);
         group_pt result = convert_g1(context, value);
         group_keys.push_back(element_name);
         group_values.push_back(result);
         return result;
     }
 
-    static fq_pt convert_fq(Builder* ctx, const barretenberg::fq& input) { return fq_pt::from_witness(ctx, input); };
+    static fq_pt convert_fq(Builder* ctx, const bb::fq& input) { return fq_pt::from_witness(ctx, input); };
 
-    static group_pt convert_g1(Builder* ctx, const barretenberg::g1::affine_element& input)
+    static group_pt convert_g1(Builder* ctx, const bb::g1::affine_element& input)
     {
         return group_pt::from_witness(ctx, input);
     };

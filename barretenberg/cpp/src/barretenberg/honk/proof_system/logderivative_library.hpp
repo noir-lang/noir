@@ -40,12 +40,12 @@ void compute_logderivative_inverse(Polynomials& polynomials, auto& relation_para
             continue;
         }
         FF denominator = 1;
-        barretenberg::constexpr_for<0, READ_TERMS, 1>([&]<size_t read_index> {
+        bb::constexpr_for<0, READ_TERMS, 1>([&]<size_t read_index> {
             auto denominator_term =
                 lookup_relation.template compute_read_term<Accumulator, read_index>(row, relation_parameters);
             denominator *= denominator_term;
         });
-        barretenberg::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t write_index> {
+        bb::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t write_index> {
             auto denominator_term =
                 lookup_relation.template compute_write_term<Accumulator, write_index>(row, relation_parameters);
             denominator *= denominator_term;
@@ -110,16 +110,15 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
     // The purpose of this next section is to derive individual inverse terms using `lookup_inverses`
     // i.e. (1 / read_term[i]) = lookup_inverse * \prod_{j /ne i} (read_term[j]) * \prod_k (write_term[k])
     //      (1 / write_term[i]) = lookup_inverse * \prod_j (read_term[j]) * \prod_{k ne i} (write_term[k])
-    barretenberg::constexpr_for<0, READ_TERMS, 1>(
+    bb::constexpr_for<0, READ_TERMS, 1>(
         [&]<size_t i>() { lookup_terms[i] = lookup_relation.template compute_read_term<Accumulator, i>(in, params); });
-    barretenberg::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
+    bb::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
         lookup_terms[i + READ_TERMS] = lookup_relation.template compute_write_term<Accumulator, i>(in, params);
     });
 
-    barretenberg::constexpr_for<0, NUM_TOTAL_TERMS, 1>(
-        [&]<size_t i>() { denominator_accumulator[i] = lookup_terms[i]; });
+    bb::constexpr_for<0, NUM_TOTAL_TERMS, 1>([&]<size_t i>() { denominator_accumulator[i] = lookup_terms[i]; });
 
-    barretenberg::constexpr_for<0, NUM_TOTAL_TERMS - 1, 1>(
+    bb::constexpr_for<0, NUM_TOTAL_TERMS - 1, 1>(
         [&]<size_t i>() { denominator_accumulator[i + 1] *= denominator_accumulator[i]; });
 
     auto inverse_accumulator = Accumulator(lookup_inverses); // denominator_accumulator[NUM_TOTAL_TERMS - 1];
@@ -140,14 +139,14 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
 
     // each predicate is degree-1
     // degree of relation at this point = NUM_TOTAL_TERMS + 1
-    barretenberg::constexpr_for<0, READ_TERMS, 1>([&]<size_t i>() {
+    bb::constexpr_for<0, READ_TERMS, 1>([&]<size_t i>() {
         std::get<1>(accumulator) +=
             lookup_relation.template compute_read_term_predicate<Accumulator, i>(in) * denominator_accumulator[i];
     });
 
     // each predicate is degree-1, `lookup_read_counts` is degree-1
     // degree of relation = NUM_TOTAL_TERMS + 2
-    barretenberg::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
+    bb::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
         const auto p = lookup_relation.template compute_write_term_predicate<Accumulator, i>(in);
         const auto lookup_read_count = lookup_relation.template lookup_read_counts<Accumulator, i>(in);
         std::get<1>(accumulator) -= p * (denominator_accumulator[i + READ_TERMS] * lookup_read_count);
@@ -216,10 +215,9 @@ void accumulate_logderivative_permutation_subrelation_contributions(ContainerOve
     permutation_terms[0] = permutation_relation.template compute_read_term<Accumulator, 0>(in, params);
     permutation_terms[1] = permutation_relation.template compute_write_term<Accumulator, 0>(in, params);
 
-    barretenberg::constexpr_for<0, NUM_TOTAL_TERMS, 1>(
-        [&]<size_t i>() { denominator_accumulator[i] = permutation_terms[i]; });
+    bb::constexpr_for<0, NUM_TOTAL_TERMS, 1>([&]<size_t i>() { denominator_accumulator[i] = permutation_terms[i]; });
 
-    barretenberg::constexpr_for<0, NUM_TOTAL_TERMS - 1, 1>(
+    bb::constexpr_for<0, NUM_TOTAL_TERMS - 1, 1>(
         [&]<size_t i>() { denominator_accumulator[i + 1] *= denominator_accumulator[i]; });
 
     auto inverse_accumulator = Accumulator(permutation_inverses); // denominator_accumulator[NUM_TOTAL_TERMS - 1];

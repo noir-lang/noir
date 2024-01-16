@@ -5,7 +5,7 @@
 
 namespace proof_system::plonk {
 
-using namespace barretenberg;
+using namespace bb;
 
 // TODO(Cody): Template by flavor?
 class work_queue {
@@ -23,13 +23,13 @@ class work_queue {
         WorkType work_type;
         mutable std::shared_ptr<fr[]> mul_scalars;
         std::string tag;
-        barretenberg::fr constant;
+        bb::fr constant;
         const size_t index;
     };
 
     struct queued_fft_inputs {
         std::shared_ptr<fr[]> data;
-        barretenberg::fr shift_factor;
+        bb::fr shift_factor;
     };
 
     work_queue(proving_key* prover_key = nullptr, transcript::StandardTranscript* prover_transcript = nullptr);
@@ -53,7 +53,7 @@ class work_queue {
 
     void put_fft_data(std::shared_ptr<fr[]> result, const size_t work_item_number);
 
-    void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number);
+    void put_scalar_multiplication_data(const bb::g1::affine_element result, const size_t work_item_number);
 
     void flush_queue();
 

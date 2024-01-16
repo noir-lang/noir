@@ -4,10 +4,10 @@
 #include <iostream>
 
 // NOLINTBEGIN(readability-implicit-bool-conversion)
-namespace barretenberg::wnaf {
+namespace bb::wnaf {
 constexpr size_t SCALAR_BITS = 127;
 
-#define WNAF_SIZE(x) ((barretenberg::wnaf::SCALAR_BITS + (x)-1) / (x)) // NOLINT(cppcoreguidelines-macro-usage)
+#define WNAF_SIZE(x) ((bb::wnaf::SCALAR_BITS + (x)-1) / (x)) // NOLINT(cppcoreguidelines-macro-usage)
 
 constexpr size_t get_optimal_bucket_width(const size_t num_points)
 {
@@ -495,6 +495,6 @@ inline void fixed_wnaf_with_restricted_first_slice(uint64_t* scalar,
 //     uint64_t previous = get_wnaf_bits_const<wnaf_bits, 0>(scalar) + (uint64_t)skew_map;
 //     std::array<uint32_t, WNAF_SIZE(wnaf_bits)> result;
 // }
-} // namespace barretenberg::wnaf
+} // namespace bb::wnaf
 
 // NOLINTEND(readability-implicit-bool-conversion)

@@ -7,12 +7,12 @@
 #include <gtest/gtest.h>
 
 using namespace proof_system::honk;
-namespace barretenberg::test_protogalaxy_prover {
+namespace bb::test_protogalaxy_prover {
 using Flavor = proof_system::honk::flavor::Ultra;
 using Polynomial = typename Flavor::Polynomial;
 using FF = typename Flavor::FF;
 using RelationParameters = proof_system::RelationParameters<FF>;
-using PowPolynomial = barretenberg::PowPolynomial<FF>;
+using PowPolynomial = bb::PowPolynomial<FF>;
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/780): Improve combiner tests to check more than the
 // arithmetic relation so we more than unit test folding relation parameters and alpha as well.
@@ -55,20 +55,19 @@ TEST(Protogalaxy, CombinerOn2Instances)
             instances.alphas.fill(Univariate<FF, 13>(FF(0))); // focus on the arithmetic relation only
             auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
             auto result = prover.compute_combiner(instances, pow_polynomial);
-            auto expected_result =
-                barretenberg::Univariate<FF, 13>(std::array<FF, 13>{ 87706,
-                                                                     13644570,
-                                                                     76451738,
-                                                                     226257946,
-                                                                     static_cast<uint64_t>(500811930),
-                                                                     static_cast<uint64_t>(937862426),
-                                                                     static_cast<uint64_t>(1575158170),
-                                                                     static_cast<uint64_t>(2450447898),
-                                                                     static_cast<uint64_t>(3601480346),
-                                                                     static_cast<uint64_t>(5066004250),
-                                                                     static_cast<uint64_t>(6881768346),
-                                                                     static_cast<uint64_t>(9086521370),
-                                                                     static_cast<uint64_t>(11718012058) });
+            auto expected_result = bb::Univariate<FF, 13>(std::array<FF, 13>{ 87706,
+                                                                              13644570,
+                                                                              76451738,
+                                                                              226257946,
+                                                                              static_cast<uint64_t>(500811930),
+                                                                              static_cast<uint64_t>(937862426),
+                                                                              static_cast<uint64_t>(1575158170),
+                                                                              static_cast<uint64_t>(2450447898),
+                                                                              static_cast<uint64_t>(3601480346),
+                                                                              static_cast<uint64_t>(5066004250),
+                                                                              static_cast<uint64_t>(6881768346),
+                                                                              static_cast<uint64_t>(9086521370),
+                                                                              static_cast<uint64_t>(11718012058) });
             EXPECT_EQ(result, expected_result);
         } else {
             std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
@@ -133,8 +132,8 @@ TEST(Protogalaxy, CombinerOn2Instances)
 
             auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
             auto result = prover.compute_combiner(instances, pow_polynomial);
-            auto expected_result = barretenberg::Univariate<FF, 13>(
-                std::array<FF, 13>{ 0, 0, 12, 36, 72, 120, 180, 252, 336, 432, 540, 660, 792 });
+            auto expected_result =
+                bb::Univariate<FF, 13>(std::array<FF, 13>{ 0, 0, 12, 36, 72, 120, 180, 252, 336, 432, 540, 660, 792 });
 
             EXPECT_EQ(result, expected_result);
         }
@@ -186,10 +185,10 @@ TEST(Protogalaxy, CombinerOn4Instances)
         auto result = prover.compute_combiner(instances, pow_polynomial);
         std::array<FF, 43> zeroes;
         std::fill(zeroes.begin(), zeroes.end(), 0);
-        auto expected_result = barretenberg::Univariate<FF, 43>(zeroes);
+        auto expected_result = bb::Univariate<FF, 43>(zeroes);
         EXPECT_EQ(result, expected_result);
     };
     run_test();
 };
 
-} // namespace barretenberg::test_protogalaxy_prover
+} // namespace bb::test_protogalaxy_prover

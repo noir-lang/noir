@@ -106,8 +106,8 @@ class KeccakOutput {
 
         table.get_values_from_key = &sparse_tables::get_sparse_normalization_values<BASE, OUTPUT_NORMALIZATION_TABLE>;
 
-        table.column_1_step_size = barretenberg::fr(numeric::pow64(static_cast<size_t>(BASE), TABLE_BITS));
-        table.column_2_step_size = barretenberg::fr(((uint64_t)1 << TABLE_BITS));
+        table.column_1_step_size = bb::fr(numeric::pow64(static_cast<size_t>(BASE), TABLE_BITS));
+        table.column_2_step_size = bb::fr(((uint64_t)1 << TABLE_BITS));
         table.column_3_step_size = 0;
         return table;
     }

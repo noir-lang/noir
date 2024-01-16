@@ -4,7 +4,7 @@
 #include "barretenberg/polynomials/barycentric.hpp"
 #include <span>
 
-namespace barretenberg {
+namespace bb {
 
 /**
  * @brief A view of a univariate, also used to truncate univariates.
@@ -496,4 +496,4 @@ template <typename T, typename U, std::size_t N> std::array<T, N> array_to_array
     return array_to_array_aux<T, U, N>(elements, std::make_index_sequence<N>());
 };
 
-} // namespace barretenberg
+} // namespace bb

@@ -24,16 +24,16 @@ class StandardComposer {
     std::shared_ptr<plonk::verification_key> circuit_verification_key;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory_;
+    std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory_;
 
     bool computed_witness = false;
 
-    StandardComposer() { crs_factory_ = barretenberg::srs::get_crs_factory(); }
-    StandardComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory)
+    StandardComposer() { crs_factory_ = bb::srs::get_crs_factory(); }
+    StandardComposer(std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
-    StandardComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>>&& crs_factory)
+    StandardComposer(std::unique_ptr<bb::srs::factories::CrsFactory<curve::BN254>>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
     StandardComposer(std::shared_ptr<plonk::proving_key> p_key, std::shared_ptr<plonk::verification_key> v_key)

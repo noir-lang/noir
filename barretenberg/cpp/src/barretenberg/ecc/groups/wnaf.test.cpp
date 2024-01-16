@@ -3,7 +3,7 @@
 #include "barretenberg/numeric/random/engine.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -60,7 +60,7 @@ TEST(wnaf, WnafTwoBitWindow)
     constexpr uint32_t num_quads = (num_bits >> 1) + 1;
     uint64_t wnaf[num_quads] = { 0 };
     bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<256, 1, window>(&input.data[0], wnaf, skew, 0);
+    bb::wnaf::fixed_wnaf<256, 1, window>(&input.data[0], wnaf, skew, 0);
 
     /**
      * For representing even numbers, we define a skew:

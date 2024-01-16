@@ -12,7 +12,7 @@ class Standard {
     using ProvingKey = plonk::proving_key;
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
-    using Polynomial = barretenberg::Polynomial<FF>;
+    using Polynomial = bb::Polynomial<FF>;
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
     static constexpr bool has_zero_row = false;
@@ -24,7 +24,7 @@ class Ultra {
     using ProvingKey = plonk::proving_key;
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
-    using Polynomial = barretenberg::Polynomial<FF>;
+    using Polynomial = bb::Polynomial<FF>;
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
     static constexpr bool has_zero_row = false;

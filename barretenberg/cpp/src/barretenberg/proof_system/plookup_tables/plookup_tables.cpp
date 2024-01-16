@@ -3,7 +3,7 @@
 
 namespace plookup {
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace {
 // TODO(@zac-williamson) convert these into static const members of a struct
@@ -30,25 +30,22 @@ void init_multi_tables()
     MULTI_TABLES[MultiTableId::AES_SBOX] = aes128_tables::get_aes_sbox_table(MultiTableId::AES_SBOX);
     MULTI_TABLES[MultiTableId::UINT32_XOR] = uint_tables::get_uint32_xor_table(MultiTableId::UINT32_XOR);
     MULTI_TABLES[MultiTableId::UINT32_AND] = uint_tables::get_uint32_and_table(MultiTableId::UINT32_AND);
-    MULTI_TABLES[MultiTableId::BN254_XLO] = ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_xlo_table(
+    MULTI_TABLES[MultiTableId::BN254_XLO] = ecc_generator_tables::ecc_generator_table<bb::g1>::get_xlo_table(
         MultiTableId::BN254_XLO, BasicTableId::BN254_XLO_BASIC);
-    MULTI_TABLES[MultiTableId::BN254_XHI] = ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_xhi_table(
+    MULTI_TABLES[MultiTableId::BN254_XHI] = ecc_generator_tables::ecc_generator_table<bb::g1>::get_xhi_table(
         MultiTableId::BN254_XHI, BasicTableId::BN254_XHI_BASIC);
-    MULTI_TABLES[MultiTableId::BN254_YLO] = ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_ylo_table(
+    MULTI_TABLES[MultiTableId::BN254_YLO] = ecc_generator_tables::ecc_generator_table<bb::g1>::get_ylo_table(
         MultiTableId::BN254_YLO, BasicTableId::BN254_YLO_BASIC);
-    MULTI_TABLES[MultiTableId::BN254_YHI] = ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_yhi_table(
+    MULTI_TABLES[MultiTableId::BN254_YHI] = ecc_generator_tables::ecc_generator_table<bb::g1>::get_yhi_table(
         MultiTableId::BN254_YHI, BasicTableId::BN254_YHI_BASIC);
-    MULTI_TABLES[MultiTableId::BN254_XYPRIME] =
-        ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_xyprime_table(
-            MultiTableId::BN254_XYPRIME, BasicTableId::BN254_XYPRIME_BASIC);
-    MULTI_TABLES[MultiTableId::BN254_XLO_ENDO] =
-        ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_xlo_endo_table(
-            MultiTableId::BN254_XLO_ENDO, BasicTableId::BN254_XLO_ENDO_BASIC);
-    MULTI_TABLES[MultiTableId::BN254_XHI_ENDO] =
-        ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_xhi_endo_table(
-            MultiTableId::BN254_XHI_ENDO, BasicTableId::BN254_XHI_ENDO_BASIC);
+    MULTI_TABLES[MultiTableId::BN254_XYPRIME] = ecc_generator_tables::ecc_generator_table<bb::g1>::get_xyprime_table(
+        MultiTableId::BN254_XYPRIME, BasicTableId::BN254_XYPRIME_BASIC);
+    MULTI_TABLES[MultiTableId::BN254_XLO_ENDO] = ecc_generator_tables::ecc_generator_table<bb::g1>::get_xlo_endo_table(
+        MultiTableId::BN254_XLO_ENDO, BasicTableId::BN254_XLO_ENDO_BASIC);
+    MULTI_TABLES[MultiTableId::BN254_XHI_ENDO] = ecc_generator_tables::ecc_generator_table<bb::g1>::get_xhi_endo_table(
+        MultiTableId::BN254_XHI_ENDO, BasicTableId::BN254_XHI_ENDO_BASIC);
     MULTI_TABLES[MultiTableId::BN254_XYPRIME_ENDO] =
-        ecc_generator_tables::ecc_generator_table<barretenberg::g1>::get_xyprime_endo_table(
+        ecc_generator_tables::ecc_generator_table<bb::g1>::get_xyprime_endo_table(
             MultiTableId::BN254_XYPRIME_ENDO, BasicTableId::BN254_XYPRIME_ENDO_BASIC);
     MULTI_TABLES[MultiTableId::SECP256K1_XLO] = ecc_generator_tables::ecc_generator_table<secp256k1::g1>::get_xlo_table(
         MultiTableId::SECP256K1_XLO, BasicTableId::SECP256K1_XLO_BASIC);
@@ -94,7 +91,7 @@ void init_multi_tables()
     MULTI_TABLES[MultiTableId::FIXED_BASE_RIGHT_HI] =
         fixed_base::table::get_fixed_base_table<3, 126>(MultiTableId::FIXED_BASE_RIGHT_HI);
 
-    barretenberg::constexpr_for<0, 25, 1>([&]<size_t i>() {
+    bb::constexpr_for<0, 25, 1>([&]<size_t i>() {
         MULTI_TABLES[static_cast<size_t>(MultiTableId::KECCAK_NORMALIZE_AND_ROTATE) + i] =
             keccak_tables::Rho<8, i>::get_rho_output_table(MultiTableId::KECCAK_NORMALIZE_AND_ROTATE);
     });
@@ -111,16 +108,16 @@ const MultiTable& create_table(const MultiTableId id)
     return MULTI_TABLES[id];
 }
 
-ReadData<barretenberg::fr> get_lookup_accumulators(const MultiTableId id,
-                                                   const fr& key_a,
-                                                   const fr& key_b,
-                                                   const bool is_2_to_1_lookup)
+ReadData<bb::fr> get_lookup_accumulators(const MultiTableId id,
+                                         const fr& key_a,
+                                         const fr& key_b,
+                                         const bool is_2_to_1_lookup)
 {
     // return multi-table, populating global array of all multi-tables if need be
     const auto& multi_table = create_table(id);
     const size_t num_lookups = multi_table.lookup_ids.size();
 
-    ReadData<barretenberg::fr> lookup;
+    ReadData<bb::fr> lookup;
     const auto key_a_slices = numeric::slice_input_using_variable_bases(key_a, multi_table.slice_sizes);
     const auto key_b_slices = numeric::slice_input_using_variable_bases(key_b, multi_table.slice_sizes);
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "thread.hpp"
 
-namespace barretenberg::thread_utils {
+namespace bb::thread_utils {
 
 const size_t DEFAULT_MIN_ITERS_PER_THREAD = 1 << 4;
 
@@ -27,4 +27,4 @@ size_t calculate_num_threads(size_t num_iterations, size_t min_iterations_per_th
 size_t calculate_num_threads_pow2(size_t num_iterations,
                                   size_t min_iterations_per_thread = DEFAULT_MIN_ITERS_PER_THREAD);
 
-} // namespace barretenberg::thread_utils
+} // namespace bb::thread_utils

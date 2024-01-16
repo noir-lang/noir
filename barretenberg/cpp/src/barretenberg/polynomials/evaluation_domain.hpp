@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <vector>
 
-namespace barretenberg {
+namespace bb {
 
 template <typename FF> class EvaluationDomain {
   public:
@@ -67,5 +67,5 @@ template <typename FF> class EvaluationDomain {
 };
 
 // add alias for compatibility
-using evaluation_domain = EvaluationDomain<barretenberg::fr>;
-} // namespace barretenberg
+using evaluation_domain = EvaluationDomain<bb::fr>;
+} // namespace bb

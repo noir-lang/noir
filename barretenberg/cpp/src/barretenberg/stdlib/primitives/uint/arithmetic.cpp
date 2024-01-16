@@ -1,7 +1,7 @@
 #include "../circuit_builders/circuit_builders.hpp"
 #include "uint.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system;
 
 namespace proof_system::plonk {

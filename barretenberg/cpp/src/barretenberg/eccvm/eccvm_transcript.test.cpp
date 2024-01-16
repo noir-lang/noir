@@ -13,9 +13,9 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
     void SetUp() override
     {
         if constexpr (std::is_same<Flavor, flavor::ECCVM>::value) {
-            barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+            bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
         } else {
-            barretenberg::srs::init_crs_factory("../srs_db/ignition");
+            bb::srs::init_crs_factory("../srs_db/ignition");
         }
     };
     using FF = typename Flavor::FF;

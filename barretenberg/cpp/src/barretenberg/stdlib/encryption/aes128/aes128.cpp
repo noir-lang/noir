@@ -8,7 +8,7 @@
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
 
 using namespace crypto::aes128;
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system::plonk {
 namespace stdlib {

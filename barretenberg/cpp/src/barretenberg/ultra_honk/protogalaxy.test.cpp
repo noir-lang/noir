@@ -19,19 +19,19 @@ using ProverPolynomials = Flavor::ProverPolynomials;
 using RelationParameters = proof_system::RelationParameters<FF>;
 using WitnessCommitments = typename Flavor::WitnessCommitments;
 using CommitmentKey = Flavor::CommitmentKey;
-using PowPolynomial = barretenberg::PowPolynomial<FF>;
+using PowPolynomial = bb::PowPolynomial<FF>;
 
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
-namespace barretenberg::protogalaxy_tests {
+namespace bb::protogalaxy_tests {
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/744): make testing utility with functionality shared
 // amongst test files in the proof system
-barretenberg::Polynomial<FF> get_random_polynomial(size_t size)
+bb::Polynomial<FF> get_random_polynomial(size_t size)
 {
-    auto poly = barretenberg::Polynomial<FF>(size);
+    auto poly = bb::Polynomial<FF>(size);
     for (auto& coeff : poly) {
         coeff = FF::random_element();
     }
@@ -89,7 +89,7 @@ void decide_and_verify(std::shared_ptr<Instance>& accumulator, UltraComposer& co
 
 class ProtoGalaxyTests : public ::testing::Test {
   public:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 
 TEST_F(ProtoGalaxyTests, FullHonkEvaluationsValidCircuit)
@@ -144,7 +144,7 @@ TEST_F(ProtoGalaxyTests, PerturbatorPolynomial)
     const size_t log_instance_size(3);
     const size_t instance_size(1 << log_instance_size);
 
-    std::array<barretenberg::Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
+    std::array<bb::Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
     for (auto& poly : random_polynomials) {
         poly = get_random_polynomial(instance_size);
     }
@@ -189,13 +189,12 @@ TEST_F(ProtoGalaxyTests, PerturbatorPolynomial)
 TEST_F(ProtoGalaxyTests, CombinerQuotient)
 {
     auto compressed_perturbator = FF(2); // F(\alpha) in the paper
-    auto combiner =
-        barretenberg::Univariate<FF, 13>(std::array<FF, 13>{ 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32 });
+    auto combiner = bb::Univariate<FF, 13>(std::array<FF, 13>{ 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32 });
     auto combiner_quotient = ProtoGalaxyProver::compute_combiner_quotient(compressed_perturbator, combiner);
 
     // K(i) = (G(i) - ( L_0(i) * F(\alpha)) / Z(i), i = {2,.., 13} for ProverInstances::NUM = 2
     // K(i) = (G(i) - (1 - i) * F(\alpha)) / i * (i - 1)
-    auto expected_evals = barretenberg::Univariate<FF, 13, 2>(std::array<FF, 11>{
+    auto expected_evals = bb::Univariate<FF, 13, 2>(std::array<FF, 11>{
         (FF(22) - (FF(1) - FF(2)) * compressed_perturbator) / (FF(2) * FF(2 - 1)),
         (FF(23) - (FF(1) - FF(3)) * compressed_perturbator) / (FF(3) * FF(3 - 1)),
         (FF(24) - (FF(1) - FF(4)) * compressed_perturbator) / (FF(4) * FF(4 - 1)),
@@ -349,4 +348,4 @@ TEST_F(ProtoGalaxyTests, TamperedAccumulatorPolynomial)
     decide_and_verify(second_accumulator, composer, false);
 }
 
-} // namespace barretenberg::protogalaxy_tests
+} // namespace bb::protogalaxy_tests

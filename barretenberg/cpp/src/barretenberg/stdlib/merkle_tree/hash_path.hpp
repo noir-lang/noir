@@ -6,7 +6,7 @@
 
 namespace proof_system::plonk::stdlib::merkle_tree {
 
-using namespace barretenberg;
+using namespace bb;
 
 using fr_hash_path = std::vector<std::pair<fr, fr>>;
 using fr_sibling_path = std::vector<fr>;

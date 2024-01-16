@@ -2,11 +2,11 @@
 #include "univariate.hpp"
 #include <gtest/gtest.h>
 
-namespace barretenberg::test_barycentric {
+namespace bb::test_barycentric {
 
 template <class FF> class BarycentricDataTests : public testing::Test {};
 
-using FieldTypes = testing::Types<barretenberg::fr>;
+using FieldTypes = testing::Types<bb::fr>;
 TYPED_TEST_SUITE(BarycentricDataTests, FieldTypes);
 
 #define BARYCENTIC_DATA_TESTS_TYPE_ALIASES using FF = TypeParam;
@@ -87,4 +87,4 @@ TYPED_TEST(BarycentricDataTests, BarycentricData5to6)
     EXPECT_EQ(ext1, expected);
 }
 
-} // namespace barretenberg::test_barycentric
+} // namespace bb::test_barycentric

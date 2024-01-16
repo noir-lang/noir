@@ -7,7 +7,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-using namespace barretenberg;
+using namespace bb;
 
 /**
  * An NullifierMemoryTree is structured just like a usual merkle tree:
@@ -78,7 +78,7 @@ class NullifierMemoryTree : public MemoryTree {
 
     fr update_element(fr const& value);
 
-    const std::vector<barretenberg::fr>& get_hashes() { return hashes_; }
+    const std::vector<bb::fr>& get_hashes() { return hashes_; }
     const WrappedNullifierLeaf get_leaf(size_t index)
     {
         return (index < leaves_.size()) ? leaves_[index] : WrappedNullifierLeaf::zero();

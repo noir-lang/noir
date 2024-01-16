@@ -9,7 +9,7 @@
 #include <memory.h>
 #include <memory>
 
-namespace barretenberg {
+namespace bb {
 
 namespace {
 constexpr size_t MIN_GROUP_PER_THREAD = 4;
@@ -177,7 +177,7 @@ template <typename Fr> void EvaluationDomain<Fr>::compute_lookup_table()
 }
 
 // explicitly instantiate both EvaluationDomain
-template class EvaluationDomain<barretenberg::fr>;
+template class EvaluationDomain<bb::fr>;
 template class EvaluationDomain<grumpkin::fr>;
 
-} // namespace barretenberg
+} // namespace bb

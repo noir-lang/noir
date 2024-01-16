@@ -36,7 +36,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
     using inner_scalar_field = typename inner_curve::ScalarFieldNative;
     using outer_scalar_field = typename outer_curve::BaseFieldNative;
-    using pairing_target_field = barretenberg::fq12;
+    using pairing_target_field = bb::fq12;
 
     // These constexpr definitions are to allow for the following: An Ultra Pedersen hash evaluates to a
     // different value from the Standard version of the Pedersen hash. Therefore, the fiat-shamir
@@ -282,8 +282,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
      * @return boolean result
      */
 
-    static bool check_recursive_proof_public_inputs(OuterBuilder& builder,
-                                                    const barretenberg::pairing::miller_lines* lines)
+    static bool check_recursive_proof_public_inputs(OuterBuilder& builder, const bb::pairing::miller_lines* lines)
     {
         if (builder.contains_recursive_proof && builder.recursive_proof_public_input_indices.size() == 16) {
             const auto& inputs = builder.public_inputs;
@@ -321,8 +320,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
                 { x1, y1 },
             };
 
-            pairing_target_field result =
-                barretenberg::pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
+            pairing_target_field result = bb::pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
 
             return (result == pairing_target_field::one());
         }
@@ -334,14 +332,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
     static void check_pairing(const circuit_outputs& circuit_output)
     {
-        auto g2_lines = barretenberg::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
+        auto g2_lines = bb::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         g1::affine_element P[2];
         P[0].x = outer_scalar_field(circuit_output.aggregation_state.P0.x.get_value().lo);
         P[0].y = outer_scalar_field(circuit_output.aggregation_state.P0.y.get_value().lo);
         P[1].x = outer_scalar_field(circuit_output.aggregation_state.P1.x.get_value().lo);
         P[1].y = outer_scalar_field(circuit_output.aggregation_state.P1.y.get_value().lo);
-        pairing_target_field inner_proof_result =
-            barretenberg::pairing::reduced_ate_pairing_batch_precomputed(P, g2_lines, 2);
+        pairing_target_field inner_proof_result = bb::pairing::reduced_ate_pairing_batch_precomputed(P, g2_lines, 2);
         EXPECT_EQ(inner_proof_result, pairing_target_field::one());
     }
 
@@ -350,12 +347,12 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         info("number of gates in recursive verification circuit = ", outer_circuit.get_num_gates());
         bool result = outer_circuit.check_circuit();
         EXPECT_EQ(result, expected_result);
-        auto g2_lines = barretenberg::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
+        auto g2_lines = bb::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         EXPECT_EQ(check_recursive_proof_public_inputs(outer_circuit, g2_lines), true);
     }
 
   public:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 
     static void test_inner_circuit()
     {

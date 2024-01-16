@@ -23,7 +23,7 @@ auto& engine = numeric::random::get_debug_engine();
 }
 
 namespace test_stdlib_safe_uint {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas

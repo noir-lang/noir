@@ -8,7 +8,7 @@ namespace mock {
 
 using namespace proof_system::plonk;
 
-template <typename Builder> void mock_circuit(Builder& builder, std::vector<barretenberg::fr> const& public_inputs_)
+template <typename Builder> void mock_circuit(Builder& builder, std::vector<bb::fr> const& public_inputs_)
 {
     const auto public_inputs =
         map(public_inputs_, [&](auto& i) { return stdlib::field_t(stdlib::witness_t(&builder, i)); });

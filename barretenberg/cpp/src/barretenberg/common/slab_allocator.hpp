@@ -9,7 +9,7 @@
 #include <mutex>
 #endif
 
-namespace barretenberg {
+namespace bb {
 
 /**
  * Allocates a bunch of memory slabs sized to serve an UltraPLONK proof construction.
@@ -75,4 +75,4 @@ template <typename T> class ContainerSlabAllocator {
     }
 };
 
-} // namespace barretenberg
+} // namespace bb

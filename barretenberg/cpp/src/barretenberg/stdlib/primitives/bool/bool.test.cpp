@@ -9,7 +9,7 @@
     using bool_ct = stdlib::bool_t<Builder>;
 
 namespace test_stdlib_bool {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 namespace {
@@ -29,8 +29,8 @@ TYPED_TEST(BoolTest, TestBasicOperations)
 
     auto gates_before = builder.get_num_gates();
 
-    bool_ct a = witness_ct(&builder, barretenberg::fr::one());
-    bool_ct b = witness_ct(&builder, barretenberg::fr::zero());
+    bool_ct a = witness_ct(&builder, bb::fr::one());
+    bool_ct b = witness_ct(&builder, bb::fr::zero());
     a = a ^ b; // a = 1
     EXPECT_EQ(a.get_value(), 1);
     b = !b; // b = 1 (witness 0)
@@ -480,8 +480,8 @@ TYPED_TEST(BoolTest, TestSimpleProof)
 
     bool_ct a(&builder);
     bool_ct b(&builder);
-    a = witness_ct(&builder, barretenberg::fr::one());
-    b = witness_ct(&builder, barretenberg::fr::zero());
+    a = witness_ct(&builder, bb::fr::one());
+    b = witness_ct(&builder, bb::fr::zero());
     // bool_ct c(&builder);
     a = a ^ b;            // a = 1
     b = !b;               // b = 1 (witness 0)

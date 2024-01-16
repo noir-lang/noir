@@ -12,7 +12,7 @@ using namespace proof_system::honk::sumcheck;
 
 namespace proof_system::benchmark::relations {
 
-using Fr = barretenberg::fr;
+using Fr = bb::fr;
 using Fq = grumpkin::fr;
 
 template <typename Flavor, typename Relation> void execute_relation(::benchmark::State& state)

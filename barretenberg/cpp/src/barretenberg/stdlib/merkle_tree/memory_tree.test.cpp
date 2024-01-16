@@ -1,7 +1,7 @@
 #include "memory_tree.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 
 static std::vector<fr> VALUES = []() {

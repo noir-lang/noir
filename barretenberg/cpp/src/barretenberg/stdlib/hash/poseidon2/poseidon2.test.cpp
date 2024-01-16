@@ -5,7 +5,7 @@
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 
 namespace test_StdlibPoseidon2 {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -129,11 +129,11 @@ template <typename Builder> class StdlibPoseidon2 : public testing::Test {
     {
         Builder builder;
 
-        std::vector<barretenberg::fr> inputs;
+        std::vector<bb::fr> inputs;
         std::vector<stdlib::field_t<Builder>> witness_inputs;
 
         for (size_t i = 0; i < 8; ++i) {
-            inputs.push_back(barretenberg::fr::random_element());
+            inputs.push_back(bb::fr::random_element());
             if (i % 2 == 1) {
                 witness_inputs.push_back(witness_ct(&builder, inputs[i]));
             } else {
@@ -141,7 +141,7 @@ template <typename Builder> class StdlibPoseidon2 : public testing::Test {
             }
         }
 
-        barretenberg::fr expected = native_poseidon2::hash(inputs);
+        bb::fr expected = native_poseidon2::hash(inputs);
         auto result = poseidon2::hash(builder, witness_inputs);
 
         EXPECT_EQ(result.get_value(), expected);

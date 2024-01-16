@@ -149,10 +149,10 @@ typename element<C, Fq, Fr, G>::secp256k1_wnaf_pair element<C, Fq, Fr, G>::compu
         uint256_t k_u256{ k.data[0], k.data[1], k.data[2], k.data[3] };
         k_u256 = k_u256 >> stagger;
         if (is_lo) {
-            barretenberg::wnaf::fixed_wnaf<num_bits - lo_stagger, 1, wnaf_size>(
+            bb::wnaf::fixed_wnaf<num_bits - lo_stagger, 1, wnaf_size>(
                 &k_u256.data[0], &wnaf_values[0], skew_without_stagger, 0);
         } else {
-            barretenberg::wnaf::fixed_wnaf<num_bits - hi_stagger, 1, wnaf_size>(
+            bb::wnaf::fixed_wnaf<num_bits - hi_stagger, 1, wnaf_size>(
                 &k_u256.data[0], &wnaf_values[0], skew_without_stagger, 0);
         }
 
@@ -267,7 +267,7 @@ typename element<C, Fq, Fr, G>::secp256k1_wnaf_pair element<C, Fq, Fr, G>::compu
             }
             // Accumulate entries, shift by stagger and add the stagger itself
             field_t<C> sum = field_t<C>::accumulate(accumulator);
-            sum = sum * field_t<C>(barretenberg::fr(1ULL << stagger));
+            sum = sum * field_t<C>(bb::fr(1ULL << stagger));
             sum += (stagger_fragment);
             sum = sum.normalize();
             // TODO: improve efficiency by creating a constructor that does NOT require us to range constrain
@@ -341,8 +341,7 @@ typename element<C, Fq, Fr, G>::secp256k1_wnaf_pair element<C, Fq, Fr, G>::compu
     const auto [khi_reconstructed, khi_out] = compute_single_wnaf(khi, hi_stagger, khi_negative, false);
 
     uint256_t minus_lambda_val(-secp256k1::fr::cube_root_of_unity());
-    Fr minus_lambda(
-        barretenberg::fr(minus_lambda_val.slice(0, 136)), barretenberg::fr(minus_lambda_val.slice(136, 256)), false);
+    Fr minus_lambda(bb::fr(minus_lambda_val.slice(0, 136)), bb::fr(minus_lambda_val.slice(136, 256)), false);
 
     Fr reconstructed_scalar = khi_reconstructed.madd(minus_lambda, { klo_reconstructed });
 
@@ -372,7 +371,7 @@ std::vector<field_t<C>> element<C, Fq, Fr, G>::compute_wnaf(const Fr& scalar)
 
     uint64_t wnaf_values[num_rounds] = { 0 };
     bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<num_bits, 1, WNAF_SIZE>(&scalar_multiplier.data[0], &wnaf_values[0], skew, 0);
+    bb::wnaf::fixed_wnaf<num_bits, 1, WNAF_SIZE>(&scalar_multiplier.data[0], &wnaf_values[0], skew, 0);
 
     std::vector<field_t<C>> wnaf_entries;
     for (size_t i = 0; i < num_rounds; ++i) {
@@ -463,12 +462,10 @@ std::vector<field_t<C>> element<C, Fq, Fr, G>::compute_wnaf(const Fr& scalar)
         }
         ASSERT((num_rounds - midpoint) * 4 == 136);
         // If skew == 1 lo_offset = 0, else = 0xf...f
-        field_t<C> lo_offset =
-            (-field_t<C>(barretenberg::fr(negative_lo)))
-                .madd(wnaf_entries[wnaf_entries.size() - 1], field_t<C>(barretenberg::fr(negative_lo)))
-                .normalize();
-        Fr offset =
-            Fr(lo_offset, field_t<C>(barretenberg::fr(negative_hi)) + wnaf_entries[wnaf_entries.size() - 1], true);
+        field_t<C> lo_offset = (-field_t<C>(bb::fr(negative_lo)))
+                                   .madd(wnaf_entries[wnaf_entries.size() - 1], field_t<C>(bb::fr(negative_lo)))
+                                   .normalize();
+        Fr offset = Fr(lo_offset, field_t<C>(bb::fr(negative_hi)) + wnaf_entries[wnaf_entries.size() - 1], true);
         Fr reconstructed = Fr(lo_accumulators, hi_accumulators, true);
         reconstructed = (reconstructed + reconstructed) - offset;
         reconstructed.assert_is_in_field();

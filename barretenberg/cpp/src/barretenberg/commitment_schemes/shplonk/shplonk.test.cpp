@@ -22,7 +22,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     using ShplonkProver = ShplonkProver_<TypeParam>;
     using ShplonkVerifier = ShplonkVerifier_<TypeParam>;
     using Fr = typename TypeParam::ScalarField;
-    using Polynomial = typename barretenberg::Polynomial<Fr>;
+    using Polynomial = typename bb::Polynomial<Fr>;
     using OpeningPair = OpeningPair<TypeParam>;
     using OpeningClaim = OpeningClaim<TypeParam>;
 

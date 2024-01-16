@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -13,13 +13,13 @@ namespace poseidon2_tests {
 TEST(Poseidon2, HashBasicTests)
 {
 
-    barretenberg::fr a = barretenberg::fr::random_element(&engine);
-    barretenberg::fr b = barretenberg::fr::random_element(&engine);
-    barretenberg::fr c = barretenberg::fr::random_element(&engine);
-    barretenberg::fr d = barretenberg::fr::random_element(&engine);
+    bb::fr a = bb::fr::random_element(&engine);
+    bb::fr b = bb::fr::random_element(&engine);
+    bb::fr c = bb::fr::random_element(&engine);
+    bb::fr d = bb::fr::random_element(&engine);
 
-    std::vector<barretenberg::fr> input1{ a, b, c, d };
-    std::vector<barretenberg::fr> input2{ d, c, b, a };
+    std::vector<bb::fr> input1{ a, b, c, d };
+    std::vector<bb::fr> input2{ d, c, b, a };
 
     auto r0 = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(input1);
     auto r1 = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(input1);
@@ -34,15 +34,15 @@ TEST(Poseidon2, HashBasicTests)
 // flexibility of Poseidon's parametrisation)
 TEST(Poseidon2, HashConsistencyCheck)
 {
-    barretenberg::fr a(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
-    barretenberg::fr b(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
-    barretenberg::fr c(std::string("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
-    barretenberg::fr d(std::string("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
+    bb::fr a(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
+    bb::fr b(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
+    bb::fr c(std::string("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
+    bb::fr d(std::string("0x9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
 
-    std::vector<barretenberg::fr> input{ a, b, c, d };
+    std::vector<bb::fr> input{ a, b, c, d };
     auto result = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(input);
 
-    barretenberg::fr expected(std::string("0x2f43a0f83b51a6f5fc839dea0ecec74947637802a579fa9841930a25a0bcec11"));
+    bb::fr expected(std::string("0x2f43a0f83b51a6f5fc839dea0ecec74947637802a579fa9841930a25a0bcec11"));
 
     EXPECT_EQ(result, expected);
 }
@@ -51,14 +51,14 @@ TEST(Poseidon2, HashBufferConsistencyCheck)
 {
     // 31 byte inputs because hash_buffer slicing is only injective with 31 bytes, as it slices 31 bytes for each field
     // element
-    barretenberg::fr a(std::string("00000b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
+    bb::fr a(std::string("00000b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
 
     auto input_vec = to_buffer(a);      // takes field element and converts it to 32 bytes
     input_vec.erase(input_vec.begin()); // erase first byte since we want 31 bytes
-    std::vector<barretenberg::fr> input{ a };
+    std::vector<bb::fr> input{ a };
     auto expected = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(input);
 
-    barretenberg::fr result = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash_buffer(input_vec);
+    bb::fr result = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash_buffer(input_vec);
 
     EXPECT_EQ(result, expected);
 }

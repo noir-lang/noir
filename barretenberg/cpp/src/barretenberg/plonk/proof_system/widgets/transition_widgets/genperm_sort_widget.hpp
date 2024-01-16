@@ -31,8 +31,8 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
                                                Field& quotient,
                                                const size_t i = 0)
     {
-        constexpr barretenberg::fr minus_two(-2);
-        constexpr barretenberg::fr minus_three(-3);
+        constexpr bb::fr minus_two(-2);
+        constexpr bb::fr minus_three(-3);
 
         const Field& alpha_base = challenges.alpha_powers[0];
         const Field& alpha = challenges.elements[ChallengeIndex::ALPHA];
@@ -102,7 +102,7 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
 } // namespace widget
 
 template <typename Settings>
-using ProverGenPermSortWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::GenPermSortKernel>;
+using ProverGenPermSortWidget = widget::TransitionWidget<bb::fr, Settings, widget::GenPermSortKernel>;
 
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierGenPermSortWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::GenPermSortKernel>;

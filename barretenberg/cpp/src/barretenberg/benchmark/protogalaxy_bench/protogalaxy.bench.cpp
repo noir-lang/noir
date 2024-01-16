@@ -16,7 +16,7 @@ using Builder = Flavor::CircuitBuilder;
 // Fold one instance into an accumulator.
 void fold_one(State& state) noexcept
 {
-    barretenberg::srs::init_crs_factory("../srs_db/ignition");
+    bb::srs::init_crs_factory("../srs_db/ignition");
 
     auto log2_num_gates = static_cast<size_t>(state.range(0));
     auto composer = UltraComposer();

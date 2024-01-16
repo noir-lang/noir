@@ -8,7 +8,7 @@
 #include "./g1.hpp"
 #include "./g2.hpp"
 
-namespace barretenberg::pairing {
+namespace bb::pairing {
 constexpr size_t loop_length = 64;
 constexpr size_t neg_z_loop_length = 62;
 constexpr size_t precomputed_coefficients_length = 87;
@@ -56,6 +56,6 @@ inline fq12 reduced_ate_pairing_batch_precomputed(const g1::affine_element* P_af
                                                   const miller_lines* lines,
                                                   size_t num_points);
 
-} // namespace barretenberg::pairing
+} // namespace bb::pairing
 
 #include "./pairing_impl.hpp"

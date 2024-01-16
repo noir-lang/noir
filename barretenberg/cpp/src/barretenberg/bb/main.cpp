@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-using namespace barretenberg;
+using namespace bb;
 
 std::string getHomeDir()
 {

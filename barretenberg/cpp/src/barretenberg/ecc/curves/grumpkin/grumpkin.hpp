@@ -8,8 +8,8 @@ namespace grumpkin {
 
 constexpr size_t MAX_NO_WRAP_INTEGER_BIT_LENGTH = 252;
 
-using fq = barretenberg::fr;
-using fr = barretenberg::fq;
+using fq = bb::fr;
+using fr = bb::fq;
 
 struct GrumpkinG1Params {
     static constexpr bool USE_ENDOMORPHISM = true;
@@ -17,26 +17,24 @@ struct GrumpkinG1Params {
     static constexpr bool small_elements = true;
     static constexpr bool has_a = false;
     // have checked in grumpkin.test_b that b is Montgomery form of -17
-    static constexpr barretenberg::fr b{
-        0xdd7056026000005a, 0x223fa97acb319311, 0xcc388229877910c0, 0x34394632b724eaa
-    };
-    static constexpr barretenberg::fr a{ 0UL, 0UL, 0UL, 0UL };
+    static constexpr bb::fr b{ 0xdd7056026000005a, 0x223fa97acb319311, 0xcc388229877910c0, 0x34394632b724eaa };
+    static constexpr bb::fr a{ 0UL, 0UL, 0UL, 0UL };
 
     // generator point = (x, y) = (1, sqrt(-16)), sqrt(-16) = 4i
-    static constexpr barretenberg::fr one_x = barretenberg::fr::one();
-    static constexpr barretenberg::fr one_y{
+    static constexpr bb::fr one_x = bb::fr::one();
+    static constexpr bb::fr one_y{
         0x11b2dff1448c41d8UL, 0x23d3446f21c77dc3UL, 0xaa7b8cf435dfafbbUL, 0x14b34cf69dc25d68UL
     };
 };
-using g1 = barretenberg::group<barretenberg::fr, barretenberg::fq, GrumpkinG1Params>;
+using g1 = bb::group<bb::fr, bb::fq, GrumpkinG1Params>;
 
 }; // namespace grumpkin
 
 namespace curve {
 class Grumpkin {
   public:
-    using ScalarField = barretenberg::fq;
-    using BaseField = barretenberg::fr;
+    using ScalarField = bb::fq;
+    using BaseField = bb::fr;
     using Group = typename grumpkin::g1;
     using Element = typename Group::element;
     using AffineElement = typename Group::affine_element;

@@ -43,6 +43,6 @@ void CircuitBuilderBase<FF>::assert_equal(const uint32_t a_variable_idx,
         real_variable_tags[a_real_idx] = real_variable_tags[b_real_idx];
 }
 // Standard honk/ plonk instantiation
-template class CircuitBuilderBase<barretenberg::fr>;
+template class CircuitBuilderBase<bb::fr>;
 template class CircuitBuilderBase<grumpkin::fr>;
 } // namespace proof_system

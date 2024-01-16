@@ -4,7 +4,7 @@
 #include "element.hpp"
 
 // NOLINTBEGIN(readability-implicit-bool-conversion, cppcoreguidelines-avoid-c-arrays)
-namespace barretenberg::group_elements {
+namespace bb::group_elements {
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T>::element(const Fq& a, const Fq& b, const Fq& c) noexcept
     : x(a)
@@ -1164,5 +1164,5 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::rand
     return { x, y, Fq::one() };
 }
 
-} // namespace barretenberg::group_elements
+} // namespace bb::group_elements
 // NOLINTEND(readability-implicit-bool-conversion, cppcoreguidelines-avoid-c-arrays)

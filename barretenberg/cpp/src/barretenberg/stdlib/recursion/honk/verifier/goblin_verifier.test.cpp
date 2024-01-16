@@ -124,7 +124,7 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
     };
 
   public:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 
     /**
      * @brief Create inner circuit and call check_circuit on it

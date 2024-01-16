@@ -34,8 +34,8 @@ class ProverPermutationWidget : public ProverRandomWidget {
                                    const size_t round_number,
                                    work_queue& queue) override;
 
-    barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                   const transcript::StandardTranscript& transcript) override;
+    bb::fr compute_quotient_contribution(const bb::fr& alpha_base,
+                                         const transcript::StandardTranscript& transcript) override;
 };
 
 } // namespace proof_system::plonk

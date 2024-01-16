@@ -5,7 +5,7 @@ namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-using namespace barretenberg;
+using namespace bb;
 
 void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
 {

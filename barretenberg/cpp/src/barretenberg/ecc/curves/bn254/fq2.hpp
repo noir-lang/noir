@@ -3,7 +3,7 @@
 #include "../../fields/field2.hpp"
 #include "./fq.hpp"
 
-namespace barretenberg {
+namespace bb {
 struct Bn254Fq2Params {
     static constexpr fq twist_coeff_b_0{
         0x3bf938e377b802a8UL, 0x020b1b273633535dUL, 0x26b7edf049755260UL, 0x2514c6324384a86dUL
@@ -32,4 +32,4 @@ struct Bn254Fq2Params {
 };
 
 using fq2 = field2<fq, Bn254Fq2Params>;
-} // namespace barretenberg
+} // namespace bb

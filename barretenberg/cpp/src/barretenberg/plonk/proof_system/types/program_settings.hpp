@@ -17,8 +17,8 @@ namespace proof_system::plonk {
 
 class standard_verifier_settings : public standard_settings {
   public:
-    typedef barretenberg::fr fr;
-    typedef barretenberg::g1 g1;
+    typedef bb::fr fr;
+    typedef bb::g1 g1;
     typedef transcript::StandardTranscript Transcript;
     typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript, standard_settings> ArithmeticWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
@@ -37,18 +37,14 @@ class standard_verifier_settings : public standard_settings {
         return ArithmeticWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
     }
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
-                                                                     const barretenberg::fr& alpha_base,
-                                                                     const transcript::StandardTranscript& transcript,
-                                                                     barretenberg::fr& quotient_numerator_eval)
+    static bb::fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                           const bb::fr& alpha_base,
+                                                           const transcript::StandardTranscript& transcript,
+                                                           bb::fr& quotient_numerator_eval)
     {
-        auto updated_alpha_base = VerifierPermutationWidget<
-            barretenberg::fr,
-            barretenberg::g1::affine_element,
-            transcript::StandardTranscript>::compute_quotient_evaluation_contribution(key,
-                                                                                      alpha_base,
-                                                                                      transcript,
-                                                                                      quotient_numerator_eval);
+        auto updated_alpha_base =
+            VerifierPermutationWidget<bb::fr, bb::g1::affine_element, transcript::StandardTranscript>::
+                compute_quotient_evaluation_contribution(key, alpha_base, transcript, quotient_numerator_eval);
 
         return ArithmeticWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, quotient_numerator_eval);
@@ -57,8 +53,8 @@ class standard_verifier_settings : public standard_settings {
 
 class ultra_verifier_settings : public ultra_settings {
   public:
-    typedef barretenberg::fr fr;
-    typedef barretenberg::g1 g1;
+    typedef bb::fr fr;
+    typedef bb::g1 g1;
     typedef transcript::StandardTranscript Transcript;
     typedef VerifierPlookupArithmeticWidget<fr, g1::affine_element, Transcript, ultra_settings> PlookupArithmeticWidget;
     typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript, ultra_settings> GenPermSortWidget;
@@ -74,7 +70,7 @@ class ultra_verifier_settings : public ultra_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
-                                                  std::map<std::string, barretenberg::fr>& scalars)
+                                                  std::map<std::string, bb::fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(key, alpha_base, transcript);
         updated_alpha = PlookupWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
@@ -88,10 +84,10 @@ class ultra_verifier_settings : public ultra_settings {
         return updated_alpha;
     }
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
-                                                                     const barretenberg::fr& alpha_base,
-                                                                     const Transcript& transcript,
-                                                                     barretenberg::fr& quotient_numerator_eval)
+    static bb::fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                           const bb::fr& alpha_base,
+                                                           const Transcript& transcript,
+                                                           bb::fr& quotient_numerator_eval)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, quotient_numerator_eval, idpolys);

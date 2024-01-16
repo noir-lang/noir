@@ -13,7 +13,7 @@
  * constexpr_for : loop over a range , where the size_t iterator `i` is a constexpr variable
  * constexpr_find : find if an element is in an array
  */
-namespace barretenberg {
+namespace bb {
 
 /**
  * @brief Implements a loop using a compile-time iterator. Requires c++20.
@@ -132,7 +132,7 @@ template <const auto& container, auto key> constexpr bool constexpr_find()
  * 1. HAS NO CONSTEXPR DEFAULT CONSTRUCTOR
  * 2. HAS A CONSTEXPR COPY CONSTRUCTOR
  *
- * An example of this is barretenberg::field_t
+ * An example of this is bb::field_t
  * (the default constructor does not default assign values to the field_t member variables for efficiency reasons, to
  * reduce the time require to construct large arrays of field elements. This means the default constructor for field_t
  * cannot be constexpr)
@@ -159,4 +159,4 @@ template <typename T, size_t N> constexpr std::array<T, N> create_empty_array()
 {
     return create_array(T(0), std::make_index_sequence<N>());
 }
-}; // namespace barretenberg
+}; // namespace bb

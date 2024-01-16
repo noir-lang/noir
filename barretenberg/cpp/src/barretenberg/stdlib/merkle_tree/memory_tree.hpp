@@ -5,7 +5,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-using namespace barretenberg;
+using namespace bb;
 
 /**
  * A MemoryTree is structured as follows:
@@ -39,8 +39,8 @@ class MemoryTree {
   public:
     size_t depth_;
     size_t total_size_;
-    barretenberg::fr root_;
-    std::vector<barretenberg::fr> hashes_;
+    bb::fr root_;
+    std::vector<bb::fr> hashes_;
 };
 
 } // namespace merkle_tree

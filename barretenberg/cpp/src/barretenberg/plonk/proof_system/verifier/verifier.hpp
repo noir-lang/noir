@@ -23,8 +23,8 @@ template <typename program_settings> class VerifierBase {
     transcript::Manifest manifest;
 
     std::shared_ptr<verification_key> key;
-    std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
-    std::map<std::string, barretenberg::fr> kate_fr_elements;
+    std::map<std::string, bb::g1::affine_element> kate_g1_elements;
+    std::map<std::string, bb::fr> kate_fr_elements;
     std::unique_ptr<CommitmentScheme> commitment_scheme;
 };
 

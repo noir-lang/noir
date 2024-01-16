@@ -1,6 +1,6 @@
 #include "thread_utils.hpp"
 
-namespace barretenberg::thread_utils {
+namespace bb::thread_utils {
 /**
  * @brief calculates number of threads to create based on minimum iterations per thread
  * @details Finds the number of cpus with get_num_cpus(), and calculates `desired_num_threads`
@@ -37,4 +37,4 @@ size_t calculate_num_threads_pow2(size_t num_iterations, size_t min_iterations_p
     return num_threads;
 }
 
-} // namespace barretenberg::thread_utils
+} // namespace bb::thread_utils

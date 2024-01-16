@@ -8,7 +8,7 @@
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system::plonk {
 template <typename program_settings>
@@ -86,7 +86,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // Here k = num_roots_cut_out_of_the_vanishing_polynomial and n is the size of the evaluation domain.
     /// TODO: can we add these lagrange evaluations to the transcript? They get recalcualted after this multiple times,
     // by each widget.
-    const auto lagrange_evals = barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->domain);
+    const auto lagrange_evals = bb::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->domain);
 
     // Step 8: Compute quotient polynomial evaluation at zeta
     //           r_eval − (a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)(c_eval + γ).z_eval_omega.α −
@@ -176,13 +176,12 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
-    barretenberg::scalar_multiplication::generate_pippenger_point_table<curve::BN254>(
-        &elements[0], &elements[0], num_elements);
+    bb::scalar_multiplication::generate_pippenger_point_table<curve::BN254>(&elements[0], &elements[0], num_elements);
     scalar_multiplication::pippenger_runtime_state<curve::BN254> state(num_elements);
 
     g1::element P[2];
 
-    P[0] = barretenberg::scalar_multiplication::pippenger<curve::BN254>(&scalars[0], &elements[0], num_elements, state);
+    P[0] = bb::scalar_multiplication::pippenger<curve::BN254>(&scalars[0], &elements[0], num_elements, state);
     P[1] = -(g1::element(PI_Z_OMEGA) * separator_challenge + PI_Z);
 
     if (key->contains_recursive_proof) {
@@ -198,7 +197,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
                 const uint256_t limb = l0 + (l1 << NUM_LIMB_BITS_IN_FIELD_SIMULATION) +
                                        (l2 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2)) +
                                        (l3 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 3));
-                return barretenberg::fq(limb);
+                return bb::fq(limb);
             };
 
         const auto recursion_separator_challenge = transcript.get_challenge_field_element("separator").sqr();
@@ -232,10 +231,10 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     };
 
     // The final pairing check of step 12.
-    barretenberg::fq12 result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
+    bb::fq12 result = bb::pairing::reduced_ate_pairing_batch_precomputed(
         P_affine, key->reference_string->get_precomputed_g2_lines(), 2);
 
-    return (result == barretenberg::fq12::one());
+    return (result == bb::fq12::one());
 }
 
 template class VerifierBase<standard_verifier_settings>;

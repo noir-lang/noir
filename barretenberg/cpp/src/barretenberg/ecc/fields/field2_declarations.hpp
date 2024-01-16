@@ -7,7 +7,7 @@ namespace numeric::random {
 class Engine;
 }
 
-namespace barretenberg {
+namespace bb {
 template <class base_field, class Params> struct alignas(32) field2 {
   public:
     constexpr field2(const base_field& a = base_field::zero(), const base_field& b = base_field::zero())
@@ -150,4 +150,4 @@ template <typename B, typename base_field, typename Params> void write(B& buf, f
     write(buf, value.c0);
     write(buf, value.c1);
 }
-} // namespace barretenberg
+} // namespace bb

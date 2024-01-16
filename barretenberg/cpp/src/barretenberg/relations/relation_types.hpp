@@ -4,7 +4,7 @@
 #include <algorithm>
 
 template <typename T>
-concept IsField = std::same_as<T, barretenberg::fr> /* || std::same_as<T, grumpkin::fr> */;
+concept IsField = std::same_as<T, bb::fr> /* || std::same_as<T, grumpkin::fr> */;
 
 namespace proof_system {
 

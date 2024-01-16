@@ -22,7 +22,7 @@ template <typename Fr> void PolynomialStore<Fr>::put(std::string const& key, Pol
  * @param key string ID of the polynomial
  * @return Polynomial&; a reference to the polynomial associated with the given key
  */
-template <typename Fr> barretenberg::Polynomial<Fr> PolynomialStore<Fr>::get(std::string const& key)
+template <typename Fr> bb::Polynomial<Fr> PolynomialStore<Fr>::get(std::string const& key)
 {
     // info("poly store get: ", key);
     // Take a shallow copy of the polynomial. Compiler will move the shallow copy to call site.
@@ -71,6 +71,6 @@ template <typename Fr> void PolynomialStore<Fr>::print()
     info();
 }
 
-template class PolynomialStore<barretenberg::fr>;
+template class PolynomialStore<bb::fr>;
 
 } // namespace proof_system

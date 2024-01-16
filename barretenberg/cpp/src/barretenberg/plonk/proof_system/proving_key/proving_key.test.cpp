@@ -11,7 +11,7 @@
 #include <filesystem>
 #endif
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system;
 using namespace proof_system::plonk;
 
@@ -26,7 +26,7 @@ TEST(proving_key, proving_key_from_serialized_key)
     plonk::proving_key& p_key = *composer.compute_proving_key(builder);
     auto pk_buf = to_buffer(p_key);
     auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
-    auto crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
+    auto crs = std::make_unique<bb::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto proving_key =
         std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
 
@@ -63,7 +63,7 @@ TEST(proving_key, proving_key_from_serialized_key_ultra)
     plonk::proving_key& p_key = *composer.compute_proving_key(builder);
     auto pk_buf = to_buffer(p_key);
     auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
-    auto crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
+    auto crs = std::make_unique<bb::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto proving_key =
         std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
 
@@ -141,8 +141,8 @@ StandardComposer(); fr a = fr::one(); builder.add_public_variable(a);
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];
-        barretenberg::polynomial& input_poly = p_key.polynomial_store.get(poly_id);
-        barretenberg::polynomial& output_poly = pk_data.polynomial_store.get(poly_id);
+        bb::polynomial& input_poly = p_key.polynomial_store.get(poly_id);
+        bb::polynomial& output_poly = pk_data.polynomial_store.get(poly_id);
         all_polys_are_equal = all_polys_are_equal && (input_poly == output_poly);
     }
 

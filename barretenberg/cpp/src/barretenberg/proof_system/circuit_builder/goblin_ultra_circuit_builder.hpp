@@ -5,7 +5,7 @@
 
 namespace proof_system {
 
-using namespace barretenberg;
+using namespace bb;
 
 template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBuilder_<arithmetization::UltraHonk<FF>> {
   public:
@@ -194,5 +194,5 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
 
     bool check_circuit();
 };
-using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<barretenberg::fr>;
+using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<bb::fr>;
 } // namespace proof_system

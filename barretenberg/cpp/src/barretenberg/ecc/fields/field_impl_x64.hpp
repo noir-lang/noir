@@ -3,7 +3,7 @@
 #if (BBERG_NO_ASM == 0)
 #include "./field_impl.hpp"
 #include "asm_macros.hpp"
-namespace barretenberg {
+namespace bb {
 
 template <class T> field<T> field<T>::asm_mul_with_coarse_reduction(const field& a, const field& b) noexcept
 {
@@ -363,5 +363,5 @@ template <class T> void field<T>::asm_self_reduce_once(const field& a) noexcept
               [not_modulus_3] "m"(not_modulus_3)
             : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
-} // namespace barretenberg
+} // namespace bb
 #endif

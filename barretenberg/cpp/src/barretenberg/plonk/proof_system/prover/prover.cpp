@@ -7,7 +7,7 @@
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include <chrono>
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system::plonk {
 
@@ -303,8 +303,8 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
         }
 
         // compute poly w_4 from w_4_lagrange and add it to the cache
-        barretenberg::polynomial w_4(key->circuit_size);
-        barretenberg::polynomial_arithmetic::copy_polynomial(&w_4_lagrange[0], &w_4[0], circuit_size, circuit_size);
+        bb::polynomial w_4(key->circuit_size);
+        bb::polynomial_arithmetic::copy_polynomial(&w_4_lagrange[0], &w_4[0], circuit_size, circuit_size);
         w_4.ifft(key->small_domain);
         key->polynomial_store.put(wire_tag, std::move(w_4));
         key->polynomial_store.put(wire_tag + "_lagrange", std::move(w_4_lagrange));
@@ -346,7 +346,7 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
             .work_type = work_queue::WorkType::FFT,
             .mul_scalars = nullptr,
             .tag = wire_tag,
-            .constant = barretenberg::fr(0),
+            .constant = bb::fr(0),
             .index = 0,
         });
     }
@@ -382,7 +382,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     quotient_poly_parts.push_back(&key->quotient_polynomial_parts[1][0]);
     quotient_poly_parts.push_back(&key->quotient_polynomial_parts[2][0]);
     quotient_poly_parts.push_back(&key->quotient_polynomial_parts[3][0]);
-    barretenberg::polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(
+    bb::polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(
         quotient_poly_parts, key->small_domain, key->large_domain);
 
     polynomial_arithmetic::coset_ifft(quotient_poly_parts, key->large_domain);

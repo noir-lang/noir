@@ -60,13 +60,13 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
         std::vector<std::vector<bool_t<C>>> small_naf_entries;
 
         const auto split_into_endomorphism_scalars = [ctx](const Fr& scalar) {
-            barretenberg::fr k = scalar.get_value();
-            barretenberg::fr k1(0);
-            barretenberg::fr k2(0);
-            barretenberg::fr::split_into_endomorphism_scalars(k.from_montgomery_form(), k1, k2);
+            bb::fr k = scalar.get_value();
+            bb::fr k1(0);
+            bb::fr k2(0);
+            bb::fr::split_into_endomorphism_scalars(k.from_montgomery_form(), k1, k2);
             Fr scalar_k1 = Fr::from_witness(ctx, k1.to_montgomery_form());
             Fr scalar_k2 = Fr::from_witness(ctx, k2.to_montgomery_form());
-            barretenberg::fr beta = barretenberg::fr::cube_root_of_unity();
+            bb::fr beta = bb::fr::cube_root_of_unity();
             scalar.assert_equal(scalar_k1 - scalar_k2 * beta);
             return std::make_pair<Fr, Fr>((Fr)scalar_k1, (Fr)scalar_k2);
         };
@@ -166,8 +166,8 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
             accumulator = element(out_x, out_y);
         }
 
-        uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
-        Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
+        uint256_t beta_val = bb::field<typename Fq::TParams>::cube_root_of_unity();
+        Fq beta(bb::fr(beta_val.slice(0, 136)), bb::fr(beta_val.slice(136, 256)), false);
 
         for (size_t i = 0; i < NUM_BIG_POINTS; ++i) {
             element skew_point = big_points[i];
@@ -205,7 +205,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
 }
 
 /**
- * A batch multiplication method for the BN254 curve. This method is only available if Fr == field_t<barretenberg::fr>
+ * A batch multiplication method for the BN254 curve. This method is only available if Fr == field_t<bb::fr>
  *
  * big_points : group elements we will multiply by full 254-bit scalar multipliers
  * big_scalars : 254-bit scalar multipliers. We want to compute (\sum big_scalars[i] * big_points[i])
@@ -251,18 +251,18 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vec
      * This ensures ALL our scalar multipliers can now be treated as 128-bit scalars,
      * which halves the number of iterations of our main "double and add" loop!
      */
-    barretenberg::fr lambda = barretenberg::fr::cube_root_of_unity();
-    barretenberg::fq beta = barretenberg::fq::cube_root_of_unity();
+    bb::fr lambda = bb::fr::cube_root_of_unity();
+    bb::fq beta = bb::fq::cube_root_of_unity();
     for (size_t i = 0; i < num_big_points; ++i) {
         Fr scalar = big_scalars[i];
         // Q: is it a problem if wraps? get_value is 512 bits
-        // A: it can't wrap, this method only compiles if the Fr type is a field_t<barretenberg::fr> type
+        // A: it can't wrap, this method only compiles if the Fr type is a field_t<bb::fr> type
 
         // Split k into short scalars (scalar_k1, scalar_k2) using bn254 endomorphism.
-        barretenberg::fr k = uint256_t(scalar.get_value());
-        barretenberg::fr k1(0);
-        barretenberg::fr k2(0);
-        barretenberg::fr::split_into_endomorphism_scalars(k.from_montgomery_form(), k1, k2);
+        bb::fr k = uint256_t(scalar.get_value());
+        bb::fr k1(0);
+        bb::fr k2(0);
+        bb::fr::split_into_endomorphism_scalars(k.from_montgomery_form(), k1, k2);
         Fr scalar_k1 = Fr::from_witness(ctx, k1.to_montgomery_form());
         Fr scalar_k2 = Fr::from_witness(ctx, k2.to_montgomery_form());
 

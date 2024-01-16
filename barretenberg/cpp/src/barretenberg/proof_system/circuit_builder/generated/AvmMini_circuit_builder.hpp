@@ -15,7 +15,7 @@
 #include "barretenberg/relations/generated/AvmMini/avm_mini.hpp"
 #include "barretenberg/relations/generated/AvmMini/mem_trace.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system {
 

@@ -3,7 +3,7 @@
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
 
-namespace barretenberg::group_elements {
+namespace bb::group_elements {
 template <class Fq, class Fr, class T>
 constexpr affine_element<Fq, Fr, T>::affine_element(const Fq& a, const Fq& b) noexcept
     : x(a)
@@ -287,4 +287,4 @@ affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::random_element(numeric::ran
     return affine_element<Fq, Fr, T>(x, y);
 }
 
-} // namespace barretenberg::group_elements
+} // namespace bb::group_elements

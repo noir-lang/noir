@@ -10,7 +10,7 @@ using namespace proof_system::honk;
 
 class GoblinUltraTranscriptTests : public ::testing::Test {
   public:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 
     using Flavor = proof_system::honk::flavor::GoblinUltra;
     using FF = Flavor::FF;

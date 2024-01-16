@@ -17,8 +17,8 @@ template <typename FF_> class EllipticRelationImpl {
     // TODO(@zac-williamson #2609 find more generic way of doing this)
     static constexpr FF get_curve_b()
     {
-        if constexpr (FF::modulus == barretenberg::fq::modulus) {
-            return barretenberg::g1::curve_b;
+        if constexpr (FF::modulus == bb::fq::modulus) {
+            return bb::g1::curve_b;
         } else if constexpr (FF::modulus == grumpkin::fq::modulus) {
             return grumpkin::g1::curve_b;
         } else {

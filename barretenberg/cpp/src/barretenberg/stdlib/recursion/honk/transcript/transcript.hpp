@@ -17,7 +17,7 @@ namespace proof_system::plonk::stdlib::recursion::honk {
 template <typename Builder> class Transcript {
   public:
     using field_ct = field_t<Builder>;
-    using FF = barretenberg::fr;
+    using FF = bb::fr;
     using BaseTranscript = proof_system::honk::BaseTranscript;
     using StdlibTypes = utility::StdlibTypesUtility<Builder>;
 

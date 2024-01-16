@@ -5,16 +5,16 @@ namespace proof_system::test_flavor {
 TEST(ECCOpQueueTest, Basic)
 {
     ECCOpQueue op_queue;
-    op_queue.add_accumulate(barretenberg::g1::affine_one);
-    EXPECT_EQ(op_queue.raw_ops[0].base_point, barretenberg::g1::affine_one);
+    op_queue.add_accumulate(bb::g1::affine_one);
+    EXPECT_EQ(op_queue.raw_ops[0].base_point, bb::g1::affine_one);
     op_queue.empty_row();
     EXPECT_EQ(op_queue.raw_ops[1].add, false);
 }
 
 TEST(ECCOpQueueTest, InternalAccumulatorCorrectness)
 {
-    using point = barretenberg::g1::affine_element;
-    using scalar = barretenberg::fr;
+    using point = bb::g1::affine_element;
+    using scalar = bb::fr;
 
     // Compute a simple point accumulation natively
     auto P1 = point::random_element();

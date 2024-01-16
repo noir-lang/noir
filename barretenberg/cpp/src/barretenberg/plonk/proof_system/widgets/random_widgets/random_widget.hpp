@@ -15,8 +15,8 @@ class ReferenceString;
 
 class ProverRandomWidget {
   protected:
-    typedef barretenberg::fr fr;
-    typedef barretenberg::polynomial polynomial;
+    typedef bb::fr fr;
+    typedef bb::polynomial polynomial;
 
   public:
     ProverRandomWidget(proving_key* input_key)
@@ -45,8 +45,8 @@ class ProverRandomWidget {
 
     virtual void compute_round_commitments(transcript::StandardTranscript&, const size_t, work_queue&){};
 
-    virtual barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                           const transcript::StandardTranscript& transcript) = 0;
+    virtual bb::fr compute_quotient_contribution(const bb::fr& alpha_base,
+                                                 const transcript::StandardTranscript& transcript) = 0;
 
     proving_key* key;
 };

@@ -146,8 +146,8 @@ void GoblinTranslatorAccumulatorTransferRelationImpl<FF>::accumulate(ContainerOv
     std::get<11>(accumulators) += tmp_12;
 };
 
-template class GoblinTranslatorOpcodeConstraintRelationImpl<barretenberg::fr>;
-template class GoblinTranslatorAccumulatorTransferRelationImpl<barretenberg::fr>;
+template class GoblinTranslatorOpcodeConstraintRelationImpl<bb::fr>;
+template class GoblinTranslatorAccumulatorTransferRelationImpl<bb::fr>;
 
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorOpcodeConstraintRelationImpl, honk::flavor::GoblinTranslator);
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorAccumulatorTransferRelationImpl, honk::flavor::GoblinTranslator);

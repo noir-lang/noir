@@ -6,7 +6,7 @@
 #include "rom_table.hpp"
 
 namespace test_stdlib_rom_array {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 // Defining ultra-specific types for local testing.
@@ -26,13 +26,13 @@ TEST(rom_table, rom_table_read_write_consistency)
     std::vector<field_ct> table_values;
     const size_t table_size = 10;
     for (size_t i = 0; i < table_size; ++i) {
-        table_values.emplace_back(witness_ct(&builder, barretenberg::fr::random_element()));
+        table_values.emplace_back(witness_ct(&builder, bb::fr::random_element()));
     }
 
     rom_table_ct table(table_values);
 
     field_ct result(0);
-    barretenberg::fr expected(0);
+    bb::fr expected(0);
 
     for (size_t i = 0; i < 10; ++i) {
         field_ct index(witness_ct(&builder, (uint64_t)i));

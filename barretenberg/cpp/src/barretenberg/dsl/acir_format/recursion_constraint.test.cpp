@@ -10,7 +10,7 @@ using namespace proof_system::plonk;
 
 class AcirRecursionConstraint : public ::testing::Test {
   protected:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 namespace acir_format::test {
 Builder create_inner_circuit()
@@ -143,10 +143,10 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                                   transcript::HashType::PedersenBlake3s,
                                                   16);
 
-        std::vector<barretenberg::fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
+        std::vector<bb::fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
         // - Save the public inputs so that we can set their values.
         // - Then truncate them from the proof because the ACIR API expects proofs without public inputs
-        std::vector<barretenberg::fr> inner_public_input_values(
+        std::vector<bb::fr> inner_public_input_values(
             proof_witnesses.begin(), proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
 
         // We want to make sure that we do not remove the nested aggregation object in the case of the proof we want to
@@ -157,7 +157,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                   proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
         }
 
-        const std::vector<barretenberg::fr> key_witnesses = export_key_in_recursion_format(inner_verifier.key);
+        const std::vector<bb::fr> key_witnesses = export_key_in_recursion_format(inner_verifier.key);
 
         const uint32_t key_hash_start_idx = static_cast<uint32_t>(witness_offset);
         const uint32_t public_input_start_idx = key_hash_start_idx + 1;

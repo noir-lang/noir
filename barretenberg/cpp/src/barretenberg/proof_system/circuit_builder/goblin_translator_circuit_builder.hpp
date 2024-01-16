@@ -73,10 +73,10 @@ namespace proof_system {
  * microlimb.
  *
  */
-class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::fr> {
+class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     // We don't need templating for Goblin
-    using Fr = barretenberg::fr;
-    using Fq = barretenberg::fq;
+    using Fr = bb::fr;
+    using Fq = bb::fq;
     using Arithmetization = arithmetization::GoblinTranslator;
 
   public:
@@ -326,7 +326,7 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::f
     // The input we evaluate polynomials on
     Fq evaluation_input_x;
 
-    std::array<std::vector<uint32_t, barretenberg::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
+    std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
 
     /**
      * @brief Construct a new Goblin Translator Circuit Builder object
@@ -432,9 +432,9 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<barretenberg::f
     /**
      * @brief Get the result of accumulation
      *
-     * @return barretenberg::fq
+     * @return bb::fq
      */
-    barretenberg::fq get_computation_result()
+    bb::fq get_computation_result()
     {
         const size_t RESULT_ROW = 1;
         ASSERT(num_gates > RESULT_ROW);

@@ -69,11 +69,10 @@ int main(int argc, char** argv)
         }
     }
 
-    barretenberg::srs::Manifest manifest{
-        0, 1, static_cast<uint32_t>(subgroup_size), 0, static_cast<uint32_t>(subgroup_size), 0, 0
-    };
+    bb::srs::Manifest manifest{ 0, 1, static_cast<uint32_t>(subgroup_size), 0, static_cast<uint32_t>(subgroup_size),
+                                0, 0 };
 
-    barretenberg::srs::IO<curve::Grumpkin>::write_transcript(&srs[0], manifest, srs_path);
+    bb::srs::IO<curve::Grumpkin>::write_transcript(&srs[0], manifest, srs_path);
 
     return 0;
 }

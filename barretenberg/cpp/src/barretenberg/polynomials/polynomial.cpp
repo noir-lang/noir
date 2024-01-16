@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace barretenberg {
+namespace bb {
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
 template <typename Fr> std::shared_ptr<Fr[]> _allocate_aligned_memory(const size_t n_elements)
@@ -521,7 +521,7 @@ template <typename Fr> Polynomial<Fr> Polynomial<Fr>::partial_evaluate_mle(std::
     return result;
 }
 
-template class Polynomial<barretenberg::fr>;
+template class Polynomial<bb::fr>;
 template class Polynomial<grumpkin::fr>;
 
-} // namespace barretenberg
+} // namespace bb

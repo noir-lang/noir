@@ -59,8 +59,8 @@ field_t<Builder> logic<Builder>::create_logic_constraint(
         auto left((uint256_t)a.get_value());
         auto right((uint256_t)b.get_value());
 
-        field_pt a_accumulator(barretenberg::fr::zero());
-        field_pt b_accumulator(barretenberg::fr::zero());
+        field_pt a_accumulator(bb::fr::zero());
+        field_pt b_accumulator(bb::fr::zero());
 
         field_pt res(ctx, 0);
         for (size_t i = 0; i < num_chunks; ++i) {

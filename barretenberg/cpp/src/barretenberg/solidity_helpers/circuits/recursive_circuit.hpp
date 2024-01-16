@@ -32,7 +32,7 @@ template <typename OuterBuilder> class RecursiveCircuit {
 
     using inner_scalar_field = typename inner_curve::ScalarFieldNative;
     using outer_scalar_field = typename outer_curve::BaseFieldNative;
-    using pairing_target_field = barretenberg::fq12;
+    using pairing_target_field = bb::fq12;
     static constexpr bool is_ultra_to_ultra = std::is_same_v<OuterBuilder, proof_system::UltraCircuitBuilder>;
     using ProverOfInnerCircuit =
         std::conditional_t<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>;
@@ -101,8 +101,7 @@ template <typename OuterBuilder> class RecursiveCircuit {
         return { output, verification_key };
     };
 
-    static bool check_recursive_proof_public_inputs(OuterBuilder& builder,
-                                                    const barretenberg::pairing::miller_lines* lines)
+    static bool check_recursive_proof_public_inputs(OuterBuilder& builder, const bb::pairing::miller_lines* lines)
     {
         if (builder.contains_recursive_proof && builder.recursive_proof_public_input_indices.size() == 16) {
             const auto& inputs = builder.public_inputs;
@@ -140,8 +139,7 @@ template <typename OuterBuilder> class RecursiveCircuit {
                 { x1, y1 },
             };
 
-            pairing_target_field result =
-                barretenberg::pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
+            pairing_target_field result = bb::pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
 
             return (result == pairing_target_field::one());
         }
@@ -152,14 +150,13 @@ template <typename OuterBuilder> class RecursiveCircuit {
     }
     static void check_pairing(const circuit_outputs& circuit_output)
     {
-        auto g2_lines = barretenberg::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
+        auto g2_lines = bb::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         g1::affine_element P[2];
         P[0].x = outer_scalar_field(circuit_output.aggregation_state.P0.x.get_value().lo);
         P[0].y = outer_scalar_field(circuit_output.aggregation_state.P0.y.get_value().lo);
         P[1].x = outer_scalar_field(circuit_output.aggregation_state.P1.x.get_value().lo);
         P[1].y = outer_scalar_field(circuit_output.aggregation_state.P1.y.get_value().lo);
-        pairing_target_field inner_proof_result =
-            barretenberg::pairing::reduced_ate_pairing_batch_precomputed(P, g2_lines, 2);
+        pairing_target_field inner_proof_result = bb::pairing::reduced_ate_pairing_batch_precomputed(P, g2_lines, 2);
         if (inner_proof_result != pairing_target_field::one()) {
             throw_or_abort("inner proof result != 1");
         }

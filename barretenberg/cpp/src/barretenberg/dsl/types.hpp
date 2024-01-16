@@ -26,7 +26,7 @@
 namespace acir_format {
 
 using Builder = proof_system::UltraCircuitBuilder;
-using GoblinBuilder = barretenberg::Goblin::Builder;
+using GoblinBuilder = bb::Goblin::Builder;
 using Composer = plonk::UltraComposer;
 
 using Prover =
@@ -49,8 +49,8 @@ using uint16_ct = proof_system::plonk::stdlib::uint16<Builder>;
 using uint32_ct = proof_system::plonk::stdlib::uint32<Builder>;
 using uint64_ct = proof_system::plonk::stdlib::uint64<Builder>;
 using bit_array_ct = proof_system::plonk::stdlib::bit_array<Builder>;
-using fq_ct = proof_system::plonk::stdlib::bigfield<Builder, barretenberg::Bn254FqParams>;
-using biggroup_ct = proof_system::plonk::stdlib::element<Builder, fq_ct, field_ct, barretenberg::g1>;
+using fq_ct = proof_system::plonk::stdlib::bigfield<Builder, bb::Bn254FqParams>;
+using biggroup_ct = proof_system::plonk::stdlib::element<Builder, fq_ct, field_ct, bb::g1>;
 using cycle_group_ct = proof_system::plonk::stdlib::cycle_group<Builder>;
 using cycle_scalar_ct = proof_system::plonk::stdlib::cycle_group<Builder>::cycle_scalar;
 using pedersen_commitment = proof_system::plonk::stdlib::pedersen_commitment<Builder>;

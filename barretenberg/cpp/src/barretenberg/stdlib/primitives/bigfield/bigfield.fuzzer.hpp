@@ -125,7 +125,7 @@ template <typename Builder> class BigFieldBase {
     typedef proof_system::plonk::stdlib::field_t<Builder> field_t;
     typedef proof_system::plonk::stdlib::witness_t<Builder> witness_t;
     typedef proof_system::plonk::stdlib::public_witness_t<Builder> public_witness_t;
-    typedef proof_system::plonk::stdlib::bigfield<Builder, barretenberg::Bn254FqParams> bigfield_t;
+    typedef proof_system::plonk::stdlib::bigfield<Builder, bb::Bn254FqParams> bigfield_t;
 
   public:
     /**

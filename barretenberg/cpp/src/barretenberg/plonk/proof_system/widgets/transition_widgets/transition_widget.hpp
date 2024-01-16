@@ -116,7 +116,7 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
                 ASSERT(index < transcript.get_num_challenges(label));
                 result.elements[tag] = transcript.get_challenge_field_element(label, index);
             } else {
-                result.elements[tag] = barretenberg::fr::random_element();
+                result.elements[tag] = bb::fr::random_element();
             }
         };
         add_challenge("alpha", ALPHA, required_challenges & CHALLENGE_BIT_ALPHA);

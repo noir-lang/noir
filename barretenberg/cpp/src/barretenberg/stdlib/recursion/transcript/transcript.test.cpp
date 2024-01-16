@@ -15,8 +15,8 @@ using bool_t = stdlib::bool_t<Builder>;
 using uint32 = stdlib::uint<Builder, uint32_t>;
 using witness_t = stdlib::witness_t<Builder>;
 using byte_array = stdlib::byte_array<Builder>;
-using fq_t = stdlib::bigfield<Builder, barretenberg::Bn254FqParams>;
-using group_t = stdlib::element<Builder, fq_t, field_t, barretenberg::g1>;
+using fq_t = stdlib::bigfield<Builder, bb::Bn254FqParams>;
+using group_t = stdlib::element<Builder, fq_t, field_t, bb::g1>;
 using transcript_ct = Transcript<Builder>;
 
 namespace {
@@ -56,9 +56,9 @@ transcript::Manifest create_manifest(const size_t num_public_inputs)
 } // namespace
 
 struct TestData {
-    std::vector<barretenberg::g1::affine_element> g1_elements;
-    std::vector<barretenberg::fr> fr_elements;
-    std::vector<barretenberg::fr> public_input_elements;
+    std::vector<bb::g1::affine_element> g1_elements;
+    std::vector<bb::fr> fr_elements;
+    std::vector<bb::fr> public_input_elements;
     size_t num_public_inputs;
 };
 
@@ -66,14 +66,14 @@ TestData get_test_data()
 {
     TestData data;
     for (size_t i = 0; i < 32; ++i) {
-        data.g1_elements.push_back(barretenberg::g1::affine_element(barretenberg::g1::element::random_element()));
-        data.fr_elements.push_back(barretenberg::fr::random_element());
+        data.g1_elements.push_back(bb::g1::affine_element(bb::g1::element::random_element()));
+        data.fr_elements.push_back(bb::fr::random_element());
     }
-    data.fr_elements[2] = barretenberg::fr(0);
-    data.fr_elements[3] = barretenberg::fr(0);
+    data.fr_elements[2] = bb::fr(0);
+    data.fr_elements[3] = bb::fr(0);
     data.num_public_inputs = 13;
     for (size_t i = 0; i < data.num_public_inputs; ++i) {
-        data.public_input_elements.push_back(barretenberg::fr::random_element());
+        data.public_input_elements.push_back(bb::fr::random_element());
     }
     return data;
 }
@@ -132,8 +132,8 @@ transcript_ct get_circuit_transcript(Builder* context, const TestData& data)
 {
     transcript_ct transcript(context, create_manifest(data.num_public_inputs));
     uint256_t circuit_size_value = uint256_t(4) + (uint256_t(3) << 8) + (uint256_t(2) << 16) + (uint256_t(1) << 24);
-    field_t circuit_size(stdlib::witness_t(context, barretenberg::fr(circuit_size_value)));
-    field_t public_input_size(stdlib::witness_t(context, barretenberg::fr(data.num_public_inputs)));
+    field_t circuit_size(stdlib::witness_t(context, bb::fr(circuit_size_value)));
+    field_t public_input_size(stdlib::witness_t(context, bb::fr(data.num_public_inputs)));
 
     transcript.add_field_element("circuit_size", circuit_size);
     transcript.add_field_element("public_input_size", public_input_size);
@@ -191,8 +191,8 @@ TEST(stdlib_transcript, validate_transcript)
     const auto check_challenge = [&normal_transcript, &recursive_transcript](const std::string& challenge_name,
                                                                              const size_t challenge_idx = 0) {
         field_t result = recursive_transcript.get_challenge_field_element(challenge_name, challenge_idx);
-        barretenberg::fr expected =
-            barretenberg::fr::serialize_from_buffer(&normal_transcript.get_challenge(challenge_name, challenge_idx)[0]);
+        bb::fr expected =
+            bb::fr::serialize_from_buffer(&normal_transcript.get_challenge(challenge_name, challenge_idx)[0]);
         EXPECT_EQ(result.get_value(), expected);
     };
 
@@ -204,27 +204,26 @@ TEST(stdlib_transcript, validate_transcript)
             expected_u256 *= uint256_t(256);
             expected_u256 += uint256_t(expected_raw[i]);
         }
-        EXPECT_EQ(result.get_value(), barretenberg::fr(expected_u256));
+        EXPECT_EQ(result.get_value(), bb::fr(expected_u256));
     };
 
     const auto check_field_element = [&normal_transcript, &recursive_transcript](const std::string& element_name) {
         field_t result = recursive_transcript.get_field_element(element_name);
-        barretenberg::fr expected =
-            barretenberg::fr::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
+        bb::fr expected = bb::fr::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
         EXPECT_EQ(result.get_value(), expected);
     };
 
     const auto check_group_element = [&normal_transcript, &recursive_transcript](const std::string& element_name) {
         group_t recursive_value = recursive_transcript.get_circuit_group_element(element_name);
-        barretenberg::g1::affine_element expected =
-            barretenberg::g1::affine_element::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
-        barretenberg::g1::affine_element result{ recursive_value.x.get_value().lo, recursive_value.y.get_value().lo };
+        bb::g1::affine_element expected =
+            bb::g1::affine_element::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
+        bb::g1::affine_element result{ recursive_value.x.get_value().lo, recursive_value.y.get_value().lo };
         EXPECT_EQ(result, expected);
     };
 
     const auto check_public_inputs = [&normal_transcript, &recursive_transcript]() {
         std::vector<field_t> result = recursive_transcript.get_field_element_vector("public_inputs");
-        std::vector<barretenberg::fr> expected = many_from_buffer<fr>(normal_transcript.get_element("public_inputs"));
+        std::vector<bb::fr> expected = many_from_buffer<fr>(normal_transcript.get_element("public_inputs"));
         EXPECT_EQ(result.size(), expected.size());
         for (size_t i = 0; i < result.size(); ++i) {
             EXPECT_EQ(result[i].get_value(), expected[i]);

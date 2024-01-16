@@ -4,7 +4,7 @@
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 TEST(io, read_transcript_loads_well_formed_srs)
 {

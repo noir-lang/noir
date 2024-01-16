@@ -6,7 +6,7 @@
 #include <sstream>
 #include <vector>
 
-namespace barretenberg::detail {
+namespace bb::detail {
 std::vector<std::string> split(const std::string& str, char delimiter)
 {
     std::vector<std::string> result;
@@ -46,4 +46,4 @@ std::vector<std::string> split_and_trim(const std::string& str, char delimiter)
     }
     return ret;
 }
-} // namespace barretenberg::detail
+} // namespace bb::detail

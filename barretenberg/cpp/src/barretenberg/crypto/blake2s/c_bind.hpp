@@ -5,7 +5,7 @@
 
 extern "C" {
 
-using namespace barretenberg;
+using namespace bb;
 
 WASM_EXPORT void blake2s(uint8_t const* data, out_buf32 r);
 

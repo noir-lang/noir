@@ -14,7 +14,7 @@ class ComposerLibTests : public ::testing::Test {
     using FF = typename Flavor::FF;
     Flavor::CircuitBuilder circuit_constructor;
     Flavor::ProvingKey proving_key = []() {
-        auto crs_factory = barretenberg::srs::factories::CrsFactory<curve::BN254>();
+        auto crs_factory = bb::srs::factories::CrsFactory<curve::BN254>();
         auto crs = crs_factory.get_prover_crs(4);
         return Flavor::ProvingKey(/*circuit_size=*/8, /*num_public_inputs=*/0);
     }();

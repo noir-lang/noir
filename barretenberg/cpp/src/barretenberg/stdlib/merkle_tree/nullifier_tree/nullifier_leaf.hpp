@@ -6,7 +6,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-using namespace barretenberg;
+using namespace bb;
 typedef uint256_t index_t;
 
 struct nullifier_leaf {
@@ -24,7 +24,7 @@ struct nullifier_leaf {
         return os;
     }
 
-    barretenberg::fr hash() const { return stdlib::merkle_tree::hash_native({ value, nextIndex, nextValue }); }
+    bb::fr hash() const { return stdlib::merkle_tree::hash_native({ value, nextIndex, nextValue }); }
 };
 
 /**
@@ -70,9 +70,9 @@ class WrappedNullifierLeaf {
     /**
      * @brief Return the hash of the wrapped object, other return the zero hash of 0
      *
-     * @return barretenberg::fr
+     * @return bb::fr
      */
-    barretenberg::fr hash() const { return data.has_value() ? data.value().hash() : barretenberg::fr::zero(); }
+    bb::fr hash() const { return data.has_value() ? data.value().hash() : bb::fr::zero(); }
 
     /**
      * @brief Generate a zero leaf (call the constructor with no arguments)

@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/numeric/random/engine.hpp"
 
-namespace barretenberg {
+namespace bb {
 template <typename quadratic_field, typename base_field, typename Fq12Params> class field12 {
   public:
     constexpr field12(const base_field& a = base_field::zero(), const base_field& b = base_field::zero())
@@ -266,4 +266,4 @@ template <typename quadratic_field, typename base_field, typename Fq12Params> cl
 
     constexpr bool operator==(const field12& other) const { return c0 == other.c0 && c1 == other.c1; }
 };
-} // namespace barretenberg
+} // namespace bb

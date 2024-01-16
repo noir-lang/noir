@@ -4,7 +4,7 @@
 #include "./fq.hpp"
 #include "./fr.hpp"
 
-namespace barretenberg {
+namespace bb {
 struct Bn254G1Params {
     static constexpr bool USE_ENDOMORPHISM = true;
     static constexpr bool can_hash_to_curve = true;
@@ -18,11 +18,11 @@ struct Bn254G1Params {
 
 using g1 = group<fq, fr, Bn254G1Params>;
 
-} // namespace barretenberg
+} // namespace bb
 
 // specialize the name in msgpack schema generation
 // consumed by the typescript schema compiler, helps disambiguate templates
-inline std::string msgpack_schema_name(barretenberg::g1::affine_element const& /*unused*/)
+inline std::string msgpack_schema_name(bb::g1::affine_element const& /*unused*/)
 {
     return "G1AffineElement";
 }

@@ -59,7 +59,7 @@ void GoblinTranslatorPermutationRelationImpl<FF>::accumulate(ContainerOverSubrel
     }();
 };
 
-template class GoblinTranslatorPermutationRelationImpl<barretenberg::fr>;
+template class GoblinTranslatorPermutationRelationImpl<bb::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorPermutationRelationImpl, honk::flavor::GoblinTranslator);
 
 } // namespace proof_system

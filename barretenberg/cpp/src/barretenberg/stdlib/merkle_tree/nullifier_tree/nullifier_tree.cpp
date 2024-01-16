@@ -13,7 +13,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-using namespace barretenberg;
+using namespace bb;
 
 template <typename T> inline bool bit_set(T const& index, size_t i)
 {

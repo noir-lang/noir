@@ -186,7 +186,7 @@ template <typename Builder> bool_t<Builder> safe_uint_t<Builder>::is_zero() cons
     return value.is_zero();
 }
 
-template <typename Builder> barretenberg::fr safe_uint_t<Builder>::get_value() const
+template <typename Builder> bb::fr safe_uint_t<Builder>::get_value() const
 {
     return value.get_value();
 }

@@ -3,7 +3,7 @@
 
 #include "./multisig.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 template <typename Hash> struct MultisigTest : public ::testing::Test {
     using G = grumpkin::g1;

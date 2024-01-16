@@ -10,9 +10,9 @@
 namespace proof_system::honk {
 
 template <typename T, typename... U>
-concept Loggable = (std::same_as<T, barretenberg::fr> || std::same_as<T, grumpkin::fr> ||
-                    std::same_as<T, barretenberg::g1::affine_element> ||
-                    std::same_as<T, grumpkin::g1::affine_element> || std::same_as<T, uint32_t>);
+concept Loggable = (std::same_as<T, bb::fr> || std::same_as<T, grumpkin::fr> ||
+                    std::same_as<T, bb::g1::affine_element> || std::same_as<T, grumpkin::g1::affine_element> ||
+                    std::same_as<T, uint32_t>);
 
 // class TranscriptManifest;
 class TranscriptManifest {

@@ -9,7 +9,7 @@
 #include "barretenberg/translator_vm/goblin_translator_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
-namespace barretenberg {
+namespace bb {
 
 class Goblin {
     using HonkProof = proof_system::plonk::proof;
@@ -272,4 +272,4 @@ class Goblin {
         return verified;
     }
 };
-} // namespace barretenberg
+} // namespace bb

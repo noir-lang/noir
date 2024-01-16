@@ -93,7 +93,7 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
  * @tparam Settings
  */
 template <typename Settings>
-using ProverArithmeticWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::ArithmeticKernel>;
+using ProverArithmeticWidget = widget::TransitionWidget<bb::fr, Settings, widget::ArithmeticKernel>;
 
 /**
  * @brief Standard plonk arithmetic widget for the verifier. Provides standard plonk gate transition

@@ -25,7 +25,7 @@
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;
-using namespace barretenberg;
+using namespace bb;
 namespace {
 using Curve = curve::BN254;
 using Fr = Curve::ScalarField;

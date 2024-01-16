@@ -5,7 +5,7 @@
 
 namespace join_split_example::proofs::notes::native::account {
 
-using fr = barretenberg::fr;
+using fr = bb::fr;
 
 inline fr compute_account_alias_hash_nullifier(fr const& alias_hash)
 {

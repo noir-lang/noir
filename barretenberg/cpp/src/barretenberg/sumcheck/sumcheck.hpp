@@ -88,7 +88,7 @@ template <typename Flavor> class SumcheckProver {
                                  const std::vector<FF>& gate_challenges)
     {
 
-        barretenberg::PowPolynomial<FF> pow_univariate(gate_challenges);
+        bb::PowPolynomial<FF> pow_univariate(gate_challenges);
         pow_univariate.compute_values();
 
         std::vector<FF> multivariate_challenge;
@@ -174,7 +174,7 @@ template <typename Flavor> class SumcheckProver {
 template <typename Flavor> class SumcheckVerifier {
 
   public:
-    using Utils = barretenberg::RelationUtils<Flavor>;
+    using Utils = bb::RelationUtils<Flavor>;
     using FF = typename Flavor::FF;
     using ClaimedEvaluations = typename Flavor::AllValues;
     using Transcript = typename Flavor::Transcript;
@@ -208,7 +208,7 @@ template <typename Flavor> class SumcheckVerifier {
     {
         bool verified(true);
 
-        barretenberg::PowPolynomial<FF> pow_univariate(gate_challenges);
+        bb::PowPolynomial<FF> pow_univariate(gate_challenges);
         // All but final round.
         // target_total_sum is initialized to zero then mutated in place.
 
@@ -223,7 +223,7 @@ template <typename Flavor> class SumcheckVerifier {
             // Obtain the round univariate from the transcript
             std::string round_univariate_label = "Sumcheck:univariate_" + std::to_string(round_idx);
             auto round_univariate =
-                transcript->template receive_from_prover<barretenberg::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
+                transcript->template receive_from_prover<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
                     round_univariate_label);
 
             bool checked = round.check_sum(round_univariate);

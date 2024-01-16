@@ -5,7 +5,7 @@
 
 extern "C" {
 
-using namespace barretenberg;
+using namespace bb;
 
 WASM_EXPORT void pedersen_hash(fr::vec_in_buf inputs_buffer, uint32_t const* hash_index, fr::out_buf output);
 

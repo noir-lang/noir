@@ -4,7 +4,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/ecc/groups/wnaf.hpp"
 
-namespace barretenberg::scalar_multiplication {
+namespace bb::scalar_multiplication {
 // simple helper functions to retrieve pointers to pre-allocated memory for the scalar multiplication algorithm.
 // This is to eliminate page faults when allocating (and writing) to large tranches of memory.
 constexpr size_t get_optimal_bucket_width(const size_t num_points)
@@ -114,4 +114,4 @@ template <typename Curve> struct pippenger_runtime_state {
     affine_product_runtime_state<Curve> get_affine_product_runtime_state(size_t num_threads, size_t thread_index);
 };
 
-} // namespace barretenberg::scalar_multiplication
+} // namespace bb::scalar_multiplication

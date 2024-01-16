@@ -91,13 +91,13 @@ field_t<Builder> keccak<Builder>::normalize_and_rotate(const field_ct& limb, fie
      * stdlib::plookup cannot derive witnesses in the above pattern without a substantial rewrite,
      * so we do it manually in this method!
      **/
-    plookup::ReadData<barretenberg::fr> lookup;
+    plookup::ReadData<bb::fr> lookup;
 
     // compute plookup witness values for a given slice
     // (same lambda can be used to compute witnesses for left and right slices)
     auto compute_lookup_witnesses_for_limb = [&]<size_t limb_bits, size_t num_lookups>(uint256_t& normalized) {
         // (use a constexpr loop to make some pow and div operations compile-time)
-        barretenberg::constexpr_for<0, num_lookups, 1>([&]<size_t i> {
+        bb::constexpr_for<0, num_lookups, 1>([&]<size_t i> {
             constexpr size_t num_bits_processed = i * max_bits_per_table;
 
             // How many bits can this slice contain?

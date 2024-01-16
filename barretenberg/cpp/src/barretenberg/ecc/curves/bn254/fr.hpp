@@ -8,7 +8,7 @@
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
 
-namespace barretenberg {
+namespace bb {
 class Bn254FrParams {
   public:
     // Note: limbs here are combined as concat(_3, _2, _1, _0)
@@ -70,6 +70,6 @@ class Bn254FrParams {
 
 using fr = field<Bn254FrParams>;
 
-} // namespace barretenberg
+} // namespace bb
 
 // NOLINTEND(cppcoreguidelines-avoid-c-arrays)

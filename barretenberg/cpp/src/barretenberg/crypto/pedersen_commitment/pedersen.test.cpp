@@ -5,7 +5,7 @@
 
 namespace crypto {
 
-using barretenberg::fr;
+using bb::fr;
 
 TEST(Pedersen, Commitment)
 {

@@ -53,10 +53,8 @@ namespace proof_system::honk::pcs::gemini {
  * @return std::vector<Polynomial>
  */
 template <typename Curve>
-std::vector<typename barretenberg::Polynomial<typename Curve::ScalarField>> GeminiProver_<
-    Curve>::compute_gemini_polynomials(std::span<const Fr> mle_opening_point,
-                                       Polynomial&& batched_unshifted,
-                                       Polynomial&& batched_to_be_shifted)
+std::vector<typename bb::Polynomial<typename Curve::ScalarField>> GeminiProver_<Curve>::compute_gemini_polynomials(
+    std::span<const Fr> mle_opening_point, Polynomial&& batched_unshifted, Polynomial&& batched_to_be_shifted)
 {
     const size_t num_variables = mle_opening_point.size(); // m
 

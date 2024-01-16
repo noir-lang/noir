@@ -20,7 +20,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 class DataBusComposerTests : public ::testing::Test {
   protected:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;

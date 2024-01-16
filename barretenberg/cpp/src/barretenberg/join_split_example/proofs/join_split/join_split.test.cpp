@@ -25,7 +25,7 @@ constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
 constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
 #endif
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 using namespace join_split_example::proofs::notes::native;
@@ -43,10 +43,9 @@ class join_split_tests : public ::testing::Test {
     static constexpr size_t ACCOUNT_INDEX = 14;
     static void SetUpTestCase()
     {
-        barretenberg::srs::init_crs_factory("../srs_db/ignition");
+        bb::srs::init_crs_factory("../srs_db/ignition");
         init_proving_key(false);
-        auto crs_factory =
-            std::make_unique<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
+        auto crs_factory = std::make_unique<bb::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
         init_verification_key();
         info("vk hash: ", get_verification_key()->sha256_hash());
     }
@@ -901,7 +900,7 @@ void assign_backward_link(join_split_tx& tx, size_t& indicator)
         tx.backward_link = tx.input_note[1].commit();
         break;
     default:
-        tx.backward_link = barretenberg::fr::random_element();
+        tx.backward_link = bb::fr::random_element();
     }
 }
 

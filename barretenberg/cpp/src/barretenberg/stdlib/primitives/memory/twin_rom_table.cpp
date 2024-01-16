@@ -2,7 +2,7 @@
 
 #include "../circuit_builders/circuit_builders.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system::plonk {
 namespace stdlib {

@@ -33,7 +33,7 @@ using HomogeneousTupleToArray = std::array<std::tuple_element_t<0, Tuple>, std::
 
 // Types needed for sumcheck and folding.
 template <typename FF, auto LENGTHS>
-using TupleOfUnivariates = typename TupleOfContainersOverArray<barretenberg::Univariate, FF, LENGTHS, 0>::type;
+using TupleOfUnivariates = typename TupleOfContainersOverArray<bb::Univariate, FF, LENGTHS, 0>::type;
 
 template <typename FF, auto LENGTHS>
 using TupleOfValues = typename TupleOfContainersOverArray<ExtractValueType, FF, LENGTHS>::type;

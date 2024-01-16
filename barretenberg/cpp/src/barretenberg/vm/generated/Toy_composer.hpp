@@ -28,7 +28,7 @@ class ToyComposer {
     std::shared_ptr<VerificationKey> verification_key;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<Flavor::Curve>> crs_factory_;
+    std::shared_ptr<bb::srs::factories::CrsFactory<Flavor::Curve>> crs_factory_;
 
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
     std::shared_ptr<CommitmentKey> commitment_key;
@@ -37,7 +37,7 @@ class ToyComposer {
     bool contains_recursive_proof = false;
     bool computed_witness = false;
 
-    ToyComposer() { crs_factory_ = barretenberg::srs::get_crs_factory(); }
+    ToyComposer() { crs_factory_ = bb::srs::get_crs_factory(); }
 
     ToyComposer(std::shared_ptr<ProvingKey> p_key, std::shared_ptr<VerificationKey> v_key)
         : proving_key(std::move(p_key))
@@ -58,7 +58,7 @@ class ToyComposer {
     ToyProver create_prover(CircuitConstructor& circuit_constructor);
     ToyVerifier create_verifier(CircuitConstructor& circuit_constructor);
 
-    void add_table_column_selector_poly_to_proving_key(barretenberg::polynomial& small, const std::string& tag);
+    void add_table_column_selector_poly_to_proving_key(bb::polynomial& small, const std::string& tag);
 
     void compute_commitment_key(size_t circuit_size)
     {

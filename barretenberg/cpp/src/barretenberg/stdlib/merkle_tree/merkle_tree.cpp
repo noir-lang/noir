@@ -12,7 +12,7 @@ namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-using namespace barretenberg;
+using namespace bb;
 
 // Size of merkle tree nodes in bytes.
 constexpr size_t REGULAR_NODE_SIZE = 64;

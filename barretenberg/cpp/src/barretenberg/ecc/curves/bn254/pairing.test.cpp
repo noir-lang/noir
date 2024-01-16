@@ -1,7 +1,7 @@
 #include "pairing.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 TEST(pairing, ReducedAtePairingCheckAgainstConstants)
 {

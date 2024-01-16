@@ -16,7 +16,7 @@
 #include "barretenberg/relations/generated/Toy/toy_avm.hpp"
 #include "barretenberg/relations/generated/Toy/two_column_perm.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system {
 

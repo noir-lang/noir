@@ -8,7 +8,7 @@
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
 namespace test_stdlib_byte_array {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib;
 
 #define STDLIB_TYPE_ALIASES                                                                                            \

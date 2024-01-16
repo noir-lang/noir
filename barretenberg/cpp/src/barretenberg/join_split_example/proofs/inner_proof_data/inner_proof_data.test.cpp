@@ -1,7 +1,7 @@
 #include "inner_proof_data.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 using namespace join_split_example::proofs;
 
 namespace {

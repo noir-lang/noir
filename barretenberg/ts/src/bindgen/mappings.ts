@@ -2,8 +2,8 @@
 const typeMap: { [key: string]: string } = {
   in_ptr: 'Ptr',
   out_ptr: 'Ptr',
-  'barretenberg::fr::in_buf': 'Fr',
-  'barretenberg::fr::vec_in_buf': 'Fr[]',
+  'bb::fr::in_buf': 'Fr',
+  'bb::fr::vec_in_buf': 'Fr[]',
   'fr::in_buf': 'Fr',
   'fr::out_buf': 'Fr',
   'fr::vec_in_buf': 'Fr[]',

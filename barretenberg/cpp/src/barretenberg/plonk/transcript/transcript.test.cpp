@@ -135,8 +135,8 @@ TEST(transcript, univariate_serialization)
     constexpr size_t num_public_inputs = 0;
     constexpr size_t LENGTH = 8;
 
-    using Fr = barretenberg::fr;
-    using Univariate = barretenberg::Univariate<Fr, LENGTH>;
+    using Fr = bb::fr;
+    using Univariate = bb::Univariate<Fr, LENGTH>;
     using Transcript = transcript::StandardTranscript;
 
     std::vector<uint8_t> g1_vector(64);

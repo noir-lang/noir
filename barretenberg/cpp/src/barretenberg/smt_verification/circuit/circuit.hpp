@@ -20,8 +20,8 @@ struct CircuitSchema {
     std::string modulus;
     std::vector<uint32_t> public_inps;
     std::unordered_map<uint32_t, std::string> vars_of_interest;
-    std::vector<barretenberg::fr> variables;
-    std::vector<std::vector<barretenberg::fr>> selectors;
+    std::vector<bb::fr> variables;
+    std::vector<std::vector<bb::fr>> selectors;
     std::vector<std::vector<uint32_t>> wires;
     MSGPACK_FIELDS(modulus, public_inps, vars_of_interest, variables, selectors, wires);
 };

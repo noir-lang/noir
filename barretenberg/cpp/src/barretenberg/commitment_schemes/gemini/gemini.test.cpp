@@ -14,7 +14,7 @@ template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
     using GeminiVerifier = GeminiVerifier_<Curve>;
     using Fr = typename Curve::ScalarField;
     using GroupElement = typename Curve::Element;
-    using Polynomial = typename barretenberg::Polynomial<Fr>;
+    using Polynomial = typename bb::Polynomial<Fr>;
 
   public:
     void execute_gemini_and_verify_claims(size_t log_n,

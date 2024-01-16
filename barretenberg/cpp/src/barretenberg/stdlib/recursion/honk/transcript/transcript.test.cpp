@@ -13,7 +13,7 @@ namespace proof_system::plonk::stdlib::recursion::honk {
 using Builder = UltraCircuitBuilder;
 using UltraFlavor = ::proof_system::honk::flavor::Ultra;
 using UltraRecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive_<Builder>;
-using FF = barretenberg::fr;
+using FF = bb::fr;
 using BaseTranscript = ::proof_system::honk::BaseTranscript;
 
 /**
@@ -26,7 +26,7 @@ template <class Flavor, size_t LENGTH> auto generate_mock_proof_data(auto prover
 {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
-    using Univariate = typename barretenberg::Univariate<FF, LENGTH>;
+    using Univariate = typename bb::Univariate<FF, LENGTH>;
 
     // Create some mock data to be added to the transcript in several mock rounds
     uint32_t data = 25;
@@ -68,7 +68,7 @@ template <class Flavor, size_t LENGTH> void perform_mock_verifier_transcript_ope
 {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
-    using Univariate = typename barretenberg::Univariate<FF, LENGTH>;
+    using Univariate = typename bb::Univariate<FF, LENGTH>;
 
     // round 0
     transcript.template receive_from_prover<uint32_t>("data");
@@ -124,12 +124,12 @@ TEST(RecursiveHonkTranscript, InterfacesMatch)
  */
 TEST(RecursiveHonkTranscript, ReturnValuesMatch)
 {
-    using FF = barretenberg::fr;
-    using Commitment = barretenberg::g1::affine_element;
+    using FF = bb::fr;
+    using Commitment = bb::g1::affine_element;
 
     using field_ct = field_t<Builder>;
-    using fq_ct = bigfield<Builder, barretenberg::Bn254FqParams>;
-    using element_ct = element<Builder, fq_ct, field_ct, barretenberg::g1>;
+    using fq_ct = bigfield<Builder, bb::Bn254FqParams>;
+    using element_ct = element<Builder, fq_ct, field_ct, bb::g1>;
 
     Builder builder;
 

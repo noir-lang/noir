@@ -1,7 +1,7 @@
 #include "fq6.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 TEST(fq6, Eq)
 {

@@ -16,28 +16,28 @@ template <typename G1> class ecc_generator_table {
      * Store arrays of precomputed 8-bit lookup tables for generator point coordinates (and their endomorphism
      *equivalents)
      **/
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_endo_xlo_table;
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_endo_xhi_table;
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_xlo_table;
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_xhi_table;
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_ylo_table;
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_yhi_table;
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_xyprime_table;
-    inline static std::array<std::pair<barretenberg::fr, barretenberg::fr>, 256> generator_endo_xyprime_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_endo_xlo_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_endo_xhi_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_xlo_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_xhi_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_ylo_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_yhi_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_xyprime_table;
+    inline static std::array<std::pair<bb::fr, bb::fr>, 256> generator_endo_xyprime_table;
     inline static bool init = false;
 
     static void init_generator_tables();
 
     static size_t convert_position_to_shifted_naf(const size_t position);
     static size_t convert_shifted_naf_to_position(const size_t shifted_naf);
-    static std::array<barretenberg::fr, 2> get_xlo_endo_values(const std::array<uint64_t, 2> key);
-    static std::array<barretenberg::fr, 2> get_xhi_endo_values(const std::array<uint64_t, 2> key);
-    static std::array<barretenberg::fr, 2> get_xlo_values(const std::array<uint64_t, 2> key);
-    static std::array<barretenberg::fr, 2> get_xhi_values(const std::array<uint64_t, 2> key);
-    static std::array<barretenberg::fr, 2> get_ylo_values(const std::array<uint64_t, 2> key);
-    static std::array<barretenberg::fr, 2> get_yhi_values(const std::array<uint64_t, 2> key);
-    static std::array<barretenberg::fr, 2> get_xyprime_values(const std::array<uint64_t, 2> key);
-    static std::array<barretenberg::fr, 2> get_xyprime_endo_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_xlo_endo_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_xhi_endo_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_xlo_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_xhi_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_ylo_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_yhi_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_xyprime_values(const std::array<uint64_t, 2> key);
+    static std::array<bb::fr, 2> get_xyprime_endo_values(const std::array<uint64_t, 2> key);
     static BasicTable generate_xlo_table(BasicTableId id, const size_t table_index);
     static BasicTable generate_xhi_table(BasicTableId id, const size_t table_index);
     static BasicTable generate_xlo_endo_table(BasicTableId id, const size_t table_index);

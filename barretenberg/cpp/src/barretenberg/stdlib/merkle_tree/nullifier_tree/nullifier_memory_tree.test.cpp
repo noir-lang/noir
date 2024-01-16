@@ -1,7 +1,7 @@
 #include "nullifier_memory_tree.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 
 void print_tree(const size_t depth, std::vector<fr> hashes, std::string const& msg)

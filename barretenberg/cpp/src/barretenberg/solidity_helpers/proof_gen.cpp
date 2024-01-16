@@ -62,7 +62,7 @@ int main(int argc, char** argv)
     const std::string srs_path = args[3];
     const std::string string_input = args[4];
 
-    barretenberg::srs::init_crs_factory(srs_path);
+    bb::srs::init_crs_factory(srs_path);
 
     // @todo dynamically allocate this
     uint256_t inputs[] = { 0, 0, 0, 0, 0, 0 };

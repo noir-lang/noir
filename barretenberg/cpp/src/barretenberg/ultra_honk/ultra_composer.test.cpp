@@ -24,7 +24,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-std::vector<uint32_t> add_variables(auto& circuit_builder, std::vector<barretenberg::fr> variables)
+std::vector<uint32_t> add_variables(auto& circuit_builder, std::vector<bb::fr> variables)
 {
     std::vector<uint32_t> res;
     for (size_t i = 0; i < variables.size(); i++) {
@@ -54,10 +54,10 @@ void ensure_non_zero(auto& polynomial)
 
 class UltraHonkComposerTests : public ::testing::Test {
   public:
-    using fr = barretenberg::fr;
+    using fr = bb::fr;
 
   protected:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 
 /**
@@ -142,7 +142,7 @@ TEST_F(UltraHonkComposerTests, XorConstraint)
     circuit_builder.create_gates_from_plookup_accumulators(
         plookup::MultiTableId::UINT32_XOR, lookup_accumulators, left_witness_index, right_witness_index);
 
-    auto composer = UltraComposer(barretenberg::srs::get_crs_factory());
+    auto composer = UltraComposer(bb::srs::get_crs_factory());
     prove_and_verify(circuit_builder, composer, /*expected_result=*/true);
 }
 
@@ -150,7 +150,7 @@ TEST_F(UltraHonkComposerTests, create_gates_from_plookup_accumulators)
 {
     auto circuit_builder = proof_system::UltraCircuitBuilder();
 
-    barretenberg::fr input_value = fr::random_element();
+    bb::fr input_value = fr::random_element();
     const fr input_lo = static_cast<uint256_t>(input_value).slice(0, plookup::fixed_base::table::BITS_PER_LO_SCALAR);
     const auto input_lo_index = circuit_builder.add_variable(input_lo);
 
@@ -671,7 +671,7 @@ TEST_F(UltraHonkComposerTests, composed_range_constraint)
 
 TEST_F(UltraHonkComposerTests, non_native_field_multiplication)
 {
-    using fq = barretenberg::fq;
+    using fq = bb::fq;
     auto circuit_builder = proof_system::UltraCircuitBuilder();
 
     fq a = fq::random_element();

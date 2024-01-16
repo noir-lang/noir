@@ -21,7 +21,7 @@ template <typename Curve> class IPA {
     using Commitment = typename Curve::AffineElement;
     using CK = CommitmentKey<Curve>;
     using VK = VerifierCommitmentKey<Curve>;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
   public:
     /**
@@ -116,12 +116,12 @@ template <typename Curve> class IPA {
                 /*finite_field_multiplications_per_iteration=*/2);
 
             // L_i = < a_vec_lo, G_vec_hi > + inner_prod_L * aux_generator
-            L_elements[i] = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
+            L_elements[i] = bb::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
                 &a_vec[0], &G_vec_local[round_size], round_size, ck->pippenger_runtime_state);
             L_elements[i] += aux_generator * inner_prod_L;
 
             // R_i = < a_vec_hi, G_vec_lo > + inner_prod_R * aux_generator
-            R_elements[i] = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
+            R_elements[i] = bb::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
                 &a_vec[round_size], &G_vec_local[0], round_size, ck->pippenger_runtime_state);
             R_elements[i] += aux_generator * inner_prod_R;
 
@@ -205,7 +205,7 @@ template <typename Curve> class IPA {
             msm_scalars[2 * i + 1] = round_challenges_inv[i].sqr();
         }
 
-        GroupElement LR_sums = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
+        GroupElement LR_sums = bb::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
             &msm_scalars[0], &msm_elements[0], pippenger_size, vk->pippenger_runtime_state);
         GroupElement C_zero = C_prime + LR_sums;
 
@@ -269,7 +269,7 @@ template <typename Curve> class IPA {
             /*scalar_multiplications_per_iteration=*/0,
             /*sequential_copy_ops_per_iteration=*/1);
 
-        auto G_zero = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
+        auto G_zero = bb::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
             &s_vec[0], &G_vec_local[0], poly_degree, vk->pippenger_runtime_state);
 
         auto a_zero = transcript->template receive_from_prover<Fr>("IPA:a_0");

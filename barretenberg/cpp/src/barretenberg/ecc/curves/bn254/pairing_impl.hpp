@@ -5,7 +5,7 @@
 #include "./g2.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 
-namespace barretenberg::pairing {
+namespace bb::pairing {
 constexpr fq two_inv = fq(2).invert();
 inline constexpr g2::element mul_by_q(const g2::element& a)
 {
@@ -298,4 +298,4 @@ fq12 reduced_ate_pairing_batch(const g1::affine_element* P_affines,
     return result;
 }
 
-} // namespace barretenberg::pairing
+} // namespace bb::pairing

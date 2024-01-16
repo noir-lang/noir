@@ -25,7 +25,7 @@ template <typename B> inline void read(B& any, proving_key_data& key)
 
     for (size_t next = 0; next < amount; ++next) {
         std::string label;
-        barretenberg::polynomial value;
+        bb::polynomial value;
 
         read(any, label);
         read(any, value);
@@ -54,7 +54,7 @@ template <typename B> inline void write(B& buf, proving_key const& key)
 
     for (size_t i = 0; i < num_polys; ++i) {
         std::string poly_id = precomputed_poly_list[i];
-        const barretenberg::polynomial& value = ((proving_key&)key).polynomial_store.get(poly_id);
+        const bb::polynomial& value = ((proving_key&)key).polynomial_store.get(poly_id);
         write(buf, poly_id);
         write(buf, value);
     }
@@ -87,7 +87,7 @@ template <typename B> inline void read_from_file(B& is, std::string const& path,
         }
         size_t file_size = (size_t)st.st_size;
         size_t num_fields = file_size / 32;
-        barretenberg::polynomial value(num_fields);
+        bb::polynomial value(num_fields);
 
         // Open the file and read the data directly into the polynomial memory.
         std::ifstream file(filepath, std::ios::binary);
@@ -127,7 +127,7 @@ template <typename B> inline void write_to_file(B& os, std::string const& path, 
         auto value = key.polynomial_store.get(poly_id);
         auto size = value.size();
         std::ofstream ofs(filename);
-        ofs.write((char*)value.data().get(), (std::streamsize)(size * sizeof(barretenberg::fr)));
+        ofs.write((char*)value.data().get(), (std::streamsize)(size * sizeof(bb::fr)));
         if (!ofs.good()) {
             throw_or_abort(format("Failed to write: ", filename));
         }

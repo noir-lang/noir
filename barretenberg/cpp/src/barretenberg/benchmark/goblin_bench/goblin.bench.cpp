@@ -8,14 +8,14 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 using namespace benchmark;
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system;
 
 namespace {
 void goblin_full(State& state) noexcept
 {
-    barretenberg::srs::init_crs_factory("../srs_db/ignition");
-    barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    bb::srs::init_crs_factory("../srs_db/ignition");
+    bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
 
     Goblin goblin;
 
@@ -48,8 +48,8 @@ void goblin_full(State& state) noexcept
 
 void goblin_accumulate(State& state) noexcept
 {
-    barretenberg::srs::init_crs_factory("../srs_db/ignition");
-    barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    bb::srs::init_crs_factory("../srs_db/ignition");
+    bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
 
     Goblin goblin;
 
@@ -74,8 +74,8 @@ void goblin_accumulate(State& state) noexcept
 
 void goblin_eccvm_prove(State& state) noexcept
 {
-    barretenberg::srs::init_crs_factory("../srs_db/ignition");
-    barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    bb::srs::init_crs_factory("../srs_db/ignition");
+    bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
 
     Goblin goblin;
 
@@ -102,8 +102,8 @@ void goblin_eccvm_prove(State& state) noexcept
 
 void goblin_translator_prove(State& state) noexcept
 {
-    barretenberg::srs::init_crs_factory("../srs_db/ignition");
-    barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    bb::srs::init_crs_factory("../srs_db/ignition");
+    bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
 
     Goblin goblin;
 

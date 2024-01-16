@@ -5,7 +5,7 @@
 
 extern "C" {
 
-using namespace barretenberg;
+using namespace bb;
 using affine_element = grumpkin::g1::affine_element;
 
 WASM_EXPORT void pedersen_commit(fr::vec_in_buf inputs_buffer, affine_element::out_buf output);

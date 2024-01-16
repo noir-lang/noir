@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-namespace barretenberg {
+namespace bb {
 
 /**
  * @brief group class. Represents an elliptic curve group element.
@@ -120,7 +120,7 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
                                                        uint64_t predicate);
 };
 
-} // namespace barretenberg
+} // namespace bb
 
 #ifdef DISABLE_SHENANIGANS
 #include "group_impl_int128.tcc"

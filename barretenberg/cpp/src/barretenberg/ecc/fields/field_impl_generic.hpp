@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "./field_impl.hpp"
-namespace barretenberg {
+namespace bb {
 
 // NOLINTBEGIN(readability-implicit-bool-conversion)
 template <class T> constexpr std::pair<uint64_t, uint64_t> field<T>::mul_wide(uint64_t a, uint64_t b) noexcept
@@ -814,4 +814,4 @@ template <class T> constexpr struct field<T>::wide_array field<T>::mul_512(const
 }
 
 // NOLINTEND(readability-implicit-bool-conversion)
-} // namespace barretenberg
+} // namespace bb

@@ -6,7 +6,7 @@
 
 namespace proof_system::relation_manual_tests {
 
-using FF = barretenberg::fr;
+using FF = bb::fr;
 
 class RelationManual : public testing::Test {};
 

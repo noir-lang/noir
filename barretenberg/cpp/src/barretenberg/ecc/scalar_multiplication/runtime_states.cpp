@@ -6,20 +6,20 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-namespace barretenberg::scalar_multiplication {
+namespace bb::scalar_multiplication {
 
 size_t get_num_pippenger_rounds(const size_t num_points)
 {
     const auto num_points_floor = static_cast<size_t>(1ULL << (numeric::get_msb(num_points)));
     const auto num_rounds =
-        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points_floor)));
+        static_cast<size_t>(bb::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points_floor)));
     return num_rounds;
 }
 template <typename Curve>
 pippenger_runtime_state<Curve>::pippenger_runtime_state(const size_t num_initial_points) noexcept
     : num_points(num_initial_points * 2)
-    , num_buckets(static_cast<size_t>(1ULL << barretenberg::scalar_multiplication::get_optimal_bucket_width(
-                                          static_cast<size_t>(num_initial_points))))
+    , num_buckets(static_cast<size_t>(
+          1ULL << bb::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points))))
     , num_rounds(get_num_pippenger_rounds(static_cast<size_t>(num_points)))
     , num_threads(get_num_cpus_pow2())
     , prefetch_overflow(num_threads * 16)
@@ -45,9 +45,9 @@ pippenger_runtime_state<Curve>::pippenger_runtime_state(const size_t num_initial
 
     const auto num_points_floor = static_cast<size_t>(1ULL << (numeric::get_msb(num_points)));
     const auto num_buckets = static_cast<size_t>(
-        1ULL << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
+        1ULL << bb::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
     const auto num_rounds =
-        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points_floor)));
+        static_cast<size_t>(bb::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points_floor)));
 
     const size_t points_per_thread = static_cast<size_t>(num_points) / num_threads;
     parallel_for(num_threads, [&](size_t i) {
@@ -206,6 +206,6 @@ template struct affine_product_runtime_state<curve::BN254>;
 template struct affine_product_runtime_state<curve::Grumpkin>;
 template struct pippenger_runtime_state<curve::BN254>;
 template struct pippenger_runtime_state<curve::Grumpkin>;
-} // namespace barretenberg::scalar_multiplication
+} // namespace bb::scalar_multiplication
 
 // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)

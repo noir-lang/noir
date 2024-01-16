@@ -6,14 +6,14 @@
 #include <gtest/gtest.h>
 
 namespace join_split_example {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib;
 using namespace join_split_example::proofs::notes;
 using namespace join_split_example::proofs::notes::circuit::value;
 
 class ValueNote : public ::testing::Test {
   protected:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 
 TEST_F(ValueNote, Commits)

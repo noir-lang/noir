@@ -11,7 +11,7 @@ namespace acir_format::tests {
 
 class AcirFormatTests : public ::testing::Test {
   protected:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 TEST_F(AcirFormatTests, TestASingleConstraintNoPubInputs)
 {

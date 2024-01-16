@@ -7,7 +7,7 @@
 
 namespace proof_system::test_stdlib_schnorr {
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::schnorr;
 

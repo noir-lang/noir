@@ -2,7 +2,7 @@
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system;
 using namespace proof_system::honk::pcs::ipa;
 namespace {
@@ -17,8 +17,8 @@ using VerifierCommitmentKey = honk::pcs::VerifierCommitmentKey<Curve>;
 
 constexpr size_t MIN_POLYNOMIAL_DEGREE_LOG2 = 10;
 constexpr size_t MAX_POLYNOMIAL_DEGREE_LOG2 = 16;
-std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
-    new barretenberg::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 1 << 16));
+std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
+    new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 1 << 16));
 
 auto ck = std::make_shared<CommitmentKey>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
 auto vk = std::make_shared<VerifierCommitmentKey>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);

@@ -84,5 +84,5 @@ WASM_EXPORT void test_stdout_stderr()
 
 WASM_EXPORT void common_init_slab_allocator(uint32_t const* circuit_size)
 {
-    barretenberg::init_slab_allocator(ntohl(*circuit_size));
+    bb::init_slab_allocator(ntohl(*circuit_size));
 }

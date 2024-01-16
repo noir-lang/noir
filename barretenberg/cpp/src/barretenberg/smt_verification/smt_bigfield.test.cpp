@@ -27,7 +27,7 @@
 #include "barretenberg/smt_verification/circuit/circuit.hpp"
 
 using namespace smt_circuit;
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 using field_ct = proof_system::plonk::stdlib::field_t<StandardCircuitBuilder>;

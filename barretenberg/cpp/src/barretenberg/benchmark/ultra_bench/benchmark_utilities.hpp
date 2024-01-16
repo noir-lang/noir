@@ -32,10 +32,8 @@ namespace bench_utils {
  */
 template <typename Builder> void generate_basic_arithmetic_circuit(Builder& builder, size_t log2_num_gates)
 {
-    proof_system::plonk::stdlib::field_t a(
-        proof_system::plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
-    proof_system::plonk::stdlib::field_t b(
-        proof_system::plonk::stdlib::witness_t(&builder, barretenberg::fr::random_element()));
+    proof_system::plonk::stdlib::field_t a(proof_system::plonk::stdlib::witness_t(&builder, bb::fr::random_element()));
+    proof_system::plonk::stdlib::field_t b(proof_system::plonk::stdlib::witness_t(&builder, bb::fr::random_element()));
     proof_system::plonk::stdlib::field_t c(&builder);
     size_t passes = (1UL << log2_num_gates) / 4 - 4;
     if (static_cast<int>(passes) <= 0) {
@@ -213,7 +211,7 @@ template <typename Composer>
 void construct_proof_with_specified_num_iterations(
     State& state, void (*test_circuit_function)(typename Composer::CircuitBuilder&, size_t), size_t num_iterations)
 {
-    barretenberg::srs::init_crs_factory("../srs_db/ignition");
+    bb::srs::init_crs_factory("../srs_db/ignition");
 
     Composer composer;
 

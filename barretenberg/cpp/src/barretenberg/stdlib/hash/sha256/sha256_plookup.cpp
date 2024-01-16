@@ -7,7 +7,7 @@
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system::plonk {
 namespace stdlib {

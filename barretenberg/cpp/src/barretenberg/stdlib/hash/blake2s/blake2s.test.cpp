@@ -4,7 +4,7 @@
 #include "blake2s_plookup.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib;
 
 using Builder = proof_system::UltraCircuitBuilder;

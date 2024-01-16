@@ -15,7 +15,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 namespace proof_system::test_stdlib_sha256 {
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib;
 
 using Builder = proof_system::UltraCircuitBuilder;
@@ -125,7 +125,7 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
 //     for (size_t i = 0; i < 64; ++i) {
 //         w_inputs[i] = engine.get_random_uint32();
 //         w_elements[i] = proof_system::plonk::stdlib::witness_t<proof_system::UltraCircuitBuilder>(&builder,
-//         barretenberg::fr(w_inputs[i]));
+//         bb::fr(w_inputs[i]));
 //     }
 
 //     const auto expected = inner_block(w_inputs);

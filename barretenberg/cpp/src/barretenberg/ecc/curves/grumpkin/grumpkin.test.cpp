@@ -7,7 +7,7 @@ namespace test_grumpkin {
 TEST(grumpkin, CheckB)
 {
     auto b = grumpkin::g1::curve_b;
-    barretenberg::fr seventeen = 17;
+    bb::fr seventeen = 17;
     EXPECT_EQ(seventeen, -b);
 }
 

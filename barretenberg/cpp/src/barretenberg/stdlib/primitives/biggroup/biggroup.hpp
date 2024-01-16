@@ -11,10 +11,10 @@
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/707) If using a a circuit builder with Goblin, which is
-// designed to have efficient barretenberg::g1 operations, a developer might accidentally write inefficient circuits
+// designed to have efficient bb::g1 operations, a developer might accidentally write inefficient circuits
 // using biggroup functions that do not use the OpQueue. We use this concept to prevent compilation of such functions.
 template <typename Builder, typename NativeGroup>
-concept IsNotGoblinInefficiencyTrap = !(IsGoblinBuilder<Builder> && std::same_as<NativeGroup, barretenberg::g1>);
+concept IsNotGoblinInefficiencyTrap = !(IsGoblinBuilder<Builder> && std::same_as<NativeGroup, bb::g1>);
 
 namespace proof_system::plonk::stdlib {
 
@@ -202,14 +202,14 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     // template
     // && the compiler can't perform partial template specialization on member functions of class templates
     // => our template parameter cannot be a value but must instead by a type
-    // Our input to `std::enable_if` is a comparison between two types (NativeGroup and barretenberg::g1), which
+    // Our input to `std::enable_if` is a comparison between two types (NativeGroup and bb::g1), which
     // resolves to either `true/false`.
     // If `std::enable_if` resolves to `true`, it resolves to a `typedef` that equals `void`
     // If `std::enable_if` resolves to `false`, there is no member typedef
     // We want to take the *type* of the output typedef of `std::enable_if`
     // i.e. for the bn254 curve, the template param is `typename = void`
     // for any other curve, there is no template param
-    template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, barretenberg::g1>::value>>
+    template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, bb::g1>::value>>
         requires(IsNotGoblinBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
     static element bn254_endo_batch_mul(const std::vector<element>& big_points,
                                         const std::vector<Fr>& big_scalars,
@@ -217,7 +217,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
                                         const std::vector<Fr>& small_scalars,
                                         const size_t max_num_small_bits);
 
-    template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, barretenberg::g1>::value>>
+    template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, bb::g1>::value>>
         requires(IsNotGoblinBuilder<Builder>) // TODO(https://github.com/AztecProtocol/barretenberg/issues/707)
     static element bn254_endo_batch_mul_with_generator(const std::vector<element>& big_points,
                                                        const std::vector<Fr>& big_scalars,
@@ -329,8 +329,8 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
         for (size_t i = 0; i < 16; ++i) {
             endoP1.element_table[i].y = P1.element_table[15 - i].y;
         }
-        uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
-        Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
+        uint256_t beta_val = bb::field<typename Fq::TParams>::cube_root_of_unity();
+        Fq beta(bb::fr(beta_val.slice(0, 136)), bb::fr(beta_val.slice(136, 256)), false);
         for (size_t i = 0; i < 8; ++i) {
             endoP1.element_table[i].x = P1.element_table[i].x * beta;
             endoP1.element_table[15 - i].x = endoP1.element_table[i].x;
@@ -424,8 +424,8 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     {
         quad_lookup_table base_table(inputs);
         quad_lookup_table endo_table;
-        uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
-        Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
+        uint256_t beta_val = bb::field<typename Fq::TParams>::cube_root_of_unity();
+        Fq beta(bb::fr(beta_val.slice(0, 136)), bb::fr(beta_val.slice(136, 256)), false);
         if constexpr (HasPlookup<Builder>) {
             for (size_t i = 0; i < 8; ++i) {
                 endo_table.element_table[i + 8].x = base_table[7 - i].x * beta;
@@ -457,8 +457,8 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     {
         lookup_table_plookup<5> base_table(inputs);
         lookup_table_plookup<5> endo_table;
-        uint256_t beta_val = barretenberg::field<typename Fq::TParams>::cube_root_of_unity();
-        Fq beta(barretenberg::fr(beta_val.slice(0, 136)), barretenberg::fr(beta_val.slice(136, 256)), false);
+        uint256_t beta_val = bb::field<typename Fq::TParams>::cube_root_of_unity();
+        Fq beta(bb::fr(beta_val.slice(0, 136)), bb::fr(beta_val.slice(136, 256)), false);
         if constexpr (HasPlookup<Builder>) {
             for (size_t i = 0; i < 16; ++i) {
                 endo_table.element_table[i + 16].x = base_table[15 - i].x * beta;

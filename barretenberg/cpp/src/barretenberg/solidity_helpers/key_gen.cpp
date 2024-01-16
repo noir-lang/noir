@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     const std::string output_path = args[3];
     const std::string srs_path = args[4];
 
-    barretenberg::srs::init_crs_factory(srs_path);
+    bb::srs::init_crs_factory(srs_path);
     // @todo - Add support for unrolled standard verifier. Needs a new solidity verifier contract.
 
     if (plonk_flavour != "ultra") {

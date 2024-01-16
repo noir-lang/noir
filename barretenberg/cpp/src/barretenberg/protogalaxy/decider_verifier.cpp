@@ -4,7 +4,7 @@
 #include "barretenberg/sumcheck/instance/verifier_instance.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::honk::sumcheck;
 
 namespace proof_system::honk {
@@ -17,7 +17,7 @@ DeciderVerifier_<Flavor>::DeciderVerifier_(const std::shared_ptr<Transcript>& tr
 {}
 template <typename Flavor>
 DeciderVerifier_<Flavor>::DeciderVerifier_()
-    : pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, barretenberg::srs::get_crs_factory()))
+    : pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, bb::srs::get_crs_factory()))
     , transcript(std::make_shared<Transcript>())
 {}
 

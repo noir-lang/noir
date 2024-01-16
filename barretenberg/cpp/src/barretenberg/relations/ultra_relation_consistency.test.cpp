@@ -28,7 +28,7 @@ using namespace proof_system;
 
 namespace proof_system::ultra_relation_consistency_tests {
 
-using FF = barretenberg::fr;
+using FF = bb::fr;
 struct InputElements {
     static constexpr size_t NUM_ELEMENTS = 45;
     std::array<FF, NUM_ELEMENTS> _data;

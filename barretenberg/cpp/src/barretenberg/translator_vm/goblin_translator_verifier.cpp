@@ -3,7 +3,7 @@
 #include "barretenberg/sumcheck/sumcheck.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::honk::sumcheck;
 
 namespace proof_system::honk {

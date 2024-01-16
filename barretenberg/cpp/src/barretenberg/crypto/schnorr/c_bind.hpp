@@ -5,7 +5,7 @@
 
 extern "C" {
 
-using namespace barretenberg;
+using namespace bb;
 using affine_element = grumpkin::g1::affine_element;
 using multisig = crypto::schnorr::multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
 

@@ -4,7 +4,7 @@
 #include "./fq2.hpp"
 #include "./fr.hpp"
 
-namespace barretenberg {
+namespace bb {
 struct Bn254G2Params {
     static constexpr bool USE_ENDOMORPHISM = false;
     static constexpr bool can_hash_to_curve = false;
@@ -20,4 +20,4 @@ struct Bn254G2Params {
 };
 
 using g2 = group<fq2, fr, Bn254G2Params>;
-} // namespace barretenberg
+} // namespace bb

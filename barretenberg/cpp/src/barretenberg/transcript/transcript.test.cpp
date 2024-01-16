@@ -1,11 +1,11 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include <gtest/gtest.h>
 
-namespace barretenberg::honk_transcript_tests {
+namespace bb::honk_transcript_tests {
 
-using FF = barretenberg::fr;
-using Fr = barretenberg::fr;
-using Fq = barretenberg::fq;
+using FF = bb::fr;
+using Fr = bb::fr;
+using Fq = bb::fq;
 using Transcript = proof_system::honk::BaseTranscript;
 
 /**
@@ -48,4 +48,4 @@ TEST(BaseTranscript, TwoProversTwoFields)
     EXPECT_EQ(received_b, elt_b);
 }
 
-} // namespace barretenberg::honk_transcript_tests
+} // namespace bb::honk_transcript_tests

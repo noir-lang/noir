@@ -21,12 +21,11 @@ struct SelectorProperties {
  * in that case.
  * @return std::shared_ptr<typename Flavor::ProvingKey>
  */
-std::shared_ptr<plonk::proving_key> initialize_proving_key(
-    const auto& circuit_constructor,
-    barretenberg::srs::factories::CrsFactory<curve::BN254>* crs_factory,
-    const size_t minimum_circuit_size,
-    const size_t num_randomized_gates,
-    CircuitType circuit_type)
+std::shared_ptr<plonk::proving_key> initialize_proving_key(const auto& circuit_constructor,
+                                                           bb::srs::factories::CrsFactory<curve::BN254>* crs_factory,
+                                                           const size_t minimum_circuit_size,
+                                                           const size_t num_randomized_gates,
+                                                           CircuitType circuit_type)
 {
     const size_t num_gates = circuit_constructor.num_gates;
 
@@ -80,6 +79,6 @@ void compute_monomial_and_coset_selector_forms(plonk::proving_key* key,
 std::shared_ptr<plonk::verification_key> compute_verification_key_common(
     std::shared_ptr<plonk::proving_key> const& proving_key,
     // silencing for now but need to figure out where to extract type of VerifierCrs from :-/
-    std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> const& vrs);
+    std::shared_ptr<bb::srs::factories::VerifierCrs<curve::BN254>> const& vrs);
 
 } // namespace proof_system::plonk

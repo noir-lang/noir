@@ -1,7 +1,7 @@
 #pragma once
 #include "polynomial.hpp"
 
-namespace barretenberg {
+namespace bb {
 
 // Highly optimized read / write of polynomials in little endian montgomery form.
 template <typename B> inline void read(B& buf, polynomial& p)
@@ -67,4 +67,4 @@ inline void write(std::ostream& os, polynomial const& p)
     os.write((char*)&p[0], (std::streamsize)len);
 }
 
-} // namespace barretenberg
+} // namespace bb

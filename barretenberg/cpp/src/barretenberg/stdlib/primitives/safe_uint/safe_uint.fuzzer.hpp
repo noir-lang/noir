@@ -9,7 +9,7 @@
 // the input should fail
 bool circuit_should_fail = false;
 
-using fr = barretenberg::fr;
+using fr = bb::fr;
 #define HAVOC_TESTING
 
 #include "barretenberg/common/fuzzer.hpp"

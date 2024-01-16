@@ -2,14 +2,14 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <gtest/gtest.h>
 
-namespace barretenberg::test_univariate {
+namespace bb::test_univariate {
 
 template <typename FF> class UnivariateTest : public testing::Test {
   public:
     template <size_t view_length> using UnivariateView = UnivariateView<FF, view_length>;
 };
 
-using FieldTypes = testing::Types<barretenberg::fr>;
+using FieldTypes = testing::Types<bb::fr>;
 TYPED_TEST_SUITE(UnivariateTest, FieldTypes);
 
 #define UNIVARIATE_TESTS_ALIASES using FF = TypeParam;
@@ -173,4 +173,4 @@ TYPED_TEST(UnivariateTest, EvaluationCustomDomain)
     }();
 }
 
-} // namespace barretenberg::test_univariate
+} // namespace bb::test_univariate

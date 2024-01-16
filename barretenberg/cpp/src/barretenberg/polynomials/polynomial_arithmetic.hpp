@@ -1,7 +1,7 @@
 #pragma once
 #include "evaluation_domain.hpp"
 
-namespace barretenberg {
+namespace bb {
 namespace polynomial_arithmetic {
 
 template <typename T>
@@ -361,4 +361,4 @@ template <typename Fr> void factor_roots(std::span<Fr> polynomial, std::span<con
 }
 
 } // namespace polynomial_arithmetic
-} // namespace barretenberg
+} // namespace bb

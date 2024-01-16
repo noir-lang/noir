@@ -8,13 +8,13 @@ inline void output_vk_sol_standard(std::ostream& os,
                                    std::shared_ptr<plonk::verification_key> const& key,
                                    std::string const& class_name)
 {
-    const auto print_u256 = [&](const std::string& offset, const barretenberg::fr& element, const std::string& name) {
+    const auto print_u256 = [&](const std::string& offset, const bb::fr& element, const std::string& name) {
         os << "            mstore(add(_vk, " << offset << "), " << element << ") // " << name << std::endl;
     };
 
     const auto print_g1 = [&](const std::string& offsetX,
                               const std::string& offsetY,
-                              const barretenberg::g1::affine_element& element,
+                              const bb::g1::affine_element& element,
                               const std::string& name) {
         os << "            mstore(add(_vk, " << offsetX << "), " << element.x << ") // " << name << ".x" << std::endl;
         os << "            mstore(add(_vk, " << offsetY << "), " << element.y << ") // " << name << ".y" << std::endl;
@@ -67,13 +67,13 @@ inline void output_vk_sol_standard(std::ostream& os,
  **/
 inline void output_vk_sol_ultra(std::ostream& os, std::shared_ptr<plonk::verification_key> const& key, std::string const& class_name)
 {
-    const auto print_u256 = [&](const std::string& offset, const barretenberg::fr& element, const std::string& name) {
+    const auto print_u256 = [&](const std::string& offset, const bb::fr& element, const std::string& name) {
         os << "            mstore(add(_vk, " << offset << "), " << element << ") // " << name << std::endl;
     };
 
     const auto print_g1 = [&](const std::string& offsetX,
                               const std::string& offsetY,
-                              const barretenberg::g1::affine_element& element,
+                              const bb::g1::affine_element& element,
                               const std::string& name) {
         os << "            mstore(add(_vk, " << offsetX << "), " << element.x << ") // " << name << ".x" << std::endl;
         os << "            mstore(add(_vk, " << offsetY << "), " << element.y << ") // " << name << ".y" << std::endl;

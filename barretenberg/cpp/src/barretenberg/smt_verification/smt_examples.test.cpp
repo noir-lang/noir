@@ -8,7 +8,7 @@
 
 #include "barretenberg/smt_verification/circuit/circuit.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system;
 
 namespace {

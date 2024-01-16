@@ -362,7 +362,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
             .work_type = work_queue::WorkType::FFT,
             .mul_scalars = nullptr,
             .tag = "s",
-            .constant = barretenberg::fr(0),
+            .constant = bb::fr(0),
             .index = 0,
         });
 
@@ -386,7 +386,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
             .work_type = work_queue::WorkType::FFT,
             .mul_scalars = nullptr,
             .tag = "z_lookup",
-            .constant = barretenberg::fr(0),
+            .constant = bb::fr(0),
             .index = 0,
         });
 
@@ -400,7 +400,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
  * @tparam num_roots_cut_out_of_vanishing_polynomial
  * @param alpha_base
  * @param transcript
- * @return barretenberg::fr
+ * @return bb::fr
  *
  * @details The terms associated with the z_lookup grand product polynomial that must be added
  * to the quotient polynomial are as follows:
@@ -417,7 +417,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
  *
  */
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
-barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_contribution(
+bb::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_contribution(
     const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
     auto z_lookup_fft = key->polynomial_store.get("z_lookup_fft");
@@ -746,8 +746,6 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
     return alpha_base * alpha.sqr() * alpha;
 }
 
-template class VerifierPlookupWidget<barretenberg::fr,
-                                     barretenberg::g1::affine_element,
-                                     transcript::StandardTranscript>;
+template class VerifierPlookupWidget<bb::fr, bb::g1::affine_element, transcript::StandardTranscript>;
 
 } // namespace proof_system::plonk

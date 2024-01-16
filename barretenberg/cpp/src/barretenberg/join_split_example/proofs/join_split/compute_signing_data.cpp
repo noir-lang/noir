@@ -8,7 +8,7 @@ namespace join_split {
 
 using namespace notes::native;
 
-barretenberg::fr compute_signing_data(join_split_tx const& tx)
+bb::fr compute_signing_data(join_split_tx const& tx)
 {
     auto proof_id = tx.proof_id;
     auto is_deposit = proof_id == ProofIds::DEPOSIT;

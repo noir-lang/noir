@@ -12,7 +12,7 @@ namespace grand_product_library_tests {
 
 template <class FF> class GrandProductTests : public testing::Test {
 
-    using Polynomial = barretenberg::Polynomial<FF>;
+    using Polynomial = bb::Polynomial<FF>;
 
   public:
     /**
@@ -339,7 +339,7 @@ template <class FF> class GrandProductTests : public testing::Test {
     };
 };
 
-using FieldTypes = testing::Types<barretenberg::fr>;
+using FieldTypes = testing::Types<bb::fr>;
 TYPED_TEST_SUITE(GrandProductTests, FieldTypes);
 
 TYPED_TEST(GrandProductTests, GrandProductPermutation)

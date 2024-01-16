@@ -2,7 +2,7 @@
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 /*
 ```
@@ -60,7 +60,7 @@ sigma_2 = [21, 3, 2, 22, 17, 20, 34, 7, 38, 26, 27, 28, 29, 30, 31, 32]
 sigma_3 = [39, 23, 4, 40, 41, 25, 33, 36, 37, 42, 43, 44, 45, 46, 47, 48]
 ```
 */
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 namespace {

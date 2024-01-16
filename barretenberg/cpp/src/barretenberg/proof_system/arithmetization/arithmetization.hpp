@@ -37,7 +37,7 @@ template <typename FF_> class Standard {
     static constexpr size_t NUM_WIRES = 3;
     static constexpr size_t NUM_SELECTORS = 5;
     using FF = FF_;
-    using SelectorType = std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>;
+    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
 
     std::vector<SelectorType> selectors;
 
@@ -75,7 +75,7 @@ template <typename FF_> class Ultra {
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 11;
     using FF = FF_;
-    using SelectorType = std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>;
+    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
 
   private:
     std::array<SelectorType, NUM_SELECTORS> selectors;
@@ -138,7 +138,7 @@ template <typename FF_> class UltraHonk {
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 14;
     using FF = FF_;
-    using SelectorType = std::vector<FF, barretenberg::ContainerSlabAllocator<FF>>;
+    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
 
   private:
     std::array<SelectorType, NUM_SELECTORS> selectors;

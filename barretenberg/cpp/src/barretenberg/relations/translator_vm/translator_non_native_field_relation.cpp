@@ -277,7 +277,7 @@ void GoblinTranslatorNonNativeFieldRelationImpl<FF>::accumulate(ContainerOverSub
     std::get<2>(accumulators) += tmp;
 };
 
-template class GoblinTranslatorNonNativeFieldRelationImpl<barretenberg::fr>;
+template class GoblinTranslatorNonNativeFieldRelationImpl<bb::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorNonNativeFieldRelationImpl, honk::flavor::GoblinTranslator);
 
 } // namespace proof_system

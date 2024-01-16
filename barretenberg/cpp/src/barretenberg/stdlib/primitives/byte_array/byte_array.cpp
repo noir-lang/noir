@@ -4,7 +4,7 @@
 
 #include "../circuit_builders/circuit_builders.hpp"
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system::plonk {
 namespace stdlib {
@@ -62,7 +62,7 @@ byte_array<Builder>::byte_array(Builder* parent_context, std::vector<uint8_t> co
  * are used to construct the corresponding uint256_t validator := \sum_{i=0}^{8num_bytes-1} 2^{i}b_{i}, and `validator`
  * is copy constrained to be equal to `input`. However, more constraints are needed in general.
  *
- * Let r = barretenberg::fr::modulus. For later applications, we want to ensure that the prover must pass the bit
+ * Let r = bb::fr::modulus. For later applications, we want to ensure that the prover must pass the bit
  * decomposition of the standard representative of the mod r residue class containing `input`, which is to say that we
  * want to show `validator` lies in [0, ..., r-1]. By the formula for `validator`, we do not have to worry about it
  * wrapping the modulus if num_bytes < 32 or, in the default case, if the `input` fits into 31 bytes.
@@ -99,18 +99,18 @@ template <typename Builder> byte_array<Builder>::byte_array(const field_t<Builde
     context = input.get_context();
     if (input.is_constant()) {
         for (size_t i = 0; i < num_bytes; ++i) {
-            values[i] = barretenberg::fr(value.slice((num_bytes - i - 1) * 8, (num_bytes - i) * 8));
+            values[i] = bb::fr(value.slice((num_bytes - i - 1) * 8, (num_bytes - i) * 8));
         }
     } else {
-        constexpr barretenberg::fr byte_shift(256);
+        constexpr bb::fr byte_shift(256);
         field_t<Builder> validator(context, 0);
 
         field_t<Builder> shifted_high_limb(context, 0); // will be set to 2^128v_hi if `i` reaches 15.
         for (size_t i = 0; i < num_bytes; ++i) {
-            barretenberg::fr byte_val = value.slice((num_bytes - i - 1) * 8, (num_bytes - i) * 8);
+            bb::fr byte_val = value.slice((num_bytes - i - 1) * 8, (num_bytes - i) * 8);
             field_t<Builder> byte = witness_t(context, byte_val);
             byte.create_range_constraint(8, "byte_array: byte extraction failed.");
-            barretenberg::fr scaling_factor_value = byte_shift.pow(static_cast<uint64_t>(num_bytes - 1 - i));
+            bb::fr scaling_factor_value = byte_shift.pow(static_cast<uint64_t>(num_bytes - 1 - i));
             field_t<Builder> scaling_factor(context, scaling_factor_value);
             validator = validator + (scaling_factor * byte);
             values[i] = byte;
@@ -212,11 +212,11 @@ template <typename Builder> byte_array<Builder>& byte_array<Builder>::operator=(
 template <typename Builder> byte_array<Builder>::operator field_t<Builder>() const
 {
     const size_t bytes = values.size();
-    barretenberg::fr shift(256);
-    field_t<Builder> result(context, barretenberg::fr(0));
+    bb::fr shift(256);
+    field_t<Builder> result(context, bb::fr(0));
     for (size_t i = 0; i < values.size(); ++i) {
         field_t<Builder> temp(values[i]);
-        barretenberg::fr scaling_factor_value = shift.pow(static_cast<uint64_t>(bytes - 1 - i));
+        bb::fr scaling_factor_value = shift.pow(static_cast<uint64_t>(bytes - 1 - i));
         field_t<Builder> scaling_factor(values[i].context, scaling_factor_value);
         result = result + (scaling_factor * temp);
     }
@@ -324,7 +324,7 @@ template <typename Builder> void byte_array<Builder>::set_bit(size_t index_rever
     const size_t byte_index = index / 8UL;
     const size_t bit_index = 7UL - (index % 8UL);
 
-    field_t<Builder> scaled_new_bit = field_t<Builder>(new_bit) * barretenberg::fr(uint256_t(1) << bit_index);
+    field_t<Builder> scaled_new_bit = field_t<Builder>(new_bit) * bb::fr(uint256_t(1) << bit_index);
     const auto new_value = slice.low.add_two(slice.high, scaled_new_bit).normalize();
     values[byte_index] = new_value;
 }
@@ -372,8 +372,8 @@ typename byte_array<Builder>::byte_slice byte_array<Builder>::split_byte(const s
         high.assert_equal(0);
     }
 
-    field_t<Builder> scaled_high = high * barretenberg::fr(uint256_t(1) << (8ULL - num_high_bits));
-    field_t<Builder> scaled_bit = field_t<Builder>(bit) * barretenberg::fr(uint256_t(1) << bit_index);
+    field_t<Builder> scaled_high = high * bb::fr(uint256_t(1) << (8ULL - num_high_bits));
+    field_t<Builder> scaled_bit = field_t<Builder>(bit) * bb::fr(uint256_t(1) << bit_index);
     field_t<Builder> result = low.add_two(scaled_high, scaled_bit);
     result.assert_equal(byte);
 

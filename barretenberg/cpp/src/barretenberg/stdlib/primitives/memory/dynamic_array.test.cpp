@@ -8,7 +8,7 @@
 #include "../circuit_builders/circuit_builders.hpp"
 
 namespace test_stdlib_dynamic_array {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 namespace {

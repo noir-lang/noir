@@ -19,7 +19,7 @@
 #include <utility>
 
 namespace test_stdlib_bigfield {
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 /* A note regarding Plookup:
@@ -828,18 +828,18 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
     static void test_conditional_select_regression()
     {
         auto builder = Builder();
-        barretenberg::fq a(0);
-        barretenberg::fq b(1);
+        bb::fq a(0);
+        bb::fq b(1);
         fq_ct a_ct(&builder, a);
         fq_ct b_ct(&builder, b);
         fq_ct selected = a_ct.conditional_select(b_ct, typename bn254::bool_ct(&builder, true));
-        EXPECT_EQ(barretenberg::fq((selected.get_value() % uint512_t(barretenberg::fq::modulus)).lo), b);
+        EXPECT_EQ(bb::fq((selected.get_value() % uint512_t(bb::fq::modulus)).lo), b);
     }
 
     static void test_division_context()
     {
         auto builder = Builder();
-        barretenberg::fq a(1);
+        bb::fq a(1);
         fq_ct a_ct(&builder, a);
         fq_ct ret = fq_ct::div_check_denominator_nonzero({}, a_ct);
         EXPECT_NE(ret.get_context(), nullptr);
@@ -940,19 +940,19 @@ TYPED_TEST(stdlib_bigfield, division_context)
 //     size_t num_repetitions = 1;
 //     for (size_t i = 0; i < num_repetitions; ++i) {
 //         fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
-//         fq_ct a(witness_ct(&builder, barretenberg::fr(uint256_t(inputs[0]).slice(0,
+//         fq_ct a(witness_ct(&builder, bb::fr(uint256_t(inputs[0]).slice(0,
 //         fq_ct::NUM_LIMB_BITS * 2))),
 //                 witness_ct(
 //                     &builder,
-//                     barretenberg::fr(uint256_t(inputs[0]).slice(fq_ct::NUM_LIMB_BITS * 2,
+//                     bb::fr(uint256_t(inputs[0]).slice(fq_ct::NUM_LIMB_BITS * 2,
 //                     fq_ct::NUM_LIMB_BITS * 4))));
 //         fq_ct b1(&builder, uint256_t(inputs[1]));
 //         fq_ct b2(&builder, uint256_t(inputs[2]));
 //         fq_ct c = a / (b1 - b2);
-//         // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-//         //                    barretenberg::Bn254FqParams::modulus_1,
-//         //                    barretenberg::Bn254FqParams::modulus_2,
-//         //                    barretenberg::Bn254FqParams::modulus_3 };
+//         // uint256_t modulus{ bb::Bn254FqParams::modulus_0,
+//         //                    bb::Bn254FqParams::modulus_1,
+//         //                    bb::Bn254FqParams::modulus_2,
+//         //                    bb::Bn254FqParams::modulus_3 };
 
 //         fq expected = (inputs[0] / (inputs[1] - inputs[2]));
 //         std::cerr << "denominator = " << inputs[1] - inputs[2] << std::endl;
@@ -984,15 +984,15 @@ TYPED_TEST(stdlib_bigfield, division_context)
 //     for (size_t i = 0; i < num_repetitions; ++i) {
 //         fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
 //         fq_ct a(
-//             witness_ct(&builder, barretenberg::fr(uint256_t(inputs[0]).slice(0,
+//             witness_ct(&builder, bb::fr(uint256_t(inputs[0]).slice(0,
 //             fq_ct::NUM_LIMB_BITS * 2))), witness_ct(&builder,
-//                        barretenberg::fr(
+//                        bb::fr(
 //                            uint256_t(inputs[0]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS *
 //                            4))));
 //         fq_ct b(
-//             witness_ct(&builder, barretenberg::fr(uint256_t(inputs[1]).slice(0,
+//             witness_ct(&builder, bb::fr(uint256_t(inputs[1]).slice(0,
 //             fq_ct::NUM_LIMB_BITS * 2))), witness_ct(&builder,
-//                        barretenberg::fr(
+//                        bb::fr(
 //                            uint256_t(inputs[1]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS *
 //                            4))));
 //         std::cerr << "starting mul" << std::endl;
@@ -1031,9 +1031,9 @@ TYPED_TEST(stdlib_bigfield, division_context)
 //     for (size_t i = 0; i < num_repetitions; ++i) {
 //         fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
 //         fq_ct a(
-//             witness_ct(&builder, barretenberg::fr(uint256_t(inputs[0]).slice(0,
+//             witness_ct(&builder, bb::fr(uint256_t(inputs[0]).slice(0,
 //             fq_ct::NUM_LIMB_BITS * 2))), witness_ct(&builder,
-//                        barretenberg::fr(
+//                        bb::fr(
 //                            uint256_t(inputs[0]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS *
 //                            4))));
 //         uint64_t before = builder.get_num_gates();

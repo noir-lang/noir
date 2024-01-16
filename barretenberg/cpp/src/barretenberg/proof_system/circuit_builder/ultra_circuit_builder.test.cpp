@@ -2,7 +2,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -44,7 +44,7 @@ TEST(ultra_circuit_constructor, create_gates_from_plookup_accumulators)
 
     UltraCircuitBuilder circuit_builder = UltraCircuitBuilder();
 
-    barretenberg::fr input_value = fr::random_element();
+    bb::fr input_value = fr::random_element();
     const fr input_lo = static_cast<uint256_t>(input_value).slice(0, plookup::fixed_base::table::BITS_PER_LO_SCALAR);
     const auto input_lo_index = circuit_builder.add_variable(input_lo);
 
@@ -140,9 +140,9 @@ TEST(ultra_circuit_constructor, test_elliptic_gate)
     typedef grumpkin::g1::element element;
     UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
 
-    affine_element p1 = crypto::pedersen_commitment::commit_native({ barretenberg::fr(1) }, 0);
+    affine_element p1 = crypto::pedersen_commitment::commit_native({ bb::fr(1) }, 0);
 
-    affine_element p2 = crypto::pedersen_commitment::commit_native({ barretenberg::fr(1) }, 1);
+    affine_element p2 = crypto::pedersen_commitment::commit_native({ bb::fr(1) }, 1);
     affine_element p3(element(p1) + element(p2));
 
     uint32_t x1 = circuit_constructor.add_variable(p1.x);
@@ -171,7 +171,7 @@ TEST(ultra_circuit_constructor, test_elliptic_double_gate)
     typedef grumpkin::g1::element element;
     UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
 
-    affine_element p1 = crypto::pedersen_commitment::commit_native({ barretenberg::fr(1) }, 0);
+    affine_element p1 = crypto::pedersen_commitment::commit_native({ bb::fr(1) }, 0);
     affine_element p3(element(p1).dbl());
 
     uint32_t x1 = circuit_constructor.add_variable(p1.x);

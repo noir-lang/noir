@@ -35,15 +35,15 @@ class KeccakInput {
      * Used by the Plookup code to precompute lookup tables and generate witness values
      *
      * @param key (first element = table input. Second element is unused as this lookup does not have 2 keys per value)
-     * @return std::array<barretenberg::fr, 2> table output
+     * @return std::array<bb::fr, 2> table output
      */
-    static std::array<barretenberg::fr, 2> get_keccak_input_values(const std::array<uint64_t, 2> key)
+    static std::array<bb::fr, 2> get_keccak_input_values(const std::array<uint64_t, 2> key)
     {
         const uint256_t t0 = numeric::map_into_sparse_form<BASE>(key[0]);
 
         constexpr size_t msb_shift = (64 % TABLE_BITS == 0) ? TABLE_BITS - 1 : (64 % TABLE_BITS) - 1;
         const uint256_t t1 = key[0] >> msb_shift;
-        return { barretenberg::fr(t0), barretenberg::fr(t1) };
+        return { bb::fr(t0), bb::fr(t1) };
     }
 
     /**
@@ -65,9 +65,9 @@ class KeccakInput {
         for (uint64_t i = 0; i < table.size; ++i) {
             const uint64_t source = i;
             const auto target = numeric::map_into_sparse_form<BASE>(source);
-            table.column_1.emplace_back(barretenberg::fr(source));
-            table.column_2.emplace_back(barretenberg::fr(target));
-            table.column_3.emplace_back(barretenberg::fr(source >> msb_shift));
+            table.column_1.emplace_back(bb::fr(source));
+            table.column_2.emplace_back(bb::fr(target));
+            table.column_3.emplace_back(bb::fr(source >> msb_shift));
         }
 
         table.get_values_from_key = &get_keccak_input_values;
@@ -76,9 +76,9 @@ class KeccakInput {
         for (size_t i = 0; i < TABLE_BITS; ++i) {
             sparse_step_size *= BASE;
         }
-        table.column_1_step_size = barretenberg::fr((1 << TABLE_BITS));
-        table.column_2_step_size = barretenberg::fr(sparse_step_size);
-        table.column_3_step_size = barretenberg::fr(sparse_step_size);
+        table.column_1_step_size = bb::fr((1 << TABLE_BITS));
+        table.column_2_step_size = bb::fr(sparse_step_size);
+        table.column_3_step_size = bb::fr(sparse_step_size);
 
         return table;
     }

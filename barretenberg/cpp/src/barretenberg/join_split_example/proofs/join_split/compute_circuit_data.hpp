@@ -10,7 +10,7 @@ join_split_tx noop_tx();
 
 using circuit_data = proofs::circuit_data;
 
-circuit_data get_circuit_data(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& srs,
+circuit_data get_circuit_data(std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> const& srs,
                               bool mock = false);
 
 } // namespace join_split

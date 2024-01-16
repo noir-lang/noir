@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

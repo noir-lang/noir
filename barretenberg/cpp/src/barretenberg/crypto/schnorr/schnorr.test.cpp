@@ -2,7 +2,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 using namespace crypto::schnorr;
 
 crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> generate_signature()

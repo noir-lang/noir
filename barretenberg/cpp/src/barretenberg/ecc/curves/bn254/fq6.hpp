@@ -4,7 +4,7 @@
 #include "./fq.hpp"
 #include "./fq2.hpp"
 
-namespace barretenberg {
+namespace bb {
 struct Bn254Fq6Params {
     static constexpr fq2 frobenius_coeffs_c1_1{
         { 0xb5773b104563ab30UL, 0x347f91c8a9aa6454UL, 0x7a007127242e0991UL, 0x1956bcd8118214ecUL },
@@ -58,4 +58,4 @@ struct Bn254Fq6Params {
 };
 
 using fq6 = field6<fq2, Bn254Fq6Params>;
-} // namespace barretenberg
+} // namespace bb

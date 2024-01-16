@@ -15,7 +15,7 @@ struct verification_key_data {
     uint32_t circuit_type;
     uint32_t circuit_size;
     uint32_t num_public_inputs;
-    std::map<std::string, barretenberg::g1::affine_element> commitments;
+    std::map<std::string, bb::g1::affine_element> commitments;
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
 
@@ -26,7 +26,7 @@ struct verification_key_data {
                    commitments,
                    contains_recursive_proof,
                    recursive_proof_public_input_indices);
-    [[nodiscard]] barretenberg::fr hash_native(size_t hash_index = 0) const;
+    [[nodiscard]] bb::fr hash_native(size_t hash_index = 0) const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, verification_key_data const& key)
@@ -49,10 +49,10 @@ struct verification_key {
     // default constructor needed for msgpack unpack
     verification_key() = default;
     verification_key(verification_key_data&& data,
-                     std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> const& crs);
+                     std::shared_ptr<bb::srs::factories::VerifierCrs<curve::BN254>> const& crs);
     verification_key(size_t num_gates,
                      size_t num_inputs,
-                     std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> const& crs,
+                     std::shared_ptr<bb::srs::factories::VerifierCrs<curve::BN254>> const& crs,
                      CircuitType circuit_type);
 
     verification_key(const verification_key& other);
@@ -80,17 +80,17 @@ struct verification_key {
     size_t log_circuit_size;
     size_t num_public_inputs;
 
-    barretenberg::evaluation_domain domain;
+    bb::evaluation_domain domain;
 
-    std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> reference_string;
+    std::shared_ptr<bb::srs::factories::VerifierCrs<curve::BN254>> reference_string;
 
-    std::map<std::string, barretenberg::g1::affine_element> commitments;
+    std::map<std::string, bb::g1::affine_element> commitments;
 
     PolynomialManifest polynomial_manifest;
 
     // This is a member variable so as to avoid recomputing it in the different places of the verifier algorithm.
     // Note that recomputing would also have added constraints to the recursive verifier circuit.
-    barretenberg::fr z_pow_n; // ʓ^n (ʓ being the 'evaluation challenge')
+    bb::fr z_pow_n; // ʓ^n (ʓ being the 'evaluation challenge')
 
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
@@ -110,7 +110,7 @@ struct verification_key {
     void msgpack_unpack(auto obj)
     {
         verification_key_data data = obj;
-        *this = verification_key{ std::move(data), barretenberg::srs::get_crs_factory()->get_verifier_crs() };
+        *this = verification_key{ std::move(data), bb::srs::get_crs_factory()->get_verifier_crs() };
     }
     // Alias verification_key as verification_key_data in the schema
     void msgpack_schema(auto& packer) const { packer.pack_schema(proof_system::plonk::verification_key_data{}); }
@@ -121,7 +121,7 @@ template <typename B> inline void read(B& buf, verification_key& key)
     using serialize::read;
     verification_key_data vk_data;
     read(buf, vk_data);
-    key = verification_key{ std::move(vk_data), barretenberg::srs::get_crs_factory()->get_verifier_crs() };
+    key = verification_key{ std::move(vk_data), bb::srs::get_crs_factory()->get_verifier_crs() };
 }
 
 template <typename B> inline void read(B& buf, std::shared_ptr<verification_key>& key)
@@ -129,8 +129,7 @@ template <typename B> inline void read(B& buf, std::shared_ptr<verification_key>
     using serialize::read;
     verification_key_data vk_data;
     read(buf, vk_data);
-    key = std::make_shared<verification_key>(std::move(vk_data),
-                                             barretenberg::srs::get_crs_factory()->get_verifier_crs());
+    key = std::make_shared<verification_key>(std::move(vk_data), bb::srs::get_crs_factory()->get_verifier_crs());
 }
 
 template <typename B> inline void write(B& buf, verification_key const& key)

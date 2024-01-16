@@ -123,16 +123,16 @@ enum MultiTableId {
 
 struct MultiTable {
     // Coefficients are accumulated products of corresponding step sizes until that point
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
+    std::vector<bb::fr> column_1_coefficients;
+    std::vector<bb::fr> column_2_coefficients;
+    std::vector<bb::fr> column_3_coefficients;
     MultiTableId id;
     std::vector<BasicTableId> lookup_ids;
     std::vector<uint64_t> slice_sizes;
-    std::vector<barretenberg::fr> column_1_step_sizes;
-    std::vector<barretenberg::fr> column_2_step_sizes;
-    std::vector<barretenberg::fr> column_3_step_sizes;
-    typedef std::array<barretenberg::fr, 2> table_out;
+    std::vector<bb::fr> column_1_step_sizes;
+    std::vector<bb::fr> column_2_step_sizes;
+    std::vector<bb::fr> column_3_step_sizes;
+    typedef std::array<bb::fr, 2> table_out;
     typedef std::array<uint64_t, 2> table_in;
     std::vector<table_out (*)(table_in)> get_table_values;
 
@@ -140,15 +140,15 @@ struct MultiTable {
     void init_step_sizes()
     {
         const size_t num_lookups = column_1_coefficients.size();
-        column_1_step_sizes.emplace_back(barretenberg::fr(1));
-        column_2_step_sizes.emplace_back(barretenberg::fr(1));
-        column_3_step_sizes.emplace_back(barretenberg::fr(1));
+        column_1_step_sizes.emplace_back(bb::fr(1));
+        column_2_step_sizes.emplace_back(bb::fr(1));
+        column_3_step_sizes.emplace_back(bb::fr(1));
 
-        std::vector<barretenberg::fr> coefficient_inverses(column_1_coefficients.begin(), column_1_coefficients.end());
+        std::vector<bb::fr> coefficient_inverses(column_1_coefficients.begin(), column_1_coefficients.end());
         std::copy(column_2_coefficients.begin(), column_2_coefficients.end(), std::back_inserter(coefficient_inverses));
         std::copy(column_3_coefficients.begin(), column_3_coefficients.end(), std::back_inserter(coefficient_inverses));
 
-        barretenberg::fr::batch_invert(&coefficient_inverses[0], num_lookups * 3);
+        bb::fr::batch_invert(&coefficient_inverses[0], num_lookups * 3);
 
         for (size_t i = 1; i < num_lookups; ++i) {
             column_1_step_sizes.emplace_back(column_1_coefficients[i] * coefficient_inverses[i - 1]);
@@ -158,9 +158,9 @@ struct MultiTable {
     }
 
   public:
-    MultiTable(const barretenberg::fr& col_1_repeated_coeff,
-               const barretenberg::fr& col_2_repeated_coeff,
-               const barretenberg::fr& col_3_repeated_coeff,
+    MultiTable(const bb::fr& col_1_repeated_coeff,
+               const bb::fr& col_2_repeated_coeff,
+               const bb::fr& col_3_repeated_coeff,
                const size_t num_lookups)
     {
         column_1_coefficients.emplace_back(1);
@@ -174,9 +174,9 @@ struct MultiTable {
         }
         init_step_sizes();
     }
-    MultiTable(const std::vector<barretenberg::fr>& col_1_coeffs,
-               const std::vector<barretenberg::fr>& col_2_coeffs,
-               const std::vector<barretenberg::fr>& col_3_coeffs)
+    MultiTable(const std::vector<bb::fr>& col_1_coeffs,
+               const std::vector<bb::fr>& col_2_coeffs,
+               const std::vector<bb::fr>& col_3_coeffs)
         : column_1_coefficients(col_1_coeffs)
         , column_2_coefficients(col_2_coeffs)
         , column_3_coefficients(col_3_coeffs)
@@ -195,10 +195,10 @@ struct MultiTable {
 // struct PlookupLargeKeyTable {
 //     struct KeyEntry {
 //         uint256_t key;
-//         std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
+//         std::array<bb::fr, 2> value{ bb::fr(0), bb::fr(0) };
 //         bool operator<(const KeyEntry& other) const { return key < other.key; }
 
-//         std::array<barretenberg::fr, 3> to_sorted_list_components(const bool use_two_keys) const
+//         std::array<bb::fr, 3> to_sorted_list_components(const bool use_two_keys) const
 //         {
 //             return {
 //                 key[0],
@@ -213,27 +213,27 @@ struct MultiTable {
 //     size_t size;
 //     bool use_twin_keys;
 
-//     barretenberg::fr column_1_step_size = barretenberg::fr(0);
-//     barretenberg::fr column_2_step_size = barretenberg::fr(0);
-//     barretenberg::fr column_3_step_size = barretenberg::fr(0);
-//     std::vector<barretenberg::fr> column_1;
-//     std::vector<barretenberg::fr> column_3;
-//     std::vector<barretenberg::fr> column_2;
+//     bb::fr column_1_step_size = bb::fr(0);
+//     bb::fr column_2_step_size = bb::fr(0);
+//     bb::fr column_3_step_size = bb::fr(0);
+//     std::vector<bb::fr> column_1;
+//     std::vector<bb::fr> column_3;
+//     std::vector<bb::fr> column_2;
 //     std::vector<KeyEntry> lookup_gates;
 
-//     std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
+//     std::array<bb::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
 // };
 
 // struct PlookupFatKeyTable {
 //     struct KeyEntry {
-//         barretenberg::fr key;
-//         std::array<barretenberg::fr, 2> values{ 0, 0 };
+//         bb::fr key;
+//         std::array<bb::fr, 2> values{ 0, 0 };
 //         bool operator<(const KeyEntry& other) const
 //         {
 //             return (key.from_montgomery_form() < other.key.from_montgomery_form());
 //         }
 
-//         std::array<barretenberg::fr, 3> to_sorted_list_components() const { return { key, values[0], values[0] }; }
+//         std::array<bb::fr, 3> to_sorted_list_components() const { return { key, values[0], values[0] }; }
 //     }
 
 //     BasicTableId id;
@@ -241,15 +241,15 @@ struct MultiTable {
 //     size_t size;
 //     bool use_twin_keys;
 
-//     barretenberg::fr column_1_step_size = barretenberg::fr(0);
-//     barretenberg::fr column_2_step_size = barretenberg::fr(0);
-//     barretenberg::fr column_3_step_size = barretenberg::fr(0);
-//     std::vector<barretenberg::fr> column_1;
-//     std::vector<barretenberg::fr> column_3;
-//     std::vector<barretenberg::fr> column_2;
+//     bb::fr column_1_step_size = bb::fr(0);
+//     bb::fr column_2_step_size = bb::fr(0);
+//     bb::fr column_3_step_size = bb::fr(0);
+//     std::vector<bb::fr> column_1;
+//     std::vector<bb::fr> column_3;
+//     std::vector<bb::fr> column_2;
 //     std::vector<KeyEntry> lookup_gates;
 
-//     std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
+//     std::array<bb::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
 
 // }
 
@@ -263,17 +263,17 @@ struct MultiTable {
 struct BasicTable {
     struct KeyEntry {
         std::array<uint256_t, 2> key{ 0, 0 };
-        std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
+        std::array<bb::fr, 2> value{ bb::fr(0), bb::fr(0) };
         bool operator<(const KeyEntry& other) const
         {
             return key[0] < other.key[0] || ((key[0] == other.key[0]) && key[1] < other.key[1]);
         }
 
-        std::array<barretenberg::fr, 3> to_sorted_list_components(const bool use_two_keys) const
+        std::array<bb::fr, 3> to_sorted_list_components(const bool use_two_keys) const
         {
             return {
-                barretenberg::fr(key[0]),
-                use_two_keys ? barretenberg::fr(key[1]) : value[0],
+                bb::fr(key[0]),
+                use_two_keys ? bb::fr(key[1]) : value[0],
                 use_two_keys ? value[0] : value[1],
             };
         }
@@ -287,15 +287,15 @@ struct BasicTable {
     // This means that we are using two inputs to look up stuff, not translate a single entry into another one.
     bool use_twin_keys;
 
-    barretenberg::fr column_1_step_size = barretenberg::fr(0);
-    barretenberg::fr column_2_step_size = barretenberg::fr(0);
-    barretenberg::fr column_3_step_size = barretenberg::fr(0);
-    std::vector<barretenberg::fr> column_1;
-    std::vector<barretenberg::fr> column_3;
-    std::vector<barretenberg::fr> column_2;
+    bb::fr column_1_step_size = bb::fr(0);
+    bb::fr column_2_step_size = bb::fr(0);
+    bb::fr column_3_step_size = bb::fr(0);
+    std::vector<bb::fr> column_1;
+    std::vector<bb::fr> column_3;
+    std::vector<bb::fr> column_2;
     std::vector<KeyEntry> lookup_gates;
 
-    std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
+    std::array<bb::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
 };
 
 enum ColumnIdx { C1, C2, C3 };

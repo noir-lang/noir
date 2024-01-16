@@ -55,9 +55,8 @@ template <typename Builder> struct sparse_value {
     {
         normal = in;
         if (normal.witness_index == IS_CONSTANT) {
-            sparse = field_t<Builder>(
-                in.get_context(),
-                barretenberg::fr(numeric::map_into_sparse_form<16>(uint256_t(in.get_value()).data[0])));
+            sparse = field_t<Builder>(in.get_context(),
+                                      bb::fr(numeric::map_into_sparse_form<16>(uint256_t(in.get_value()).data[0])));
         }
     }
 

@@ -1,7 +1,7 @@
 #include "g2.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 TEST(g2, RandomElement)
 {
@@ -385,6 +385,6 @@ template <class T> void write(const T t)
 TEST(g2, InitializationCheck)
 {
     // NOLINTNEXTLINE not our fault googletest uses `goto`!
-    EXPECT_NO_THROW(write<barretenberg::g2::affine_element>({}));
+    EXPECT_NO_THROW(write<bb::g2::affine_element>({}));
 }
 #endif

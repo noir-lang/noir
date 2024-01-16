@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-using namespace barretenberg;
+using namespace bb;
 
 namespace proof_system {
 
@@ -3484,8 +3484,8 @@ template <typename Arithmetization> bool UltraCircuitBuilder_<Arithmetization>::
     circuit_backup.restore_prefinilized_state(this);
     return result;
 }
-template class UltraCircuitBuilder_<arithmetization::Ultra<barretenberg::fr>>;
-template class UltraCircuitBuilder_<arithmetization::UltraHonk<barretenberg::fr>>;
+template class UltraCircuitBuilder_<arithmetization::Ultra<bb::fr>>;
+template class UltraCircuitBuilder_<arithmetization::UltraHonk<bb::fr>>;
 // To enable this we need to template plookup
 // template class UltraCircuitBuilder_<grumpkin::fr>;
 

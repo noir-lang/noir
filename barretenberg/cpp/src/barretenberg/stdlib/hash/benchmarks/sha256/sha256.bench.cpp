@@ -16,7 +16,7 @@ constexpr size_t MAX_BYTES = START_BYTES + (BYTES_PER_CHUNK * (NUM_HASHES - 1));
 
 char get_random_char()
 {
-    return static_cast<char>(barretenberg::fr::random_element().data[0] % 8);
+    return static_cast<char>(bb::fr::random_element().data[0] % 8);
 }
 
 void generate_test_plonk_circuit(Builder& builder, size_t num_bytes)

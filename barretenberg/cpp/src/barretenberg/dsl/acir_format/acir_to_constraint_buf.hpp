@@ -66,7 +66,7 @@ poly_triple serialize_arithmetic_gate(Circuit::Expression const& arg)
     // If necessary, set values for linears terms q_l * w_l, q_r * w_r and q_o * w_o
     ASSERT(arg.linear_combinations.size() <= 3); // We can only accommodate 3 linear terms
     for (const auto& linear_term : arg.linear_combinations) {
-        barretenberg::fr selector_value(uint256_t(std::get<0>(linear_term)));
+        bb::fr selector_value(uint256_t(std::get<0>(linear_term)));
         uint32_t witness_idx = std::get<1>(linear_term).value;
 
         // If the witness index has not yet been set or if the corresponding linear term is active, set the witness
@@ -347,10 +347,10 @@ WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
         // To ensure that witnesses sit at the correct indices in the `WitnessVector`, we fill any indices
         // which do not exist within the `WitnessMap` with the dummy value of zero.
         while (index < e.first.value) {
-            wv.push_back(barretenberg::fr(0));
+            wv.push_back(bb::fr(0));
             index++;
         }
-        wv.push_back(barretenberg::fr(uint256_t(e.second)));
+        wv.push_back(bb::fr(uint256_t(e.second)));
         index++;
     }
     return wv;

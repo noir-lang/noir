@@ -20,7 +20,7 @@
 #define BBERG_NO_ASM 1
 #endif
 
-namespace barretenberg {
+namespace bb {
 template <class Params_> struct alignas(32) field {
   public:
     using View = field;
@@ -586,4 +586,4 @@ template <typename B, typename Params> void write(B& buf, field<Params> const& v
     write(buf, input.data[0]);
 }
 
-} // namespace barretenberg
+} // namespace bb

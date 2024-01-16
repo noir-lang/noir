@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace barretenberg::scalar_multiplication {
+namespace bb::scalar_multiplication {
 
 constexpr size_t get_num_buckets(const size_t num_points)
 {
@@ -173,4 +173,4 @@ typename Curve::Element pippenger_without_endomorphism_basis_points(typename Cur
 // Explicit instantiation
 // BN254
 
-} // namespace barretenberg::scalar_multiplication
+} // namespace bb::scalar_multiplication

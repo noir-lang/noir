@@ -19,7 +19,7 @@
 
 namespace test_stdlib_bit_array {
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk;
 
 namespace {

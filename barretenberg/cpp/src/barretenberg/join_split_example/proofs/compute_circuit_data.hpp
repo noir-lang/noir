@@ -21,7 +21,7 @@ struct circuit_data {
         : num_gates(0)
     {}
 
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> srs;
+    std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> srs;
     std::shared_ptr<plonk::proving_key> proving_key;
     std::shared_ptr<plonk::verification_key> verification_key;
     size_t num_gates;
@@ -40,7 +40,7 @@ inline bool exists(std::string const& path)
 template <typename Composer, typename F>
 circuit_data get_circuit_data(std::string const& name,
                               std::string const& path_name,
-                              std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& srs,
+                              std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> const& srs,
                               std::string const& key_path,
                               bool compute,
                               bool save,

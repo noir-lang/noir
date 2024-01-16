@@ -45,7 +45,7 @@ Builder generate_trace(size_t target_num_gates)
 
 void eccvm_generate_prover(State& state) noexcept
 {
-    barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
 
     size_t target_num_gates = 1 << static_cast<size_t>(state.range(0));
     for (auto _ : state) {
@@ -57,7 +57,7 @@ void eccvm_generate_prover(State& state) noexcept
 
 void eccvm_prove(State& state) noexcept
 {
-    barretenberg::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
 
     size_t target_num_gates = 1 << static_cast<size_t>(state.range(0));
     Builder builder = generate_trace(target_num_gates);

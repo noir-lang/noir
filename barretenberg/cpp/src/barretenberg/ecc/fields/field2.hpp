@@ -8,7 +8,7 @@
  *        Include ordering ensures linter/language server has knowledge of declarations when parsing definitions
  *
  */
-namespace barretenberg {
+namespace bb {
 template <class base, class T> constexpr field2<base, T> field2<base, T>::operator*(const field2& other) const noexcept
 {
     // no funny primes please! we assume -1 is not a quadratic residue
@@ -194,4 +194,4 @@ template <class base, class T> field2<base, T> field2<base, T>::random_element(n
 {
     return { base::random_element(engine), base::random_element(engine) };
 }
-} // namespace barretenberg
+} // namespace bb

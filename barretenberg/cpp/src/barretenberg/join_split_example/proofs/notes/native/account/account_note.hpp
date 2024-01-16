@@ -9,12 +9,10 @@ namespace notes {
 namespace native {
 namespace account {
 
-grumpkin::fq generate_account_commitment(const barretenberg::fr& alias_hash,
-                                         const barretenberg::fr& owner_x,
-                                         const barretenberg::fr& signing_x);
+grumpkin::fq generate_account_commitment(const bb::fr& alias_hash, const bb::fr& owner_x, const bb::fr& signing_x);
 
 struct account_note {
-    barretenberg::fr alias_hash;
+    bb::fr alias_hash;
     grumpkin::g1::affine_element owner_key;
     grumpkin::g1::affine_element signing_key;
 

@@ -59,7 +59,7 @@ namespace proof_system::honk::pcs::gemini {
  */
 template <typename Curve> struct ProverOutput {
     std::vector<OpeningPair<Curve>> opening_pairs;
-    std::vector<barretenberg::Polynomial<typename Curve::ScalarField>> witnesses;
+    std::vector<bb::Polynomial<typename Curve::ScalarField>> witnesses;
 };
 
 /**
@@ -99,7 +99,7 @@ template <class Fr> inline std::vector<Fr> squares_of_r(const Fr r, const size_t
 
 template <typename Curve> class GeminiProver_ {
     using Fr = typename Curve::ScalarField;
-    using Polynomial = barretenberg::Polynomial<Fr>;
+    using Polynomial = bb::Polynomial<Fr>;
 
   public:
     static std::vector<Polynomial> compute_gemini_polynomials(std::span<const Fr> mle_opening_point,

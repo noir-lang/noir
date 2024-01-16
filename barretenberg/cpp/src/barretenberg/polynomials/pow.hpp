@@ -3,7 +3,7 @@
 #include "barretenberg/common/thread_utils.hpp"
 #include <cstddef>
 #include <vector>
-namespace barretenberg {
+namespace bb {
 
 /**
  * @brief Succinct representation of the `pow` polynomial that can be partially evaluated variable-by-variable.
@@ -151,4 +151,4 @@ template <typename FF> struct PowPolynomial {
         });
     }
 };
-} // namespace barretenberg
+} // namespace bb

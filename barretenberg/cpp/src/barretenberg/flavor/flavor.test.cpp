@@ -45,7 +45,7 @@ TEST(Flavor, AllEntitiesSpecialMemberFunctions)
     using Flavor = proof_system::honk::flavor::Ultra;
     using FF = Flavor::FF;
     using PartiallyEvaluatedMultivariates = Flavor::PartiallyEvaluatedMultivariates;
-    using Polynomial = barretenberg::Polynomial<FF>;
+    using Polynomial = bb::Polynomial<FF>;
 
     PartiallyEvaluatedMultivariates polynomials_A;
     auto random_poly = Polynomial(10);

@@ -154,8 +154,8 @@ std::string AcirComposer::get_solidity_verifier()
  * @param proof
  * @param num_inner_public_inputs - number of public inputs on the proof being serialized
  */
-std::vector<barretenberg::fr> AcirComposer::serialize_proof_into_fields(std::vector<uint8_t> const& proof,
-                                                                        size_t num_inner_public_inputs)
+std::vector<bb::fr> AcirComposer::serialize_proof_into_fields(std::vector<uint8_t> const& proof,
+                                                              size_t num_inner_public_inputs)
 {
     transcript::StandardTranscript transcript(proof,
                                               acir_format::Composer::create_manifest(num_inner_public_inputs),
@@ -171,7 +171,7 @@ std::vector<barretenberg::fr> AcirComposer::serialize_proof_into_fields(std::vec
  *        Use this method to get the witness values!
  *        The composer should already have a verification key initialized.
  */
-std::vector<barretenberg::fr> AcirComposer::serialize_verification_key_into_fields()
+std::vector<bb::fr> AcirComposer::serialize_verification_key_into_fields()
 {
     return acir_format::export_key_in_recursion_format(verification_key_);
 }

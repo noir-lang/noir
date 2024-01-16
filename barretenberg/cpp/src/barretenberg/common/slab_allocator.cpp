@@ -200,7 +200,7 @@ void SlabAllocator::release(void* ptr, size_t size)
 SlabAllocator allocator;
 } // namespace
 
-namespace barretenberg {
+namespace bb {
 void init_slab_allocator(size_t circuit_subgroup_size)
 {
     allocator.init(circuit_subgroup_size);
@@ -231,4 +231,4 @@ void free_mem_slab_raw(void* p)
     }
     manual_slabs.erase(p);
 }
-} // namespace barretenberg
+} // namespace bb

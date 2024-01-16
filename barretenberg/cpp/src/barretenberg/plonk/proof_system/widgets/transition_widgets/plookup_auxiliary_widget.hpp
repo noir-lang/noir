@@ -66,8 +66,8 @@ template <class Field, class Getters, typename PolyContainer> class PlookupAuxil
                                                Field& quotient,
                                                const size_t i = 0)
     {
-        constexpr barretenberg::fr LIMB_SIZE(uint256_t(1) << 68);
-        constexpr barretenberg::fr SUBLIMB_SHIFT(uint256_t(1) << 14);
+        constexpr bb::fr LIMB_SIZE(uint256_t(1) << 68);
+        constexpr bb::fr SUBLIMB_SHIFT(uint256_t(1) << 14);
 
         const Field& w_1 =
             Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_1>(polynomials, i);
@@ -324,8 +324,7 @@ template <class Field, class Getters, typename PolyContainer> class PlookupAuxil
 } // namespace widget
 
 template <typename Settings>
-using ProverPlookupAuxiliaryWidget =
-    widget::TransitionWidget<barretenberg::fr, Settings, widget::PlookupAuxiliaryKernel>;
+using ProverPlookupAuxiliaryWidget = widget::TransitionWidget<bb::fr, Settings, widget::PlookupAuxiliaryKernel>;
 
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierPlookupAuxiliaryWidget =

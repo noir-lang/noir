@@ -19,7 +19,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-std::vector<uint32_t> add_variables(auto& circuit_constructor, std::vector<barretenberg::fr> variables)
+std::vector<uint32_t> add_variables(auto& circuit_constructor, std::vector<bb::fr> variables)
 {
     std::vector<uint32_t> res;
     for (size_t i = 0; i < variables.size(); i++) {
@@ -39,7 +39,7 @@ void ensure_non_zero(auto& polynomial)
 
 class GoblinTranslatorComposerTests : public ::testing::Test {
   protected:
-    static void SetUpTestSuite() { barretenberg::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 
 /**
@@ -48,9 +48,9 @@ class GoblinTranslatorComposerTests : public ::testing::Test {
  */
 TEST_F(GoblinTranslatorComposerTests, Basic)
 {
-    using G1 = barretenberg::g1::affine_element;
-    using Fr = barretenberg::fr;
-    using Fq = barretenberg::fq;
+    using G1 = bb::g1::affine_element;
+    using Fr = bb::fr;
+    using Fq = bb::fq;
 
     auto P1 = G1::random_element();
     auto P2 = G1::random_element();

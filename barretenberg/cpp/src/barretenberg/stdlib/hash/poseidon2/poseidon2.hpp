@@ -8,7 +8,7 @@
 
 namespace proof_system::plonk::stdlib {
 
-using namespace barretenberg;
+using namespace bb;
 /**
  * @brief stdlib class that evaluates in-circuit poseidon2 hashes, consistent with behavior in
  * crypto::poseidon2

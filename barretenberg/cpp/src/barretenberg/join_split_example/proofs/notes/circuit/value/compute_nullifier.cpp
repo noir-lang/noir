@@ -4,7 +4,7 @@
 
 namespace join_split_example::proofs::notes::circuit {
 
-using namespace barretenberg;
+using namespace bb;
 using namespace proof_system::plonk::stdlib;
 
 field_ct compute_nullifier(field_ct const& note_commitment,

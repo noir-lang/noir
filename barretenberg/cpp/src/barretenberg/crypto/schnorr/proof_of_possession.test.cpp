@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <gtest/gtest.h>
 
-using namespace barretenberg;
+using namespace bb;
 
 template <typename Hash> struct ProofOfPossessionTest : public ::testing::Test {
     using G = grumpkin::g1;
