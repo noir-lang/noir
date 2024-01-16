@@ -32,7 +32,8 @@ mod reflection {
     };
 
     use brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode, RegisterOrMemory,
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapValueType, Opcode as BrilligOpcode,
+        RegisterOrMemory,
     };
     use serde_reflection::{Tracer, TracerConfig};
 
@@ -70,6 +71,7 @@ mod reflection {
         tracer.trace_simple_type::<BlackBoxOp>().unwrap();
         tracer.trace_simple_type::<Directive>().unwrap();
         tracer.trace_simple_type::<RegisterOrMemory>().unwrap();
+        tracer.trace_simple_type::<HeapValueType>().unwrap();
 
         let registry = tracer.registry().unwrap();
 
