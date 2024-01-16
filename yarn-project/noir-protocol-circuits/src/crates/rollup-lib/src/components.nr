@@ -14,7 +14,7 @@ use dep::types::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
  */
 pub fn aggregate_proofs(
     left: BaseOrMergeRollupPublicInputs,
-    right: BaseOrMergeRollupPublicInputs
+    _right: BaseOrMergeRollupPublicInputs
 ) -> AggregationObject {
     // TODO: Similar to cpp code this does not do anything.
     left.aggregation_object

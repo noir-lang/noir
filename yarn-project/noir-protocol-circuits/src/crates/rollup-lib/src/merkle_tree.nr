@@ -4,7 +4,7 @@ struct MerkleTree<N> {
 }
 
 impl<N> MerkleTree<N> {
-    fn new(leaves: [Field; N]) -> Self {
+    pub fn new(leaves: [Field; N]) -> Self {
         let mut nodes = [0; N];
         
         // We need one less node than leaves, but we cannot have computed array lengths

@@ -204,7 +204,7 @@ impl BaseRollupInputs {
         )
     }
 
-    fn create_nullifier_subtree<N>(self, leaves: [NullifierLeafPreimage; N]) -> Field {
+    fn create_nullifier_subtree<N>(leaves: [NullifierLeafPreimage; N]) -> Field {
         calculate_subtree(leaves.map(|leaf:NullifierLeafPreimage| leaf.hash()))
     }
 
@@ -359,7 +359,7 @@ impl BaseRollupInputs {
     }
 }
 
-fn verify_kernel_proof(proof: Proof) -> bool {
+fn verify_kernel_proof(_proof: Proof) -> bool {
     // TODO: Just return true as we are mocking out the proof verification
     // and aggregation.
     // TODO(Kev): It may make sense to move all of these methods into a 
