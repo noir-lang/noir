@@ -634,7 +634,10 @@ fn find_module(
     anchor: FileId,
     mod_name: &str,
 ) -> Result<FileId, String> {
-    let anchor_path = file_manager.path(anchor).with_extension("");
+    let anchor_path = file_manager
+        .path(anchor)
+        .expect("File must exist in file manager in order for us to be resolving its imports.")
+        .with_extension("");
     let anchor_dir = anchor_path.parent().unwrap();
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of

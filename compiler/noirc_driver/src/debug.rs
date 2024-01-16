@@ -31,14 +31,12 @@ pub(crate) fn filter_relevant_files(
     let mut file_map = BTreeMap::new();
 
     for file_id in files_with_debug_symbols {
-        let file_source = file_manager.fetch_file(file_id);
+        let file_path = file_manager.path(file_id).expect("file should exist");
+        let file_source = file_manager.fetch_file(file_id).expect("file should exist");
 
         file_map.insert(
             file_id,
-            DebugFile {
-                source: file_source.to_string(),
-                path: file_manager.path(file_id).to_path_buf(),
-            },
+            DebugFile { source: file_source.to_string(), path: file_path.to_path_buf() },
         );
     }
     file_map
