@@ -63,7 +63,7 @@ As explained in the [Oracle Explainer](../explainers/explainer-oracle.md), this 
 ```rust
 fn main(input: Field) {
     let sqrt = get_sqrt(input);
-    assert(sqrt[0].pow_32(2) as u64 == input as u64); // <---- constrain the return of an oracle!
+    assert(sqrt.pow_32(2) as u64 == input as u64); // <---- constrain the return of an oracle!
 }
 ```
 
