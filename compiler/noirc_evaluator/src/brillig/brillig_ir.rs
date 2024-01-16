@@ -1045,6 +1045,7 @@ pub(crate) mod tests {
         BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapVector, RegisterIndex,
         RegisterOrMemory, Value,
     };
+    use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{Registers, VMStatus, VM};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
@@ -1151,7 +1152,11 @@ pub(crate) mod tests {
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[RegisterOrMemory::RegisterIndex(r_input_size)],
-            &[RegisterOrMemory::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
+            &[RegisterOrMemory::HeapVector(HeapVector {
+                pointer: r_stack,
+                size: r_output_size,
+                value_types: vec![HeapValueType::Simple],
+            })],
         );
         // push stack frame by r_returned_size
         context.memory_op(r_stack, r_output_size, r_stack, BinaryIntOp::Add);
