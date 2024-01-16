@@ -1059,9 +1059,15 @@ defaults: &defaults
   filters:
     tags:
       only: /^aztec-packages-v.*/
-    branches:
-      ignore:
-        - /^release-please--.*/
+    # We would like to ignore release-please branches,
+    # but doing so breaks github status checks:
+    # the PR spins as it waits for the status check to complete,
+    # which never happens because the branch is ignored.
+    # Long term solution would require disabling the status checks on `master`
+    # when the *source branch* on the PR release-please.
+    # branches:
+    #   ignore:
+    #     - /^release-please--.*/
   context:
     - build
     - slack
