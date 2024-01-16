@@ -636,8 +636,8 @@ fn find_module(
 ) -> Result<FileId, String> {
     let anchor_path = file_manager
         .path(anchor)
-        .map(|path| path.with_extension(""))
-        .ok_or(format!("Could not file with id {}", anchor.as_usize()))?;
+        .expect("File must exist in file manager in order for us to be resolving its imports.")
+        .with_extension("");
     let anchor_dir = anchor_path.parent().unwrap();
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
