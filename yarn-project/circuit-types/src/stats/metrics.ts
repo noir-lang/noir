@@ -146,13 +146,25 @@ export const Metrics = [
     events: ['tx-sequencer-processing'],
   },
   {
-    name: 'batch_insert_into_append_only_tree_ms',
+    name: 'batch_insert_into_append_only_tree_16_depth_ms',
     groupBy: 'leaf-count',
     description: 'Time to insert a batch of leaves into an append-only tree',
     events: ['tree-insertion'],
   },
   {
-    name: 'batch_insert_into_indexed_tree_ms',
+    name: 'batch_insert_into_append_only_tree_32_depth_ms',
+    groupBy: 'leaf-count',
+    description: 'Time to insert a batch of leaves into an append-only tree',
+    events: ['tree-insertion'],
+  },
+  {
+    name: 'batch_insert_into_indexed_tree_20_depth_ms',
+    groupBy: 'leaf-count',
+    description: 'Time to insert a batch of leaves into an indexed tree',
+    events: ['tree-insertion'],
+  },
+  {
+    name: 'batch_insert_into_indexed_tree_40_depth_ms',
     groupBy: 'leaf-count',
     description: 'Time to insert a batch of leaves into an indexed tree',
     events: ['tree-insertion'],
