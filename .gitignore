@@ -12,3 +12,5 @@ cmake-build-debug
 
 # Local Netlify folder
 .netlify
+
+.graphite*

@@ -30,7 +30,15 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x02</td>	<td style={{'text-align': 'center'}}><a id='isa-table-div'/><Markdown>[`DIV`](#isa-section-div)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x02</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mul'/><Markdown>[`MUL`](#isa-section-mul)</Markdown></td>
+	<td><Markdown>Subtraction (a - b)</Markdown></td>
+	<td><Markdown>128</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = M[aOffset] * M[bOffset] mod 2^k`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x03</td>	<td style={{'text-align': 'center'}}><a id='isa-table-div'/><Markdown>[`DIV`](#isa-section-div)</Markdown></td>
 	<td><Markdown>Unsigned division (a / b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -38,7 +46,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x03</td>	<td style={{'text-align': 'center'}}><a id='isa-table-eq'/><Markdown>[`EQ`](#isa-section-eq)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x04</td>	<td style={{'text-align': 'center'}}><a id='isa-table-eq'/><Markdown>[`EQ`](#isa-section-eq)</Markdown></td>
 	<td><Markdown>Equality check (a == b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -46,7 +54,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x04</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lt'/><Markdown>[`LT`](#isa-section-lt)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x05</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lt'/><Markdown>[`LT`](#isa-section-lt)</Markdown></td>
 	<td><Markdown>Less-than check (a &lt; b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -54,7 +62,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x05</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lte'/><Markdown>[`LTE`](#isa-section-lte)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x06</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lte'/><Markdown>[`LTE`](#isa-section-lte)</Markdown></td>
 	<td><Markdown>Less-than-or-equals check (a &lt;= b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -62,7 +70,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x06</td>	<td style={{'text-align': 'center'}}><a id='isa-table-and'/><Markdown>[`AND`](#isa-section-and)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x07</td>	<td style={{'text-align': 'center'}}><a id='isa-table-and'/><Markdown>[`AND`](#isa-section-and)</Markdown></td>
 	<td><Markdown>Bitwise AND (a & b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -70,7 +78,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x07</td>	<td style={{'text-align': 'center'}}><a id='isa-table-or'/><Markdown>[`OR`](#isa-section-or)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x08</td>	<td style={{'text-align': 'center'}}><a id='isa-table-or'/><Markdown>[`OR`](#isa-section-or)</Markdown></td>
 	<td><Markdown>Bitwise OR (a | b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -78,7 +86,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x08</td>	<td style={{'text-align': 'center'}}><a id='isa-table-xor'/><Markdown>[`XOR`](#isa-section-xor)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x09</td>	<td style={{'text-align': 'center'}}><a id='isa-table-xor'/><Markdown>[`XOR`](#isa-section-xor)</Markdown></td>
 	<td><Markdown>Bitwise XOR (a ^ b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -86,7 +94,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x09</td>	<td style={{'text-align': 'center'}}><a id='isa-table-not'/><Markdown>[`NOT`](#isa-section-not)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-not'/><Markdown>[`NOT`](#isa-section-not)</Markdown></td>
 	<td><Markdown>Bitwise NOT (inversion)</Markdown></td>
 	<td><Markdown>96</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -94,7 +102,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shl'/><Markdown>[`SHL`](#isa-section-shl)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shl'/><Markdown>[`SHL`](#isa-section-shl)</Markdown></td>
 	<td><Markdown>Bitwise leftward shift (a &lt;&lt; b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -102,7 +110,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shr'/><Markdown>[`SHR`](#isa-section-shr)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shr'/><Markdown>[`SHR`](#isa-section-shr)</Markdown></td>
 	<td><Markdown>Bitwise rightward shift (a &gt;&gt; b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -110,7 +118,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cast'/><Markdown>[`CAST`](#isa-section-cast)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cast'/><Markdown>[`CAST`](#isa-section-cast)</Markdown></td>
 	<td><Markdown>Type cast</Markdown></td>
 	<td><Markdown>96</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -118,7 +126,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>[`SET`](#isa-section-set)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>[`SET`](#isa-section-set)</Markdown></td>
 	<td><Markdown>Set a memory word from a constant in the bytecode.</Markdown></td>
 	<td><Markdown>64+N</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -126,7 +134,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>[`MOV`](#isa-section-mov)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>[`MOV`](#isa-section-mov)</Markdown></td>
 	<td><Markdown>Move a word from source memory location to destination`.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -134,7 +142,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>[`CMOV`](#isa-section-cmov)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x10</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>[`CMOV`](#isa-section-cmov)</Markdown></td>
 	<td><Markdown>Move a word (conditionally chosen) from one memory location to another (`d = cond &gt; 0 ? a : b`).</Markdown></td>
 	<td><Markdown>152</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -142,7 +150,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x10</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>[`CALLDATACOPY`](#isa-section-calldatacopy)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x11</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>[`CALLDATACOPY`](#isa-section-calldatacopy)</Markdown></td>
 	<td><Markdown>Copy calldata into memory.</Markdown></td>
 	<td><Markdown>120</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -150,7 +158,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x11</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x12</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
 	<td><Markdown>Load a word from storage.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -158,7 +166,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x12</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x13</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
 	<td><Markdown>Write a word to storage.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -166,25 +174,25 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x13</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x14</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
 	<td><Markdown>Emit a new note hash to be inserted into the notes tree</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><Markdown>emitNoteHash(M[contentOffset])</Markdown></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x14</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x15</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
 	<td><Markdown>Emit a new nullifier to be inserted into the nullifier tree</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><Markdown>emitNullifier(M[nullifierOffset])</Markdown></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x15</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x16</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
 	<td><Markdown>Send an L2-to-L1 message</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><Markdown>sendL2ToL1Message(M[contentOffset])</Markdown></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x16</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>[`JUMP`](#isa-section-jump)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x17</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>[`JUMP`](#isa-section-jump)</Markdown></td>
 	<td><Markdown>Jump to a location in the bytecode.</Markdown></td>
 	<td><Markdown>48</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -192,7 +200,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x17</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>[`JUMPI`](#isa-section-jumpi)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x18</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>[`JUMPI`](#isa-section-jumpi)</Markdown></td>
 	<td><Markdown>Conditionally jump to a location in the bytecode.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -200,7 +208,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x18</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x19</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
 	<td><Markdown>Halt execution with `success`, optionally returning some data.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -208,7 +216,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x19</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
 	<td><Markdown>Halt execution with `failure`, reverting state changes and optionally returning some data.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -216,7 +224,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
 	<td><Markdown>Call into another contract.</Markdown></td>
 	<td><Markdown>248</Markdown></td>
 	<td><CodeBlock language="jsx">
@@ -227,7 +235,7 @@ Click on an instruction name to jump to its section.
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
 	<td><Markdown>Call into another contract, disallowing persistent state modifications.</Markdown></td>
 	<td><Markdown>248</Markdown></td>
 	<td><CodeBlock language="jsx">
@@ -238,7 +246,7 @@ Click on an instruction name to jump to its section.
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-ulog'/><Markdown>[`ULOG`](#isa-section-ulog)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-ulog'/><Markdown>[`ULOG`](#isa-section-ulog)</Markdown></td>
 	<td><Markdown>Emit an unencrypted log with data from the `field` memory page</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -246,7 +254,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>[`CHAINID`](#isa-section-chainid)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>[`CHAINID`](#isa-section-chainid)</Markdown></td>
 	<td><Markdown>Get this rollup's L1 chain ID</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -254,7 +262,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>[`VERSION`](#isa-section-version)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>[`VERSION`](#isa-section-version)</Markdown></td>
 	<td><Markdown>Get this rollup's L2 version ID</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -262,7 +270,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>[`BLOCKNUMBER`](#isa-section-blocknumber)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x20</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>[`BLOCKNUMBER`](#isa-section-blocknumber)</Markdown></td>
 	<td><Markdown>Get this block's number</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -270,7 +278,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x20</td>	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>[`TIMESTAMP`](#isa-section-timestamp)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x21</td>	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>[`TIMESTAMP`](#isa-section-timestamp)</Markdown></td>
 	<td><Markdown>Get this L2 block's timestamp</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -278,7 +286,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x21</td>	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>[`COINBASE`](#isa-section-coinbase)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x22</td>	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>[`COINBASE`](#isa-section-coinbase)</Markdown></td>
 	<td><Markdown>Get the block's beneficiary address</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -286,7 +294,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x22</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl1gaslimit'/><Markdown>[`BLOCKL1GASLIMIT`](#isa-section-blockl1gaslimit)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x23</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl1gaslimit'/><Markdown>[`BLOCKL1GASLIMIT`](#isa-section-blockl1gaslimit)</Markdown></td>
 	<td><Markdown>Total amount of "L1 gas" that a block can consume</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -294,7 +302,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x23</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>[`BLOCKL2GASLIMIT`](#isa-section-blockl2gaslimit)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x24</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>[`BLOCKL2GASLIMIT`](#isa-section-blockl2gaslimit)</Markdown></td>
 	<td><Markdown>Total amount of "L2 gas" that a block can consume</Markdown></td>
 	<td><Markdown>56</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -302,7 +310,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x24</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notesroot'/><Markdown>[`NOTESROOT`](#isa-section-notesroot)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x25</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notesroot'/><Markdown>[`NOTESROOT`](#isa-section-notesroot)</Markdown></td>
 	<td><Markdown>Get the historical note-hash tree root as of the specified block number.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -310,7 +318,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x25</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullroot'/><Markdown>[`NULLIFIERSROOT`](#isa-section-nullroot)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x26</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullroot'/><Markdown>[`NULLIFIERSROOT`](#isa-section-nullroot)</Markdown></td>
 	<td><Markdown>Get the historical nullifier tree root as of the specified block number.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -318,7 +326,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x26</td>	<td style={{'text-align': 'center'}}><a id='isa-table-contractsroot'/><Markdown>[`CONTRACTSROOT`](#isa-section-contractsroot)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-contractsroot'/><Markdown>[`CONTRACTSROOT`](#isa-section-contractsroot)</Markdown></td>
 	<td><Markdown>Get the historical contracts tree root as of the specified block number.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -326,19 +334,11 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-msgsroot'/><Markdown>[`MSGSROOT`](#isa-section-msgsroot)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x28</td>	<td style={{'text-align': 'center'}}><a id='isa-table-msgsroot'/><Markdown>[`MSGSROOT`](#isa-section-msgsroot)</Markdown></td>
 	<td><Markdown>Get the historical l1-to-l2 message tree root as of the specified block number.</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].l1_to_l2_message_tree_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x28</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notesroot'/><Markdown>[`NOTESROOT`](#isa-section-notesroot)</Markdown></td>
-	<td><Markdown>Get the historical note-hash tree root as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].note_hash_tree_root`
 	}</CodeBlock></td>
 </tr>
 <tr>
@@ -498,7 +498,26 @@ Subtraction (a - b)
 
 [![](./images/bit-formats/SUB.png)](./images/bit-formats/SUB.png)
 
-### <a id='isa-section-div'/>`DIV` (0x02)
+### <a id='isa-section-mul'/>`MUL` (0x02)
+Subtraction (a - b)
+
+[See in table.](#isa-table-mul)
+
+- **Category**: arithmetic
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+- **Args**: 
+	- **aOffset**: memory offset of the operation's left input
+	- **bOffset**: memory offset of the operation's right input
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = M[aOffset] * M[bOffset] mod 2^k`
+- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
+- **Tag updates**: `T[dstOffset] = in-tag`
+- **Bit-size**: 128
+
+
+### <a id='isa-section-div'/>`DIV` (0x03)
 Unsigned division (a / b)
 
 [See in table.](#isa-table-div)
@@ -518,7 +537,7 @@ Unsigned division (a / b)
 
 [![](./images/bit-formats/DIV.png)](./images/bit-formats/DIV.png)
 
-### <a id='isa-section-eq'/>`EQ` (0x03)
+### <a id='isa-section-eq'/>`EQ` (0x04)
 Equality check (a == b)
 
 [See in table.](#isa-table-eq)
@@ -538,7 +557,7 @@ Equality check (a == b)
 
 [![](./images/bit-formats/EQ.png)](./images/bit-formats/EQ.png)
 
-### <a id='isa-section-lt'/>`LT` (0x04)
+### <a id='isa-section-lt'/>`LT` (0x05)
 Less-than check (a < b)
 
 [See in table.](#isa-table-lt)
@@ -558,7 +577,7 @@ Less-than check (a < b)
 
 [![](./images/bit-formats/LT.png)](./images/bit-formats/LT.png)
 
-### <a id='isa-section-lte'/>`LTE` (0x05)
+### <a id='isa-section-lte'/>`LTE` (0x06)
 Less-than-or-equals check (a <= b)
 
 [See in table.](#isa-table-lte)
@@ -578,7 +597,7 @@ Less-than-or-equals check (a <= b)
 
 [![](./images/bit-formats/LTE.png)](./images/bit-formats/LTE.png)
 
-### <a id='isa-section-and'/>`AND` (0x06)
+### <a id='isa-section-and'/>`AND` (0x07)
 Bitwise AND (a & b)
 
 [See in table.](#isa-table-and)
@@ -598,7 +617,7 @@ Bitwise AND (a & b)
 
 [![](./images/bit-formats/AND.png)](./images/bit-formats/AND.png)
 
-### <a id='isa-section-or'/>`OR` (0x07)
+### <a id='isa-section-or'/>`OR` (0x08)
 Bitwise OR (a | b)
 
 [See in table.](#isa-table-or)
@@ -618,7 +637,7 @@ Bitwise OR (a | b)
 
 [![](./images/bit-formats/OR.png)](./images/bit-formats/OR.png)
 
-### <a id='isa-section-xor'/>`XOR` (0x08)
+### <a id='isa-section-xor'/>`XOR` (0x09)
 Bitwise XOR (a ^ b)
 
 [See in table.](#isa-table-xor)
@@ -638,7 +657,7 @@ Bitwise XOR (a ^ b)
 
 [![](./images/bit-formats/XOR.png)](./images/bit-formats/XOR.png)
 
-### <a id='isa-section-not'/>`NOT` (0x09)
+### <a id='isa-section-not'/>`NOT` (0x0a)
 Bitwise NOT (inversion)
 
 [See in table.](#isa-table-not)
@@ -657,7 +676,7 @@ Bitwise NOT (inversion)
 
 [![](./images/bit-formats/NOT.png)](./images/bit-formats/NOT.png)
 
-### <a id='isa-section-shl'/>`SHL` (0x0a)
+### <a id='isa-section-shl'/>`SHL` (0x0b)
 Bitwise leftward shift (a << b)
 
 [See in table.](#isa-table-shl)
@@ -677,7 +696,7 @@ Bitwise leftward shift (a << b)
 
 [![](./images/bit-formats/SHL.png)](./images/bit-formats/SHL.png)
 
-### <a id='isa-section-shr'/>`SHR` (0x0b)
+### <a id='isa-section-shr'/>`SHR` (0x0c)
 Bitwise rightward shift (a >> b)
 
 [See in table.](#isa-table-shr)
@@ -697,7 +716,7 @@ Bitwise rightward shift (a >> b)
 
 [![](./images/bit-formats/SHR.png)](./images/bit-formats/SHR.png)
 
-### <a id='isa-section-cast'/>`CAST` (0x0c)
+### <a id='isa-section-cast'/>`CAST` (0x0d)
 Type cast
 
 [See in table.](#isa-table-cast)
@@ -716,7 +735,7 @@ Type cast
 
 [![](./images/bit-formats/CAST.png)](./images/bit-formats/CAST.png)
 
-### <a id='isa-section-set'/>`SET` (0x0d)
+### <a id='isa-section-set'/>`SET` (0x0e)
 Set a memory word from a constant in the bytecode.
 
 [See in table.](#isa-table-set)
@@ -735,7 +754,7 @@ Set a memory word from a constant in the bytecode.
 
 [![](./images/bit-formats/SET.png)](./images/bit-formats/SET.png)
 
-### <a id='isa-section-mov'/>`MOV` (0x0e)
+### <a id='isa-section-mov'/>`MOV` (0x0f)
 Move a word from source memory location to destination`.
 
 [See in table.](#isa-table-mov)
@@ -752,7 +771,7 @@ Move a word from source memory location to destination`.
 
 [![](./images/bit-formats/MOV.png)](./images/bit-formats/MOV.png)
 
-### <a id='isa-section-cmov'/>`CMOV` (0x0f)
+### <a id='isa-section-cmov'/>`CMOV` (0x10)
 Move a word (conditionally chosen) from one memory location to another (`d = cond > 0 ? a : b`).
 
 [See in table.](#isa-table-cmov)
@@ -772,7 +791,7 @@ Move a word (conditionally chosen) from one memory location to another (`d = con
 
 [![](./images/bit-formats/CMOV.png)](./images/bit-formats/CMOV.png)
 
-### <a id='isa-section-calldatacopy'/>`CALLDATACOPY` (0x10)
+### <a id='isa-section-calldatacopy'/>`CALLDATACOPY` (0x11)
 Copy calldata into memory.
 
 [See in table.](#isa-table-calldatacopy)
@@ -791,7 +810,7 @@ Copy calldata into memory.
 
 [![](./images/bit-formats/CALLDATACOPY.png)](./images/bit-formats/CALLDATACOPY.png)
 
-### <a id='isa-section-sload'/>`SLOAD` (0x11)
+### <a id='isa-section-sload'/>`SLOAD` (0x12)
 Load a word from storage.
 
 [See in table.](#isa-table-sload)
@@ -809,7 +828,7 @@ Load a word from storage.
 
 [![](./images/bit-formats/SLOAD.png)](./images/bit-formats/SLOAD.png)
 
-### <a id='isa-section-sstore'/>`SSTORE` (0x12)
+### <a id='isa-section-sstore'/>`SSTORE` (0x13)
 Write a word to storage.
 
 [See in table.](#isa-table-sstore)
@@ -826,7 +845,7 @@ Write a word to storage.
 
 [![](./images/bit-formats/SSTORE.png)](./images/bit-formats/SSTORE.png)
 
-### <a id='isa-section-emitnotehash'/>`EMITNOTEHASH` (0x13)
+### <a id='isa-section-emitnotehash'/>`EMITNOTEHASH` (0x14)
 Emit a new note hash to be inserted into the notes tree
 
 [See in table.](#isa-table-emitnotehash)
@@ -841,7 +860,7 @@ Emit a new note hash to be inserted into the notes tree
 
 [![](./images/bit-formats/EMITNOTEHASH.png)](./images/bit-formats/EMITNOTEHASH.png)
 
-### <a id='isa-section-emitnullifier'/>`EMITNULLIFIER` (0x14)
+### <a id='isa-section-emitnullifier'/>`EMITNULLIFIER` (0x15)
 Emit a new nullifier to be inserted into the nullifier tree
 
 [See in table.](#isa-table-emitnullifier)
@@ -856,7 +875,7 @@ Emit a new nullifier to be inserted into the nullifier tree
 
 [![](./images/bit-formats/EMITNULLIFIER.png)](./images/bit-formats/EMITNULLIFIER.png)
 
-### <a id='isa-section-sendl2tol1msg'/>`SENDL2TOL1MSG` (0x15)
+### <a id='isa-section-sendl2tol1msg'/>`SENDL2TOL1MSG` (0x16)
 Send an L2-to-L1 message
 
 [See in table.](#isa-table-sendl2tol1msg)
@@ -871,7 +890,7 @@ Send an L2-to-L1 message
 
 [![](./images/bit-formats/SENDL2TOL1MSG.png)](./images/bit-formats/SENDL2TOL1MSG.png)
 
-### <a id='isa-section-jump'/>`JUMP` (0x16)
+### <a id='isa-section-jump'/>`JUMP` (0x17)
 Jump to a location in the bytecode.
 
 [See in table.](#isa-table-jump)
@@ -885,7 +904,7 @@ Jump to a location in the bytecode.
 
 [![](./images/bit-formats/JUMP.png)](./images/bit-formats/JUMP.png)
 
-### <a id='isa-section-jumpi'/>`JUMPI` (0x17)
+### <a id='isa-section-jumpi'/>`JUMPI` (0x18)
 Conditionally jump to a location in the bytecode.
 
 [See in table.](#isa-table-jumpi)
@@ -902,7 +921,7 @@ Conditionally jump to a location in the bytecode.
 
 [![](./images/bit-formats/JUMPI.png)](./images/bit-formats/JUMPI.png)
 
-### <a id='isa-section-return'/>`RETURN` (0x18)
+### <a id='isa-section-return'/>`RETURN` (0x19)
 Halt execution with `success`, optionally returning some data.
 
 [See in table.](#isa-table-return)
@@ -919,7 +938,7 @@ Halt execution with `success`, optionally returning some data.
 
 [![](./images/bit-formats/RETURN.png)](./images/bit-formats/RETURN.png)
 
-### <a id='isa-section-revert'/>`REVERT` (0x19)
+### <a id='isa-section-revert'/>`REVERT` (0x1a)
 Halt execution with `failure`, reverting state changes and optionally returning some data.
 
 [See in table.](#isa-table-revert)
@@ -936,7 +955,7 @@ Halt execution with `failure`, reverting state changes and optionally returning 
 
 [![](./images/bit-formats/REVERT.png)](./images/bit-formats/REVERT.png)
 
-### <a id='isa-section-call'/>`CALL` (0x1a)
+### <a id='isa-section-call'/>`CALL` (0x1b)
 Call into another contract.
 
 [See in table.](#isa-table-call)
@@ -972,7 +991,7 @@ T[retOffset:retOffset+retSize] = field`}
 
 [![](./images/bit-formats/CALL.png)](./images/bit-formats/CALL.png)
 
-### <a id='isa-section-staticcall'/>`STATICCALL` (0x1b)
+### <a id='isa-section-staticcall'/>`STATICCALL` (0x1c)
 Call into another contract, disallowing persistent state modifications.
 
 [See in table.](#isa-table-staticcall)
@@ -1006,7 +1025,7 @@ T[retOffset:retOffset+retSize] = field`}
 
 [![](./images/bit-formats/STATICCALL.png)](./images/bit-formats/STATICCALL.png)
 
-### <a id='isa-section-ulog'/>`ULOG` (0x1c)
+### <a id='isa-section-ulog'/>`ULOG` (0x1d)
 Emit an unencrypted log with data from the `field` memory page
 
 [See in table.](#isa-table-ulog)
@@ -1022,7 +1041,7 @@ Emit an unencrypted log with data from the `field` memory page
 
 [![](./images/bit-formats/ULOG.png)](./images/bit-formats/ULOG.png)
 
-### <a id='isa-section-chainid'/>`CHAINID` (0x1d)
+### <a id='isa-section-chainid'/>`CHAINID` (0x1e)
 Get this rollup's L1 chain ID
 
 [See in table.](#isa-table-chainid)
@@ -1038,7 +1057,7 @@ Get this rollup's L1 chain ID
 
 [![](./images/bit-formats/CHAINID.png)](./images/bit-formats/CHAINID.png)
 
-### <a id='isa-section-version'/>`VERSION` (0x1e)
+### <a id='isa-section-version'/>`VERSION` (0x1f)
 Get this rollup's L2 version ID
 
 [See in table.](#isa-table-version)
@@ -1054,7 +1073,7 @@ Get this rollup's L2 version ID
 
 [![](./images/bit-formats/VERSION.png)](./images/bit-formats/VERSION.png)
 
-### <a id='isa-section-blocknumber'/>`BLOCKNUMBER` (0x1f)
+### <a id='isa-section-blocknumber'/>`BLOCKNUMBER` (0x20)
 Get this block's number
 
 [See in table.](#isa-table-blocknumber)
@@ -1070,7 +1089,7 @@ Get this block's number
 
 [![](./images/bit-formats/BLOCKNUMBER.png)](./images/bit-formats/BLOCKNUMBER.png)
 
-### <a id='isa-section-timestamp'/>`TIMESTAMP` (0x20)
+### <a id='isa-section-timestamp'/>`TIMESTAMP` (0x21)
 Get this L2 block's timestamp
 
 [See in table.](#isa-table-timestamp)
@@ -1086,7 +1105,7 @@ Get this L2 block's timestamp
 
 [![](./images/bit-formats/TIMESTAMP.png)](./images/bit-formats/TIMESTAMP.png)
 
-### <a id='isa-section-coinbase'/>`COINBASE` (0x21)
+### <a id='isa-section-coinbase'/>`COINBASE` (0x22)
 Get the block's beneficiary address
 
 [See in table.](#isa-table-coinbase)
@@ -1102,7 +1121,7 @@ Get the block's beneficiary address
 
 [![](./images/bit-formats/COINBASE.png)](./images/bit-formats/COINBASE.png)
 
-### <a id='isa-section-blockl1gaslimit'/>`BLOCKL1GASLIMIT` (0x22)
+### <a id='isa-section-blockl1gaslimit'/>`BLOCKL1GASLIMIT` (0x23)
 Total amount of "L1 gas" that a block can consume
 
 [See in table.](#isa-table-blockl1gaslimit)
@@ -1118,7 +1137,7 @@ Total amount of "L1 gas" that a block can consume
 
 [![](./images/bit-formats/BLOCKL1GASLIMIT.png)](./images/bit-formats/BLOCKL1GASLIMIT.png)
 
-### <a id='isa-section-blockl2gaslimit'/>`BLOCKL2GASLIMIT` (0x23)
+### <a id='isa-section-blockl2gaslimit'/>`BLOCKL2GASLIMIT` (0x24)
 Total amount of "L2 gas" that a block can consume
 
 [See in table.](#isa-table-blockl2gaslimit)
@@ -1134,7 +1153,7 @@ Total amount of "L2 gas" that a block can consume
 
 [![](./images/bit-formats/BLOCKL2GASLIMIT.png)](./images/bit-formats/BLOCKL2GASLIMIT.png)
 
-### <a id='isa-section-notesroot'/>`NOTESROOT` (0x24)
+### <a id='isa-section-notesroot'/>`NOTESROOT` (0x25)
 Get the historical note-hash tree root as of the specified block number.
 
 [See in table.](#isa-table-notesroot)
@@ -1151,7 +1170,7 @@ Get the historical note-hash tree root as of the specified block number.
 
 [![](./images/bit-formats/NOTESROOT.png)](./images/bit-formats/NOTESROOT.png)
 
-### <a id='isa-section-nullroot'/>`NULLIFIERSROOT` (0x25)
+### <a id='isa-section-nullroot'/>`NULLIFIERSROOT` (0x26)
 Get the historical nullifier tree root as of the specified block number.
 
 [See in table.](#isa-table-nullroot)
@@ -1168,7 +1187,7 @@ Get the historical nullifier tree root as of the specified block number.
 
 [![](./images/bit-formats/NULLIFIERSROOT.png)](./images/bit-formats/NULLIFIERSROOT.png)
 
-### <a id='isa-section-contractsroot'/>`CONTRACTSROOT` (0x26)
+### <a id='isa-section-contractsroot'/>`CONTRACTSROOT` (0x27)
 Get the historical contracts tree root as of the specified block number.
 
 [See in table.](#isa-table-contractsroot)
@@ -1185,7 +1204,7 @@ Get the historical contracts tree root as of the specified block number.
 
 [![](./images/bit-formats/CONTRACTSROOT.png)](./images/bit-formats/CONTRACTSROOT.png)
 
-### <a id='isa-section-msgsroot'/>`MSGSROOT` (0x27)
+### <a id='isa-section-msgsroot'/>`MSGSROOT` (0x28)
 Get the historical l1-to-l2 message tree root as of the specified block number.
 
 [See in table.](#isa-table-msgsroot)
@@ -1201,23 +1220,6 @@ Get the historical l1-to-l2 message tree root as of the specified block number.
 - **Bit-size**: 88
 
 [![](./images/bit-formats/MSGSROOT.png)](./images/bit-formats/MSGSROOT.png)
-
-### <a id='isa-section-notesroot'/>`NOTESROOT` (0x28)
-Get the historical note-hash tree root as of the specified block number.
-
-[See in table.](#isa-table-notesroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].note_hash_tree_root`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/NOTESROOT.png)](./images/bit-formats/NOTESROOT.png)
 
 ### <a id='isa-section-publicdataroot'/>`PUBLICDATAROOT` (0x29)
 Get the historical public data tree root as of the specified block number.

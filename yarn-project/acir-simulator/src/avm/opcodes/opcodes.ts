@@ -1,0 +1,77 @@
+/**
+ * All avm opcodes
+ */
+export enum Opcodes {
+  // Arithmetic
+  ADD,
+  SUB,
+  MUL,
+  DIV,
+  EQ,
+  LT,
+  LTE,
+  AND,
+  OR,
+  XOR,
+  NOT,
+  SHL,
+  SHR,
+  CAST,
+  // Memory
+  SET,
+  MOV,
+  CMOV,
+  CALLDATACOPY,
+
+  // Logs
+  EMITNOTEHASH,
+  EMITNULLIFIER,
+  SENDL2TOL1MSG,
+  ULOG,
+  // Control flow
+  JUMP,
+  JUMPI,
+  INTERNALCALL,
+  INTERNALRETURN,
+
+  // Storage
+  SLOAD,
+  SSTORE,
+  // Contract call control flow
+  RETURN,
+  REVERT,
+  CALL,
+  STATICCALL,
+
+  CHAINID,
+  VERSION,
+  BLOCKNUMBER,
+  TIMESTAMP,
+  COINBASE,
+  BLOCKL1GASLIMIT,
+  BLOCKL2GASLIMIT,
+  NULLIFIERSOOT,
+  CONTRACTSROOT,
+  MSGSROOT,
+  NOTESROOT,
+  PUBLICDATAROOT,
+  GLOBALSHASH,
+  BLOCKSROOT,
+  GRANDROOT,
+
+  // Call context
+  ORIGIN,
+  REFUNDEE,
+  FEEPERL1GAS,
+  FEEPERL2GAS,
+  CALLER,
+  ADDRESS,
+  PORTAL,
+  CALLDEPTH,
+  l1GAS,
+  L2GAS,
+
+  // Black box
+  KECCAK,
+  POSEIDON,
+}
