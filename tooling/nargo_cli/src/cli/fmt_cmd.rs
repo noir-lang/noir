@@ -61,7 +61,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 );
                 return Ok(());
             }
-            
+
             let original = workspace_file_manager.fetch_file(file_id).expect("The file should exist since we added all files in the package into the file manager");
             let formatted = nargo_fmt::format(original, parsed_module, &config);
 
