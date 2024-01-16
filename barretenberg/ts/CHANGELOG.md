@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.18.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.17.0...barretenberg.js-v0.18.0) (2024-01-16)
+
+
+### Features
+
+* Bootstrap cache v2 ([#3876](https://github.com/AztecProtocol/aztec-packages/issues/3876)) ([331598d](https://github.com/AztecProtocol/aztec-packages/commit/331598d369ab9bb91dcc48d50bdd8df0684f0b79))
+
+
+### Bug Fixes
+
+* Dont spam logs with yarn install ([#4027](https://github.com/AztecProtocol/aztec-packages/issues/4027)) ([949c5ab](https://github.com/AztecProtocol/aztec-packages/commit/949c5abf1df399f691f17c19fab64f0e36476219))
+
 ## [0.17.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.16.9...barretenberg.js-v0.17.0) (2024-01-09)
 
 
