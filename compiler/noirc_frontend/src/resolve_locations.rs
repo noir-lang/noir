@@ -38,6 +38,7 @@ impl NodeInterner {
             .and_then(|index| self.resolve_location(index))
             .or_else(|| self.try_resolve_trait_impl_location(location))
             .or_else(|| self.try_resolve_trait_method_declaration(location))
+            .or_else(|| self.try_resolve_type_alias(location))
     }
 
     pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {
@@ -165,6 +166,23 @@ impl NodeInterner {
                 let method =
                     methods.find(|method| method.name.0.contents == self.function_name(func_id));
                 method.map(|method| method.location)
+            })
+    }
+
+    #[tracing::instrument(skip(self), ret)]
+    fn try_resolve_type_alias(&self, location: Location) -> Option<Location> {
+        self.type_alias_ref
+            .iter()
+            .find(|(type_alias_id, named_type_location)| {
+                tracing::debug!(
+                    "Trying type alias {:?}, type_id {:?}",
+                    named_type_location,
+                    type_alias_id
+                );
+                named_type_location.span.contains(&location.span)
+            })
+            .and_then(|(type_alias_id, _found_location)| {
+                Some(self.get_type_alias(*type_alias_id).span)
             })
     }
 }

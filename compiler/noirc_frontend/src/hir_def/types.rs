@@ -280,7 +280,7 @@ pub struct TypeAliasType {
     pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
-    pub span: Span,
+    pub span: Location,
 }
 
 impl std::hash::Hash for TypeAliasType {
@@ -312,7 +312,7 @@ impl TypeAliasType {
     pub fn new(
         id: TypeAliasId,
         name: Ident,
-        span: Span,
+        span: Location,
         typ: Type,
         generics: Generics,
     ) -> TypeAliasType {

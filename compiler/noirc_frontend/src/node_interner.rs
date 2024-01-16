@@ -78,7 +78,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<TypeAliasType>,
 
     // Trait map.
     //
@@ -142,6 +142,8 @@ pub struct NodeInterner {
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
+
+    pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -437,6 +439,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            type_alias_ref: Vec::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -534,7 +537,7 @@ impl NodeInterner {
         self.type_aliases.push(TypeAliasType::new(
             type_id,
             typ.type_alias_def.name.clone(),
-            typ.type_alias_def.span,
+            Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| {
                 let id = TypeVariableId(0);
@@ -545,6 +548,9 @@ impl NodeInterner {
         type_id
     }
 
+    pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
+        self.type_alias_ref.push((type_id, location));
+    }
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
