@@ -39,7 +39,7 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
     FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
+    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeVariable,
     TypeVariableKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
     UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
@@ -643,7 +643,7 @@ impl<'a> Resolver<'a> {
             None => {
                 let id = self.interner.next_type_variable_id();
                 let typevar = TypeVariable::unbound(id);
-                new_variables.push((id, typevar.clone()));
+                new_variables.push(typevar.clone());
 
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
                 // wont be bound over but this one has no name since we do not currently
@@ -768,7 +768,7 @@ impl<'a> Resolver<'a> {
                 self.generics.push((name, typevar.clone(), span));
             }
 
-            (id, typevar)
+            typevar
         })
     }
 
@@ -778,7 +778,7 @@ impl<'a> Resolver<'a> {
     pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
         assert_eq!(names.len(), generics.len());
 
-        for (name, (_id, typevar)) in names.iter().zip(generics) {
+        for (name, typevar) in names.iter().zip(generics) {
             self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
         }
     }
@@ -846,14 +846,7 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attributes().clone();
 
-        let mut generics =
-            vecmap(self.generics.clone(), |(name, typevar, _)| match &*typevar.borrow() {
-                TypeBinding::Unbound(id) => (*id, typevar.clone()),
-                TypeBinding::Bound(binding) => {
-                    unreachable!("Expected {} to be unbound, but it is bound to {}", name, binding)
-                }
-            });
-
+        let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
