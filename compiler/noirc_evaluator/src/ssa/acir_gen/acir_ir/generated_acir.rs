@@ -31,7 +31,7 @@ pub(crate) struct GeneratedAcir {
     /// If witness index is `None` then we have not yet created a witness
     /// and thus next witness index that be declared is zero.
     /// This field is private should only ever be accessed through its getter and setter.
-    /// 
+    ///
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
     current_witness_index: Option<u32>,
 
