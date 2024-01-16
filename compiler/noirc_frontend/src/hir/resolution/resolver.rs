@@ -779,7 +779,7 @@ impl<'a> Resolver<'a> {
         assert_eq!(names.len(), generics.len());
 
         for (name, (_id, typevar)) in names.iter().zip(generics) {
-            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone())
+            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
         }
     }
 

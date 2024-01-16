@@ -1263,8 +1263,8 @@ impl Type {
     /// Instantiate this type with the given type bindings.
     /// If any type variables which would be instantiated are contained in the
     /// given type bindings instead, the value from the type bindings is used.
-    pub fn instantiate_with_bindings<'a>(
-        &'a self,
+    pub fn instantiate_with_bindings(
+        &self,
         mut bindings: TypeBindings,
         interner: &NodeInterner,
     ) -> (Type, TypeBindings) {
