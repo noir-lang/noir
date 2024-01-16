@@ -49,12 +49,12 @@ pub enum DefCollectorErrorKind {
         method_name: String,
         span: Span,
     },
-    #[error("Mismatched number of generics in impl method")]
-    MismatchTraitImplementationNumGenerics {
-        impl_method_generic_count: usize,
-        trait_method_generic_count: usize,
-        trait_name: String,
-        method_name: String,
+    #[error("Mismatched number of generics in {location}")]
+    MismatchGenericCount {
+        actual_generic_count: usize,
+        expected_generic_count: usize,
+        location: &'static str,
+        origin: String,
         span: Span,
     },
     #[error("Method is not defined in trait")]
@@ -188,16 +188,16 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
                 Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
-            DefCollectorErrorKind::MismatchTraitImplementationNumGenerics {
-                impl_method_generic_count,
-                trait_method_generic_count,
-                trait_name,
-                method_name,
+            DefCollectorErrorKind::MismatchGenericCount {
+                actual_generic_count,
+                expected_generic_count,
+                location,
+                origin,
                 span,
             } => {
-                let plural = if trait_method_generic_count == 1 { "" } else { "s" };
+                let plural = if expected_generic_count == 1 { "" } else { "s" };
                 let primary_message = format!(
-                    "`{trait_name}::{method_name}` expects {trait_method_generic_count} generic{plural}, but this method has {impl_method_generic_count}");
+                    "`{origin}` expects {expected_generic_count} generic{plural}, but {location} has {actual_generic_count}");
                 Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } => {

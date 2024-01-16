@@ -15,7 +15,7 @@ use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
     HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
-    HirMethodCallExpression, HirPrefixExpression,
+    HirMethodCallExpression, HirPrefixExpression, ImplKind,
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -29,7 +29,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_F
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
-    TraitImplId, TraitImplKind,
+    TraitImplId, TraitMethodId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -40,8 +40,8 @@ use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
     FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
     Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    TypeVariableKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -267,7 +267,7 @@ impl<'a> Resolver<'a> {
             let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
             metadata.warn_if_unused && metadata.num_times_used == 0 && !has_underscore_prefix
         });
-        unused_vars.extend(unused_variables.map(|(_, meta)| meta.ident));
+        unused_vars.extend(unused_variables.map(|(_, meta)| meta.ident.clone()));
     }
 
     /// Run the given function in a new scope.
@@ -304,8 +304,9 @@ impl<'a> Resolver<'a> {
         let location = Location::new(name.span(), self.file);
         let id =
             self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
-        let ident = HirIdent { location, id };
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
+        let ident = HirIdent::non_trait_method(id, location);
+        let resolver_meta =
+            ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
 
         let scope = self.scopes.get_mut_scope();
         let old_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
@@ -325,8 +326,6 @@ impl<'a> Resolver<'a> {
 
     fn add_global_variable_decl(&mut self, name: Ident, definition: DefinitionKind) -> HirIdent {
         let scope = self.scopes.get_mut_scope();
-        let ident;
-        let resolver_meta;
 
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global statement.
@@ -341,17 +340,20 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        if let Some(id) = stmt_id {
+        let (ident, resolver_meta) = if let Some(id) = stmt_id {
             let hir_let_stmt = self.interner.let_statement(&id);
-            ident = hir_let_stmt.ident();
-            resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
+            let ident = hir_let_stmt.ident();
+            let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
+            (hir_let_stmt.ident(), resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
             let id =
                 self.interner.push_definition(name.0.contents.clone(), false, definition, location);
-            ident = HirIdent { location, id };
-            resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
-        }
+            let ident = HirIdent::non_trait_method(id, location);
+            let resolver_meta =
+                ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
+            (ident, resolver_meta)
+        };
 
         let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
@@ -376,7 +378,7 @@ impl<'a> Resolver<'a> {
             self.push_err(error);
             let id = DefinitionId::dummy_id();
             let location = Location::new(name.span(), self.file);
-            (HirIdent { location, id }, 0)
+            (HirIdent::non_trait_method(id, location), 0)
         })
     }
 
@@ -389,7 +391,7 @@ impl<'a> Resolver<'a> {
         if let Some((variable_found, scope)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
-            Ok((HirIdent { location, id }, scope))
+            Ok((HirIdent::non_trait_method(id, location), scope))
         } else {
             Err(ResolverError::VariableNotDeclared {
                 name: name.0.contents.clone(),
@@ -419,8 +421,27 @@ impl<'a> Resolver<'a> {
         constraint: UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ);
-        let trait_id = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?.id;
-        Some(TraitConstraint { typ, trait_id })
+        let trait_generics =
+            vecmap(constraint.trait_bound.trait_generics, |typ| self.resolve_type(typ));
+
+        let span = constraint.trait_bound.trait_path.span();
+        let the_trait = self.lookup_trait_or_error(constraint.trait_bound.trait_path)?;
+        let trait_id = the_trait.id;
+
+        let expected_generics = the_trait.generics.len();
+        let actual_generics = trait_generics.len();
+
+        if actual_generics != expected_generics {
+            let item_name = the_trait.name.to_string();
+            self.push_err(ResolverError::IncorrectGenericCount {
+                span,
+                item_name,
+                actual: actual_generics,
+                expected: expected_generics,
+            });
+        }
+
+        Some(TraitConstraint { typ, trait_id, trait_generics })
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -564,11 +585,13 @@ impl<'a> Resolver<'a> {
     fn resolve_trait_as_type(
         &mut self,
         path: Path,
-        _args: Vec<UnresolvedType>,
-        _new_variables: &mut Generics,
+        args: Vec<UnresolvedType>,
+        new_variables: &mut Generics,
     ) -> Type {
+        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+
         if let Some(t) = self.lookup_trait_or_error(path) {
-            Type::TraitAsType(t.id, Rc::new(t.name.to_string()))
+            Type::TraitAsType(t.id, Rc::new(t.name.to_string()), args)
         } else {
             Type::Error
         }
@@ -584,7 +607,7 @@ impl<'a> Resolver<'a> {
         if args.len() != expected_count {
             self.errors.push(ResolverError::IncorrectGenericCount {
                 span,
-                struct_type: type_name(),
+                item_name: type_name(),
                 actual: args.len(),
                 expected: expected_count,
             });
@@ -667,17 +690,17 @@ impl<'a> Resolver<'a> {
             Some(Ok(found)) => return found,
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
-                Ok(id) => return (HirIdent { location, id }, 0),
+                Ok(id) => return (HirIdent::non_trait_method(id, location), 0),
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
-                Ok(id) => return (HirIdent { location, id }, 0),
+                Ok(id) => return (HirIdent::non_trait_method(id, location), 0),
                 Err(error) => error,
             },
         };
         self.push_err(error);
         let id = DefinitionId::dummy_id();
-        (HirIdent { location, id }, 0)
+        (HirIdent::non_trait_method(id, location), 0)
     }
 
     /// Translates an UnresolvedType to a Type
@@ -736,7 +759,6 @@ impl<'a> Resolver<'a> {
             let name = Rc::new(generic.0.contents.clone());
 
             if let Some((_, _, first_span)) = self.find_generic(&name) {
-                let span = generic.0.span();
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: generic.0.contents.clone(),
                     first_span: *first_span,
@@ -748,6 +770,32 @@ impl<'a> Resolver<'a> {
 
             (id, typevar)
         })
+    }
+
+    /// Add the given existing generics to scope.
+    /// This is useful for adding the same generics to many items. E.g. apply impl generics
+    /// to each function in the impl or trait generics to each item in the trait.
+    pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
+        assert_eq!(names.len(), generics.len());
+
+        for (name, (_id, typevar)) in names.iter().zip(generics) {
+            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
+        }
+    }
+
+    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable) {
+        // Check for name collisions of this generic
+        let rc_name = Rc::new(name.to_owned());
+
+        if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+            self.errors.push(ResolverError::DuplicateDefinition {
+                name: name.to_owned(),
+                first_span: *first_span,
+                second_span: span,
+            });
+        } else {
+            self.generics.push((rc_name, typevar, span));
+        }
     }
 
     pub fn resolve_struct_fields(
@@ -778,12 +826,13 @@ impl<'a> Resolver<'a> {
     /// there's a bunch of other places where trait constraints can pop up
     fn resolve_trait_constraints(
         &mut self,
-        where_clause: &Vec<UnresolvedTraitConstraint>,
+        where_clause: &[UnresolvedTraitConstraint],
     ) -> Vec<TraitConstraint> {
-        vecmap(where_clause, |constraint| TraitConstraint {
-            typ: self.resolve_type(constraint.typ.clone()),
-            trait_id: constraint.trait_bound.trait_id.unwrap_or_else(TraitId::dummy_id),
-        })
+        where_clause
+            .iter()
+            .cloned()
+            .filter_map(|constraint| self.resolve_trait_constraint(constraint))
+            .collect()
     }
 
     /// Extract metadata from a NoirFunction
@@ -793,7 +842,7 @@ impl<'a> Resolver<'a> {
     fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
-        let name_ident = HirIdent { id, location };
+        let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
 
@@ -1115,7 +1164,7 @@ impl<'a> Resolver<'a> {
         match lvalue {
             LValue::Ident(ident) => {
                 let ident = self.find_variable_or_default(&ident);
-                self.resolve_local_variable(ident.0, ident.1);
+                self.resolve_local_variable(ident.0.clone(), ident.1);
 
                 HirLValue::Ident(ident.0, Type::Error)
             }
@@ -1201,9 +1250,10 @@ impl<'a> Resolver<'a> {
                     .position(|capture| capture.ident.id == hir_ident.id);
 
                 if pos.is_none() {
-                    self.lambda_stack[lambda_index]
-                        .captures
-                        .push(HirCapturedVar { ident: hir_ident, transitive_capture_index });
+                    self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
+                        ident: hir_ident.clone(),
+                        transitive_capture_index,
+                    });
                 }
 
                 if lambda_index + 1 < self.lambda_stack.len() {
@@ -1250,14 +1300,13 @@ impl<'a> Resolver<'a> {
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
-                if let Some((hir_expr, object_type)) = self.resolve_trait_generic_path(&path) {
-                    let expr_id = self.interner.push_expr(hir_expr);
-                    self.interner.push_expr_location(expr_id, expr.span, self.file);
-                    self.interner.select_impl_for_expression(
-                        expr_id,
-                        TraitImplKind::Assumed { object_type },
-                    );
-                    return expr_id;
+                if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
+                {
+                    HirExpression::Ident(HirIdent {
+                        location: Location::new(expr.span, self.file),
+                        id: self.interner.trait_method_id(method),
+                        impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
+                    })
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
                     // Otherwise, then it is referring to an Identifier
@@ -1292,7 +1341,7 @@ impl<'a> Resolver<'a> {
                             }
                             DefinitionKind::Local(_) => {
                                 // only local variables can be captured by closures.
-                                self.resolve_local_variable(hir_ident, var_scope_index);
+                                self.resolve_local_variable(hir_ident.clone(), var_scope_index);
                             }
                         }
                     }
@@ -1632,7 +1681,7 @@ impl<'a> Resolver<'a> {
     fn resolve_trait_static_method_by_self(
         &mut self,
         path: &Path,
-    ) -> Option<(HirExpression, Type)> {
+    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         let trait_id = self.trait_id?;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
@@ -1642,15 +1691,23 @@ impl<'a> Resolver<'a> {
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
-                let self_type = self.self_type.clone()?;
-                return Some((HirExpression::TraitMethodReference(method), self_type));
+
+                let constraint = TraitConstraint {
+                    typ: self.self_type.clone()?,
+                    trait_generics: Type::from_generics(&the_trait.generics),
+                    trait_id,
+                };
+                return Some((method, constraint, false));
             }
         }
         None
     }
 
     // this resolves TraitName::some_static_method
-    fn resolve_trait_static_method(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
+    fn resolve_trait_static_method(
+        &mut self,
+        path: &Path,
+    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let method = &path.segments[1];
 
@@ -1660,17 +1717,27 @@ impl<'a> Resolver<'a> {
             let the_trait = self.interner.get_trait(trait_id);
 
             let method = the_trait.find_method(method.0.contents.as_str())?;
-            let self_type = Type::type_variable(the_trait.self_type_typevar_id);
-            return Some((HirExpression::TraitMethodReference(method), self_type));
+            let constraint = TraitConstraint {
+                typ: Type::TypeVariable(
+                    the_trait.self_type_typevar.clone(),
+                    TypeVariableKind::Normal,
+                ),
+                trait_generics: Type::from_generics(&the_trait.generics),
+                trait_id,
+            };
+            return Some((method, constraint, false));
         }
         None
     }
 
-    // this resolves a static trait method T::trait_method by iterating over the where clause
+    // This resolves a static trait method T::trait_method by iterating over the where clause
+    //
+    // Returns the trait method, object type, and the trait generics.
+    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_method_by_named_generic(
         &mut self,
         path: &Path,
-    ) -> Option<(HirExpression, Type)> {
+    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         if path.segments.len() != 2 {
             return None;
         }
@@ -1691,8 +1758,14 @@ impl<'a> Resolver<'a> {
                     if let Some(method) =
                         the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
                     {
-                        let self_type = self.resolve_type(typ.clone());
-                        return Some((HirExpression::TraitMethodReference(method), self_type));
+                        let constraint = TraitConstraint {
+                            trait_id,
+                            typ: self.resolve_type(typ.clone()),
+                            trait_generics: vecmap(trait_bound.trait_generics, |typ| {
+                                self.resolve_type(typ)
+                            }),
+                        };
+                        return Some((method, constraint, true));
                     }
                 }
             }
@@ -1700,7 +1773,14 @@ impl<'a> Resolver<'a> {
         None
     }
 
-    fn resolve_trait_generic_path(&mut self, path: &Path) -> Option<(HirExpression, Type)> {
+    // Try to resolve the given trait method path.
+    //
+    // Returns the trait method, object type, and the trait generics.
+    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
+    fn resolve_trait_generic_path(
+        &mut self,
+        path: &Path,
+    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
@@ -1765,7 +1845,8 @@ impl<'a> Resolver<'a> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let expr_id = self.interner.push_expr(HirExpression::Ident(old_value.ident));
+                let ident = HirExpression::Ident(old_value.ident.clone());
+                let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 fmt_str_idents.push(expr_id);
             } else if ident_name.parse::<usize>().is_ok() {
