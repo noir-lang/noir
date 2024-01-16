@@ -10,7 +10,6 @@
     "tooling/noir_codegen",
     "tooling/noir_js_backend_barretenberg",
     "acvm-repo/acvm_js",
-    "release-tests",
     "docs"
   ],
   "scripts": {
@@ -21,6 +20,7 @@
     "clean:root": "rm -rf ./result ./target ./packages",
     "clean": "yarn clean:workspaces && yarn clean:root",
     "lint": "yarn workspaces foreach --verbose run lint",
+    "spellcheck": "cspell '**/*.{md,rs}' -c ./cspell.json",
     "install:acvm_js": "yarn workspace @noir-lang/acvm_js run install:from:nix",
     "install:noir_wasm": "yarn workspace @noir-lang/noir_wasm run install:from:nix",
     "install:noirc_abi_wasm": "yarn workspace @noir-lang/noirc_abi run install:from:nix",
@@ -37,6 +37,7 @@
     "@typescript-eslint/eslint-plugin": "^6.7.3",
     "@typescript-eslint/parser": "^6.7.3",
     "chai": "^4.3.7",
+    "cspell": "^8.3.2",
     "eslint": "^8.50.0",
     "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.2.0",

@@ -39,8 +39,8 @@ type StructAttributes = Vec<SecondaryAttribute>;
 /// monomorphization - and it is not useful afterward.
 #[derive(Debug)]
 pub struct NodeInterner {
-    nodes: Arena<Node>,
-    func_meta: HashMap<FuncId, FuncMeta>,
+    pub(crate) nodes: Arena<Node>,
+    pub(crate) func_meta: HashMap<FuncId, FuncMeta>,
     function_definition_ids: HashMap<FuncId, DefinitionId>,
 
     // For a given function ID, this gives the function's modifiers which includes
@@ -52,7 +52,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     // Map each `Index` to it's own location
-    id_to_location: HashMap<Index, Location>,
+    pub(crate) id_to_location: HashMap<Index, Location>,
 
     // Maps each DefinitionId to a DefinitionInfo.
     definitions: Vec<DefinitionInfo>,
@@ -85,14 +85,14 @@ pub struct NodeInterner {
     // Each trait definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
-    traits: HashMap<TraitId, Trait>,
+    pub(crate) traits: HashMap<TraitId, Trait>,
 
     // Trait implementation map
     // For each type that implements a given Trait ( corresponding TraitId), there should be an entry here
     // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
     //
     // Indexed by TraitImplIds
-    trait_implementations: Vec<Shared<TraitImpl>>,
+    pub(crate) trait_implementations: Vec<Shared<TraitImpl>>,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -363,7 +363,7 @@ partialeq!(StmtId);
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
 #[derive(Debug, Clone)]
-enum Node {
+pub(crate) enum Node {
     Function(HirFunction),
     Statement(HirStatement),
     Expression(HirExpression),
@@ -474,31 +474,6 @@ impl NodeInterner {
     /// Stores the span for an interned expression.
     pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
         self.id_to_location.insert(expr_id.into(), Location::new(span, file));
-    }
-
-    /// Scans the interner for the item which is located at that [Location]
-    ///
-    /// The [Location] may not necessarily point to the beginning of the item
-    /// so we check if the location's span is contained within the start or end
-    /// of each items [Span]
-    #[tracing::instrument(skip(self))]
-    pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
-        let mut location_candidate: Option<(&Index, &Location)> = None;
-
-        // Note: we can modify this in the future to not do a linear
-        // scan by storing a separate map of the spans or by sorting the locations.
-        for (index, interned_location) in self.id_to_location.iter() {
-            if interned_location.contains(&location) {
-                if let Some(current_location) = location_candidate {
-                    if interned_location.span.is_smaller(&current_location.1.span) {
-                        location_candidate = Some((index, interned_location));
-                    }
-                } else {
-                    location_candidate = Some((index, interned_location));
-                }
-            }
-        }
-        location_candidate.map(|(index, _location)| *index)
     }
 
     /// Interns a HIR Function.
@@ -1206,7 +1181,6 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
-    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
@@ -1275,12 +1249,12 @@ impl NodeInterner {
         method_name: &str,
         force_type_check: bool,
     ) -> Option<FuncId> {
-        let methods = self.struct_methods.get(&(id, method_name.to_owned()))?;
+        let methods = self.struct_methods.get(&(id, method_name.to_owned()));
 
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
-            if let Some(method) = methods.get_unambiguous() {
+            if let Some(method) = methods.and_then(|m| m.get_unambiguous()) {
                 return Some(method);
             }
         }
@@ -1292,10 +1266,10 @@ impl NodeInterner {
     fn find_matching_method(
         &self,
         typ: &Type,
-        methods: &Methods,
+        methods: Option<&Methods>,
         method_name: &str,
     ) -> Option<FuncId> {
-        if let Some(method) = methods.find_matching_method(typ, self) {
+        if let Some(method) = methods.and_then(|m| m.find_matching_method(typ, self)) {
             Some(method)
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
@@ -1310,7 +1284,7 @@ impl NodeInterner {
     pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
         let methods = self.primitive_methods.get(&(key, method_name.to_owned()))?;
-        self.find_matching_method(typ, methods, method_name)
+        self.find_matching_method(typ, Some(methods), method_name)
     }
 
     pub fn lookup_primitive_trait_method_mut(
@@ -1345,82 +1319,6 @@ impl NodeInterner {
     /// Retrieves the impl selected for a given ExprId during name resolution.
     pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
-    }
-
-    /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
-    /// Returns [None] when definition is not found.
-    pub fn get_definition_location_from(&self, location: Location) -> Option<Location> {
-        self.find_location_index(location)
-            .and_then(|index| self.resolve_location(index))
-            .or_else(|| self.try_resolve_trait_impl_location(location))
-    }
-
-    /// For a given [Index] we return [Location] to which we resolved to
-    /// We currently return None for features not yet implemented
-    /// TODO(#3659): LSP goto def should error when Ident at Location could not resolve
-    fn resolve_location(&self, index: impl Into<Index>) -> Option<Location> {
-        let node = self.nodes.get(index.into())?;
-
-        match node {
-            Node::Function(func) => self.resolve_location(func.as_expr()),
-            Node::Expression(expression) => self.resolve_expression_location(expression),
-            _ => None,
-        }
-    }
-
-    /// Resolves the [Location] of the definition for a given [HirExpression]
-    ///
-    /// Note: current the code returns None because some expressions are not yet implemented.
-    fn resolve_expression_location(&self, expression: &HirExpression) -> Option<Location> {
-        match expression {
-            HirExpression::Ident(ident) => {
-                let definition_info = self.definition(ident.id);
-                match definition_info.kind {
-                    DefinitionKind::Function(func_id) => {
-                        Some(self.function_meta(&func_id).location)
-                    }
-                    DefinitionKind::Local(_local_id) => Some(definition_info.location),
-                    _ => None,
-                }
-            }
-            HirExpression::Constructor(expr) => {
-                let struct_type = &expr.r#type.borrow();
-                Some(struct_type.location)
-            }
-            HirExpression::MemberAccess(expr_member_access) => {
-                self.resolve_struct_member_access(expr_member_access)
-            }
-            HirExpression::Call(expr_call) => {
-                let func = expr_call.func;
-                self.resolve_location(func)
-            }
-
-            _ => None,
-        }
-    }
-
-    /// Resolves the [Location] of the definition for a given [crate::hir_def::expr::HirMemberAccess]
-    /// This is used to resolve the location of a struct member access.
-    /// For example, in the expression `foo.bar` we want to resolve the location of `bar`
-    /// to the location of the definition of `bar` in the struct `foo`.
-    fn resolve_struct_member_access(
-        &self,
-        expr_member_access: &crate::hir_def::expr::HirMemberAccess,
-    ) -> Option<Location> {
-        let expr_lhs = &expr_member_access.lhs;
-        let expr_rhs = &expr_member_access.rhs;
-
-        let lhs_self_struct = match self.id_type(expr_lhs) {
-            Type::Struct(struct_type, _) => struct_type,
-            _ => return None,
-        };
-
-        let struct_type = lhs_self_struct.borrow();
-        let field_names = struct_type.field_names();
-
-        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
-            Location::new(found_field_name.span(), struct_type.location.file)
-        })
     }
 
     /// Retrieves the trait id for a given binary operator.
@@ -1506,24 +1404,6 @@ impl NodeInterner {
 
     pub(crate) fn ordering_type(&self) -> Type {
         self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
-    }
-
-    /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
-    /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
-    ///
-    /// Example:
-    /// impl Foo for Bar { ... } -> trait Foo { ... }
-    fn try_resolve_trait_impl_location(&self, location: Location) -> Option<Location> {
-        self.trait_implementations
-            .iter()
-            .find(|shared_trait_impl| {
-                let trait_impl = shared_trait_impl.borrow();
-                trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
-            })
-            .and_then(|shared_trait_impl| {
-                let trait_impl = shared_trait_impl.borrow();
-                self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
-            })
     }
 }
 

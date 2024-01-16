@@ -73,16 +73,6 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-      - name: Install Yarn dependencies
-        if: matrix.target == 'x86_64-apple-darwin'
-        uses: ./.github/actions/setup
-
-      - name: Test built artifact
-        if: matrix.target == 'x86_64-apple-darwin'
-        run: |
-          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          yarn workspace release-tests test
-
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
@@ -160,16 +150,6 @@ jobs:
           name: nargo-${{ matrix.target }}
           path: ./dist/*
           retention-days: 3
-
-      - name: Install Yarn dependencies
-        if: startsWith(matrix.target, 'x86_64-unknown-linux')
-        uses: ./.github/actions/setup
-
-      - name: Test built artifact
-        if: startsWith(matrix.target, 'x86_64-unknown-linux')
-        run: |
-          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          yarn workspace release-tests test
 
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2

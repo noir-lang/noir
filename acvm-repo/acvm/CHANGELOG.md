@@ -285,7 +285,7 @@
 ### ⚠ BREAKING CHANGES
 
 * add backend-solvable blackboxes to brillig & unify implementations ([#422](https://github.com/noir-lang/acvm/issues/422))
-* **acvm:** Remove `CircuitSimplifer` ([#421](https://github.com/noir-lang/acvm/issues/421))
+* **acvm:** Remove `CircuitSimplifier` ([#421](https://github.com/noir-lang/acvm/issues/421))
 * **acvm:** Add `circuit: &Circuit` to `eth_contract_from_vk` function signature ([#420](https://github.com/noir-lang/acvm/issues/420))
 * Returns index of failing opcode and transformation mapping ([#412](https://github.com/noir-lang/acvm/issues/412))
 
@@ -299,7 +299,7 @@
 
 ### Miscellaneous Chores
 
-* **acvm:** Remove `CircuitSimplifer` ([#421](https://github.com/noir-lang/acvm/issues/421)) ([e07a56d](https://github.com/noir-lang/acvm/commit/e07a56d9c542a7f03ce156761054cd403de0bd23))
+* **acvm:** Remove `CircuitSimplifier` ([#421](https://github.com/noir-lang/acvm/issues/421)) ([e07a56d](https://github.com/noir-lang/acvm/commit/e07a56d9c542a7f03ce156761054cd403de0bd23))
 
 
 ### Dependencies
@@ -641,7 +641,7 @@
 * update `ProofSystemCompiler` to not take ownership of keys ([#111](https://github.com/noir-lang/acvm/issues/111))
 * update `ProofSystemCompiler` methods to take `&Circuit` ([#108](https://github.com/noir-lang/acvm/issues/108))
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58))
-* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
+* reorganize compiler in terms of optimizers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88))
 
 ### Features
 
@@ -659,4 +659,4 @@
 ### Miscellaneous Chores
 
 * refactor ToRadix to ToRadixLe and ToRadixBe ([#58](https://github.com/noir-lang/acvm/issues/58)) ([2427a27](https://github.com/noir-lang/acvm/commit/2427a275048e598c6d651cce8348a4c55148f235))
-* reorganize compiler in terms of optimisers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))
+* reorganize compiler in terms of optimizers and transformers ([#88](https://github.com/noir-lang/acvm/issues/88)) ([9329307](https://github.com/noir-lang/acvm/commit/9329307e054de202cfc55207162ad952b70d515e))

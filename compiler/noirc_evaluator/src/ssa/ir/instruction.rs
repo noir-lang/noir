@@ -40,6 +40,7 @@ pub(crate) enum Intrinsic {
     SlicePopFront,
     SliceInsert,
     SliceRemove,
+    ApplyRangeConstraint,
     StrAsBytes,
     ToBits(Endian),
     ToRadix(Endian),
@@ -61,6 +62,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::SliceInsert => write!(f, "slice_insert"),
             Intrinsic::SliceRemove => write!(f, "slice_remove"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
+            Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
             Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
@@ -78,7 +80,7 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant => true,
+            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint => true,
 
             Intrinsic::Sort
             | Intrinsic::ArrayLen
@@ -106,6 +108,7 @@ impl Intrinsic {
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
             "slice_pop_back" => Some(Intrinsic::SlicePopBack),
@@ -432,73 +435,11 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                if dfg.resolve(*lhs) == dfg.resolve(*rhs) {
-                    // Remove trivial case `assert_eq(x, x)`
-                    SimplifyResult::Remove
+                let constraints = decompose_constrain(*lhs, *rhs, msg.clone(), dfg);
+                if constraints.is_empty() {
+                    Remove
                 } else {
-                    match (&dfg[dfg.resolve(*lhs)], &dfg[dfg.resolve(*rhs)]) {
-                        (
-                            Value::NumericConstant { constant, typ },
-                            Value::Instruction { instruction, .. },
-                        )
-                        | (
-                            Value::Instruction { instruction, .. },
-                            Value::NumericConstant { constant, typ },
-                        ) if *typ == Type::bool() => {
-                            match dfg[*instruction] {
-                                Instruction::Binary(Binary {
-                                    lhs,
-                                    rhs,
-                                    operator: BinaryOp::Eq,
-                                }) if constant.is_one() => {
-                                    // Replace an explicit two step equality assertion
-                                    //
-                                    // v2 = eq v0, u32 v1
-                                    // constrain v2 == u1 1
-                                    //
-                                    // with a direct assertion of equality between the two values
-                                    //
-                                    // v2 = eq v0, u32 v1
-                                    // constrain v0 == v1
-                                    //
-                                    // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
-                                    // will likely be removed through dead instruction elimination.
-
-                                    SimplifiedToInstruction(Instruction::Constrain(
-                                        lhs,
-                                        rhs,
-                                        msg.clone(),
-                                    ))
-                                }
-                                Instruction::Not(value) => {
-                                    // Replace an assertion that a not instruction is truthy
-                                    //
-                                    // v1 = not v0
-                                    // constrain v1 == u1 1
-                                    //
-                                    // with an assertion that the not instruction input is falsy
-                                    //
-                                    // v1 = not v0
-                                    // constrain v0 == u1 0
-                                    //
-                                    // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
-                                    // will likely be removed through dead instruction elimination.
-                                    let reversed_constant = FieldElement::from(!constant.is_one());
-                                    let reversed_constant =
-                                        dfg.make_constant(reversed_constant, Type::bool());
-                                    SimplifiedToInstruction(Instruction::Constrain(
-                                        value,
-                                        reversed_constant,
-                                        msg.clone(),
-                                    ))
-                                }
-
-                                _ => None,
-                            }
-                        }
-
-                        _ => None,
-                    }
+                    SimplifiedToInstructionMultiple(constraints)
                 }
             }
             Instruction::ArrayGet { array, index } => {
@@ -533,16 +474,43 @@ impl Instruction {
                     let truncated = numeric_constant.to_u128() % integer_modulus;
                     SimplifiedTo(dfg.make_constant(truncated.into(), typ))
                 } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
-                    if let Instruction::Truncate { bit_size: src_bit_size, .. } = &dfg[*instruction]
-                    {
-                        // If we're truncating the value to fit into the same or larger bit size then this is a noop.
-                        if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
-                            SimplifiedTo(*value)
-                        } else {
-                            None
+                    match &dfg[*instruction] {
+                        Instruction::Truncate { bit_size: src_bit_size, .. } => {
+                            // If we're truncating the value to fit into the same or larger bit size then this is a noop.
+                            if src_bit_size <= bit_size && src_bit_size <= max_bit_size {
+                                SimplifiedTo(*value)
+                            } else {
+                                None
+                            }
                         }
-                    } else {
-                        None
+
+                        Instruction::Binary(Binary {
+                            lhs, rhs, operator: BinaryOp::Div, ..
+                        }) if dfg.is_constant(*rhs) => {
+                            // If we're truncating the result of a division by a constant denominator, we can
+                            // reason about the maximum bit size of the result and whether a truncation is necessary.
+
+                            let numerator_type = dfg.type_of_value(*lhs);
+                            let max_numerator_bits = numerator_type.bit_size();
+
+                            let divisor = dfg
+                                .get_numeric_constant(*rhs)
+                                .expect("rhs is checked to be constant.");
+                            let divisor_bits = divisor.num_bits();
+
+                            // 2^{max_quotient_bits} = 2^{max_numerator_bits} / 2^{divisor_bits}
+                            // => max_quotient_bits = max_numerator_bits - divisor_bits
+                            //
+                            // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
+                            let max_quotient_bits = max_numerator_bits - divisor_bits;
+                            if max_quotient_bits < *bit_size {
+                                SimplifiedTo(*value)
+                            } else {
+                                None
+                            }
+                        }
+
+                        _ => None,
                     }
                 } else {
                     None
@@ -581,6 +549,14 @@ impl Instruction {
 /// that value is returned. Otherwise None is returned.
 fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> SimplifyResult {
     use SimplifyResult::*;
+    let value = dfg.resolve(value);
+
+    if let Value::Instruction { instruction, .. } = &dfg[value] {
+        if let Instruction::Cast(original_value, _) = &dfg[*instruction] {
+            return SimplifiedToInstruction(Instruction::Cast(*original_value, dst_typ.clone()));
+        }
+    }
+
     if let Some(constant) = dfg.get_numeric_constant(value) {
         let src_typ = dfg.type_of_value(value);
         match (src_typ, dst_typ) {
@@ -616,6 +592,129 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
         SimplifiedTo(value)
     } else {
         None
+    }
+}
+
+/// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
+/// all the values which are used to compute the values which were being constrained.
+fn decompose_constrain(
+    lhs: ValueId,
+    rhs: ValueId,
+    msg: Option<String>,
+    dfg: &mut DataFlowGraph,
+) -> Vec<Instruction> {
+    let lhs = dfg.resolve(lhs);
+    let rhs = dfg.resolve(rhs);
+
+    if lhs == rhs {
+        // Remove trivial case `assert_eq(x, x)`
+        Vec::new()
+    } else {
+        match (&dfg[lhs], &dfg[rhs]) {
+            (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
+            | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
+                if *typ == Type::bool() =>
+            {
+                match dfg[*instruction] {
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq })
+                        if constant.is_one() =>
+                    {
+                        // Replace an explicit two step equality assertion
+                        //
+                        // v2 = eq v0, u32 v1
+                        // constrain v2 == u1 1
+                        //
+                        // with a direct assertion of equality between the two values
+                        //
+                        // v2 = eq v0, u32 v1
+                        // constrain v0 == v1
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+
+                        vec![Instruction::Constrain(lhs, rhs, msg)]
+                    }
+
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul })
+                        if constant.is_one() && dfg.type_of_value(lhs) == Type::bool() =>
+                    {
+                        // Replace an equality assertion on a boolean multiplication
+                        //
+                        // v2 = mul v0, v1
+                        // constrain v2 == u1 1
+                        //
+                        // with a direct assertion that each value is equal to 1
+                        //
+                        // v2 = mul v0, v1
+                        // constrain v0 == 1
+                        // constrain v1 == 1
+                        //
+                        // This is due to the fact that for `v2` to be 1 then both `v0` and `v1` are 1.
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        let one = FieldElement::one();
+                        let one = dfg.make_constant(one, Type::bool());
+
+                        [
+                            decompose_constrain(lhs, one, msg.clone(), dfg),
+                            decompose_constrain(rhs, one, msg, dfg),
+                        ]
+                        .concat()
+                    }
+
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Or })
+                        if constant.is_zero() =>
+                    {
+                        // Replace an equality assertion on an OR
+                        //
+                        // v2 = or v0, v1
+                        // constrain v2 == u1 0
+                        //
+                        // with a direct assertion that each value is equal to 0
+                        //
+                        // v2 = or v0, v1
+                        // constrain v0 == 0
+                        // constrain v1 == 0
+                        //
+                        // This is due to the fact that for `v2` to be 0 then both `v0` and `v1` are 0.
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        let zero = FieldElement::zero();
+                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
+
+                        [
+                            decompose_constrain(lhs, zero, msg.clone(), dfg),
+                            decompose_constrain(rhs, zero, msg, dfg),
+                        ]
+                        .concat()
+                    }
+
+                    Instruction::Not(value) => {
+                        // Replace an assertion that a not instruction is truthy
+                        //
+                        // v1 = not v0
+                        // constrain v1 == u1 1
+                        //
+                        // with an assertion that the not instruction input is falsy
+                        //
+                        // v1 = not v0
+                        // constrain v0 == u1 0
+                        //
+                        // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        let reversed_constant = FieldElement::from(!constant.is_one());
+                        let reversed_constant = dfg.make_constant(reversed_constant, Type::bool());
+                        decompose_constrain(value, reversed_constant, msg, dfg)
+                    }
+
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+                }
+            }
+
+            _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+        }
     }
 }
 
@@ -1107,6 +1206,10 @@ pub(crate) enum SimplifyResult {
     /// Replace this function with an simpler but equivalent instruction.
     SimplifiedToInstruction(Instruction),
 
+    /// Replace this function with a set of simpler but equivalent instructions.
+    /// This is currently only to be used for [`Instruction::Constrain`].
+    SimplifiedToInstructionMultiple(Vec<Instruction>),
+
     /// Remove the instruction, it is unnecessary
     Remove,
 
@@ -1115,9 +1218,10 @@ pub(crate) enum SimplifyResult {
 }
 
 impl SimplifyResult {
-    pub(crate) fn instruction(self) -> Option<Instruction> {
+    pub(crate) fn instructions(self) -> Option<Vec<Instruction>> {
         match self {
-            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(vec![instruction]),
+            SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
             _ => None,
         }
     }

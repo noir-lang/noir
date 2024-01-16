@@ -233,6 +233,20 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::ApplyRangeConstraint => {
+            let value = arguments[0];
+            let max_bit_size = dfg.get_numeric_constant(arguments[1]);
+            if let Some(max_bit_size) = max_bit_size {
+                let max_bit_size = max_bit_size.to_u128() as u32;
+                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                    value,
+                    max_bit_size,
+                    assert_message: Some("call to assert_max_bit_size".to_owned()),
+                })
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
         Intrinsic::AsField => {
@@ -392,6 +406,8 @@ fn simplify_black_box_func(
     match bb_func {
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
+        BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
+        BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::Keccak256 => {
             match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
                 (Some((input, _)), Some(num_bytes)) if array_is_constant(dfg, &input) => {
@@ -411,18 +427,6 @@ fn simplify_black_box_func(
                 _ => SimplifyResult::None,
             }
         }
-        BlackBoxFunc::HashToField128Security => match dfg.get_array_constant(arguments[0]) {
-            Some((input, _)) if array_is_constant(dfg, &input) => {
-                let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
-
-                let field = acvm::blackbox_solver::hash_to_field_128_security(&input_bytes)
-                    .expect("Rust solvable black box function should not fail");
-
-                let field_constant = dfg.make_constant(field, Type::field());
-                SimplifyResult::SimplifiedTo(field_constant)
-            }
-            _ => SimplifyResult::None,
-        },
 
         BlackBoxFunc::EcdsaSecp256k1 => {
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256k1_verify)

@@ -1341,7 +1341,7 @@ impl Type {
         let substitute_binding = |binding: &TypeVariable| {
             // Check the id first to allow substituting to
             // type variables that have already been bound over.
-            // This is neede for monomorphizing trait impl methods.
+            // This is needed for monomorphizing trait impl methods.
             match type_bindings.get(&binding.0) {
                 Some((_, binding)) if substitute_bound_typevars => binding.clone(),
                 _ => match &*binding.borrow() {
