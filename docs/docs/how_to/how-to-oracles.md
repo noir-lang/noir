@@ -38,32 +38,32 @@ An oracle is defined in a Noir program by defining two methods:
 An example of an oracle that returns a `Field` would be:
 
 ```rust
-#[oracle(getSquared)]
-unconstrained fn squared(number: Field) -> Field { }
+#[oracle(getSqrt)]
+unconstrained fn sqrt(number: Field) -> Field { }
 
-unconstrained fn get_squared(number: Field) -> Field {
-    squared(number)
+unconstrained fn get_sqrt(number: Field) -> Field {
+    sqrt(number)
 }
 ```
 
-In this example, we're wrapping our oracle function in a unconstrained method, and decorating it with `oracle(getSquared)`. We can then call the unconstrained function as we would call any other function:
+In this example, we're wrapping our oracle function in a unconstrained method, and decorating it with `oracle(getSqrt)`. We can then call the unconstrained function as we would call any other function:
 
 ```rust
 fn main(input: Field) {
-    let squared = get_squared(input);
+    let sqrt = get_sqrt(input);
 }
 ```
 
-In the next section, we will make this `getSquared` (defined on the `squared` decorator) be a method of the RPC server Noir will use.
+In the next section, we will make this `getSqrt` (defined on the `sqrt` decorator) be a method of the RPC server Noir will use.
 
 :::danger
 
 As explained in the [Oracle Explainer](../explainers/explainer-oracle.md), this `main` function is unsafe unless you constrain its return value. For example:
 
 ```rust
-fn main(input: Field, target: Field) {
-    let squared = get_squared(input);
-    assert(squared as u64 == target as u64); // <---- constrain the return of an oracle!
+fn main(input: Field) {
+    let sqrt = get_sqrt(input);
+    assert(sqrt[0].pow_32(2) as u64 == input as u64); // <---- constrain the return of an oracle!
 }
 ```
 
@@ -74,8 +74,8 @@ fn main(input: Field, target: Field) {
 Currently, oracles only work with single params or array params. For example:
 
 ```rust
-#[oracle(getSquared)]
-unconstrained fn squared([Field; 2]) -> [Field; 2] { }
+#[oracle(getSqrt)]
+unconstrained fn sqrt([Field; 2]) -> [Field; 2] { }
 ```
 
 :::
@@ -84,23 +84,32 @@ unconstrained fn squared([Field; 2]) -> [Field; 2] { }
 
 Brillig will call *one* RPC server. Most likely you will have to write your own, and you can do it in whatever language you prefer. In this guide, we will do it in Javascript.
 
-Let's use the above example of an oracle that consumes an array with two `Field` and squares them:
+Let's use the above example of an oracle that consumes an array with two `Field` and returns their square roots:
 
 ```rust
-#[oracle(getSquared)]
-unconstrained fn squared(input: [Field; 2]) -> [Field; 2] { }
+#[oracle(getSqrt)]
+unconstrained fn sqrt(input: [Field; 2]) -> [Field; 2] { }
 
-unconstrained fn get_squared(input: [Field; 2]) -> [Field; 2] {
-    squared(input)
+unconstrained fn get_sqrt(input: [Field; 2]) -> [Field; 2] {
+    sqrt(input)
 }
 
-fn main(input: [Field; 2], target: [Field; 2]) {
-    let squared = get_squared(input);
-    assert(squared == target);
+fn main(input: [Field; 2]) {
+    let sqrt = get_sqrt(input);
+    assert(sqrt[0].pow_32(2) as u64 == input[0] as u64);
+    assert(sqrt[1].pow_32(2) as u64 == input[1] as u64);
 }
 ```
 
-And write the correspondent RPC server, starting with the [default JSON-RPC 2.0 boilerplate](https://www.npmjs.com/package/json-rpc-2.0#example):
+:::info
+
+Why square root?
+
+In general, computing square roots is computationally more expensive than multiplications, which takes a toll when speaking about ZK applications. In this case, instead of calculating the square root in Noir, we are using our oracle to offload that computation to be made in plain. In our circuit we can simply multiply the two values.
+
+:::
+
+Now, we should write the correspondent RPC server, starting with the [default JSON-RPC 2.0 boilerplate](https://www.npmjs.com/package/json-rpc-2.0#example):
 
 ```js
 import { JSONRPCServer } from "json-rpc-2.0";
@@ -115,7 +124,6 @@ app.post("/", (req, res) => {
  const jsonRPCRequest = req.body;
  server.receive(jsonRPCRequest).then((jsonRPCResponse) => {
   if (jsonRPCResponse) {
-   console.log(jsonRPCResponse);
    res.json(jsonRPCResponse);
   } else {
    res.sendStatus(204);
@@ -126,12 +134,12 @@ app.post("/", (req, res) => {
 app.listen(5555);
 ```
 
-Now, we will add our `getSquared` method, as expected by the `#[oracle(getSquared)]` decorator in our Noir code. It maps through the params array and squares the values:
+Now, we will add our `getSqrt` method, as expected by the `#[oracle(getSqrt)]` decorator in our Noir code. It maps through the params array and returns their square roots:
 
 ```js
-server.addMethod("getSquared", async (params) => {
+server.addMethod("getSqrt", async (params) => {
   const values = params[0].Array.map(({ inner }) => {
-    return { inner: `${inner * inner}` };
+    return { inner: `${Math.sqrt(parseInt(inner, 16))}` };
   });
   return { values: [{ Array: values }] };
 });
@@ -205,7 +213,7 @@ You don't technically have to, but then how would you run `nargo test` or `nargo
 
 In this case, let's make `foreignCallHandler` call the JSON RPC Server we created in [Step #2](#step-2---write-an-rpc-server), by making it a JSON RPC Client.
 
-For example, using the same `getSquared` program in [Step #1](#step-1---modify-your-noir-program) (comments in the code):
+For example, using the same `getSqrt` program in [Step #1](#step-1---modify-your-noir-program) (comments in the code):
 
 ```js
 import { JSONRPCClient } from "json-rpc-2.0";
@@ -230,18 +238,18 @@ const client = new JSONRPCClient((jsonRPCRequest) => {
  });
 });
 
-// declaring a function that takes the name of the foreign call (getSquared) and the inputs
+// declaring a function that takes the name of the foreign call (getSqrt) and the inputs
 const foreignCallHandler = async (name, input) => {
     // notice that the "inputs" parameter contains *all* the inputs
     // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
     const oracleReturn = await client.request(name, [
-        { Array: input[0].map((i) => ({ inner: i })) },
+      { Array: input[0].map((i) => ({ inner: i.toString("hex") })) },
     ]);
     return [oracleReturn.values[0].Array.map((x) => x.inner)];
 };
 
 // the rest of your NoirJS code
-const input = { numbers: [1, 2], target: [1, 4] };
+const input = { input: [4, 16] };
 const { witness } = await noir.execute(numbers, foreignCallHandler);
 ```
 
