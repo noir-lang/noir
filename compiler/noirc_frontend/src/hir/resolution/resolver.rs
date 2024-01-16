@@ -705,7 +705,12 @@ impl<'a> Resolver<'a> {
 
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, &mut vec![])
+        let span = typ.span;
+        let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
+        if resolved_type.is_nested_slice() {
+            self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
+        }
+        resolved_type
     }
 
     pub fn resolve_type_aliases(
