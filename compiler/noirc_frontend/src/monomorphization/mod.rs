@@ -243,9 +243,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         let parameters = self.parameters(&meta.parameters);
 
-        let t = meta.typ.as_monotype().follow_bindings();
-        eprintln!("Monomorphizing function with type {t}");
-
         let body = self.expr(body_expr_id);
         let unconstrained = modifiers.is_unconstrained
             || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
@@ -877,22 +874,6 @@ impl<'interner> Monomorphizer<'interner> {
                     &trait_generics,
                 ) {
                     Ok(TraitImplKind::Normal(impl_id)) => {
-                        // TODO: Can this be removed?
-                        // if !trait_generics.is_empty() {
-                        //     let the_trait = self.interner.get_trait(method.trait_id);
-                        //     let bindings = the_trait
-                        //         .generics
-                        //         .iter()
-                        //         .zip(trait_generics)
-                        //         .map(|((id, var), binding)| {
-                        //             eprintln!(" Binding2 {} ({:?}) <- {}", id, var, binding);
-                        //             (*id, (var.clone(), binding))
-                        //         })
-                        //         .collect();
-
-                        //     function_type = function_type.substitute(&bindings);
-                        // }
-
                         self.interner.get_trait_implementation(impl_id).borrow().methods
                             [method.method_index]
                     }
@@ -919,10 +900,6 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let the_trait = self.interner.get_trait(method.trait_id);
-
-        eprintln!("Raw fn type                = {:?}", function_type);
-        eprintln!("Converted type of trait fn = {}", self.convert_type(&function_type));
-
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
             mutable: false,

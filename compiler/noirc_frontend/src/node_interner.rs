@@ -1049,14 +1049,6 @@ impl NodeInterner {
         let (impl_kind, bindings) =
             self.try_lookup_trait_implementation(object_type, trait_id, trait_generics)?;
 
-        if !bindings.is_empty() {
-            eprintln!("Bindings:");
-        }
-
-        for (a, (_b, c)) in &bindings {
-            eprintln!(" {:?} ({:?}) <- {}", a, _b, c);
-        }
-
         Type::apply_type_bindings(bindings);
         Ok(impl_kind)
     }
@@ -1105,26 +1097,12 @@ impl NodeInterner {
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type2.instantiate(self);
 
-            eprintln!(
-                "Testing impl for {},  pre-instantiated: {:?}",
-                existing_object_type, existing_object_type2
-            );
-
             let mut fresh_bindings = TypeBindings::new();
 
             let mut check_trait_generics = |impl_generics: &[Type]| {
                 trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic2)| {
                     let impl_generic = impl_generic2.substitute(&instantiation_bindings);
-                    if trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok() {
-                        eprintln!("  generic {} == {}", trait_generic, impl_generic);
-                        true
-                    } else {
-                        eprintln!(
-                            "  generic {} != {}  (pre-instantiated: {:?})",
-                            trait_generic, impl_generic, impl_generic2
-                        );
-                        false
-                    }
+                    trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
                 })
             };
 
@@ -1132,21 +1110,17 @@ impl NodeInterner {
                 TraitImplKind::Normal(id) => {
                     let shared_impl = self.get_trait_implementation(*id);
                     let shared_impl = shared_impl.borrow();
-                    eprintln!("Checking normal impl");
                     check_trait_generics(&shared_impl.trait_generics)
                 }
                 TraitImplKind::Assumed { trait_generics, .. } => {
-                    eprintln!("Checking assumed impl");
                     check_trait_generics(trait_generics)
                 }
             };
 
             if !generics_match {
-                eprintln!("  Generics on impl don't match, skipping");
                 continue;
             }
 
-            eprintln!("  Generics match, now testing {} == {}", object_type, existing_object_type);
             if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
                 // The unification was successful so we can append fresh_bindings to our bindings list
                 type_bindings.extend(fresh_bindings);
@@ -1239,7 +1213,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: Vec<Type>,
         impl_id: TraitImplId,
-        impl_generics: Vec<Type>,
+        impl_generics: Generics,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
         assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
@@ -1251,9 +1225,13 @@ impl NodeInterner {
         // if they were, we should never prevent defining a new impl because a where
         // clause already assumes it exists.
 
-        // FIXME: Instantiate from impl generics
-        let (instantiated_object_type, substitutions) =
-            object_type.instantiate_type_variables(self);
+        // Replace each generic with a fresh type variable
+        let substitutions = impl_generics
+            .into_iter()
+            .map(|(id, typevar)| (id, (typevar, self.next_type_variable())))
+            .collect();
+
+        let instantiated_object_type = object_type.substitute(&substitutions);
 
         if let Ok((TraitImplKind::Normal(existing), _)) = self.try_lookup_trait_implementation(
             &instantiated_object_type,
@@ -1272,12 +1250,7 @@ impl NodeInterner {
 
         // The object type is generalized so that a generic impl will apply
         // to any type T, rather than just the generic type named T.
-        // WRONG!! FIXME
         let generalized_object_type = object_type.generalize_from_substitutions(substitutions);
-        eprintln!(
-            "\n\n\n     impl generics len = {} \n\n\n",
-            trait_impl.borrow().impl_generics.len()
-        );
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));

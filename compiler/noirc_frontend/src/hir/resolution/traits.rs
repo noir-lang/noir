@@ -402,7 +402,7 @@ pub(crate) fn resolve_trait_impls(
             vecmap(&trait_impl.trait_generics, |generic| resolver.resolve_type(generic.clone()));
 
         let self_type = resolver.resolve_type(unresolved_type.clone());
-        let generics = resolver.get_generics().to_vec();
+        let impl_generics = resolver.get_generics().to_vec();
         let impl_id = interner.next_trait_impl_id();
 
         let mut impl_methods = functions::resolve_function_set(
@@ -412,7 +412,7 @@ pub(crate) fn resolve_trait_impls(
             trait_impl.methods.clone(),
             Some(self_type.clone()),
             Some(impl_id),
-            generics.clone(),
+            impl_generics.clone(),
             errors,
         );
 
@@ -432,7 +432,7 @@ pub(crate) fn resolve_trait_impls(
         let mut new_resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
 
-        new_resolver.set_generics(generics);
+        new_resolver.set_generics(impl_generics.clone());
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
@@ -465,6 +465,9 @@ pub(crate) fn resolve_trait_impls(
                 where_clause,
                 methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
             });
+
+            let impl_generics =
+                vecmap(impl_generics, |(_, type_variable, _)| (type_variable.id(), type_variable));
 
             if let Err((prev_span, prev_file)) = interner.add_trait_implementation(
                 self_type.clone(),

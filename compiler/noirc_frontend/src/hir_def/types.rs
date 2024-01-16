@@ -423,6 +423,10 @@ impl TypeVariable {
         TypeVariable(id, Shared::new(TypeBinding::Unbound(id)))
     }
 
+    pub fn id(&self) -> TypeVariableId {
+        self.0
+    }
+
     /// Bind this type variable to a value.
     ///
     /// Panics if this TypeVariable is already Bound.
@@ -1297,82 +1301,6 @@ impl Type {
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
-        }
-    }
-
-    /// Replace each NamedGeneric (and TypeVariable) in this type with a fresh type variable
-    pub(crate) fn instantiate_type_variables(
-        &self,
-        interner: &NodeInterner,
-    ) -> (Type, TypeBindings) {
-        let mut type_variables = HashMap::new();
-        self.find_all_unbound_type_variables(&mut type_variables);
-
-        let substitutions = type_variables
-            .into_iter()
-            .map(|(id, type_var)| (id, (type_var, interner.next_type_variable())))
-            .collect();
-
-        (self.substitute(&substitutions), substitutions)
-    }
-
-    /// For each unbound type variable in the current type, add a type binding to the given list
-    /// to bind the unbound type variable to a fresh type variable.
-    fn find_all_unbound_type_variables(
-        &self,
-        type_variables: &mut HashMap<TypeVariableId, TypeVariable>,
-    ) {
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(_)
-            | Type::NotConstant
-            | Type::Error => (),
-            Type::Array(length, elem) => {
-                length.find_all_unbound_type_variables(type_variables);
-                elem.find_all_unbound_type_variables(type_variables);
-            }
-            Type::String(length) => length.find_all_unbound_type_variables(type_variables),
-            Type::FmtString(length, env) => {
-                length.find_all_unbound_type_variables(type_variables);
-                env.find_all_unbound_type_variables(type_variables);
-            }
-            Type::Struct(_, generics) => {
-                for generic in generics {
-                    generic.find_all_unbound_type_variables(type_variables);
-                }
-            }
-            Type::Tuple(fields) => {
-                for field in fields {
-                    field.find_all_unbound_type_variables(type_variables);
-                }
-            }
-            Type::Function(args, ret, env) => {
-                for arg in args {
-                    arg.find_all_unbound_type_variables(type_variables);
-                }
-                ret.find_all_unbound_type_variables(type_variables);
-                env.find_all_unbound_type_variables(type_variables);
-            }
-            Type::MutableReference(elem) => {
-                elem.find_all_unbound_type_variables(type_variables);
-            }
-            Type::Forall(_, typ) => typ.find_all_unbound_type_variables(type_variables),
-            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.find_all_unbound_type_variables(type_variables);
-                    }
-                    TypeBinding::Unbound(id) => {
-                        if !type_variables.contains_key(id) {
-                            type_variables.insert(*id, type_variable.clone());
-                        }
-                    }
-                }
-            }
         }
     }
 

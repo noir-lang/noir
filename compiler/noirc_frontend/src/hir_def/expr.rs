@@ -217,8 +217,6 @@ impl HirMethodCallExpression {
             }
             HirMethodReference::TraitMethodId(method_id, generics) => {
                 let id = interner.trait_method_id(*method_id);
-                eprintln!("  into_function_call with {} trait generics", generics.len());
-
                 let constraint = TraitConstraint {
                     typ: object_type,
                     trait_id: method_id.trait_id,

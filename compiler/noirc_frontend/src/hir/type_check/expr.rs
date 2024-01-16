@@ -58,9 +58,6 @@ impl<'interner> TypeChecker<'interner> {
                 // finished. How to link the two?
                 let (typ, bindings) = t.instantiate(self.interner);
 
-                let name = self.interner.definition_name(ident.id);
-                eprintln!("    {}: {}  ({} pre-instantiated)", name, typ, t);
-
                 // Push any trait constraints required by this definition to the context
                 // to be checked later when the type of this variable is further constrained.
                 if let Some(definition) = self.interner.try_definition(ident.id) {
@@ -69,7 +66,7 @@ impl<'interner> TypeChecker<'interner> {
 
                         for mut constraint in function.trait_constraints.clone() {
                             constraint.apply_bindings(&bindings);
-                            self.trait_constraints.push((constraint, *expr_id, typ.clone()));
+                            self.trait_constraints.push((constraint, *expr_id));
                         }
                     }
                 }
@@ -83,11 +80,10 @@ impl<'interner> TypeChecker<'interner> {
                         };
                         self.interner.select_impl_for_expression(*expr_id, trait_impl);
                     } else {
-                        eprintln!("\n\nPushing tttt constraint {:?}\n\n", constraint);
                         // Currently only one impl can be selected per expr_id, so this
                         // constraint needs to be pushed after any other constraints so
                         // that monomorphization can resolve this trait method to the correct impl.
-                        self.trait_constraints.push((constraint, *expr_id, typ.clone()));
+                        self.trait_constraints.push((constraint, *expr_id));
                     }
                 }
 
@@ -253,12 +249,12 @@ impl<'interner> TypeChecker<'interner> {
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
 
                         if let Some(trait_id) = trait_id {
-                            eprintln!("Verifying constraint on method call");
-                            let trait_generics = &[];
+                            // Assume no trait generics were specified
+                            // TODO: Fill in type variables
                             self.verify_trait_constraint(
                                 &object_type,
                                 trait_id,
-                                trait_generics,
+                                &[],
                                 function_id,
                                 span,
                             );
@@ -355,15 +351,9 @@ impl<'interner> TypeChecker<'interner> {
     ) {
         match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
             Ok(impl_kind) => {
-                eprintln!("Selecting impl {:?}", impl_kind);
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
             Err(erroring_constraints) => {
-                eprintln!(
-                    "\n\n !Error pushed here! No impl with {object_type} and {} generics \n\n",
-                    trait_generics.len()
-                );
-
                 // Don't show any errors where try_get_trait returns None.
                 // This can happen if a trait is used that was never declared.
                 let constraints = erroring_constraints
@@ -598,8 +588,6 @@ impl<'interner> TypeChecker<'interner> {
             HirMethodReference::TraitMethodId(method, generics) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-
-                eprintln!("  !!! Reference has {} generics", generics.len());
 
                 // These are any bindings from the trait's generics itself,
                 // rather than an impl or method's generics.

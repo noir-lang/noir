@@ -33,7 +33,7 @@ pub struct TypeChecker<'interner> {
     /// verified at the end of a function. This is because constraints arise
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
-    trait_constraints: Vec<(TraitConstraint, ExprId, Type)>,
+    trait_constraints: Vec<(TraitConstraint, ExprId)>,
 }
 
 /// Type checks a function and assigns the
@@ -91,10 +91,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id, typ2) in std::mem::take(&mut type_checker.trait_constraints) {
+    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
-        eprintln!("Verifying constraint on function end");
-        eprintln!("Constraint.typ before verify = {}, expr type = {:?}", constraint.typ, typ2);
         type_checker.verify_trait_constraint(
             &constraint.typ,
             constraint.trait_id,
@@ -102,7 +100,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             expr_id,
             span,
         );
-        eprintln!("Constraint.typ after  verify = {}, expr type = {:?}", constraint.typ, typ2);
     }
 
     errors.append(&mut type_checker.errors);
