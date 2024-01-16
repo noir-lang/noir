@@ -61,8 +61,9 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     for constraint in &expected_trait_constraints {
         let object = constraint.typ.clone();
         let trait_id = constraint.trait_id;
+        let generics = constraint.trait_generics.clone();
 
-        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id) {
+        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id, generics) {
             if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
                 let trait_name = the_trait.name.to_string();
                 let typ = constraint.typ.clone();
@@ -92,7 +93,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Verify any remaining trait constraints arising from the function body
     for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
-        type_checker.verify_trait_constraint(&constraint.typ, constraint.trait_id, expr_id, span);
+        type_checker.verify_trait_constraint(
+            &constraint.typ,
+            constraint.trait_id,
+            &constraint.trait_generics,
+            expr_id,
+            span,
+        );
     }
 
     errors.append(&mut type_checker.errors);
@@ -106,8 +113,11 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(trait_id, _) = &declared_return_type {
-            if interner.lookup_trait_implementation(&function_last_type, *trait_id).is_err() {
+        if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
+            if interner
+                .lookup_trait_implementation(&function_last_type, *trait_id, generics)
+                .is_err()
+            {
                 let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type,
@@ -272,21 +282,21 @@ mod test {
         let x_id =
             interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
 
-        let x = HirIdent { id: x_id, location };
+        let x = HirIdent::non_trait_method(x_id, location);
 
         // Push y variable
         let y_id =
             interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
-        let y = HirIdent { id: y_id, location };
+        let y = HirIdent::non_trait_method(y_id, location);
 
         // Push z variable
         let z_id =
             interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
-        let z = HirIdent { id: z_id, location };
+        let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
-        let x_expr_id = interner.push_expr(HirExpression::Ident(x));
-        let y_expr_id = interner.push_expr(HirExpression::Ident(y));
+        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone()));
+        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone()));
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
@@ -313,15 +323,9 @@ mod test {
         let func = HirFunction::unchecked_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
-        let name = HirIdent {
-            location,
-            id: interner.push_definition(
-                "test_func".into(),
-                false,
-                DefinitionKind::Local(None),
-                location,
-            ),
-        };
+        let definition = DefinitionKind::Local(None);
+        let id = interner.push_definition("test_func".into(), false, definition, location);
+        let name = HirIdent::non_trait_method(id, location);
 
         // Add function meta
         let func_meta = FuncMeta {

@@ -170,7 +170,9 @@ fn process_noir_document(
                 .filter_map(|FileDiagnostic { file_id, diagnostic, call_stack: _ }| {
                     // Ignore diagnostics for any file that wasn't the file we saved
                     // TODO: In the future, we could create "related" diagnostics for these files
-                    if fm.path(file_id) != file_path {
+                    if fm.path(file_id).expect("file must exist to have emitted diagnostic")
+                        != file_path
+                    {
                         return None;
                     }
 

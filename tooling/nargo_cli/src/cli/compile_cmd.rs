@@ -176,33 +176,25 @@ fn compile_program(
         read_program_from_file(program_artifact_path),
         read_debug_artifact_from_file(debug_artifact_path),
     ) {
-        Some(CompiledProgram {
-            hash: program_artifact.hash,
-            circuit: program_artifact.bytecode,
-            abi: program_artifact.abi,
-            noir_version: program_artifact.noir_version,
-            debug: debug_artifact.debug_symbols.remove(0),
-            file_map: debug_artifact.file_map,
-            warnings: debug_artifact.warnings,
-        })
+        if program_artifact.noir_version == NOIR_ARTIFACT_VERSION_STRING {
+            Some(CompiledProgram {
+                hash: program_artifact.hash,
+                circuit: program_artifact.bytecode,
+                abi: program_artifact.abi,
+                noir_version: program_artifact.noir_version,
+                debug: debug_artifact.debug_symbols.remove(0),
+                file_map: debug_artifact.file_map,
+                warnings: debug_artifact.warnings,
+            })
+        } else {
+            None
+        }
     } else {
         None
     };
 
-    let force_recompile =
-        cached_program.as_ref().map_or(false, |p| p.noir_version != NOIR_ARTIFACT_VERSION_STRING);
-    let (program, warnings) = match noirc_driver::compile_main(
-        &mut context,
-        crate_id,
-        compile_options,
-        cached_program,
-        force_recompile,
-    ) {
-        Ok(program_and_warnings) => program_and_warnings,
-        Err(errors) => {
-            return Err(errors);
-        }
-    };
+    let (program, warnings) =
+        noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
 
     // Apply backend specific optimizations.
     let optimized_program = nargo::ops::optimize_program(program, expression_width);
