@@ -79,7 +79,7 @@ fn main() {
 }
 ```
 
-Type aliases can also be used with [generics](@site/docs/noir/syntax/generics.md):
+Type aliases can also be used with [generics](../generics.md):
 
 ```rust
 type Id<Size> = Size;

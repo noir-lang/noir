@@ -4,6 +4,7 @@ description:
   Traits in Noir can be used to abstract out a common interface for functions across
   several data types.
 keywords: [noir programming language, traits, interfaces, generic, protocol]
+sidebar_position: 14
 ---
 
 ## Overview

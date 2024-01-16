@@ -23,4 +23,4 @@ fn main() {
 ```
 
 A function type also has an optional capture environment - this is necessary to support closures.
-See [Lambdas](@site/docs/noir/concepts/lambdas.md) for more details.
+See [Lambdas](../lambdas.md) for more details.

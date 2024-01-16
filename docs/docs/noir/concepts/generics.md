@@ -2,7 +2,7 @@
 title: Generics
 description: Learn how to use Generics in Noir
 keywords: [Noir, Rust, generics, functions, structs]
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 Generics allow you to use the same functions with multiple different concrete data types. You can
