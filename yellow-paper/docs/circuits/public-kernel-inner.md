@@ -73,6 +73,7 @@ It ensures the public function's intention by checking the following in _[public
   - _nullifiers_
   - _l2_to_l1_messages_
   - _storage_writes_
+  - _unencrypted_log_hashes_
 
 #### Verifying the counters.
 
@@ -113,19 +114,10 @@ It verifies that each value listed below is associated with a legitimate counter
    - _l2_to_l1_messages_
    - _encrypted_logs_hash_
    - _encrypted_log_preimages_length_
+   - _encrypted_note_preimages_hash_
+   - _encrypted_note_preimages_length_
    - _old_public_data_tree_snapshot_
    - _new_public_data_tree_snapshot_
-
-2. It checks that the hash and the length for **unencrypted** logs are accumulated as follows:
-
-   - _`unencrypted_logs_hash = hash(prev_hash, cur_hash)`_
-     - If either hash is zero, the new hash will be `prev_hash | cur_hash`
-   - _`unencrypted_log_preimages_length = prev_length + cur_length`_
-
-   Where:
-
-   - _prev_hash_ and _prev_length_ are the values in _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./public-kernel-tail.md#public-inputs).[accumulated_data](./public-kernel-tail.md#accumulateddata)_.
-   - _cur_hash_ and _cur_length_ are the values in _[private_inputs](#private-inputs).[public_call](#publiccall).[call_stack_item](#publiccallstackitem).[public_inputs](#publicfunctionpublicinputs)_.
 
 #### Verifying the transient accumulated data.
 
@@ -151,6 +143,8 @@ For the subsequent items appended after the values from the previous iterations,
      - _value_, _counter_
    - _storage_writes_
      - _value_, _counter_
+   - _unencrypted_log_hash_contexts_
+     - _hash_, _length_, _counter_
 
 2. For _public_call_requests_:
 
@@ -167,6 +161,7 @@ For the subsequent items appended after the values from the previous iterations,
    - _l2_to_l1_message_contexts_
    - _storage_reads_
    - _storage_writes_
+   - _unencrypted_log_hash_contexts_
 
    > Ensuring the alignment of the contract addresses is crucial, as it is later used to [silo the values](./public-kernel-tail.md#siloing-values) and to establish associations with values within the same contract.
 
@@ -224,21 +219,20 @@ The format aligns with the _[Public Inputs](./public-kernel-tail.md#public-input
 
 ### _PublicFunctionPublicInputs_
 
-| Field                              | Type                                                          | Description                                                            |
-| ---------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| _call_context_                     | _[CallContext](./private-function.md#callcontext)_            | Context of the call corresponding to this function execution.          |
-| _args_hash_                        | _field_                                                       | Hash of the function arguments.                                        |
-| _return_values_                    | [_field_; _C_]                                                | Return values of this function call.                                   |
-| _note_hashes_                      | [_[NoteHash](./private-function.md#notehash)_; _C_]           | New note hashes created in this function call.                         |
-| _nullifiers_                       | [_[Nullifier](./private-function.md#nullifier)_; _C_]         | New nullifiers created in this function call.                          |
-| _l2_to_l1_messages_                | [_field_; _C_]                                                | New L2 to L1 messages created in this function call.                   |
-| _storage_reads_                    | [_[StorageRead](./public-kernel-tail.md#storageread)_; _C_]   | Data read from the public data tree.                                   |
-| _storage_writes_                   | [_[StorageWrite](./public-kernel-tail.md#storagewrite)_; _C_] | Data written to the public data tree.                                  |
-| _unencrypted_logs_hash_            | _field_                                                       | Hash of the unencrypted logs emitted in this function call.            |
-| _unencrypted_log_preimages_length_ | _field_                                                       | Length of the unencrypted log preimages emitted in this function call. |
-| _public_call_stack_item_hashes_    | [_field_; _C_]                                                | Hashes of the public function calls initiated by this function.        |
-| _block_header_                     | _[BlockHeader](#blockheader)_                                 | Information about the trees used for the transaction.                  |
-| _chain_id_                         | _field_                                                       | Chain ID of the transaction.                                           |
-| _version_                          | _field_                                                       | Version of the transaction.                                            |
+| Field                           | Type                                                                    | Description                                                     |
+| ------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------- |
+| _call_context_                  | _[CallContext](./private-function.md#callcontext)_                      | Context of the call corresponding to this function execution.   |
+| _args_hash_                     | _field_                                                                 | Hash of the function arguments.                                 |
+| _return_values_                 | [_field_; _C_]                                                          | Return values of this function call.                            |
+| _note_hashes_                   | [_[NoteHash](./private-function.md#notehash)_; _C_]                     | New note hashes created in this function call.                  |
+| _nullifiers_                    | [_[Nullifier](./private-function.md#nullifier)_; _C_]                   | New nullifiers created in this function call.                   |
+| _l2_to_l1_messages_             | [_field_; _C_]                                                          | New L2 to L1 messages created in this function call.            |
+| _storage_reads_                 | [_[StorageRead](./public-kernel-tail.md#storageread)_; _C_]             | Data read from the public data tree.                            |
+| _storage_writes_                | [_[StorageWrite](./public-kernel-tail.md#storagewrite)_; _C_]           | Data written to the public data tree.                           |
+| _unencrypted_log_hashes_        | [_[UnencryptedLogHash](./private-function.md#unencryptedloghash)_; _C_] | Hashes of the unencrypted logs emitted in this function call.   |
+| _public_call_stack_item_hashes_ | [_field_; _C_]                                                          | Hashes of the public function calls initiated by this function. |
+| _block_header_                  | _[BlockHeader](#blockheader)_                                           | Information about the trees used for the transaction.           |
+| _chain_id_                      | _field_                                                                 | Chain ID of the transaction.                                    |
+| _version_                       | _field_                                                                 | Version of the transaction.                                     |
 
 > The above **C**s represent constants defined by the protocol. Each **C** might have a different value from the others.

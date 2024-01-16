@@ -91,6 +91,9 @@ It ensures the private function circuit's intention by checking the following in
   - _note_hashes_
   - _nullifiers_
   - _l2_to_l1_messages_
+  - _unencrypted_log_hashes_
+  - _encrypted_log_hashes_
+  - _encrypted_note_preimage_hashes_
 
 #### Verifying the counters.
 
@@ -99,20 +102,6 @@ This section follows the same [process](./private-kernel-initial.md#verifying-th
 Additionally, it verifies that for the _[call_stack_item](#privatecallstackitem)_, the _counter_start_ and _counter_end_ must match those in the _call_request_ [popped](#ensuring-the-current-call-matches-the-call-request) from the _private_call_requests_ in a previous step.
 
 ### Validating Public Inputs
-
-#### Verifying the accumulated data.
-
-It checks that the hashes and the lengths for both encrypted and unencrypted logs are accumulated as follows:
-
-- `new_hash = hash(prev_hash, cur_hash)`
-  - If either hash is zero, the new hash will be `prev_hash | cur_hash`.
-- `new_length = prev_length + cur_length`
-
-Where:
-
-- _new_hash_ and _new_length_ are the values in _[public_inputs](#public-inputs).[accumulated_data](./private-kernel-initial.md#accumulateddata)_.
-- _prev_hash_ and _prev_length_ are the values in _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./private-kernel-initial.md#public-inputs).[accumulated_data](./private-kernel-initial.md#accumulateddata)_.
-- _cur_hash_ and _cur_length_ are the values in _[private_inputs](#private-inputs).[private_call](#privatecall).[call_stack_item](./private-kernel-initial.md#privatecallstackitem).[public_inputs](./private-function.md#public-inputs)_.
 
 #### Verifying the transient accumulated data.
 

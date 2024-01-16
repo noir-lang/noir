@@ -43,19 +43,24 @@ This circuit ensures the correct ordering of the following:
 - _nullifiers_
 - _storage_reads_
 - _storage_writes_
+- _ordered_unencrypted_log_hashes_
 
-1. For _note_hashes_ and _nullifiers_, they undergo the same [process](./private-kernel-tail.md#verifying-ordered-arrays) as outlined in the tail private kernel circuit. With the exception that the loop starts from index _offset + i_, where _offset_ is the number of non-zero values in the _note_hashes_ and _nullifiers_ arrays within _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./public-kernel-tail.md#public-inputs).[accumulated_data](./public-kernel-tail.md#accumulateddata)_.
+1. For _note_hashes_, _nullifiers_, and _ordered_unencrypted_log_hashes_, they undergo the same [process](./private-kernel-tail.md#verifying-ordered-arrays) as outlined in the tail private kernel circuit. With the exception that the loop starts from index _offset + i_, where _offset_ is the number of non-zero values in the _note_hashes_ and _nullifiers_ arrays within _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./public-kernel-tail.md#public-inputs).[accumulated_data](./public-kernel-tail.md#accumulateddata)_.
 
 2. For _storage_reads_, an _ordered_storage_reads_ and _storage_read_hints_ are provided as [hints](#hints) through _private_inputs_. This circuit checks that:
 
-   For each _read_ at index _i_ in _ordered_storage_reads_, the associated _mapped_read_ is at _`storage_reads[storage_read_hints[i]]`_.
+   For each _read_ at index _i_ in _`storage_reads[i]`_, the associated _mapped_read_ is at _`ordered_storage_reads[storage_read_hints[i]]`_.
 
    - If _`read.is_empty() == false`_, verify that:
-     - All values in _mapped_read_ align with those in _read_.
+     - All values in _read_ align with those in _mapped_read_:
+       - _`read.contract_address == mapped_read.contract_address`_
+       - _`read.storage_slot == mapped_read.storage_slot`_
+       - _`read.value == mapped_read.value`_
+       - _`read.counter == mapped_read.counter`_
      - If _i > 0_, verify that:
-       - _`read.counter > read[storage_read_hints[i - 1]].counter`_
+       - _`mapped_read[i].counter > mapped_read[i - 1].counter`_
    - Else:
-     - All the subsequent reads in both _storage_reads_ and _ordered_storage_reads_ must be empty.
+     - All the subsequent reads (_index >= i_) in both _storage_reads_ and _ordered_storage_reads_ must be empty.
 
 3. For _storage_writes_, an _ordered_storage_writes_ and _storage_write_hints_ are provided as [hints](#hints) through _private_inputs_. The verification is the same as the process for _storage_reads_.
 
@@ -215,12 +220,19 @@ After all the storage writes are processed:
    - _note_hashes_
    - _nullifiers_
 
-3. The following must match the respective values within _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs](./private-kernel-initial.md#public-inputs).[accumulated_data](./private-kernel-initial.md#accumulateddata)_:
+3. The hashes and lengths for unencrypted logs are accumulated as follows:
 
-   - _encrypted_logs_hash_
-   - _unencrypted_logs_hash_
-   - _encrypted_log_preimages_length_
-   - _unencrypted_log_preimages_length_
+   Initialize _accumulated_logs_hash_ to be the _unencrypted_logs_hash_ within _[private_inputs](#private-inputs).[previous_kernel](#previouskernel).[public_inputs].[accumulated_data](#accumulateddata)_.
+
+   For each non-empty _log_hash_ at index _i_ in _ordered_unencrypted_log_hashes_, which is provided as [hints](#hints), and the [ordering](#verifying-ordered-arrays) was verified against the [siloed hashes](#siloing-values) in previous steps:
+
+   - _`accumulated_logs_hash = hash(accumulated_logs_hash, log_hash.hash)`_
+   - _`accumulated_logs_length += log_hash.length`_
+
+   Check the values in the _public_inputs_ are correct:
+
+   - _`unencrypted_logs_hash == accumulated_logs_hash`_
+   - _`unencrypted_log_preimages_length == accumulated_logs_length`_
 
 4. The following is referenced and verified in a [previous step](#updating-the-public-data-tree):
 
@@ -241,7 +253,7 @@ This section follows the same [process](./private-kernel-inner.md#verifying-the-
 
 | Field                | Type                                                                 | Description                                  |
 | -------------------- | -------------------------------------------------------------------- | -------------------------------------------- |
-| _public_inputs_      | _[PrivateKernelPublicInputs](#public-inputs)_                        | Public inputs of the proof.                  |
+| _public_inputs_      | _[PublicKernelPublicInputs](#public-inputs)_                         | Public inputs of the proof.                  |
 | _proof_              | _Proof_                                                              | Proof of the kernel circuit.                 |
 | _vk_                 | _VerificationKey_                                                    | Verification key of the kernel circuit.      |
 | _membership_witness_ | _[MembershipWitness](./private-kernel-initial.md#membershipwitness)_ | Membership witness for the verification key. |
@@ -250,25 +262,27 @@ This section follows the same [process](./private-kernel-inner.md#verifying-the-
 
 Data that aids in the verifications carried out in this circuit:
 
-| Field                                | Type                                                                        | Description                                                                                                                           |
-| ------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| _note_hash_indices_                  | [_field_; _C_]                                                              | Indices of _note_hashes_ for _note_hash_contexts_. _C_ equals the length of _note_hashes_.                                            |
-| _note_hash_hints_                    | [_field_; _C_]                                                              | Indices of _note_hash_contexts_ for ordered _note_hashes_. _C_ equals the length of _note_hash_contexts_.                             |
-| _nullifier_hints_                    | [_field_; _C_]                                                              | Indices of _nullifier_contexts_ for ordered _nullifiers_. _C_ equals the length of _nullifier_contexts_.                              |
-| _ordered_storage_reads_              | [_[StorageReadContext](#storagereadcontext)_; _C_]                          | Ordered _storage_reads_. _C_ equals the length of _storage_reads_.                                                                    |
-| _storage_read_hints_                 | [_field_; _C_]                                                              | Indices of reads for _ordered_storage_reads_. _C_ equals the length of _storage_reads_.                                               |
-| _ordered_storage_writes_             | [_[StorageWriteContext](#storagewritecontext)_; _C_]                        | Ordered _storage_writes_. _C_ equals the length of _storage_writes_.                                                                  |
-| _storage_write_hints_                | [_field_; _C_]                                                              | Indices of writes for _ordered_storage_writes_. _C_ equals the length of _storage_writes_.                                            |
-| _public_data_snaps_                  | [_[PublicDataSnap](#publicdatasnap)_; _C_]                                  | Data that aids verification of storage reads and writes. _C_ equals the length of _ordered_storage_writes_ + _ordered_storage_reads_. |
-| _storage_write_indices_              | [_field_; _C_]                                                              | Indices of _ordered_storage_writes_ for _public_data_snaps_. _C_ equals the length of _public_data_snaps_.                            |
-| _transient_read_hints_               | [_field_; _C_]                                                              | Indices of _ordered_storage_writes_ for transient reads. _C_ equals the length of _ordered_storage_reads_.                            |
-| _persistent_read_hints_              | [_field_; _C_]                                                              | Indices of _ordered_storage_writes_ for persistent reads. _C_ equals the length of _ordered_storage_reads_.                           |
-| _public_data_snap_indices_           | [_field_; _C_]                                                              | Indices of _public_data_snaps_ for persistent write. _C_ equals the length of _ordered_storage_writes_.                               |
-| _storage_read_low_leaf_preimages_    | [_[PublicDataLeafPreimage](#publicdataleafpreimage)_; _C_]                  | Preimages for public data leaf. _C_ equals the length of _ordered_storage_writes_.                                                    |
-| _storage_read_membership_witnesses_  | [_[MembershipWitness](./private-kernel-initial.md#membershipwitness)_; _C_] | Membership witnesses for persistent reads. _C_ equals the length of _ordered_storage_writes_.                                         |
-| _storage_write_low_leaf_preimages_   | [_[PublicDataLeafPreimage](#publicdataleafpreimage)_; _C_]                  | Preimages for public data. _C_ equals the length of _ordered_storage_writes_.                                                         |
-| _storage_write_membership_witnesses_ | [_[MembershipWitness](./private-kernel-initial.md#membershipwitness)_; _C_] | Membership witnesses for public data tree. _C_ equals the length of _ordered_storage_writes_.                                         |
-| _subtree_membership_witnesses_       | [_[MembershipWitness](./private-kernel-initial.md#membershipwitness)_; _C_] | Membership witnesses for the public data subtree. _C_ equals the length of _ordered_storage_writes_.                                  |
+| Field                                | Type                                                                        | Description                                                                                                                                |
+| ------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| _note_hash_indices_                  | [_field_; _C_]                                                              | Indices of _note_hashes_ for _note_hash_contexts_. _C_ equals the length of _note_hashes_.                                                 |
+| _note_hash_hints_                    | [_field_; _C_]                                                              | Indices of _note_hash_contexts_ for ordered _note_hashes_. _C_ equals the length of _note_hash_contexts_.                                  |
+| _nullifier_hints_                    | [_field_; _C_]                                                              | Indices of _nullifier_contexts_ for ordered _nullifiers_. _C_ equals the length of _nullifier_contexts_.                                   |
+| _ordered_unencrypted_log_hashes_     | [_field_; _C_]                                                              | Ordered _unencrypted_log_hashes_. _C_ equals the length of _unencrypted_log_hashes_.                                                       |
+| _unencrypted_log_hash_hints_         | [_field_; _C_]                                                              | Indices of _ordered_unencrypted_log_hashes_ for _unencrypted_log_hash_contexts_. _C_ equals the length of _unencrypted_log_hash_contexts_. |
+| _ordered_storage_reads_              | [_[StorageReadContext](#storagereadcontext)_; _C_]                          | Ordered _storage_reads_. _C_ equals the length of _storage_reads_.                                                                         |
+| _storage_read_hints_                 | [_field_; _C_]                                                              | Indices of reads for _ordered_storage_reads_. _C_ equals the length of _storage_reads_.                                                    |
+| _ordered_storage_writes_             | [_[StorageWriteContext](#storagewritecontext)_; _C_]                        | Ordered _storage_writes_. _C_ equals the length of _storage_writes_.                                                                       |
+| _storage_write_hints_                | [_field_; _C_]                                                              | Indices of writes for _ordered_storage_writes_. _C_ equals the length of _storage_writes_.                                                 |
+| _public_data_snaps_                  | [_[PublicDataSnap](#publicdatasnap)_; _C_]                                  | Data that aids verification of storage reads and writes. _C_ equals the length of _ordered_storage_writes_ + _ordered_storage_reads_.      |
+| _storage_write_indices_              | [_field_; _C_]                                                              | Indices of _ordered_storage_writes_ for _public_data_snaps_. _C_ equals the length of _public_data_snaps_.                                 |
+| _transient_read_hints_               | [_field_; _C_]                                                              | Indices of _ordered_storage_writes_ for transient reads. _C_ equals the length of _ordered_storage_reads_.                                 |
+| _persistent_read_hints_              | [_field_; _C_]                                                              | Indices of _ordered_storage_writes_ for persistent reads. _C_ equals the length of _ordered_storage_reads_.                                |
+| _public_data_snap_indices_           | [_field_; _C_]                                                              | Indices of _public_data_snaps_ for persistent write. _C_ equals the length of _ordered_storage_writes_.                                    |
+| _storage_read_low_leaf_preimages_    | [_[PublicDataLeafPreimage](#publicdataleafpreimage)_; _C_]                  | Preimages for public data leaf. _C_ equals the length of _ordered_storage_writes_.                                                         |
+| _storage_read_membership_witnesses_  | [_[MembershipWitness](./private-kernel-initial.md#membershipwitness)_; _C_] | Membership witnesses for persistent reads. _C_ equals the length of _ordered_storage_writes_.                                              |
+| _storage_write_low_leaf_preimages_   | [_[PublicDataLeafPreimage](#publicdataleafpreimage)_; _C_]                  | Preimages for public data. _C_ equals the length of _ordered_storage_writes_.                                                              |
+| _storage_write_membership_witnesses_ | [_[MembershipWitness](./private-kernel-initial.md#membershipwitness)_; _C_] | Membership witnesses for public data tree. _C_ equals the length of _ordered_storage_writes_.                                              |
+| _subtree_membership_witnesses_       | [_[MembershipWitness](./private-kernel-initial.md#membershipwitness)_; _C_] | Membership witnesses for the public data subtree. _C_ equals the length of _ordered_storage_writes_.                                       |
 
 ## Public Inputs
 
@@ -285,10 +299,12 @@ Data accumulated during the execution of the transaction.
 | _note_hashes_                      | [_field_; _C_]                  | Note hashes created in the transaction.                     |
 | _nullifiers_                       | [_field_; _C_]                  | Nullifiers created in the transaction.                      |
 | _l2_to_l1_messages_                | [_field_; _C_]                  | L2-to-L1 messages created in the transaction.               |
-| _encrypted_logs_hash_              | _field_                         | Hash of the accumulated encrypted logs.                     |
 | _unencrypted_logs_hash_            | _field_                         | Hash of the accumulated unencrypted logs.                   |
-| _encrypted_log_preimages_length_   | _field_                         | Length of the accumulated encrypted log preimages.          |
-| _unencrypted_log_preimages_length_ | _field_                         | Length of the accumulated unencrypted log preimages.        |
+| _unencrypted_log_preimages_length_ | _field_                         | Length of all unencrypted log preimages.                    |
+| _encrypted_logs_hash_              | _field_                         | Hash of the accumulated encrypted logs.                     |
+| _encrypted_log_preimages_length_   | _field_                         | Length of all encrypted log preimages.                      |
+| _encrypted_note_preimages_hash_    | _field_                         | Hash of the accumulated encrypted note preimages.           |
+| _encrypted_note_preimages_length_  | _field_                         | Length of all encrypted note preimages.                     |
 | _old_public_data_tree_snapshot_    | _[TreeSnapshot](#treesnapshot)_ | Snapshot of the public data tree prior to this transaction. |
 | _new_public_data_tree_snapshot_    | _[TreeSnapshot](#treesnapshot)_ | Snapshot of the public data tree after this transaction.    |
 

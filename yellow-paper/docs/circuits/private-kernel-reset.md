@@ -58,43 +58,41 @@ A read request can pertain to one of two note types:
 
 ### Transient Note Reset Private Kernel Circuit.
 
-In the event that a pending note is nullified within the same transaction, both its note hash and nullifier can be removed from the public inputs. This not only avoids redundant data being broadcasted, but also frees up space for additional note hashes and nullifiers in the subsequent iterations.
+In the event that a pending note is nullified within the same transaction, its note hash, nullifier, and all encrypted note preimage hashes can be removed from the public inputs. This not only avoids redundant data being broadcasted, but also frees up space for additional note hashes and nullifiers in the subsequent iterations.
 
 1. Ensure that each note hash is either propagated to the _public_inputs_ or nullified in the same transaction.
 
-   Initialize both _notes_kept_ and _notes_removed_ to 0.
+   Initialize both _notes_kept_ and _notes_removed_ to _0_.
 
-   For each _note_hash_ at index _i_ in the _note_hash_contexts_ within the _private_inputs_, find the _transient_nullifier_index_ of its associated nullifer at _`transient_nullifier_indices[i]`_, provided as [hints](#hints-for-transient-note-reset-private-kernel-circuit):
+   For each _note_hash_ at index _i_ in _note_hash_contexts_ within the _private_inputs_, find the index of its nullifer at _`transient_nullifier_indices[i]`_, provided as [hints](#hints-for-transient-note-reset-private-kernel-circuit):
 
-   - If _`transient_nullifier_index == nullifier_contexts.len()`_:
-
+   - If _`transient_nullifier_indices[i] == nullifier_contexts.len()`_:
      - Verify that the _note_hash_ remains within the _[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_ in the _public_inputs_:
-       - _`note_hash == public_inputs.transient_accumulated_data.note_hash_contexts[notes_kept]`_
+       _`note_hash == public_inputs.transient_accumulated_data.note_hash_contexts[notes_kept]`_
      - Increment _notes_kept_ by 1: _`notes_kept += 1`_
-
-   - Else, locate the _nullifier_ at _nullifier_contexts[transient_nullifier_index]_:
+   - Else, locate the _nullifier_ at _`nullifier_contexts[transient_nullifier_indices[i]]`_:
 
      - Verify that the nullifier is associated with the note:
        - _`nullifier.contract_address == note_hash.contract_address`_
-       - _`nullifier.nullified_note_hash == note_hash.value`_
+       - _`nullifier.note_hash_counter == note_hash.counter`_
        - _`nullifier.counter == note_hash.nullifier_counter`_
      - Increment _notes_removed_ by 1: _`notes_removed += 1`_
      - Ensure that an empty _note_hash_ is appended to the end of _note_hash_contexts_ in the _public_inputs_:
        - _`public_inputs.transient_accumulated_data.note_hash_contexts[N - notes_removed].is_empty() == true`_
        - Where _N_ is the length of _note_hash_contexts_.
 
-     > Note that the check `nullifier.counter > note_hash.counter` is not necessary as the nullifier counter is assured to be greater than the counter of the note hash when [propagated](./private-kernel-initial.md#verifying-the-transient-accumulated-data) from either the initial or inner private kernel circuits.
+     > Note that the check `nullifier.counter > note_hash.counter` is not necessary as the _nullifier_counter_ is assured to be greater than the counter of the note hash when [propagated](./private-kernel-initial.md#verifying-the-transient-accumulated-data) from either the initial or inner private kernel circuits.
 
 2. Ensure that nullifiers not associated with note hashes removed in the previous step are retained within the _[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_ in the _public_inputs_.
 
-   Initialize both _nullifiers_kept_ and _nullifiers_removed_ to 0.
+   Initialize both _nullifiers_kept_ and _nullifiers_removed_ to _0_.
 
-   For each _nullifier_ at index _i_ in the _nullifier_contexts_ within the _private_inputs_, find the index of its corresponding _transient_nullifier_index_ at _`nullifier_index_hints[i]`_, provided as [hints](#hints-for-transient-note-reset-private-kernel-circuit):
+   For each _nullifier_ at index _i_ in the _nullifier_contexts_ within the _private_inputs_, find the index of its corresponding transient nullifier at _`nullifier_index_hints[i]`_, provided as [hints](#hints-for-transient-note-reset-private-kernel-circuit):
 
    - If _`nullifier_index_hints[i] == transient_nullifier_indices.len()`_:
      - Verify that the _nullifier_ remains within the _[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_ in the _public_inputs_:
-       - _`nullifier == public_inputs.transient_accumulated_data.nullifier_contexts[nullifiers_kept]`_
-       - Increment _nullifiers_kept_ by 1: _`nullifiers_kept += 1`_
+       _`nullifier == public_inputs.transient_accumulated_data.nullifier_contexts[nullifiers_kept]`_
+     - Increment _nullifiers_kept_ by 1: _`nullifiers_kept += 1`_
    - Else, compute _transient_nullifier_index_ as _`transient_nullifier_indices[nullifier_index_hints[i]]`_:
      - Verify that: _`transient_nullifier_index == i`_
      - Increment _nullifiers_removed_ by 1: _`nullifiers_removed += 1`_
@@ -106,7 +104,36 @@ In the event that a pending note is nullified within the same transaction, both 
 
    _`nullifiers_removed == notes_removed`_
 
-> Note that this reset process may not necessarily be applied to all transient note hashes and nullifiers at a time. In cases where a note will be read in a yet-to-be-processed nested execution, the transient note hash and its nullifier must be retained in the _public_inputs_. The reset can only occur in a later reset circuit after all associated read requests have been verified and cleared.
+3. Ensure that _encrypted_note_preimage_hashes_ not associated with note hashes removed in the previous step are retained within the _[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_ in the _public_inputs_.
+
+   Initialize both _hashes_kept_ and _hashes_removed_ to _0_.
+
+   For each _preimage_hash_ at index _i_ in the _encrypted_note_preimage_hash_contexts_ within the _private_inputs_, find the _index_hint_ of its corresponding hash within _public_inputs_ at _`encrypted_note_preimage_hash_index_hints[i]`_, provided as [hints](#hints-for-transient-note-reset-private-kernel-circuit):
+
+   - If _`index_hint == encrypted_note_preimage_hash_contexts.len()`_:
+     - Ensure that the associated note hash is removed:
+       - Locate the _note_hash_ at _`private_inputs.transient_accumulated_data.note_hash_contexts[log_note_hash_hints[i]]`_.
+       - Verify that the _preimage_hash_ is associated with the _note_hash_:
+         - _`preimage_hash.note_hash_counter == note_hash.counter`_
+         - _`preimage_hash.contract_address == note_hash.contract_address`_
+       - Confirm that the _note_hash_ has a corresponding nullifier and has been removed in the first step of this section:
+         - _`transient_nullifier_indices[log_note_hash_hints[i]] != nullifier_contexts.len()`_
+     - Increment _hashes_removed_ by 1: _`hashes_removed += 1`_
+     - Ensure that an empty item is appended to the end of _encrypted_note_preimage_hash_contexts_ in the _public_inputs_:
+       - _`encrypted_note_preimage_hash_contexts[N - hashes_removed].is_empty() == true`_
+       - Where _N_ is the length of _encrypted_note_preimage_hash_contexts_.
+   - Else, find the _mapped_preimage_hash_ at _`encrypted_note_preimage_hash_contexts[index_hint]`_ within _public_inputs_:
+     - Verify that the context is aggregated to the _public_inputs_ correctly:
+       - _`index_hint == hashes_kept`_
+       - _`mapped_preimage_hash == preimage_hash`_
+     - Ensure that the associated note hash is retained in the _public_inputs_:
+       - Locate the _note_hash_ at _`public_inputs.transient_accumulated_data.note_hash_contexts[log_note_hash_hints[i]]`_.
+       - Verify that the _preimage_hash_ is associated with the _note_hash_:
+         - _`preimage_hash.note_hash_counter == note_hash.counter`_
+         - _`preimage_hash.contract_address == note_hash.contract_address`_
+     - Increment _hashes_kept_ by 1: _`hashes_kept += 1`_
+
+> Note that this reset process may not necessarily be applied to all transient notes at a time. In cases where a note will be read in a yet-to-be-processed nested execution, the transient note hash and its nullifier must be retained in the _public_inputs_. The reset can only occur in a later reset circuit after all associated read requests have been verified and cleared.
 
 ### Common Verifications
 
@@ -174,10 +201,12 @@ The format aligns with the _[PreviousKernel](./private-kernel-inner.md#previousk
 
 ### _Hints_ for [Transient Note Reset Private Kernel Circuit](#transient-note-reset-private-kernel-circuit)
 
-| Field                         | Type           | Description                                                                                                           |
-| ----------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
-| _transient_nullifier_indices_ | [_field_; _C_] | Indices of the nullifiers for transient notes. _C_ equals the length of _note_hash_contexts_.                         |
-| _nullifier_index_hints_       | [_field_; _C_] | Indices of the _transient_nullifier_indices_ for transient nullifiers. _C_ equals the length of _nullifier_contexts_. |
+| Field                                      | Type           | Description                                                                                                                                             |
+| ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _transient_nullifier_indices_              | [_field_; _C_] | Indices of the nullifiers for transient notes. _C_ equals the length of _note_hash_contexts_.                                                           |
+| _nullifier_index_hints_                    | [_field_; _C_] | Indices of the _transient_nullifier_indices_ for transient nullifiers. _C_ equals the length of _nullifier_contexts_.                                   |
+| _encrypted_note_preimage_hash_index_hints_ | [_field_; _C_] | Indices of the _encrypted_note_preimage_hash_contexts_ for transient preimage hashes. _C_ equals the length of _encrypted_note_preimage_hash_contexts_. |
+| _log_note_hash_hints_                      | [_field_; _C_] | Indices of the _note_hash_contexts_ for transient preimage hashes. _C_ equals the length of _note_hash_contexts_.                                       |
 
 ## Public Inputs
 
