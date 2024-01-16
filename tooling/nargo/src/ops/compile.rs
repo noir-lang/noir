@@ -74,12 +74,7 @@ pub fn compile_program(
     debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
 
     let (program, warnings) =
-        match noirc_driver::compile_main(&mut context, crate_id, compile_options, None) {
-            Ok(program_and_warnings) => program_and_warnings,
-            Err(errors) => {
-                return Err(errors);
-            }
-        };
+        noirc_driver::compile_main(&mut context, crate_id, compile_options, None)?;
 
     // Apply backend specific optimizations.
     let optimized_program = crate::ops::optimize_program(program, expression_width);

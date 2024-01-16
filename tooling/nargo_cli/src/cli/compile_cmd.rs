@@ -194,12 +194,7 @@ fn compile_program(
     };
 
     let (program, warnings) =
-        match noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program) {
-            Ok(program_and_warnings) => program_and_warnings,
-            Err(errors) => {
-                return Err(errors);
-            }
-        };
+        noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
 
     // Apply backend specific optimizations.
     let optimized_program = nargo::ops::optimize_program(program, expression_width);
