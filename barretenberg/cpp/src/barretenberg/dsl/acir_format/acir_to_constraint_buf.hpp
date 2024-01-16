@@ -29,12 +29,12 @@ namespace acir_format {
  */
 poly_triple serialize_arithmetic_gate(Circuit::Expression const& arg)
 {
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): Instead of zeros for a,b,c, what we really want
-    // is something like the bberg zero_idx. Hardcoding these to 0 has the same effect only if zero_idx == 0, as has
-    // historically been the case. If that changes, this might break since now "0" points to some non-zero witness in
-    // variables. (From some testing, it seems like it may not break but only because the selectors multiplying the
-    // erroneously non-zero value are zero. Still, it seems like a bad idea to have erroneous wire values even if they
-    // dont break the relation. They'll still add cost in commitments, for example).
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): The initialization of the witness indices a,b,c
+    // to 0 is implicitly assuming that (builder.zero_idx == 0) which is no longer the case. Now, witness idx 0 in
+    // general will correspond to some non-zero value and some witnesses which are not explicitly set below will be
+    // erroneously populated with this value. This does not cause failures however because the corresponding selector
+    // will indeed be 0 so the gate will be satisfied. Still, its a bad idea to have erroneous wire values
+    // even if they dont break the relation. They'll still add cost in commitments, for example.
     poly_triple pt{
         .a = 0,
         .b = 0,
@@ -72,8 +72,8 @@ poly_triple serialize_arithmetic_gate(Circuit::Expression const& arg)
         // If the witness index has not yet been set or if the corresponding linear term is active, set the witness
         // index and the corresponding selector value.
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): May need to adjust the pt.a == witness_idx
-        // check (and the others like it) since we initialize a,b,c with 0 but 0 becomes a valid witness index if the +1
-        // offset is removed from noir.
+        // check (and the others like it) since we initialize a,b,c with 0 but 0 is a valid witness index once the
+        // +1 offset is removed from noir.
         if (!a_set || pt.a == witness_idx) { // q_l * w_l
             pt.a = witness_idx;
             pt.q_l = selector_value;
@@ -294,7 +294,8 @@ acir_format circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
     auto circuit = Circuit::Circuit::bincodeDeserialize(buf);
 
     acir_format af;
-    af.varnum = circuit.current_witness_index;
+    // `varnum` is the true number of variables, thus we add one to the index which starts at zero
+    af.varnum = circuit.current_witness_index + 1;
     af.public_inputs = join({ map(circuit.public_parameters.value, [](auto e) { return e.value; }),
                               map(circuit.return_values.value, [](auto e) { return e.value; }) });
     std::map<uint32_t, BlockConstraint> block_id_to_block_constraint;
@@ -340,9 +341,7 @@ WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
 {
     auto w = WitnessMap::WitnessMap::bincodeDeserialize(buf);
     WitnessVector wv;
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): Does "index" need to be initialized to 0 once we
-    // get rid of the +1 offset in noir?
-    size_t index = 1;
+    size_t index = 0;
     for (auto& e : w.value) {
         // ACIR uses a sparse format for WitnessMap where unused witness indices may be left unassigned.
         // To ensure that witnesses sit at the correct indices in the `WitnessVector`, we fill any indices

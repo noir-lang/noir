@@ -40,7 +40,7 @@ size_t generate_ecdsa_constraint(EcdsaSecp256k1Constraint& ecdsa_constraint, Wit
     std::vector<uint32_t> pub_x_indices_in;
     std::vector<uint32_t> pub_y_indices_in;
     std::vector<uint32_t> signature_in;
-    size_t offset = 1;
+    size_t offset = 0;
     for (size_t i = 0; i < hashed_message.size(); ++i) {
         message_in.emplace_back(i + offset);
         const auto byte = static_cast<uint8_t>(hashed_message[i]);

@@ -106,7 +106,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       ...args,
     ];
 
-    return toACVMWitness(1, fields);
+    return toACVMWitness(0, fields);
   }
 
   /**

@@ -95,23 +95,9 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
                                auto& witness_values,
                                std::vector<uint32_t>& public_inputs,
                                size_t varnum)
-        : UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>()
+        : UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>(/*size_hint=*/0, witness_values, public_inputs, varnum)
         , op_queue(op_queue_in)
     {
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): NOTE: This still works even though the
-        // witness indices in the explicit acir gates are +1 offset because we're still adding the const 0 before
-        // anything else via the UCB constructor. Once we remove the +1 from Noir, we'll need to update the UCB by
-        // moving that const 0 to get these tests to pass again. Add the witness variables known directly from acir
-        for (size_t idx = 0; idx < varnum; ++idx) {
-            // Zeros are added for variables whose existence is known but whose values are not yet known. The values may
-            // be "set" later on via the assert_equal mechanism.
-            auto value = idx < witness_values.size() ? witness_values[idx] : 0;
-            this->add_variable(value);
-        }
-
-        // Add the public_inputs from acir
-        this->public_inputs = public_inputs;
-
         // Set indices to constants corresponding to Goblin ECC op codes
         set_goblin_ecc_op_code_constant_variables();
     };

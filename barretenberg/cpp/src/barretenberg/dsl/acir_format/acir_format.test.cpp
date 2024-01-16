@@ -79,24 +79,24 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
      * }
      **/
     RangeConstraint range_a{
-        .witness = 1,
+        .witness = 0,
         .num_bits = 32,
     };
     RangeConstraint range_b{
-        .witness = 2,
+        .witness = 1,
         .num_bits = 32,
     };
 
     LogicConstraint logic_constraint{
-        .a = 1,
-        .b = 2,
-        .result = 3,
+        .a = 0,
+        .b = 1,
+        .result = 2,
         .num_bits = 32,
         .is_xor_gate = 1,
     };
     poly_triple expr_a{
-        .a = 3,
-        .b = 4,
+        .a = 2,
+        .b = 3,
         .c = 0,
         .q_m = 0,
         .q_l = 1,
@@ -105,9 +105,9 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
         .q_c = -10,
     };
     poly_triple expr_b{
-        .a = 4,
-        .b = 5,
-        .c = 6,
+        .a = 3,
+        .b = 4,
+        .c = 5,
         .q_m = 1,
         .q_l = 0,
         .q_r = 0,
@@ -115,9 +115,9 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
         .q_c = 0,
     };
     poly_triple expr_c{
-        .a = 4,
-        .b = 6,
-        .c = 4,
+        .a = 3,
+        .b = 5,
+        .c = 3,
         .q_m = 1,
         .q_l = 0,
         .q_r = 0,
@@ -126,7 +126,7 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
 
     };
     poly_triple expr_d{
-        .a = 6,
+        .a = 5,
         .b = 0,
         .c = 0,
         .q_m = 0,
@@ -139,8 +139,8 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
     // EXPR [ (1, _4, _6) (-1, _4) 0 ]
     // EXPR [ (-1, _6) 1 ]
 
-    acir_format constraint_system{ .varnum = 7,
-                                   .public_inputs = { 2 },
+    acir_format constraint_system{ .varnum = 6,
+                                   .public_inputs = { 1 },
                                    .logic_constraints = { logic_constraint },
                                    .range_constraints = { range_a, range_b },
                                    .sha256_constraints = {},
@@ -181,13 +181,13 @@ TEST_F(AcirFormatTests, TestSchnorrVerifyPass)
     std::vector<RangeConstraint> range_constraints;
     for (uint32_t i = 0; i < 10; i++) {
         range_constraints.push_back(RangeConstraint{
-            .witness = i + 1,
+            .witness = i,
             .num_bits = 15,
         });
     }
 
     std::vector<uint32_t> signature(64);
-    for (uint32_t i = 0, value = 13; i < 64; i++, value++) {
+    for (uint32_t i = 0, value = 12; i < 64; i++, value++) {
         signature[i] = value;
         range_constraints.push_back(RangeConstraint{
             .witness = value,
@@ -196,13 +196,13 @@ TEST_F(AcirFormatTests, TestSchnorrVerifyPass)
     }
 
     SchnorrConstraint schnorr_constraint{
-        .message = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-        .public_key_x = 11,
-        .public_key_y = 12,
-        .result = 77,
+        .message = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+        .public_key_x = 10,
+        .public_key_y = 11,
+        .result = 76,
         .signature = signature,
     };
-    acir_format constraint_system{ .varnum = 82,
+    acir_format constraint_system{ .varnum = 81,
                                    .public_inputs = {},
                                    .logic_constraints = {},
                                    .range_constraints = range_constraints,
@@ -271,13 +271,13 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
     std::vector<RangeConstraint> range_constraints;
     for (uint32_t i = 0; i < 10; i++) {
         range_constraints.push_back(RangeConstraint{
-            .witness = i + 1,
+            .witness = i,
             .num_bits = 8,
         });
     }
 
     std::vector<uint32_t> signature(64);
-    for (uint32_t i = 0, value = 13; i < 64; i++, value++) {
+    for (uint32_t i = 0, value = 12; i < 64; i++, value++) {
         signature[i] = value;
         range_constraints.push_back(RangeConstraint{
             .witness = value,
@@ -286,14 +286,14 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
     }
 
     SchnorrConstraint schnorr_constraint{
-        .message = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-        .public_key_x = 11,
-        .public_key_y = 12,
-        .result = 77,
+        .message = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+        .public_key_x = 10,
+        .public_key_y = 11,
+        .result = 76,
         .signature = signature,
     };
     acir_format constraint_system{
-        .varnum = 82,
+        .varnum = 81,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = range_constraints,
@@ -360,39 +360,39 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
 TEST_F(AcirFormatTests, TestVarKeccak)
 {
     HashInput input1;
-    input1.witness = 1;
+    input1.witness = 0;
     input1.num_bits = 8;
     HashInput input2;
-    input2.witness = 2;
+    input2.witness = 1;
     input2.num_bits = 8;
     HashInput input3;
-    input3.witness = 3;
+    input3.witness = 2;
     input3.num_bits = 8;
     KeccakVarConstraint keccak;
     keccak.inputs = { input1, input2, input3 };
-    keccak.var_message_size = 4;
-    keccak.result = { 5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-                      21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36 };
+    keccak.var_message_size = 3;
+    keccak.result = { 4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35 };
 
     RangeConstraint range_a{
-        .witness = 1,
+        .witness = 0,
         .num_bits = 8,
     };
     RangeConstraint range_b{
-        .witness = 2,
+        .witness = 1,
         .num_bits = 8,
     };
     RangeConstraint range_c{
-        .witness = 3,
+        .witness = 2,
         .num_bits = 8,
     };
     RangeConstraint range_d{
-        .witness = 4,
+        .witness = 3,
         .num_bits = 8,
     };
 
     auto dummy = poly_triple{
-        .a = 1,
+        .a = 0,
         .b = 0,
         .c = 0,
         .q_m = 0,
@@ -403,7 +403,7 @@ TEST_F(AcirFormatTests, TestVarKeccak)
     };
 
     acir_format constraint_system{
-        .varnum = 37,
+        .varnum = 36,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = { range_a, range_b, range_c, range_d },

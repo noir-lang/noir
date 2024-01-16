@@ -53,7 +53,7 @@ export class PublicExecutionContext extends TypedOracle {
    * @param witnessStartIndex - The index where to start inserting the parameters.
    * @returns The initial witness.
    */
-  public getInitialWitness(witnessStartIndex = 1) {
+  public getInitialWitness(witnessStartIndex = 0) {
     const { callContext, args } = this.execution;
     const fields = [
       ...toACVMCallContext(callContext),

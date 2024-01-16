@@ -14,13 +14,13 @@ class UltraPlonkRAM : public ::testing::Test {
 };
 size_t generate_block_constraint(BlockConstraint& constraint, WitnessVector& witness_values)
 {
-    size_t witness_len = 1;
+    size_t witness_len = 0;
     witness_values.emplace_back(1);
     witness_len++;
 
     fr two = fr::one() + fr::one();
     poly_triple a0 = poly_triple{
-        .a = 1,
+        .a = 0,
         .b = 0,
         .c = 0,
         .q_m = 0,
@@ -41,7 +41,7 @@ size_t generate_block_constraint(BlockConstraint& constraint, WitnessVector& wit
         .q_c = three,
     };
     poly_triple r1 = poly_triple{
-        .a = 1,
+        .a = 0,
         .b = 0,
         .c = 0,
         .q_m = 0,
@@ -51,7 +51,7 @@ size_t generate_block_constraint(BlockConstraint& constraint, WitnessVector& wit
         .q_c = fr::neg_one(),
     };
     poly_triple r2 = poly_triple{
-        .a = 1,
+        .a = 0,
         .b = 0,
         .c = 0,
         .q_m = 0,
@@ -61,7 +61,7 @@ size_t generate_block_constraint(BlockConstraint& constraint, WitnessVector& wit
         .q_c = fr::neg_one(),
     };
     poly_triple y = poly_triple{
-        .a = 2,
+        .a = 1,
         .b = 0,
         .c = 0,
         .q_m = 0,
@@ -73,7 +73,7 @@ size_t generate_block_constraint(BlockConstraint& constraint, WitnessVector& wit
     witness_values.emplace_back(2);
     witness_len++;
     poly_triple z = poly_triple{
-        .a = 3,
+        .a = 2,
         .b = 0,
         .c = 0,
         .q_m = 0,

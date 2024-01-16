@@ -24,24 +24,24 @@ Builder create_inner_circuit()
      * }
      **/
     RangeConstraint range_a{
-        .witness = 1,
+        .witness = 0,
         .num_bits = 32,
     };
     RangeConstraint range_b{
-        .witness = 2,
+        .witness = 1,
         .num_bits = 32,
     };
 
     LogicConstraint logic_constraint{
-        .a = 1,
-        .b = 2,
-        .result = 3,
+        .a = 0,
+        .b = 1,
+        .result = 2,
         .num_bits = 32,
         .is_xor_gate = 1,
     };
     poly_triple expr_a{
-        .a = 3,
-        .b = 4,
+        .a = 2,
+        .b = 3,
         .c = 0,
         .q_m = 0,
         .q_l = 1,
@@ -50,9 +50,9 @@ Builder create_inner_circuit()
         .q_c = -10,
     };
     poly_triple expr_b{
-        .a = 4,
-        .b = 5,
-        .c = 6,
+        .a = 3,
+        .b = 4,
+        .c = 5,
         .q_m = 1,
         .q_l = 0,
         .q_r = 0,
@@ -60,9 +60,9 @@ Builder create_inner_circuit()
         .q_c = 0,
     };
     poly_triple expr_c{
-        .a = 4,
-        .b = 6,
-        .c = 4,
+        .a = 3,
+        .b = 5,
+        .c = 3,
         .q_m = 1,
         .q_l = 0,
         .q_r = 0,
@@ -71,7 +71,7 @@ Builder create_inner_circuit()
 
     };
     poly_triple expr_d{
-        .a = 6,
+        .a = 5,
         .b = 0,
         .c = 0,
         .q_m = 0,
@@ -81,8 +81,8 @@ Builder create_inner_circuit()
         .q_c = 1,
     };
 
-    acir_format constraint_system{ .varnum = 7,
-                                   .public_inputs = { 2, 3 },
+    acir_format constraint_system{ .varnum = 6,
+                                   .public_inputs = { 1, 2 },
                                    .logic_constraints = { logic_constraint },
                                    .range_constraints = { range_a, range_b },
                                    .sha256_constraints = {},
@@ -122,8 +122,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
 {
     std::vector<RecursionConstraint> recursion_constraints;
 
-    // witness count starts at 1 (Composer reserves 1st witness to be the zero-valued zero_idx)
-    size_t witness_offset = 1;
+    size_t witness_offset = 0;
     std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> output_aggregation_object;
     std::vector<fr, ContainerSlabAllocator<fr>> witness;
 
@@ -226,7 +225,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
         // then we could get a segmentation fault as `inner_public_inputs` was never filled with values.
         if (!has_nested_proof) {
             for (size_t i = 0; i < num_inner_public_inputs; ++i) {
-                witness[inner_public_inputs[i] - 1] = inner_public_input_values[i];
+                witness[inner_public_inputs[i]] = inner_public_input_values[i];
             }
         }
 
@@ -234,7 +233,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
         circuit_idx++;
     }
 
-    acir_format constraint_system{ .varnum = static_cast<uint32_t>(witness.size() + 1),
+    acir_format constraint_system{ .varnum = static_cast<uint32_t>(witness.size()),
                                    .public_inputs = {},
                                    .logic_constraints = {},
                                    .range_constraints = {},
