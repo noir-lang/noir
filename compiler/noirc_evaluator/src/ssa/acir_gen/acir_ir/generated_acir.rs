@@ -28,9 +28,12 @@ use num_bigint::BigUint;
 /// The output of the Acir-gen pass
 pub(crate) struct GeneratedAcir {
     /// The next witness index that may be declared.
-    ///
+    /// If witness index is `None` then we have not yet created a witness
+    /// and thus next witness index that be declared is zero.
+    /// This field is private should only ever be accessed through its getter and setter.
+    /// 
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
-    pub(crate) current_witness_index: u32,
+    current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
     opcodes: Vec<AcirOpcode>,
@@ -60,7 +63,7 @@ pub(crate) struct GeneratedAcir {
 impl GeneratedAcir {
     /// Returns the current witness index.
     pub(crate) fn current_witness_index(&self) -> Witness {
-        Witness(self.current_witness_index)
+        Witness(self.current_witness_index.unwrap_or(0))
     }
 
     /// Adds a new opcode into ACIR.
@@ -78,8 +81,12 @@ impl GeneratedAcir {
     /// Updates the witness index counter and returns
     /// the next witness index.
     pub(crate) fn next_witness_index(&mut self) -> Witness {
-        self.current_witness_index += 1;
-        Witness(self.current_witness_index)
+        if let Some(current_index) = self.current_witness_index {
+            self.current_witness_index.replace(current_index + 1);
+        } else {
+            self.current_witness_index = Some(0);
+        }
+        Witness(self.current_witness_index.expect("ICE: current_witness_index should exist"))
     }
 
     /// Converts [`Expression`] `expr` into a [`Witness`].
