@@ -469,7 +469,8 @@ impl Context {
                 for (lhs, rhs) in
                     get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)?
                 {
-                    self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
+                    // TODO: add back assert message
+                    self.acir_context.assert_eq_var(lhs, rhs, None)?;
                 }
             }
             Instruction::Cast(value_id, _) => {

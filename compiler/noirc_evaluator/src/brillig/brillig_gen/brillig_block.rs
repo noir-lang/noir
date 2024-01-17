@@ -265,7 +265,8 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                 );
 
-                self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                // TODO: add back assert message
+                self.brillig_context.constrain_instruction(condition, None);
                 self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {

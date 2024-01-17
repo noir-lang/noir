@@ -431,10 +431,12 @@ impl<'a> FunctionContext<'a> {
                 Type::unsigned(bit_size),
             );
             let sign = self.builder.insert_binary(rhs, BinaryOp::Lt, half_width);
+            // TODO: bring back assert message
+            // Some("attempt to bit-shift with overflow".to_owned())
             self.builder.set_location(location).insert_constrain(
                 sign,
                 one,
-                Some("attempt to bit-shift with overflow".to_string()),
+                None,
             );
         }
 
@@ -442,10 +444,12 @@ impl<'a> FunctionContext<'a> {
             .builder
             .numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(bit_size));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
+        // TODO: bring back assert message
+        // Some("attempt to bit-shift with overflow".to_owned())
         self.builder.set_location(location).insert_constrain(
             overflow,
             one,
-            Some("attempt to bit-shift with overflow".to_owned()),
+            None,
         );
         self.builder.insert_truncate(result, bit_size, bit_size + 1)
     }
@@ -498,8 +502,9 @@ impl<'a> FunctionContext<'a> {
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
                 let sign_diff_with_predicate =
                     self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
+                // TODO: bring back assert message
                 let overflow_check =
-                    Instruction::Constrain(sign_diff_with_predicate, same_sign, Some(message));
+                    Instruction::Constrain(sign_diff_with_predicate, same_sign, None);
                 self.builder.set_location(location).insert_instruction(overflow_check, None);
             }
             BinaryOpKind::Multiply => {
@@ -525,10 +530,11 @@ impl<'a> FunctionContext<'a> {
                     self.builder.insert_binary(half_width, BinaryOp::Add, not_same_sign_field);
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
+                // TODO: bring back assert message
                 self.builder.set_location(location).insert_constrain(
                     product_overflow_check,
                     one,
-                    Some(message),
+                    None,
                 );
             }
             _ => unreachable!("operator {} should not overflow", operator),

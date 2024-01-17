@@ -479,7 +479,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0);
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(expr), location, constrain.2)
+                let message_expr = constrain.2.map(|expr_id| Box::new(self.expr(expr_id)));
+                ast::Expression::Constrain(Box::new(expr), location, message_expr)
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {

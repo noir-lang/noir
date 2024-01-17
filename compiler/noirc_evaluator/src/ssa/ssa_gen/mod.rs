@@ -141,7 +141,13 @@ impl<'a> FunctionContext<'a> {
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
             Expression::Constrain(expr, location, assert_message) => {
-                self.codegen_constrain(expr, *location, assert_message.clone())
+                // let assert_message = assert_message.map(|expr| self.codegen_expression(expr.as_ref())?)?;
+                // let assert_message = if let Some(assert_message) = assert_message {
+                //     Some(self.codegen_expression(assert_message.as_ref())?.into_leaf())
+                // } else {
+                //     None
+                // };
+                self.codegen_constrain(expr, *location, assert_message)
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
@@ -438,10 +444,15 @@ impl<'a> FunctionContext<'a> {
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
+
+        // let x = self.builder.import_foreign_function("format");
+        // let y = self.codegen_literal(&ast::Literal::Str("Index out of bounds".to_owned()));
+        let message = self.codegen_string("Index out of bounds").into_leaf().eval(self);
+
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
             true_const,
-            Some("Index out of bounds".to_owned()),
+            Some(message),
         );
     }
 
@@ -665,10 +676,17 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expr: &Expression,
         location: Location,
-        assert_message: Option<String>,
+        assert_message: &Option<Box<Expression>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
+        let assert_message = if let Some(assert_message) = assert_message {
+            Some(self.codegen_non_tuple_expression(assert_message.as_ref())?)
+        } else {
+            None
+        };
+        // let assert_message_expr = assert_message.map(|expr| ) 
+        // self.codegen_non_tuple_expression(expr)
         self.builder.set_location(location).insert_constrain(expr, true_literal, assert_message);
 
         Ok(Self::unit_value())

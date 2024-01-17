@@ -151,7 +151,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<String>),
+    Constrain(ValueId, ValueId, Option<ValueId>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -435,7 +435,7 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                let constraints = decompose_constrain(*lhs, *rhs, msg.clone(), dfg);
+                let constraints = decompose_constrain(*lhs, *rhs, *msg, dfg);
                 if constraints.is_empty() {
                     Remove
                 } else {
@@ -600,7 +600,7 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
 fn decompose_constrain(
     lhs: ValueId,
     rhs: ValueId,
-    msg: Option<String>,
+    msg: Option<ValueId>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {
     let lhs = dfg.resolve(lhs);
@@ -657,7 +657,7 @@ fn decompose_constrain(
                         let one = dfg.make_constant(one, Type::bool());
 
                         [
-                            decompose_constrain(lhs, one, msg.clone(), dfg),
+                            decompose_constrain(lhs, one, msg, dfg),
                             decompose_constrain(rhs, one, msg, dfg),
                         ]
                         .concat()
@@ -685,7 +685,7 @@ fn decompose_constrain(
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
 
                         [
-                            decompose_constrain(lhs, zero, msg.clone(), dfg),
+                            decompose_constrain(lhs, zero, msg, dfg),
                             decompose_constrain(rhs, zero, msg, dfg),
                         ]
                         .concat()

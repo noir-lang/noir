@@ -140,6 +140,8 @@ impl DefaultForeignCallExecutor {
             .1
             .try_into()?;
         print!("{display_values}{}", if skip_newline { "" } else { "\n" });
+
+        // let return_this = format!("{display_values}{}" if skip_newline { "" } else { "\n" });
         Ok(())
     }
 }

@@ -641,7 +641,7 @@ mod tests {
         // Every slice access checks against the dynamic slice length
         let slice_access_check = builder.insert_binary(main_v0, BinaryOp::Lt, two);
         let one = builder.field_constant(1_u128);
-        builder.insert_constrain(slice_access_check, one, Some("Index out of bounds".to_owned()));
+        builder.insert_constrain(slice_access_check, one, None);
 
         let field_element_type = Rc::new(vec![Type::field()]);
         let inner_slice_contents_type = Type::Slice(field_element_type);
