@@ -50,7 +50,7 @@ export class TestKeyStore implements KeyStore {
     const privKey = this.#keys.get(pubKey.toString());
     if (!privKey) {
       throw new Error(
-        'Unknown account.\nSee docs for context: https://docs.aztec.network/dev_docs/contracts/common_errors#unknown-contract-error',
+        'Unknown account.\nSee docs for context: https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#could-not-process-note-because-of-error-unknown-account-skipping-note',
       );
     }
     return ConstantKeyPair.fromPrivateKey(this.curve, GrumpkinScalar.fromBuffer(privKey));

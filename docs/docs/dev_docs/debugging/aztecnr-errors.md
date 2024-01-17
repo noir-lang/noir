@@ -59,7 +59,7 @@ To execute a transaction, the PXE needs to know the complete address of a contra
 
 To address the error, add the contract to the PXE by calling [`pxe.addContracts(...)`](../../apis/pxe/interfaces/PXE#addcontracts).
 
-`Simulation error: No public key registered for address 0x0. Register it by calling pxe.registerRecipient(...) or pxe.registerAccount(...)`
+#### `Simulation error: No public key registered for address 0x0. Register it by calling pxe.registerRecipient(...) or pxe.registerAccount(...)`
 
 This error occurs when your contract is trying to get a public key via the `get_public_key` oracle call, but the PXE does not have the Complete Address (Complete Address contains the public key).
 

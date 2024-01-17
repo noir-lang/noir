@@ -463,7 +463,7 @@ export class PXEService implements PXE {
     const contract = await this.db.getContract(to);
     if (!contract) {
       throw new Error(
-        `Unknown contract ${to}: add it to PXE Service by calling server.addContracts(...).\nSee docs for context: https://docs.aztec.network/dev_docs/contracts/common_errors#unknown-contract-error`,
+        `Unknown contract ${to}: add it to PXE Service by calling server.addContracts(...).\nSee docs for context: https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#unknown-contract-0x0-add-it-to-pxe-by-calling-serveraddcontracts`,
       );
     }
 
