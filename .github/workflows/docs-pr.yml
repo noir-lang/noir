@@ -21,7 +21,7 @@ jobs:
           }
 
           // Fetch the list of files changed in the PR
-          const { data: files } = await github.pulls.listFiles({
+          const { data: files } = await github.rest.pulls.listFiles({
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: context.issue.number,
