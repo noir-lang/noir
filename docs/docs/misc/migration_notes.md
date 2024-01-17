@@ -38,6 +38,11 @@ struct Storage {
 let user_balance = balances.at(owner)
 ```
 
+### [js] Updated function names
+
+- `waitForSandbox` renamed to `waitForPXE`  in `@aztec/aztec.js`
+- `getSandboxAccountsWallets` renamed to `getInitialTestAccountsWallets` in `@aztec/accounts/testing`
+
 ## 0.17.0
 
 ### [js] New `@aztec/accounts` package
