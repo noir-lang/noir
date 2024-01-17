@@ -7,7 +7,7 @@ use noirc_frontend::hir::{def_map::parse_file, Context};
 fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> {
     // We use a minimal source file so that if stdlib produces warnings then we can expect these warnings to _always_
     // be emitted.
-    let source: &str = "fn main() {}";
+    let source = "fn main() {}";
 
     let root = Path::new("");
     let file_name = Path::new("main.nr");

@@ -52,7 +52,10 @@ fn on_tests_request_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files: std::collections::HashMap<fm::FileId, (noirc_frontend::ParsedModule, Vec<noirc_frontend::parser::ParserError>)> = parse_all(&workspace_file_manager);
+    let parsed_files: std::collections::HashMap<
+        fm::FileId,
+        (noirc_frontend::ParsedModule, Vec<noirc_frontend::parser::ParserError>),
+    > = parse_all(&workspace_file_manager);
 
     let package_tests: Vec<_> = workspace
         .into_iter()

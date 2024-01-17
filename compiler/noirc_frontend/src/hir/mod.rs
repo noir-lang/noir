@@ -35,6 +35,9 @@ pub struct Context<'file_manager, 'parsed_files> {
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<fm::FileId, Location>,
 
+    // A map of all parsed files.
+    // Same as the file manager, we take ownership of the parsed files in the WASM context.
+    // Parsed files is also read only.
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 }
 
@@ -45,7 +48,7 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl<'file_manager, 'parsed_files> Context<'file_manager, 'parsed_files> {
+impl Context<'_, '_> {
     pub fn new(file_manager: FileManager, parsed_files: ParsedFiles) -> Context<'static, 'static> {
         Context {
             def_interner: NodeInterner::default(),
@@ -57,7 +60,7 @@ impl<'file_manager, 'parsed_files> Context<'file_manager, 'parsed_files> {
         }
     }
 
-    pub fn from_ref_file_manager(
+    pub fn from_ref_file_manager<'file_manager, 'parsed_files>(
         file_manager: &'file_manager FileManager,
         parsed_files: &'parsed_files ParsedFiles,
     ) -> Context<'file_manager, 'parsed_files> {
@@ -72,9 +75,6 @@ impl<'file_manager, 'parsed_files> Context<'file_manager, 'parsed_files> {
     }
 
     pub fn parsed_file_results(&self, file_id: fm::FileId) -> (ParsedModule, Vec<ParserError>) {
-        // TODO: we could make it parse the file if it is not in the cache
-        //
-        // TODO: Check if we can return a reference here instead of cloning.
         self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
 

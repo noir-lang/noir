@@ -1,12 +1,11 @@
 use crate::compile::{
-    file_manager_with_source_map, generate_contract_artifact, generate_program_artifact,
+    file_manager_with_source_map, generate_contract_artifact, generate_program_artifact, parse_all,
     JsCompileResult, PathToFileSourceMap,
 };
 use crate::errors::{CompileError, JsCompileError};
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
 };
-use noirc_frontend::hir::def_map::parse_file;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
@@ -35,12 +34,7 @@ impl CompilerContext {
         console_error_panic_hook::set_once();
 
         let fm = file_manager_with_source_map(source_map);
-
-        let parsed_files = fm
-            .as_file_map()
-            .all_file_ids()
-            .map(|&file_id| (file_id, parse_file(&fm, file_id)))
-            .collect();
+        let parsed_files = parse_all(&fm);
 
         CompilerContext { context: Context::new(fm, parsed_files) }
     }
@@ -237,9 +231,9 @@ pub fn compile_(
 #[cfg(test)]
 mod test {
     use noirc_driver::prepare_crate;
-    use noirc_frontend::hir::{def_map::parse_file, Context};
+    use noirc_frontend::hir::Context;
 
-    use crate::compile::{file_manager_with_source_map, PathToFileSourceMap};
+    use crate::compile::{file_manager_with_source_map, parse_all, PathToFileSourceMap};
 
     use std::path::Path;
 
@@ -249,11 +243,7 @@ mod test {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
-        let parsed_files = fm
-            .as_file_map()
-            .all_file_ids()
-            .map(|&file_id| (file_id, parse_file(&fm, file_id)))
-            .collect();
+        let parsed_files = parse_all(&fm);
 
         let mut context = Context::new(fm, parsed_files);
         prepare_crate(&mut context, Path::new("/main.nr"));
