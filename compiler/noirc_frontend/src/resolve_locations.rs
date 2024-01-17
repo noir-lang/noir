@@ -62,6 +62,10 @@ impl NodeInterner {
         index: impl Into<Index>,
         return_type_location_instead: bool,
     ) -> Option<Location> {
+        if return_type_location_instead {
+            return self.get_type_location_from_index(index);
+        }
+
         let node = self.nodes.get(index.into())?;
 
         match node {
@@ -71,6 +75,13 @@ impl NodeInterner {
             Node::Expression(expression) => {
                 self.resolve_expression_location(expression, return_type_location_instead)
             }
+            _ => None,
+        }
+    }
+
+    fn get_type_location_from_index(&self, index: impl Into<Index>) -> Option<Location> {
+        match self.id_type(index.into()) {
+            Type::Struct(struct_type, _) => Some(struct_type.borrow().location),
             _ => None,
         }
     }
@@ -90,16 +101,7 @@ impl NodeInterner {
                     DefinitionKind::Function(func_id) => {
                         Some(self.function_meta(&func_id).location)
                     }
-                    DefinitionKind::Local(local_id) => {
-                        if return_type_location_instead {
-                            match self.id_type(local_id?) {
-                                Type::Struct(struct_type, _) => Some(struct_type.borrow().location),
-                                _ => None,
-                            }
-                        } else {
-                            Some(definition_info.location)
-                        }
-                    }
+                    DefinitionKind::Local(local_id) => Some(definition_info.location),
                     _ => None,
                 }
             }
