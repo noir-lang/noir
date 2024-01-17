@@ -40,6 +40,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
     for package in &workspace {
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
             let file_id = workspace_file_manager.name_to_id(entry.path().to_path_buf()).expect("The file should exist since we added all files in the package into the file manager");
+
             let (parsed_module, errors) = parse_file(&workspace_file_manager, file_id);
 
             let is_all_warnings = errors.iter().all(ParserError::is_warning);
@@ -61,7 +62,7 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 return Ok(());
             }
 
-            let original = workspace_file_manager.fetch_file(file_id);
+            let original = workspace_file_manager.fetch_file(file_id).expect("The file should exist since we added all files in the package into the file manager");
             let formatted = nargo_fmt::format(original, parsed_module, &config);
 
             if check_mode {

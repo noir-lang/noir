@@ -5,7 +5,7 @@ description:
   ignored by the compiler, but it can be read by programmers. Single-line and multi-line comments
   are supported in Noir.
 keywords: [Noir programming language, comments, single-line comments, multi-line comments]
-sidebar_position: 9
+sidebar_position: 10
 ---
 
 A comment is a line in your codebase which the compiler ignores, however it can be read by

@@ -66,7 +66,7 @@ pub enum Type {
     /// `impl Trait` when used in a type position.
     /// These are only matched based on the TraitId. The trait name paramer is only
     /// used for displaying error messages using the name of the trait.
-    TraitAsType(TraitId, /*name:*/ Rc<String>),
+    TraitAsType(TraitId, /*name:*/ Rc<String>, /*generics:*/ Vec<Type>),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -141,6 +141,43 @@ impl Type {
             | Type::Constant(_)
             | Type::NotConstant
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
+        }
+    }
+
+    pub(crate) fn is_nested_slice(&self) -> bool {
+        match self {
+            Type::Array(size, elem) => {
+                if let Type::NotConstant = size.as_ref() {
+                    elem.as_ref().contains_slice()
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    fn contains_slice(&self) -> bool {
+        match self {
+            Type::Array(size, _) => matches!(size.as_ref(), Type::NotConstant),
+            Type::Struct(struct_typ, generics) => {
+                let fields = struct_typ.borrow().get_fields(generics);
+                for field in fields.iter() {
+                    if field.1.contains_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => {
+                for typ in types.iter() {
+                    if typ.contains_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            _ => false,
         }
     }
 }
@@ -421,6 +458,10 @@ pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
 impl TypeVariable {
     pub fn unbound(id: TypeVariableId) -> Self {
         TypeVariable(id, Shared::new(TypeBinding::Unbound(id)))
+    }
+
+    pub fn id(&self) -> TypeVariableId {
+        self.0
     }
 
     /// Bind this type variable to a value.
@@ -734,8 +775,13 @@ impl std::fmt::Display for Type {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name) => {
-                write!(f, "impl {}", name)
+            Type::TraitAsType(_id, name, generics) => {
+                write!(f, "impl {}", name)?;
+                if !generics.is_empty() {
+                    let generics = vecmap(generics, ToString::to_string).join(", ");
+                    write!(f, "<{generics}>")?;
+                }
+                Ok(())
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -1251,6 +1297,29 @@ impl Type {
         }
     }
 
+    /// Instantiate this type with the given type bindings.
+    /// If any type variables which would be instantiated are contained in the
+    /// given type bindings instead, the value from the type bindings is used.
+    pub fn instantiate_with_bindings(
+        &self,
+        mut bindings: TypeBindings,
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
+        match self {
+            Type::Forall(typevars, typ) => {
+                for (id, var) in typevars {
+                    bindings
+                        .entry(*id)
+                        .or_insert_with(|| (var.clone(), interner.next_type_variable()));
+                }
+
+                let instantiated = typ.force_substitute(&bindings);
+                (instantiated, bindings)
+            }
+            other => (other.clone(), bindings),
+        }
+    }
+
     /// Instantiate this type, replacing any type variables it is quantified
     /// over with fresh type variables. If this type is not a Type::Forall,
     /// it is unchanged.
@@ -1269,82 +1338,6 @@ impl Type {
                 (instantiated, replacements)
             }
             other => (other.clone(), HashMap::new()),
-        }
-    }
-
-    /// Replace each NamedGeneric (and TypeVariable) in this type with a fresh type variable
-    pub(crate) fn instantiate_type_variables(
-        &self,
-        interner: &NodeInterner,
-    ) -> (Type, TypeBindings) {
-        let mut type_variables = HashMap::new();
-        self.find_all_unbound_type_variables(&mut type_variables);
-
-        let substitutions = type_variables
-            .into_iter()
-            .map(|(id, type_var)| (id, (type_var, interner.next_type_variable())))
-            .collect();
-
-        (self.substitute(&substitutions), substitutions)
-    }
-
-    /// For each unbound type variable in the current type, add a type binding to the given list
-    /// to bind the unbound type variable to a fresh type variable.
-    fn find_all_unbound_type_variables(
-        &self,
-        type_variables: &mut HashMap<TypeVariableId, TypeVariable>,
-    ) {
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(_)
-            | Type::NotConstant
-            | Type::Error => (),
-            Type::Array(length, elem) => {
-                length.find_all_unbound_type_variables(type_variables);
-                elem.find_all_unbound_type_variables(type_variables);
-            }
-            Type::String(length) => length.find_all_unbound_type_variables(type_variables),
-            Type::FmtString(length, env) => {
-                length.find_all_unbound_type_variables(type_variables);
-                env.find_all_unbound_type_variables(type_variables);
-            }
-            Type::Struct(_, generics) => {
-                for generic in generics {
-                    generic.find_all_unbound_type_variables(type_variables);
-                }
-            }
-            Type::Tuple(fields) => {
-                for field in fields {
-                    field.find_all_unbound_type_variables(type_variables);
-                }
-            }
-            Type::Function(args, ret, env) => {
-                for arg in args {
-                    arg.find_all_unbound_type_variables(type_variables);
-                }
-                ret.find_all_unbound_type_variables(type_variables);
-                env.find_all_unbound_type_variables(type_variables);
-            }
-            Type::MutableReference(elem) => {
-                elem.find_all_unbound_type_variables(type_variables);
-            }
-            Type::Forall(_, typ) => typ.find_all_unbound_type_variables(type_variables),
-            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.find_all_unbound_type_variables(type_variables);
-                    }
-                    TypeBinding::Unbound(id) => {
-                        if !type_variables.contains_key(id) {
-                            type_variables.insert(*id, type_variable.clone());
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -1554,6 +1547,10 @@ impl Type {
             | NotConstant => self.clone(),
         }
     }
+
+    pub fn from_generics(generics: &Generics) -> Vec<Type> {
+        vecmap(generics, |(_, var)| Type::TypeVariable(var.clone(), TypeVariableKind::Normal))
+    }
 }
 
 /// Wraps a given `expression` in `expression.as_slice()`
@@ -1569,7 +1566,7 @@ fn convert_array_expression_to_slice(
 
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent { location, id: as_slice_id });
+    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location));
     let func = interner.push_expr(as_slice);
 
     let arguments = vec![expression];

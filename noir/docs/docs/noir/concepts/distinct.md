@@ -1,6 +1,6 @@
 ---
 title: Distinct Witnesses
-sidebar_position: 10
+sidebar_position: 11
 ---
 
 The `distinct` keyword prevents repetitions of witness indices in the program's ABI. This ensures
