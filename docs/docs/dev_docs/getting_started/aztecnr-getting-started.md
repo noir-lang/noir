@@ -156,7 +156,7 @@ aztec-nargo compile
 
 This will compile the smart contract and create a `target` folder with a `.json` artifact inside.
 
-After compiling, you need to generate the ABI and typescript class. In the same directory, run this:
+After compiling, you can generate a typescript class. In the same directory, run this:
 
 ```bash
 aztec-cli codegen target -o src/artifacts --ts

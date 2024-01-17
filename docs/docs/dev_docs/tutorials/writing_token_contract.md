@@ -467,7 +467,7 @@ Run the following command in the directory where your `Nargo.toml` file is locat
 aztec-nargo compile
 ```
 
-Once your contract is compiled, generate the Aztec contract ABI with typescript interface with the following command:
+Once your contract is compiled, optionally generate a typescript interface with the following command:
 
 ```bash
 aztec-cli codegen target -o src/artifacts --ts

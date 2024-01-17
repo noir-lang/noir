@@ -33,7 +33,7 @@ Compile the contract:
 aztec-nargo compile
 ```
 
-Generate the ABI and typescript class:
+Generate the typescript class:
 
 ```bash
 aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts --ts

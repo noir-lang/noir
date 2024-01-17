@@ -48,6 +48,7 @@ export const randomContractArtifact = (): ContractArtifact => ({
   name: randomBytes(4).toString('hex'),
   functions: [],
   events: [],
+  fileMap: {},
 });
 
 export const randomDeployedContract = (): DeployedContract => ({

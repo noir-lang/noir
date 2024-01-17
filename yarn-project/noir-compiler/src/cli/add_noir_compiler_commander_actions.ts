@@ -18,15 +18,14 @@ export function addCodegenCommanderAction(program: Command, _: LogFn = () => {})
     .command('codegen')
     .argument('<noir-abi-path>', 'Path to the Noir ABI or project dir.')
     .option('-o, --outdir <path>', 'Output folder for the generated code.')
-    .option('-d, --debug', 'Include debug info.')
     .option('--ts', 'Generate TypeScript wrapper.')
     .option('--nr', 'Generate Noir interface.')
     .description('Validates and generates an Aztec Contract ABI from Noir ABI.')
-    .action(async (noirAbiPath: string, { debug, outdir, ts, nr }) => {
+    .action(async (noirAbiPath: string, { outdir, ts, nr }) => {
       if (ts && nr) {
         throw new Error('--ts and --nr are mutually exclusive.');
       }
       const { generateCode } = await import('./codegen.js');
-      generateCode(outdir || dirname(noirAbiPath), noirAbiPath, debug, ts, nr);
+      generateCode(outdir || dirname(noirAbiPath), noirAbiPath, { ts, nr });
     });
 }

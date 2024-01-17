@@ -6,8 +6,10 @@
   "main": "./dest/index.js",
   "types": "./dest/index.d.ts",
   "exports": {
+    "./abi": "./dest/abi/index.js",
     "./interfaces": "./dest/interfaces/index.js",
-    "./membership": "./dest/sibling-path/index.js"
+    "./membership": "./dest/sibling-path/index.js",
+    "./noir": "./dest/noir/index.js"
   },
   "scripts": {
     "build": "yarn clean && tsc -b",

@@ -1,5 +1,7 @@
 import { inflate } from 'pako';
 
+import { type FunctionSelector } from './selector.js';
+
 /**
  * A named type.
  */
@@ -164,6 +166,10 @@ export interface FunctionArtifact extends FunctionAbi {
    * The verification key of the function.
    */
   verificationKey?: string;
+  /**
+   * Maps opcodes to source code pointers
+   */
+  debugSymbols: string;
 }
 
 /**
@@ -228,20 +234,6 @@ export type DebugFileMap = Record<
 >;
 
 /**
- * The debug metadata of an ABI.
- */
-export interface DebugMetadata {
-  /**
-   * The DebugInfo object, deflated as JSON, compressed using gzip and serialized with base64.
-   */
-  debugSymbols: string[];
-  /**
-   * The map of file ID to the source code and path of the file.
-   */
-  fileMap: DebugFileMap;
-}
-
-/**
  * Defines artifact of a contract.
  */
 export interface ContractArtifact {
@@ -265,10 +257,9 @@ export interface ContractArtifact {
   events: EventAbi[];
 
   /**
-   * The debug metadata of the contract.
-   * It's used to include the relevant source code section when a constraint is not met during simulation.
+   * The map of file ID to the source code and path of the file.
    */
-  debug?: DebugMetadata;
+  fileMap: DebugFileMap;
 }
 
 /**
@@ -285,6 +276,47 @@ export interface FunctionDebugMetadata {
   files: DebugFileMap;
 }
 
+/** A function artifact with optional debug metadata */
+export interface FunctionArtifactWithDebugMetadata extends FunctionArtifact {
+  /** Debug metadata for the function. */
+  debug?: FunctionDebugMetadata;
+}
+
+/**
+ * Gets a function artifact given its name or selector.
+ */
+export function getFunctionArtifact(
+  artifact: ContractArtifact,
+  functionNameOrSelector: string | FunctionSelector,
+): FunctionArtifact {
+  const functionArtifact = artifact.functions.find(f =>
+    typeof functionNameOrSelector === 'string'
+      ? f.name === functionNameOrSelector
+      : functionNameOrSelector.equals(f.name, f.parameters),
+  );
+  if (!functionArtifact) {
+    throw new Error(`Unknown function ${functionNameOrSelector}`);
+  }
+  return functionArtifact;
+}
+
+/** @deprecated Use getFunctionArtifact instead */
+export function getFunctionArtifactWithSelector(artifact: ContractArtifact, selector: FunctionSelector) {
+  return getFunctionArtifact(artifact, selector);
+}
+
+/**
+ * Gets a function artifact including debug metadata given its name or selector.
+ */
+export function getFunctionArtifactWithDebugMetadata(
+  artifact: ContractArtifact,
+  functionNameOrSelector: string | FunctionSelector,
+): FunctionArtifactWithDebugMetadata {
+  const functionArtifact = getFunctionArtifact(artifact, functionNameOrSelector);
+  const debugMetadata = getFunctionDebugMetadata(artifact, functionArtifact);
+  return { ...functionArtifact, debug: debugMetadata };
+}
+
 /**
  * Gets the debug metadata of a given function from the contract artifact
  * @param artifact - The contract build artifact
@@ -292,19 +324,14 @@ export interface FunctionDebugMetadata {
  * @returns The debug metadata of the function
  */
 export function getFunctionDebugMetadata(
-  artifact: ContractArtifact,
-  functionName: string,
+  contractArtifact: ContractArtifact,
+  functionArtifact: FunctionArtifact,
 ): FunctionDebugMetadata | undefined {
-  const functionIndex = artifact.functions.findIndex(f => f.name === functionName);
-  if (artifact.debug && functionIndex !== -1) {
+  if (functionArtifact.debugSymbols && contractArtifact.fileMap) {
     const debugSymbols = JSON.parse(
-      inflate(Buffer.from(artifact.debug.debugSymbols[functionIndex], 'base64'), { to: 'string' }),
+      inflate(Buffer.from(functionArtifact.debugSymbols, 'base64'), { to: 'string', raw: true }),
     );
-    const files = artifact.debug.fileMap;
-    return {
-      debugSymbols,
-      files,
-    };
+    return { debugSymbols, files: contractArtifact.fileMap };
   }
   return undefined;
 }

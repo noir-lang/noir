@@ -1,5 +1,7 @@
-import { ContractArtifact } from '@aztec/aztec.js';
+import { NoirCompiledContract, loadContractArtifact } from '@aztec/aztec.js';
 
 import SchnorrSingleKeyAccountContractJson from '../artifacts/SchnorrSingleKeyAccount.json' assert { type: 'json' };
 
-export const SchnorrSingleKeyAccountContractArtifact = SchnorrSingleKeyAccountContractJson as ContractArtifact;
+export const SchnorrSingleKeyAccountContractArtifact = loadContractArtifact(
+  SchnorrSingleKeyAccountContractJson as NoirCompiledContract,
+);

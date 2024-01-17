@@ -1,10 +1,7 @@
 import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/circuit-types';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
-import { ContractArtifact, FunctionSelector, getFunctionDebugMetadata } from '@aztec/foundation/abi';
 import { sha256 } from '@aztec/foundation/crypto';
-
-import { FunctionArtifactWithDebugMetadata } from '../index.js';
 
 /**
  * Test utility function to craft an L1 to L2 message.
@@ -38,32 +35,4 @@ export const buildL1ToL2Message = (
     0,
     0,
   );
-};
-
-export const getFunctionArtifact = (
-  artifact: ContractArtifact,
-  functionName: string,
-): FunctionArtifactWithDebugMetadata => {
-  const functionArtifact = artifact.functions.find(f => f.name === functionName);
-  if (!functionArtifact) {
-    throw new Error(`Unknown function ${functionName}`);
-  }
-
-  const debug = getFunctionDebugMetadata(artifact, functionName);
-  return { ...functionArtifact, debug };
-};
-
-export const getFunctionArtifactWithSelector = (
-  artifact: ContractArtifact,
-  functionSelector: FunctionSelector,
-): FunctionArtifactWithDebugMetadata => {
-  const functionArtifact = artifact.functions.find(f =>
-    functionSelector.equals(FunctionSelector.fromNameAndParameters(f.name, f.parameters)),
-  );
-  if (!functionArtifact) {
-    throw new Error(`Unknown function ${functionSelector}`);
-  }
-
-  const debug = getFunctionDebugMetadata(artifact, functionArtifact.name);
-  return { ...functionArtifact, debug };
 };

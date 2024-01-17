@@ -11,7 +11,7 @@ import {
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
-import { NoirCompiledCircuit } from '@aztec/noir-compiler';
+import { NoirCompiledCircuit } from '@aztec/types/noir';
 
 import { WasmBlackBoxFunctionSolver, createBlackBoxSolver, executeCircuitWithBlackBoxSolver } from '@noir-lang/acvm_js';
 import { Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';

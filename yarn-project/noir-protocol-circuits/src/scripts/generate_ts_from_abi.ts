@@ -1,6 +1,6 @@
 import { ABIType } from '@aztec/foundation/abi';
 import { createConsoleLogger } from '@aztec/foundation/log';
-import { NoirCompiledCircuit, NoirFunctionAbi } from '@aztec/noir-compiler';
+import { NoirCompiledCircuit, NoirFunctionAbi } from '@aztec/types/noir';
 
 import fs from 'fs/promises';
 

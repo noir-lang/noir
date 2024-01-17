@@ -1,4 +1,4 @@
-import { DBOracle, FunctionArtifactWithDebugMetadata, MessageLoadOracleInputs } from '@aztec/acir-simulator';
+import { DBOracle, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import {
   KeyStore,
   L2Block,
@@ -17,6 +17,7 @@ import {
   GrumpkinPrivateKey,
   PublicKey,
 } from '@aztec/circuits.js';
+import { FunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';

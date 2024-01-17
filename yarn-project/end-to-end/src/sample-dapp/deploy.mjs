@@ -1,6 +1,6 @@
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
-import { Contract, createPXEClient } from '@aztec/aztec.js';
-import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
+import { Contract, createPXEClient, loadContractArtifact } from '@aztec/aztec.js';
+import TokenContractJson from '@aztec/noir-contracts/target/token_contract-Token' assert { type: 'json' };
 
 import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -13,6 +13,7 @@ async function main() {
   const [ownerWallet] = await getInitialTestAccountsWallets(pxe);
   const ownerAddress = ownerWallet.getCompleteAddress();
 
+  const TokenContractArtifact = loadContractArtifact(TokenContractJson);
   const token = await Contract.deploy(ownerWallet, TokenContractArtifact, [ownerAddress, 'TokenName', 'TKN', 18])
     .send()
     .deployed();

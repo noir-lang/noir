@@ -18,6 +18,7 @@ export const mockContractArtifact: ContractArtifact = {
       ],
       returnTypes: [],
       bytecode: 'constructorBytecode',
+      debugSymbols: '',
     },
     {
       name: 'mockFunction',
@@ -59,7 +60,9 @@ export const mockContractArtifact: ContractArtifact = {
       ],
       returnTypes: [{ kind: 'boolean' }],
       bytecode: 'mockBytecode',
+      debugSymbols: '',
     },
   ],
   events: [],
+  fileMap: {},
 };

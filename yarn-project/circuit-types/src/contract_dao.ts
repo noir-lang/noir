@@ -1,7 +1,7 @@
 import { CompleteAddress, ContractFunctionDao } from '@aztec/circuits.js';
 import {
   ContractArtifact,
-  DebugMetadata,
+  DebugFileMap,
   EventAbi,
   FunctionDebugMetadata,
   FunctionSelector,
@@ -46,8 +46,8 @@ export class ContractDao implements ContractArtifact {
     return this.contractArtifact.events;
   }
 
-  get debug(): DebugMetadata | undefined {
-    return this.contractArtifact.debug;
+  get fileMap(): DebugFileMap {
+    return this.contractArtifact.fileMap;
   }
 
   getFunctionArtifact(selector: FunctionSelector): ContractFunctionDao | undefined {
@@ -59,7 +59,8 @@ export class ContractDao implements ContractArtifact {
   }
 
   getFunctionDebugMetadataByName(functionName: string): FunctionDebugMetadata | undefined {
-    return getFunctionDebugMetadata(this, functionName);
+    const fn = this.getFunctionArtifactByName(functionName);
+    return fn && getFunctionDebugMetadata(this, fn);
   }
 
   toBuffer(): Buffer {

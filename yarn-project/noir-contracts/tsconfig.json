@@ -2,7 +2,7 @@
   "extends": "..",
   "compilerOptions": {
     "outDir": "dest",
-    "rootDir": "src",
+    "rootDir": ".",
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "references": [
@@ -12,9 +12,7 @@
   ],
   "include": [
     "src",
-    "src/**/*.json"
+    "target",
+    "target/*.json",
   ],
-  "exclude": [
-    "src/contracts"
-  ]
 }

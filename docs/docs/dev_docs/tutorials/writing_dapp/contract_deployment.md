@@ -42,14 +42,6 @@ Now run the following from your contract folder (containing Nargo.toml):
 aztec-nargo compile
 ```
 
-Once you have compiled your contracts, you need to generate the ABIs:
-
-```sh
-aztec-cli codegen ./target/path -o src/artifacts --ts
-```
-
-This should have created an artifact `contracts/token/src/artifacts/Token.json` with the interface and bytecode for your contract.
-
 ## Deploy your contracts
 
 Let's now write a script for deploying your contracts to the Sandbox. We'll create a Private eXecution Environment (PXE) client, and then use the `ContractDeployer` class to deploy our contracts, and store the deployment address to a local JSON file.
@@ -61,7 +53,8 @@ Create a new file `src/deploy.mjs`:
 import { writeFileSync } from 'fs';
 import { Contract, ContractDeployer, createPXEClient } from '@aztec/aztec.js';
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
-import TokenContractArtifact from "../contracts/token/target/Token.json" assert { type: "json" };
+import TokenContractJson from "../contracts/token/target/token_contract-Token.json" assert { type: "json" };
+
 
 #include_code dapp-deploy yarn-project/end-to-end/src/sample-dapp/deploy.mjs raw
 

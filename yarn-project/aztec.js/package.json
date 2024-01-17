@@ -25,8 +25,7 @@
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "build": "yarn clean && yarn build:copy-contracts && tsc -b && webpack",
-    "build:copy-contracts": "mkdir -p ./src/account_contract/artifacts && cp ../noir-contracts/src/SchnorrAccount.json ../noir-contracts/src/EcdsaAccount.json ../noir-contracts/src/SchnorrSingleKeyAccount.json ./src/account_contract/artifacts",
+    "build": "yarn clean && tsc -b && webpack",
     "build:web": "webpack",
     "build:dev": "tsc -b --watch",
     "build:ts": "tsc -b",

@@ -18,23 +18,11 @@ aztec-nargo compile
 
 This will output a JSON [artifact](./artifacts.md) for each contract in the project to a `target` folder containing the Noir ABI artifacts.
 
-Before you can use the ABI it currently needs to be validated as being Aztec compatible, and transformed to an Aztec compatible ABI using `aztec-cli codegen`, passing a Noir ABI file or folder, and output location, e.g:
-
-```bash
-aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts
-```
-
-It can be useful to perform this compilation, validation and transformation in one go, so you may wish to chain the commands and perhaps add them to a package.json script. The below assumes your contract is in a folder called `contract` at your project root:
-
-```bash
-(cd contract && aztec-nargo compile && aztec-cli codegen target -o ../src/artifacts)
-```
-
 ### Typescript Interfaces
 
-You can use the codegenerator to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their artifact.
+You can use the code generator to autogenerate type-safe typescript classes for each of your contracts. These classes define type-safe methods for deploying and interacting with your contract based on their artifact.
 
-To generate them, include a `--ts` option in the codegen command with a path to the target folder for the typescript files:
+To generate them, include a `--ts` option in the `codegen` command with a path to the target folder for the typescript files:
 
 ```bash
 aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts --ts

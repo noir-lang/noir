@@ -1,6 +1,6 @@
 import { L2Block, MerkleTreeId, NullifierMembershipWitness, PublicDataWitness } from '@aztec/circuit-types';
 import { BlockHeader, CompleteAddress, GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
-import { FunctionArtifact, FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
+import { FunctionArtifactWithDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -15,16 +15,6 @@ export class ContractNotFoundError extends Error {
   constructor(contractAddress: string) {
     super(`DB has no contract with address ${contractAddress}`);
   }
-}
-
-/**
- * A function artifact with optional debug metadata
- */
-export interface FunctionArtifactWithDebugMetadata extends FunctionArtifact {
-  /**
-   * Debug metadata for the function.
-   */
-  debug?: FunctionDebugMetadata;
 }
 
 /**

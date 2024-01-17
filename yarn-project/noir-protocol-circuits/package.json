@@ -7,12 +7,12 @@
     "./types": "./dest/types/index.js"
   },
   "scripts": {
-    "build": "yarn clean && yarn noir:build && yarn noir:types",
+    "build": "yarn clean && yarn noir:build && yarn noir:types && tsc -b",
     "clean": "rm -rf ./dest .tsbuildinfo src/types src/target",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src && run -T prettier -w ./src",
     "formatting:fix:types": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src/types && run -T prettier -w ./src/types",
-    "noir:build": "cd src && ../../../noir/target/release/nargo compile --silence-warnings && rm -rf ./target/debug_*",
+    "noir:build": "cd src && ../../../noir/target/release/nargo compile --silence-warnings",
     "noir:types": "node --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && yarn formatting:fix:types",
     "noir:test": "cd src && ../../../noir/target/release/nargo test",
     "test": "yarn test:js && yarn noir:test",
@@ -30,6 +30,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
+    "@aztec/types": "workspace:^",
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
     "@noir-lang/backend_barretenberg": "portal:../../noir/packages/backend_barretenberg",
     "@noir-lang/noir_js": "portal:../../noir/packages/noir_js",

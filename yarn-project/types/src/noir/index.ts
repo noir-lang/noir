@@ -10,20 +10,15 @@ import {
 /** The Aztec.nr function types. */
 type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
 
+/** The witness indices of the parameters. */
+type ParamWitnessIndices = { /** Start */ start: number; /** End */ end: number };
+
 /** The ABI of an Aztec.nr function. */
 export interface NoirFunctionAbi {
   /** The parameters of the function. */
   parameters: ABIParameter[];
   /** The witness indices of the parameters. Indexed by parameter name. */
-  param_witnesses: {
-    /** input */
-    input: {
-      /** start */
-      start: number;
-      /** end */
-      end: number;
-    }[];
-  };
+  param_witnesses: { [key: string]: undefined | ParamWitnessIndices[] };
   /** The return type of the function. */
   return_type: {
     /**
@@ -54,9 +49,11 @@ export interface NoirFunctionEntry {
   /** The bytecode of the function in base64. */
   bytecode: string;
   /** The proving key. */
-  proving_key: string;
+  proving_key?: string;
   /** The verification key. */
-  verification_key: string;
+  verification_key?: string;
+  /** The debug information, compressed and base64 encoded. */
+  debug_symbols: string;
 }
 
 /**
@@ -69,6 +66,8 @@ export interface NoirCompiledContract {
   functions: NoirFunctionEntry[];
   /** The events of the contract */
   events: EventAbi[];
+  /** The map of file ID to the source code and path of the file. */
+  file_map: DebugFileMap;
 }
 
 /**
@@ -83,35 +82,10 @@ export interface NoirCompiledCircuit {
   abi: NoirFunctionAbi;
   /** The bytecode of the circuit in base64. */
   bytecode: string;
-}
-
-/**
- * Defines artifact of a contract.
- */
-export interface ProgramArtifact {
-  /**
-   * version of noir used to compile
-   */
-  noir_version?: string;
-  /**
-   * the name of the project, read from Nargo.toml
-   */
-  name?: string;
-  /**
-   * The hash of the contract.
-   */
-  hash?: number;
-
-  /**
-   * The abi of the program.
-   */
-  abi: any; // TODO: type
-
-  /**
-   * The debug metadata of the contract.
-   * It's used to include the relevant source code section when a constraint is not met during simulation.
-   */
-  debug?: NoirDebugMetadata;
+  /** The debug information, compressed and base64 encoded. */
+  debug_symbols: string;
+  /** The map of file ID to the source code and path of the file. */
+  file_map: DebugFileMap;
 }
 
 /**
@@ -136,11 +110,6 @@ export interface NoirContractCompilationArtifacts {
    * The compiled contract.
    */
   contract: NoirCompiledContract;
-
-  /**
-   * The artifact that contains the debug metadata about the contract.
-   */
-  debug?: NoirDebugMetadata;
 }
 
 /**
@@ -155,11 +124,6 @@ export interface NoirProgramCompilationArtifacts {
    * The compiled contract.
    */
   program: NoirCompiledCircuit;
-
-  /**
-   * The artifact that contains the debug metadata about the contract.
-   */
-  debug?: NoirDebugMetadata;
 }
 
 /**

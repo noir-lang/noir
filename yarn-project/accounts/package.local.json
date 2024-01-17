@@ -1,7 +1,7 @@
 {
   "scripts": {
     "build": "yarn clean && yarn build:copy-contracts && tsc -b",
-    "build:copy-contracts": "mkdir -p ./src/artifacts && cp ../noir-contracts/src/SchnorrAccount.json ../noir-contracts/src/EcdsaAccount.json ../noir-contracts/src/SchnorrSingleKeyAccount.json ./src/artifacts",
+    "build:copy-contracts": "./scripts/copy-contracts.sh",
     "build:dev": "tsc -b --watch",
     "build:ts": "tsc -b",
     "clean": "rm -rf ./dest .tsbuildinfo ./src/artifacts"

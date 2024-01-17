@@ -21,7 +21,13 @@ import {
   siloCommitment,
 } from '@aztec/circuits.js/abis';
 import { makeContractDeploymentData } from '@aztec/circuits.js/factories';
-import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
+import {
+  FunctionArtifact,
+  FunctionSelector,
+  encodeArguments,
+  getFunctionArtifact,
+  getFunctionArtifactWithSelector,
+} from '@aztec/foundation/abi';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
@@ -46,7 +52,7 @@ import { default as levelup } from 'levelup';
 import { type MemDown, default as memdown } from 'memdown';
 import { getFunctionSelector } from 'viem';
 
-import { buildL1ToL2Message, getFunctionArtifact, getFunctionArtifactWithSelector } from '../test/utils.js';
+import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
@@ -229,7 +235,6 @@ describe('Private Execution test suite', () => {
 
     it('should have a constructor with arguments that inserts notes', async () => {
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'constructor');
-
       const result = await runSimulator({ args: [owner, 140], artifact });
 
       expect(result.newNotes).toHaveLength(1);

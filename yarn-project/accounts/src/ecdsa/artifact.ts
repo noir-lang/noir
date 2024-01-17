@@ -1,5 +1,5 @@
-import { ContractArtifact } from '@aztec/aztec.js';
+import { NoirCompiledContract, loadContractArtifact } from '@aztec/aztec.js';
 
 import EcdsaAccountContractJson from '../artifacts/EcdsaAccount.json' assert { type: 'json' };
 
-export const EcdsaAccountContractArtifact = EcdsaAccountContractJson as ContractArtifact;
+export const EcdsaAccountContractArtifact = loadContractArtifact(EcdsaAccountContractJson as NoirCompiledContract);

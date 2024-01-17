@@ -296,9 +296,10 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .command('get-accounts')
     .description('Gets all the Aztec accounts stored in the PXE.')
     .addOption(pxeOption)
+    .option('--json', 'Emit output as json')
     .action(async (options: any) => {
       const { getAccounts } = await import('./cmds/get_accounts.js');
-      await getAccounts(options.rpcUrl, debugLogger, log);
+      await getAccounts(options.rpcUrl, options.json, debugLogger, log, logJson);
     });
 
   program

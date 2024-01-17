@@ -38,9 +38,11 @@ describe('ContractDao', () => {
           ],
           returnTypes: [],
           bytecode: '0af',
+          debugSymbols: '',
         },
       ],
       events: [],
+      fileMap: {},
     };
 
     const dao = new ContractDao(artifact, CompleteAddress.random(), EthAddress.random());

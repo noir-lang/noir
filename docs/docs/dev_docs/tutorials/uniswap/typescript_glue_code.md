@@ -33,7 +33,7 @@ and the each of the Aztec.nr contracts by going into each folder and running:
 aztec-nargo compile
 ```
 
-And then generate the ABIs and typescript interface:
+And then generate the typescript interface:
 
 ```bash
 aztec-cli codegen ./target/ -o ../../../src/test/fixtures uniswap --ts

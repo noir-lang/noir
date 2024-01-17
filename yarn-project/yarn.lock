@@ -608,6 +608,7 @@ __metadata:
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@iarna/toml": ^2.2.5
     "@jest/globals": ^29.5.0
     "@noir-lang/noir_wasm": "portal:../../noir/packages/noir_wasm"
@@ -663,6 +664,7 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js"
     "@noir-lang/backend_barretenberg": "portal:../../noir/packages/backend_barretenberg"
@@ -2815,6 +2817,8 @@ __metadata:
 "@noir-lang/noir_wasm@portal:../noir/packages/noir_wasm::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@portal:../noir/packages/noir_wasm::locator=%40aztec%2Faztec3-packages%40workspace%3A."
+  dependencies:
+    pako: ^2.1.0
   languageName: node
   linkType: soft
 

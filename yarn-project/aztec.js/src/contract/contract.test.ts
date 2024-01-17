@@ -43,6 +43,7 @@ describe('Contract Class', () => {
         name: 'bar',
         functionType: FunctionType.SECRET,
         isInternal: false,
+        debugSymbols: '',
         parameters: [
           {
             name: 'value',
@@ -69,6 +70,7 @@ describe('Contract Class', () => {
         parameters: [],
         returnTypes: [],
         bytecode: '0be',
+        debugSymbols: '',
       },
       {
         name: 'qux',
@@ -91,9 +93,11 @@ describe('Contract Class', () => {
           },
         ],
         bytecode: '0cd',
+        debugSymbols: '',
       },
     ],
     events: [],
+    fileMap: {},
   };
 
   beforeEach(() => {

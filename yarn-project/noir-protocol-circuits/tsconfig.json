@@ -16,6 +16,9 @@
       "path": "../noir-compiler"
     },
     {
+      "path": "../types"
+    },
+    {
       "path": "../circuit-types"
     },
     {

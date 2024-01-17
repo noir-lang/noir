@@ -3,7 +3,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import { keccak } from '../crypto/keccak/index.js';
 import { Fr } from '../fields/index.js';
-import { ABIParameter } from './abi.js';
+import { type ABIParameter } from './abi.js';
 import { decodeFunctionSignature } from './decoder.js';
 
 /* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
@@ -71,6 +71,19 @@ export interface FunctionSelector {
 
 /** A function selector is the first 4 bytes of the hash of a function signature. */
 export class FunctionSelector extends Selector {
+  /**
+   * Checks if this function selector is equal to another.
+   * @returns True if the function selectors are equal.
+   */
+  equals(otherName: string, otherParams: ABIParameter[]): boolean;
+  equals(other: FunctionSelector): boolean;
+  equals(other: FunctionSelector | string, otherParams?: ABIParameter[]): boolean {
+    if (typeof other === 'string') {
+      return this.equals(FunctionSelector.fromNameAndParameters(other, otherParams!));
+    }
+    return this.value === other.value;
+  }
+
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer  or BufferReader to read from.
