@@ -41,31 +41,6 @@ pub enum PrintableType {
     Unit,
 }
 
-impl PrintableType {
-    /// Returns the number of field elements required to represent the type once encoded.
-    fn field_count(&self) -> Option<u32> {
-        match self {
-            Self::Field
-            | Self::SignedInteger { .. }
-            | Self::UnsignedInteger { .. }
-            | Self::Boolean => Some(1),
-            Self::Array { length, typ } => {
-                length.and_then(|len| typ.field_count().map(|x| x * (len as u32)))
-            }
-            Self::Tuple { types } => types
-                .iter()
-                .fold(Some(0), |count, typ| count.and_then(|c| typ.field_count().map(|fc| c + fc))),
-            Self::Struct { fields, .. } => fields.iter().fold(Some(0), |count, (_, field_type)| {
-                count.and_then(|c| field_type.field_count().map(|fc| c + fc))
-            }),
-            Self::String { length } => Some(*length as u32),
-            Self::Function { env: typ } => Some(1 + typ.field_count().unwrap_or(0)),
-            Self::MutableReference { typ } => typ.field_count(),
-            Self::Unit => Some(0),
-        }
-    }
-}
-
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
@@ -145,38 +120,13 @@ fn convert_fmt_string_inputs(
     let mut output = Vec::new();
     let num_values = num_values.unwrap_value().to_field().to_u128() as usize;
 
-    let mut next_value_index = 0usize; // index to input_and_printable_values to the current value
-    for printable_type in
-        input_and_printable_types.iter().skip(input_and_printable_types.len() - num_values)
-    {
+    let types_start_at = input_and_printable_types.len() - num_values;
+    let mut input_iter = input_and_printable_types[0..types_start_at]
+        .iter()
+        .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
+    for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
-        let field_count = printable_type.field_count();
-        let value = match (field_count, &printable_type) {
-            (_, PrintableType::Array { .. } | PrintableType::String { .. }) => {
-                // Arrays and strings are represented in a single value vector rather than multiple separate input values
-                let mut input_values_as_fields = input_and_printable_types[next_value_index]
-                    .values()
-                    .into_iter()
-                    .map(|value| value.to_field());
-                // Arrays and strings are encoded as arrays, so we advance the index for the next value by 1
-                next_value_index += 1;
-                decode_value(&mut input_values_as_fields, &printable_type)
-            }
-            (Some(type_size), _) => {
-                // We must use a flat map here as each value in a struct will be in a separate input value
-                let mut input_values_as_fields = input_and_printable_types
-                    [next_value_index..(next_value_index + (type_size as usize))]
-                    .iter()
-                    .flat_map(|param| vecmap(param.values(), |value| value.to_field()));
-                // Other types will be flattened, so we need to advance the
-                // index for the next value by the field count of the current value
-                next_value_index += type_size as usize;
-                decode_value(&mut input_values_as_fields, &printable_type)
-            }
-            (None, _) => {
-                panic!("unexpected None field_count for type {printable_type:?}");
-            }
-        };
+        let value = decode_value(&mut input_iter, &printable_type);
 
         output.push((value, printable_type));
     }

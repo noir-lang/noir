@@ -1029,11 +1029,6 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
-        if let HirType::Array(size, _) = typ {
-            if let HirType::NotConstant = **size {
-                unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
-            }
-        }
         let printable_type: PrintableType = typ.into();
         let abi_as_string = serde_json::to_string(&printable_type)
             .expect("ICE: expected PrintableType to serialize");
