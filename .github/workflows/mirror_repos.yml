@@ -12,31 +12,8 @@ on:
     - cron: "0 2 * * *"
 
 jobs:
-  mirror-to-build-system-repo:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
-      - name: Push to build-system repo
-        run: |
-          SUBREPO_PATH=build-system
-          git config --global user.name AztecBot
-          git config --global user.email tech@aztecprotocol.com
-
-          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=master; then
-            git fetch # in case a commit came after this
-            git rebase origin/master
-            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
-            git push
-          fi
-
   mirror-to-barretenberg-repo:
     runs-on: ubuntu-latest
-    # Force sequential.
-    needs: mirror-to-build-system-repo
     steps:
       - name: Checkout
         uses: actions/checkout@v3
