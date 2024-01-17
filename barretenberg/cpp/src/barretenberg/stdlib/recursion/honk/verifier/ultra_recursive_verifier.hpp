@@ -40,5 +40,4 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
 // Instance declarations for Ultra and Goblin-Ultra verifier circuits with both conventional Ultra and Goblin-Ultra
 // arithmetization.
 using UltraRecursiveVerifier = UltraRecursiveVerifier_<UltraCircuitBuilder>;
-using GoblinRecursiveVerifier = UltraRecursiveVerifier_<proof_system::honk::flavor::GoblinUltraRecursive>;
 } // namespace proof_system::plonk::stdlib::recursion::honk
