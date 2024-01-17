@@ -1086,6 +1086,24 @@ pub(crate) mod tests {
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into()))
         }
+
+        fn ec_add(
+            &self,
+            _input1_x: &FieldElement,
+            _input1_y: &FieldElement,
+            _input2_x: &FieldElement,
+            _input2_y: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            panic!("Path not trodden by this test")
+        }
+
+        fn ec_double(
+            &self,
+            _input_x: &FieldElement,
+            _input_y: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            panic!("Path not trodden by this test")
+        }
     }
 
     pub(crate) fn create_context() -> BrilligContext {

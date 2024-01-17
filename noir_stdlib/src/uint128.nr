@@ -42,6 +42,17 @@ impl U128 {
         }
     }
 
+    pub fn to_be_bytes(self: Self) -> [u8; 16] {
+        let lo = self.lo.to_be_bytes(8);
+        let hi = self.hi.to_be_bytes(8);
+        let mut bytes = [0;16];
+        for i in 0..8 {
+            bytes[i] = hi[i];
+            bytes[i+8] = lo[i];
+        }
+        bytes
+    }
+
     pub fn to_le_bytes(self: Self) -> [u8; 16] {
         let lo = self.lo.to_le_bytes(8);
         let hi = self.hi.to_le_bytes(8);

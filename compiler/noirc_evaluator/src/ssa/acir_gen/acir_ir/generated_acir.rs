@@ -28,9 +28,12 @@ use num_bigint::BigUint;
 /// The output of the Acir-gen pass
 pub(crate) struct GeneratedAcir {
     /// The next witness index that may be declared.
+    /// If witness index is `None` then we have not yet created a witness
+    /// and thus next witness index that be declared is zero.
+    /// This field is private should only ever be accessed through its getter and setter.
     ///
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
-    pub(crate) current_witness_index: u32,
+    current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
     opcodes: Vec<AcirOpcode>,
@@ -60,7 +63,7 @@ pub(crate) struct GeneratedAcir {
 impl GeneratedAcir {
     /// Returns the current witness index.
     pub(crate) fn current_witness_index(&self) -> Witness {
-        Witness(self.current_witness_index)
+        Witness(self.current_witness_index.unwrap_or(0))
     }
 
     /// Adds a new opcode into ACIR.
@@ -78,8 +81,12 @@ impl GeneratedAcir {
     /// Updates the witness index counter and returns
     /// the next witness index.
     pub(crate) fn next_witness_index(&mut self) -> Witness {
-        self.current_witness_index += 1;
-        Witness(self.current_witness_index)
+        if let Some(current_index) = self.current_witness_index {
+            self.current_witness_index.replace(current_index + 1);
+        } else {
+            self.current_witness_index = Some(0);
+        }
+        Witness(self.current_witness_index.expect("ICE: current_witness_index should exist"))
     }
 
     /// Converts [`Expression`] `expr` into a [`Witness`].
@@ -203,6 +210,18 @@ impl GeneratedAcir {
             BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                 low: inputs[0][0],
                 high: inputs[1][0],
+                outputs: (outputs[0], outputs[1]),
+            },
+            BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
+                input1_x: inputs[0][0],
+                input1_y: inputs[1][0],
+                input2_x: inputs[2][0],
+                input2_y: inputs[3][0],
+                outputs: (outputs[0], outputs[1]),
+            },
+            BlackBoxFunc::EmbeddedCurveDouble => BlackBoxFuncCall::EmbeddedCurveDouble {
+                input_x: inputs[0][0],
+                input_y: inputs[1][0],
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::Keccak256 => {
@@ -579,6 +598,10 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::FixedBaseScalarMul => Some(2),
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
+        // Addition over the embedded curve: input are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
+        BlackBoxFunc::EmbeddedCurveAdd => Some(4),
+        // Doubling over the embedded curve: input is (x,y) coordinate of the point.
+        BlackBoxFunc::EmbeddedCurveDouble => Some(2),
     }
 }
 
@@ -606,9 +629,11 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
-        // Output of fixed based scalar mul over the embedded curve
+        // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul => Some(2),
+        BlackBoxFunc::FixedBaseScalarMul
+        | BlackBoxFunc::EmbeddedCurveAdd
+        | BlackBoxFunc::EmbeddedCurveDouble => Some(2),
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
     }

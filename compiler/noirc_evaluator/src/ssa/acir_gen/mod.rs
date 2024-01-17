@@ -294,7 +294,7 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<Vec<Witness>, RuntimeError> {
         // The first witness (if any) is the next one
-        let start_witness = self.acir_context.current_witness_index().0 + 1;
+        let start_witness = self.acir_context.current_witness_index().0;
         for param_id in params {
             let typ = dfg.type_of_value(*param_id);
             let value = self.convert_ssa_block_param(&typ)?;
