@@ -152,10 +152,10 @@ fn get_package_tests_in_crate(
         .map(|(func_name, test_function)| {
             let location = context.function_meta(&test_function.get_id()).name.location;
             let file_id = location.file;
-
+            let file_path = fm.path(file_id).expect("file must exist to contain tests");
             let range =
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-            let file_uri = Url::from_file_path(fm.path(file_id))
+            let file_uri = Url::from_file_path(file_path)
                 .expect("Expected a valid file path that can be converted into a URI");
 
             NargoTest {

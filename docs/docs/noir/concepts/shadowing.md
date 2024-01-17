@@ -1,6 +1,6 @@
 ---
 title: Shadowing
-sidebar_position: 11
+sidebar_position: 12
 ---
 
 Noir allows for inheriting variables' values and re-declaring them with the same name similar to Rust, known as shadowing.

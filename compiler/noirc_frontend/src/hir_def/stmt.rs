@@ -28,8 +28,8 @@ pub struct HirLetStatement {
 
 impl HirLetStatement {
     pub fn ident(&self) -> HirIdent {
-        match self.pattern {
-            HirPattern::Identifier(ident) => ident,
+        match &self.pattern {
+            HirPattern::Identifier(ident) => ident.clone(),
             _ => panic!("can only fetch hir ident from HirPattern::Identifier"),
         }
     }

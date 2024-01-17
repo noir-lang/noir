@@ -1,25 +1,7 @@
 use crate::hash::poseidon;
 use crate::ec::consts::te::baby_jubjub;
 use crate::ec::tecurve::affine::Point as TEPoint;
-// Returns true if x is less than y
-fn lt_bytes32(x: Field, y: Field) -> bool {
-    let x_bytes = x.to_le_bytes(32);
-    let y_bytes = y.to_le_bytes(32);
-    let mut x_is_lt = false;
-    let mut done = false;
-    for i in 0..32 {
-        if (!done) {
-            let x_byte = x_bytes[31 - i] as u8;
-            let y_byte = y_bytes[31 - i] as u8;
-            let bytes_match = x_byte == y_byte;
-            if !bytes_match {
-                x_is_lt = x_byte < y_byte;
-                done = true;
-            }
-        }
-    }
-    x_is_lt
-}
+
 // Returns true if signature is valid
 pub fn eddsa_poseidon_verify(
     pub_key_x: Field,
@@ -39,7 +21,7 @@ pub fn eddsa_poseidon_verify(
     let signature_r8 = TEPoint::new(signature_r8_x, signature_r8_y);
     assert(bjj.curve.contains(signature_r8));
     // Ensure S < Subgroup Order
-    assert(lt_bytes32(signature_s, bjj.suborder));
+    assert(signature_s.lt(bjj.suborder));
     // Calculate the h = H(R, A, msg)
     let hash: Field = poseidon::bn254::hash_5([signature_r8_x, signature_r8_y, pub_key_x, pub_key_y, message]);
     // Calculate second part of the right side:  right2 = h*8*A

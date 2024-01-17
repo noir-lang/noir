@@ -88,15 +88,15 @@ impl FileManager {
         assert!(old_value.is_none(), "ice: the same path was inserted into the file manager twice");
     }
 
-    pub fn fetch_file(&self, file_id: FileId) -> &str {
+    pub fn fetch_file(&self, file_id: FileId) -> Option<&str> {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
-        self.file_map.get_file(file_id).unwrap().source()
+        self.file_map.get_file(file_id).map(|file| file.source())
     }
 
-    pub fn path(&self, file_id: FileId) -> &Path {
+    pub fn path(&self, file_id: FileId) -> Option<&Path> {
         // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
-        self.id_to_path.get(&file_id).unwrap().as_path()
+        self.id_to_path.get(&file_id).map(|path| path.as_path())
     }
 
     // TODO: This should accept a &Path instead of a PathBuf
@@ -204,7 +204,7 @@ mod tests {
 
         let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
 
-        assert!(fm.path(file_id).ends_with("foo.nr"));
+        assert!(fm.path(file_id).unwrap().ends_with("foo.nr"));
     }
 
     /// Tests that two identical files that have different paths are treated as the same file
