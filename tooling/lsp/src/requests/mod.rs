@@ -5,7 +5,7 @@ use async_lsp::ResponseError;
 use fm::codespan_files::Error;
 use lsp_types::{
     DeclarationCapability, Location, Position, TextDocumentSyncCapability, TextDocumentSyncKind,
-    Url,
+    TypeDefinitionProviderCapability, Url,
 };
 use nargo_fmt::Config;
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,8 @@ mod tests;
 pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
     goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    profile_run::on_profile_run_request, test_run::on_test_run_request, tests::on_tests_request,
+    goto_definition::on_goto_type_definition_request, profile_run::on_profile_run_request,
+    test_run::on_test_run_request, tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -94,6 +95,7 @@ pub(crate) fn on_initialize(
                 nargo: Some(nargo),
                 definition_provider: Some(lsp_types::OneOf::Left(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
+                type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
             },
             server_info: None,
         })
