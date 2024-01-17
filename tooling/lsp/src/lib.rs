@@ -19,7 +19,7 @@ use async_lsp::{
 };
 use fm::codespan_files as files;
 use lsp_types::CodeLens;
-use nargo::workspace::Workspace;
+use nargo::{parse_all, workspace::Workspace};
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
@@ -225,15 +225,16 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
 /// Use case for this is the LSP server and code lenses
 /// which operate on single file and need to understand this file
 /// in order to offer code lenses to the user
-fn prepare_source(source: String) -> (Context<'static>, CrateId) {
+fn prepare_source(source: String) -> (Context<'static, 'static>, CrateId) {
     let root = Path::new("");
     let file_name = Path::new("main.nr");
     let mut file_manager = file_manager_with_stdlib(root);
     file_manager.add_file_with_source(file_name, source).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
+    let parsed_files = parse_all(&file_manager);
 
-    let mut context = Context::new(file_manager);
+    let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)

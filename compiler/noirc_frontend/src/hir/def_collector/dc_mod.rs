@@ -20,7 +20,7 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId};
+use crate::hir::def_map::{LocalModuleId, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -555,7 +555,7 @@ impl<'a> ModCollector<'a> {
         context.visited_files.insert(child_file_id, location);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let (ast, parsing_errors) = parse_file(&context.file_manager, child_file_id);
+        let (ast, parsing_errors) = context.parsed_file_results(child_file_id);
         let ast = ast.into_sorted();
 
         errors.extend(
