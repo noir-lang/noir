@@ -1176,6 +1176,7 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
+    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,

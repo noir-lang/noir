@@ -119,8 +119,8 @@ pub(crate) fn solve(
                 let lane = witness_assignment.try_to_u64();
                 state[i] = lane.unwrap();
             }
-            let state = keccakf1600(state)?;
-            for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+            let output_state = keccakf1600(state)?;
+            for (output_witness, value) in outputs.iter().zip(output_state.into_iter()) {
                 insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
             }
             Ok(())
@@ -176,6 +176,12 @@ pub(crate) fn solve(
         ),
         BlackBoxFuncCall::FixedBaseScalarMul { low, high, outputs } => {
             fixed_base_scalar_mul(backend, initial_witness, *low, *high, *outputs)
+        }
+        BlackBoxFuncCall::EmbeddedCurveAdd { .. } => {
+            todo!();
+        }
+        BlackBoxFuncCall::EmbeddedCurveDouble { .. } => {
+            todo!();
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),

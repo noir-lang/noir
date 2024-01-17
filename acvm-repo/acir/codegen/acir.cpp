@@ -145,6 +145,28 @@ namespace Circuit {
             static FixedBaseScalarMul bincodeDeserialize(std::vector<uint8_t>);
         };
 
+        struct EmbeddedCurveAdd {
+            Circuit::FunctionInput input1_x;
+            Circuit::FunctionInput input1_y;
+            Circuit::FunctionInput input2_x;
+            Circuit::FunctionInput input2_y;
+            std::array<Circuit::Witness, 2> outputs;
+
+            friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EmbeddedCurveDouble {
+            Circuit::FunctionInput input_x;
+            Circuit::FunctionInput input_y;
+            std::array<Circuit::Witness, 2> outputs;
+
+            friend bool operator==(const EmbeddedCurveDouble&, const EmbeddedCurveDouble&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EmbeddedCurveDouble bincodeDeserialize(std::vector<uint8_t>);
+        };
+
         struct Keccak256 {
             std::vector<Circuit::FunctionInput> inputs;
             std::vector<Circuit::Witness> outputs;
@@ -184,7 +206,7 @@ namespace Circuit {
             static RecursiveAggregation bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, FixedBaseScalarMul, Keccak256, Keccak256VariableLength, Keccakf1600, RecursiveAggregation> value;
+        std::variant<AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, FixedBaseScalarMul, EmbeddedCurveAdd, EmbeddedCurveDouble, Keccak256, Keccak256VariableLength, Keccakf1600, RecursiveAggregation> value;
 
         friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -406,6 +428,15 @@ namespace Circuit {
             static Blake2s bincodeDeserialize(std::vector<uint8_t>);
         };
 
+        struct Blake3 {
+            Circuit::HeapVector message;
+            Circuit::HeapArray output;
+
+            friend bool operator==(const Blake3&, const Blake3&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Blake3 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
         struct Keccak256 {
             Circuit::HeapVector message;
             Circuit::HeapArray output;
@@ -413,6 +444,15 @@ namespace Circuit {
             friend bool operator==(const Keccak256&, const Keccak256&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Keccak256 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Keccakf1600 {
+            Circuit::HeapVector message;
+            Circuit::HeapArray output;
+
+            friend bool operator==(const Keccakf1600&, const Keccakf1600&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
         };
 
         struct EcdsaSecp256k1 {
@@ -481,7 +521,29 @@ namespace Circuit {
             static FixedBaseScalarMul bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<Sha256, Blake2s, Keccak256, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, FixedBaseScalarMul> value;
+        struct EmbeddedCurveAdd {
+            Circuit::RegisterIndex input1_x;
+            Circuit::RegisterIndex input1_y;
+            Circuit::RegisterIndex input2_x;
+            Circuit::RegisterIndex input2_y;
+            Circuit::HeapArray result;
+
+            friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EmbeddedCurveDouble {
+            Circuit::RegisterIndex input1_x;
+            Circuit::RegisterIndex input1_y;
+            Circuit::HeapArray result;
+
+            friend bool operator==(const EmbeddedCurveDouble&, const EmbeddedCurveDouble&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EmbeddedCurveDouble bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, FixedBaseScalarMul, EmbeddedCurveAdd, EmbeddedCurveDouble> value;
 
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -703,27 +765,7 @@ namespace Circuit {
         static Brillig bincodeDeserialize(std::vector<uint8_t>);
     };
 
-    struct QuotientDirective {
-        Circuit::Expression a;
-        Circuit::Expression b;
-        Circuit::Witness q;
-        Circuit::Witness r;
-        std::optional<Circuit::Expression> predicate;
-
-        friend bool operator==(const QuotientDirective&, const QuotientDirective&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static QuotientDirective bincodeDeserialize(std::vector<uint8_t>);
-    };
-
     struct Directive {
-
-        struct Quotient {
-            Circuit::QuotientDirective value;
-
-            friend bool operator==(const Quotient&, const Quotient&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Quotient bincodeDeserialize(std::vector<uint8_t>);
-        };
 
         struct ToLeRadix {
             Circuit::Expression a;
@@ -746,7 +788,7 @@ namespace Circuit {
             static PermutationSort bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<Quotient, ToLeRadix, PermutationSort> value;
+        std::variant<ToLeRadix, PermutationSort> value;
 
         friend bool operator==(const Directive&, const Directive&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -2162,6 +2204,100 @@ Circuit::BlackBoxFuncCall::FixedBaseScalarMul serde::Deserializable<Circuit::Bla
 
 namespace Circuit {
 
+    inline bool operator==(const BlackBoxFuncCall::EmbeddedCurveAdd &lhs, const BlackBoxFuncCall::EmbeddedCurveAdd &rhs) {
+        if (!(lhs.input1_x == rhs.input1_x)) { return false; }
+        if (!(lhs.input1_y == rhs.input1_y)) { return false; }
+        if (!(lhs.input2_x == rhs.input2_x)) { return false; }
+        if (!(lhs.input2_y == rhs.input2_y)) { return false; }
+        if (!(lhs.outputs == rhs.outputs)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxFuncCall::EmbeddedCurveAdd::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxFuncCall::EmbeddedCurveAdd>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxFuncCall::EmbeddedCurveAdd BlackBoxFuncCall::EmbeddedCurveAdd::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxFuncCall::EmbeddedCurveAdd>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxFuncCall::EmbeddedCurveAdd>::serialize(const Circuit::BlackBoxFuncCall::EmbeddedCurveAdd &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.input1_x)>::serialize(obj.input1_x, serializer);
+    serde::Serializable<decltype(obj.input1_y)>::serialize(obj.input1_y, serializer);
+    serde::Serializable<decltype(obj.input2_x)>::serialize(obj.input2_x, serializer);
+    serde::Serializable<decltype(obj.input2_y)>::serialize(obj.input2_y, serializer);
+    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxFuncCall::EmbeddedCurveAdd serde::Deserializable<Circuit::BlackBoxFuncCall::EmbeddedCurveAdd>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxFuncCall::EmbeddedCurveAdd obj;
+    obj.input1_x = serde::Deserializable<decltype(obj.input1_x)>::deserialize(deserializer);
+    obj.input1_y = serde::Deserializable<decltype(obj.input1_y)>::deserialize(deserializer);
+    obj.input2_x = serde::Deserializable<decltype(obj.input2_x)>::deserialize(deserializer);
+    obj.input2_y = serde::Deserializable<decltype(obj.input2_y)>::deserialize(deserializer);
+    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+    inline bool operator==(const BlackBoxFuncCall::EmbeddedCurveDouble &lhs, const BlackBoxFuncCall::EmbeddedCurveDouble &rhs) {
+        if (!(lhs.input_x == rhs.input_x)) { return false; }
+        if (!(lhs.input_y == rhs.input_y)) { return false; }
+        if (!(lhs.outputs == rhs.outputs)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxFuncCall::EmbeddedCurveDouble::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxFuncCall::EmbeddedCurveDouble>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxFuncCall::EmbeddedCurveDouble BlackBoxFuncCall::EmbeddedCurveDouble::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxFuncCall::EmbeddedCurveDouble>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxFuncCall::EmbeddedCurveDouble>::serialize(const Circuit::BlackBoxFuncCall::EmbeddedCurveDouble &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.input_x)>::serialize(obj.input_x, serializer);
+    serde::Serializable<decltype(obj.input_y)>::serialize(obj.input_y, serializer);
+    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxFuncCall::EmbeddedCurveDouble serde::Deserializable<Circuit::BlackBoxFuncCall::EmbeddedCurveDouble>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxFuncCall::EmbeddedCurveDouble obj;
+    obj.input_x = serde::Deserializable<decltype(obj.input_x)>::deserialize(deserializer);
+    obj.input_y = serde::Deserializable<decltype(obj.input_y)>::deserialize(deserializer);
+    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
     inline bool operator==(const BlackBoxFuncCall::Keccak256 &lhs, const BlackBoxFuncCall::Keccak256 &rhs) {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
@@ -2459,6 +2595,47 @@ Circuit::BlackBoxOp::Blake2s serde::Deserializable<Circuit::BlackBoxOp::Blake2s>
 
 namespace Circuit {
 
+    inline bool operator==(const BlackBoxOp::Blake3 &lhs, const BlackBoxOp::Blake3 &rhs) {
+        if (!(lhs.message == rhs.message)) { return false; }
+        if (!(lhs.output == rhs.output)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxOp::Blake3::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxOp::Blake3>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxOp::Blake3 BlackBoxOp::Blake3::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxOp::Blake3>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxOp::Blake3>::serialize(const Circuit::BlackBoxOp::Blake3 &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
+    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxOp::Blake3 serde::Deserializable<Circuit::BlackBoxOp::Blake3>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxOp::Blake3 obj;
+    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
+    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
     inline bool operator==(const BlackBoxOp::Keccak256 &lhs, const BlackBoxOp::Keccak256 &rhs) {
         if (!(lhs.message == rhs.message)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
@@ -2493,6 +2670,47 @@ template <>
 template <typename Deserializer>
 Circuit::BlackBoxOp::Keccak256 serde::Deserializable<Circuit::BlackBoxOp::Keccak256>::deserialize(Deserializer &deserializer) {
     Circuit::BlackBoxOp::Keccak256 obj;
+    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
+    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+    inline bool operator==(const BlackBoxOp::Keccakf1600 &lhs, const BlackBoxOp::Keccakf1600 &rhs) {
+        if (!(lhs.message == rhs.message)) { return false; }
+        if (!(lhs.output == rhs.output)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxOp::Keccakf1600::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxOp::Keccakf1600>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxOp::Keccakf1600 BlackBoxOp::Keccakf1600::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxOp::Keccakf1600>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxOp::Keccakf1600>::serialize(const Circuit::BlackBoxOp::Keccakf1600 &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
+    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxOp::Keccakf1600 serde::Deserializable<Circuit::BlackBoxOp::Keccakf1600>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxOp::Keccakf1600 obj;
     obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
@@ -2776,6 +2994,100 @@ Circuit::BlackBoxOp::FixedBaseScalarMul serde::Deserializable<Circuit::BlackBoxO
     Circuit::BlackBoxOp::FixedBaseScalarMul obj;
     obj.low = serde::Deserializable<decltype(obj.low)>::deserialize(deserializer);
     obj.high = serde::Deserializable<decltype(obj.high)>::deserialize(deserializer);
+    obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+    inline bool operator==(const BlackBoxOp::EmbeddedCurveAdd &lhs, const BlackBoxOp::EmbeddedCurveAdd &rhs) {
+        if (!(lhs.input1_x == rhs.input1_x)) { return false; }
+        if (!(lhs.input1_y == rhs.input1_y)) { return false; }
+        if (!(lhs.input2_x == rhs.input2_x)) { return false; }
+        if (!(lhs.input2_y == rhs.input2_y)) { return false; }
+        if (!(lhs.result == rhs.result)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxOp::EmbeddedCurveAdd::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxOp::EmbeddedCurveAdd>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxOp::EmbeddedCurveAdd BlackBoxOp::EmbeddedCurveAdd::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxOp::EmbeddedCurveAdd>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxOp::EmbeddedCurveAdd>::serialize(const Circuit::BlackBoxOp::EmbeddedCurveAdd &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.input1_x)>::serialize(obj.input1_x, serializer);
+    serde::Serializable<decltype(obj.input1_y)>::serialize(obj.input1_y, serializer);
+    serde::Serializable<decltype(obj.input2_x)>::serialize(obj.input2_x, serializer);
+    serde::Serializable<decltype(obj.input2_y)>::serialize(obj.input2_y, serializer);
+    serde::Serializable<decltype(obj.result)>::serialize(obj.result, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxOp::EmbeddedCurveAdd serde::Deserializable<Circuit::BlackBoxOp::EmbeddedCurveAdd>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxOp::EmbeddedCurveAdd obj;
+    obj.input1_x = serde::Deserializable<decltype(obj.input1_x)>::deserialize(deserializer);
+    obj.input1_y = serde::Deserializable<decltype(obj.input1_y)>::deserialize(deserializer);
+    obj.input2_x = serde::Deserializable<decltype(obj.input2_x)>::deserialize(deserializer);
+    obj.input2_y = serde::Deserializable<decltype(obj.input2_y)>::deserialize(deserializer);
+    obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+    inline bool operator==(const BlackBoxOp::EmbeddedCurveDouble &lhs, const BlackBoxOp::EmbeddedCurveDouble &rhs) {
+        if (!(lhs.input1_x == rhs.input1_x)) { return false; }
+        if (!(lhs.input1_y == rhs.input1_y)) { return false; }
+        if (!(lhs.result == rhs.result)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BlackBoxOp::EmbeddedCurveDouble::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BlackBoxOp::EmbeddedCurveDouble>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BlackBoxOp::EmbeddedCurveDouble BlackBoxOp::EmbeddedCurveDouble::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BlackBoxOp::EmbeddedCurveDouble>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxOp::EmbeddedCurveDouble>::serialize(const Circuit::BlackBoxOp::EmbeddedCurveDouble &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.input1_x)>::serialize(obj.input1_x, serializer);
+    serde::Serializable<decltype(obj.input1_y)>::serialize(obj.input1_y, serializer);
+    serde::Serializable<decltype(obj.result)>::serialize(obj.result, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxOp::EmbeddedCurveDouble serde::Deserializable<Circuit::BlackBoxOp::EmbeddedCurveDouble>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxOp::EmbeddedCurveDouble obj;
+    obj.input1_x = serde::Deserializable<decltype(obj.input1_x)>::deserialize(deserializer);
+    obj.input1_y = serde::Deserializable<decltype(obj.input1_y)>::deserialize(deserializer);
     obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
     return obj;
 }
@@ -3858,44 +4170,6 @@ Circuit::Directive serde::Deserializable<Circuit::Directive>::deserialize(Deseri
 
 namespace Circuit {
 
-    inline bool operator==(const Directive::Quotient &lhs, const Directive::Quotient &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> Directive::Quotient::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Directive::Quotient>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Directive::Quotient Directive::Quotient::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Directive::Quotient>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::Directive::Quotient>::serialize(const Circuit::Directive::Quotient &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Circuit::Directive::Quotient serde::Deserializable<Circuit::Directive::Quotient>::deserialize(Deserializer &deserializer) {
-    Circuit::Directive::Quotient obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Circuit {
-
     inline bool operator==(const Directive::ToLeRadix &lhs, const Directive::ToLeRadix &rhs) {
         if (!(lhs.a == rhs.a)) { return false; }
         if (!(lhs.b == rhs.b)) { return false; }
@@ -4654,60 +4928,6 @@ Circuit::PublicInputs serde::Deserializable<Circuit::PublicInputs>::deserialize(
     deserializer.increase_container_depth();
     Circuit::PublicInputs obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    deserializer.decrease_container_depth();
-    return obj;
-}
-
-namespace Circuit {
-
-    inline bool operator==(const QuotientDirective &lhs, const QuotientDirective &rhs) {
-        if (!(lhs.a == rhs.a)) { return false; }
-        if (!(lhs.b == rhs.b)) { return false; }
-        if (!(lhs.q == rhs.q)) { return false; }
-        if (!(lhs.r == rhs.r)) { return false; }
-        if (!(lhs.predicate == rhs.predicate)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> QuotientDirective::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<QuotientDirective>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline QuotientDirective QuotientDirective::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<QuotientDirective>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::QuotientDirective>::serialize(const Circuit::QuotientDirective &obj, Serializer &serializer) {
-    serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.a)>::serialize(obj.a, serializer);
-    serde::Serializable<decltype(obj.b)>::serialize(obj.b, serializer);
-    serde::Serializable<decltype(obj.q)>::serialize(obj.q, serializer);
-    serde::Serializable<decltype(obj.r)>::serialize(obj.r, serializer);
-    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
-    serializer.decrease_container_depth();
-}
-
-template <>
-template <typename Deserializer>
-Circuit::QuotientDirective serde::Deserializable<Circuit::QuotientDirective>::deserialize(Deserializer &deserializer) {
-    deserializer.increase_container_depth();
-    Circuit::QuotientDirective obj;
-    obj.a = serde::Deserializable<decltype(obj.a)>::deserialize(deserializer);
-    obj.b = serde::Deserializable<decltype(obj.b)>::deserialize(deserializer);
-    obj.q = serde::Deserializable<decltype(obj.q)>::deserialize(deserializer);
-    obj.r = serde::Deserializable<decltype(obj.r)>::deserialize(deserializer);
-    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
 }

@@ -93,8 +93,8 @@ pub fn create_circuit(
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
     let opcodes = generated_acir.take_opcodes();
+    let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
-        current_witness_index,
         return_witnesses,
         locations,
         input_witnesses,
