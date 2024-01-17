@@ -2,14 +2,15 @@ FROM rust:alpine3.17
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
-        build-base \
-        pkgconfig \
-        openssl-dev \
-        npm \
-        yarn \
-        bash \
-        jq \
-        git
+    build-base \
+    pkgconfig \
+    openssl-dev \
+    npm \
+    yarn \
+    bash \
+    jq \
+    git \
+    curl
 
 WORKDIR /usr/src/noir
 COPY . .

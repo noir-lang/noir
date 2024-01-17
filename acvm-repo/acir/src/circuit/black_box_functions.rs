@@ -45,6 +45,10 @@ pub enum BlackBoxFunc {
     /// Compute a recursive aggregation object when verifying a proof inside another circuit.
     /// This outputted aggregation object will then be either checked in a top-level verifier or aggregated upon again.
     RecursiveAggregation,
+    /// Addition over the embedded curve on which [`FieldElement`][acir_field::FieldElement] is defined.
+    EmbeddedCurveAdd,
+    /// Point doubling over the embedded curve on which [`FieldElement`][acir_field::FieldElement] is defined.
+    EmbeddedCurveDouble,
 }
 
 impl std::fmt::Display for BlackBoxFunc {
@@ -64,6 +68,8 @@ impl BlackBoxFunc {
             BlackBoxFunc::PedersenHash => "pedersen_hash",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
             BlackBoxFunc::FixedBaseScalarMul => "fixed_base_scalar_mul",
+            BlackBoxFunc::EmbeddedCurveAdd => "ec_add",
+            BlackBoxFunc::EmbeddedCurveDouble => "ec_double",
             BlackBoxFunc::AND => "and",
             BlackBoxFunc::XOR => "xor",
             BlackBoxFunc::RANGE => "range",
@@ -84,6 +90,8 @@ impl BlackBoxFunc {
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),
             "ecdsa_secp256r1" => Some(BlackBoxFunc::EcdsaSecp256r1),
             "fixed_base_scalar_mul" => Some(BlackBoxFunc::FixedBaseScalarMul),
+            "ec_add" => Some(BlackBoxFunc::EmbeddedCurveAdd),
+            "ec_double" => Some(BlackBoxFunc::EmbeddedCurveDouble),
             "and" => Some(BlackBoxFunc::AND),
             "xor" => Some(BlackBoxFunc::XOR),
             "range" => Some(BlackBoxFunc::RANGE),

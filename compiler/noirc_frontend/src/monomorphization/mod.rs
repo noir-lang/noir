@@ -27,7 +27,7 @@ use crate::{
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableId, TypeVariableKind, UnaryOp, Visibility,
+    TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -1534,8 +1534,8 @@ impl<'interner> Monomorphizer<'interner> {
             let (generics, impl_method_type) =
                 self.interner.function_meta(&impl_method).typ.unwrap_forall();
 
-            let replace_type_variable = |(id, var): &(TypeVariableId, TypeVariable)| {
-                (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+            let replace_type_variable = |var: &TypeVariable| {
+                (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
             };
 
             // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
