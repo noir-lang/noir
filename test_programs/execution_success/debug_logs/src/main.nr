@@ -39,7 +39,28 @@ fn main(x: Field, y: pub Field) {
     let struct_string = if x != 5 { f"{foo}" } else { f"{bar}" };
     std::println(struct_string);
 
+    let one_tuple = (1, 2, 3);
+    let another_tuple = (4, 5, 6);
+    std::println(f"one_tuple: {one_tuple}, another_tuple: {another_tuple}");
+    std::println(one_tuple);
+
+    let tuples_nested = (one_tuple, another_tuple);
+    std::println(f"tuples_nested: {tuples_nested}");
+    std::println(tuples_nested);
+
     regression_2906();
+
+    let free_lambda = |x| x + 1;
+    let sentinel: u32 = 8888;
+    std::println(f"free_lambda: {free_lambda}, sentinel: {sentinel}");
+    std::println(free_lambda);
+
+    let one = 1;
+    let closured_lambda = |x| x + one;
+    std::println(f"closured_lambda: {closured_lambda}, sentinel: {sentinel}");
+    std::println(closured_lambda);
+
+    types_printable_in_brillig_only();
 }
 
 fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Field)> {
@@ -78,4 +99,23 @@ fn regression_2906() {
     dep::std::println(f"label_five_vals: {label_five_vals}");
 
     dep::std::println(f"array_five_vals: {array_five_vals}, label_five_vals: {label_five_vals}");
+}
+
+unconstrained fn types_printable_in_brillig_only() {
+    let mut a_tuple = (1,2,3);
+    let mut tuple_mut_ref = &mut a_tuple;
+    let sentinel: u32 = 8888;
+    std::println(f"tuple_mut_ref: {tuple_mut_ref}, sentinel: {sentinel}");
+    std::println(tuple_mut_ref);
+
+    let mut a_vector: Vec<Field> = Vec::new();
+    a_vector.push(10);
+    a_vector.push(20);
+    a_vector.push(30);
+    std::println(f"a_vector: {a_vector}, sentinel: {sentinel}");
+    std::println(a_vector);
+
+    let vec_slice = a_vector.slice;
+    std::println(f"vec_slice: {vec_slice}, sentinel: {sentinel}");
+    std::println(vec_slice);
 }
