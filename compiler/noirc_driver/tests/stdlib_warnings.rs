@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, ErrorsAndWarnings};
 use noirc_frontend::hir::{def_map::parse_file, Context};
