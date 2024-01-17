@@ -14,10 +14,7 @@ use noirc_frontend::{
 
 use crate::{
     errors::RuntimeError,
-    ssa::{
-        function_builder::data_bus::DataBusBuilder,
-        ir::{instruction::Intrinsic, types::NumericType},
-    },
+    ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
 };
 
 use self::{
@@ -384,11 +381,12 @@ impl<'a> FunctionContext<'a> {
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = self.builder.field_constant(type_size as u128);
+        let type_size = self.checked_numeric_constant(type_size as u128, Type::unsigned(64))?;
+        let index = self.insert_safe_cast(index, Type::unsigned(64), location);
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
-        let mut field_index = 0u128;
+        let mut field_index = 0u64;
         Ok(Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
@@ -418,25 +416,18 @@ impl<'a> FunctionContext<'a> {
     /// is less than the dynamic slice length.
     fn codegen_slice_access_check(
         &mut self,
-        index: super::ir::value::ValueId,
+        mut index: super::ir::value::ValueId,
         length: Option<super::ir::value::ValueId>,
     ) {
-        let array_len = length.expect("ICE: a length must be supplied for indexing slices");
-        // Check the type of the index value for valid comparisons
-        let array_len = match self.builder.type_of_value(index) {
-            Type::Numeric(numeric_type) => match numeric_type {
-                // If the index itself is an integer, keep the array length as a Field
-                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
-                // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
-                // Thus, we cast the array length to a u64 before performing the less than comparison
-                NumericType::NativeField => self
-                    .builder
-                    .insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 })),
-            },
-            _ => unreachable!("ICE: array index must be a numeric type"),
-        };
+        let mut length = length.expect("ICE: a length must be supplied for indexing slices");
+        let length_type = self.builder.type_of_value(length);
 
-        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
+        // Check the type of the index value for valid comparisons
+        let min_bit_size = std::cmp::min(64, length_type.bit_size());
+        index = self.builder.insert_cast(index, Type::unsigned(min_bit_size));
+        length = self.builder.insert_cast(length, Type::unsigned(min_bit_size));
+
+        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, length);
         let true_const = self.builder.numeric_constant(true, Type::bool());
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
@@ -476,7 +467,7 @@ impl<'a> FunctionContext<'a> {
 
         // this is the 'i' in `for i in start .. end { block }`
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
-        let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
+        let loop_index = self.builder.add_block_parameter(loop_entry, index_type.clone());
 
         self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
@@ -619,16 +610,23 @@ impl<'a> FunctionContext<'a> {
         {
             match intrinsic {
                 Intrinsic::SliceInsert => {
-                    let one = self.builder.field_constant(1u128);
+                    let slice_len = arguments[0];
+                    let index = arguments[2];
+
+                    let slice_len_type = self.builder.type_of_value(slice_len);
+                    let one = self.builder.numeric_constant(1u128, slice_len_type);
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
-                    let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
+                    let len_plus_one = self.builder.insert_binary(slice_len, BinaryOp::Add, one);
 
-                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                    self.codegen_slice_access_check(index, Some(len_plus_one));
                 }
                 Intrinsic::SliceRemove => {
-                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                    let slice_len = arguments[0];
+                    let index = arguments[2];
+
+                    self.codegen_slice_access_check(index, Some(slice_len));
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks

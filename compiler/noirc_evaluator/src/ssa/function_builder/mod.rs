@@ -353,6 +353,7 @@ impl FunctionBuilder {
     ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
     /// }
     pub(crate) fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let lhs = self.insert_cast(lhs, Type::field());
         let typ = self.current_function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
@@ -366,10 +367,11 @@ impl FunctionBuilder {
             for i in 1..bit_size + 1 {
                 let r_squared = self.insert_binary(r, BinaryOp::Mul, r);
                 let a = self.insert_binary(r_squared, BinaryOp::Mul, lhs);
-                let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
-                let b = self.insert_array_get(rhs_bits, idx, Type::field());
-                let r1 = self.insert_binary(a, BinaryOp::Mul, b);
-                let c = self.insert_binary(one, BinaryOp::Sub, b);
+                let idx = self.numeric_constant((bit_size - i) as u128, Type::unsigned(64));
+                let b = self.insert_array_get(rhs_bits, idx, Type::bool());
+                let b_as_field = self.insert_cast(b, Type::field());
+                let r1 = self.insert_binary(a, BinaryOp::Mul, b_as_field);
+                let c = self.insert_binary(one, BinaryOp::Sub, b_as_field);
                 let r2 = self.insert_binary(c, BinaryOp::Mul, r_squared);
                 r = self.insert_binary(r1, BinaryOp::Add, r2);
             }
@@ -386,6 +388,11 @@ impl FunctionBuilder {
         index: ValueId,
         element_type: Type,
     ) -> ValueId {
+        assert_eq!(
+            self.type_of_value(index),
+            Type::unsigned(64),
+            "Arrays must be indexed using u64 type"
+        );
         let element_type = Some(vec![element_type]);
         self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }

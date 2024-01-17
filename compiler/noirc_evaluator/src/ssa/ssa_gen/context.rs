@@ -657,8 +657,10 @@ impl<'a> FunctionContext<'a> {
 
         // loop_start
         self.builder.switch_to_block(loop_start);
-        let i = self.builder.add_block_parameter(loop_start, Type::field());
-        let array_length = self.builder.field_constant(array_length as u128);
+        let loop_index_type = Type::unsigned(64);
+        let i = self.builder.add_block_parameter(loop_start, loop_index_type.clone());
+        let array_length =
+            self.builder.numeric_constant(array_length as u128, loop_index_type.clone());
         let v0 = self.builder.insert_binary(i, BinaryOp::Lt, array_length);
         self.builder.terminate_with_jmpif(v0, loop_body, loop_end);
 
@@ -670,7 +672,7 @@ impl<'a> FunctionContext<'a> {
         let v4 = self.builder.insert_load(result_alloc, Type::bool());
         let v5 = self.builder.insert_binary(v4, BinaryOp::And, v3);
         self.builder.insert_store(result_alloc, v5);
-        let one = self.builder.field_constant(1u128);
+        let one = self.builder.numeric_constant(1u128, loop_index_type);
         let v6 = self.builder.insert_binary(i, BinaryOp::Add, one);
         self.builder.terminate_with_jmp(loop_start, vec![v6]);
 
@@ -734,9 +736,10 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Create a const offset of an address for an array load or store
-    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
+    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u64) -> ValueId {
         if offset != 0 {
-            let offset = self.builder.field_constant(offset);
+            let index_type = self.builder.type_of_value(address);
+            let offset = self.builder.numeric_constant(offset as u128, index_type);
             address = self.builder.insert_binary(address, BinaryOp::Add, offset);
         }
         address
@@ -985,12 +988,14 @@ impl<'a> FunctionContext<'a> {
         index: ValueId,
         location: Location,
     ) -> ValueId {
-        let element_size = self.builder.field_constant(self.element_size(array));
+        let index_type = self.builder.type_of_value(index);
+        let element_size =
+            self.builder.numeric_constant(self.element_size(array), index_type.clone());
 
         // The actual base index is the user's index * the array element type's size
         let mut index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        let one = self.builder.field_constant(FieldElement::one());
+        let one = self.builder.numeric_constant(FieldElement::one(), index_type);
 
         new_value.for_each(|value| {
             let value = value.eval(self);

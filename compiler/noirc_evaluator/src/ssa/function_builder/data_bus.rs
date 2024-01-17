@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use crate::ssa::ir::{types::Type, value::ValueId};
-use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::hir_def::function::FunctionSignature;
 
@@ -89,10 +88,8 @@ impl FunctionBuilder {
                 databus.map.insert(value, databus.index);
                 for i in 0..len {
                     // load each element of the array
-                    let index = self
-                        .current_function
-                        .dfg
-                        .make_constant(FieldElement::from(i as i128), Type::field());
+
+                    let index = self.numeric_constant(i, Type::unsigned(64));
                     let element = self.insert_array_get(value, index, typ[0].clone());
                     self.add_to_data_bus(element, databus);
                 }
