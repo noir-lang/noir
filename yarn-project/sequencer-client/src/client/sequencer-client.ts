@@ -5,8 +5,10 @@ import { WorldStateSynchronizer } from '@aztec/world-state';
 import { SoloBlockBuilder } from '../block_builder/solo_block_builder.js';
 import { SequencerClientConfig } from '../config.js';
 import { getGlobalVariableBuilder } from '../global_variable_builder/index.js';
-import { Sequencer, SequencerConfig, getL1Publisher, getVerificationKeys } from '../index.js';
+import { getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyRollupProver } from '../prover/empty.js';
+import { getL1Publisher } from '../publisher/index.js';
+import { Sequencer, SequencerConfig } from '../sequencer/index.js';
 import { PublicProcessorFactory } from '../sequencer/public_processor.js';
 import { RealRollupCircuitSimulator } from '../simulator/rollup.js';
 

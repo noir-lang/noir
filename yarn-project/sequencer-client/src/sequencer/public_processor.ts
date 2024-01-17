@@ -49,7 +49,7 @@ import { to2Fields } from '@aztec/foundation/serialize';
 import { Timer } from '@aztec/foundation/timer';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
-import { getVerificationKeys } from '../index.js';
+import { getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyPublicProver } from '../prover/empty.js';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
