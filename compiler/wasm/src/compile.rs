@@ -198,7 +198,7 @@ pub fn compile(
         let compile_output = generate_contract_artifact(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
     } else {
-        let compiled_program = compile_main(&mut context, crate_id, &compile_options, None, true)
+        let compiled_program = compile_main(&mut context, crate_id, &compile_options, None)
             .map_err(|errs| {
                 CompileError::with_file_diagnostics(
                     "Failed to compile program",

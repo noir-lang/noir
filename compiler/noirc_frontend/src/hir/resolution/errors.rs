@@ -60,8 +60,8 @@ pub enum ResolverError {
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
-    #[error("Incorrect amount of arguments to generic type constructor")]
-    IncorrectGenericCount { span: Span, struct_type: String, actual: usize, expected: usize },
+    #[error("Incorrect amount of arguments to {item_name}")]
+    IncorrectGenericCount { span: Span, item_name: String, actual: usize, expected: usize },
     #[error("{0}")]
     ParserError(Box<ParserError>),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
@@ -82,6 +82,8 @@ pub enum ResolverError {
     NonCrateFunctionCalled { name: String, span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { span: Span },
+    #[error("Nested slices are not supported")]
+    NestedSlices { span: Span },
 }
 
 impl ResolverError {
@@ -259,12 +261,12 @@ impl From<ResolverError> for Diagnostic {
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
                 span,
             ),
-            ResolverError::IncorrectGenericCount { span, struct_type, actual, expected } => {
+            ResolverError::IncorrectGenericCount { span, item_name, actual, expected } => {
                 let expected_plural = if expected == 1 { "" } else { "s" };
                 let actual_plural = if actual == 1 { "is" } else { "are" };
 
                 Diagnostic::simple_error(
-                    format!("The struct type {struct_type} has {expected} generic{expected_plural} but {actual} {actual_plural} given here"),
+                    format!("`{item_name}` has {expected} generic argument{expected_plural} but {actual} {actual_plural} given here"),
                     "Incorrect number of generic arguments".into(),
                     span,
                 )
@@ -304,6 +306,11 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
                 "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
+            ResolverError::NestedSlices { span } => Diagnostic::simple_error(
+                "Nested slices are not supported".into(),
+                "Try to use a constant sized array instead".into(),
+                span,
+            ),
         }
     }
 }
