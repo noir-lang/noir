@@ -1197,9 +1197,9 @@ impl NodeInterner {
 
         let instantiated_object_type = object_type.substitute(&substitutions);
 
-        // Ignoring overlapping TraitImplKind::Assumed impls here is perfectly fine.
+        // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even
-        // if they were, we should never prevent defining a new impl because a where
+        // if they were, we should never prevent defining a new impl because a 'where'
         // clause already assumes it exists.
         if let Ok((TraitImplKind::Normal(existing), _)) = self.try_lookup_trait_implementation(
             &instantiated_object_type,
