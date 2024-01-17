@@ -1,6 +1,8 @@
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
+use chumsky::input::BoxedStream;
+use chumsky::util::MaybeRef;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
@@ -9,6 +11,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 
 use super::labels::ParsingRuleLabel;
+use super::ChumskyInput;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
@@ -172,30 +175,23 @@ impl From<ParserError> for Diagnostic {
     }
 }
 
-impl chumsky::Error<Token> for ParserError {
-    type Span = Span;
-    type Label = ParsingRuleLabel;
-
-    fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
-    where
-        Iter: IntoIterator<Item = Option<Token>>,
-    {
-        ParserError {
-            expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
+impl chumsky::error::Error<'static, ChumskyInput> for ParserError {
+    fn expected_found<Iter: IntoIterator<Item = Option<MaybeRef<'static, Token>>>>(
+        expected: Iter,
+        found: Option<MaybeRef<'static, Token>>,
+        span: Span,
+    ) -> Self {
+        Self {
+            expected_tokens: expected
+                .into_iter()
+                .map(|opt| opt.as_deref().cloned().unwrap_or(Token::EOF))
+                .collect(),
             expected_labels: SmallOrdSet::new(),
-            found: found.unwrap_or(Token::EOF),
+            found: found.as_deref().cloned().unwrap_or(Token::EOF),
             reason: None,
             span,
         }
     }
-
-    fn with_label(mut self, label: Self::Label) -> Self {
-        self.expected_tokens.clear();
-        self.expected_labels.clear();
-        self.expected_labels.insert(label);
-        self
-    }
-
     // Merge two errors into a new one that should encompass both.
     // If one error has a more specific reason with it then keep
     // that reason and discard the other if present.

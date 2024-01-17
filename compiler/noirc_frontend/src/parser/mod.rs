@@ -18,8 +18,10 @@ use crate::{
     StatementKind, TypeImpl, UseTree,
 };
 
+use chumsky::container::Container;
+use chumsky::extra::Err;
+use chumsky::input::{BoxedStream, SpannedInput, Stream};
 use chumsky::prelude::*;
-use chumsky::primitive::Container;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
@@ -40,10 +42,15 @@ pub(crate) enum TopLevelStatement {
     Error,
 }
 
+pub(crate) type ChumskyInput = SpannedInput<Token, Span, BoxedStream<'static, (Token, Span)>>;
+
 // Helper trait that gives us simpler type signatures for return types:
 // e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
-pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {}
-impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
+pub trait NoirParser<T>:
+    Parser<'static, ChumskyInput, T, Err<ParserError>> + Sized + Clone
+{
+}
+impl<P, T> NoirParser<T> for P where P: Parser<'static, ChumskyInput, T, Err<ParserError>> + Clone {}
 
 // ExprParser just serves as a type alias for NoirParser<Expression> + Clone
 trait ExprParser: NoirParser<Expression> {}
@@ -67,7 +74,7 @@ fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
 where
     P: NoirParser<T>,
 {
-    parser.map_with_span(|value, span| (value, span))
+    parser.map_with(|value, extra| (value, extra.span()))
 }
 
 // Parse with the first parser, then continue by
@@ -86,8 +93,7 @@ where
     F: Fn(T1, T2, Span) -> T1 + Clone,
 {
     spanned(first_parser)
-        .then(spanned(to_be_repeated).repeated())
-        .foldl(move |(a, a_span), (b, b_span)| {
+        .foldl(spanned(to_be_repeated).repeated(), move |(a, a_span), (b, b_span)| {
             let span = a_span.merge(b_span);
             (f(a, b, span), span)
         })
@@ -97,7 +103,7 @@ where
 /// Sequence the two parsers.
 /// Fails if the first parser fails, otherwise forces
 /// the second parser to succeed while logging any errors.
-fn then_commit<'a, P1, P2, T1, T2: 'a>(
+fn then_commit<'a, P1, P2, T1: 'a, T2: 'a>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<(T1, T2)> + 'a
@@ -107,7 +113,7 @@ where
     T2: Clone + Recoverable,
 {
     let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
+        .map_with(|option, extra| option.unwrap_or_else(|| Recoverable::error(extra.span())));
 
     first_parser.then(second_parser)
 }
@@ -135,7 +141,7 @@ where
     T2: Recoverable,
 {
     let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
+        .map_with(|option, extra| option.unwrap_or_else(|| Recoverable::error(extra.span())));
 
     first_parser.ignore_then(second_parser)
 }

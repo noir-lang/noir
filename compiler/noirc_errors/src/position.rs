@@ -109,7 +109,7 @@ impl From<Range<u32>> for Span {
     }
 }
 
-impl chumsky::Span for Span {
+impl chumsky::span::Span for Span {
     type Context = ();
 
     type Offset = u32;
