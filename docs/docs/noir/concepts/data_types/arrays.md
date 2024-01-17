@@ -70,6 +70,10 @@ You can define multidimensional arrays:
 let array : [[Field; 2]; 2];
 let element = array[0][0];
 ```
+However, multidimensional slices are not supported. For example, the following code will error at compile time:
+```rust
+let slice : [[Field]] = [];
+```
 
 ## Types
 

@@ -1,5 +1,5 @@
 [package]
-name = "slice_struct_field"
+name = "trait_impl_generics"
 type = "bin"
 authors = [""]
 

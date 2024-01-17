@@ -1,59 +1,57 @@
-struct Empty<T> {}
-
-trait Foo {
-    fn foo(self) -> u32;
-}
-
-impl Foo for Empty<u32> {
-    fn foo(_self: Self) -> u32 { 32 }
-}
-
-impl Foo for Empty<u64> {
-    fn foo(_self: Self) -> u32 { 64 }
-}
 
 fn main() {
-    let x: Empty<u32> = Empty {};
-    let y: Empty<u64> = Empty {};
-    let z = Empty {};
+    let xs: [Field; 1] = [3];
+    let ys: [u32; 1] = [3];
+    foo(xs, ys);
 
-    assert(x.foo() == 32);
-    assert(y.foo() == 64);
-    // Types matching multiple impls will currently choose 
-    // the first matching one instead of erroring
-    assert(z.foo() == 32);
-
-    call_impl_with_generic_struct();
-    call_impl_with_generic_function();
-}
-// Ensure we can call a generic impl
-fn call_impl_with_generic_struct() {
-    let x: u8 = 7;
-    let y: i8 = 8;
-    let s2_u8 = S2 { x };
-    let s2_i8 = S2 { x: y };
-    assert(s2_u8.t2().x == 7);
-    assert(s2_i8.t2().x == 8);
+    assert_eq(15, sum(Data { a: 5, b: 10 }));
+    assert_eq(15, sum_static(Data { a: 5, b: 10 }));
 }
 
-trait T2 {
-    fn t2(self) -> Self;
+fn foo<T, U>(x: T, u: U) where T: Into<U>, U: Eq {
+    assert(x.into() == u);
 }
 
-struct S2<T> { x: T }
-
-impl<T> T2 for S2<T> {
-    fn t2(self) -> Self { self }
+trait Into<T> {
+    fn into(self) -> T;
 }
 
-fn call_impl_with_generic_function() {
-    assert(3.t3(7) == 7);
+impl<T, U, N> Into<[U; N]> for [T; N] where T: Into<U> {
+    fn into(self) -> [U; N] {
+        self.map(|x: T| x.into())
+    }
 }
 
-trait T3 {
-    fn t3<T>(self, x: T) -> T;
+impl Into<u32> for Field {
+    fn into(self) -> u32 {
+        self as u32
+    }
 }
 
-impl T3 for u32 {
-    fn t3<U>(self, y: U) -> U { y }
+/// Serialize example
+
+trait Serializable<N> {
+    fn serialize(self) -> [Field; N];
+}
+
+struct Data {
+    a: Field,
+    b: Field,
+}
+
+impl Serializable<2> for Data {
+    fn serialize(self) -> [Field; 2] {
+        [self.a, self.b]
+    }
+}
+
+fn sum<T, M>(data: T) -> Field where T: Serializable<M> {
+    let serialized = data.serialize();
+    serialized.fold(0, |acc, elem| acc + elem)
+}
+
+// Test static trait method syntax
+fn sum_static<T, M>(data: T) -> Field where T: Serializable<M> {
+    let serialized = Serializable::serialize(data);
+    serialized.fold(0, |acc, elem| acc + elem)
 }

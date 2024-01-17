@@ -124,13 +124,19 @@ jobs:
   build-noir-wasm:
     name: Build noir wasm
     runs-on: ubuntu-latest
-    needs: [build-base-js]
+    needs: [build-base-js, build-noirc-abi]
     container:
       image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
     steps:
+      - name: Download noirc abi
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: |
+            /usr/src/noir/tooling/noirc_abi_wasm
       - name: Build
         working-directory: /usr/src/noir
         run: |
@@ -160,6 +166,12 @@ jobs:
       - name: Prep downloaded artifact
         run: |
           chmod +x /usr/src/noir/target/release/nargo
+      - name: Download noirc abi
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: |
+            /usr/src/noir/tooling/noirc_abi_wasm
       - name: Download noir_wasm artifact
         uses: actions/download-artifact@v4
         with:
@@ -188,6 +200,12 @@ jobs:
       - name: Prep downloaded artifact
         run: |
           chmod +x /usr/src/noir/target/release/nargo
+      - name: Download noirc abi
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: |
+            /usr/src/noir/tooling/noirc_abi_wasm
       - name: Download noir_wasm artifact
         uses: actions/download-artifact@v4
         with:

@@ -293,8 +293,9 @@ impl FunctionBuilder {
             if let Some(rhs_constant) = self.current_function.dfg.get_numeric_constant(rhs) {
                 // Happy case is that we know precisely by how many bits the the integer will
                 // increase: lhs_bit_size + rhs
-                let (rhs_bit_size_pow_2, overflows) =
-                    2_u128.overflowing_pow(rhs_constant.to_u128() as u32);
+                let bit_shift_size = rhs_constant.to_u128() as u32;
+
+                let (rhs_bit_size_pow_2, overflows) = 2_u128.overflowing_pow(bit_shift_size);
                 if overflows {
                     assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
                     if bit_size < 128 {
@@ -303,15 +304,16 @@ impl FunctionBuilder {
                     }
                 }
                 let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
-                (bit_size + (rhs_constant.to_u128() as u32), pow)
+
+                let max_lhs_bits = self.current_function.dfg.get_value_max_num_bits(lhs);
+
+                (max_lhs_bits + bit_shift_size, pow)
             } else {
                 // we use a predicate to nullify the result in case of overflow
                 let bit_size_var =
                     self.numeric_constant(FieldElement::from(bit_size as u128), typ.clone());
                 let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
-                let one = self.numeric_constant(FieldElement::one(), Type::unsigned(1));
-                let predicate = self.insert_binary(overflow, BinaryOp::Eq, one);
-                let predicate = self.insert_cast(predicate, typ.clone());
+                let predicate = self.insert_cast(overflow, typ.clone());
                 // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
                 let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
                 let pow = self.pow(base, rhs_unsigned);

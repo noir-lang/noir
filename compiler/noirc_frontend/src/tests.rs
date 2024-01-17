@@ -118,6 +118,12 @@ mod test {
             fn eq(self, other: Foo) -> bool { self.a == other.a } 
         }
         
+        impl Default for u64 {
+            fn default() -> Self {
+                0
+            }
+        }
+        
         impl Default for Foo {
             fn default() -> Self {
                 Foo { a: Default::default() }

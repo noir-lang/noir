@@ -2,7 +2,7 @@
 title: Lambdas
 description: Learn how to use anonymous functions in Noir programming language.
 keywords: [Noir programming language, lambda, closure, function, anonymous function]
-sidebar_position: 8
+sidebar_position: 9
 ---
 
 ## Introduction
