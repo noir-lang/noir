@@ -1,0 +1,6 @@
+[package]
+name = "trait_impl_generics"
+type = "bin"
+authors = [""]
+
+[dependencies]
