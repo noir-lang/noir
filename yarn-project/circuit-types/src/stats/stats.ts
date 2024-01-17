@@ -184,6 +184,10 @@ export type TreeInsertionStats = {
   treeDepth: number;
   /** Tree type */
   treeType: 'append-only' | 'indexed';
+  /** Number of hashes performed */
+  hashCount: number;
+  /** Average duration of a hash operation */
+  hashDuration: number;
 };
 
 /** A new tx was added to the tx pool. */
