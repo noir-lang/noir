@@ -1,5 +1,4 @@
 import {
-  CancelledL1ToL2Message,
   ContractData,
   ExtendedContractData,
   ExtendedUnencryptedL2Log,
@@ -13,7 +12,6 @@ import {
   LogFilter,
   LogId,
   LogType,
-  PendingL1ToL2Message,
   TxHash,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
@@ -70,6 +68,9 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   private pendingL1ToL2Messages: PendingL1ToL2MessageStore = new PendingL1ToL2MessageStore();
 
+  private lastL1BlockAddedMessages: bigint = 0n;
+  private lastL1BlockCancelledMessages: bigint = 0n;
+
   constructor(
     /** The max number of logs that can be obtained in 1 "getUnencryptedLogs" call. */
     public readonly maxLogs: number,
@@ -108,11 +109,17 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * Append new pending L1 to L2 messages to the store.
    * @param messages - The L1 to L2 messages to be added to the store.
+   * @param l1BlockNumber - The L1 block number for which to add the messages.
    * @returns True if the operation is successful (always in this implementation).
    */
-  public addPendingL1ToL2Messages(messages: PendingL1ToL2Message[]): Promise<boolean> {
-    for (const { message, blockNumber, indexInBlock } of messages) {
-      this.pendingL1ToL2Messages.addMessage(message.entryKey!, message, blockNumber, indexInBlock);
+  public addPendingL1ToL2Messages(messages: L1ToL2Message[], l1BlockNumber: bigint): Promise<boolean> {
+    if (l1BlockNumber <= this.lastL1BlockAddedMessages) {
+      return Promise.resolve(false);
+    }
+
+    this.lastL1BlockAddedMessages = l1BlockNumber;
+    for (const message of messages) {
+      this.pendingL1ToL2Messages.addMessage(message.entryKey!, message);
     }
     return Promise.resolve(true);
   }
@@ -120,11 +127,17 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * Remove pending L1 to L2 messages from the store (if they were cancelled).
    * @param messages - The message keys to be removed from the store.
+   * @param l1BlockNumber - The L1 block number for which to remove the messages.
    * @returns True if the operation is successful (always in this implementation).
    */
-  public cancelPendingL1ToL2Messages(messages: CancelledL1ToL2Message[]): Promise<boolean> {
-    messages.forEach(({ entryKey, blockNumber, indexInBlock }) => {
-      this.pendingL1ToL2Messages.removeMessage(entryKey, blockNumber, indexInBlock);
+  public cancelPendingL1ToL2Messages(messages: Fr[], l1BlockNumber: bigint): Promise<boolean> {
+    if (l1BlockNumber <= this.lastL1BlockCancelledMessages) {
+      return Promise.resolve(false);
+    }
+
+    this.lastL1BlockCancelledMessages = l1BlockNumber;
+    messages.forEach(entryKey => {
+      this.pendingL1ToL2Messages.removeMessage(entryKey);
     });
     return Promise.resolve(true);
   }
@@ -137,8 +150,8 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   public confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean> {
     messageKeys.forEach(messageKey => {
-      this.confirmedL1ToL2Messages.addMessageUnsafe(messageKey, this.pendingL1ToL2Messages.getMessage(messageKey)!);
-      this.pendingL1ToL2Messages.removeMessageUnsafe(messageKey);
+      this.confirmedL1ToL2Messages.addMessage(messageKey, this.pendingL1ToL2Messages.getMessage(messageKey)!);
+      this.pendingL1ToL2Messages.removeMessage(messageKey);
     });
     return Promise.resolve(true);
   }
@@ -390,10 +403,15 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     return Promise.resolve(this.l2BlockContexts[this.l2BlockContexts.length - 1].block.number);
   }
 
-  public getL1BlockNumber(): Promise<bigint> {
-    if (this.l2BlockContexts.length === 0) {
-      return Promise.resolve(0n);
-    }
-    return Promise.resolve(this.l2BlockContexts[this.l2BlockContexts.length - 1].block.getL1BlockNumber());
+  public getL1BlockNumber() {
+    const addedBlock = this.l2BlockContexts[this.l2BlockContexts.length - 1]?.block?.getL1BlockNumber() ?? 0n;
+    const addedMessages = this.lastL1BlockAddedMessages;
+    const cancelledMessages = this.lastL1BlockCancelledMessages;
+
+    return Promise.resolve({
+      addedBlock,
+      addedMessages,
+      cancelledMessages,
+    });
   }
 }

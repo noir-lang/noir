@@ -63,34 +63,6 @@ export class L1ToL2MessageAndIndex {
 }
 
 /**
- * An L1 to L2 message emitted in a particular L1 block.
- */
-export class PendingL1ToL2Message {
-  constructor(
-    /** the message */
-    public readonly message: L1ToL2Message,
-    /** the L1 block this message was emitted in */
-    public readonly blockNumber: bigint,
-    /** at which index in the L1 block this message was emitted */
-    public readonly indexInBlock: number,
-  ) {}
-}
-
-/**
- * An L1 to L2 message that was cancelled.
- */
-export class CancelledL1ToL2Message {
-  constructor(
-    /** the message */
-    public readonly entryKey: Fr,
-    /** the L1 block this message was emitted in */
-    public readonly blockNumber: bigint,
-    /** at which index in the L1 block this message was emitted */
-    public readonly indexInBlock: number,
-  ) {}
-}
-
-/**
  * The format of an L1 to L2 Message.
  */
 export class L1ToL2Message {

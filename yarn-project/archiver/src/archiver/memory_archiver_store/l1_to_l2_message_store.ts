@@ -11,21 +11,11 @@ export class L1ToL2MessageStore {
    * messages (and the number of times the message has been seen).
    */
   protected store: Map<bigint, L1ToL2MessageAndCount> = new Map();
-  private messagesByBlock = new Set<string>();
 
   constructor() {}
 
-  addMessage(messageKey: Fr, message: L1ToL2Message, l1BlocKNumber: bigint, messageIndex: number) {
-    if (this.messagesByBlock.has(`${l1BlocKNumber}-${messageIndex}`)) {
-      return;
-    }
-    this.messagesByBlock.add(`${l1BlocKNumber}-${messageIndex}`);
-
-    this.addMessageUnsafe(messageKey, message);
-  }
-
-  addMessageUnsafe(messageKey: Fr, message: L1ToL2Message) {
-    const messageKeyBigInt = messageKey.value;
+  addMessage(messageKey: Fr, message: L1ToL2Message) {
+    const messageKeyBigInt = messageKey.toBigInt();
     const msgAndCount = this.store.get(messageKeyBigInt);
     if (msgAndCount) {
       msgAndCount.count++;
@@ -48,7 +38,6 @@ export class L1ToL2MessageStore {
  * for removing messages or fetching multiple messages.
  */
 export class PendingL1ToL2MessageStore extends L1ToL2MessageStore {
-  private cancelledMessagesByBlock = new Set<string>();
   getMessageKeys(limit: number): Fr[] {
     if (limit < 1) {
       return [];
@@ -68,20 +57,12 @@ export class PendingL1ToL2MessageStore extends L1ToL2MessageStore {
     return messages;
   }
 
-  removeMessage(messageKey: Fr, l1BlockNumber: bigint, messageIndex: number) {
+  removeMessage(messageKey: Fr) {
     // ignore 0 - messageKey is a hash, so a 0 can probabilistically never occur. It is best to skip it.
     if (messageKey.equals(Fr.ZERO)) {
       return;
     }
 
-    if (this.cancelledMessagesByBlock.has(`${l1BlockNumber}-${messageIndex}`)) {
-      return;
-    }
-    this.cancelledMessagesByBlock.add(`${l1BlockNumber}-${messageIndex}`);
-    this.removeMessageUnsafe(messageKey);
-  }
-
-  removeMessageUnsafe(messageKey: Fr) {
     const messageKeyBigInt = messageKey.value;
     const msgAndCount = this.store.get(messageKeyBigInt);
     if (!msgAndCount) {
