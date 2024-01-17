@@ -97,9 +97,10 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
 }
 
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
-    let file_ids: Vec<_> = file_manager.as_file_map().all_file_ids().collect();
-    file_ids
-        .into_par_iter()
+    file_manager
+        .as_file_map()
+        .all_file_ids()
+        .par_bridge()
         .filter(|&&file_id| {
             let file_path = file_manager.path(file_id).expect("expected file to exist");
             let file_extension =
