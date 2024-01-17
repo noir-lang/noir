@@ -1,5 +1,7 @@
 use fm::FileId;
-use lsp_types::{DeclarationCapability, DefinitionOptions, OneOf};
+use lsp_types::{
+    DeclarationCapability, DefinitionOptions, OneOf, TypeDefinitionProviderCapability,
+};
 use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
@@ -25,7 +27,8 @@ pub(crate) mod request {
 
     // Re-providing lsp_types that we don't need to override
     pub(crate) use lsp_types::request::{
-        CodeLensRequest as CodeLens, Formatting, GotoDeclaration, GotoDefinition, Shutdown,
+        CodeLensRequest as CodeLens, Formatting, GotoDeclaration, GotoDefinition,
+        GotoTypeDefinition, Shutdown,
     };
 
     #[derive(Debug)]
@@ -117,6 +120,10 @@ pub(crate) struct ServerCapabilities {
     /// The server provides goto definition support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) definition_provider: Option<OneOf<bool, DefinitionOptions>>,
+
+    /// The server provides goto type definition support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) type_definition_provider: Option<TypeDefinitionProviderCapability>,
 
     /// The server provides code lens.
     #[serde(skip_serializing_if = "Option::is_none")]
