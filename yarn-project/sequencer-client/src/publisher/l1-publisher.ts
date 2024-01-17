@@ -75,24 +75,24 @@ export interface L1PublisherTxSender {
   getTransactionStats(txHash: string): Promise<TransactionStats | undefined>;
 
   /**
-   * Returns the current state hash.
-   * @returns The current state hash of the rollup contract.
+   * Returns the current archive root.
+   * @returns The current archive root of the rollup contract.
    */
-  getCurrentStateHash(): Promise<Buffer>;
+  getCurrentArchive(): Promise<Buffer>;
 }
 
 /**
- * Encoded block data and proof ready to be pushed to the L1 contract.
+ * Encoded block and proof ready to be pushed to the L1 contract.
  */
 export type L1ProcessArgs = {
-  /**
-   * Root rollup proof for an L1 block.
-   */
+  /** The L2 block header. */
+  header: Buffer;
+  /** A root of the archive tree after the L2 block is applied. */
+  archive: Buffer;
+  /** L2 block body. */
+  body: Buffer;
+  /** Root rollup proof of the L2 block. */
   proof: Buffer;
-  /**
-   * Serialized L2Block data.
-   */
-  inputs: Buffer;
 };
 
 /**
@@ -124,22 +124,25 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   /**
-   * Processes incoming L2 block data by publishing it to the L1 rollup contract.
-   * @param l2BlockData - L2 block data to publish.
+   * Publishes L2 block on L1.
+   * @param block - L2 block to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processL2Block(l2BlockData: L2Block): Promise<boolean> {
-    const proof = Buffer.alloc(0);
-    const txData = { proof, inputs: l2BlockData.toBufferWithLogs() };
-    const startStateHash = l2BlockData.getStartStateHash();
+  public async processL2Block(block: L2Block): Promise<boolean> {
+    const txData = {
+      header: block.header.toBuffer(),
+      archive: block.archive.root.toBuffer(),
+      body: block.bodyToBuffer(),
+      proof: Buffer.alloc(0),
+    };
+    const lastArchive = block.header.lastArchive.root.toBuffer();
 
     while (!this.interrupted) {
       // TODO: Remove this block number check, it's here because we don't currently have proper genesis state on the contract
-      // TODO(#3936): Temporarily disabling this because L2Block encoding has not yet been updated.
-      // if (l2BlockData.number != 1 && !(await this.checkStartStateHash(startStateHash))) {
-      //   this.log(`Detected different state hash prior to publishing rollup, aborting publish...`);
-      //   break;
-      // }
+      if (block.number != 1 && !(await this.checkLastArchiveHash(lastArchive))) {
+        this.log(`Detected different last archive prior to publishing a block, aborting publish...`);
+        break;
+      }
 
       const txHash = await this.sendProcessTx(txData);
       if (!txHash) {
@@ -157,7 +160,7 @@ export class L1Publisher implements L2BlockReceiver {
         const stats: L1PublishStats = {
           ...pick(receipt, 'gasPrice', 'gasUsed', 'transactionHash'),
           ...pick(tx!, 'calldataGas', 'calldataSize'),
-          ...l2BlockData.getStats(),
+          ...block.getStats(),
           eventName: 'rollup-published-to-l1',
         };
         this.log.info(`Published L2 block to L1 rollup contract`, stats);
@@ -165,7 +168,7 @@ export class L1Publisher implements L2BlockReceiver {
       }
 
       // Check if someone else incremented the block number
-      if (!(await this.checkStartStateHash(startStateHash))) {
+      if (!(await this.checkLastArchiveHash(lastArchive))) {
         this.log('Publish failed. Detected different state hash.');
         break;
       }
@@ -238,16 +241,16 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   /**
-   * Verifies that the given value of start state hash equals that on the rollup contract
-   * @param startStateHash - The start state hash of the block we wish to publish.
+   * Verifies that the given value of last archive in a block header equals current archive of the rollup contract
+   * @param lastArchive - The last archive of the block we wish to publish.
    * @returns Boolean indicating if the hashes are equal.
    */
-  private async checkStartStateHash(startStateHash: Buffer): Promise<boolean> {
-    const fromChain = await this.txSender.getCurrentStateHash();
-    const areSame = startStateHash.equals(fromChain);
+  private async checkLastArchiveHash(lastArchive: Buffer): Promise<boolean> {
+    const fromChain = await this.txSender.getCurrentArchive();
+    const areSame = lastArchive.equals(fromChain);
     if (!areSame) {
-      this.log(`CONTRACT STATE HASH: ${fromChain.toString('hex')}`);
-      this.log(`NEW BLOCK STATE HASH: ${startStateHash.toString('hex')}`);
+      this.log(`CONTRACT ARCHIVE: ${fromChain.toString('hex')}`);
+      this.log(`NEW BLOCK LAST ARCHIVE: ${lastArchive.toString('hex')}`);
     }
     return areSame;
   }

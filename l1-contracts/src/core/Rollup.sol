@@ -9,7 +9,7 @@ import {IOutbox} from "./interfaces/messagebridge/IOutbox.sol";
 import {IRegistry} from "./interfaces/messagebridge/IRegistry.sol";
 
 // Libraries
-import {HeaderDecoder} from "./libraries/decoders/HeaderDecoder.sol";
+import {HeaderLib} from "./libraries/HeaderLib.sol";
 import {MessagesDecoder} from "./libraries/decoders/MessagesDecoder.sol";
 import {Hash} from "./libraries/Hash.sol";
 import {Errors} from "./libraries/Errors.sol";
@@ -21,7 +21,7 @@ import {AvailabilityOracle} from "./availability_oracle/AvailabilityOracle.sol";
 /**
  * @title Rollup
  * @author Aztec Labs
- * @notice Rollup contract that are concerned about readability and velocity of development
+ * @notice Rollup contract that is concerned about readability and velocity of development
  * not giving a damn about gas costs.
  */
 contract Rollup is IRollup {
@@ -30,7 +30,7 @@ contract Rollup is IRollup {
   uint256 public immutable VERSION;
   AvailabilityOracle public immutable AVAILABILITY_ORACLE;
 
-  bytes32 public rollupStateHash;
+  bytes32 public archive; // Root of the archive tree
   uint256 public lastBlockTs;
   // Tracks the last time time was warped on L2 ("warp" is the testing cheatcode).
   // See https://github.com/AztecProtocol/aztec-packages/issues/1614
@@ -44,23 +44,28 @@ contract Rollup is IRollup {
   }
 
   /**
-   * @notice Process an incoming L2Block and progress the state
+   * @notice Process an incoming L2 block and progress the state
+   * @param _header - The L2 block header
+   * @param _archive - A root of the archive tree after the L2 block is applied
+   * @param _body - The L2 block body
    * @param _proof - The proof of correct execution
-   * @param _l2Block - The L2Block data, formatted as outlined in `Decoder.sol`
    */
-  function process(bytes memory _proof, bytes calldata _l2Block) external override(IRollup) {
-    _constrainGlobals(_l2Block);
-
-    // Decode the header
-    (uint256 l2BlockNumber, bytes32 oldStateHash, bytes32 newStateHash) =
-      HeaderDecoder.decode(_l2Block[:HeaderDecoder.BLOCK_HEADER_SIZE]);
+  function process(
+    bytes calldata _header,
+    bytes32 _archive,
+    bytes calldata _body, // TODO(#3944): this will be replaced with _txsHash once the separation is finished.
+    bytes memory _proof
+  ) external override(IRollup) {
+    // Decode and validate header
+    HeaderLib.Header memory header = HeaderLib.decode(_header);
+    HeaderLib.validate(header, VERSION, lastBlockTs, archive);
 
     // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
     bytes32 txsHash;
     {
       // @todo @LHerskind Hack such that the node is unchanged for now.
       // should be removed when we have a proper block publication.
-      txsHash = AVAILABILITY_ORACLE.publish(_l2Block[HeaderDecoder.BLOCK_HEADER_SIZE:]);
+      txsHash = AVAILABILITY_ORACLE.publish(_body);
     }
 
     if (!AVAILABILITY_ORACLE.isAvailable(txsHash)) {
@@ -70,25 +75,18 @@ contract Rollup is IRollup {
 
     // Decode the cross-chain messages
     (bytes32 inHash,, bytes32[] memory l1ToL2Msgs, bytes32[] memory l2ToL1Msgs) =
-      MessagesDecoder.decode(_l2Block[HeaderDecoder.BLOCK_HEADER_SIZE:]);
-
-    bytes32 publicInputHash =
-      _computePublicInputHash(_l2Block[:HeaderDecoder.BLOCK_HEADER_SIZE], txsHash, inHash);
-
-    // @todo @LHerskind Proper genesis state. If the state is empty, we allow anything for now.
-    // TODO(#3936): Temporarily disabling this because L2Block encoding has not yet been updated.
-    // if (rollupStateHash != bytes32(0) && rollupStateHash != oldStateHash) {
-    //   revert Errors.Rollup__InvalidStateHash(rollupStateHash, oldStateHash);
-    // }
+      MessagesDecoder.decode(_body);
 
     bytes32[] memory publicInputs = new bytes32[](1);
-    publicInputs[0] = publicInputHash;
+    publicInputs[0] = _computePublicInputHash(_header, txsHash, inHash);
 
+    // @todo @benesjan We will need `nextAvailableLeafIndex` of archive to verify the proof. This value is equal to
+    // current block number which is stored in the header (header.globalVariables.blockNumber).
     if (!VERIFIER.verify(_proof, publicInputs)) {
       revert Errors.Rollup__InvalidProof();
     }
 
-    rollupStateHash = newStateHash;
+    archive = _archive;
     lastBlockTs = block.timestamp;
 
     // @todo (issue #605) handle fee collector
@@ -98,34 +96,7 @@ contract Rollup is IRollup {
     IOutbox outbox = REGISTRY.getOutbox();
     outbox.sendL1Messages(l2ToL1Msgs);
 
-    emit L2BlockProcessed(l2BlockNumber);
-  }
-
-  function _constrainGlobals(bytes calldata _header) internal view {
-    uint256 chainId = uint256(bytes32(_header[:0x20]));
-    uint256 version = uint256(bytes32(_header[0x20:0x40]));
-    uint256 ts = uint256(bytes32(_header[0x60:0x80]));
-    // block number already constrained by start state hash
-
-    if (block.chainid != chainId) {
-      revert Errors.Rollup__InvalidChainId(chainId, block.chainid);
-    }
-
-    if (version != VERSION) {
-      revert Errors.Rollup__InvalidVersion(version, VERSION);
-    }
-
-    if (ts > block.timestamp) {
-      revert Errors.Rollup__TimestampInFuture();
-    }
-
-    // @todo @LHerskind consider if this is too strict
-    // This will make multiple l2 blocks in the same l1 block impractical.
-    // e.g., the first block will update timestamp which will make the second fail.
-    // Could possibly allow multiple blocks if in same l1 block
-    if (ts < lastBlockTs) {
-      revert Errors.Rollup__TimestampTooOld();
-    }
+    emit L2BlockProcessed(header.globalVariables.blockNumber);
   }
 
   function _computePublicInputHash(bytes calldata _header, bytes32 _txsHash, bytes32 _inHash)

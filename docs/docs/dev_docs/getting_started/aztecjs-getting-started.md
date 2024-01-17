@@ -140,9 +140,6 @@ A successful run should show something like this:
   token     },
   token     contractDeploymentEmitterAddress: EthAddress {
   token       buffer: <Buffer 5f c8 d3 26 90 cc 91 d4 c3 9d 9d 3a bc bd 16 98 9f 87 57 07>
-  token     },
-  token     decoderHelperAddress: EthAddress {
-  token       buffer: <Buffer 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>
   token     }
   token   }
   token } +0ms
@@ -189,9 +186,6 @@ Now that we have our accounts loaded, let's move on to deploy our pre-compiled t
   token     },
   token     contractDeploymentEmitterAddress: EthAddress {
   token       buffer: <Buffer 5f c8 d3 26 90 cc 91 d4 c3 9d 9d 3a bc bd 16 98 9f 87 57 07>
-  token     },
-  token     decoderHelperAddress: EthAddress {
-  token       buffer: <Buffer 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>
   token     }
   token   }
   token } +0ms
@@ -244,9 +238,6 @@ Running now should yield output:
   token     },
   token     contractDeploymentEmitterAddress: EthAddress {
   token       buffer: <Buffer 5f c8 d3 26 90 cc 91 d4 c3 9d 9d 3a bc bd 16 98 9f 87 57 07>
-  token     },
-  token     decoderHelperAddress: EthAddress {
-  token       buffer: <Buffer 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>
   token     }
   token   }
   token } +0ms
@@ -309,9 +300,6 @@ Our output should now look like this:
   token     },
   token     contractDeploymentEmitterAddress: EthAddress {
   token       buffer: <Buffer 5f c8 d3 26 90 cc 91 d4 c3 9d 9d 3a bc bd 16 98 9f 87 57 07>
-  token     },
-  token     decoderHelperAddress: EthAddress {
-  token       buffer: <Buffer 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>
   token     }
   token   }
   token } +0ms
@@ -369,9 +357,6 @@ Our complete output should now be something like:
   token     },
   token     contractDeploymentEmitterAddress: EthAddress {
   token       buffer: <Buffer 5f c8 d3 26 90 cc 91 d4 c3 9d 9d 3a bc bd 16 98 9f 87 57 07>
-  token     },
-  token     decoderHelperAddress: EthAddress {
-  token       buffer: <Buffer 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>
   token     }
   token   }
   token } +0ms

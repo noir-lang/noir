@@ -5,7 +5,13 @@ pragma solidity >=0.8.18;
 import {Test} from "forge-std/Test.sol";
 
 contract DecoderBase is Test {
+  struct AppendOnlyTreeSnapshot {
+    uint32 nextAvailableLeafIndex;
+    bytes32 root;
+  }
+
   // When I had data and messages as one combined struct it failed, but I can have this top-layer and it works :shrug:
+  // Note: Members of the struct (and substructs) have to be in ALPHABETICAL order!
   struct Full {
     Data block;
     Messages messages;
@@ -24,14 +30,39 @@ contract DecoderBase is Test {
   }
 
   struct Data {
-    uint256 blockNumber;
+    bytes32 archive;
     bytes body;
     bytes32 calldataHash;
-    bytes32 endStateHash;
+    DecodedHeader decodedHeader;
+    bytes header;
     bytes32 l1ToL2MessagesHash;
     bytes32 publicInputsHash;
-    bytes32 startStateHash;
+  }
+
+  struct DecodedHeader {
+    bytes32 bodyHash;
+    GlobalVariables globalVariables;
+    AppendOnlyTreeSnapshot lastArchive;
+    StateReference stateReference;
+  }
+
+  struct GlobalVariables {
+    uint256 blockNumber;
+    uint256 chainId;
     uint256 timestamp;
+    uint256 version;
+  }
+
+  struct StateReference {
+    AppendOnlyTreeSnapshot l1ToL2MessageTree;
+    PartialStateReference partialStateReference;
+  }
+
+  struct PartialStateReference {
+    AppendOnlyTreeSnapshot contractTree;
+    AppendOnlyTreeSnapshot noteHashTree;
+    AppendOnlyTreeSnapshot nullifierTree;
+    AppendOnlyTreeSnapshot publicDataTree;
   }
 
   function load(string memory name) public view returns (Full memory) {

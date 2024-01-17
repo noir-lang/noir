@@ -108,40 +108,6 @@ library Decoder {
     START_TREES_BLOCK_HEADER_OFFSET + 2 * TREES_BLOCK_HEADER_SIZE;
 
   /**
-   * @notice Decodes the inputs and computes values to check state against
-   * @param _l2Block - The L2 block calldata.
-   * @return l2BlockNumber  - The L2 block number.
-   * @return startStateHash - The state hash expected prior the execution.
-   * @return endStateHash - The state hash expected after the execution.
-   * @return publicInputHash - The hash of the public inputs
-   * @return l2ToL1Msgs - The L2 to L1 messages
-   * @return l1ToL2Msgs - The L1 to L2 messages
-   */
-  function decode(bytes calldata _l2Block)
-    internal
-    pure
-    returns (
-      uint256 l2BlockNumber,
-      bytes32 startStateHash,
-      bytes32 endStateHash,
-      bytes32 publicInputHash,
-      bytes32[] memory l2ToL1Msgs,
-      bytes32[] memory l1ToL2Msgs
-    )
-  {
-    l2BlockNumber = getL2BlockNumber(_l2Block);
-    // Note, for startStateHash to match the storage, the l2 block number must be new - 1.
-    // Only jumping 1 block at a time.
-    startStateHash = computeStateHash(l2BlockNumber - 1, START_TREES_BLOCK_HEADER_OFFSET, _l2Block);
-    endStateHash = computeStateHash(l2BlockNumber, END_TREES_BLOCK_HEADER_OFFSET, _l2Block);
-
-    bytes32 diffRoot;
-    bytes32 l1ToL2MsgsHash;
-    (diffRoot, l1ToL2MsgsHash, l2ToL1Msgs, l1ToL2Msgs) = computeConsumables(_l2Block);
-    publicInputHash = computePublicInputHash(_l2Block, diffRoot, l1ToL2MsgsHash);
-  }
-
-  /**
    * @notice Computes the public input hash
    * @dev Uses sha256 to field
    * @param _l2Block - The L2 block calldata.
@@ -189,13 +155,13 @@ library Decoder {
 
   /**
    * @notice Computes consumables for the block
-   * @param _l2Block - The L2 block calldata.
+   * @param _body - The L2 block body.
    * @return diffRoot - The root of the diff tree (new commitments, nullifiers etc)
    * @return l1ToL2MsgsHash - The hash of the L1 to L2 messages
    * @return l2ToL1Msgs - The L2 to L1 messages of the block
    * @return l1ToL2Msgs - The L1 to L2 messages of the block
    */
-  function computeConsumables(bytes calldata _l2Block)
+  function computeConsumables(bytes calldata _body)
     internal
     pure
     returns (bytes32, bytes32, bytes32[] memory, bytes32[] memory)
@@ -204,52 +170,53 @@ library Decoder {
     ConsumablesVars memory vars;
 
     {
-      uint256 offset = BLOCK_HEADER_OFFSET;
+      uint256 offset = 0;
 
       // Commitments
-      uint256 count = read4(_l2Block, offset);
+      uint256 count = read4(_body, offset);
       vars.baseLeaves = new bytes32[](count / Constants.MAX_NEW_COMMITMENTS_PER_TX);
-      offsets.commitment = BLOCK_HEADER_OFFSET + 0x4;
-      offset += 0x4 + count * 0x20;
+      offset += 0x4;
+      offsets.commitment = offset;
+      offset += count * 0x20;
       offsets.nullifier = offset + 0x4; // + 0x4 to offset by next read4
 
       // Nullifiers
-      count = read4(_l2Block, offset);
+      count = read4(_body, offset);
       offset += 0x4 + count * 0x20;
       offsets.publicData = offset + 0x4; // + 0x4 to offset by next read4
 
       // Public data writes
-      count = read4(_l2Block, offset);
+      count = read4(_body, offset);
       offset += 0x4 + count * 0x40;
       offsets.l2ToL1Msgs = offset + 0x4; // + 0x4 to offset by next read4
 
       // L2 to L1 messages
-      count = read4(_l2Block, offset);
+      count = read4(_body, offset);
       vars.l2ToL1Msgs = new bytes32[](count);
       assembly {
         // load the l2 to l1 msgs (done here as offset will be altered in loop)
         let l2ToL1Msgs := mload(add(vars, 0x20))
         calldatacopy(
-          add(l2ToL1Msgs, 0x20), add(_l2Block.offset, mload(add(offsets, 0x60))), mul(count, 0x20)
+          add(l2ToL1Msgs, 0x20), add(_body.offset, mload(add(offsets, 0x60))), mul(count, 0x20)
         )
       }
       offset += 0x4 + count * 0x20;
       offsets.contracts = offset + 0x4; // + 0x4 to offset by next read4
 
       // Contracts
-      count = read4(_l2Block, offset);
+      count = read4(_body, offset);
       offsets.contractData = offsets.contracts + count * 0x20;
       offset += 0x4 + count * 0x54;
       offsets.l1ToL2Msgs = offset + 0x4; // + 0x4 to offset by next read4
 
       // L1 to L2 messages
-      count = read4(_l2Block, offset);
+      count = read4(_body, offset);
       vars.l1Tol2MsgsCount = count;
       offset += 0x4 + count * 0x20;
       offsets.encryptedLogs = offset + 0x4; // + 0x4 to offset by next read4
 
       // Used as length in bytes down here
-      uint256 length = read4(_l2Block, offset);
+      uint256 length = read4(_body, offset);
       offsets.unencryptedLogs = offsets.encryptedLogs + 0x4 + length;
     }
 
@@ -278,26 +245,24 @@ library Decoder {
          * Note: will advance offsets by the number of bytes processed.
          */
         (vars.encryptedLogsHash, offsets.encryptedLogs) =
-          computeKernelLogsHash(offsets.encryptedLogs, _l2Block);
+          computeKernelLogsHash(offsets.encryptedLogs, _body);
 
         (vars.unencryptedLogsHash, offsets.unencryptedLogs) =
-          computeKernelLogsHash(offsets.unencryptedLogs, _l2Block);
+          computeKernelLogsHash(offsets.unencryptedLogs, _body);
 
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
           bytes.concat(
-            slice(_l2Block, offsets.commitment, Constants.COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP),
-            slice(_l2Block, offsets.nullifier, Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP),
-            slice(
-              _l2Block, offsets.publicData, Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP
-            ),
-            slice(_l2Block, offsets.l2ToL1Msgs, Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP),
-            slice(_l2Block, offsets.contracts, Constants.CONTRACTS_NUM_BYTES_PER_BASE_ROLLUP)
+            slice(_body, offsets.commitment, Constants.COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP),
+            slice(_body, offsets.nullifier, Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP),
+            slice(_body, offsets.publicData, Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP),
+            slice(_body, offsets.l2ToL1Msgs, Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP),
+            slice(_body, offsets.contracts, Constants.CONTRACTS_NUM_BYTES_PER_BASE_ROLLUP)
           ),
           bytes.concat(
-            slice(_l2Block, offsets.contractData, 0x20), // newContractDataKernel.aztecAddress
+            slice(_body, offsets.contractData, 0x20), // newContractDataKernel.aztecAddress
             bytes12(0),
-            slice(_l2Block, offsets.contractData + 0x20, 0x14) // newContractDataKernel.ethAddress
+            slice(_body, offsets.contractData + 0x20, 0x14) // newContractDataKernel.ethAddress
           ),
           bytes.concat(vars.encryptedLogsHash, vars.unencryptedLogsHash)
         );
@@ -324,7 +289,7 @@ library Decoder {
       assembly {
         calldatacopy(
           add(l1ToL2Msgs, 0x20),
-          add(_l2Block.offset, mload(add(offsets, 0xc0))),
+          add(_body.offset, mload(add(offsets, 0xc0))),
           l1ToL2MsgsHashPreimageSize
         )
       }

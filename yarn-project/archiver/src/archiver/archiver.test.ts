@@ -269,7 +269,7 @@ describe('Archiver', () => {
 function makeL2BlockProcessedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
   return {
     blockNumber: l1BlockNum,
-    args: { blockNum: l2BlockNum },
+    args: { blockNumber: l2BlockNum },
     transactionHash: `0x${l2BlockNum}`,
   } as Log<bigint, number, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>;
 }
@@ -349,8 +349,10 @@ function makeL1ToL2MessageCancelledEvents(l1BlockNum: bigint, entryKeys: string[
  * @returns A fake tx with calldata that corresponds to calling process in the Rollup contract.
  */
 function makeRollupTx(l2Block: L2Block) {
+  const header = toHex(l2Block.header.toBuffer());
+  const archive = toHex(l2Block.archive.root.toBuffer());
+  const body = toHex(l2Block.bodyToBuffer());
   const proof = `0x`;
-  const block = toHex(l2Block.toBufferWithLogs());
-  const input = encodeFunctionData({ abi: RollupAbi, functionName: 'process', args: [proof, block] });
+  const input = encodeFunctionData({ abi: RollupAbi, functionName: 'process', args: [header, archive, body, proof] });
   return { input } as Transaction<bigint, number>;
 }

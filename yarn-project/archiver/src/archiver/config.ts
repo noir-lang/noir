@@ -73,7 +73,6 @@ export function getConfigEnvVars(): ArchiverConfig {
     contractDeploymentEmitterAddress: CONTRACT_DEPLOYMENT_EMITTER_ADDRESS
       ? EthAddress.fromString(CONTRACT_DEPLOYMENT_EMITTER_ADDRESS)
       : EthAddress.ZERO,
-    decoderHelperAddress: EthAddress.ZERO,
   };
   return {
     rpcUrl: ETHEREUM_HOST || 'http://127.0.0.1:8545/',

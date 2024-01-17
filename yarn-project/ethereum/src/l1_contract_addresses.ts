@@ -24,8 +24,4 @@ export interface L1ContractAddresses {
    * Data Emitter Address.
    */
   contractDeploymentEmitterAddress: EthAddress;
-  /**
-   * Decoder Helper Address.
-   */
-  decoderHelperAddress: EthAddress;
 }

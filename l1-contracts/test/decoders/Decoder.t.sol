@@ -6,48 +6,18 @@ import {DecoderBase} from "./Base.sol";
 
 import {Hash} from "../../src/core/libraries/Hash.sol";
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
-import {DecoderHelper} from "../DecoderHelper.sol";
+
+import {DecoderHelper} from "./helpers/DecoderHelper.sol";
+import {HeaderDecoderHelper} from "./helpers/HeaderDecoderHelper.sol";
+import {MessagesDecoderHelper} from "./helpers/MessagesDecoderHelper.sol";
+import {TxsDecoderHelper} from "./helpers/TxsDecoderHelper.sol";
+import {HeaderLib} from "../../src/core/libraries/HeaderLib.sol";
 
 import {Decoder} from "../../src/core/libraries/decoders/Decoder.sol";
-import {HeaderDecoder} from "../../src/core/libraries/decoders/HeaderDecoder.sol";
 import {MessagesDecoder} from "../../src/core/libraries/decoders/MessagesDecoder.sol";
 import {TxsDecoder} from "../../src/core/libraries/decoders/TxsDecoder.sol";
 
 import {AvailabilityOracle} from "../../src/core/availability_oracle/AvailabilityOracle.sol";
-
-contract HeaderDecoderHelper {
-  // A wrapper used such that we get "calldata" and not memory
-  function decode(bytes calldata _header)
-    public
-    pure
-    returns (uint256 l2BlockNumber, bytes32 startStateHash, bytes32 endStateHash)
-  {
-    return HeaderDecoder.decode(_header);
-  }
-}
-
-contract MessagesDecoderHelper {
-  // A wrapper used such that we get "calldata" and not memory
-  function decode(bytes calldata _header)
-    public
-    pure
-    returns (
-      bytes32 l1ToL2MsgsHash,
-      bytes32 l2ToL1MsgsHash,
-      bytes32[] memory l1ToL2Msgs,
-      bytes32[] memory l2ToL1Msgs
-    )
-  {
-    return MessagesDecoder.decode(_header[HeaderDecoder.BLOCK_HEADER_SIZE:]);
-  }
-}
-
-contract TxsDecoderHelper {
-  // A wrapper used such that we get "calldata" and not memory
-  function decode(bytes calldata _header) public pure returns (bytes32 txsHash) {
-    return TxsDecoder.decode(_header[HeaderDecoder.BLOCK_HEADER_SIZE:]);
-  }
-}
 
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.
@@ -80,27 +50,109 @@ contract DecoderTest is DecoderBase {
 
     // Using the FULL decoder.
     (
-      uint256 l2BlockNumber,
-      bytes32 startStateHash,
-      bytes32 endStateHash,
-      bytes32 publicInputsHash,
+      bytes32 diffRoot,
+      bytes32 l1ToL2MessagesHash,
       bytes32[] memory l2ToL1Msgs,
       bytes32[] memory l1ToL2Msgs
-    ) = helper.decode(data.block.body);
-    (bytes32 diffRoot, bytes32 l1ToL2MessagesHash) =
-      helper.computeDiffRootAndMessagesHash(data.block.body);
+    ) = helper.computeConsumables(data.block.body);
 
     // Header
     {
-      (uint256 headerL2BlockNumber, bytes32 headerStartStateHash, bytes32 headerEndStateHash) =
-        headerHelper.decode(data.block.body);
+      DecoderBase.DecodedHeader memory referenceHeader = data.block.decodedHeader;
+      HeaderLib.Header memory header = headerHelper.decode(data.block.header);
 
-      assertEq(l2BlockNumber, data.block.blockNumber, "Invalid block number");
-      assertEq(headerL2BlockNumber, data.block.blockNumber, "Invalid block number");
-      assertEq(startStateHash, data.block.startStateHash, "Invalid start state hash");
-      assertEq(headerStartStateHash, data.block.startStateHash, "Invalid start state hash");
-      assertEq(endStateHash, data.block.endStateHash, "Invalid end state hash");
-      assertEq(headerEndStateHash, data.block.endStateHash, "Invalid end state hash");
+      // GlobalVariables
+      {
+        DecoderBase.GlobalVariables memory globalVariables = referenceHeader.globalVariables;
+
+        assertEq(
+          header.globalVariables.blockNumber, globalVariables.blockNumber, "Invalid block number"
+        );
+        assertEq(header.globalVariables.chainId, globalVariables.chainId, "Invalid chain Id");
+        assertEq(header.globalVariables.timestamp, globalVariables.timestamp, "Invalid timestamp");
+        assertEq(header.globalVariables.version, globalVariables.version, "Invalid version");
+      }
+
+      // StateReference
+      {
+        DecoderBase.StateReference memory stateReference = referenceHeader.stateReference;
+
+        // L1 -> L2 messages
+        assertEq(
+          header.stateReference.l1ToL2MessageTree.nextAvailableLeafIndex,
+          stateReference.l1ToL2MessageTree.nextAvailableLeafIndex,
+          "Invalid l1ToL2MessageTree.nextAvailableLeafIndex"
+        );
+        assertEq(
+          header.stateReference.l1ToL2MessageTree.root,
+          stateReference.l1ToL2MessageTree.root,
+          "Invalid l1ToL2MessageTree.root"
+        );
+
+        // PartialStateReference
+        {
+          DecoderBase.PartialStateReference memory partialStateReference =
+            referenceHeader.stateReference.partialStateReference;
+
+          // NoteHashTree
+          assertEq(
+            header.stateReference.partialStateReference.noteHashTree.nextAvailableLeafIndex,
+            partialStateReference.noteHashTree.nextAvailableLeafIndex,
+            "Invalid noteHashTree.nextAvailableLeafIndex"
+          );
+          assertEq(
+            header.stateReference.partialStateReference.noteHashTree.root,
+            partialStateReference.noteHashTree.root,
+            "Invalid noteHashTree.root"
+          );
+
+          // NullifierTree
+          assertEq(
+            header.stateReference.partialStateReference.nullifierTree.nextAvailableLeafIndex,
+            partialStateReference.nullifierTree.nextAvailableLeafIndex,
+            "Invalid nullifierTree.nextAvailableLeafIndex"
+          );
+          assertEq(
+            header.stateReference.partialStateReference.nullifierTree.root,
+            partialStateReference.nullifierTree.root,
+            "Invalid nullifierTree.root"
+          );
+
+          // ContractTree
+          assertEq(
+            header.stateReference.partialStateReference.contractTree.nextAvailableLeafIndex,
+            partialStateReference.contractTree.nextAvailableLeafIndex,
+            "Invalid contractTree.nextAvailableLeafIndex"
+          );
+          assertEq(
+            header.stateReference.partialStateReference.contractTree.root,
+            partialStateReference.contractTree.root,
+            "Invalid contractTree.root"
+          );
+
+          // PublicDataTree
+          assertEq(
+            header.stateReference.partialStateReference.publicDataTree.nextAvailableLeafIndex,
+            partialStateReference.publicDataTree.nextAvailableLeafIndex,
+            "Invalid publicDataTree.nextAvailableLeafIndex"
+          );
+          assertEq(
+            header.stateReference.partialStateReference.publicDataTree.root,
+            partialStateReference.publicDataTree.root,
+            "Invalid publicDataTree.root"
+          );
+        }
+      }
+
+      assertEq(
+        header.lastArchive.nextAvailableLeafIndex,
+        referenceHeader.lastArchive.nextAvailableLeafIndex,
+        "Invalid lastArchive.nextAvailableLeafIndex"
+      );
+      assertEq(
+        header.lastArchive.root, referenceHeader.lastArchive.root, "Invalid lastArchive.root"
+      );
+      assertEq(header.bodyHash, referenceHeader.bodyHash, "Invalid body hash");
     }
 
     // Messages

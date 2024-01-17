@@ -25,16 +25,16 @@ export class Header {
 
   toBuffer() {
     // Note: The order here must match the order in the HeaderDecoder solidity library.
-    return serializeToBuffer(this.lastArchive, this.bodyHash, this.state, this.globalVariables);
+    return serializeToBuffer(this.globalVariables, this.state, this.lastArchive, this.bodyHash);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): Header {
     const reader = BufferReader.asReader(buffer);
-    return new Header(
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readBytes(NUM_BYTES_PER_SHA256),
-      reader.readObject(StateReference),
-      reader.readObject(GlobalVariables),
-    );
+    // TODO(#4045): unify ordering here with ordering in constructor.
+    const globalVariables = reader.readObject(GlobalVariables);
+    const state = reader.readObject(StateReference);
+    const lastArchive = reader.readObject(AppendOnlyTreeSnapshot);
+    const bodyHash = reader.readBytes(NUM_BYTES_PER_SHA256);
+    return new Header(lastArchive, bodyHash, state, globalVariables);
   }
 }

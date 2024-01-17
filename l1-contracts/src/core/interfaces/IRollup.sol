@@ -3,7 +3,12 @@
 pragma solidity >=0.8.18;
 
 interface IRollup {
-  event L2BlockProcessed(uint256 indexed blockNum);
+  event L2BlockProcessed(uint256 indexed blockNumber);
 
-  function process(bytes memory _proof, bytes calldata _l2Block) external;
+  function process(
+    bytes calldata _header,
+    bytes32 _archive,
+    bytes calldata _body,
+    bytes memory _proof
+  ) external;
 }

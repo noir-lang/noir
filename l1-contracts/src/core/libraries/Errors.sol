@@ -48,7 +48,7 @@ library Errors {
   ); // 0x5e789f34
 
   // Rollup
-  error Rollup__InvalidStateHash(bytes32 expected, bytes32 actual); // 0xa3cfaab3
+  error Rollup__InvalidArchive(bytes32 expected, bytes32 actual); // 0xb682a40e
   error Rollup__InvalidProof(); // 0xa5b2ba17
   error Rollup__InvalidChainId(uint256 expected, uint256 actual); // 0x37b5bc12
   error Rollup__InvalidVersion(uint256 expected, uint256 actual); // 0x9ef30794
