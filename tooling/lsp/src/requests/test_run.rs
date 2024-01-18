@@ -4,7 +4,7 @@ use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
-    parse_all, prepare_package,
+    prepare_package,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{

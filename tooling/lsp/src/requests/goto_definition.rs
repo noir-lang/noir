@@ -6,7 +6,7 @@ use async_lsp::{ErrorCode, ResponseError};
 
 use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
-use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use noirc_driver::file_manager_with_stdlib;
 
 use super::{position_to_byte_index, to_lsp_location};
