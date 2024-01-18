@@ -39,7 +39,26 @@ fn main(x: Field, y: pub Field) {
     let struct_string = if x != 5 { f"{foo}" } else { f"{bar}" };
     std::println(struct_string);
 
+    let one_tuple = (1, 2, 3);
+    let another_tuple = (4, 5, 6);
+    std::println(f"one_tuple: {one_tuple}, another_tuple: {another_tuple}");
+    std::println(one_tuple);
+
+    let tuples_nested = (one_tuple, another_tuple);
+    std::println(f"tuples_nested: {tuples_nested}");
+    std::println(tuples_nested);
+
     regression_2906();
+
+    let free_lambda = |x| x + 1;
+    let sentinel: u32 = 8888;
+    std::println(f"free_lambda: {free_lambda}, sentinel: {sentinel}");
+    std::println(free_lambda);
+
+    let one = 1;
+    let closured_lambda = |x| x + one;
+    std::println(f"closured_lambda: {closured_lambda}, sentinel: {sentinel}");
+    std::println(closured_lambda);
 }
 
 fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Field)> {
@@ -79,3 +98,4 @@ fn regression_2906() {
 
     dep::std::println(f"array_five_vals: {array_five_vals}, label_five_vals: {label_five_vals}");
 }
+
