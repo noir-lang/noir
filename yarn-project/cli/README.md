@@ -3,20 +3,12 @@
 The Aztec CLI `aztec-cli` is a command-line interface (CLI) tool for interacting with Aztec. It provides various commands for deploying contracts, creating accounts, interacting with contracts, and retrieving blockchain data.
 
 ## Installation
+1. In your terminal, download the sandbox by running
+```
+bash -i <(curl -s install.aztec.network)
+```
 
-To use `aztec-cli`, you need to have Node.js installed on your system. Follow these steps to install and set up the CLI tool:
-
-1. Install Node.js: Visit the official Node.js website (https://nodejs.org) and download the installer for your operating system. Follow the installation instructions to install Node.js.
-
-2. Install `aztec-cli` package: Open a terminal or command prompt and run the following command to install `aztec-cli` globally on your system:
-
-   ```shell
-   npm install -g @aztec/cli
-   ```
-
-   This will install the `aztec-cli` globally, making it accessible from any location in your terminal.
-
-3. Verify the installation: After the installation is complete, run the following command to verify that `aztec-cli` is installed correctly:
+2. Verify the installation: After the installation is complete, run the following command to verify that `aztec-cli` is installed correctly:
 
    ```shell
    aztec-cli --version

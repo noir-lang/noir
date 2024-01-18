@@ -2,34 +2,12 @@
 title: Updating
 ---
 
-:::info
-The `@aztec/aztec-sandbox` and `@aztec/cli` packages published to npm **should not be used**, in favor of Docker. If you've installed the sandbox or the CLI via NPM, **uninstall** them and remove them from your project dependencies and [install via Docker](./cli/sandbox-reference.md#with-docker).
-
-<Tabs>
-  <TabItem value="yarn" label="yarn" default>
-    
-<code>
-yarn global remove @aztec/aztec-sandbox @aztec/cli
-</code>
-
-  </TabItem>
-  <TabItem value="npm" label="npm">
-
-<code>
-npm -g uninstall @aztec/aztec-sandbox @aztec/cli
-</code>
-
-   </TabItem>
-</Tabs>
-
-:::
-
 ## TL;DR
 
 1. Updating the sandbox and CLI:
 
 ```shell
-aztec-up latest
+aztec-up
 ```
 
 2. Updating aztec-nr and individual @aztec dependencies:
@@ -47,13 +25,15 @@ The sandbox must be running for the update command to work. Make sure it is [ins
 
 ---
 
-There are three components whose versions need to be kept compatible:
+There are four components whose versions need to be kept compatible:
 
 1. Aztec Sandbox
 2. Aztec CLI
-3. `Aztec.nr`, the Noir framework for writing Aztec contracts
+3. aztec-nargo
+4. `Aztec.nr`, the Noir framework for writing Aztec contracts
 
-All three are using the same versioning scheme and their versions must match. Docker ensures that the sandbox and CLI are always compatible, but you need to update Aztec.nr manually or using `aztec-cli update`.
+First three are packaged together in docker and are kept compatible by running `aztec-up`.
+But you need to update your Aztec.nr version manually or using `aztec-cli update`.
 
 ## Updating Aztec.nr packages
 
@@ -91,5 +71,5 @@ If the dependencies fail to resolve ensure that the tag matches a tag in the [az
 `aztec-nargo` is updated by running:
 
 ```bash
-aztec-up latest
+aztec-up
 ```

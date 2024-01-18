@@ -13,28 +13,6 @@ Here you will find a reference to the commands available in the Aztec CLI.
 
 The CLI will be installed automatically via Docker by running the command to install and start the sandbox, [instructions here](./sandbox-reference.md#with-docker).
 
-:::info
-
-The `@aztec/aztec-sandbox` and `@aztec/cli` packages published to npm **should not be used**, in favor of Docker. If you've installed the sandbox or the CLI via NPM, **uninstall** them and remove them from your project dependencies and [install via Docker](./sandbox-reference.md#with-docker).
-
-<Tabs>
-  <TabItem value="yarn" label="yarn" default>
-    
-<code>
-yarn global remove @aztec/aztec-sandbox @aztec/cli
-</code>
-
-  </TabItem>
-  <TabItem value="npm" label="npm">
-
-<code>
-npm -g uninstall @aztec/aztec-sandbox @aztec/cli
-</code>
-
-   </TabItem>
-</Tabs>
-:::
-
 ## Update
 
 The CLI comes with an update command.
