@@ -410,62 +410,10 @@ impl Context {
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                let lhs = self.convert_value(*lhs, dfg);
-                let rhs = self.convert_value(*rhs, dfg);
+                let lhs = self.convert_numeric_value(*lhs, dfg)?;
+                let rhs = self.convert_numeric_value(*rhs, dfg)?;
 
-                fn get_var_equality_assertions(
-                    lhs: AcirValue,
-                    rhs: AcirValue,
-                    read_from_index: &mut impl FnMut(BlockId, usize) -> Result<AcirVar, InternalError>,
-                ) -> Result<Vec<(AcirVar, AcirVar)>, InternalError> {
-                    match (lhs, rhs) {
-                        (AcirValue::Var(lhs, _), AcirValue::Var(rhs, _)) => Ok(vec![(lhs, rhs)]),
-                        (AcirValue::Array(lhs_values), AcirValue::Array(rhs_values)) => {
-                            let var_equality_assertions = lhs_values
-                                .into_iter()
-                                .zip(rhs_values)
-                                .map(|(lhs, rhs)| {
-                                    get_var_equality_assertions(lhs, rhs, read_from_index)
-                                })
-                                .collect::<Result<Vec<_>, _>>()?
-                                .into_iter()
-                                .flatten()
-                                .collect();
-                            Ok(var_equality_assertions)
-                        }
-                        (
-                            AcirValue::DynamicArray(AcirDynamicArray {
-                                block_id: lhs_block_id,
-                                len,
-                                ..
-                            }),
-                            AcirValue::DynamicArray(AcirDynamicArray {
-                                block_id: rhs_block_id,
-                                ..
-                            }),
-                        ) => try_vecmap(0..len, |i| {
-                            let lhs_var = read_from_index(lhs_block_id, i)?;
-                            let rhs_var = read_from_index(rhs_block_id, i)?;
-                            Ok((lhs_var, rhs_var))
-                        }),
-                        _ => {
-                            unreachable!("ICE: lhs and rhs should be of the same type")
-                        }
-                    }
-                }
-
-                let mut read_dynamic_array_index =
-                    |block_id: BlockId, array_index: usize| -> Result<AcirVar, InternalError> {
-                        let index_var = self.acir_context.add_constant(array_index);
-
-                        self.acir_context.read_from_memory(block_id, &index_var)
-                    };
-
-                for (lhs, rhs) in
-                    get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)?
-                {
-                    self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
-                }
+                self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;

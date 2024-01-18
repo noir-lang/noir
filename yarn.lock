@@ -4478,6 +4478,7 @@ __metadata:
     "@types/mocha": ^10.0.6
     "@types/mocha-each": ^2
     "@types/node": ^20.10.5
+    "@types/pako": ^2
     "@types/path-browserify": ^1
     "@types/readable-stream": ^4
     "@types/sinon": ^17
@@ -4494,6 +4495,7 @@ __metadata:
     memfs: ^4.6.0
     mocha: ^10.2.0
     mocha-each: ^2.0.1
+    pako: ^2.1.0
     path-browserify: ^1.0.1
     process: ^0.11.10
     readable-stream: ^4.4.2
@@ -6093,6 +6095,13 @@ __metadata:
   dependencies:
     undici-types: ~5.26.4
   checksum: e216b679f545a8356960ce985a0e53c3a58fff0eacd855e180b9e223b8db2b5bd07b744a002b8c1f0c37f9194648ab4578533b5c12df2ec10cc02f61d20948d2
+  languageName: node
+  linkType: hard
+
+"@types/pako@npm:^2":
+  version: 2.0.3
+  resolution: "@types/pako@npm:2.0.3"
+  checksum: 0746dd5d29eccf5b2e6cceb3ccb093851219e78bd2e2e20d25757e247987139e061e5d4ba37cb5295493f06e3c683c74f8876011cd8a3f3748a09244fbc841d9
   languageName: node
   linkType: hard
 
@@ -16894,6 +16903,13 @@ __metadata:
     registry-url: ^6.0.0
     semver: ^7.3.7
   checksum: 28bec6f42bf9fba66b7c8fea07576fc23d08ec7923433f7835d6cd8654e72169d74f9738b3785107d18a476ae76712e0daeb1dddcd6930e69f9e4b47eba7c0ca
+  languageName: node
+  linkType: hard
+
+"pako@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "pako@npm:2.1.0"
+  checksum: 71666548644c9a4d056bcaba849ca6fd7242c6cf1af0646d3346f3079a1c7f4a66ffec6f7369ee0dc88f61926c10d6ab05da3e1fca44b83551839e89edd75a3e
   languageName: node
   linkType: hard
 

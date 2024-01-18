@@ -1,32 +1,29 @@
 use std::path::Path;
 
 use acvm::ExpressionWidth;
+
 use fm::FileManager;
-use iter_extended::vecmap;
-use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
-use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::CompileError;
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
+
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
+use noirc_frontend::hir::ParsedFiles;
 
 use crate::backends::Backend;
 use crate::errors::CliError;
 
 use super::fs::program::only_acir;
-use super::fs::program::{
-    read_debug_artifact_from_file, read_program_from_file, save_contract_to_file,
-    save_debug_artifact_to_file, save_program_to_file,
-};
+use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::NargoConfig;
 use rayon::prelude::*;
 
@@ -64,6 +61,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
@@ -74,6 +72,7 @@ pub(crate) fn run(
     let expression_width = backend.get_backend_info_or_default();
     let (_, compiled_contracts) = compile_workspace(
         &workspace_file_manager,
+        &parsed_files,
         &workspace,
         &binary_packages,
         &contract_packages,
@@ -91,6 +90,7 @@ pub(crate) fn run(
 
 pub(super) fn compile_workspace(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
@@ -101,12 +101,21 @@ pub(super) fn compile_workspace(
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_program(file_manager, workspace, package, compile_options, expression_width)
+            compile_program(
+                file_manager,
+                parsed_files,
+                workspace,
+                package,
+                compile_options,
+                expression_width,
+            )
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
-        .map(|package| compile_contract(file_manager, package, compile_options, expression_width))
+        .map(|package| {
+            compile_contract(file_manager, parsed_files, package, compile_options, expression_width)
+        })
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -138,6 +147,7 @@ pub(super) fn compile_workspace(
 
 pub(crate) fn compile_bin_package(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
@@ -147,8 +157,14 @@ pub(crate) fn compile_bin_package(
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
-    let compilation_result =
-        compile_program(file_manager, workspace, package, compile_options, expression_width);
+    let compilation_result = compile_program(
+        file_manager,
+        parsed_files,
+        workspace,
+        package,
+        compile_options,
+        expression_width,
+    );
 
     let program = report_errors(
         compilation_result,
@@ -162,36 +178,19 @@ pub(crate) fn compile_bin_package(
 
 fn compile_program(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
 ) -> CompilationResult<CompiledProgram> {
-    let (mut context, crate_id) = prepare_package(file_manager, package);
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     let program_artifact_path = workspace.package_build_path(package);
-    let mut debug_artifact_path = program_artifact_path.clone();
-    debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
-    let cached_program = if let (Ok(program_artifact), Ok(mut debug_artifact)) = (
-        read_program_from_file(program_artifact_path),
-        read_debug_artifact_from_file(debug_artifact_path),
-    ) {
-        if program_artifact.noir_version == NOIR_ARTIFACT_VERSION_STRING {
-            Some(CompiledProgram {
-                hash: program_artifact.hash,
-                circuit: program_artifact.bytecode,
-                abi: program_artifact.abi,
-                noir_version: program_artifact.noir_version,
-                debug: debug_artifact.debug_symbols.remove(0),
-                file_map: debug_artifact.file_map,
-                warnings: debug_artifact.warnings,
-            })
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let cached_program: Option<CompiledProgram> = read_program_from_file(program_artifact_path)
+        .ok()
+        .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
+        .map(|p| p.into());
 
     let (program, warnings) =
         noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
@@ -206,11 +205,12 @@ fn compile_program(
 
 fn compile_contract(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
 ) -> CompilationResult<CompiledContract> {
-    let (mut context, crate_id) = prepare_package(file_manager, package);
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     let (contract, warnings) =
         match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
             Ok(contracts_and_warnings) => contracts_and_warnings,
@@ -236,51 +236,13 @@ pub(super) fn save_program(
     } else {
         save_program_to_file(&program_artifact, &package.name, circuit_dir);
     }
-
-    let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug],
-        file_map: program.file_map,
-        warnings: program.warnings,
-    };
-    let circuit_name: String = (&package.name).into();
-    save_debug_artifact_to_file(&debug_artifact, &circuit_name, circuit_dir);
 }
 
 fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
-    // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
-    // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
-    // are compiled via nargo-core and then the ContractArtifact is constructed here.
-    // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-    let debug_artifact = DebugArtifact {
-        debug_symbols: contract.functions.iter().map(|function| function.debug.clone()).collect(),
-        file_map: contract.file_map,
-        warnings: contract.warnings,
-    };
-
-    let functions = vecmap(contract.functions, |func| ContractFunctionArtifact {
-        name: func.name,
-        function_type: func.function_type,
-        is_internal: func.is_internal,
-        abi: func.abi,
-        bytecode: func.bytecode,
-    });
-
-    let contract_artifact = ContractArtifact {
-        noir_version: contract.noir_version,
-        name: contract.name,
-        functions,
-        events: contract.events,
-    };
-
+    let contract_name = contract.name.clone();
     save_contract_to_file(
-        &contract_artifact,
-        &format!("{}-{}", package.name, contract_artifact.name),
-        circuit_dir,
-    );
-
-    save_debug_artifact_to_file(
-        &debug_artifact,
-        &format!("{}-{}", package.name, contract_artifact.name),
+        &contract.into(),
+        &format!("{}-{}", package.name, contract_name),
         circuit_dir,
     );
 }
