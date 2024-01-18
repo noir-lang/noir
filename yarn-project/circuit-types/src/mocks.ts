@@ -9,10 +9,9 @@ import {
 } from '@aztec/circuits.js';
 import { makePrivateKernelPublicInputsFinal, makePublicCallRequest } from '@aztec/circuits.js/factories';
 import { ContractArtifact } from '@aztec/foundation/abi';
+import { times } from '@aztec/foundation/collection';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Tuple } from '@aztec/foundation/serialize';
-
-import times from 'lodash.times';
 
 import { ExtendedContractData } from './contract_data.js';
 import { DeployedContract } from './interfaces/index.js';

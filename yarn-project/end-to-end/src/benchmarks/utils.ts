@@ -10,12 +10,12 @@ import {
   retryUntil,
   sleep,
 } from '@aztec/aztec.js';
+import { times } from '@aztec/foundation/collection';
 import { BenchmarkingContract } from '@aztec/noir-contracts/Benchmarking';
 import { PXEService, createPXEService } from '@aztec/pxe';
 
 import { mkdirpSync } from 'fs-extra';
 import { globSync } from 'glob';
-import times from 'lodash.times';
 import { join } from 'path';
 
 import { EndToEndContext, setup } from '../fixtures/utils.js';

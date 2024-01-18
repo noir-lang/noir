@@ -52,3 +52,13 @@ export function isArrayEmpty<T>(arr: T[], isEmpty: (item: T) => boolean): boolea
 export function arrayNonEmptyLength<T>(arr: T[], isEmpty: (item: T) => boolean): number {
   return arr.reduce((sum, item) => (isEmpty(item) ? sum : sum + 1), 0);
 }
+
+/**
+ * Executes the given function n times and returns the results in an array.
+ * @param n - How many times to repeat.
+ * @param fn - Mapper from index to value.
+ * @returns The array with the result from all executions.
+ */
+export function times<T>(n: number, fn: (i: number) => T): T[] {
+  return [...Array(n).keys()].map(i => fn(i));
+}

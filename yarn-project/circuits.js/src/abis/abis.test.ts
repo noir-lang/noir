@@ -1,4 +1,4 @@
-import times from 'lodash.times';
+import { times } from '@aztec/foundation/collection';
 
 import {
   AztecAddress,

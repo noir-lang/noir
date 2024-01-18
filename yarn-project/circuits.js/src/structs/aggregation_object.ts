@@ -1,7 +1,6 @@
+import { times } from '@aztec/foundation/collection';
 import { Fq, Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-
-import times from 'lodash.times';
 
 import { UInt32, Vector } from './shared.js';
 import { G1AffineElement } from './verification_key.js';

@@ -1,6 +1,5 @@
+import { times } from '@aztec/foundation/collection';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-
-import times from 'lodash.times';
 
 import { Fq } from './index.js';
 import { CircuitType } from './shared.js';

@@ -47,12 +47,12 @@ import {
 } from '@aztec/circuits.js/factories';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { times } from '@aztec/foundation/collection';
 import { to2Fields } from '@aztec/foundation/serialize';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
-import times from 'lodash.times';
 import { type MemDown, default as memdown } from 'memdown';
 
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';

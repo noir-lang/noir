@@ -10,12 +10,11 @@ import {
   STRING_ENCODING,
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot, makeGlobalVariables, makeHeader } from '@aztec/circuits.js/factories';
+import { times } from '@aztec/foundation/collection';
 import { keccak, sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-
-import times from 'lodash.times';
 
 import { ContractData } from './contract_data.js';
 import { L2Tx } from './l2_tx.js';

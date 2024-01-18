@@ -34,12 +34,11 @@ import {
   makeSelector,
 } from '@aztec/circuits.js/factories';
 import { makeTuple } from '@aztec/foundation/array';
-import { padArrayEnd } from '@aztec/foundation/collection';
+import { padArrayEnd, times } from '@aztec/foundation/collection';
 import { SiblingPath } from '@aztec/types/membership';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';
-import times from 'lodash.times';
 
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';

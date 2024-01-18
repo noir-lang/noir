@@ -12,11 +12,10 @@ import {
   Wallet,
   isContractDeployed,
 } from '@aztec/aztec.js';
+import { times } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { TestContract, TestContractArtifact } from '@aztec/noir-contracts/Test';
 import { TokenContract } from '@aztec/noir-contracts/Token';
-
-import times from 'lodash.times';
 
 import { setup } from './fixtures/utils.js';
 

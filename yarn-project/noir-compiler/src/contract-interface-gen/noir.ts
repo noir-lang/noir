@@ -7,10 +7,10 @@ import {
   FunctionType,
   StructType,
 } from '@aztec/foundation/abi';
+import { times } from '@aztec/foundation/collection';
 
 import camelCase from 'lodash.camelcase';
 import capitalize from 'lodash.capitalize';
-import times from 'lodash.times';
 
 /**
  * Returns whether this function type corresponds to a private call.

@@ -6,10 +6,9 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   Vector,
 } from '@aztec/circuits.js';
+import { times } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, numToUInt32BE } from '@aztec/foundation/serialize';
-
-import times from 'lodash.times';
 
 import { ContractData } from './contract_data.js';
 import { PublicDataWrite } from './public_data_write.js';
