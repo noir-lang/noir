@@ -45,6 +45,7 @@ use crate::{
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
+use chumsky::input::Emitter;
 use chumsky::prelude::*;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -73,10 +74,9 @@ fn program() -> impl NoirParser<ParsedModule> {
 ///       | %empty
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
-        empty()
-            .map(|_| ParsedModule::default())
-            .then(spanned(top_level_statement(module_parser)).repeated())
-            .foldl(|mut program, (statement, span)| {
+        empty().map(|_| ParsedModule::default()).foldl(
+            spanned(top_level_statement(module_parser)).repeated(),
+            |mut program, (statement, span)| {
                 let mut push_item = |kind| program.items.push(Item { kind, span });
 
                 match statement {
@@ -93,7 +93,8 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Error => (),
                 }
                 program
-            })
+            },
+        )
     })
 }
 
@@ -132,7 +133,11 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     );
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, literal_or_collection(expression()).map_with_span(Expression::new));
+    let p = then_commit(
+        p,
+        literal_or_collection(expression())
+            .map_with(|expr, extra| Expression::new(expr, extra.span())),
+    );
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
@@ -173,11 +178,11 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(function_return_type())
         .then(where_clause())
         .then(spanned(block(fresh_statement())))
-        .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
+        .validate(|(((args, ret), where_clause), (body, body_span)), extra, emitter| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
             // Validate collected attributes, filtering them into function and secondary variants
-            let attributes = validate_attributes(attributes, span, emit);
+            let attributes = validate_attributes(attributes, extra.span(), emitter);
             FunctionDefinition {
                 span: body_span,
                 name,
@@ -243,6 +248,7 @@ fn generics() -> impl NoirParser<Vec<Ident>> {
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
+        .collect()
         .delimited_by(just(Token::Less), just(Token::Greater))
         .or_not()
         .map(|opt| opt.unwrap_or_default())
@@ -475,7 +481,7 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
 fn validate_attributes(
     attributes: Option<Vec<Attribute>>,
     span: Span,
-    emit: &mut dyn FnMut(ParserError),
+    emitter: &mut Emitter<ParserError>,
 ) -> Attributes {
     if attributes.is_none() {
         return Attributes::empty();
@@ -490,7 +496,7 @@ fn validate_attributes(
         match attribute {
             Attribute::Function(attr) => {
                 if primary.is_some() {
-                    emit(ParserError::with_reason(
+                    emitter.emit(ParserError::with_reason(
                         ParserErrorReason::MultipleFunctionAttributesFound,
                         span,
                     ));
@@ -1495,15 +1501,15 @@ where
     recursive(|if_parser| {
         let if_block = block_expr(statement.clone());
         // The else block could also be an `else if` block, in which case we must recursively parse it.
-        let else_block = block_expr(statement).or(if_parser.map_with_span(|kind, span| {
+        let else_block = block_expr(statement).or(if_parser.map_with(|kind, extra| {
             // Wrap the inner `if` expression in a block expression.
             // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
-            let if_expression = Expression::new(kind, span);
+            let if_expression = Expression::new(kind, extra.span());
             let desugared_else = BlockExpression(vec![Statement {
                 kind: StatementKind::Expression(if_expression),
-                span,
+                span: extra.span(),
             }]);
-            Expression::new(ExpressionKind::Block(desugared_else), span)
+            Expression::new(ExpressionKind::Block(desugared_else), extra.span())
         }));
 
         keyword(Keyword::If)
@@ -1690,12 +1696,14 @@ where
 }
 
 fn field_name() -> impl NoirParser<Ident> {
-    ident().or(token_kind(TokenKind::Literal).validate(|token, span, emitter| match token {
-        Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
+    ident().or(token_kind(TokenKind::Literal).validate(|token, extra, emitter| match token {
+        Token::Int(_) => Ident::from(Spanned::from(extra.span(), token.to_string())),
         other => {
-            emitter
-                .emit(ParserError::with_reason(ParserErrorReason::ExpectedFieldName(other), span));
-            Ident::error(span)
+            emitter.emit(ParserError::with_reason(
+                ParserErrorReason::ExpectedFieldName(other),
+                extra.span(),
+            ));
+            Ident::error(extra.span())
         }
     }))
 }

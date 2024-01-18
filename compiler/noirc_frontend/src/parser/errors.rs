@@ -1,7 +1,7 @@
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
-use chumsky::input::BoxedStream;
+use chumsky::label::LabelError;
 use chumsky::util::MaybeRef;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
@@ -207,5 +207,17 @@ impl chumsky::error::Error<'static, ChumskyInput> for ParserError {
 
         self.span = self.span.merge(other.span);
         self
+    }
+}
+
+impl LabelError<'static, ChumskyInput, ParsingRuleLabel> for ParserError {
+    fn label_with(&mut self, label: ParsingRuleLabel) {
+        self.expected_tokens.clear();
+        self.expected_labels.clear();
+        self.expected_labels.insert(label);
+    }
+    fn in_context(&mut self, label: ParsingRuleLabel, span: Span) {
+        self.label_with(label);
+        self.span = span;
     }
 }
