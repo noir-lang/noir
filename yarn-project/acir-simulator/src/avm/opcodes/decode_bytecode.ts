@@ -1,26 +1,21 @@
-import { Instruction } from './instruction.js';
+import { AVM_OPCODE_BYTE_LENGTH, AVM_OPERAND_BYTE_LENGTH, Instruction } from './instruction.js';
 import { INSTRUCTION_SET } from './instruction_set.js';
 import { Opcode } from './opcodes.js';
-
-export const OPERAND_BIT_LENGTH = 32;
-export const OPERAND_BYTE_LENGTH = 4;
-export const OPCODE_BIT_LENGTH = 8;
-export const OPCODE_BYTE_LENGTH = 1;
 
 /**
  * Convert a buffer of bytecode into an array of instructions
  * @param bytecode - Buffer of bytecode
- * @returns Bytecode interpreted into an ordered array of Instructions
+ * @returns Bytecode decoded into an ordered array of Instructions
  */
-export function interpretBytecode(bytecode: Buffer): Instruction[] {
-  let readPtr = 0;
+export function decodeBytecode(bytecode: Buffer): Instruction[] {
+  let bytePtr = 0;
   const bytecodeLength = bytecode.length;
 
   const instructions: Instruction[] = [];
 
-  while (readPtr < bytecodeLength) {
-    const opcodeByte = bytecode[readPtr];
-    readPtr += 1;
+  while (bytePtr < bytecodeLength) {
+    const opcodeByte = bytecode[bytePtr];
+    bytePtr += AVM_OPCODE_BYTE_LENGTH;
     if (!(opcodeByte in Opcode)) {
       throw new Error(`Opcode ${opcodeByte} not implemented`);
     }
@@ -33,8 +28,8 @@ export function interpretBytecode(bytecode: Buffer): Instruction[] {
     const numberOfOperands = instructionType.numberOfOperands;
     const operands: number[] = [];
     for (let i = 0; i < numberOfOperands; i++) {
-      const operand = bytecode.readUInt32BE(readPtr);
-      readPtr += OPERAND_BYTE_LENGTH;
+      const operand = bytecode.readUInt32BE(bytePtr);
+      bytePtr += AVM_OPERAND_BYTE_LENGTH;
       operands.push(operand);
     }
 

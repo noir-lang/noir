@@ -1,20 +1,20 @@
 import { Add, Sub } from './arithmetic.js';
-import { OPCODE_BYTE_LENGTH, OPERAND_BYTE_LENGTH, interpretBytecode } from './from_bytecode.js';
-import { Instruction } from './instruction.js';
+import { decodeBytecode } from './decode_bytecode.js';
+import { AVM_OPCODE_BYTE_LENGTH, AVM_OPERAND_BYTE_LENGTH, Instruction } from './instruction.js';
 
-describe('Avm Interpreter', () => {
+describe('Avm Decoder', () => {
   const toByte = (num: number): Buffer => {
-    const buf = Buffer.alloc(OPCODE_BYTE_LENGTH);
+    const buf = Buffer.alloc(AVM_OPCODE_BYTE_LENGTH);
     buf.writeUInt8(num);
     return buf;
   };
   const to4Byte = (num: number): Buffer => {
-    const buf = Buffer.alloc(OPERAND_BYTE_LENGTH);
+    const buf = Buffer.alloc(AVM_OPERAND_BYTE_LENGTH);
     buf.writeUInt32BE(num);
     return buf;
   };
 
-  it('Should read bytecode string into a list of opcodes', () => {
+  it('Should read bytecode buffer into a list of opcodes', () => {
     const opcode = 1;
     const opcode2 = 2;
     const a = 1;
@@ -30,7 +30,7 @@ describe('Avm Interpreter', () => {
 
     const expectedInstructions: Instruction[] = [new Add(a, b, c), new Sub(a, b, c)];
 
-    const instructions = interpretBytecode(bytecode);
+    const instructions = decodeBytecode(bytecode);
     expect(instructions).toEqual(expectedInstructions);
   });
 });
