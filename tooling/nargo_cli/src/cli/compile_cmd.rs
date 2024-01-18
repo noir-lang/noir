@@ -166,8 +166,7 @@ fn compile_program(
     let (mut context, crate_id) = prepare_package(file_manager, package);
 
     let program_artifact_path = workspace.package_build_path(package);
-    let cached_program: Option<CompiledProgram> =
-        read_program_from_file(program_artifact_path)
+    let cached_program: Option<CompiledProgram> = read_program_from_file(program_artifact_path)
         .ok()
         .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
         .map(|p| p.into());
