@@ -7,7 +7,7 @@ import { AvmStateManager } from '../avm_state_manager.js';
 import { Add } from '../opcodes/arithmetic.js';
 import { Return } from '../opcodes/control_flow.js';
 import { Instruction } from '../opcodes/instruction.js';
-import { CallDataCopy } from '../opcodes/memory.js';
+import { CalldataCopy } from '../opcodes/memory.js';
 import { AvmInterpreter } from './interpreter.js';
 
 describe('interpreter', () => {
@@ -17,7 +17,7 @@ describe('interpreter', () => {
 
     const instructions: Instruction[] = [
       // Copy the first two elements of the calldata to memory regions 0 and 1
-      new CallDataCopy(0, 2, 0),
+      new CalldataCopy(0, 2, 0),
       // Add the two together and store the result in memory region 2
       new Add(0, 1, 2), // 1 + 2
       // Return the result

@@ -1,5 +1,5 @@
 import { Add, Sub } from './arithmetic.js';
-import { OPCODE_BYTE_LENGTH, OPERAND_BTYE_LENGTH, interpretBytecode } from './from_bytecode.js';
+import { OPCODE_BYTE_LENGTH, OPERAND_BYTE_LENGTH, interpretBytecode } from './from_bytecode.js';
 import { Instruction } from './instruction.js';
 
 describe('Avm Interpreter', () => {
@@ -9,7 +9,7 @@ describe('Avm Interpreter', () => {
     return buf;
   };
   const to4Byte = (num: number): Buffer => {
-    const buf = Buffer.alloc(OPERAND_BTYE_LENGTH);
+    const buf = Buffer.alloc(OPERAND_BYTE_LENGTH);
     buf.writeUInt32BE(num);
     return buf;
   };

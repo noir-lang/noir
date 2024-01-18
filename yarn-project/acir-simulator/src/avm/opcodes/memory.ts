@@ -47,7 +47,7 @@ export class Mov implements Instruction {
 }
 
 /** - */
-export class CallDataCopy implements Instruction {
+export class CalldataCopy implements Instruction {
   static type: string = 'CALLDATACOPY';
   static numberOfOperands = 3;
 

@@ -1,7 +1,7 @@
 /**
  * All AVM opcodes
  */
-export enum Opcodes {
+export enum Opcode {
   // Compute
   // Compute - Arithmetic
   ADD,
@@ -54,7 +54,6 @@ export enum Opcodes {
   JUMPI,
   INTERNALCALL,
   INTERNALRETURN,
-  INTERNALCALLDEPTH,
   // Machine State - Memory
   SET,
   MOV,
