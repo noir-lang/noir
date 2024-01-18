@@ -20,9 +20,10 @@ use fm::FileManager;
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::Context,
+    hir::{def_map::parse_file, Context, ParsedFiles},
 };
 use package::{Dependency, Package};
+use rayon::prelude::*;
 
 pub use self::errors::NargoError;
 
@@ -95,11 +96,27 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
     }
 }
 
-pub fn prepare_package<'file_manager>(
+pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
+    file_manager
+        .as_file_map()
+        .all_file_ids()
+        .par_bridge()
+        .filter(|&&file_id| {
+            let file_path = file_manager.path(file_id).expect("expected file to exist");
+            let file_extension =
+                file_path.extension().expect("expected all file paths to have an extension");
+            file_extension == "nr"
+        })
+        .map(|&file_id| (file_id, parse_file(file_manager, file_id)))
+        .collect()
+}
+
+pub fn prepare_package<'file_manager, 'parsed_files>(
     file_manager: &'file_manager FileManager,
+    parsed_files: &'parsed_files ParsedFiles,
     package: &Package,
-) -> (Context<'file_manager>, CrateId) {
-    let mut context = Context::from_ref_file_manager(file_manager);
+) -> (Context<'file_manager, 'parsed_files>, CrateId) {
+    let mut context = Context::from_ref_file_manager(file_manager, parsed_files);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 

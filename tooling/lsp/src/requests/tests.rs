@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use lsp_types::{LogMessageParams, MessageType};
-use nargo::{insert_all_files_for_workspace_into_file_manager, prepare_package};
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all, prepare_package};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 
@@ -52,11 +52,13 @@ fn on_tests_request_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let package_tests: Vec<_> = workspace
         .into_iter()
         .filter_map(|package| {
-            let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
+            let (mut context, crate_id) =
+                prepare_package(&workspace_file_manager, &parsed_files, package);
             // We ignore the warnings and errors produced by compilation for producing tests
             // because we can still get the test functions even if compilation fails
             let _ = check_crate(&mut context, crate_id, false, false);
