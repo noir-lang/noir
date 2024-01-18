@@ -20,7 +20,7 @@ use async_lsp::{
 use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::CodeLens;
-use nargo::workspace::Workspace;
+use nargo::{parse_all, workspace::Workspace};
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
@@ -69,6 +69,7 @@ pub struct LspState {
     cached_lenses: HashMap<String, Vec<CodeLens>>,
     cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
+    parsing_cache_enabled: bool,
 }
 
 impl LspState {
@@ -82,6 +83,7 @@ impl LspState {
             cached_definitions: HashMap::new(),
             open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
+            parsing_cache_enabled: true,
         }
     }
 }
@@ -247,56 +249,60 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
 }
 
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
-    let noir_file_hashes: Vec<_> = file_manager
-        .as_file_map()
-        .all_file_ids()
-        .par_bridge()
-        .filter_map(|&file_id| {
-            let file_path = file_manager.path(file_id).expect("expected file to exist");
-            let file_extension =
-                file_path.extension().expect("expected all file paths to have an extension");
-            if file_extension == "nr" {
-                Some((
-                    file_id,
-                    file_path.to_path_buf(),
-                    fxhash::hash(file_manager.fetch_file(file_id).expect("file must exist")),
-                ))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let cache_hits: Vec<_> = noir_file_hashes
-        .par_iter()
-        .filter_map(|(file_id, file_path, current_hash)| {
-            let cached_version = state.cached_parsed_files.get(file_path);
-            if let Some((hash, cached_parsing)) = cached_version {
-                if hash == current_hash {
-                    return Some((*file_id, cached_parsing.clone()));
+    if state.parsing_cache_enabled {
+        let noir_file_hashes: Vec<_> = file_manager
+            .as_file_map()
+            .all_file_ids()
+            .par_bridge()
+            .filter_map(|&file_id| {
+                let file_path = file_manager.path(file_id).expect("expected file to exist");
+                let file_extension =
+                    file_path.extension().expect("expected all file paths to have an extension");
+                if file_extension == "nr" {
+                    Some((
+                        file_id,
+                        file_path.to_path_buf(),
+                        fxhash::hash(file_manager.fetch_file(file_id).expect("file must exist")),
+                    ))
+                } else {
+                    None
                 }
-            }
-            None
-        })
-        .collect();
+            })
+            .collect();
 
-    let cache_hits_ids: FxHashSet<_> = cache_hits.iter().map(|(file_id, _)| *file_id).collect();
+        let cache_hits: Vec<_> = noir_file_hashes
+            .par_iter()
+            .filter_map(|(file_id, file_path, current_hash)| {
+                let cached_version = state.cached_parsed_files.get(file_path);
+                if let Some((hash, cached_parsing)) = cached_version {
+                    if hash == current_hash {
+                        return Some((*file_id, cached_parsing.clone()));
+                    }
+                }
+                None
+            })
+            .collect();
 
-    let cache_misses: Vec<_> = noir_file_hashes
-        .into_par_iter()
-        .filter(|(id, _, _)| !cache_hits_ids.contains(id))
-        .map(|(file_id, path, hash)| (file_id, path, hash, parse_file(file_manager, file_id)))
-        .collect();
+        let cache_hits_ids: FxHashSet<_> = cache_hits.iter().map(|(file_id, _)| *file_id).collect();
 
-    cache_misses.iter().for_each(|(_, path, hash, parse_results)| {
-        state.cached_parsed_files.insert(path.clone(), (*hash, parse_results.clone()));
-    });
+        let cache_misses: Vec<_> = noir_file_hashes
+            .into_par_iter()
+            .filter(|(id, _, _)| !cache_hits_ids.contains(id))
+            .map(|(file_id, path, hash)| (file_id, path, hash, parse_file(file_manager, file_id)))
+            .collect();
 
-    cache_misses
-        .into_iter()
-        .map(|(id, _, _, parse_results)| (id, parse_results))
-        .chain(cache_hits.into_iter())
-        .collect()
+        cache_misses.iter().for_each(|(_, path, hash, parse_results)| {
+            state.cached_parsed_files.insert(path.clone(), (*hash, parse_results.clone()));
+        });
+
+        cache_misses
+            .into_iter()
+            .map(|(id, _, _, parse_results)| (id, parse_results))
+            .chain(cache_hits.into_iter())
+            .collect()
+    } else {
+        parse_all(file_manager)
+    }
 }
 
 // #[test]
