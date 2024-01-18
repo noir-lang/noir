@@ -1,11 +1,11 @@
 use std::future::{self, Future};
 
-use crate::resolve_workspace_for_source_path;
+use crate::{parse_diff, resolve_workspace_for_source_path};
 use crate::{types::GotoDefinitionResult, LspState};
 use async_lsp::{ErrorCode, ResponseError};
 
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
-use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use noirc_driver::file_manager_with_stdlib;
 
 use super::{position_to_byte_index, to_lsp_location};
@@ -19,7 +19,7 @@ pub(crate) fn on_goto_definition_request(
 }
 
 fn on_goto_definition_inner(
-    _state: &mut LspState,
+    state: &mut LspState,
     params: GotoDefinitionParams,
 ) -> Result<GotoDefinitionResult, ResponseError> {
     let file_path =
@@ -34,13 +34,13 @@ fn on_goto_definition_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let (mut context, crate_id) =
         nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
 
     let interner;
-    if let Some(def_interner) = _state.cached_definitions.get(&package_root_path) {
+    if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition

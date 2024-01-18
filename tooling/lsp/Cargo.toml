@@ -25,6 +25,8 @@ async-lsp = { workspace = true, features = ["omni-trait"] }
 serde_with = "3.2.0"
 thiserror.workspace = true
 fm.workspace = true
+rayon = "1.8.0"
+fxhash.workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true
