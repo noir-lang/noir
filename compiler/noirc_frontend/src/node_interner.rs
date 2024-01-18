@@ -499,8 +499,7 @@ impl NodeInterner {
                 // This lets us record how many arguments the type expects so that other types
                 // can refer to it with generic arguments before the generic parameters themselves
                 // are resolved.
-                let id = TypeVariableId(0);
-                (id, TypeVariable::unbound(id))
+                TypeVariable::unbound(TypeVariableId(0))
             }),
             self_type_typevar_id,
             self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
@@ -530,8 +529,7 @@ impl NodeInterner {
             // This lets us record how many arguments the type expects so that other types
             // can refer to it with generic arguments before the generic parameters themselves
             // are resolved.
-            let id = TypeVariableId(0);
-            (id, TypeVariable::unbound(id))
+            TypeVariable::unbound(TypeVariableId(0))
         });
 
         let location = Location::new(typ.struct_def.span, file_id);
@@ -549,10 +547,7 @@ impl NodeInterner {
             typ.type_alias_def.name.clone(),
             typ.type_alias_def.span,
             Type::Error,
-            vecmap(&typ.type_alias_def.generics, |_| {
-                let id = TypeVariableId(0);
-                (id, TypeVariable::unbound(id))
-            }),
+            vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
         ));
 
         type_id
@@ -1181,6 +1176,7 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
+    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,
@@ -1194,19 +1190,18 @@ impl NodeInterner {
 
         self.trait_implementations.push(trait_impl.clone());
 
-        // Ignoring overlapping TraitImplKind::Assumed impls here is perfectly fine.
-        // It should never happen since impls are defined at global scope, but even
-        // if they were, we should never prevent defining a new impl because a where
-        // clause already assumes it exists.
-
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
-            .map(|(id, typevar)| (id, (typevar, self.next_type_variable())))
+            .map(|typevar| (typevar.id(), (typevar, self.next_type_variable())))
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);
 
+        // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
+        // It should never happen since impls are defined at global scope, but even
+        // if they were, we should never prevent defining a new impl because a 'where'
+        // clause already assumes it exists.
         if let Ok((TraitImplKind::Normal(existing), _)) = self.try_lookup_trait_implementation(
             &instantiated_object_type,
             trait_id,

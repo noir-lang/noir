@@ -595,7 +595,7 @@ impl<'interner> TypeChecker<'interner> {
                     .generics
                     .iter()
                     .zip(generics)
-                    .map(|((id, var), arg)| (*id, (var.clone(), arg)))
+                    .map(|(var, arg)| (var.id(), (var.clone(), arg)))
                     .collect();
 
                 (method.typ.clone(), method.arguments().len(), generic_bindings)

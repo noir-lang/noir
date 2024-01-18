@@ -1,7 +1,4 @@
-use super::{
-    brillig::Brillig,
-    directives::{Directive, QuotientDirective},
-};
+use super::{brillig::Brillig, directives::Directive};
 use crate::native_types::{Expression, Witness};
 use serde::{Deserialize, Serialize};
 
@@ -48,21 +45,7 @@ impl std::fmt::Display for Opcode {
 
                 write!(f, " ]")
             }
-            Opcode::Directive(Directive::Quotient(QuotientDirective { a, b, q, r, predicate })) => {
-                write!(f, "DIR::QUOTIENT ")?;
-                if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE = {pred}")?;
-                }
 
-                write!(
-                    f,
-                    "(out : _{},  (_{}, {}), _{})",
-                    a,
-                    q.witness_index(),
-                    b,
-                    r.witness_index()
-                )
-            }
             Opcode::BlackBoxFuncCall(g) => write!(f, "{g}"),
             Opcode::Directive(Directive::ToLeRadix { a, b, radix: _ }) => {
                 write!(f, "DIR::TORADIX ")?;
