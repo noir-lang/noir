@@ -710,6 +710,15 @@ impl<'a> Resolver<'a> {
         if resolved_type.is_nested_slice() {
             self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
         }
+
+        if let Some(unresolved_span) = span {
+            // Record the location of the type reference
+            self.interner.push_type_ref_location(
+                resolved_type.clone(),
+                Location::new(unresolved_span, self.file),
+            );
+        }
+
         resolved_type
     }
 

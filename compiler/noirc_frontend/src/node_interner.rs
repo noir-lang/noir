@@ -142,6 +142,9 @@ pub struct NodeInterner {
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
+
+    /// Stores the [Location] of a [Type] reference
+    pub(crate) type_ref_locations: Vec<(Type, Location)>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -450,6 +453,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            type_ref_locations: Vec::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -595,6 +599,11 @@ impl NodeInterner {
     /// Store the type for an interned Identifier
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.id_to_type.insert(definition_id.into(), typ);
+    }
+
+    /// Store [Location] of [Type] reference
+    pub fn push_type_ref_location(&mut self, typ: Type, location: Location) {
+        self.type_ref_locations.push((typ, location));
     }
 
     pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
