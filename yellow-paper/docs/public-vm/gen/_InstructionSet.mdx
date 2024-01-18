@@ -31,7 +31,7 @@ Click on an instruction name to jump to its section.
 </tr>
 <tr>
 	<td style={{'text-align': 'center'}}>0x02</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mul'/><Markdown>[`MUL`](#isa-section-mul)</Markdown></td>
-	<td><Markdown>Subtraction (a - b)</Markdown></td>
+	<td><Markdown>Multiplication (a * b)</Markdown></td>
 	<td><Markdown>128</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] * M[bOffset] mod 2^k`
@@ -122,644 +122,1090 @@ Click on an instruction name to jump to its section.
 	<td><Markdown>Type cast</Markdown></td>
 	<td><Markdown>96</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = cast<dst-tag>(M[aOffset])`
+		`M[dstOffset] = cast<dstTag>(M[aOffset])`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>[`SET`](#isa-section-set)</Markdown></td>
-	<td><Markdown>Set a memory word from a constant in the bytecode.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-address'/><Markdown>[`ADDRESS`](#isa-section-address)</Markdown></td>
+	<td><Markdown>Get the address of the currently executing l2 contract</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.address`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x0f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-storageaddress'/><Markdown>[`STORAGEADDRESS`](#isa-section-storageaddress)</Markdown></td>
+	<td><Markdown>Get the _storage_ address of the currently executing context</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.storageAddress`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x10</td>	<td style={{'text-align': 'center'}}><a id='isa-table-origin'/><Markdown>[`ORIGIN`](#isa-section-origin)</Markdown></td>
+	<td><Markdown>Get the transaction's origination address</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.origin`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x11</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sender'/><Markdown>[`SENDER`](#isa-section-sender)</Markdown></td>
+	<td><Markdown>Get the address of the sender (caller of the current context)</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.sender`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x12</td>	<td style={{'text-align': 'center'}}><a id='isa-table-portal'/><Markdown>[`PORTAL`](#isa-section-portal)</Markdown></td>
+	<td><Markdown>Get the address of the l1 portal contract</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.portal`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x13</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl1gas'/><Markdown>[`FEEPERL1GAS`](#isa-section-feeperl1gas)</Markdown></td>
+	<td><Markdown>Get the fee to be paid per "L1 gas" - constant for entire transaction</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.feePerL1Gas`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x14</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>[`FEEPERL2GAS`](#isa-section-feeperl2gas)</Markdown></td>
+	<td><Markdown>Get the fee to be paid per "L2 gas" - constant for entire transaction</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.feePerL2Gas`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x15</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperdagas'/><Markdown>[`FEEPERDAGAS`](#isa-section-feeperdagas)</Markdown></td>
+	<td><Markdown>Get the fee to be paid per "DA gas" - constant for entire transaction</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.feePerDaGas`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x16</td>	<td style={{'text-align': 'center'}}><a id='isa-table-contractcalldepth'/><Markdown>[`CONTRACTCALLDEPTH`](#isa-section-contractcalldepth)</Markdown></td>
+	<td><Markdown>Get how many contract calls deep the current call context is</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.contractCallDepth`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x17</td>	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>[`CHAINID`](#isa-section-chainid)</Markdown></td>
+	<td><Markdown>Get this rollup's L1 chain ID</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.chainId`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x18</td>	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>[`VERSION`](#isa-section-version)</Markdown></td>
+	<td><Markdown>Get this rollup's L2 version ID</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.version`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x19</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>[`BLOCKNUMBER`](#isa-section-blocknumber)</Markdown></td>
+	<td><Markdown>Get this L2 block's number</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.blocknumber`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x1a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>[`TIMESTAMP`](#isa-section-timestamp)</Markdown></td>
+	<td><Markdown>Get this L2 block's timestamp</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.timestamp`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x1b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>[`COINBASE`](#isa-section-coinbase)</Markdown></td>
+	<td><Markdown>Get the block's beneficiary address</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.coinbase`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x1c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl1gaslimit'/><Markdown>[`BLOCKL1GASLIMIT`](#isa-section-blockl1gaslimit)</Markdown></td>
+	<td><Markdown>Total amount of "L1 gas" that a block can consume</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.l1GasLimit`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x1d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>[`BLOCKL2GASLIMIT`](#isa-section-blockl2gaslimit)</Markdown></td>
+	<td><Markdown>Total amount of "L2 gas" that a block can consume</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.l2GasLimit`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x1e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockdagaslimit'/><Markdown>[`BLOCKDAGASLIMIT`](#isa-section-blockdagaslimit)</Markdown></td>
+	<td><Markdown>Total amount of "DA gas" that a block can consume</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.daGasLimit`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x1f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>[`CALLDATACOPY`](#isa-section-calldatacopy)</Markdown></td>
+	<td><Markdown>Copy calldata into memory</Markdown></td>
+	<td><Markdown>120</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset:dstOffset+copySize] = context.environment.calldata[cdOffset:cdOffset+copySize]`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x20</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1gasleft'/><Markdown>[`L1GASLEFT`](#isa-section-l1gasleft)</Markdown></td>
+	<td><Markdown>Remaining "L1 gas" for this call (after this instruction)</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.machineState.l1GasLeft`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x21</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l2gasleft'/><Markdown>[`L2GASLEFT`](#isa-section-l2gasleft)</Markdown></td>
+	<td><Markdown>Remaining "L2 gas" for this call (after this instruction)</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.MachineState.l2GasLeft`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x22</td>	<td style={{'text-align': 'center'}}><a id='isa-table-dagasleft'/><Markdown>[`DAGASLEFT`](#isa-section-dagasleft)</Markdown></td>
+	<td><Markdown>Remaining "DA gas" for this call (after this instruction)</Markdown></td>
+	<td><Markdown>56</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.machineState.daGasLeft`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x23</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>[`JUMP`](#isa-section-jump)</Markdown></td>
+	<td><Markdown>Jump to a location in the bytecode</Markdown></td>
+	<td><Markdown>48</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`context.machineState.pc = loc`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x24</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>[`JUMPI`](#isa-section-jumpi)</Markdown></td>
+	<td><Markdown>Conditionally jump to a location in the bytecode</Markdown></td>
+	<td><Markdown>88</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`context.machineState.pc = M[condOffset] > 0 ? loc : context.machineState.pc`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x25</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalcall'/><Markdown>[`INTERNALCALL`](#isa-section-internalcall)</Markdown></td>
+	<td><Markdown>Make an internal call. Push the current PC to the internal call stack and jump to the target location.</Markdown></td>
+	<td><Markdown>48</Markdown></td>
+	<td><CodeBlock language="jsx">
+{`context.machineState.internalCallStack.push(context.machineState.pc)
+context.machineState.pc = loc`}
+	</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x26</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalreturn'/><Markdown>[`INTERNALRETURN`](#isa-section-internalreturn)</Markdown></td>
+	<td><Markdown>Return from an internal call. Pop from the internal call stack and jump to the popped location.</Markdown></td>
+	<td><Markdown>16</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`context.machineState.pc = context.machineState.internalCallStack.pop()`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>[`SET`](#isa-section-set)</Markdown></td>
+	<td><Markdown>Set a memory word from a constant in the bytecode</Markdown></td>
 	<td><Markdown>64+N</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = const`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>[`MOV`](#isa-section-mov)</Markdown></td>
-	<td><Markdown>Move a word from source memory location to destination`.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x28</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>[`MOV`](#isa-section-mov)</Markdown></td>
+	<td><Markdown>Move a word from source memory location to destination</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[srcOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x10</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>[`CMOV`](#isa-section-cmov)</Markdown></td>
-	<td><Markdown>Move a word (conditionally chosen) from one memory location to another (`d = cond &gt; 0 ? a : b`).</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x29</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>[`CMOV`](#isa-section-cmov)</Markdown></td>
+	<td><Markdown>Move a word (conditionally chosen) from one memory location to another (`d = cond &gt; 0 ? a : b`)</Markdown></td>
 	<td><Markdown>152</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[condOffset] > 0 ? M[aOffset] : M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x11</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>[`CALLDATACOPY`](#isa-section-calldatacopy)</Markdown></td>
-	<td><Markdown>Copy calldata into memory.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockheaderbynum'/><Markdown>[`BLOCKHEADERBYNUM`](#isa-section-blockheaderbynum)</Markdown></td>
+	<td><Markdown>Get the block header as of the specified block number</Markdown></td>
+	<td><Markdown>88</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset:dstOffset+BLOCK_HEADER_LENGTH] = context.worldState.blockHeader[M[blockNumOffset]]`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x2b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
+	<td><Markdown>Load a word from storage</Markdown></td>
+	<td><Markdown>88</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.worldState.publicStorage[context.environment.storageAddress, M[slotOffset]]`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x2c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
+	<td><Markdown>Write a word to storage</Markdown></td>
+	<td><Markdown>88</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`context.worldState.publicStorage[context.environment.storageAddress, M[slotOffset]] = M[srcOffset]`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-readl1tol2msg'/><Markdown>[`READL1TOL2MSG`](#isa-section-readl1tol2msg)</Markdown></td>
+	<td><Markdown>Reads an L1-to-L2 message</Markdown></td>
 	<td><Markdown>120</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`M[dstOffset:dstOffset+copySize] = calldata[cdOffset:cdOffset+copySize]`
+		`M[dstOffset:dstOffset+msgSize] = context.worldState.l1ToL2Messages(M[msgKeyOffset])`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x12</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
-	<td><Markdown>Load a word from storage.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
+	<td><Markdown>Send an L2-to-L1 message</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = storage[M[slotOffset]]`
+		`context.worldState.l2ToL1Messages.append(M[msgOffset:msgOffset+msgSize])`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x13</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
-	<td><Markdown>Write a word to storage.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`storage[M[slotOffset]] = M[srcOffset]`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x14</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
 	<td><Markdown>Emit a new note hash to be inserted into the notes tree</Markdown></td>
 	<td><Markdown>56</Markdown></td>
-	<td><Markdown>emitNoteHash(M[contentOffset])</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`context.worldState.newHashes.append(M[noteHashOffset])`
+	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x15</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
 	<td><Markdown>Emit a new nullifier to be inserted into the nullifier tree</Markdown></td>
 	<td><Markdown>56</Markdown></td>
-	<td><Markdown>emitNullifier(M[nullifierOffset])</Markdown></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x16</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
-	<td><Markdown>Send an L2-to-L1 message</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><Markdown>sendL2ToL1Message(M[contentOffset])</Markdown></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x17</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>[`JUMP`](#isa-section-jump)</Markdown></td>
-	<td><Markdown>Jump to a location in the bytecode.</Markdown></td>
-	<td><Markdown>48</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`PC = loc`
+		`context.worldState.nullifiers.append(M[nullifierOffset])`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x18</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>[`JUMPI`](#isa-section-jumpi)</Markdown></td>
-	<td><Markdown>Conditionally jump to a location in the bytecode.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
+	<td><Markdown>Emit an unencrypted log</Markdown></td>
 	<td><Markdown>88</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`PC = M[condOffset] > 0 ? loc : PC`
+		`context.accruedSubstate.unencryptedLogs.append(M[logOffset:logOffset+logSize])`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x19</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
-	<td><Markdown>Halt execution with `success`, optionally returning some data.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`return(M[retOffset:retOffset+retSize])`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x1a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
-	<td><Markdown>Halt execution with `failure`, reverting state changes and optionally returning some data.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`revert(M[retOffset:retOffset+retSize])`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x1b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
-	<td><Markdown>Call into another contract.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
+	<td><Markdown>Call into another contract</Markdown></td>
 	<td><Markdown>248</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`M[successOffset] = call(
-    M[gasOffset], M[gasOffset+1], M[addrOffset],
+    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
+    M[addrOffset],
     M[argsOffset], M[argsSize],
     M[retOffset], M[retSize])`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
-	<td><Markdown>Call into another contract, disallowing persistent state modifications.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
+	<td><Markdown>Call into another contract, disallowing World State and Accrued Substate modifications</Markdown></td>
 	<td><Markdown>248</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`M[successOffset] = staticcall(
-    M[gasOffset], M[gasOffset+1], M[addrOffset],
+    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
+    M[addrOffset],
     M[argsOffset], M[argsSize],
     M[retOffset], M[retSize])`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-ulog'/><Markdown>[`ULOG`](#isa-section-ulog)</Markdown></td>
-	<td><Markdown>Emit an unencrypted log with data from the `field` memory page</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
+	<td><Markdown>Halt execution within this context (without revert), optionally returning some data</Markdown></td>
 	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`ulog(M[logOffset:logOffset+logSize])`
-	}</CodeBlock></td>
+	<td><CodeBlock language="jsx">
+{`context.contractCallResults.output = M[retOffset:retOffset+retSize]
+halt`}
+	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>[`CHAINID`](#isa-section-chainid)</Markdown></td>
-	<td><Markdown>Get this rollup's L1 chain ID</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = Globals.chainId`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x1f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>[`VERSION`](#isa-section-version)</Markdown></td>
-	<td><Markdown>Get this rollup's L2 version ID</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = Globals.version`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x20</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>[`BLOCKNUMBER`](#isa-section-blocknumber)</Markdown></td>
-	<td><Markdown>Get this block's number</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = Globals.blocknumber`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x21</td>	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>[`TIMESTAMP`](#isa-section-timestamp)</Markdown></td>
-	<td><Markdown>Get this L2 block's timestamp</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = Globals.timestamp`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x22</td>	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>[`COINBASE`](#isa-section-coinbase)</Markdown></td>
-	<td><Markdown>Get the block's beneficiary address</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = Globals.coinbase`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x23</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl1gaslimit'/><Markdown>[`BLOCKL1GASLIMIT`](#isa-section-blockl1gaslimit)</Markdown></td>
-	<td><Markdown>Total amount of "L1 gas" that a block can consume</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = Globals.l1GasLimit`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x24</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>[`BLOCKL2GASLIMIT`](#isa-section-blockl2gaslimit)</Markdown></td>
-	<td><Markdown>Total amount of "L2 gas" that a block can consume</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = Globals.l2GasLimit`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x25</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notesroot'/><Markdown>[`NOTESROOT`](#isa-section-notesroot)</Markdown></td>
-	<td><Markdown>Get the historical note-hash tree root as of the specified block number.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
+	<td><Markdown>Halt execution within this context as `reverted`, optionally returning some data</Markdown></td>
 	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].note_hash_tree_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x26</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullroot'/><Markdown>[`NULLIFIERSROOT`](#isa-section-nullroot)</Markdown></td>
-	<td><Markdown>Get the historical nullifier tree root as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].nullifier_tree_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-contractsroot'/><Markdown>[`CONTRACTSROOT`](#isa-section-contractsroot)</Markdown></td>
-	<td><Markdown>Get the historical contracts tree root as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].contracts_tree_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x28</td>	<td style={{'text-align': 'center'}}><a id='isa-table-msgsroot'/><Markdown>[`MSGSROOT`](#isa-section-msgsroot)</Markdown></td>
-	<td><Markdown>Get the historical l1-to-l2 message tree root as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].l1_to_l2_message_tree_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x29</td>	<td style={{'text-align': 'center'}}><a id='isa-table-publicdataroot'/><Markdown>[`PUBLICDATAROOT`](#isa-section-publicdataroot)</Markdown></td>
-	<td><Markdown>Get the historical public data tree root as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].public_data_tree_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x2a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-globalshash'/><Markdown>[`GLOBALSHASH`](#isa-section-globalshash)</Markdown></td>
-	<td><Markdown>Get the historical global variables hash as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].global_variables_hash`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x2b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocksroot'/><Markdown>[`BLOCKSROOT`](#isa-section-blocksroot)</Markdown></td>
-	<td><Markdown>Get the historical blocks tree root as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].archive_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x2c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-grandroot'/><Markdown>[`GRANDROOT`](#isa-section-grandroot)</Markdown></td>
-	<td><Markdown>Get the historical grandfather tree root as of the specified block number.</Markdown></td>
-	<td><Markdown>88</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].grandfather_tree_root`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-origin'/><Markdown>[`ORIGIN`](#isa-section-origin)</Markdown></td>
-	<td><Markdown>Get the transaction's origination address</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = TxContext.origin`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-refundee'/><Markdown>[`REFUNDEE`](#isa-section-refundee)</Markdown></td>
-	<td><Markdown>The recipient of fee refunds for this transaction</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = TxContext.refundee`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl1gas'/><Markdown>[`FEEPERL1GAS`](#isa-section-feeperl1gas)</Markdown></td>
-	<td><Markdown>The fee to be paid per "L1 gas" - set by the transaction's original caller</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = TxContext.feePerL1Gas`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>[`FEEPERL2GAS`](#isa-section-feeperl2gas)</Markdown></td>
-	<td><Markdown>The fee to be paid per "L2 gas" - set by the transaction's original caller</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = TxContext.feePerL2Gas`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-caller'/><Markdown>[`CALLER`](#isa-section-caller)</Markdown></td>
-	<td><Markdown>Get the address of the sender (the caller's context)</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = CallContext.sender`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-address'/><Markdown>[`ADDRESS`](#isa-section-address)</Markdown></td>
-	<td><Markdown>Get the address of the currently executing l2 contract</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = CallContext.storageContractAddress`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-portal'/><Markdown>[`PORTAL`](#isa-section-portal)</Markdown></td>
-	<td><Markdown>Get the address of the l1 portal contract</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = CallContext.portalAddress`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldepth'/><Markdown>[`CALLDEPTH`](#isa-section-calldepth)</Markdown></td>
-	<td><Markdown>Get how many calls deep the current call context is</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = CallContext.calldepth`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1gas'/><Markdown>[`L1GAS`](#isa-section-l1gas)</Markdown></td>
-	<td><Markdown>Remaining "L1 gas" for this call (after this instruction).</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = LatestContext.l1Gas`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l2gas'/><Markdown>[`L2GAS`](#isa-section-l2gas)</Markdown></td>
-	<td><Markdown>Remaining "L2 gas" for this call (after this instruction).</Markdown></td>
-	<td><Markdown>56</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = LatestContext.l2Gas`
-	}</CodeBlock></td>
+	<td><CodeBlock language="jsx">
+{`context.contractCallResults.output = M[retOffset:retOffset+retSize]
+context.contractCallResults.reverted = true
+halt`}
+	</CodeBlock></td>
 </tr>
 </table>
 
 
 ## Instructions
 
-### <a id='isa-section-add'/>`ADD` (0x00)
+### <a id='isa-section-add'/>`ADD`
 Addition (a + b)
 
 [See in table.](#isa-table-add)
 
-- **Category**: arithmetic
+- **Opcode**: 0x00
+- **Category**: Compute - Arithmetic
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] + M[bOffset] mod 2^k`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/ADD.png)](./images/bit-formats/ADD.png)
 
-### <a id='isa-section-sub'/>`SUB` (0x01)
+### <a id='isa-section-sub'/>`SUB`
 Subtraction (a - b)
 
 [See in table.](#isa-table-sub)
 
-- **Category**: arithmetic
+- **Opcode**: 0x01
+- **Category**: Compute - Arithmetic
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] - M[bOffset] mod 2^k`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/SUB.png)](./images/bit-formats/SUB.png)
 
-### <a id='isa-section-mul'/>`MUL` (0x02)
-Subtraction (a - b)
+### <a id='isa-section-mul'/>`MUL`
+Multiplication (a * b)
 
 [See in table.](#isa-table-mul)
 
-- **Category**: arithmetic
+- **Opcode**: 0x02
+- **Category**: Compute - Arithmetic
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] * M[bOffset] mod 2^k`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
+[![](./images/bit-formats/MUL.png)](./images/bit-formats/MUL.png)
 
-### <a id='isa-section-div'/>`DIV` (0x03)
+### <a id='isa-section-div'/>`DIV`
 Unsigned division (a / b)
 
 [See in table.](#isa-table-div)
 
-- **Category**: arithmetic
+- **Opcode**: 0x03
+- **Category**: Compute - Arithmetic
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] / M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/DIV.png)](./images/bit-formats/DIV.png)
 
-### <a id='isa-section-eq'/>`EQ` (0x04)
+### <a id='isa-section-eq'/>`EQ`
 Equality check (a == b)
 
 [See in table.](#isa-table-eq)
 
-- **Category**: conditional
+- **Opcode**: 0x04
+- **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] == M[bOffset] ? 1 : 0`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/EQ.png)](./images/bit-formats/EQ.png)
 
-### <a id='isa-section-lt'/>`LT` (0x05)
+### <a id='isa-section-lt'/>`LT`
 Less-than check (a < b)
 
 [See in table.](#isa-table-lt)
 
-- **Category**: conditional
+- **Opcode**: 0x05
+- **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] < M[bOffset] ? 1 : 0`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/LT.png)](./images/bit-formats/LT.png)
 
-### <a id='isa-section-lte'/>`LTE` (0x06)
+### <a id='isa-section-lte'/>`LTE`
 Less-than-or-equals check (a <= b)
 
 [See in table.](#isa-table-lte)
 
-- **Category**: conditional
+- **Opcode**: 0x06
+- **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] <= M[bOffset] ? 1 : 0`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/LTE.png)](./images/bit-formats/LTE.png)
 
-### <a id='isa-section-and'/>`AND` (0x07)
+### <a id='isa-section-and'/>`AND`
 Bitwise AND (a & b)
 
 [See in table.](#isa-table-and)
 
-- **Category**: bitwise
+- **Opcode**: 0x07
+- **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] AND M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/AND.png)](./images/bit-formats/AND.png)
 
-### <a id='isa-section-or'/>`OR` (0x08)
+### <a id='isa-section-or'/>`OR`
 Bitwise OR (a | b)
 
 [See in table.](#isa-table-or)
 
-- **Category**: bitwise
+- **Opcode**: 0x08
+- **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] OR M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/OR.png)](./images/bit-formats/OR.png)
 
-### <a id='isa-section-xor'/>`XOR` (0x09)
+### <a id='isa-section-xor'/>`XOR`
 Bitwise XOR (a ^ b)
 
 [See in table.](#isa-table-xor)
 
-- **Category**: bitwise
+- **Opcode**: 0x09
+- **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] XOR M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/XOR.png)](./images/bit-formats/XOR.png)
 
-### <a id='isa-section-not'/>`NOT` (0x0a)
+### <a id='isa-section-not'/>`NOT`
 Bitwise NOT (inversion)
 
 [See in table.](#isa-table-not)
 
-- **Category**: bitwise
+- **Opcode**: 0x0a
+- **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = NOT M[aOffset]`
-- **Tag checks**: `T[aOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 96
 
 [![](./images/bit-formats/NOT.png)](./images/bit-formats/NOT.png)
 
-### <a id='isa-section-shl'/>`SHL` (0x0b)
+### <a id='isa-section-shl'/>`SHL`
 Bitwise leftward shift (a << b)
 
 [See in table.](#isa-table-shl)
 
-- **Category**: bitwise
+- **Opcode**: 0x0b
+- **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] << M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/SHL.png)](./images/bit-formats/SHL.png)
 
-### <a id='isa-section-shr'/>`SHR` (0x0c)
+### <a id='isa-section-shr'/>`SHR`
 Bitwise rightward shift (a >> b)
 
 [See in table.](#isa-table-shr)
 
-- **Category**: bitwise
+- **Opcode**: 0x0c
+- **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] >> M[bOffset]`
-- **Tag checks**: `T[aOffset] == T[bOffset] == in-tag`
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/SHR.png)](./images/bit-formats/SHR.png)
 
-### <a id='isa-section-cast'/>`CAST` (0x0d)
+### <a id='isa-section-cast'/>`CAST`
 Type cast
 
 [See in table.](#isa-table-cast)
 
-- **Category**: types
+- **Opcode**: 0x0d
+- **Category**: Type Conversions
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **dst-tag**: The [tag/size](./state-model#tags-and-tagged-memory) to tag the destination with but not to check inputs against.
+	- **dstTag**: The [tag/size](./state-model#tags-and-tagged-memory) to tag the destination with but not to check inputs against.
 - **Args**: 
 	- **aOffset**: memory offset of word to cast
 	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = cast<dst-tag>(M[aOffset])`
-- **Details**: Cast a word in memory based on the `dst-tag` specified in the bytecode. Truncates (`M[dstOffset] = M[aOffset] mod 2^dstsize`) when casting to a smaller type, left-zero-pads when casting to a larger type. See [here](./state-model#cast-and-tag-conversions) for more details.
-- **Tag updates**: `T[dstOffset] = dst-tag`
+- **Expression**: `M[dstOffset] = cast<dstTag>(M[aOffset])`
+- **Details**: Cast a word in memory based on the `dstTag` specified in the bytecode. Truncates (`M[dstOffset] = M[aOffset] mod 2^dstsize`) when casting to a smaller type, left-zero-pads when casting to a larger type. See [here](./state-model#cast-and-tag-conversions) for more details.
+- **Tag updates**: `T[dstOffset] = dstTag`
 - **Bit-size**: 96
 
 [![](./images/bit-formats/CAST.png)](./images/bit-formats/CAST.png)
 
-### <a id='isa-section-set'/>`SET` (0x0e)
-Set a memory word from a constant in the bytecode.
+### <a id='isa-section-address'/>`ADDRESS`
+Get the address of the currently executing l2 contract
+
+[See in table.](#isa-table-address)
+
+- **Opcode**: 0x0e
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.address`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/ADDRESS.png)](./images/bit-formats/ADDRESS.png)
+
+### <a id='isa-section-storageaddress'/>`STORAGEADDRESS`
+Get the _storage_ address of the currently executing context
+
+[See in table.](#isa-table-storageaddress)
+
+- **Opcode**: 0x0f
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.storageAddress`
+- **Details**: The storage address is used for public storage accesses.
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/STORAGEADDRESS.png)](./images/bit-formats/STORAGEADDRESS.png)
+
+### <a id='isa-section-origin'/>`ORIGIN`
+Get the transaction's origination address
+
+[See in table.](#isa-table-origin)
+
+- **Opcode**: 0x10
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.origin`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/ORIGIN.png)](./images/bit-formats/ORIGIN.png)
+
+### <a id='isa-section-sender'/>`SENDER`
+Get the address of the sender (caller of the current context)
+
+[See in table.](#isa-table-sender)
+
+- **Opcode**: 0x11
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.sender`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/SENDER.png)](./images/bit-formats/SENDER.png)
+
+### <a id='isa-section-portal'/>`PORTAL`
+Get the address of the l1 portal contract
+
+[See in table.](#isa-table-portal)
+
+- **Opcode**: 0x12
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.portal`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/PORTAL.png)](./images/bit-formats/PORTAL.png)
+
+### <a id='isa-section-feeperl1gas'/>`FEEPERL1GAS`
+Get the fee to be paid per "L1 gas" - constant for entire transaction
+
+[See in table.](#isa-table-feeperl1gas)
+
+- **Opcode**: 0x13
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.feePerL1Gas`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/FEEPERL1GAS.png)](./images/bit-formats/FEEPERL1GAS.png)
+
+### <a id='isa-section-feeperl2gas'/>`FEEPERL2GAS`
+Get the fee to be paid per "L2 gas" - constant for entire transaction
+
+[See in table.](#isa-table-feeperl2gas)
+
+- **Opcode**: 0x14
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.feePerL2Gas`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/FEEPERL2GAS.png)](./images/bit-formats/FEEPERL2GAS.png)
+
+### <a id='isa-section-feeperdagas'/>`FEEPERDAGAS`
+Get the fee to be paid per "DA gas" - constant for entire transaction
+
+[See in table.](#isa-table-feeperdagas)
+
+- **Opcode**: 0x15
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.feePerDaGas`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/FEEPERDAGAS.png)](./images/bit-formats/FEEPERDAGAS.png)
+
+### <a id='isa-section-contractcalldepth'/>`CONTRACTCALLDEPTH`
+Get how many contract calls deep the current call context is
+
+[See in table.](#isa-table-contractcalldepth)
+
+- **Opcode**: 0x16
+- **Category**: Execution Environment
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.contractCallDepth`
+- **Details**: Note: security issues with EVM's tx.origin can be resolved by asserting `calldepth == 0`.
+- **Tag updates**: `T[dstOffset] = u8`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/CONTRACTCALLDEPTH.png)](./images/bit-formats/CONTRACTCALLDEPTH.png)
+
+### <a id='isa-section-chainid'/>`CHAINID`
+Get this rollup's L1 chain ID
+
+[See in table.](#isa-table-chainid)
+
+- **Opcode**: 0x17
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.chainId`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/CHAINID.png)](./images/bit-formats/CHAINID.png)
+
+### <a id='isa-section-version'/>`VERSION`
+Get this rollup's L2 version ID
+
+[See in table.](#isa-table-version)
+
+- **Opcode**: 0x18
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.version`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/VERSION.png)](./images/bit-formats/VERSION.png)
+
+### <a id='isa-section-blocknumber'/>`BLOCKNUMBER`
+Get this L2 block's number
+
+[See in table.](#isa-table-blocknumber)
+
+- **Opcode**: 0x19
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.blocknumber`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/BLOCKNUMBER.png)](./images/bit-formats/BLOCKNUMBER.png)
+
+### <a id='isa-section-timestamp'/>`TIMESTAMP`
+Get this L2 block's timestamp
+
+[See in table.](#isa-table-timestamp)
+
+- **Opcode**: 0x1a
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.timestamp`
+- **Tag updates**: `T[dstOffset] = u64`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/TIMESTAMP.png)](./images/bit-formats/TIMESTAMP.png)
+
+### <a id='isa-section-coinbase'/>`COINBASE`
+Get the block's beneficiary address
+
+[See in table.](#isa-table-coinbase)
+
+- **Opcode**: 0x1b
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.coinbase`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/COINBASE.png)](./images/bit-formats/COINBASE.png)
+
+### <a id='isa-section-blockl1gaslimit'/>`BLOCKL1GASLIMIT`
+Total amount of "L1 gas" that a block can consume
+
+[See in table.](#isa-table-blockl1gaslimit)
+
+- **Opcode**: 0x1c
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.l1GasLimit`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/BLOCKL1GASLIMIT.png)](./images/bit-formats/BLOCKL1GASLIMIT.png)
+
+### <a id='isa-section-blockl2gaslimit'/>`BLOCKL2GASLIMIT`
+Total amount of "L2 gas" that a block can consume
+
+[See in table.](#isa-table-blockl2gaslimit)
+
+- **Opcode**: 0x1d
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.l2GasLimit`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/BLOCKL2GASLIMIT.png)](./images/bit-formats/BLOCKL2GASLIMIT.png)
+
+### <a id='isa-section-blockdagaslimit'/>`BLOCKDAGASLIMIT`
+Total amount of "DA gas" that a block can consume
+
+[See in table.](#isa-table-blockdagaslimit)
+
+- **Opcode**: 0x1e
+- **Category**: Execution Environment - Globals
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.daGasLimit`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/BLOCKDAGASLIMIT.png)](./images/bit-formats/BLOCKDAGASLIMIT.png)
+
+### <a id='isa-section-calldatacopy'/>`CALLDATACOPY`
+Copy calldata into memory
+
+[See in table.](#isa-table-calldatacopy)
+
+- **Opcode**: 0x1f
+- **Category**: Execution Environment - Calldata
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **cdOffset**: offset into calldata to copy from
+	- **copySize**: number of words to copy
+	- **dstOffset**: memory offset specifying where to copy the first word to
+- **Expression**: `M[dstOffset:dstOffset+copySize] = context.environment.calldata[cdOffset:cdOffset+copySize]`
+- **Details**: Calldata is read-only and cannot be directly operated on by other instructions. This instruction moves words from calldata into memory so they can be operated on normally.
+- **Tag updates**: `T[dstOffset:dstOffset+copySize] = field`
+- **Bit-size**: 120
+
+[![](./images/bit-formats/CALLDATACOPY.png)](./images/bit-formats/CALLDATACOPY.png)
+
+### <a id='isa-section-l1gasleft'/>`L1GASLEFT`
+Remaining "L1 gas" for this call (after this instruction)
+
+[See in table.](#isa-table-l1gasleft)
+
+- **Opcode**: 0x20
+- **Category**: Machine State - Gas
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.machineState.l1GasLeft`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/L1GASLEFT.png)](./images/bit-formats/L1GASLEFT.png)
+
+### <a id='isa-section-l2gasleft'/>`L2GASLEFT`
+Remaining "L2 gas" for this call (after this instruction)
+
+[See in table.](#isa-table-l2gasleft)
+
+- **Opcode**: 0x21
+- **Category**: Machine State - Gas
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.MachineState.l2GasLeft`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/L2GASLEFT.png)](./images/bit-formats/L2GASLEFT.png)
+
+### <a id='isa-section-dagasleft'/>`DAGASLEFT`
+Remaining "DA gas" for this call (after this instruction)
+
+[See in table.](#isa-table-dagasleft)
+
+- **Opcode**: 0x22
+- **Category**: Machine State - Gas
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.machineState.daGasLeft`
+- **Tag updates**: `T[dstOffset] = u32`
+- **Bit-size**: 56
+
+[![](./images/bit-formats/DAGASLEFT.png)](./images/bit-formats/DAGASLEFT.png)
+
+### <a id='isa-section-jump'/>`JUMP`
+Jump to a location in the bytecode
+
+[See in table.](#isa-table-jump)
+
+- **Opcode**: 0x23
+- **Category**: Machine State - Control Flow
+- **Args**: 
+	- **loc**: target location to jump to
+- **Expression**: `context.machineState.pc = loc`
+- **Details**: Target location is an immediate value (a constant in the bytecode).
+- **Bit-size**: 48
+
+[![](./images/bit-formats/JUMP.png)](./images/bit-formats/JUMP.png)
+
+### <a id='isa-section-jumpi'/>`JUMPI`
+Conditionally jump to a location in the bytecode
+
+[See in table.](#isa-table-jumpi)
+
+- **Opcode**: 0x24
+- **Category**: Machine State - Control Flow
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **loc**: target location conditionally jump to
+	- **condOffset**: memory offset of the operations 'conditional' input
+- **Expression**: `context.machineState.pc = M[condOffset] > 0 ? loc : context.machineState.pc`
+- **Details**: Target location is an immediate value (a constant in the bytecode). `T[condOffset]` is not checked because the greater-than-zero suboperation is the same regardless of type.
+- **Bit-size**: 88
+
+[![](./images/bit-formats/JUMPI.png)](./images/bit-formats/JUMPI.png)
+
+### <a id='isa-section-internalcall'/>`INTERNALCALL`
+Make an internal call. Push the current PC to the internal call stack and jump to the target location.
+
+[See in table.](#isa-table-internalcall)
+
+- **Opcode**: 0x25
+- **Category**: Machine State - Control Flow
+- **Args**: 
+	- **loc**: target location to jump/call to
+- **Expression**: 
+<CodeBlock language="jsx">
+{`context.machineState.internalCallStack.push(context.machineState.pc)
+context.machineState.pc = loc`}
+</CodeBlock>
+- **Details**: Target location is an immediate value (a constant in the bytecode).
+- **Bit-size**: 48
+
+
+### <a id='isa-section-internalreturn'/>`INTERNALRETURN`
+Return from an internal call. Pop from the internal call stack and jump to the popped location.
+
+[See in table.](#isa-table-internalreturn)
+
+- **Opcode**: 0x26
+- **Category**: Machine State - Control Flow
+- **Expression**: `context.machineState.pc = context.machineState.internalCallStack.pop()`
+- **Bit-size**: 16
+
+[![](./images/bit-formats/INTERNALRETURN.png)](./images/bit-formats/INTERNALRETURN.png)
+
+### <a id='isa-section-set'/>`SET`
+Set a memory word from a constant in the bytecode
 
 [See in table.](#isa-table-set)
 
-- **Category**: memory
+- **Opcode**: 0x27
+- **Category**: Machine State - Memory
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **in-tag**: The [type/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for SET.
+	- **inTag**: The [type/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for SET.
 - **Args**: 
 	- **const**: an N-bit constant value from the bytecode to store in memory (any type except `field`)
 	- **dstOffset**: memory offset specifying where to store the constant
 - **Expression**: `M[dstOffset] = const`
-- **Details**: Set memory word at `dstOffset` to `const`'s immediate value. `const`'s bit-size (N) can be 8, 16, 32, 64, or 128 based on `in-tag`. It _cannot be 254 (`field` type)_!
-- **Tag updates**: `T[dstOffset] = in-tag`
+- **Details**: Set memory word at `dstOffset` to `const`'s immediate value. `const`'s bit-size (N) can be 8, 16, 32, 64, or 128 based on `inTag`. It _cannot be 254 (`field` type)_!
+- **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 64+N
 
 [![](./images/bit-formats/SET.png)](./images/bit-formats/SET.png)
 
-### <a id='isa-section-mov'/>`MOV` (0x0f)
-Move a word from source memory location to destination`.
+### <a id='isa-section-mov'/>`MOV`
+Move a word from source memory location to destination
 
 [See in table.](#isa-table-mov)
 
-- **Category**: memory
+- **Opcode**: 0x28
+- **Category**: Machine State - Memory
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
@@ -771,12 +1217,13 @@ Move a word from source memory location to destination`.
 
 [![](./images/bit-formats/MOV.png)](./images/bit-formats/MOV.png)
 
-### <a id='isa-section-cmov'/>`CMOV` (0x10)
-Move a word (conditionally chosen) from one memory location to another (`d = cond > 0 ? a : b`).
+### <a id='isa-section-cmov'/>`CMOV`
+Move a word (conditionally chosen) from one memory location to another (`d = cond > 0 ? a : b`)
 
 [See in table.](#isa-table-cmov)
 
-- **Category**: memory
+- **Opcode**: 0x29
+- **Category**: Machine State - Memory
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
@@ -791,180 +1238,157 @@ Move a word (conditionally chosen) from one memory location to another (`d = con
 
 [![](./images/bit-formats/CMOV.png)](./images/bit-formats/CMOV.png)
 
-### <a id='isa-section-calldatacopy'/>`CALLDATACOPY` (0x11)
-Copy calldata into memory.
+### <a id='isa-section-blockheaderbynum'/>`BLOCKHEADERBYNUM`
+Get the block header as of the specified block number
 
-[See in table.](#isa-table-calldatacopy)
+[See in table.](#isa-table-blockheaderbynum)
 
-- **Category**: contract calls
+- **Opcode**: 0x2a
+- **Category**: World State
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **cdOffset**: offset into calldata to copy from
-	- **copySize**: number of words to copy
-	- **dstOffset**: memory offset specifying where to copy the first word to
-- **Expression**: `M[dstOffset:dstOffset+copySize] = calldata[cdOffset:cdOffset+copySize]`
-- **Details**: Calldata is read-only and cannot be directly operated on by other instructions. This instruction moves words from calldata into memory so they can be operated on normally.
-- **Tag updates**: `T[dstOffset:dstOffset+copySize] = field`
-- **Bit-size**: 120
+	- **blockNumOffset**: memory offset of the block number input
+	- **dstOffset**: memory offset specifying where to store operation's result's 0th word
+- **Expression**: `M[dstOffset:dstOffset+BLOCK_HEADER_LENGTH] = context.worldState.blockHeader[M[blockNumOffset]]`
+- **Tag updates**: `T[dstOffset:dstOffset+BLOCK_HEADER_LENGTh] = field`
+- **Bit-size**: 88
 
-[![](./images/bit-formats/CALLDATACOPY.png)](./images/bit-formats/CALLDATACOPY.png)
+[![](./images/bit-formats/BLOCKHEADERBYNUM.png)](./images/bit-formats/BLOCKHEADERBYNUM.png)
 
-### <a id='isa-section-sload'/>`SLOAD` (0x12)
-Load a word from storage.
+### <a id='isa-section-sload'/>`SLOAD`
+Load a word from storage
 
 [See in table.](#isa-table-sload)
 
-- **Category**: storage & messaging
+- **Opcode**: 0x2b
+- **Category**: World State - Public Storage
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **slotOffset**: memory offset of the storage slot to load from
 	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = storage[M[slotOffset]]`
+- **Expression**: `M[dstOffset] = context.worldState.publicStorage[context.environment.storageAddress, M[slotOffset]]`
 - **Details**: Load a word from this contract's persistent public storage into memory.
 - **Tag updates**: `T[dstOffset] = field`
 - **Bit-size**: 88
 
 [![](./images/bit-formats/SLOAD.png)](./images/bit-formats/SLOAD.png)
 
-### <a id='isa-section-sstore'/>`SSTORE` (0x13)
-Write a word to storage.
+### <a id='isa-section-sstore'/>`SSTORE`
+Write a word to storage
 
 [See in table.](#isa-table-sstore)
 
-- **Category**: storage & messaging
+- **Opcode**: 0x2c
+- **Category**: World State - Public Storage
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **srcOffset**: memory offset of the word to store
 	- **slotOffset**: memory offset containing the storage slot to store to
-- **Expression**: `storage[M[slotOffset]] = M[srcOffset]`
+- **Expression**: `context.worldState.publicStorage[context.environment.storageAddress, M[slotOffset]] = M[srcOffset]`
 - **Details**: Store a word from memory into this contract's persistent public storage.
 - **Bit-size**: 88
 
 [![](./images/bit-formats/SSTORE.png)](./images/bit-formats/SSTORE.png)
 
-### <a id='isa-section-emitnotehash'/>`EMITNOTEHASH` (0x14)
-Emit a new note hash to be inserted into the notes tree
+### <a id='isa-section-readl1tol2msg'/>`READL1TOL2MSG`
+Reads an L1-to-L2 message
 
-[See in table.](#isa-table-emitnotehash)
+[See in table.](#isa-table-readl1tol2msg)
 
-- **Category**: storage & messaging
+- **Opcode**: 0x2d
+- **Category**: World State - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **noteHashOffset**: memory offset of the note hash
-- **Expression**: emitNoteHash(M[contentOffset])
-- **Bit-size**: 56
+	- **msgKeyOffset**: memory offset of the message's key
+	- **dstOffset**: memory offset to place the 0th word of the message content
+	- **msgSize**: number of words in the message
+- **Expression**: `M[dstOffset:dstOffset+msgSize] = context.worldState.l1ToL2Messages(M[msgKeyOffset])`
+- **Tag updates**: `T[dstOffset:dstOffset+msgSize] = field`
+- **Bit-size**: 120
 
-[![](./images/bit-formats/EMITNOTEHASH.png)](./images/bit-formats/EMITNOTEHASH.png)
+[![](./images/bit-formats/READL1TOL2MSG.png)](./images/bit-formats/READL1TOL2MSG.png)
 
-### <a id='isa-section-emitnullifier'/>`EMITNULLIFIER` (0x15)
-Emit a new nullifier to be inserted into the nullifier tree
-
-[See in table.](#isa-table-emitnullifier)
-
-- **Category**: storage & messaging
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **nullifierOffset**: memory offset of nullifier
-- **Expression**: emitNullifier(M[nullifierOffset])
-- **Bit-size**: 56
-
-[![](./images/bit-formats/EMITNULLIFIER.png)](./images/bit-formats/EMITNULLIFIER.png)
-
-### <a id='isa-section-sendl2tol1msg'/>`SENDL2TOL1MSG` (0x16)
+### <a id='isa-section-sendl2tol1msg'/>`SENDL2TOL1MSG`
 Send an L2-to-L1 message
 
 [See in table.](#isa-table-sendl2tol1msg)
 
-- **Category**: storage & messaging
+- **Opcode**: 0x2e
+- **Category**: World State - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **contentOffset**: memory offset of the message content
-- **Expression**: sendL2ToL1Message(M[contentOffset])
-- **Bit-size**: 56
+	- **msgOffset**: memory offset of the message content
+	- **msgSize**: number of words in the message
+- **Expression**: `context.worldState.l2ToL1Messages.append(M[msgOffset:msgOffset+msgSize])`
+- **Bit-size**: 88
 
 [![](./images/bit-formats/SENDL2TOL1MSG.png)](./images/bit-formats/SENDL2TOL1MSG.png)
 
-### <a id='isa-section-jump'/>`JUMP` (0x17)
-Jump to a location in the bytecode.
+### <a id='isa-section-emitnotehash'/>`EMITNOTEHASH`
+Emit a new note hash to be inserted into the notes tree
 
-[See in table.](#isa-table-jump)
+[See in table.](#isa-table-emitnotehash)
 
-- **Category**: control
-- **Args**: 
-	- **loc**: target location to jump to
-- **Expression**: `PC = loc`
-- **Details**: Target location is an immediate value (a constant in the bytecode).
-- **Bit-size**: 48
-
-[![](./images/bit-formats/JUMP.png)](./images/bit-formats/JUMP.png)
-
-### <a id='isa-section-jumpi'/>`JUMPI` (0x18)
-Conditionally jump to a location in the bytecode.
-
-[See in table.](#isa-table-jumpi)
-
-- **Category**: control
+- **Opcode**: 0x2f
+- **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **loc**: target location conditionally jump to
-	- **condOffset**: memory offset of the operations 'conditional' input
-- **Expression**: `PC = M[condOffset] > 0 ? loc : PC`
-- **Details**: Target location is an immediate value (a constant in the bytecode). `T[condOffset]` is not checked because the greater-than-zero suboperation is the same regardless of type.
-- **Bit-size**: 88
+	- **noteHashOffset**: memory offset of the note hash
+- **Expression**: `context.worldState.newHashes.append(M[noteHashOffset])`
+- **Bit-size**: 56
 
-[![](./images/bit-formats/JUMPI.png)](./images/bit-formats/JUMPI.png)
+[![](./images/bit-formats/EMITNOTEHASH.png)](./images/bit-formats/EMITNOTEHASH.png)
 
-### <a id='isa-section-return'/>`RETURN` (0x19)
-Halt execution with `success`, optionally returning some data.
+### <a id='isa-section-emitnullifier'/>`EMITNULLIFIER`
+Emit a new nullifier to be inserted into the nullifier tree
 
-[See in table.](#isa-table-return)
+[See in table.](#isa-table-emitnullifier)
 
-- **Category**: contract calls
+- **Opcode**: 0x30
+- **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **retOffset**: memory offset of first word to return
-	- **retSize**: number of words to return
-- **Expression**: `return(M[retOffset:retOffset+retSize])`
-- **Details**: Return control flow to the calling context/contract.
-- **Bit-size**: 88
+	- **nullifierOffset**: memory offset of nullifier
+- **Expression**: `context.worldState.nullifiers.append(M[nullifierOffset])`
+- **Bit-size**: 56
 
-[![](./images/bit-formats/RETURN.png)](./images/bit-formats/RETURN.png)
+[![](./images/bit-formats/EMITNULLIFIER.png)](./images/bit-formats/EMITNULLIFIER.png)
 
-### <a id='isa-section-revert'/>`REVERT` (0x1a)
-Halt execution with `failure`, reverting state changes and optionally returning some data.
+### <a id='isa-section-emitunencryptedlog'/>`EMITUNENCRYPTEDLOG`
+Emit an unencrypted log
 
-[See in table.](#isa-table-revert)
+[See in table.](#isa-table-emitunencryptedlog)
 
-- **Category**: contract calls
+- **Opcode**: 0x31
+- **Category**: Accrued Substate - Logging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **retOffset**: memory offset of first word to return
-	- **retSize**: number of words to return
-- **Expression**: `revert(M[retOffset:retOffset+retSize])`
-- **Details**: Return control flow to the calling context/contract.
+	- **logOffset**: memory offset of the data to log
+	- **logSize**: number of words to log
+- **Expression**: `context.accruedSubstate.unencryptedLogs.append(M[logOffset:logOffset+logSize])`
 - **Bit-size**: 88
 
-[![](./images/bit-formats/REVERT.png)](./images/bit-formats/REVERT.png)
+[![](./images/bit-formats/EMITUNENCRYPTEDLOG.png)](./images/bit-formats/EMITUNENCRYPTEDLOG.png)
 
-### <a id='isa-section-call'/>`CALL` (0x1b)
-Call into another contract.
+### <a id='isa-section-call'/>`CALL`
+Call into another contract
 
 [See in table.](#isa-table-call)
 
-- **Category**: contract calls
+- **Opcode**: 0x32
+- **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **gasOffset**: offset to two words containing `{l1Gas, l2Gas}`: amount of L1 and L2 gas to provide to the callee
+	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
 	- **addrOffset**: address of the contract to call
 	- **argsOffset**: memory offset to args (will become the callee's calldata)
 	- **argsSize**: number of words to pass via callee's calldata
@@ -974,14 +1398,15 @@ Call into another contract.
 - **Expression**: 
 <CodeBlock language="jsx">
 {`M[successOffset] = call(
-    M[gasOffset], M[gasOffset+1], M[addrOffset],
+    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
+    M[addrOffset],
     M[argsOffset], M[argsSize],
     M[retOffset], M[retSize])`}
 </CodeBlock>
-- **Details**: Creates a new CallContext, triggers execution of the corresponding contract code,
-                    and then resumes execution in the current CallContext. A non-existent contract or one
-                    with no code will return success. Nested call has an incremented `CallContext.calldepth`.
-- **Tag checks**: `T[gasOffset] == T[gasOffset+1] == u32`
+- **Details**: Creates a new (nested) execution context and triggers execution within it until the nested context halts.
+                    Then resumes execution in the current/calling context. A non-existent contract or one with no code will return success.
+                    See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
+- **Tag checks**: `T[gasOffset] == T[gasOffset+1] == T[gasOffset+2] == u32`
 - **Tag updates**: 
 <CodeBlock language="jsx">
 {`T[successOffset] = u8
@@ -991,16 +1416,17 @@ T[retOffset:retOffset+retSize] = field`}
 
 [![](./images/bit-formats/CALL.png)](./images/bit-formats/CALL.png)
 
-### <a id='isa-section-staticcall'/>`STATICCALL` (0x1c)
-Call into another contract, disallowing persistent state modifications.
+### <a id='isa-section-staticcall'/>`STATICCALL`
+Call into another contract, disallowing World State and Accrued Substate modifications
 
 [See in table.](#isa-table-staticcall)
 
-- **Category**: contract calls
+- **Opcode**: 0x33
+- **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **gasOffset**: offset to two words containing `{l1Gas, l2Gas}`: amount of L1 and L2 gas to provide to the callee
+	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
 	- **addrOffset**: address of the contract to call
 	- **argsOffset**: memory offset to args (will become the callee's calldata)
 	- **argsSize**: number of words to pass via callee's calldata
@@ -1010,12 +1436,13 @@ Call into another contract, disallowing persistent state modifications.
 - **Expression**: 
 <CodeBlock language="jsx">
 {`M[successOffset] = staticcall(
-    M[gasOffset], M[gasOffset+1], M[addrOffset],
+    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
+    M[addrOffset],
     M[argsOffset], M[argsSize],
     M[retOffset], M[retSize])`}
 </CodeBlock>
-- **Details**: Same as `CALL`, but the callee is cannot modify persistent state. Disallowed instructions are `SSTORE`, `ULOG`, `CALL`.
-- **Tag checks**: `T[gasOffset] == T[gasOffset+1] == u32`
+- **Details**: Same as `CALL`, but disallows World State and Accrued Substate modifications. See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
+- **Tag checks**: `T[gasOffset] == T[gasOffset+1] == T[gasOffset+2] == u32`
 - **Tag updates**: 
 <CodeBlock language="jsx">
 {`T[successOffset] = u8
@@ -1025,427 +1452,47 @@ T[retOffset:retOffset+retSize] = field`}
 
 [![](./images/bit-formats/STATICCALL.png)](./images/bit-formats/STATICCALL.png)
 
-### <a id='isa-section-ulog'/>`ULOG` (0x1d)
-Emit an unencrypted log with data from the `field` memory page
+### <a id='isa-section-return'/>`RETURN`
+Halt execution within this context (without revert), optionally returning some data
 
-[See in table.](#isa-table-ulog)
+[See in table.](#isa-table-return)
 
-- **Category**: logging
+- **Opcode**: 0x34
+- **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **logOffset**: memory offset of the data to log
-	- **logSize**: number of words to log
-- **Expression**: `ulog(M[logOffset:logOffset+logSize])`
+	- **retOffset**: memory offset of first word to return
+	- **retSize**: number of words to return
+- **Expression**: 
+<CodeBlock language="jsx">
+{`context.contractCallResults.output = M[retOffset:retOffset+retSize]
+halt`}
+</CodeBlock>
+- **Details**: Return control flow to the calling context/contract. Caller will accept World State and Accrued Substate modifications. See ["Halting"](./avm#halting) to learn more. See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
 - **Bit-size**: 88
 
-[![](./images/bit-formats/ULOG.png)](./images/bit-formats/ULOG.png)
+[![](./images/bit-formats/RETURN.png)](./images/bit-formats/RETURN.png)
 
-### <a id='isa-section-chainid'/>`CHAINID` (0x1e)
-Get this rollup's L1 chain ID
+### <a id='isa-section-revert'/>`REVERT`
+Halt execution within this context as `reverted`, optionally returning some data
 
-[See in table.](#isa-table-chainid)
+[See in table.](#isa-table-revert)
 
-- **Category**: block info
+- **Opcode**: 0x35
+- **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = Globals.chainId`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/CHAINID.png)](./images/bit-formats/CHAINID.png)
-
-### <a id='isa-section-version'/>`VERSION` (0x1f)
-Get this rollup's L2 version ID
-
-[See in table.](#isa-table-version)
-
-- **Category**: block info
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = Globals.version`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/VERSION.png)](./images/bit-formats/VERSION.png)
-
-### <a id='isa-section-blocknumber'/>`BLOCKNUMBER` (0x20)
-Get this block's number
-
-[See in table.](#isa-table-blocknumber)
-
-- **Category**: block info
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = Globals.blocknumber`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/BLOCKNUMBER.png)](./images/bit-formats/BLOCKNUMBER.png)
-
-### <a id='isa-section-timestamp'/>`TIMESTAMP` (0x21)
-Get this L2 block's timestamp
-
-[See in table.](#isa-table-timestamp)
-
-- **Category**: block info
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = Globals.timestamp`
-- **Tag updates**: `T[dstOffset] = u64`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/TIMESTAMP.png)](./images/bit-formats/TIMESTAMP.png)
-
-### <a id='isa-section-coinbase'/>`COINBASE` (0x22)
-Get the block's beneficiary address
-
-[See in table.](#isa-table-coinbase)
-
-- **Category**: block info
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = Globals.coinbase`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/COINBASE.png)](./images/bit-formats/COINBASE.png)
-
-### <a id='isa-section-blockl1gaslimit'/>`BLOCKL1GASLIMIT` (0x23)
-Total amount of "L1 gas" that a block can consume
-
-[See in table.](#isa-table-blockl1gaslimit)
-
-- **Category**: block info
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = Globals.l1GasLimit`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/BLOCKL1GASLIMIT.png)](./images/bit-formats/BLOCKL1GASLIMIT.png)
-
-### <a id='isa-section-blockl2gaslimit'/>`BLOCKL2GASLIMIT` (0x24)
-Total amount of "L2 gas" that a block can consume
-
-[See in table.](#isa-table-blockl2gaslimit)
-
-- **Category**: block info
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = Globals.l2GasLimit`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/BLOCKL2GASLIMIT.png)](./images/bit-formats/BLOCKL2GASLIMIT.png)
-
-### <a id='isa-section-notesroot'/>`NOTESROOT` (0x25)
-Get the historical note-hash tree root as of the specified block number.
-
-[See in table.](#isa-table-notesroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].note_hash_tree_root`
-- **Tag updates**: `T[dstOffset] = field`
+	- **retOffset**: memory offset of first word to return
+	- **retSize**: number of words to return
+- **Expression**: 
+<CodeBlock language="jsx">
+{`context.contractCallResults.output = M[retOffset:retOffset+retSize]
+context.contractCallResults.reverted = true
+halt`}
+</CodeBlock>
+- **Details**: Return control flow to the calling context/contract. Caller will reject World State and Accrued Substate modifications. See ["Halting"](./avm#halting) to learn more. See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
 - **Bit-size**: 88
 
-[![](./images/bit-formats/NOTESROOT.png)](./images/bit-formats/NOTESROOT.png)
-
-### <a id='isa-section-nullroot'/>`NULLIFIERSROOT` (0x26)
-Get the historical nullifier tree root as of the specified block number.
-
-[See in table.](#isa-table-nullroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].nullifier_tree_root`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/NULLIFIERSROOT.png)](./images/bit-formats/NULLIFIERSROOT.png)
-
-### <a id='isa-section-contractsroot'/>`CONTRACTSROOT` (0x27)
-Get the historical contracts tree root as of the specified block number.
-
-[See in table.](#isa-table-contractsroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].contracts_tree_root`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/CONTRACTSROOT.png)](./images/bit-formats/CONTRACTSROOT.png)
-
-### <a id='isa-section-msgsroot'/>`MSGSROOT` (0x28)
-Get the historical l1-to-l2 message tree root as of the specified block number.
-
-[See in table.](#isa-table-msgsroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].l1_to_l2_message_tree_root`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/MSGSROOT.png)](./images/bit-formats/MSGSROOT.png)
-
-### <a id='isa-section-publicdataroot'/>`PUBLICDATAROOT` (0x29)
-Get the historical public data tree root as of the specified block number.
-
-[See in table.](#isa-table-publicdataroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].public_data_tree_root`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/PUBLICDATAROOT.png)](./images/bit-formats/PUBLICDATAROOT.png)
-
-### <a id='isa-section-globalshash'/>`GLOBALSHASH` (0x2a)
-Get the historical global variables hash as of the specified block number.
-
-[See in table.](#isa-table-globalshash)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].global_variables_hash`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/GLOBALSHASH.png)](./images/bit-formats/GLOBALSHASH.png)
-
-### <a id='isa-section-blocksroot'/>`BLOCKSROOT` (0x2b)
-Get the historical blocks tree root as of the specified block number.
-
-[See in table.](#isa-table-blocksroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].archive_root`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/BLOCKSROOT.png)](./images/bit-formats/BLOCKSROOT.png)
-
-### <a id='isa-section-grandroot'/>`GRANDROOT` (0x2c)
-Get the historical grandfather tree root as of the specified block number.
-
-[See in table.](#isa-table-grandroot)
-
-- **Category**: historical access
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **blockNumOffset**: memory offset of the block number input
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = HistoricalBlockData[M[blockNumOffset]].grandfather_tree_root`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 88
-
-[![](./images/bit-formats/GRANDROOT.png)](./images/bit-formats/GRANDROOT.png)
-
-### <a id='isa-section-origin'/>`ORIGIN` (0x2d)
-Get the transaction's origination address
-
-[See in table.](#isa-table-origin)
-
-- **Category**: tx context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = TxContext.origin`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/ORIGIN.png)](./images/bit-formats/ORIGIN.png)
-
-### <a id='isa-section-refundee'/>`REFUNDEE` (0x2e)
-The recipient of fee refunds for this transaction
-
-[See in table.](#isa-table-refundee)
-
-- **Category**: tx context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = TxContext.refundee`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/REFUNDEE.png)](./images/bit-formats/REFUNDEE.png)
-
-### <a id='isa-section-feeperl1gas'/>`FEEPERL1GAS` (0x2f)
-The fee to be paid per "L1 gas" - set by the transaction's original caller
-
-[See in table.](#isa-table-feeperl1gas)
-
-- **Category**: tx context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = TxContext.feePerL1Gas`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/FEEPERL1GAS.png)](./images/bit-formats/FEEPERL1GAS.png)
-
-### <a id='isa-section-feeperl2gas'/>`FEEPERL2GAS` (0x30)
-The fee to be paid per "L2 gas" - set by the transaction's original caller
-
-[See in table.](#isa-table-feeperl2gas)
-
-- **Category**: tx context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = TxContext.feePerL2Gas`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/FEEPERL2GAS.png)](./images/bit-formats/FEEPERL2GAS.png)
-
-### <a id='isa-section-caller'/>`CALLER` (0x31)
-Get the address of the sender (the caller's context)
-
-[See in table.](#isa-table-caller)
-
-- **Category**: call context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = CallContext.sender`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/CALLER.png)](./images/bit-formats/CALLER.png)
-
-### <a id='isa-section-address'/>`ADDRESS` (0x32)
-Get the address of the currently executing l2 contract
-
-[See in table.](#isa-table-address)
-
-- **Category**: call context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = CallContext.storageContractAddress`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/ADDRESS.png)](./images/bit-formats/ADDRESS.png)
-
-### <a id='isa-section-portal'/>`PORTAL` (0x33)
-Get the address of the l1 portal contract
-
-[See in table.](#isa-table-portal)
-
-- **Category**: call context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = CallContext.portalAddress`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/PORTAL.png)](./images/bit-formats/PORTAL.png)
-
-### <a id='isa-section-calldepth'/>`CALLDEPTH` (0x34)
-Get how many calls deep the current call context is
-
-[See in table.](#isa-table-calldepth)
-
-- **Category**: call context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = CallContext.calldepth`
-- **Details**: Note: security issues with EVM's tx.origin can be resolved by asserting the `calldepth == 0`.
-- **Tag updates**: `T[dstOffset] = u8`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/CALLDEPTH.png)](./images/bit-formats/CALLDEPTH.png)
-
-### <a id='isa-section-l1gas'/>`L1GAS` (0x35)
-Remaining "L1 gas" for this call (after this instruction).
-
-[See in table.](#isa-table-l1gas)
-
-- **Category**: latest context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = LatestContext.l1Gas`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/L1GAS.png)](./images/bit-formats/L1GAS.png)
-
-### <a id='isa-section-l2gas'/>`L2GAS` (0x36)
-Remaining "L2 gas" for this call (after this instruction).
-
-[See in table.](#isa-table-l2gas)
-
-- **Category**: latest context
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = LatestContext.l2Gas`
-- **Tag updates**: `T[dstOffset] = u32`
-- **Bit-size**: 56
-
-[![](./images/bit-formats/L2GAS.png)](./images/bit-formats/L2GAS.png)
+[![](./images/bit-formats/REVERT.png)](./images/bit-formats/REVERT.png)

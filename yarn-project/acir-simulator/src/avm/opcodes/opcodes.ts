@@ -1,48 +1,38 @@
 /**
- * All avm opcodes
+ * All AVM opcodes
  */
 export enum Opcodes {
-  // Arithmetic
+  // Compute
+  // Compute - Arithmetic
   ADD,
   SUB,
   MUL,
   DIV,
+  // Compute - Comparators
   EQ,
   LT,
   LTE,
+  // Compute - Bitwise
   AND,
   OR,
   XOR,
   NOT,
   SHL,
   SHR,
+  // Compute - Type Conversions
   CAST,
-  // Memory
-  SET,
-  MOV,
-  CMOV,
-  CALLDATACOPY,
 
-  // Logs
-  EMITNOTEHASH,
-  EMITNULLIFIER,
-  SENDL2TOL1MSG,
-  ULOG,
-  // Control flow
-  JUMP,
-  JUMPI,
-  INTERNALCALL,
-  INTERNALRETURN,
-
-  // Storage
-  SLOAD,
-  SSTORE,
-  // Contract call control flow
-  RETURN,
-  REVERT,
-  CALL,
-  STATICCALL,
-
+  // Execution Environment
+  ADDRESS,
+  STORAGEADDRESS,
+  ORIGIN,
+  SENDER,
+  PORTAL,
+  FEEPERL1GAS,
+  FEEPERL2GAS,
+  FEEPERDAGAS,
+  CONTRACTCALLDEPTH,
+  // Execution Environment - Globals
   CHAINID,
   VERSION,
   BLOCKNUMBER,
@@ -50,28 +40,45 @@ export enum Opcodes {
   COINBASE,
   BLOCKL1GASLIMIT,
   BLOCKL2GASLIMIT,
-  NULLIFIERSOOT,
-  CONTRACTSROOT,
-  MSGSROOT,
-  NOTESROOT,
-  PUBLICDATAROOT,
-  GLOBALSHASH,
-  BLOCKSROOT,
-  GRANDROOT,
+  BLOCKDAGASLIMIT,
+  // Execution Environment - Calldata
+  CALLDATACOPY,
 
-  // Call context
-  ORIGIN,
-  REFUNDEE,
-  FEEPERL1GAS,
-  FEEPERL2GAS,
-  CALLER,
-  ADDRESS,
-  PORTAL,
-  CALLDEPTH,
-  l1GAS,
-  L2GAS,
+  // Machine State
+  // Machine State - Gas
+  L1GASLEFT,
+  L2GASLEFT,
+  DAGASLEFT,
+  // Machine State - Internal Control Flow
+  JUMP,
+  JUMPI,
+  INTERNALCALL,
+  INTERNALRETURN,
+  INTERNALCALLDEPTH,
+  // Machine State - Memory
+  SET,
+  MOV,
+  CMOV,
 
-  // Black box
+  // World State
+  BLOCKHEADERBYNUMBER,
+  SLOAD, // Public Storage
+  SSTORE, // Public Storage
+  READL1TOL2MSG, // Messages
+  SENDL2TOL1MSG, // Messages
+  EMITNOTEHASH, // Notes & Nullifiers
+  EMITNULLIFIER, // Notes & Nullifiers
+
+  // Accrued Substate
+  EMITUNENCRYPTEDLOG,
+
+  // Control Flow - Contract Calls
+  CALL,
+  STATICCALL,
+  RETURN,
+  REVERT,
+
+  // Gadgets
   KECCAK,
   POSEIDON,
 }

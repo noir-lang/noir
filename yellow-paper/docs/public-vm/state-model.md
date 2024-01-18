@@ -52,11 +52,11 @@ Memory addresses must be tagged to be a `u32` type.
 - `M[X]`: main memory cell at offset `X`
 - `tag`: a value referring to a memory cell's type (its maximum potential value)
 - `T[X]`: the tag associated with memory cell at offset `X`
-- `in-tag`: an instruction's tag to check input operands against. Present for many but not all instructions.
-- `dst-tag`: the target type of a `CAST` instruction, also used to tag the destination memory cell
-- `ADD<X>`: shorthand for an `ADD` instruction with `in-tag = X`
-- `ADD<X> aOffset bOffset dstOffset`: an full `ADD` instruction with `in-tag = X`. See [here](./instruction-set#isa-section-add) for more details.
-- `CAST<X>`: a `CAST` instruction with `dst-tag`: `X`. `CAST` is the only instruction with a `dst-tag`. See [here](./instruction-set#isa-section-cast) for more details.
+- `inTag`: an instruction's tag to check input operands against. Present for many but not all instructions.
+- `dstTag`: the target type of a `CAST` instruction, also used to tag the destination memory cell
+- `ADD<X>`: shorthand for an `ADD` instruction with `inTag = X`
+- `ADD<X> aOffset bOffset dstOffset`: an full `ADD` instruction with `inTag = X`. See [here](./instruction-set#isa-section-add) for more details.
+- `CAST<X>`: a `CAST` instruction with `dstTag`: `X`. `CAST` is the only instruction with a `dstTag`. See [here](./instruction-set#isa-section-cast) for more details.
 
 ### Tags and tagged memory
 
@@ -80,7 +80,7 @@ The purpose of a tag is to inform the VM of the maximum possible length of an op
 
 #### Checking input operand tags
 
-Many AVM instructions explicitly operate over range-constrained input parameters (e.g. `ADD<in-tag>`). The maximum allowable value for an instruction's input parameters is defined via an `in-tag` (instruction/input tag). Two potential scenarios result:
+Many AVM instructions explicitly operate over range-constrained input parameters (e.g. `ADD<inTag>`). The maximum allowable value for an instruction's input parameters is defined via an `inTag` (instruction/input tag). Two potential scenarios result:
 
 1. A VM instruction's tag value matches the input parameter tag values
 2. A VM instruction's tag value does _not_ match the input parameter tag values
@@ -95,8 +95,8 @@ It is required that all VM instructions that write into main memory explicitly d
 
 ```
 # ADD<u32> aOffset bOffset dstOffset
-assert T[aOffset] == T[bOffset] == u32 // check inputs against in-tag, revert on mismatch
-T[dstOffset] = u32                     // tag destination with in-tag
+assert T[aOffset] == T[bOffset] == u32 // check inputs against inTag, revert on mismatch
+T[dstOffset] = u32                     // tag destination with inTag
 M[dstOffset] = M[aOffset] + M[bOffset] // perform the addition
 ```
 
@@ -110,7 +110,7 @@ T[dstOffset] = T[srcOffset] // preserve tag
 M[dstOffset] = M[srcOffset] // perform the move
 ```
 
-Note that `MOV` does not have an `in-tag` and therefore does not need to make any assertions regarding the source memory cell's type.
+Note that `MOV` does not have an `inTag` and therefore does not need to make any assertions regarding the source memory cell's type.
 
 #### `CAST` and tag conversions
 
@@ -125,7 +125,7 @@ Case 2 is trivial as no additional consistency checks must be performed between 
 
 ```
 # CAST<u64> srcOffset dstOffset
-T[dstOffset] = u64                         // tag destination with dst-tag
+T[dstOffset] = u64                         // tag destination with dstTag
 M[dstOffset] = cast<to: u64>(M[srcOffset]) // perform cast
 ```
 
