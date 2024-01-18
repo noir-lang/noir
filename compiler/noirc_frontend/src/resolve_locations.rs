@@ -200,16 +200,7 @@ impl NodeInterner {
     fn try_resolve_type_alias(&self, location: Location) -> Option<Location> {
         self.type_alias_ref
             .iter()
-            .find(|(type_alias_id, named_type_location)| {
-                tracing::debug!(
-                    "Trying type alias {:?}, type_id {:?}",
-                    named_type_location,
-                    type_alias_id
-                );
-                named_type_location.span.contains(&location.span)
-            })
-            .and_then(|(type_alias_id, _found_location)| {
-                Some(self.get_type_alias(*type_alias_id).location)
-            })
+            .find(|(_, named_type_location)| named_type_location.span.contains(&location.span))
+            .map(|(type_alias_id, _found_location)| self.get_type_alias(*type_alias_id).location)
     }
 }
