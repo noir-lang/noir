@@ -3,7 +3,7 @@
 // Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
 // Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 contract Benchmarking {
-    use dep::protocol_types::abis::function_selector::FunctionSelector;
+    use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
 
     use dep::value_note::{
         utils::{increment, decrement},
@@ -20,8 +20,8 @@ contract Benchmarking {
     };
 
     struct Storage {
-        notes: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
-        balances: Map<PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        notes: Map<AztecAddress, Set<ValueNote, VALUE_NOTE_LEN>>,
+        balances: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
@@ -58,7 +58,11 @@ contract Benchmarking {
     fn increment_balance(owner: Field, value: Field) {
         let current = storage.balances.at(owner).read();
         storage.balances.at(owner).write(current + value);
-        let _callStackItem1 = context.call_public_function(context.this_address(), FunctionSelector::from_signature("broadcast(Field)"), [owner]);
+        let _callStackItem1 = context.call_public_function(
+            context.this_address(),
+            FunctionSelector::from_signature("broadcast(Field)"),
+            [owner]
+        );
     }
 
     // Est ultricies integer quis auctor elit sed. In nibh mauris cursus mattis molestie a iaculis.
@@ -67,7 +71,12 @@ contract Benchmarking {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
     }
 
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: AztecAddress, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: AztecAddress,
+        nonce: Field,
+        storage_slot: Field,
+        preimage: [Field; VALUE_NOTE_LEN]
+    ) -> [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
