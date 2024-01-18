@@ -16,6 +16,7 @@ keywords: [
    Branches
    Noirup Repository
 ]
+pagination_next: getting_started/hello_noir/index
 ---
 
 `nargo` is the one-stop-shop for almost everything related with Noir. The name comes from our love for Rust and its package manager `cargo`.
@@ -43,3 +44,5 @@ Done. That's it. You should have the latest version working. You can check with 
 You can also install nightlies, specific versions
 or branches. Check out the [noirup repository](https://github.com/noir-lang/noirup) for more
 information.
+
+Now we're ready to start working on [our first Noir program!](../hello_noir/index.md)

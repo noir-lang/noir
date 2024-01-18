@@ -13,7 +13,7 @@
 | Type alias | Description |
 | :------ | :------ |
 | [CompiledCircuit](type-aliases/CompiledCircuit.md) | - |
-| [ForeignCallHandler](type-aliases/ForeignCallHandler.md) | A callback which performs an foreign call and returns the response. |
+| [ForeignCallHandler](type-aliases/ForeignCallHandler.md) | - |
 | [ForeignCallInput](type-aliases/ForeignCallInput.md) | - |
 | [ForeignCallOutput](type-aliases/ForeignCallOutput.md) | - |
 | [InputMap](type-aliases/InputMap.md) | - |

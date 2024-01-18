@@ -2,7 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 
-import headerPic from '../../static/img/homepage_header_pic.png';
+import headerPic from '/static/img/homepage_header_pic.png';
 import { BeatLoader } from 'react-spinners';
 
 const NoirEditor = lazy(() => import('@signorecello/noir_playground'));
@@ -28,7 +28,7 @@ export default function Landing() {
             marginBottom: '4rem',
             backgroundPosition: 'center',
             backgroundSize: 'cover',
-            backgroundImage: `url(${headerPic})`,
+            backgroundImage: `url(${headerPic.src || headerPic})`,
           }}
           alt="Revolutionizing SNARK proving systems"
         />
@@ -71,7 +71,7 @@ export default function Landing() {
             <div className="homepage_cta_lj_container">
               <div className="homepage_cta_container">
                 <h2 className="homepage_h2">Learn</h2>
-                <Link to="/docs/docs/getting_started/installation/index.md" target="_blank" rel="noopener noreferrer">
+                <Link to="/docs/getting_started/installation" target="_blank" rel="noopener noreferrer">
                   <button className="cta-button button button--primary button--lg homepage_cta">Try Noir</button>
                 </Link>
                 <Link to="/docs" target="_blank" rel="noopener noreferrer">
@@ -82,7 +82,7 @@ export default function Landing() {
               </div>
               <div className="homepage_cta_container">
                 <h2 className="homepage_h2">Coming from...</h2>
-                <Link to="/docs/docs/how_to/solidity_verifier.md" target="_blank" rel="noopener noreferrer">
+                <Link to="/docs/how_to/solidity_verifier" target="_blank" rel="noopener noreferrer">
                   <button className="cta-button button button--primary button--lg homepage_cta">Solidity</button>
                 </Link>
                 <Link to="/docs" target="_blank" rel="noopener noreferrer">
@@ -94,7 +94,7 @@ export default function Landing() {
                 <Link to="/docs" target="_blank" rel="noopener noreferrer">
                   <button className="cta-button button button--primary button--lg homepage_cta">Noir Basics</button>
                 </Link>
-                <Link to="/docs/docs/tutorials/noirjs_app.md" target="_blank" rel="noopener noreferrer">
+                <Link to="/docs/tutorials/noirjs_app" target="_blank" rel="noopener noreferrer">
                   <button className="cta-button button button--secondary button--lg homepage_cta">NoirJS</button>
                 </Link>
               </div>

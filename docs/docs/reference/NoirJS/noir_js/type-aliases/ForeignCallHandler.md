@@ -17,8 +17,6 @@ A callback which performs an foreign call and returns the response.
 
 `Promise`\<[`ForeignCallOutput`](ForeignCallOutput.md)[]\>
 
-outputs - An array of hex encoded outputs containing the results of the foreign call.
-
 ***
 
 Generated using [typedoc-plugin-markdown](https://www.npmjs.com/package/typedoc-plugin-markdown) and [TypeDoc](https://typedoc.org/)
