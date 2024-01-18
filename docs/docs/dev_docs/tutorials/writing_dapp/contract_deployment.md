@@ -3,7 +3,7 @@
 To add contracts to your application, we'll start by creating a new `aztec-nargo` project. We'll then compile the contracts, and write a simple script to deploy them to our Sandbox.
 
 :::info
-Follow the instructions [here](../../contracts/setup.md) to install `nargo` if you haven't done so already.
+Follow the instructions [here](../../cli/sandbox-reference.md) to install `aztec-nargo` if you haven't done so already.
 :::
 
 ## Initialize Aztec project

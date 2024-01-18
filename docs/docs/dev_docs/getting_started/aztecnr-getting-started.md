@@ -205,11 +205,17 @@ You can also test the functions by applying what you learned in the [quickstart]
 
 Congratulations, you have now written, compiled, and deployed your first Aztec.nr smart contract!
 
-## Install `nargo` (recommended)
+## Install Noir LSP (recommended)
 
-The CLI comes with the Noir compiler, so installing `nargo` is not required, however it is recommended as it provides a better developer experience for writing contracts. You will need nargo installed to take advantage of the [Noir Language Server](https://noir-lang.org/docs/getting_started/tooling/language_server), which provides syntax highlighting and formatting for your Aztec contracts.
+Install the [Noir Language Support extension](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir) to get syntax highlighting, syntax error detection and go-to definitions for your Aztec contracts.
 
-You will also need `nargo` if you want to run unit tests in Noir.
+Once the extension is installed, go to your VSCode settings, search for "noir" and update the `Noir: Nargo Path` field to point to your `aztec-nargo` executable.
+
+You can print the path of your `aztec-nargo` executable by running:
+
+```bash
+which aztec-nargo
+```
 
 ## What's next?
 
