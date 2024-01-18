@@ -30,7 +30,7 @@ impl Ssa {
                         // We iterate through the previous instructions in reverse order so the index is from the
                         // back of the vector. Subtract from vector length to get correct index.
                         .map(|reversed_index| filtered_instructions.len() - reversed_index)
-                        .unwrap_or(filtered_instructions.len());
+                        .unwrap_or(0);
 
                     filtered_instructions.insert(index, instruction);
                 }
