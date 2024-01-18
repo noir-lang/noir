@@ -4,7 +4,7 @@ use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
-    prepare_package,
+    parse_all, prepare_package,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -52,11 +52,13 @@ fn on_test_run_request_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(package) => {
-            let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
+            let (mut context, crate_id) =
+                prepare_package(&workspace_file_manager, &parsed_files, package);
             if check_crate(&mut context, crate_id, false, false).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
