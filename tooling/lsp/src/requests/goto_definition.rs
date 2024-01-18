@@ -4,8 +4,9 @@ use crate::{parse_diff, resolve_workspace_for_source_path};
 use crate::{types::GotoDefinitionResult, LspState};
 use async_lsp::{ErrorCode, ResponseError};
 
+use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
-use nargo::insert_all_files_for_workspace_into_file_manager;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use noirc_driver::file_manager_with_stdlib;
 
 use super::{position_to_byte_index, to_lsp_location};
@@ -14,13 +15,22 @@ pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
 ) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
-    let result = on_goto_definition_inner(state, params);
+    let result = on_goto_definition_inner(state, params, false);
+    future::ready(result)
+}
+
+pub(crate) fn on_goto_type_definition_request(
+    state: &mut LspState,
+    params: GotoTypeDefinitionParams,
+) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
+    let result = on_goto_definition_inner(state, params, true);
     future::ready(result)
 }
 
 fn on_goto_definition_inner(
     state: &mut LspState,
     params: GotoDefinitionParams,
+    return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
     let file_path =
         params.text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
@@ -67,8 +77,9 @@ fn on_goto_definition_inner(
         span: noirc_errors::Span::single_char(byte_index as u32),
     };
 
-    let goto_definition_response =
-        interner.get_definition_location_from(search_for_location).and_then(|found_location| {
+    let goto_definition_response = interner
+        .get_definition_location_from(search_for_location, return_type_location_instead)
+        .and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(files, file_id, found_location.span)?;
             let response: GotoDefinitionResponse =

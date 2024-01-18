@@ -40,6 +40,7 @@ pub enum AztecMacroError {
     AztecComputeNoteHashAndNullifierNotFound { span: Span },
     AztecContractHasTooManyFunctions { span: Span },
     AztecContractConstructorMissing { span: Span },
+    UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
 }
 
 impl From<AztecMacroError> for MacroError {
@@ -62,6 +63,11 @@ impl From<AztecMacroError> for MacroError {
             },
             AztecMacroError::AztecContractConstructorMissing { span } => MacroError {
                 primary_message: "Contract must have a constructor function".to_owned(),
+                secondary_message: None,
+                span: Some(span),
+            },
+            AztecMacroError::UnsupportedFunctionArgumentType { span, typ } => MacroError {
+                primary_message: format!("Provided parameter type `{typ:?}` is not supported in Aztec contract interface"),
                 secondary_message: None,
                 span: Some(span),
             },
@@ -341,11 +347,14 @@ fn transform_module(
 
     for func in module.functions.iter_mut() {
         for secondary_attribute in func.def.attributes.secondary.clone() {
+            let crate_graph = &context.crate_graph[crate_id];
             if is_custom_attribute(&secondary_attribute, "aztec(private)") {
-                transform_function("Private", func, storage_defined);
+                transform_function("Private", func, storage_defined)
+                    .map_err(|err| (err.into(), crate_graph.root_file_id))?;
                 has_transformed_module = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
-                transform_function("Public", func, storage_defined);
+                transform_function("Public", func, storage_defined)
+                    .map_err(|err| (err.into(), crate_graph.root_file_id))?;
                 has_transformed_module = true;
             }
         }
@@ -384,7 +393,11 @@ fn transform_module(
 /// - A new Input that is provided for a kernel app circuit, named: {Public/Private}ContextInputs
 /// - Hashes all of the function input variables
 ///     - This instantiates a helper function  
-fn transform_function(ty: &str, func: &mut NoirFunction, storage_defined: bool) {
+fn transform_function(
+    ty: &str,
+    func: &mut NoirFunction,
+    storage_defined: bool,
+) -> Result<(), AztecMacroError> {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
@@ -396,7 +409,7 @@ fn transform_function(ty: &str, func: &mut NoirFunction, storage_defined: bool) 
     }
 
     // Insert the context creation as the first action
-    let create_context = create_context(&context_name, &func.def.parameters);
+    let create_context = create_context(&context_name, &func.def.parameters)?;
     func.def.body.0.splice(0..0, (create_context).iter().cloned());
 
     // Add the inputs to the params
@@ -423,6 +436,8 @@ fn transform_function(ty: &str, func: &mut NoirFunction, storage_defined: bool) 
         "Public" => func.def.is_open = true,
         _ => (),
     }
+
+    Ok(())
 }
 
 /// Transform Unconstrained
@@ -520,12 +535,11 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 
 /// Generates the impl for an event selector
 ///
-/// TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Make this point to aztec-nr once the issue is fixed.
 /// Inserts the following code:
 /// ```noir
 /// impl SomeStruct {
 ///    fn selector() -> FunctionSelector {
-///       protocol_types::abis::function_selector::FunctionSelector::from_signature("SIGNATURE_PLACEHOLDER")
+///       aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature("SIGNATURE_PLACEHOLDER")
 ///    }
 /// }
 /// ```
@@ -536,9 +550,8 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Make this point to aztec-nr once the issue is fixed.
     let selector_path =
-        chained_path!("protocol_types", "abis", "function_selector", "FunctionSelector");
+        chained_path!("aztec", "protocol_types", "abis", "function_selector", "FunctionSelector");
     let mut from_signature_path = selector_path.clone();
     from_signature_path.segments.push(ident("from_signature"));
 
@@ -623,7 +636,7 @@ fn create_inputs(ty: &str) -> Param {
 ///     let mut context = PrivateContext::new(inputs, hasher.hash());
 /// }
 /// ```
-fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
+fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMacroError> {
     let mut injected_expressions: Vec<Statement> = vec![];
 
     // `let mut hasher = Hasher::new();`
@@ -639,7 +652,7 @@ fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
     injected_expressions.push(let_hasher);
 
     // Iterate over each of the function parameters, adding to them to the hasher
-    params.iter().for_each(|Param { pattern, typ, span: _, visibility: _ }| {
+    for Param { pattern, typ, span, .. } in params {
         match pattern {
             Pattern::Identifier(identifier) => {
                 // Match the type to determine the padding to do
@@ -657,13 +670,29 @@ fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
                     UnresolvedTypeData::Integer(..) | UnresolvedTypeData::Bool => {
                         add_cast_to_hasher(identifier)
                     }
-                    _ => unreachable!("[Aztec Noir] Provided parameter type is not supported"),
+                    UnresolvedTypeData::String(..) => {
+                        let (var_bytes, id) = str_to_bytes(identifier);
+                        injected_expressions.push(var_bytes);
+                        add_array_to_hasher(
+                            &id,
+                            &UnresolvedType {
+                                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, 32),
+                                span: None,
+                            },
+                        )
+                    }
+                    _ => {
+                        return Err(AztecMacroError::UnsupportedFunctionArgumentType {
+                            typ: unresolved_type.clone(),
+                            span: *span,
+                        })
+                    }
                 };
                 injected_expressions.push(expression);
             }
             _ => todo!(), // Maybe unreachable?
         }
-    });
+    }
 
     // Create the inputs to the context
     let inputs_expression = variable("inputs");
@@ -685,7 +714,7 @@ fn create_context(ty: &str, params: &[Param]) -> Vec<Statement> {
     injected_expressions.push(let_context);
 
     // Return all expressions that will be injected by the hasher
-    injected_expressions
+    Ok(injected_expressions)
 }
 
 /// Abstract Return Type
@@ -944,6 +973,21 @@ fn add_struct_to_hasher(identifier: &Ident) -> Statement {
         "add_multiple",        // method name
         vec![serialized_call], // args
     )))
+}
+
+fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
+    // let identifier_as_bytes = identifier.as_bytes();
+    let var = variable_ident(identifier.clone());
+    let contents = if let ExpressionKind::Variable(p) = &var.kind {
+        p.segments.first().cloned().unwrap_or_else(|| panic!("No segments")).0.contents
+    } else {
+        panic!("Unexpected identifier type")
+    };
+    let bytes_name = format!("{}_bytes", contents);
+    let var_bytes = assignment(&bytes_name, method_call(var, "as_bytes", vec![]));
+    let id = Ident::new(bytes_name, Span::default());
+
+    (var_bytes, id)
 }
 
 fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {

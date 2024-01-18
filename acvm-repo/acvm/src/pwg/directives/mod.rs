@@ -1,12 +1,7 @@
 use std::cmp::Ordering;
 
-use acir::{
-    circuit::directives::{Directive, QuotientDirective},
-    native_types::WitnessMap,
-    FieldElement,
-};
+use acir::{circuit::directives::Directive, native_types::WitnessMap, FieldElement};
 use num_bigint::BigUint;
-use num_traits::Zero;
 
 use crate::OpcodeResolutionError;
 
@@ -25,38 +20,6 @@ pub(super) fn solve_directives(
     directive: &Directive,
 ) -> Result<(), OpcodeResolutionError> {
     match directive {
-        Directive::Quotient(QuotientDirective { a, b, q, r, predicate }) => {
-            let val_a = get_value(a, initial_witness)?;
-            let val_b = get_value(b, initial_witness)?;
-            let int_a = BigUint::from_bytes_be(&val_a.to_be_bytes());
-            let int_b = BigUint::from_bytes_be(&val_b.to_be_bytes());
-
-            // If the predicate is `None`, then we simply return the value 1
-            // If the predicate is `Some` but we cannot find a value, then we return unresolved
-            let pred_value = match predicate {
-                Some(pred) => get_value(pred, initial_witness)?,
-                None => FieldElement::one(),
-            };
-
-            let (int_r, int_q) = if pred_value.is_zero() || int_b.is_zero() {
-                (BigUint::zero(), BigUint::zero())
-            } else {
-                (&int_a % &int_b, &int_a / &int_b)
-            };
-
-            insert_value(
-                q,
-                FieldElement::from_be_bytes_reduce(&int_q.to_bytes_be()),
-                initial_witness,
-            )?;
-            insert_value(
-                r,
-                FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
-                initial_witness,
-            )?;
-
-            Ok(())
-        }
         Directive::ToLeRadix { a, b, radix } => {
             let value_a = get_value(a, initial_witness)?;
             let big_integer = BigUint::from_bytes_be(&value_a.to_be_bytes());
@@ -118,33 +81,5 @@ pub(super) fn solve_directives(
             }
             Ok(())
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use acir::{
-        circuit::directives::{Directive, QuotientDirective},
-        native_types::{Expression, Witness, WitnessMap},
-        FieldElement,
-    };
-
-    use super::solve_directives;
-
-    #[test]
-    fn divisor_is_zero() {
-        let quotient_directive = QuotientDirective {
-            a: Expression::zero(),
-            b: Expression::zero(),
-            q: Witness(0),
-            r: Witness(0),
-            predicate: Some(Expression::one()),
-        };
-
-        let mut witness_map = WitnessMap::new();
-        witness_map.insert(Witness(0), FieldElement::zero());
-
-        solve_directives(&mut witness_map, &Directive::Quotient(quotient_directive))
-            .expect("expected 0/0 to return 0");
     }
 }
