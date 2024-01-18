@@ -4,8 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./cli": "./dest/cli/index.js",
-    "./versions": "./dest/versions.js"
+    "./cli": "./dest/cli/index.js"
   },
   "typedocOptions": {
     "entryPoints": [
@@ -49,7 +48,6 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
     "@iarna/toml": "^2.2.5",
-    "@noir-lang/noir_wasm": "portal:../../noir/packages/noir_wasm",
     "base64-js": "^1.5.1",
     "commander": "^9.0.0",
     "fs-extra": "^11.1.1",

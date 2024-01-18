@@ -52,7 +52,6 @@ import { Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
-import { NoirWasmVersion } from '@aztec/noir-compiler/versions';
 import { NodeInfo } from '@aztec/types/interfaces';
 
 import { PXEServiceConfig, getPackageInfo } from '../config/index.js';
@@ -488,7 +487,6 @@ export class PXEService implements PXE {
 
     const nodeInfo: NodeInfo = {
       nodeVersion: this.nodeVersion,
-      compatibleNargoVersion: NoirWasmVersion,
       chainId,
       protocolVersion: version,
       l1ContractAddresses: contractAddresses,

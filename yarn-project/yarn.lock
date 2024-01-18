@@ -611,7 +611,6 @@ __metadata:
     "@aztec/types": "workspace:^"
     "@iarna/toml": ^2.2.5
     "@jest/globals": ^29.5.0
-    "@noir-lang/noir_wasm": "portal:../../noir/packages/noir_wasm"
     "@types/fs-extra": ^11.0.1
     "@types/jest": ^29.5.0
     "@types/lodash.camelcase": ^4.3.7
@@ -2811,14 +2810,6 @@ __metadata:
     "@noir-lang/acvm_js": 0.38.0
     "@noir-lang/noirc_abi": 0.22.0
     "@noir-lang/types": 0.22.0
-  languageName: node
-  linkType: soft
-
-"@noir-lang/noir_wasm@portal:../noir/packages/noir_wasm::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@noir-lang/noir_wasm@portal:../noir/packages/noir_wasm::locator=%40aztec%2Faztec3-packages%40workspace%3A."
-  dependencies:
-    pako: ^2.1.0
   languageName: node
   linkType: soft
 

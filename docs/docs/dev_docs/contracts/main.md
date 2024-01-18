@@ -30,10 +30,6 @@ For those coming from vanilla Noir, the version used for aztec.nr is tracked sep
 
 `aztec-nargo` comes with the Noir compiler, so installing `nargo` is not required, however it is recommended as it provides a better developer experience for writing contracts. You will need nargo installed to take advantage of the [Noir Language Server](https://noir-lang.org/docs/getting_started/tooling/language_server), which provides syntax highlighting and formatting for your Aztec contracts.
 
-You can install `nargo` with the following commands:
-
-<InstallNargoInstructions />
-
 ## Install Noir tooling
 
 There are a number of tools to make writing Aztec.nr contracts in Noir more pleasant. See [here](https://github.com/noir-lang/awesome-noir#get-coding).

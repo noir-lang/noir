@@ -133,14 +133,3 @@ Alternatively, you can also use the `AztecPackagesVersion()` js function, which 
 import { AztecPackagesVersion } from "@site/src/components/Version";
 <>{AztecPackagesVersion()}</>
 ```
-
- ### `#include_noir_version`
-
-This macros will be replaced inline with the required nargo version, which is `0.11.1-aztec.0` at the time of these writing. This value is sourced from `yarn-project/noir-compiler/src/noir-version.json`.
-
-Alternatively, you can also use the `NoirVersion()` js function, which you need to import explicitly:
-
-```
-import { NoirVersion } from "@site/src/components/Version";
-<>{NoirVersion()}</>
-```

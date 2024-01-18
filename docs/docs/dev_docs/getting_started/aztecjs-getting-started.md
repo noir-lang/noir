@@ -122,7 +122,6 @@ A successful run should show something like this:
 ```
   token Aztec Sandbox Info  {
   token   sandboxVersion: '#include_aztec_short_version',
-  token   compatibleNargoVersion: '#include_noir_version',
   token   chainId: 31337,
   token   protocolVersion: 1,
   token   l1ContractAddresses: {
@@ -168,7 +167,6 @@ Now that we have our accounts loaded, let's move on to deploy our pre-compiled t
 ```
   token Aztec Sandbox Info  {
   token   sandboxVersion: '#include_aztec_short_version',
-  token   compatibleNargoVersion: '#include_noir_version',
   token   chainId: 31337,
   token   protocolVersion: 1,
   token   l1ContractAddresses: {
@@ -220,7 +218,6 @@ Running now should yield output:
 ```
   token Aztec Sandbox Info  {
   token   sandboxVersion: '#include_aztec_short_version',
-  token   compatibleNargoVersion: '#include_noir_version',
   token   chainId: 31337,
   token   protocolVersion: 1,
   token   l1ContractAddresses: {
@@ -282,7 +279,6 @@ Our output should now look like this:
 ```
   token Aztec Sandbox Info  {
   token   sandboxVersion: '#include_aztec_short_version',
-  token   compatibleNargoVersion: '#include_noir_version',
   token   chainId: 31337,
   token   protocolVersion: 1,
   token   l1ContractAddresses: {
@@ -339,7 +335,6 @@ Our complete output should now be something like:
 ```
   token Aztec Sandbox Info  {
   token   sandboxVersion: '#include_aztec_short_version',
-  token   compatibleNargoVersion: '#include_noir_version',
   token   chainId: 31337,
   token   protocolVersion: 1,
   token   l1ContractAddresses: {

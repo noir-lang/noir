@@ -29,7 +29,6 @@ describe('Contract Class', () => {
   };
   const mockNodeInfo: NodeInfo = {
     nodeVersion: 'vx.x.x',
-    compatibleNargoVersion: 'vx.x.x-aztec.x',
     chainId: 1,
     protocolVersion: 2,
     l1ContractAddresses: l1Addresses,

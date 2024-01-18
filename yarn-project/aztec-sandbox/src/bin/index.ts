@@ -7,7 +7,6 @@ import { init } from '@aztec/foundation/crypto';
 import { createStatusRouter, startHttpRpcServer } from '@aztec/foundation/json-rpc/server';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
-import { NoirCommit, NoirTag } from '@aztec/noir-compiler/versions';
 import { BootstrapNode, getP2PConfigEnvVars } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, createPXERpcServer } from '@aztec/pxe';
 
@@ -121,7 +120,7 @@ async function main() {
 
   // Code path for starting Sandbox
   if (mode === SandboxMode.Sandbox) {
-    logger.info(`Setting up Aztec Sandbox v${version} (noir ${NoirCommit} ${NoirTag}), please stand by...`);
+    logger.info(`Setting up Aztec Sandbox v${version} please stand by...`);
 
     const { pxe, node, stop, accounts } = await createAndInitialiseSandbox(deployTestAccounts);
 
@@ -139,7 +138,7 @@ async function main() {
       const accountLogStrings = await createAccountLogs(accounts, pxe);
       logStrings.push(...accountLogStrings);
     }
-    logStrings.push(`Aztec Sandbox v${version} (noir ${NoirCommit}) is now ready for use!`);
+    logStrings.push(`Aztec Sandbox v${version} is now ready for use!`);
   } else if (mode === SandboxMode.Node) {
     // Code path for starting Node only
     const nodeConfig = getNodeConfigEnvVars();
@@ -170,7 +169,7 @@ async function main() {
     const httpServer = http.createServer(app.callback());
     httpServer.listen(port);
 
-    logStrings.push(`Aztec Node v${version} (noir ${NoirCommit}) is now ready for use in port ${port}!`);
+    logStrings.push(`Aztec Node v${version} is now ready for use in port ${port}!`);
   } else if (mode === SandboxMode.PXE) {
     // Code path for starting PXE only
 
@@ -190,7 +189,7 @@ async function main() {
       logStrings.push(...accountLogStrings);
     }
 
-    logStrings.push(`PXE v${version} (noir ${NoirCommit}) is now ready for use in port ${PXE_PORT}!`);
+    logStrings.push(`PXE v${version} is now ready for use in port ${PXE_PORT}!`);
   } else if (mode === SandboxMode.P2PBootstrap) {
     // Code path for starting a P2P bootstrap node
     const config = getP2PConfigEnvVars();

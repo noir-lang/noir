@@ -30,7 +30,6 @@ describe('CLI docs sandbox', () => {
 Node Info:
 
 Node Version: #include_aztec_short_version
-Compatible Nargo Version: #include_noir_version
 Chain Id: 31337
 Protocol Version: 1
 Rollup Address: 0x0dcd1bf9a1b36ce34237eeafef220932846bcd82

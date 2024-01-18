@@ -211,10 +211,6 @@ The CLI comes with the Noir compiler, so installing `nargo` is not required, how
 
 You will also need `nargo` if you want to run unit tests in Noir.
 
-You can install `nargo` with the following commands:
-
-<InstallNargoInstructions />
-
 ## What's next?
 
 Now you can explore.

@@ -9,10 +9,6 @@ export interface NodeInfo {
    */
   nodeVersion: string;
   /**
-   * The nargo version compatible with this node version
-   */
-  compatibleNargoVersion: string;
-  /**
    * L1 chain id.
    */
   chainId: number;

@@ -7,13 +7,6 @@ let versions;
 async function getVersions() {
   if (!versions) {
     try {
-      const noirVersionPath = path.resolve(
-        __dirname,
-        "../../../yarn-project/noir-compiler/src/noir-version.json"
-      );
-      const noirVersion = JSON.parse(
-        fs.readFileSync(noirVersionPath).toString()
-      ).tag;
       const aztecVersionPath = path.resolve(
         __dirname,
         "../../../.release-please-manifest.json"
@@ -22,7 +15,6 @@ async function getVersions() {
         fs.readFileSync(aztecVersionPath).toString()
       )["."];
       versions = {
-        noir: noirVersion,
         aztec: `aztec-packages-v${aztecVersion}`,
         aztec_short: aztecVersion,
       };
