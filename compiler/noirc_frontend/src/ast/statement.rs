@@ -9,6 +9,7 @@ use crate::{
     MethodCallExpression, UnresolvedType,
 };
 use acvm::FieldElement;
+use chumsky::input::Emitter;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
@@ -49,7 +50,7 @@ impl Statement {
         semi: Option<Token>,
         span: Span,
         last_statement_in_block: bool,
-        emit_error: &mut dyn FnMut(ParserError),
+        emitter: &mut Emitter<ParserError>,
     ) -> Self {
         let missing_semicolon =
             ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
@@ -62,7 +63,7 @@ impl Statement {
             | StatementKind::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
-                    emit_error(missing_semicolon);
+                    emitter.emit(missing_semicolon);
                 }
                 self.kind
             }
@@ -80,7 +81,7 @@ impl Statement {
                         }
                     }
                     (_, None, false) => {
-                        emit_error(missing_semicolon);
+                        emitter.emit(missing_semicolon);
                         StatementKind::Expression(expr)
                     }
                     (_, Some(_), _) => StatementKind::Semi(expr),

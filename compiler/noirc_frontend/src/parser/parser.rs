@@ -13,7 +13,7 @@
 //! For example, a function `f` parsing `choice((a, b, c))` can be roughly translated to
 //! BNF as `f: a | b | c`.
 //!
-//! Occasionally there will also be recovery strategies present, either via `recover_via(Parser)`
+//! Occasionally there will also be recovery strategies present, either via `recover_with(via_parser(Parser)`
 //! or `recover_with(Strategy)`. The difference between the two functions isn't quite so important,
 //! but both allow the parser to recover from a parsing error, log the error, and return an error
 //! expression instead. These are used to parse cases such as `fn foo( { }` where we know the user
@@ -122,7 +122,7 @@ fn top_level_statement(
         use_statement().then_ignore(force(just(Token::Semicolon))),
         global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
-    .recover_via(top_level_statement_recovery())
+    .recover_with(via_parser(top_level_statement_recovery()))
 }
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
@@ -260,12 +260,12 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
 
     let fields = struct_fields()
         .delimited_by(just(LeftBrace), just(RightBrace))
-        .recover_with(nested_delimiters(
+        .recover_with(via_parser(nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
-        ))
+        )))
         .or(just(Semicolon).map(|_| Vec::new()));
 
     attributes()
@@ -274,9 +274,15 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .then(ident())
         .then(generics())
         .then(fields)
-        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
-            let attributes = validate_struct_attributes(raw_attributes, span, emit);
-            TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
+        .validate(|(((raw_attributes, name), generics), fields), extra, emitter| {
+            let attributes = validate_struct_attributes(raw_attributes, extra.span(), emitter);
+            TopLevelStatement::Struct(NoirStruct {
+                name,
+                attributes,
+                generics,
+                fields,
+                span: extra.span(),
+            })
         })
 }
 
@@ -338,32 +344,33 @@ fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
 }
 
 fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
-    let typ = parse_type().recover_via(parameter_recovery());
+    let typ = parse_type().recover_with(via_parser(parameter_recovery()));
     let typ = just(Token::Colon).ignore_then(typ);
 
     let parameter = pattern()
-        .recover_via(parameter_name_recovery())
+        .recover_with(via_parser(parameter_name_recovery()))
         .then(typ.or_not().map(|typ| typ.unwrap_or_else(UnresolvedType::unspecified)));
 
     parameter
         .separated_by(just(Token::Comma))
         .allow_trailing()
+        .collect()
         .labelled(ParsingRuleLabel::Parameter)
 }
 
 fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
-    let typ = parse_type().recover_via(parameter_recovery());
+    let typ = parse_type().recover_with(via_parser(parameter_recovery()));
 
     let full_parameter = pattern()
-        .recover_via(parameter_name_recovery())
+        .recover_with(via_parser(parameter_name_recovery()))
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
         .then(typ)
-        .map_with_span(|((pattern, visibility), typ), span| Param {
+        .map_with(|((pattern, visibility), typ), extra| Param {
             visibility,
             pattern,
             typ,
-            span,
+            span: extra.span(),
         });
 
     let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
@@ -373,6 +380,7 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
     parameter
         .separated_by(just(Token::Comma))
         .allow_trailing()
+        .collect()
         .labelled(ParsingRuleLabel::Parameter)
 }
 
@@ -513,7 +521,7 @@ fn validate_attributes(
 fn validate_struct_attributes(
     attributes: Option<Vec<Attribute>>,
     span: Span,
-    emit: &mut dyn FnMut(ParserError),
+    emitter: &mut Emitter<ParserError>,
 ) -> Vec<SecondaryAttribute> {
     let attrs = attributes.unwrap_or_default();
     let mut struct_attributes = vec![];
@@ -521,7 +529,7 @@ fn validate_struct_attributes(
     for attribute in attrs {
         match attribute {
             Attribute::Function(..) => {
-                emit(ParserError::with_reason(
+                emitter.emit(ParserError::with_reason(
                     ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
                     span,
                 ));
@@ -536,10 +544,10 @@ fn validate_struct_attributes(
 /// Function declaration parameters differ from other parameters in that parameter
 /// patterns are not allowed in declarations. All parameters must be identifiers.
 fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    let typ = parse_type().recover_via(parameter_recovery());
+    let typ = parse_type().recover_with(via_parser(parameter_recovery()));
     let typ = just(Token::Colon).ignore_then(typ);
 
-    let full_parameter = ident().recover_via(parameter_name_recovery()).then(typ);
+    let full_parameter = ident().recover_with(via_parser(parameter_name_recovery())).then(typ);
     let self_parameter = self_parameter().validate(|param, extra, emitter| {
         match param.pattern {
             Pattern::Identifier(ident) => (ident, param.typ),
@@ -560,6 +568,7 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
     parameter
         .separated_by(just(Token::Comma))
         .allow_trailing()
+        .collect()
         .labelled(ParsingRuleLabel::Parameter)
 }
 
@@ -703,30 +712,32 @@ fn block<'a>(
 ) -> impl NoirParser<BlockExpression> + 'a {
     use Token::*;
     statement
-        .recover_via(statement_recovery())
+        .recover_with(via_parser(statement_recovery()))
         .then(just(Semicolon).or_not().map_with(|s, extra| (s, extra.span())))
         .map_with(|(kind, rest), extra| (Statement { kind, span: extra.span() }, rest))
         .repeated()
-        .validate(check_statements_require_semicolon)
+        .collect()
+        .validate(|statements, _extra, emitter| {
+            check_statements_require_semicolon(statements, emitter)
+        })
         .delimited_by(just(LeftBrace), just(RightBrace))
-        .recover_with(nested_delimiters(
+        .recover_with(via_parser(nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |span| vec![Statement { kind: StatementKind::Error, span }],
-        ))
+        )))
         .map(BlockExpression)
 }
 
 fn check_statements_require_semicolon(
     statements: Vec<(Statement, (Option<Token>, Span))>,
-    _span: Span,
-    emit: &mut dyn FnMut(ParserError),
+    emitter: &mut Emitter<ParserError>,
 ) -> Vec<Statement> {
     let last = statements.len().saturating_sub(1);
     let iter = statements.into_iter().enumerate();
     vecmap(iter, |(i, (statement, (semicolon, span)))| {
-        statement.add_semicolon(semicolon, span, i == last, emit)
+        statement.add_semicolon(semicolon, span, i == last, emitter)
     })
 }
 
@@ -857,8 +868,9 @@ where
         expr_parser,
     )
     .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None, ConstrainKind::Constrain)))
-    .validate(|expr, span, emit| {
-        emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
+    .validate(|expr, extra, emitter| {
+        emitter
+            .emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, extra.span()));
         expr
     })
 }
@@ -867,12 +879,16 @@ fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let argument_parser =
-        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(1).at_most(2);
+    let argument_parser = expr_parser
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .at_most(2)
+        .collect();
 
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|expressions, extra, emitter| {
+        .validate(|expressions: Vec<Expression>, extra, emitter| {
             let condition = expressions.get(0).unwrap_or(&Expression::error(extra.span())).clone();
             let mut message_str = None;
 
@@ -899,8 +915,12 @@ fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
 {
-    let argument_parser =
-        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(2).at_most(3);
+    let argument_parser = expr_parser
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(2)
+        .at_most(3)
+        .collect();
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
@@ -1241,7 +1261,9 @@ fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
 {
-    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
+    let args = parenthesized(
+        type_parser.clone().separated_by(just(Token::Comma)).allow_trailing().collect(),
+    );
 
     let env = just(Token::LeftBracket)
         .ignore_then(type_parser.clone())
