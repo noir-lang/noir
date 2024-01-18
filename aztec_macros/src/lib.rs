@@ -67,7 +67,7 @@ impl From<AztecMacroError> for MacroError {
                 span: Some(span),
             },
             AztecMacroError::UnsupportedFunctionArgumentType { span, typ } => MacroError {
-                primary_message: format!("Provided parameter type: {typ:?} is not supported"),
+                primary_message: format!("Provided parameter type `{typ:?}` is not supported in Aztec contract interface"),
                 secondary_message: None,
                 span: Some(span),
             },
