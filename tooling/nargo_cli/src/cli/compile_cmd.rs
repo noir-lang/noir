@@ -7,10 +7,10 @@ use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::CompileError;
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
@@ -18,6 +18,7 @@ use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, Compiled
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
+use noirc_frontend::hir::ParsedFiles;
 
 use crate::backends::Backend;
 use crate::errors::CliError;
@@ -64,6 +65,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
@@ -74,6 +76,7 @@ pub(crate) fn run(
     let expression_width = backend.get_backend_info_or_default();
     let (_, compiled_contracts) = compile_workspace(
         &workspace_file_manager,
+        &parsed_files,
         &workspace,
         &binary_packages,
         &contract_packages,
@@ -91,6 +94,7 @@ pub(crate) fn run(
 
 pub(super) fn compile_workspace(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
     binary_packages: &[Package],
     contract_packages: &[Package],
@@ -101,12 +105,21 @@ pub(super) fn compile_workspace(
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_program(file_manager, workspace, package, compile_options, expression_width)
+            compile_program(
+                file_manager,
+                parsed_files,
+                workspace,
+                package,
+                compile_options,
+                expression_width,
+            )
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
-        .map(|package| compile_contract(file_manager, package, compile_options, expression_width))
+        .map(|package| {
+            compile_contract(file_manager, parsed_files, package, compile_options, expression_width)
+        })
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -138,6 +151,7 @@ pub(super) fn compile_workspace(
 
 pub(crate) fn compile_bin_package(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
@@ -147,8 +161,14 @@ pub(crate) fn compile_bin_package(
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
-    let compilation_result =
-        compile_program(file_manager, workspace, package, compile_options, expression_width);
+    let compilation_result = compile_program(
+        file_manager,
+        parsed_files,
+        workspace,
+        package,
+        compile_options,
+        expression_width,
+    );
 
     let program = report_errors(
         compilation_result,
@@ -162,12 +182,13 @@ pub(crate) fn compile_bin_package(
 
 fn compile_program(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
 ) -> CompilationResult<CompiledProgram> {
-    let (mut context, crate_id) = prepare_package(file_manager, package);
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     let program_artifact_path = workspace.package_build_path(package);
     let mut debug_artifact_path = program_artifact_path.clone();
@@ -206,11 +227,12 @@ fn compile_program(
 
 fn compile_contract(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
 ) -> CompilationResult<CompiledContract> {
-    let (mut context, crate_id) = prepare_package(file_manager, package);
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     let (contract, warnings) =
         match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
             Ok(contracts_and_warnings) => contracts_and_warnings,

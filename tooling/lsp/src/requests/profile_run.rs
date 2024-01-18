@@ -5,7 +5,9 @@ use std::{
 
 use acvm::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager};
+use nargo::{
+    artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager, parse_all,
+};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
@@ -52,6 +54,7 @@ fn on_profile_run_request_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
@@ -66,6 +69,7 @@ fn on_profile_run_request_inner(
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace_file_manager,
+                &parsed_files,
                 &workspace,
                 &binary_packages,
                 &contract_packages,

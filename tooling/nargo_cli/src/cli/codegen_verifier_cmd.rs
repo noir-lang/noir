@@ -9,12 +9,13 @@ use crate::errors::CliError;
 use acvm::ExpressionWidth;
 use clap::Args;
 use fm::FileManager;
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
+use noirc_frontend::hir::ParsedFiles;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
@@ -48,11 +49,13 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width = backend.get_backend_info()?;
     for package in &workspace {
         let smart_contract_string = smart_contract_for_package(
             &workspace_file_manager,
+            &parsed_files,
             &workspace,
             backend,
             package,
@@ -73,14 +76,21 @@ pub(crate) fn run(
 
 fn smart_contract_for_package(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
     backend: &Backend,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
 ) -> Result<String, CliError> {
-    let program =
-        compile_bin_package(file_manager, workspace, package, compile_options, expression_width)?;
+    let program = compile_bin_package(
+        file_manager,
+        parsed_files,
+        workspace,
+        package,
+        compile_options,
+        expression_width,
+    )?;
 
     Ok(backend.eth_contract(&program.circuit)?)
 }
