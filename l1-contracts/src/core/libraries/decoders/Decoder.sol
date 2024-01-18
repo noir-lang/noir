@@ -385,6 +385,7 @@ library Decoder {
       for (uint256 j = 0; j < treeSize; j += 2) {
         _leafs[j / 2] = sha256(bytes.concat(_leafs[j], _leafs[j + 1]));
       }
+      treeSize /= 2;
     }
 
     return _leafs[0];
