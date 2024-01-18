@@ -307,20 +307,21 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
     }
 }
 
-// #[test]
-// fn prepare_package_from_source_string() {
-//     let source = r#"
-//     fn main() {
-//         let x = 1;
-//         let y = 2;
-//         let z = x + y;
-//     }
-//     "#;
+#[test]
+fn prepare_package_from_source_string() {
+    let source = r#"
+    fn main() {
+        let x = 1;
+        let y = 2;
+        let z = x + y;
+    }
+    "#;
 
-//     let state = LspState::default();
+    let client = ClientSocket::new_closed();
+    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
-//     let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
-//     let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false);
-//     let main_func_id = context.get_main_function(&crate_id);
-//     assert!(main_func_id.is_some());
-// }
+    let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
+    let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false);
+    let main_func_id = context.get_main_function(&crate_id);
+    assert!(main_func_id.is_some());
+}
