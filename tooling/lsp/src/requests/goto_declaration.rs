@@ -7,7 +7,7 @@ use async_lsp::{ErrorCode, ResponseError};
 
 use lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse};
 
-use nargo::insert_all_files_for_workspace_into_file_manager;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use noirc_driver::file_manager_with_stdlib;
 
 use super::{position_to_byte_index, to_lsp_location};
@@ -36,8 +36,10 @@ fn on_goto_definition_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
-    let (mut context, crate_id) = nargo::prepare_package(&workspace_file_manager, package);
+    let (mut context, crate_id) =
+        nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
 
     let interner;
     if let Some(def_interner) = _state.cached_definitions.get(&package_root_path) {
