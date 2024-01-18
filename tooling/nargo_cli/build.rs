@@ -75,7 +75,7 @@ fn execution_success_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("execute");
+    cmd.arg("execute").arg("--force");
 
     cmd.assert().success();
 }}
@@ -194,6 +194,7 @@ fn compile_success_empty_{test_name}() {{
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
+    cmd.arg("--force");
 
     let output = cmd.output().expect("Failed to execute command");
 
@@ -242,7 +243,7 @@ fn compile_success_contract_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("compile");
+    cmd.arg("compile").arg("--force");
 
     cmd.assert().success();
 }}
@@ -280,7 +281,7 @@ fn compile_failure_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("execute");
+    cmd.arg("execute").arg("--force");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
