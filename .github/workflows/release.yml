@@ -44,6 +44,15 @@ jobs:
         run: |
             cargo update --workspace
 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.17.1
+          cache: 'yarn'
+          cache-dependency-path: 'yarn.lock'
+      
+      - name: Update yarn.lock
+        run: yarn
+        
       - name: Configure git
         run: |
           git config user.name kevaundray
