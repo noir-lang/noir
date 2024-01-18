@@ -17,7 +17,6 @@ use acvm_blackbox_solver::StubbedBlackBoxSolver;
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
 #[test]
-#[ignore]
 fn inversion_brillig_oracle_equivalence() {
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
@@ -126,7 +125,6 @@ fn inversion_brillig_oracle_equivalence() {
 }
 
 #[test]
-#[ignore]
 fn double_inversion_brillig_oracle() {
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
@@ -453,6 +451,7 @@ fn brillig_oracle_predicate() {
     // ACVM should be able to be finalized in `Solved` state.
     acvm.finalize();
 }
+
 #[test]
 fn unsatisfied_opcode_resolved() {
     let a = Witness(0);

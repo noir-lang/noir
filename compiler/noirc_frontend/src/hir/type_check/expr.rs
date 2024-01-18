@@ -6,7 +6,7 @@ use crate::{
     hir_def::{
         expr::{
             self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
+            HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
@@ -18,7 +18,7 @@ use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
     fn check_if_deprecated(&mut self, expr: &ExprId) {
-        if let HirExpression::Ident(expr::HirIdent { location, id }) =
+        if let HirExpression::Ident(expr::HirIdent { location, id, impl_kind: _ }) =
             self.interner.expression(expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -52,6 +52,10 @@ impl<'interner> TypeChecker<'interner> {
                 // We must instantiate identifiers at every call site to replace this T with a new type
                 // variable to handle generic functions.
                 let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+
+                // This instantiate's a trait's generics as well which need to be set
+                // when the constraint below is later solved for when the function is
+                // finished. How to link the two?
                 let (typ, bindings) = t.instantiate(self.interner);
 
                 // Push any trait constraints required by this definition to the context
@@ -59,10 +63,27 @@ impl<'interner> TypeChecker<'interner> {
                 if let Some(definition) = self.interner.try_definition(ident.id) {
                     if let DefinitionKind::Function(function) = definition.kind {
                         let function = self.interner.function_meta(&function);
+
                         for mut constraint in function.trait_constraints.clone() {
-                            constraint.typ = constraint.typ.substitute(&bindings);
+                            constraint.apply_bindings(&bindings);
                             self.trait_constraints.push((constraint, *expr_id));
                         }
+                    }
+                }
+
+                if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
+                    constraint.apply_bindings(&bindings);
+                    if assumed {
+                        let trait_impl = TraitImplKind::Assumed {
+                            object_type: constraint.typ,
+                            trait_generics: constraint.trait_generics,
+                        };
+                        self.interner.select_impl_for_expression(*expr_id, trait_impl);
+                    } else {
+                        // Currently only one impl can be selected per expr_id, so this
+                        // constraint needs to be pushed after any other constraints so
+                        // that monomorphization can resolve this trait method to the correct impl.
+                        self.trait_constraints.push((constraint, *expr_id));
                     }
                 }
 
@@ -141,7 +162,14 @@ impl<'interner> TypeChecker<'interner> {
                     Ok((typ, use_impl)) => {
                         if use_impl {
                             let id = infix_expr.trait_method_id;
-                            self.verify_trait_constraint(&lhs_type, id.trait_id, *expr_id, span);
+                            // Assume operators have no trait generics
+                            self.verify_trait_constraint(
+                                &lhs_type,
+                                id.trait_id,
+                                &[],
+                                *expr_id,
+                                span,
+                            );
                             self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
                         }
                         typ
@@ -207,11 +235,12 @@ impl<'interner> TypeChecker<'interner> {
                                         .trait_id
                                 })
                             }
-                            HirMethodReference::TraitMethodId(method) => Some(method.trait_id),
+                            HirMethodReference::TraitMethodId(method, _) => Some(method.trait_id),
                         };
 
                         let (function_id, function_call) = method_call.into_function_call(
-                            method_ref.clone(),
+                            &method_ref,
+                            object_type.clone(),
                             location,
                             self.interner,
                         );
@@ -220,7 +249,15 @@ impl<'interner> TypeChecker<'interner> {
                         let ret = self.check_method_call(&function_id, method_ref, args, span);
 
                         if let Some(trait_id) = trait_id {
-                            self.verify_trait_constraint(&object_type, trait_id, function_id, span);
+                            // Assume no trait generics were specified
+                            // TODO: Fill in type variables
+                            self.verify_trait_constraint(
+                                &object_type,
+                                trait_id,
+                                &[],
+                                function_id,
+                                span,
+                            );
                         }
 
                         self.interner.replace_expr(expr_id, function_call);
@@ -298,30 +335,6 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::TraitMethodReference(method) => {
-                let the_trait = self.interner.get_trait(method.trait_id);
-                let typ2 = &the_trait.methods[method.method_index].typ;
-                let (typ, mut bindings) = typ2.instantiate(self.interner);
-
-                // We must also remember to apply these substitutions to the object_type
-                // referenced by the selected trait impl, if one has yet to be selected.
-                let impl_kind = self.interner.get_selected_impl_for_expression(*expr_id);
-                if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
-                    let the_trait = self.interner.get_trait(method.trait_id);
-                    let object_type = object_type.substitute(&bindings);
-                    bindings.insert(
-                        the_trait.self_type_typevar_id,
-                        (the_trait.self_type_typevar.clone(), object_type.clone()),
-                    );
-                    self.interner.select_impl_for_expression(
-                        *expr_id,
-                        TraitImplKind::Assumed { object_type },
-                    );
-                }
-
-                self.interner.store_instantiation_bindings(*expr_id, bindings);
-                typ
-            }
         };
 
         self.interner.push_expr_type(expr_id, typ.clone());
@@ -332,11 +345,14 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         object_type: &Type,
         trait_id: TraitId,
+        trait_generics: &[Type],
         function_ident_id: ExprId,
         span: Span,
     ) {
-        match self.interner.lookup_trait_implementation(object_type, trait_id) {
-            Ok(impl_kind) => self.interner.select_impl_for_expression(function_ident_id, impl_kind),
+        match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
+            Ok(impl_kind) => {
+                self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+            }
             Err(erroring_constraints) => {
                 // Don't show any errors where try_get_trait returns None.
                 // This can happen if a trait is used that was never declared.
@@ -344,7 +360,12 @@ impl<'interner> TypeChecker<'interner> {
                     .into_iter()
                     .map(|constraint| {
                         let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
-                        Some((constraint.typ, r#trait.name.to_string()))
+                        let mut name = r#trait.name.to_string();
+                        if !constraint.trait_generics.is_empty() {
+                            let generics = vecmap(&constraint.trait_generics, ToString::to_string);
+                            name += &format!("<{}>", generics.join(", "));
+                        }
+                        Some((constraint.typ, name))
                     })
                     .collect::<Option<Vec<_>>>();
 
@@ -554,7 +575,7 @@ impl<'interner> TypeChecker<'interner> {
         arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        let (fn_typ, param_len) = match method_ref {
+        let (fn_typ, param_len, generic_bindings) = match method_ref {
             HirMethodReference::FuncId(func_id) => {
                 if func_id == FuncId::dummy_id() {
                     return Type::Error;
@@ -562,12 +583,22 @@ impl<'interner> TypeChecker<'interner> {
 
                 let func_meta = self.interner.function_meta(&func_id);
                 let param_len = func_meta.parameters.len();
-                (func_meta.typ.clone(), param_len)
+                (func_meta.typ.clone(), param_len, TypeBindings::new())
             }
-            HirMethodReference::TraitMethodId(method) => {
+            HirMethodReference::TraitMethodId(method, generics) => {
                 let the_trait = self.interner.get_trait(method.trait_id);
                 let method = &the_trait.methods[method.method_index];
-                (method.typ.clone(), method.arguments().len())
+
+                // These are any bindings from the trait's generics itself,
+                // rather than an impl or method's generics.
+                let generic_bindings = the_trait
+                    .generics
+                    .iter()
+                    .zip(generics)
+                    .map(|(var, arg)| (var.id(), (var.clone(), arg)))
+                    .collect();
+
+                (method.typ.clone(), method.arguments().len(), generic_bindings)
             }
         };
 
@@ -581,11 +612,12 @@ impl<'interner> TypeChecker<'interner> {
             });
         }
 
-        let (function_type, instantiation_bindings) = fn_typ.instantiate(self.interner);
+        let (function_type, instantiation_bindings) =
+            fn_typ.instantiate_with_bindings(generic_bindings, self.interner);
 
         self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         self.interner.push_expr_type(function_ident_id, function_type.clone());
-        self.bind_function_type(function_type, arguments, span)
+        self.bind_function_type(function_type.clone(), arguments, span)
     }
 
     fn check_if_expr(&mut self, if_expr: &expr::HirIfExpression, expr_id: &ExprId) -> Type {
@@ -926,7 +958,10 @@ impl<'interner> TypeChecker<'interner> {
                                         trait_id: constraint.trait_id,
                                         method_index,
                                     };
-                                    return Some(HirMethodReference::TraitMethodId(trait_method));
+                                    return Some(HirMethodReference::TraitMethodId(
+                                        trait_method,
+                                        constraint.trait_generics.clone(),
+                                    ));
                                 }
                             }
                         }
@@ -1233,15 +1268,17 @@ impl<'interner> TypeChecker<'interner> {
         // We must also remember to apply these substitutions to the object_type
         // referenced by the selected trait impl, if one has yet to be selected.
         let impl_kind = self.interner.get_selected_impl_for_expression(expr_id);
-        if let Some(TraitImplKind::Assumed { object_type }) = impl_kind {
+        if let Some(TraitImplKind::Assumed { object_type, trait_generics }) = impl_kind {
             let the_trait = self.interner.get_trait(trait_method_id.trait_id);
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
                 the_trait.self_type_typevar_id,
                 (the_trait.self_type_typevar.clone(), object_type.clone()),
             );
-            self.interner
-                .select_impl_for_expression(expr_id, TraitImplKind::Assumed { object_type });
+            self.interner.select_impl_for_expression(
+                expr_id,
+                TraitImplKind::Assumed { object_type, trait_generics },
+            );
         }
 
         self.interner.store_instantiation_bindings(expr_id, bindings);

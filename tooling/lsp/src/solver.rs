@@ -39,4 +39,22 @@ impl BlackBoxFunctionSolver for WrapperSolver {
     ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
         self.0.pedersen_hash(inputs, domain_separator)
     }
+
+    fn ec_add(
+        &self,
+        input1_x: &acvm::FieldElement,
+        input1_y: &acvm::FieldElement,
+        input2_x: &acvm::FieldElement,
+        input2_y: &acvm::FieldElement,
+    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
+        self.0.ec_add(input1_x, input1_y, input2_x, input2_y)
+    }
+
+    fn ec_double(
+        &self,
+        input_x: &acvm::FieldElement,
+        input_y: &acvm::FieldElement,
+    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
+        self.0.ec_double(input_x, input_y)
+    }
 }

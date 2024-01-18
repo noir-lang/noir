@@ -72,7 +72,7 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_functions(context, ast.functions, crate_id));
 
-    errors.extend(collector.collect_trait_impls(context, ast.trait_impls, crate_id));
+    collector.collect_trait_impls(context, ast.trait_impls, crate_id);
 
     collector.collect_impls(context, ast.impls, crate_id);
 
@@ -144,7 +144,7 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         impls: Vec<NoirTraitImpl>,
         krate: CrateId,
-    ) -> Vec<(CompilationError, fm::FileId)> {
+    ) {
         for trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
@@ -168,11 +168,11 @@ impl<'a> ModCollector<'a> {
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
                 trait_id: None, // will be filled later
+                trait_generics: trait_impl.trait_generics,
             };
 
             self.def_collector.collected_traits_impls.push(unresolved_trait_impl);
         }
-        vec![]
     }
 
     fn collect_trait_impl_function_overrides(
@@ -634,7 +634,10 @@ fn find_module(
     anchor: FileId,
     mod_name: &str,
 ) -> Result<FileId, String> {
-    let anchor_path = file_manager.path(anchor).with_extension("");
+    let anchor_path = file_manager
+        .path(anchor)
+        .expect("File must exist in file manager in order for us to be resolving its imports.")
+        .with_extension("");
     let anchor_dir = anchor_path.parent().unwrap();
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of

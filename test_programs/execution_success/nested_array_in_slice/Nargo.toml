@@ -1,5 +1,5 @@
 [package]
-name = "nested_slice_dynamic"
+name = "nested_array_in_slice"
 type = "bin"
 authors = [""]
 [dependencies]

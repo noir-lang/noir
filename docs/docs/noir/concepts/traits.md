@@ -4,6 +4,7 @@ description:
   Traits in Noir can be used to abstract out a common interface for functions across
   several data types.
 keywords: [noir programming language, traits, interfaces, generic, protocol]
+sidebar_position: 14
 ---
 
 ## Overview
@@ -165,6 +166,46 @@ impl<T, N> Eq for [T; N] where T: Eq {
 
         result
     }
+}
+```
+
+## Generic Traits
+
+Traits themselves can also be generic by placing the generic arguments after the trait name. These generics are in
+scope of every item within the trait.
+
+```rust
+trait Into<T> {
+    // Convert `self` to type `T`
+    fn into(self) -> T;
+}
+```
+
+When implementing generic traits the generic arguments of the trait must be specified. This is also true anytime
+when referencing a generic trait (e.g. in a `where` clause).
+
+```rust
+struct MyStruct {
+    array: [Field; 2],
+}
+
+impl Into<[Field; 2]> for MyStruct {
+    fn into(self) -> [Field; 2] {
+        self.array
+    }
+}
+
+fn as_array<T>(x: T) -> [Field; 2] 
+    where T: Into<[Field; 2]>
+{
+    x.into()
+}
+
+fn main() {
+    let array = [1, 2];
+    let my_struct = MyStruct { array };
+
+    assert_eq(as_array(my_struct), array);
 }
 ```
 

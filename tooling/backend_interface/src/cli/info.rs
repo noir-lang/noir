@@ -13,12 +13,6 @@ pub(crate) struct InfoCommand {
 #[derive(Deserialize)]
 struct InfoResponse {
     language: LanguageResponse,
-    #[allow(dead_code)]
-    #[deprecated(note = "This field is deprecated and will be removed in the future")]
-    opcodes_supported: Vec<String>,
-    #[allow(dead_code)]
-    #[deprecated(note = "This field is deprecated and will be removed in the future")]
-    black_box_functions_supported: Vec<String>,
 }
 
 #[derive(Deserialize)]
