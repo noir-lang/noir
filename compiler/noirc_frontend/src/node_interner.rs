@@ -143,6 +143,8 @@ pub struct NodeInterner {
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
 
+    /// A list of all type aliases that are referenced in the program.
+    /// Searched by LSP to resolve [Location]s of [TypeAliasType]s
     pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 }
 
@@ -548,6 +550,8 @@ impl NodeInterner {
         type_id
     }
 
+    /// Adds [TypeLiasId] and [Location] to the type_alias_ref vector
+    /// So that we can later resolve [Location]s type aliases from the LSP requests
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
     }

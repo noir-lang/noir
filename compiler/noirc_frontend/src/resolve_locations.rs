@@ -182,7 +182,7 @@ impl NodeInterner {
                 named_type_location.span.contains(&location.span)
             })
             .and_then(|(type_alias_id, _found_location)| {
-                Some(self.get_type_alias(*type_alias_id).span)
+                Some(self.get_type_alias(*type_alias_id).location)
             })
     }
 }
