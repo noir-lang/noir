@@ -29,7 +29,7 @@ export class AvmStateManager {
    * @returns Avm State Manager
    */
   public static rootStateManager(blockHeader: BlockHeader, hostStorage: HostStorage): AvmStateManager {
-    const journal = new AvmJournal(hostStorage);
+    const journal = AvmJournal.rootJournal(hostStorage);
     return new AvmStateManager(blockHeader, journal);
   }
 
@@ -39,6 +39,7 @@ export class AvmStateManager {
    * @returns
    */
   public static forkStateManager(parent: AvmStateManager): AvmStateManager {
-    return new AvmStateManager(parent.blockHeader, parent.journal);
+    const journal = AvmJournal.branchParent(parent.journal);
+    return new AvmStateManager(parent.blockHeader, journal);
   }
 }

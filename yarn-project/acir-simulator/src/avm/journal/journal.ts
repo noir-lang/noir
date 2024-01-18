@@ -1,101 +1,191 @@
 import { Fr } from '@aztec/foundation/fields';
 
+import { RootJournalCannotBeMerged } from './errors.js';
 import { HostStorage } from './host_storage.js';
 
-// TODO: all of the data that comes out of the avm ready for write should be in this format
-/** - */
+/**
+ * Data held within the journal
+ */
 export type JournalData = {
   /** - */
   newCommitments: Fr[];
   /** - */
-  newL1Message: Fr[];
+  newL1Messages: Fr[];
   /** - */
-  storageWrites: { [key: string]: { [key: string]: Fr } };
+  newNullifiers: Fr[];
+  /** contract address -\> key -\> value */
+  storageWrites: Map<Fr, Map<Fr, Fr>>;
 };
 
-// This persists for an entire block
-// Each transaction should have its own journal that gets appended to this one upon success
-/** - */
+/**
+ * A cache of the current state of the AVM
+ * The interpreter should make any state queries through this object
+ *
+ * When a sub context's call succeeds, it's journal is merge into the parent
+ * When a a call fails, it's journal is discarded and the parent is used from this point forward
+ * When a call succeeds's we can merge a child into its parent
+ */
 export class AvmJournal {
-  // TODO: should we make private?
-  /** - */
+  /** Reference to node storage */
   public readonly hostStorage: HostStorage;
 
-  // We need to keep track of the following
-  // - State reads
-  // - State updates
-  // - New Commitments
-  // - Commitment reads
+  // Reading state - must be tracked for vm execution
+  // contract address -> key -> value
+  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3999)
+  private storageReads: Map<Fr, Map<Fr, Fr>> = new Map();
 
+  // New written state
   private newCommitments: Fr[] = [];
+  private newNullifiers: Fr[] = [];
   private newL1Message: Fr[] = [];
 
-  // TODO: type this structure -> contract address -> key -> value
-  private storageWrites: { [key: string]: { [key: string]: Fr } } = {};
+  // New Substrate
+  private newLogs: Fr[][] = [];
 
-  constructor(hostStorage: HostStorage) {
+  // contract address -> key -> value
+  private storageWrites: Map<Fr, Map<Fr, Fr>> = new Map();
+
+  private parentJournal: AvmJournal | undefined;
+
+  constructor(hostStorage: HostStorage, parentJournal?: AvmJournal) {
     this.hostStorage = hostStorage;
+    this.parentJournal = parentJournal;
   }
 
-  // TODO: work on the typing
   /**
-   * -
+   * Create a new root journal, without a parent
+   * @param hostStorage -
+   */
+  public static rootJournal(hostStorage: HostStorage) {
+    return new AvmJournal(hostStorage);
+  }
+
+  /**
+   * Create a new journal from a parent
+   * @param parentJournal -
+   */
+  public static branchParent(parentJournal: AvmJournal) {
+    return new AvmJournal(parentJournal.hostStorage, parentJournal);
+  }
+
+  /**
+   * Write storage into journal
+   *
    * @param contractAddress -
    * @param key -
    * @param value -
    */
   public writeStorage(contractAddress: Fr, key: Fr, value: Fr) {
-    // TODO: do we want this map to be ordered -> is there performance upside to this?
-    this.storageWrites[contractAddress.toString()][key.toString()] = value;
+    let contractMap = this.storageWrites.get(contractAddress);
+    if (!contractMap) {
+      contractMap = new Map();
+      this.storageWrites.set(contractAddress, contractMap);
+    }
+    contractMap.set(key, value);
   }
 
   /**
-   * -
+   * Read storage from journal
+   * Read from host storage on cache miss
+   *
    * @param contractAddress -
    * @param key -
+   * @returns current value
    */
-  public readStorage(contractAddress: Fr, key: Fr) {
-    const cachedValue = this.storageWrites[contractAddress.toString()][key.toString()];
+  public readStorage(contractAddress: Fr, key: Fr): Promise<Fr> {
+    const cachedValue = this.storageWrites.get(contractAddress)?.get(key);
     if (cachedValue) {
-      return cachedValue;
+      return Promise.resolve(cachedValue);
     }
-    return this.hostStorage.stateDb.storageRead(contractAddress, key);
+    if (this.parentJournal) {
+      return this.parentJournal?.readStorage(contractAddress, key);
+    }
+    return this.hostStorage.publicStateDb.storageRead(contractAddress, key);
   }
 
-  /**
-   * -
+  /** -
    * @param commitment -
    */
   public writeCommitment(commitment: Fr) {
     this.newCommitments.push(commitment);
   }
 
-  /**
-   * -
+  /** -
    * @param message -
    */
   public writeL1Message(message: Fr) {
     this.newL1Message.push(message);
   }
 
-  // TODO: This function will merge two journals together -> the new head of the chain
-  /**
-   * -
-   * @param journal -
+  /** -
+   * @param nullifier -
    */
-  public mergeJournal(journal: AvmJournal) {
-    // TODO: This function will
-    void journal;
+  public writeNullifier(nullifier: Fr) {
+    this.newNullifiers.push(nullifier);
   }
 
   /**
-   * -
+   * Merge Journal into parent
+   * - Utxo objects are concatenated
+   * - Public state is merged, with the value in the incoming journal taking precedent
+   */
+  public mergeWithParent() {
+    if (!this.parentJournal) {
+      throw new RootJournalCannotBeMerged();
+    }
+
+    const incomingFlush = this.flush();
+
+    // Merge UTXOs
+    this.parentJournal.newCommitments = this.parentJournal.newCommitments.concat(incomingFlush.newCommitments);
+    this.parentJournal.newL1Message = this.parentJournal.newL1Message.concat(incomingFlush.newL1Messages);
+    this.parentJournal.newNullifiers = this.parentJournal.newNullifiers.concat(incomingFlush.newNullifiers);
+
+    // Merge Public State
+    mergeContractMaps(this.parentJournal.storageWrites, incomingFlush.storageWrites);
+  }
+
+  /** Access the current state of the journal
+   *
+   * @returns a JournalData object that can be used to write to the storage
    */
   public flush(): JournalData {
     return {
       newCommitments: this.newCommitments,
-      newL1Message: this.newL1Message,
+      newL1Messages: this.newL1Message,
+      newNullifiers: this.newNullifiers,
       storageWrites: this.storageWrites,
     };
+  }
+}
+
+/**
+ * Merges two contract maps together
+ * Where childMap keys will take precedent over the hostMap
+ * The assumption being that the child map is created at a later time
+ * And thus contains more up to date information
+ *
+ * @param hostMap - The map to be merged into
+ * @param childMap - The map to be merged from
+ */
+function mergeContractMaps(hostMap: Map<Fr, Map<Fr, Fr>>, childMap: Map<Fr, Map<Fr, Fr>>) {
+  for (const [key, value] of childMap) {
+    const map1Value = hostMap.get(key);
+    if (!map1Value) {
+      hostMap.set(key, value);
+    } else {
+      mergeStorageMaps(map1Value, value);
+    }
+  }
+}
+
+/**
+ *
+ * @param hostMap - The map to be merge into
+ * @param childMap - The map to be merged from
+ */
+function mergeStorageMaps(hostMap: Map<Fr, Fr>, childMap: Map<Fr, Fr>) {
+  for (const [key, value] of childMap) {
+    hostMap.set(key, value);
   }
 }
