@@ -123,6 +123,7 @@ num-traits = "0.2"
 similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
+flate2 = "1.0.24"
 
 tracing = "0.1.40"
 tracing-web = "0.1.3"
