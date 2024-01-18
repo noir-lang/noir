@@ -12,10 +12,21 @@ export class AvmMachineState {
   /** - */
   public memory: Fr[];
 
+  /**
+   * When an internal_call is invoked, the internal call stack is added to with the current pc + 1
+   * When internal_return is invoked, the latest value is popped from the internal call stack and set to the pc.
+   */
+  public internalCallStack: number[];
+
   /** - */
   public pc: number;
   /** - */
   public callStack: number[];
+
+  /**
+   * If an instruction triggers a halt, then it ends execution of the VM
+   */
+  public halted: boolean;
 
   /**
    * Create a new avm context
@@ -25,9 +36,12 @@ export class AvmMachineState {
     this.calldata = calldata;
     this.returnData = [];
     this.memory = [];
+    this.internalCallStack = [];
 
     this.pc = 0;
     this.callStack = [];
+
+    this.halted = false;
   }
 
   /**

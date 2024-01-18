@@ -6,7 +6,7 @@ import {
 } from './arithmetic.js';
 //import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 //import { Eq, Lt, Lte } from './comparators.js';
-import { Return } from './control_flow.js';
+import { InternalCall, InternalReturn, Jump, JumpI, Return } from './control_flow.js';
 import { Instruction } from './instruction.js';
 import {
   CalldataCopy,
@@ -72,10 +72,10 @@ export const INSTRUCTION_SET: Map<Opcode, InstructionConstructorAndMembers> = ne
     //[Opcode.L2GASLEFT, L2gasleft],
     //[Opcode.DAGASLEFT, Dagasleft],
     //// Machine State - Internal Control Flow
-    //[Opcode.JUMP, Jump],
-    //[Opcode.JUMPI, Jumpi],
-    //[Opcode.INTERNALCALL, Internalcall],
-    //[Opcode.INTERNALRETURN, Internalreturn],
+    [Opcode.JUMP, Jump],
+    [Opcode.JUMPI, JumpI],
+    [Opcode.INTERNALCALL, InternalCall],
+    [Opcode.INTERNALRETURN, InternalReturn],
     //// Machine State - Memory
     //[Opcode.SET, Set],
     //[Opcode.MOV, Mov],
