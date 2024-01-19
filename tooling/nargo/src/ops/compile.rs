@@ -18,11 +18,15 @@ pub fn compile_workspace(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
-    binary_packages: &[Package],
-    contract_packages: &[Package],
     expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CompileError> {
+    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
+        .into_iter()
+        .filter(|package| !package.is_library())
+        .cloned()
+        .partition(|package| package.is_binary());
+
     // Compile all of the packages in parallel.
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
@@ -34,6 +38,7 @@ pub fn compile_workspace(
                 package,
                 compile_options,
                 expression_width,
+                None,
             )
         })
         .collect();
@@ -78,6 +83,7 @@ pub fn compile_program(
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
+    cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
@@ -86,7 +92,7 @@ pub fn compile_program(
     debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
 
     let (program, warnings) =
-        noirc_driver::compile_main(&mut context, crate_id, compile_options, None)?;
+        noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
 
     // Apply backend specific optimizations.
     let optimized_program = crate::ops::optimize_program(program, expression_width);
@@ -94,7 +100,7 @@ pub fn compile_program(
     Ok((optimized_program, warnings))
 }
 
-fn compile_contract(
+pub fn compile_contract(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
