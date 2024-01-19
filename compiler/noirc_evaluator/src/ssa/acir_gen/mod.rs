@@ -20,6 +20,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
+use crate::brillig::brillig_gen::brillig_directive::directive_assert_message;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
@@ -28,6 +29,7 @@ pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
+use acvm::brillig_vm::brillig::{RegisterOrMemory, HeapArray};
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
@@ -470,7 +472,7 @@ impl Context {
                     get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)?
                 {
                     // TODO: add back assert message
-                    self.acir_context.assert_eq_var(lhs, rhs, None)?;
+                    self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
                 }
             }
             Instruction::Cast(value_id, _) => {

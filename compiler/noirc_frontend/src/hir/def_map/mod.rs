@@ -1,3 +1,4 @@
+use crate::{Statement, StatementKind, Expression, ExpressionKind, Ident, Path, PathKind};
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
@@ -7,7 +8,7 @@ use crate::parser::{parse_program, ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use std::collections::BTreeMap;
 mod module_def;
 pub use module_def::*;

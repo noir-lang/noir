@@ -38,6 +38,10 @@ pub struct Circuit {
     // Note: This should be a BTreeMap, but serde-reflect is creating invalid
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
+    //
+    // TODO: These are only used for constrains that are generating during compilation.
+    // TODO: We should move towards having all the checks being evaluated in the same manner
+    // TODO: as runtime assert messages specified by the user.
     pub assert_messages: Vec<(OpcodeLocation, String)>,
 }
 

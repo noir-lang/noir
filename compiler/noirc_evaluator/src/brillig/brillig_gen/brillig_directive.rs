@@ -2,7 +2,7 @@ use acvm::acir::brillig::{
     BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
 };
 
-use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
+use crate::{brillig::brillig_ir::artifact::GeneratedBrillig, ssa::ir::value::ValueId};
 
 /// Generates brillig bytecode which computes the inverse of its input if not null, and zero else.
 pub(crate) fn directive_invert() -> GeneratedBrillig {
@@ -80,6 +80,26 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
             BrilligOpcode::Mov {
                 destination: RegisterIndex::from(0),
                 source: RegisterIndex::from(2),
+            },
+            BrilligOpcode::Stop,
+        ],
+        assert_messages: Default::default(),
+        locations: Default::default(),
+    }
+}
+
+pub(crate) fn directive_assert_message(inputs: &[ValueId]) -> GeneratedBrillig {
+    // let mut inputs = Vec::new();
+    // for i in 0..num_inputs {
+    //     inputs.push(RegisterOrMemory())
+    // }
+    // let inputs = 
+    GeneratedBrillig {
+        byte_code: vec![
+            BrilligOpcode::ForeignCall { 
+                function: "resolve_assert_message".to_owned(), 
+                destinations: vec![], 
+                inputs: vec![],
             },
             BrilligOpcode::Stop,
         ],

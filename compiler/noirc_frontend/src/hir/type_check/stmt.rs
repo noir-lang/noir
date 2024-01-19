@@ -304,12 +304,7 @@ impl<'interner> TypeChecker<'interner> {
     fn check_constrain_stmt(&mut self, stmt: HirConstrainStatement) {
         let expr_type = self.check_expression(&stmt.0);
         let expr_span = self.interner.expr_span(&stmt.0);
-        if let Some(msg) = stmt.2 {
-            let hir_msg = self.interner.expression(&msg);
-            dbg!(hir_msg);
-            let checked_msg = self.check_expression(&msg);
-            dbg!(checked_msg.clone());
-        }
+
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
             expected_typ: Type::Bool.to_string(),

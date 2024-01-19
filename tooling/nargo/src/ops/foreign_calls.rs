@@ -1,6 +1,6 @@
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
-    pwg::ForeignCallWaitInfo,
+    pwg::{ForeignCallWaitInfo, ACVMForeignCallResult}
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
@@ -9,13 +9,33 @@ pub trait ForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError>;
+    ) -> Result<ACVMForeignCallResult, ForeignCallError>;
 }
+
+// #[derive(Debug, PartialEq, Eq, Clone)]
+// pub(crate) enum CustomForeignCallResult {
+//     BrilligOutput(ForeignCallResult),
+//     ResolvedAssertMessage(String)
+// }
+
+// impl From<ForeignCallResult> for CustomForeignCallResult {
+//     fn from(value: ForeignCallResult) -> Self {
+//         Self::BrilligOutput(value)
+//     }
+// }
+
+// impl From<String> for CustomForeignCallResult {
+//     fn from(value: String) -> Self {
+//         Self::ResolvedAssertMessage(value)
+//     }
+// }
+
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub(crate) enum ForeignCall {
     Print,
+    AssertMessage,
     CreateMock,
     SetMockParams,
     SetMockReturns,
@@ -33,6 +53,7 @@ impl ForeignCall {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             ForeignCall::Print => "print",
+            ForeignCall::AssertMessage => "assert_message",
             ForeignCall::CreateMock => "create_mock",
             ForeignCall::SetMockParams => "set_mock_params",
             ForeignCall::SetMockReturns => "set_mock_returns",
@@ -44,6 +65,7 @@ impl ForeignCall {
     pub(crate) fn lookup(op_name: &str) -> Option<ForeignCall> {
         match op_name {
             "print" => Some(ForeignCall::Print),
+            "assert_message" => Some(ForeignCall::AssertMessage),
             "create_mock" => Some(ForeignCall::CreateMock),
             "set_mock_params" => Some(ForeignCall::SetMockParams),
             "set_mock_returns" => Some(ForeignCall::SetMockReturns),
@@ -134,30 +156,55 @@ impl DefaultForeignCallExecutor {
 
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
         let skip_newline = foreign_call_inputs[0].unwrap_value().is_zero();
-        let display_values: PrintableValueDisplay = foreign_call_inputs
+
+        let foreign_call_inputs = foreign_call_inputs
             .split_first()
             .ok_or(ForeignCallError::MissingForeignCallInputs)?
-            .1
-            .try_into()?;
-        print!("{display_values}{}", if skip_newline { "" } else { "\n" });
+            .1;
+        let display_string = Self::format_printable_value(foreign_call_inputs, skip_newline)?;
 
-        // let return_this = format!("{display_values}{}" if skip_newline { "" } else { "\n" });
+        print!("{display_string}");
+
         Ok(())
     }
+
+    fn execute_assert_message(foreign_call_inputs: &[ForeignCallParam]) -> Result<ACVMForeignCallResult, ForeignCallError> {
+        let display_string = Self::format_printable_value(foreign_call_inputs, true)?;
+        Ok(display_string.into())
+    }
+
+    fn format_printable_value(foreign_call_inputs: &[ForeignCallParam], skip_newline: bool) -> Result<String, ForeignCallError> {
+        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
+    
+        let result = format!("{display_values}{}", if skip_newline { "" } else { "\n" });
+    
+        Ok(result)        
+    }
 }
+
+// pub(crate) fn format_printable_value(foreign_call_inputs: &[ForeignCallParam], skip_newline: bool) -> Result<String, ForeignCallError> {
+//     let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
+
+//     let result = format!("{display_values}{}", if skip_newline { "" } else { "\n" });
+
+//     Ok(result)        
+// }
 
 impl ForeignCallExecutor for DefaultForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError> {
+    ) -> Result<ACVMForeignCallResult, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
             Some(ForeignCall::Print) => {
                 if self.show_output {
                     Self::execute_print(&foreign_call.inputs)?;
                 }
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult { values: vec![] }.into())
+            }
+            Some(ForeignCall::AssertMessage) => {
+                Self::execute_assert_message(&foreign_call.inputs)
             }
             Some(ForeignCall::CreateMock) => {
                 let mock_oracle_name = Self::parse_string(&foreign_call.inputs[0]);
@@ -166,7 +213,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 self.mocked_responses.push(MockedCall::new(id, mock_oracle_name));
                 self.last_mock_id += 1;
 
-                Ok(ForeignCallResult { values: vec![Value::from(id).into()] })
+                Ok(ForeignCallResult { values: vec![Value::from(id).into()] }.into())
             }
             Some(ForeignCall::SetMockParams) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -174,7 +221,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .params = Some(params.to_vec());
 
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult { values: vec![] }.into())
             }
             Some(ForeignCall::SetMockReturns) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -182,7 +229,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .result = ForeignCallResult { values: params.to_vec() };
 
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult { values: vec![] }.into())
             }
             Some(ForeignCall::SetMockTimes) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -196,12 +243,12 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .times_left = Some(times);
 
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult { values: vec![] }.into())
             }
             Some(ForeignCall::ClearMock) => {
                 let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.mocked_responses.retain(|response| response.id != id);
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult { values: vec![] }.into())
             }
             None => {
                 let mock_response_position = self
@@ -224,7 +271,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                             }
                         }
 
-                        Ok(ForeignCallResult { values: result })
+                        Ok(ForeignCallResult { values: result }.into())
                     }
                     (None, Some(external_resolver)) => {
                         let encoded_params: Vec<_> =
@@ -237,7 +284,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                         let parsed_response: ForeignCallResult = response.result()?;
 
-                        Ok(parsed_response)
+                        Ok(parsed_response.into())
                     }
                     (None, None) => panic!("Unknown foreign call {}", foreign_call_name),
                 }
@@ -259,7 +306,7 @@ mod tests {
     use jsonrpc_http_server::{Server, ServerBuilder};
     use serial_test::serial;
 
-    use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
+    use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor, foreign_calls::ACVMForeignCallResult};
 
     #[allow(unreachable_pub)]
     #[rpc]
@@ -314,7 +361,7 @@ mod tests {
         };
 
         let result = executor.execute(&foreign_call);
-        assert_eq!(result.unwrap(), ForeignCallResult { values: foreign_call.inputs });
+        assert_eq!(result.unwrap(), ForeignCallResult { values: foreign_call.inputs }.into());
 
         server.close();
     }
@@ -332,7 +379,8 @@ mod tests {
         };
 
         let result = executor.execute(&foreign_call);
-        assert_eq!(result.unwrap(), Value::from(3_usize).into());
+        let brillig_output: ForeignCallResult = Value::from(3_usize).into();
+        assert_eq!(result.unwrap(), brillig_output.into());
 
         server.close();
     }

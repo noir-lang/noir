@@ -76,6 +76,9 @@ pub enum ForeignCallError {
 
     #[error("Failed calling external resolver. {0}")]
     ExternalResolverError(#[from] jsonrpc::Error),
+
+    #[error("Assert message resolved after an unsatisified constrain. {0}")]
+    ResolvedAssertMessage(String)
 }
 
 impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {

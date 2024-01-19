@@ -479,8 +479,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0);
                 let location = self.interner.expr_location(&constrain.0);
-                let message_expr = constrain.2.map(|expr_id| Box::new(self.expr(expr_id)));
-                ast::Expression::Constrain(Box::new(expr), location, message_expr)
+                ast::Expression::Constrain(Box::new(expr), location)
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
@@ -930,6 +929,9 @@ impl<'interner> Monomorphizer<'interner> {
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident
                     self.append_printable_type_info(&hir_arguments[1], &mut arguments);
+                } else if name.as_str() == "assert_message" {
+                    // The first argument to the `assert_message` oracle is the expression passed as a mesage to an `assert` or `assert_eq` statement
+                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -1025,7 +1027,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // The caller needs information as to whether it is handling a format string or a single type
                 arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
             }
-            _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
+            _ => unreachable!("logging expr {:?} is not supported", hir_argument),
         }
     }
 

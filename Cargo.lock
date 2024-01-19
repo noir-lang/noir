@@ -2927,6 +2927,7 @@ dependencies = [
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
+ "noirc_macros",
  "rust-embed",
  "serde",
  "tracing",
@@ -2984,6 +2985,14 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "noirc_macros"
+version = "0.22.0"
+dependencies = [
+ "iter-extended",
+ "noirc_frontend",
 ]
 
 [[package]]

@@ -660,7 +660,7 @@ impl<'f> Context<'f> {
                         Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
                         call_stack,
                     );
-
+                    dbg!(message.clone());
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {

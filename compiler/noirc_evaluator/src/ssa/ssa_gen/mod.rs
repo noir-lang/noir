@@ -104,6 +104,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function);
+        // dbg!(function.name.clone());
         function_context.codegen_function_body(&function.body)?;
     }
     // we save the data bus inside the dfg
@@ -140,14 +141,8 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(expr, location, assert_message) => {
-                // let assert_message = assert_message.map(|expr| self.codegen_expression(expr.as_ref())?)?;
-                // let assert_message = if let Some(assert_message) = assert_message {
-                //     Some(self.codegen_expression(assert_message.as_ref())?.into_leaf())
-                // } else {
-                //     None
-                // };
-                self.codegen_constrain(expr, *location, assert_message)
+            Expression::Constrain(expr, location) => {
+                self.codegen_constrain(expr, *location)
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
@@ -452,7 +447,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
             true_const,
-            Some(message),
+            Some("Index out of bounds".to_owned()),
         );
     }
 
@@ -676,18 +671,10 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expr: &Expression,
         location: Location,
-        assert_message: &Option<Box<Expression>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
-        let assert_message = if let Some(assert_message) = assert_message {
-            Some(self.codegen_non_tuple_expression(assert_message.as_ref())?)
-        } else {
-            None
-        };
-        // let assert_message_expr = assert_message.map(|expr| ) 
-        // self.codegen_non_tuple_expression(expr)
-        self.builder.set_location(location).insert_constrain(expr, true_literal, assert_message);
+        self.builder.set_location(location).insert_constrain(expr, true_literal, None);
 
         Ok(Self::unit_value())
     }

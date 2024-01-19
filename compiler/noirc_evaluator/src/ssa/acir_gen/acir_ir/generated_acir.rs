@@ -55,6 +55,8 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
+    /// The error message is stored as a vector of witnesses which will only be evaluated 
+    /// during execution and an assertion has been found to be unsatisfiable.
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
 
     pub(crate) warnings: Vec<SsaReport>,
@@ -523,7 +525,7 @@ impl GeneratedAcir {
         for (brillig_index, message) in generated_brillig.assert_messages {
             self.assert_messages.insert(
                 OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
-                message,
+                message.clone(),
             );
         }
     }

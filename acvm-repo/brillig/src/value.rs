@@ -48,6 +48,12 @@ impl From<usize> for Value {
     }
 }
 
+impl From<u8> for Value {
+    fn from(value: u8) -> Self {
+        Value { inner: FieldElement::from(value as u128) }
+    }
+}
+
 impl From<u128> for Value {
     fn from(value: u128) -> Self {
         Value { inner: FieldElement::from(value) }

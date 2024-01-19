@@ -855,7 +855,19 @@ where
             //         emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
             //     }
             // }
-            let message = expressions.get(1).map(|expr| expr.clone());
+            let message = expressions.get(1).map(|expr| {
+                // let call_expr = Expression::call(
+                //     Expression { kind: ExpressionKind::Variable(Path {
+                //         segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
+                //         kind: PathKind::Dep,
+                //         span: Span::default(),
+                //     }), span }, 
+                //     vec![expr.clone()], 
+                //     span
+                // );
+                // call_expr
+                expr.clone()
+            });
             StatementKind::Constrain(ConstrainStatement(
                 condition,
                 message,
@@ -891,7 +903,7 @@ where
             //     }
             // }
 
-            let message = exprs.get(1).map(|expr| expr.clone());
+            let message = exprs.get(2).map(|expr| expr.clone());
             StatementKind::Constrain(ConstrainStatement(
                 predicate,
                 message,
