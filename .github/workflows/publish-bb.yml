@@ -93,7 +93,7 @@ jobs:
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
 
-      - name: Install yarn
+      - name: Install yarn # Needed to call 'yarn build' on barretenberg/ts 
         run: |
           curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
           echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
@@ -104,7 +104,7 @@ jobs:
 
           ./scripts/install-wasi-sdk.sh
 
-      - name: Compile Typescript
+      - name: Compile Typescript # Compiles bb.js and wasms
         run: |
           cd barretenberg/ts
           yarn install && yarn && yarn build
@@ -117,19 +117,19 @@ jobs:
         working-directory: barretenberg/cpp/build-wasm/bin
         run: tar -cvzf acvm_backend.wasm.tar.gz acvm_backend.wasm
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: "18"
-          registry-url: "https://registry.npmjs.org"
+      # - name: Setup Node.js
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: "18"
+      #     registry-url: "https://registry.npmjs.org"
 
-      - name: Deploy Typescript to NPM
-        if: github.event.inputs.tag != 'nightly' && github.event.inputs.tag != '' # Do not deploy to npm if it is a nightly build
-        run: |
-          cd barretenberg/ts
-          yarn deploy
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+      # - name: Deploy Typescript to NPM
+      #   if: github.event.inputs.tag != 'nightly' && github.event.inputs.tag != '' # Do not deploy to npm if it is a nightly build
+      #   run: |
+      #     cd barretenberg/ts
+      #     yarn deploy
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v2

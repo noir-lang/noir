@@ -997,6 +997,11 @@ jobs:
             should_release || exit 0
             yarn-project/deploy_npm.sh canary
       - run:
+          name: "Release latest to NPM: bb.js"
+          command: |
+            should_release || exit 0
+            deploy_npm bb.js latest
+      - run:
           name: "Release latest to NPM: yarn-project"
           command: |
             should_release || exit 0
