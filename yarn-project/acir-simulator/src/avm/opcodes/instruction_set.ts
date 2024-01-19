@@ -1,9 +1,4 @@
-import {
-  Add,
-  /*Div,*/
-  Mul,
-  Sub,
-} from './arithmetic.js';
+import { Add, Div, Mul, Sub } from './arithmetic.js';
 //import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 //import { Eq, Lt, Lte } from './comparators.js';
 import { InternalCall, InternalReturn, Jump, JumpI, Return } from './control_flow.js';
@@ -29,7 +24,7 @@ export const INSTRUCTION_SET: Map<Opcode, InstructionConstructorAndMembers> = ne
     [Opcode.ADD, Add],
     [Opcode.SUB, Sub],
     [Opcode.MUL, Mul],
-    //[Opcode.DIV, Div],
+    [Opcode.DIV, Div],
     //// Compute - Comparators
     //[Opcode.EQ, Eq],
     //[Opcode.LT, Lt],

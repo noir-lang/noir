@@ -76,8 +76,10 @@ export class Not extends Instruction {
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
     const a: Fr = machineState.readMemory(this.aOffset);
 
-    // TODO: hack -> until proper field arithmetic is implemented
+    // TODO: hack -> Bitwise operations should not occur over field elements
+    // It should only work over integers
     const result = ~a.toBigInt();
+
     const dest = new Fr(result < 0 ? Fr.MODULUS + /* using a + as result is -ve*/ result : result);
     machineState.writeMemory(this.destOffset, dest);
 
