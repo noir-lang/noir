@@ -4,11 +4,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace notes {
-namespace native {
-namespace claim {
+namespace bb::join_split_example::proofs::notes::native::claim {
 
 struct partial_claim_note_data {
     uint256_t deposit_value;
@@ -43,8 +39,4 @@ inline void write(std::vector<uint8_t>& buf, partial_claim_note_data const& note
     write(buf, note.input_nullifier);
 }
 
-} // namespace claim
-} // namespace native
-} // namespace notes
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::notes::native::claim

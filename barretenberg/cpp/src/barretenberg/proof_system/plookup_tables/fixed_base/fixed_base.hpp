@@ -6,7 +6,7 @@
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
-namespace plookup::fixed_base {
+namespace bb::plookup::fixed_base {
 
 /**
  * @brief Generates plookup tables required to perform fixed-base scalar multiplication over a fixed number of points.
@@ -84,4 +84,4 @@ class table : public FixedBaseParams {
     }
 };
 
-} // namespace plookup::fixed_base
+} // namespace bb::plookup::fixed_base

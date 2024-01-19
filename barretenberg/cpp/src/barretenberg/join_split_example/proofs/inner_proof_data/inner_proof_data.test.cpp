@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace join_split_example::proofs;
+using namespace bb::join_split_example::proofs;
 
 namespace {
 auto& rand_engine = numeric::random::get_debug_engine();

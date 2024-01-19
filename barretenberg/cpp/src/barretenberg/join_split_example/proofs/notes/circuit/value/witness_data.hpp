@@ -2,7 +2,7 @@
 #include "../../native/value/value_note.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 
-namespace join_split_example::proofs::notes::circuit::value {
+namespace bb::join_split_example::proofs::notes::circuit::value {
 
 using namespace bb::stdlib;
 
@@ -29,4 +29,4 @@ struct witness_data {
     }
 };
 
-} // namespace join_split_example::proofs::notes::circuit::value
+} // namespace bb::join_split_example::proofs::notes::circuit::value

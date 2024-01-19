@@ -1,7 +1,7 @@
 #include "plookup_tables.hpp"
 #include "barretenberg/common/constexpr_utils.hpp"
 
-namespace plookup {
+namespace bb::plookup {
 
 using namespace bb;
 
@@ -201,4 +201,4 @@ ReadData<bb::fr> get_lookup_accumulators(const MultiTableId id,
     return lookup;
 }
 
-} // namespace plookup
+} // namespace bb::plookup

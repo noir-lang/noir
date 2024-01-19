@@ -5,9 +5,7 @@
 #include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace join_split {
+namespace bb::join_split_example::proofs::join_split {
 
 struct join_split_tx {
     uint32_t proof_id;
@@ -43,6 +41,4 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx);
 
 std::ostream& operator<<(std::ostream& os, join_split_tx const& tx);
 
-} // namespace join_split
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::join_split

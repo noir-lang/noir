@@ -12,7 +12,7 @@
 #include "proof_of_possession.hpp"
 #include "schnorr.hpp"
 
-namespace crypto::schnorr {
+namespace bb::crypto::schnorr {
 
 /**
  * @brief Implements the SpeedyMuSig protocol; a secure 2-round interactive multisignature scheme
@@ -444,4 +444,4 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         return sig;
     }
 };
-} // namespace crypto::schnorr
+} // namespace bb::crypto::schnorr

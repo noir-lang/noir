@@ -5,11 +5,7 @@
 #include "complete_partial_commitment.hpp"
 #include "create_partial_commitment.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace notes {
-namespace native {
-namespace value {
+namespace bb::join_split_example::proofs::notes::native::value {
 
 using namespace bb;
 
@@ -63,8 +59,4 @@ inline void write(std::vector<uint8_t>& buf, value_note const& note)
     write(buf, note.input_nullifier);
 }
 
-} // namespace value
-} // namespace native
-} // namespace notes
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::notes::native::value

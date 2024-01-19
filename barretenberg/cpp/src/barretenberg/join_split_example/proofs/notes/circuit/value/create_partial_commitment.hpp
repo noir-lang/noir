@@ -3,7 +3,7 @@
 #include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 
-namespace join_split_example::proofs::notes::circuit::value {
+namespace bb::join_split_example::proofs::notes::circuit::value {
 
 inline auto create_partial_commitment(field_ct const& secret,
                                       group_ct const& owner,
@@ -14,4 +14,4 @@ inline auto create_partial_commitment(field_ct const& secret,
                                GeneratorIndex::VALUE_NOTE_PARTIAL_COMMITMENT);
 }
 
-} // namespace join_split_example::proofs::notes::circuit::value
+} // namespace bb::join_split_example::proofs::notes::circuit::value

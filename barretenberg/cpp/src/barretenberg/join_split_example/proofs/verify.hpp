@@ -5,8 +5,7 @@
 #include "barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp"
 #include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
 
-namespace join_split_example {
-namespace proofs {
+namespace bb::join_split_example::proofs {
 
 template <typename Composer> struct verify_result {
     verify_result()
@@ -70,5 +69,4 @@ auto verify_logic_internal(Builder& builder, Tx& tx, CircuitData const& cd, char
     return result;
 }
 
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs

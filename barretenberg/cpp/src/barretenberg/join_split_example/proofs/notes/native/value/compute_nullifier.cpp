@@ -4,7 +4,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 
-namespace join_split_example::proofs::notes::native {
+namespace bb::join_split_example::proofs::notes::native {
 
 using namespace bb;
 
@@ -31,4 +31,4 @@ fr compute_nullifier(grumpkin::fq const& note_commitment,
     return from_buffer<fr>(blake_result);
 }
 
-} // namespace join_split_example::proofs::notes::native
+} // namespace bb::join_split_example::proofs::notes::native

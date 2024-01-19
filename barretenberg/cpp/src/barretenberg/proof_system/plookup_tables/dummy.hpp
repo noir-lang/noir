@@ -9,8 +9,7 @@
 
 #include "types.hpp"
 
-namespace plookup {
-namespace dummy_tables {
+namespace bb::plookup::dummy_tables {
 
 /**
  * @brief Lookup the value corresponding to a specific key
@@ -93,5 +92,4 @@ inline MultiTable get_honk_dummy_multitable()
     table.get_table_values.emplace_back(&get_value_from_key<HONK_DUMMY_BASIC2>);
     return table;
 }
-} // namespace dummy_tables
-} // namespace plookup
+} // namespace bb::plookup::dummy_tables

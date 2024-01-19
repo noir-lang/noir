@@ -3,9 +3,7 @@
 #include "barretenberg/srs/factories/crs_factory.hpp"
 #include "join_split_tx.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace join_split {
+namespace bb::join_split_example::proofs::join_split {
 
 void init_proving_key(bool mock);
 
@@ -21,6 +19,4 @@ std::shared_ptr<plonk::proving_key> get_proving_key();
 
 std::shared_ptr<plonk::verification_key> get_verification_key();
 
-} // namespace join_split
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::join_split

@@ -12,8 +12,7 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 
-namespace crypto {
-namespace schnorr {
+namespace bb::crypto::schnorr {
 template <typename Fr, typename G1> struct key_pair {
     Fr private_key;
     typename G1::affine_element public_key;
@@ -63,6 +62,5 @@ template <typename B> inline void write(B& buf, key_pair<grumpkin::fr, grumpkin:
     write(buf, keypair.private_key);
     write(buf, keypair.public_key);
 }
-} // namespace schnorr
-} // namespace crypto
+} // namespace bb::crypto::schnorr
 #include "./schnorr.tcc"

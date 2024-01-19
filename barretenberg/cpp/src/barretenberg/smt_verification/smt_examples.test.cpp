@@ -9,7 +9,6 @@
 #include "barretenberg/smt_verification/circuit/circuit.hpp"
 
 using namespace bb;
-using namespace bb;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

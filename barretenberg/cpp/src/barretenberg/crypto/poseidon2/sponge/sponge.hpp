@@ -7,7 +7,7 @@
 
 #include "barretenberg/numeric/uint256/uint256.hpp"
 
-namespace crypto {
+namespace bb::crypto {
 
 /**
  * @brief Implements a cryptographic sponge over prime fields.
@@ -165,4 +165,4 @@ template <typename FF, size_t rate, size_t capacity, size_t t, typename Permutat
     }
     static FF hash_variable_length(std::span<FF> input) { return hash_variable_length<1>(input)[0]; }
 };
-} // namespace crypto
+} // namespace bb::crypto

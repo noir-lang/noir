@@ -5,7 +5,7 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 namespace bb::stdlib {
 
-using namespace plookup;
+using namespace bb::plookup;
 
 /**
  * @brief Normalize a base-11 limb and left-rotate by keccak::ROTATIONS[lane_index] bits.

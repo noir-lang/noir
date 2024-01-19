@@ -9,9 +9,8 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include <gtest/gtest.h>
 
-namespace test_stdlib_plookups {
 using namespace bb;
-using namespace plookup;
+using namespace bb::plookup;
 
 // Defining ultra-specific types for local testing.
 using Builder = bb::UltraCircuitBuilder;
@@ -605,5 +604,3 @@ TEST(stdlib_plookup, secp256k1_generator)
     bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
-
-} // namespace test_stdlib_plookups

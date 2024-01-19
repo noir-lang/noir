@@ -4,10 +4,7 @@
 #include "./asset_id.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace notes {
-namespace circuit {
+namespace bb::join_split_example::proofs::notes::circuit {
 
 using namespace bb::stdlib;
 
@@ -216,7 +213,4 @@ inline std::ostream& operator<<(std::ostream& os, bridge_call_data const& bridge
     return os;
 }
 
-} // namespace circuit
-} // namespace notes
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::notes::circuit

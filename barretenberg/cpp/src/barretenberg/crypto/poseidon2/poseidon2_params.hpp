@@ -5,7 +5,7 @@
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 
-namespace crypto {
+namespace bb::crypto {
 
 struct Poseidon2Bn254ScalarFieldParams {
 
@@ -449,4 +449,4 @@ struct Poseidon2Bn254ScalarFieldParams {
         FF(std::string("0x2e11c5cff2a22c64d01304b778d78f6998eff1ab73163a35603f54794c30847a")),
     };
 };
-} // namespace crypto
+} // namespace bb::crypto

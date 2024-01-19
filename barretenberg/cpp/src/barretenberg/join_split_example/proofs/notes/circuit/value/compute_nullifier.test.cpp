@@ -6,12 +6,12 @@
 #include "barretenberg/join_split_example/types.hpp"
 #include <gtest/gtest.h>
 
-namespace join_split_example {
-using namespace join_split_example::proofs::notes;
+namespace bb::join_split_example {
+using namespace bb::join_split_example::proofs::notes;
 
 TEST(compute_nullifier_circuit, native_consistency)
 {
-    auto user = join_split_example::fixtures::create_user_context();
+    auto user = bb::join_split_example::fixtures::create_user_context();
     auto priv_key = uint256_t(user.owner.private_key);
 
     auto native_input_note =
@@ -26,4 +26,4 @@ TEST(compute_nullifier_circuit, native_consistency)
 
     EXPECT_EQ(circuit_nullifier.get_value(), native_nullifier);
 }
-} // namespace join_split_example
+} // namespace bb::join_split_example

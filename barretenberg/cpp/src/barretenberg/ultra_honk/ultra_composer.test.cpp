@@ -16,9 +16,8 @@
 #include <string>
 #include <vector>
 
+using namespace bb;
 using namespace bb::honk;
-
-namespace test_ultra_honk_composer {
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -891,5 +890,3 @@ TEST_F(UltraHonkComposerTests, range_constraint_small_variable)
     auto composer = UltraComposer();
     prove_and_verify(circuit_builder, composer, /*expected_result=*/true);
 }
-
-} // namespace test_ultra_honk_composer

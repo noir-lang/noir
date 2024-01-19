@@ -106,7 +106,7 @@ TEST(hmac, ValidateHMAC)
     };
 
     for (const auto& [key_string, message, expected] : test_vectors) {
-        std::array<uint8_t, 32> result = crypto::hmac<Sha256Hasher>(message, key_string);
+        std::array<uint8_t, 32> result = bb::crypto::hmac<Sha256Hasher>(message, key_string);
 
         EXPECT_EQ(result, hex_to_bytes(expected));
     }

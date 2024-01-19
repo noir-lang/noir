@@ -5,10 +5,9 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include <array>
 
-namespace join_split_example {
-namespace proofs {
+namespace bb::join_split_example::proofs {
 
-namespace InnerProofFields {
+namespace inner_proof_fields {
 enum {
     PROOF_ID,
     NOTE_COMMITMENT1,
@@ -28,26 +27,26 @@ enum {
     ALLOW_CHAIN,
     NUM_FIELDS
 };
-} // namespace InnerProofFields
+} // namespace inner_proof_fields
 
-namespace InnerProofOffsets {
+namespace inner_proof_offsets {
 enum {
-    PROOF_ID = InnerProofFields::PROOF_ID * 32,
-    NOTE_COMMITMENT1 = InnerProofFields::NOTE_COMMITMENT1 * 32,
-    NOTE_COMMITMENT2 = InnerProofFields::NOTE_COMMITMENT2 * 32,
-    NULLIFIER1 = InnerProofFields::NULLIFIER1 * 32,
-    NULLIFIER2 = InnerProofFields::NULLIFIER2 * 32,
-    PUBLIC_VALUE = InnerProofFields::PUBLIC_VALUE * 32,
-    PUBLIC_OWNER = InnerProofFields::PUBLIC_OWNER * 32,
-    PUBLIC_ASSET_ID = InnerProofFields::PUBLIC_ASSET_ID * 32,
-    MERKLE_ROOT = InnerProofFields::MERKLE_ROOT * 32,
-    TX_FEE = InnerProofFields::TX_FEE * 32,
-    TX_FEE_ASSET_ID = InnerProofFields::TX_FEE_ASSET_ID * 32,
-    BRIDGE_CALL_DATA = InnerProofFields::BRIDGE_CALL_DATA * 32,
-    DEFI_DEPOSIT_VALUE = InnerProofFields::DEFI_DEPOSIT_VALUE * 32,
-    DEFI_ROOT = InnerProofFields::DEFI_ROOT * 32,
-    BACKWARD_LINK = InnerProofFields::BACKWARD_LINK * 32,
-    ALLOW_CHAIN = InnerProofFields::ALLOW_CHAIN * 32,
+    PROOF_ID = inner_proof_fields::PROOF_ID * 32,
+    NOTE_COMMITMENT1 = inner_proof_fields::NOTE_COMMITMENT1 * 32,
+    NOTE_COMMITMENT2 = inner_proof_fields::NOTE_COMMITMENT2 * 32,
+    NULLIFIER1 = inner_proof_fields::NULLIFIER1 * 32,
+    NULLIFIER2 = inner_proof_fields::NULLIFIER2 * 32,
+    PUBLIC_VALUE = inner_proof_fields::PUBLIC_VALUE * 32,
+    PUBLIC_OWNER = inner_proof_fields::PUBLIC_OWNER * 32,
+    PUBLIC_ASSET_ID = inner_proof_fields::PUBLIC_ASSET_ID * 32,
+    MERKLE_ROOT = inner_proof_fields::MERKLE_ROOT * 32,
+    TX_FEE = inner_proof_fields::TX_FEE * 32,
+    TX_FEE_ASSET_ID = inner_proof_fields::TX_FEE_ASSET_ID * 32,
+    BRIDGE_CALL_DATA = inner_proof_fields::BRIDGE_CALL_DATA * 32,
+    DEFI_DEPOSIT_VALUE = inner_proof_fields::DEFI_DEPOSIT_VALUE * 32,
+    DEFI_ROOT = inner_proof_fields::DEFI_ROOT * 32,
+    BACKWARD_LINK = inner_proof_fields::BACKWARD_LINK * 32,
+    ALLOW_CHAIN = inner_proof_fields::ALLOW_CHAIN * 32,
 };
 }
 
@@ -98,5 +97,4 @@ inline std::ostream& operator<<(std::ostream& os, inner_proof_data const& data)
     // clang-format on
 }
 
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs

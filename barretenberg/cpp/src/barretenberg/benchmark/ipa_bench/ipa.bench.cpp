@@ -3,7 +3,6 @@
 
 using namespace benchmark;
 using namespace bb;
-using namespace bb;
 using namespace bb::honk::pcs::ipa;
 namespace {
 using Curve = curve::Grumpkin;

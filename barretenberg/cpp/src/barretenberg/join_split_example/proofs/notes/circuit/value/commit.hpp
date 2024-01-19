@@ -3,7 +3,7 @@
 #include "create_partial_commitment.hpp"
 #include "witness_data.hpp"
 
-namespace join_split_example::proofs::notes::circuit::value {
+namespace bb::join_split_example::proofs::notes::circuit::value {
 
 inline auto commit(const witness_data& plaintext)
 {
@@ -13,4 +13,4 @@ inline auto commit(const witness_data& plaintext)
         partial_commitment, plaintext.value, plaintext.asset_id, plaintext.input_nullifier);
 }
 
-} // namespace join_split_example::proofs::notes::circuit::value
+} // namespace bb::join_split_example::proofs::notes::circuit::value

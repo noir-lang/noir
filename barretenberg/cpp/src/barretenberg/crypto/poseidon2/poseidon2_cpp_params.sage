@@ -661,7 +661,7 @@ print("#pragma once\n")
 
 print("#include \"barretenberg/ecc/curves/bn254/fr.hpp\"\n")
 
-print("namespace crypto {\n")
+print("namespace bb::crypto {\n")
 
 print("struct Poseidon2Bn254ScalarFieldParams{\n")
 print("    using FF = bb::fr;")
@@ -723,4 +723,4 @@ for (i,val) in enumerate(state_out):
         print("};")
 
 print("};")
-print("} // namespace crypto")
+print("} // namespace bb::crypto")

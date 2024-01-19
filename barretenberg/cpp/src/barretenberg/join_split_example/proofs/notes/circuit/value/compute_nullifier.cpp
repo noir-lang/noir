@@ -2,7 +2,7 @@
 #include "../../constants.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 
-namespace join_split_example::proofs::notes::circuit {
+namespace bb::join_split_example::proofs::notes::circuit {
 
 using namespace bb;
 using namespace bb::stdlib;
@@ -44,4 +44,4 @@ field_ct compute_nullifier(field_ct const& note_commitment,
     return field_ct(blake_result);
 }
 
-} // namespace join_split_example::proofs::notes::circuit
+} // namespace bb::join_split_example::proofs::notes::circuit

@@ -20,8 +20,6 @@ using namespace bb::honk::sumcheck;
 using Flavor = bb::honk::flavor::Ultra;
 using FF = typename Flavor::FF;
 
-namespace test_sumcheck_round {
-
 class SumcheckTestsRealCircuit : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
@@ -65,21 +63,23 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
 
     // Add some lookup gates (related to pedersen hashing)
     auto pedersen_input_value = FF::random_element();
-    const FF input_hi =
-        uint256_t(pedersen_input_value)
-            .slice(plookup::fixed_base::table::BITS_PER_LO_SCALAR,
-                   plookup::fixed_base::table::BITS_PER_LO_SCALAR + plookup::fixed_base::table::BITS_PER_HI_SCALAR);
-    const FF input_lo = uint256_t(pedersen_input_value).slice(0, plookup::fixed_base::table::BITS_PER_LO_SCALAR);
+    const FF input_hi = uint256_t(pedersen_input_value)
+                            .slice(bb::plookup::fixed_base::table::BITS_PER_LO_SCALAR,
+                                   bb::plookup::fixed_base::table::BITS_PER_LO_SCALAR +
+                                       bb::plookup::fixed_base::table::BITS_PER_HI_SCALAR);
+    const FF input_lo = uint256_t(pedersen_input_value).slice(0, bb::plookup::fixed_base::table::BITS_PER_LO_SCALAR);
     const auto input_hi_index = builder.add_variable(input_hi);
     const auto input_lo_index = builder.add_variable(input_lo);
 
-    const auto sequence_data_hi = plookup::get_lookup_accumulators(plookup::MultiTableId::FIXED_BASE_LEFT_HI, input_hi);
-    const auto sequence_data_lo = plookup::get_lookup_accumulators(plookup::MultiTableId::FIXED_BASE_LEFT_LO, input_lo);
+    const auto sequence_data_hi =
+        bb::plookup::get_lookup_accumulators(bb::plookup::MultiTableId::FIXED_BASE_LEFT_HI, input_hi);
+    const auto sequence_data_lo =
+        bb::plookup::get_lookup_accumulators(bb::plookup::MultiTableId::FIXED_BASE_LEFT_LO, input_lo);
 
     builder.create_gates_from_plookup_accumulators(
-        plookup::MultiTableId::FIXED_BASE_LEFT_HI, sequence_data_hi, input_hi_index);
+        bb::plookup::MultiTableId::FIXED_BASE_LEFT_HI, sequence_data_hi, input_hi_index);
     builder.create_gates_from_plookup_accumulators(
-        plookup::MultiTableId::FIXED_BASE_LEFT_LO, sequence_data_lo, input_lo_index);
+        bb::plookup::MultiTableId::FIXED_BASE_LEFT_LO, sequence_data_lo, input_lo_index);
 
     // Add a sort gate (simply checks that consecutive inputs have a difference of < 4)
     a_idx = builder.add_variable(FF(0));
@@ -200,5 +200,3 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
 
     ASSERT_TRUE(verified);
 }
-
-} // namespace test_sumcheck_round

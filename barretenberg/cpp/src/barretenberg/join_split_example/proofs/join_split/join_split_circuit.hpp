@@ -5,9 +5,7 @@
 #include "barretenberg/join_split_example/types.hpp"
 #include "join_split_tx.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace join_split {
+namespace bb::join_split_example::proofs::join_split {
 
 struct join_split_inputs {
 
@@ -52,6 +50,4 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 
 void join_split_circuit(Builder& builder, join_split_tx const& tx);
 
-} // namespace join_split
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::join_split

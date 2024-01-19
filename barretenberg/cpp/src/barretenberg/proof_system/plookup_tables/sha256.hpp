@@ -8,8 +8,7 @@
 #include "sparse.hpp"
 #include "types.hpp"
 
-namespace plookup {
-namespace sha256_tables {
+namespace bb::plookup::sha256_tables {
 
 static constexpr uint64_t choose_normalization_table[28]{
     /* xor result = 0 */
@@ -390,5 +389,4 @@ inline MultiTable get_majority_input_table(const MultiTableId id = SHA256_MAJ_IN
     return table;
 }
 
-} // namespace sha256_tables
-} // namespace plookup
+} // namespace bb::plookup::sha256_tables

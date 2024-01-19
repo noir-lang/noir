@@ -6,7 +6,7 @@
 #include "barretenberg/numeric/bitop/pow.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
-namespace plookup::fixed_base {
+namespace bb::plookup::fixed_base {
 
 /**
  * @brief Given a base_point [P] and an offset_generator [G], compute a lookup table of MAX_TABLE_SIZE that contains the
@@ -287,4 +287,4 @@ const std::array<table::affine_element, table::NUM_FIXED_BASE_MULTI_TABLES>
         table::generate_generator_offset<BITS_PER_HI_SCALAR>(rhs_base_point_hi),
     };
 
-} // namespace plookup::fixed_base
+} // namespace bb::plookup::fixed_base

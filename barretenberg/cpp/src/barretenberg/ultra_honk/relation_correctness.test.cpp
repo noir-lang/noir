@@ -14,8 +14,6 @@
 
 using namespace bb::honk;
 
-namespace test_honk_relations {
-
 void ensure_non_zero(auto& polynomial)
 {
     bool has_non_zero_coefficient = false;
@@ -127,21 +125,23 @@ template <typename Flavor> void create_some_lookup_gates(auto& circuit_builder)
     using FF = typename Flavor::FF;
     // Add some lookup gates (related to pedersen hashing)
     auto pedersen_input_value = FF::random_element();
-    const auto input_hi =
-        uint256_t(pedersen_input_value)
-            .slice(plookup::fixed_base::table::BITS_PER_LO_SCALAR,
-                   plookup::fixed_base::table::BITS_PER_LO_SCALAR + plookup::fixed_base::table::BITS_PER_HI_SCALAR);
-    const auto input_lo = uint256_t(pedersen_input_value).slice(0, plookup::fixed_base::table::BITS_PER_LO_SCALAR);
+    const auto input_hi = uint256_t(pedersen_input_value)
+                              .slice(bb::plookup::fixed_base::table::BITS_PER_LO_SCALAR,
+                                     bb::plookup::fixed_base::table::BITS_PER_LO_SCALAR +
+                                         bb::plookup::fixed_base::table::BITS_PER_HI_SCALAR);
+    const auto input_lo = uint256_t(pedersen_input_value).slice(0, bb::plookup::fixed_base::table::BITS_PER_LO_SCALAR);
     const auto input_hi_index = circuit_builder.add_variable(input_hi);
     const auto input_lo_index = circuit_builder.add_variable(input_lo);
 
-    const auto sequence_data_hi = plookup::get_lookup_accumulators(plookup::MultiTableId::FIXED_BASE_LEFT_HI, input_hi);
-    const auto sequence_data_lo = plookup::get_lookup_accumulators(plookup::MultiTableId::FIXED_BASE_LEFT_LO, input_lo);
+    const auto sequence_data_hi =
+        bb::plookup::get_lookup_accumulators(bb::plookup::MultiTableId::FIXED_BASE_LEFT_HI, input_hi);
+    const auto sequence_data_lo =
+        bb::plookup::get_lookup_accumulators(bb::plookup::MultiTableId::FIXED_BASE_LEFT_LO, input_lo);
 
     circuit_builder.create_gates_from_plookup_accumulators(
-        plookup::MultiTableId::FIXED_BASE_LEFT_HI, sequence_data_hi, input_hi_index);
+        bb::plookup::MultiTableId::FIXED_BASE_LEFT_HI, sequence_data_hi, input_hi_index);
     circuit_builder.create_gates_from_plookup_accumulators(
-        plookup::MultiTableId::FIXED_BASE_LEFT_LO, sequence_data_lo, input_lo_index);
+        bb::plookup::MultiTableId::FIXED_BASE_LEFT_LO, sequence_data_lo, input_lo_index);
 }
 
 template <typename Flavor> void create_some_genperm_sort_gates(auto& circuit_builder)
@@ -1180,5 +1180,3 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorNonNativeRelationCorrectness)
     // Check that Non-Native Field relation is satisfied across each row of the prover polynomials
     check_relation<Flavor, std::tuple_element_t<5, Relations>>(circuit_size, prover_polynomials, params);
 }
-
-} // namespace test_honk_relations

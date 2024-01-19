@@ -5,11 +5,11 @@
 #include "value_note.hpp"
 #include <gtest/gtest.h>
 
-namespace join_split_example {
+namespace bb::join_split_example {
 using namespace bb;
 using namespace bb::stdlib;
-using namespace join_split_example::proofs::notes;
-using namespace join_split_example::proofs::notes::circuit::value;
+using namespace bb::join_split_example::proofs::notes;
+using namespace bb::join_split_example::proofs::notes::circuit::value;
 
 class ValueNote : public ::testing::Test {
   protected:
@@ -18,7 +18,7 @@ class ValueNote : public ::testing::Test {
 
 TEST_F(ValueNote, Commits)
 {
-    auto user = join_split_example::fixtures::create_user_context();
+    auto user = bb::join_split_example::fixtures::create_user_context();
     auto builder = Builder();
 
     fr note_value = fr::random_element();
@@ -54,7 +54,7 @@ TEST_F(ValueNote, CommitsWith0Value)
 {
     auto builder = Builder();
 
-    auto user = join_split_example::fixtures::create_user_context();
+    auto user = bb::join_split_example::fixtures::create_user_context();
 
     uint32_t asset_id_value = 0x2abbccddULL; // needs to be less than 30 bits
 
@@ -91,7 +91,7 @@ TEST_F(ValueNote, CommitWithOversizedAssetIdFails)
 {
     auto builder = Builder();
 
-    auto user = join_split_example::fixtures::create_user_context();
+    auto user = bb::join_split_example::fixtures::create_user_context();
 
     native::value::value_note note = {
         .value = 0,
@@ -120,4 +120,4 @@ TEST_F(ValueNote, CommitWithOversizedAssetIdFails)
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, false);
 }
-} // namespace join_split_example
+} // namespace bb::join_split_example

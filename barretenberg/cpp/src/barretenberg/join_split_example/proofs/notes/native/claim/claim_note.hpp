@@ -6,7 +6,7 @@
 #include "complete_partial_commitment.hpp"
 #include "create_partial_commitment.hpp"
 
-namespace join_split_example::proofs::notes::native::claim {
+namespace bb::join_split_example::proofs::notes::native::claim {
 
 struct claim_note {
     uint256_t deposit_value;
@@ -64,4 +64,4 @@ inline std::ostream& operator<<(std::ostream& os, claim_note const& note)
                         " }");
 }
 
-} // namespace join_split_example::proofs::notes::native::claim
+} // namespace bb::join_split_example::proofs::notes::native::claim

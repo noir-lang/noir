@@ -3,7 +3,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include <gtest/gtest.h>
 
-namespace crypto {
+namespace bb::crypto {
 
 using bb::fr;
 
@@ -21,4 +21,4 @@ TEST(Pedersen, HashWithIndex)
     EXPECT_EQ(r, fr(uint256_t("1c446df60816b897cda124524e6b03f36df0cec333fad87617aab70d7861daa6")));
 }
 
-} // namespace crypto
+} // namespace bb::crypto

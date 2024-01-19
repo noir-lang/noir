@@ -1,7 +1,7 @@
 #include "./pedersen.hpp"
 #include "../pedersen_commitment/pedersen.hpp"
 
-namespace crypto {
+namespace bb::crypto {
 
 /**
  * @brief Converts input uint8_t buffers into vector of field elements. Used to hash the Transcript in a
@@ -80,4 +80,4 @@ typename Curve::BaseField pedersen_hash_base<Curve>::hash_buffer(const std::vect
 }
 
 template class pedersen_hash_base<curve::Grumpkin>;
-} // namespace crypto
+} // namespace bb::crypto

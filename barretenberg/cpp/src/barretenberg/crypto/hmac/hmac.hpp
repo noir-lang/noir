@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace crypto {
+namespace bb::crypto {
 /**
  * @brief Compute an HMAC given a secret key and a message
  *
@@ -126,4 +126,4 @@ Fr get_unbiased_field_from_hmac(const MessageContainer& message, const KeyContai
     Fr result((field_as_u512 % Fr::modulus).lo);
     return result;
 }
-} // namespace crypto
+} // namespace bb::crypto

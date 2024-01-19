@@ -15,7 +15,7 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
-namespace join_split_example {
+namespace bb::join_split_example {
 
 using Builder = bb::UltraCircuitBuilder;
 using Composer = plonk::UltraComposer;
@@ -43,4 +43,4 @@ namespace schnorr {
 using signature_bits = bb::stdlib::schnorr::signature_bits<Builder>;
 } // namespace schnorr
 
-} // namespace join_split_example
+} // namespace bb::join_split_example

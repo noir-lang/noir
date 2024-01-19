@@ -11,7 +11,7 @@ using namespace bb;
 
 namespace bb::stdlib::sha256_plookup {
 
-using namespace plookup;
+using namespace bb::plookup;
 
 namespace internal {
 

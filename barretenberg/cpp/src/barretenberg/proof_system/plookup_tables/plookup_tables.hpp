@@ -16,7 +16,7 @@
 #include "types.hpp"
 #include "uint.hpp"
 
-namespace plookup {
+namespace bb::plookup {
 
 const MultiTable& create_table(MultiTableId id);
 
@@ -213,4 +213,4 @@ inline BasicTable create_basic_table(const BasicTableId id, const size_t index)
     }
     }
 }
-} // namespace plookup
+} // namespace bb::plookup

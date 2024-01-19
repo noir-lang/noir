@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace join_split_example::proofs::join_split;
+using namespace bb::join_split_example::proofs::join_split;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

@@ -6,7 +6,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <array>
 
-namespace crypto {
+namespace bb::crypto {
 
 /**
  * @brief Performs pedersen commitments!
@@ -31,4 +31,4 @@ template <typename Curve> class pedersen_commitment_base {
 };
 
 using pedersen_commitment = pedersen_commitment_base<curve::Grumpkin>;
-} // namespace crypto
+} // namespace bb::crypto

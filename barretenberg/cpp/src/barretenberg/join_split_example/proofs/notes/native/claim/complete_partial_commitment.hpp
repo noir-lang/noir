@@ -4,7 +4,7 @@
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
-namespace join_split_example::proofs::notes::native::claim {
+namespace bb::join_split_example::proofs::notes::native::claim {
 
 inline auto complete_partial_commitment(grumpkin::fq const& claim_note_partial_commitment,
                                         uint32_t interaction_nonce,
@@ -14,4 +14,4 @@ inline auto complete_partial_commitment(grumpkin::fq const& claim_note_partial_c
                                        GeneratorIndex::CLAIM_NOTE_COMMITMENT);
 }
 
-} // namespace join_split_example::proofs::notes::native::claim
+} // namespace bb::join_split_example::proofs::notes::native::claim

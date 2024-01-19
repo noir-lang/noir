@@ -2,11 +2,9 @@
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
 #include "compute_signing_data.hpp"
 
-namespace join_split_example {
-namespace proofs {
-namespace join_split {
+namespace bb::join_split_example::proofs::join_split {
 
-using namespace crypto::schnorr;
+using namespace bb::crypto::schnorr;
 
 signature sign_join_split_tx(join_split_tx const& tx, key_pair<grumpkin::fr, grumpkin::g1> const& keys)
 {
@@ -25,6 +23,4 @@ signature sign_join_split_tx(join_split_tx const& tx, key_pair<grumpkin::fr, gru
     return signature;
 }
 
-} // namespace join_split
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::join_split

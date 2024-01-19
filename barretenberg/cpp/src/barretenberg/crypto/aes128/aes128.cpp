@@ -6,8 +6,6 @@
 #include <cstdint>
 
 #include <iostream>
-namespace crypto {
-namespace aes128 {
 
 namespace {
 
@@ -34,7 +32,7 @@ void sub_bytes(uint8_t* input)
     uint8_t i, j;
     for (i = 0; i < 4; ++i) {
         for (j = 0; j < 4; ++j) {
-            input[j * 4 + i] = sbox[input[j * 4 + i]];
+            input[j * 4 + i] = bb::crypto::aes128_sbox[input[j * 4 + i]];
         }
     }
 }
@@ -43,7 +41,7 @@ void inverse_sub_bytes(uint8_t* input)
 {
     for (size_t i = 0; i < 4; ++i) {
         for (size_t j = 0; j < 4; ++j) {
-            input[j * 4 + i] = sbox_inverse[input[j * 4 + i]];
+            input[j * 4 + i] = bb::crypto::aes128_sbox_inverse[input[j * 4 + i]];
         }
     }
 }
@@ -151,7 +149,9 @@ void inverse_mix_columns(uint8_t* input)
 }
 } // namespace
 
-void expand_key(const uint8_t* key, uint8_t* round_key)
+namespace bb::crypto {
+
+void aes128_expand_key(const uint8_t* key, uint8_t* round_key)
 {
     uint8_t temp[4]{};
 
@@ -176,10 +176,10 @@ void expand_key(const uint8_t* key, uint8_t* round_key)
             temp[2] = temp[3];
             temp[3] = t;
 
-            temp[0] = sbox[temp[0]];
-            temp[1] = sbox[temp[1]];
-            temp[2] = sbox[temp[2]];
-            temp[3] = sbox[temp[3]];
+            temp[0] = aes128_sbox[temp[0]];
+            temp[1] = aes128_sbox[temp[1]];
+            temp[2] = aes128_sbox[temp[2]];
+            temp[3] = aes128_sbox[temp[3]];
 
             temp[0] = temp[0] ^ round_constants[i >> 2];
         }
@@ -224,10 +224,10 @@ void aes128_cipher(uint8_t* state, const uint8_t* round_key)
     add_round_key(state, round_key, 10);
 }
 
-void encrypt_buffer_cbc(uint8_t* buffer, uint8_t* iv, const uint8_t* key, const size_t length)
+void aes128_encrypt_buffer_cbc(uint8_t* buffer, uint8_t* iv, const uint8_t* key, const size_t length)
 {
     uint8_t round_key[176];
-    expand_key(key, round_key);
+    aes128_expand_key(key, round_key);
 
     uint8_t block_state[16]{};
 
@@ -244,10 +244,10 @@ void encrypt_buffer_cbc(uint8_t* buffer, uint8_t* iv, const uint8_t* key, const 
     }
 }
 
-void decrypt_buffer_cbc(uint8_t* buffer, uint8_t* iv, const uint8_t* key, const size_t length)
+void aes128_decrypt_buffer_cbc(uint8_t* buffer, uint8_t* iv, const uint8_t* key, const size_t length)
 {
     uint8_t round_key[176];
-    expand_key(key, round_key);
+    aes128_expand_key(key, round_key);
     uint8_t block_state[16]{};
     const size_t num_blocks = (length / 16);
 
@@ -262,5 +262,4 @@ void decrypt_buffer_cbc(uint8_t* buffer, uint8_t* iv, const uint8_t* key, const 
     }
 }
 
-} // namespace aes128
-} // namespace crypto
+} // namespace bb::crypto

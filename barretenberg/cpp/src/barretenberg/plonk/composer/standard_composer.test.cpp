@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb;
 using namespace bb::plonk;
 
 namespace {

@@ -13,8 +13,7 @@
 #include <filesystem>
 #endif
 
-namespace join_split_example {
-namespace proofs {
+namespace bb::join_split_example::proofs {
 
 struct circuit_data {
     circuit_data()
@@ -83,7 +82,7 @@ circuit_data get_circuit_data(std::string const& name,
         info(name, ": Circuit size: ", builder.get_num_gates());
         if (mock) {
             auto public_inputs = builder.get_public_inputs();
-            ::join_split_example::proofs::mock::mock_circuit(mock_builder, public_inputs);
+            ::bb::join_split_example::proofs::mock::mock_circuit(mock_builder, public_inputs);
             info(name, ": Mock circuit size: ", mock_builder.get_num_gates());
             benchmark_collator.benchmark_info_deferred(Composer::NAME_STRING,
                                                        "Core",
@@ -259,5 +258,4 @@ circuit_data get_circuit_data(std::string const& name,
     return data;
 }
 
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs

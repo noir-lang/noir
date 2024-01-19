@@ -9,12 +9,10 @@ construction in stdlib and contains macros for explicit instantiation.
 #pragma once
 #include <concepts>
 
-namespace bb::honk {
-namespace flavor {
+namespace bb::honk::flavor {
 class Standard;
 class Ultra;
-} // namespace flavor
-} // namespace bb::honk
+} // namespace bb::honk::flavor
 
 namespace bb {
 class Bn254FrParams;

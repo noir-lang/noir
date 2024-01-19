@@ -3,9 +3,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include <stddef.h>
 
-namespace join_split_example {
-namespace proofs {
-namespace notes {
+namespace bb::join_split_example::proofs::notes {
 
 constexpr size_t ASSET_ID_BIT_LENGTH = 30;
 constexpr size_t NONCE_BIT_LENGTH = 32;
@@ -40,6 +38,4 @@ constexpr uint32_t DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN = MAX_NUM_ASSETS_BIT_LENGTH
 constexpr uint32_t DEFI_BRIDGE_BITCONFIG_LEN = 32;
 constexpr uint32_t DEFI_BRIDGE_AUX_DATA = 64;
 
-} // namespace notes
-} // namespace proofs
-} // namespace join_split_example
+} // namespace bb::join_split_example::proofs::notes

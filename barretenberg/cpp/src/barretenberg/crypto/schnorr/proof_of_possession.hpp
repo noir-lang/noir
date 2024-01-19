@@ -5,7 +5,7 @@
 #include "barretenberg/common/serialize.hpp"
 #include "schnorr.hpp"
 
-namespace crypto::schnorr {
+namespace bb::crypto::schnorr {
 
 /**
  * @brief A proof of possession is a Schnorr proof of knowledge of a secret key corresponding to a given public key.
@@ -134,4 +134,4 @@ inline void write(B& buf, ProofOfPossession<G1, Hash> const& proof_of_possession
     write(buf, proof_of_possession.response);
 }
 
-} // namespace crypto::schnorr
+} // namespace bb::crypto::schnorr

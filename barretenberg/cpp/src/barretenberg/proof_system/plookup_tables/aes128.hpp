@@ -8,8 +8,7 @@
 #include "sparse.hpp"
 #include "types.hpp"
 
-namespace plookup {
-namespace aes128_tables {
+namespace bb::plookup::aes128_tables {
 static constexpr uint64_t AES_BASE = 9;
 static constexpr uint64_t aes_normalization_table[AES_BASE]{
     1, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -127,7 +126,7 @@ inline MultiTable get_aes_input_table(const MultiTableId id = AES_INPUT)
 inline std::array<bb::fr, 2> get_aes_sbox_values_from_key(const std::array<uint64_t, 2> key)
 {
     const auto byte = numeric::map_from_sparse_form<AES_BASE>(key[0]);
-    uint8_t sbox_value = crypto::aes128::sbox[(uint8_t)byte];
+    uint8_t sbox_value = crypto::aes128_sbox[(uint8_t)byte];
     uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
     return { bb::fr(numeric::map_into_sparse_form<AES_BASE>(sbox_value)),
              bb::fr(numeric::map_into_sparse_form<AES_BASE>((uint8_t)(sbox_value ^ swizzled))) };
@@ -142,7 +141,7 @@ inline BasicTable generate_aes_sbox_table(BasicTableId id, const size_t table_in
     table.use_twin_keys = false;
     for (uint64_t i = 0; i < table.size; ++i) {
         const auto first = numeric::map_into_sparse_form<AES_BASE>((uint8_t)i);
-        uint8_t sbox_value = crypto::aes128::sbox[(uint8_t)i];
+        uint8_t sbox_value = crypto::aes128_sbox[(uint8_t)i];
         uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
         const auto second = numeric::map_into_sparse_form<AES_BASE>(sbox_value);
         const auto third = numeric::map_into_sparse_form<AES_BASE>((uint8_t)(sbox_value ^ swizzled));
@@ -173,5 +172,4 @@ inline MultiTable get_aes_sbox_table(const MultiTableId id = AES_SBOX)
     }
     return table;
 }
-} // namespace aes128_tables
-} // namespace plookup
+} // namespace bb::plookup::aes128_tables

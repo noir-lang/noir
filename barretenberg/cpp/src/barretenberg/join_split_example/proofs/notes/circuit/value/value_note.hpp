@@ -3,7 +3,7 @@
 #include "commit.hpp"
 #include "witness_data.hpp"
 
-namespace join_split_example::proofs::notes::circuit::value {
+namespace bb::join_split_example::proofs::notes::circuit::value {
 
 using namespace bb::stdlib;
 
@@ -31,4 +31,4 @@ struct value_note {
     operator byte_array_ct() const { return byte_array_ct(commitment); }
 };
 
-} // namespace join_split_example::proofs::notes::circuit::value
+} // namespace bb::join_split_example::proofs::notes::circuit::value

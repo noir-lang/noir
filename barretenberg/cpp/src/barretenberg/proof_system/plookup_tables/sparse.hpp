@@ -7,8 +7,7 @@
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
 
-namespace plookup {
-namespace sparse_tables {
+namespace bb::plookup::sparse_tables {
 
 template <uint64_t base, uint64_t num_rotated_bits>
 inline std::array<bb::fr, 2> get_sparse_table_with_rotation_values(const std::array<uint64_t, 2> key)
@@ -115,5 +114,4 @@ inline BasicTable generate_sparse_normalization_table(BasicTableId id, const siz
     table.column_3_step_size = bb::fr(0);
     return table;
 }
-} // namespace sparse_tables
-} // namespace plookup
+} // namespace bb::plookup::sparse_tables
