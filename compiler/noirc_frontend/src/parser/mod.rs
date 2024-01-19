@@ -62,9 +62,11 @@ where
     T: Recoverable,
 {
     use Token::*;
-    parser.delimited_by(just(LeftParen), just(RightParen)).recover_with(via_parser(
-        nested_delimiters(LeftParen, RightParen, [(LeftBracket, RightBracket)], Recoverable::error),
-    ))
+    parser.delimited_by(just(LeftParen), just(RightParen))
+    // TODO chumsky 1.0 is not processing correctly recovered ast nodes
+    // .recover_with(via_parser(
+    //     nested_delimiters(LeftParen, RightParen, [(LeftBracket, RightBracket)], Recoverable::error),
+    // ))
 }
 
 fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
