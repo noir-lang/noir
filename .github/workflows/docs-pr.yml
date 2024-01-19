@@ -11,7 +11,7 @@ jobs:
     steps:
     - name: Check if label is present
       id: check-labels
-      uses: actions/github-script@v3
+      uses: actions/github-script@v7.0.1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
@@ -21,10 +21,11 @@ jobs:
           }
 
           // Fetch the list of files changed in the PR
-          const { data: files } = await github.pulls.listFiles({
+          const { data: files } = await github.rest.pulls.listFiles({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            pull_number: context.issue.number
+            pull_number: context.issue.number,
+            per_page: 100
           });
 
           // Check if any file is within the 'docs' folder
@@ -33,7 +34,7 @@ jobs:
     
     - name: Add label if not present
       if: steps.check-labels.outputs.result == 'true'
-      uses: actions/github-script@v3
+      uses: actions/github-script@v7.0.1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
@@ -47,20 +48,14 @@ jobs:
             })
           }
 
-  build_and_deploy_preview:
+  build_preview:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    needs: add_label
-    if: needs.add_label.outputs.has_label == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
     
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18'
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
@@ -71,13 +66,34 @@ jobs:
         run: |
           npm i wasm-opt -g
 
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
       - name: Build docs
         run: 
-          yarn workspaces foreach -Rt run build
+          yarn workspaces foreach -Rpt --from docs run build
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docs
+          path: ./docs/build/
+          retention-days: 3
+
+
+  deploy_preview:
+    needs: [build_preview, add_label]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    if: needs.add_label.outputs.has_label == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+    
+      - name: Download built docs
+        uses: actions/download-artifact@v3
+        with:
+          name: docs
+          path: ./docs/build
+     
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v2.1
         with:

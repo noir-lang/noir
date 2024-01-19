@@ -3,6 +3,7 @@ import { createNodejsFileManager } from './noir/file-manager/nodejs-file-manager
 import { NoirWasmCompiler } from './noir/noir-wasm-compiler';
 import { LogData, LogFn } from './utils';
 import { CompilationResult } from './types/noir_artifact';
+import { inflateDebugSymbols } from './noir/debug';
 
 async function compile(
   fileManager: FileManager,
@@ -48,4 +49,4 @@ async function compile(
 
 const createFileManager = createNodejsFileManager;
 
-export { compile, createFileManager, CompilationResult };
+export { compile, createFileManager, inflateDebugSymbols, CompilationResult };

@@ -314,7 +314,7 @@ pub struct TypeAliasType {
     pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl std::hash::Hash for TypeAliasType {
@@ -346,11 +346,11 @@ impl TypeAliasType {
     pub fn new(
         id: TypeAliasId,
         name: Ident,
-        span: Span,
+        location: Location,
         typ: Type,
         generics: Generics,
     ) -> TypeAliasType {
-        TypeAliasType { id, typ, name, span, generics }
+        TypeAliasType { id, typ, name, location, generics }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
@@ -1617,7 +1617,7 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
+                let length = size.evaluate_to_u64();
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -1638,7 +1638,7 @@ impl From<&Type> for PrintableType {
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
             Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
+            Type::Unit => PrintableType::Unit,
             Type::Constant(_) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
@@ -1646,13 +1646,17 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
-            Type::TraitAsType(..) => unreachable!(),
-            Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
+            Type::TraitAsType(_, _, _) => unreachable!(),
+            Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
-            Type::MutableReference(_) => unreachable!("cannot print &mut"),
+            Type::Function(_, _, env) => {
+                PrintableType::Function { env: Box::new(env.as_ref().into()) }
+            }
+            Type::MutableReference(typ) => {
+                PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
+            }
             Type::NotConstant => unreachable!(),
         }
     }

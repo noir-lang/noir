@@ -139,7 +139,7 @@ impl Type {
     }
 
     pub(crate) fn is_nested_slice(&self) -> bool {
-        if let Type::Slice(element_types) = self {
+        if let Type::Slice(element_types) | Type::Array(element_types, _) = self {
             element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
         } else {
             false
