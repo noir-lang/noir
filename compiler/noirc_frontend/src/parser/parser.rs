@@ -849,7 +849,7 @@ where
             // if let Some(message) = expressions.get(1) {
             //     if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
             //         message_str = Some(message.clone());
-            //     } 
+            //     }
             //     else {
             //         dbg!(message.kind.clone());
             //         emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
@@ -861,18 +861,14 @@ where
                 //         segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
                 //         kind: PathKind::Dep,
                 //         span: Span::default(),
-                //     }), span }, 
-                //     vec![expr.clone()], 
+                //     }), span },
+                //     vec![expr.clone()],
                 //     span
                 // );
                 // call_expr
                 expr.clone()
             });
-            StatementKind::Constrain(ConstrainStatement(
-                condition,
-                message,
-                ConstrainKind::Assert,
-            ))
+            StatementKind::Constrain(ConstrainStatement(condition, message, ConstrainKind::Assert))
         })
 }
 

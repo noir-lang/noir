@@ -220,7 +220,7 @@ impl<'a> ModCollector<'a> {
 
             let name = function.name_ident().clone();
             let func_id = context.def_interner.push_empty_fn();
-            
+
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
             let location = Location::new(function.span(), self.file_id);

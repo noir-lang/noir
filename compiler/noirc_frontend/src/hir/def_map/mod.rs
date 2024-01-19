@@ -1,4 +1,3 @@
-use crate::{Statement, StatementKind, Expression, ExpressionKind, Ident, Path, PathKind};
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
@@ -6,6 +5,7 @@ use crate::macros_api::MacroProcessor;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::{parse_program, ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+use crate::{Expression, ExpressionKind, Ident, Path, PathKind, Statement, StatementKind};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{Location, Span};

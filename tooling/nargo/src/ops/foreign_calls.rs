@@ -1,6 +1,6 @@
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
-    pwg::{ForeignCallWaitInfo, ACVMForeignCallResult}
+    pwg::{ACVMForeignCallResult, ForeignCallWaitInfo},
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
@@ -29,7 +29,6 @@ pub trait ForeignCallExecutor {
 //         Self::ResolvedAssertMessage(value)
 //     }
 // }
-
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
@@ -157,10 +156,8 @@ impl DefaultForeignCallExecutor {
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
         let skip_newline = foreign_call_inputs[0].unwrap_value().is_zero();
 
-        let foreign_call_inputs = foreign_call_inputs
-            .split_first()
-            .ok_or(ForeignCallError::MissingForeignCallInputs)?
-            .1;
+        let foreign_call_inputs =
+            foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?.1;
         let display_string = Self::format_printable_value(foreign_call_inputs, skip_newline)?;
 
         print!("{display_string}");
@@ -168,17 +165,22 @@ impl DefaultForeignCallExecutor {
         Ok(())
     }
 
-    fn execute_assert_message(foreign_call_inputs: &[ForeignCallParam]) -> Result<ACVMForeignCallResult, ForeignCallError> {
+    fn execute_assert_message(
+        foreign_call_inputs: &[ForeignCallParam],
+    ) -> Result<ACVMForeignCallResult, ForeignCallError> {
         let display_string = Self::format_printable_value(foreign_call_inputs, true)?;
         Ok(display_string.into())
     }
 
-    fn format_printable_value(foreign_call_inputs: &[ForeignCallParam], skip_newline: bool) -> Result<String, ForeignCallError> {
+    fn format_printable_value(
+        foreign_call_inputs: &[ForeignCallParam],
+        skip_newline: bool,
+    ) -> Result<String, ForeignCallError> {
         let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
-    
+
         let result = format!("{display_values}{}", if skip_newline { "" } else { "\n" });
-    
-        Ok(result)        
+
+        Ok(result)
     }
 }
 
@@ -187,7 +189,7 @@ impl DefaultForeignCallExecutor {
 
 //     let result = format!("{display_values}{}", if skip_newline { "" } else { "\n" });
 
-//     Ok(result)        
+//     Ok(result)
 // }
 
 impl ForeignCallExecutor for DefaultForeignCallExecutor {
@@ -203,9 +205,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 }
                 Ok(ForeignCallResult { values: vec![] }.into())
             }
-            Some(ForeignCall::AssertMessage) => {
-                Self::execute_assert_message(&foreign_call.inputs)
-            }
+            Some(ForeignCall::AssertMessage) => Self::execute_assert_message(&foreign_call.inputs),
             Some(ForeignCall::CreateMock) => {
                 let mock_oracle_name = Self::parse_string(&foreign_call.inputs[0]);
                 assert!(ForeignCall::lookup(&mock_oracle_name).is_none());
@@ -306,7 +306,9 @@ mod tests {
     use jsonrpc_http_server::{Server, ServerBuilder};
     use serial_test::serial;
 
-    use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor, foreign_calls::ACVMForeignCallResult};
+    use crate::ops::{
+        foreign_calls::ACVMForeignCallResult, DefaultForeignCallExecutor, ForeignCallExecutor,
+    };
 
     #[allow(unreachable_pub)]
     #[rpc]

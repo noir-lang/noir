@@ -29,7 +29,7 @@ pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
-use acvm::brillig_vm::brillig::{RegisterOrMemory, HeapArray};
+use acvm::brillig_vm::brillig::{HeapArray, RegisterOrMemory};
 use acvm::{
     acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,

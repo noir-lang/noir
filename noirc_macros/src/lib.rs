@@ -1,16 +1,13 @@
 // use noirc_frontend::macros_api::{parse_program, SortedModule, CrateId
 
 use noirc_frontend::macros_api::parse_program;
-use noirc_frontend::macros_api::{
-    Expression, ExpressionKind,
-    HirContext, Ident, Path, PathKind, Span,
-    Statement, StatementKind,
-};
-use noirc_frontend::macros_api::{CrateId, FileId};
-use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::SortedModule;
+use noirc_frontend::macros_api::{CrateId, FileId};
+use noirc_frontend::macros_api::{
+    Expression, ExpressionKind, HirContext, Ident, Path, PathKind, Span, Statement, StatementKind,
+};
+use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 
-    
 pub struct AssertMessageMacro;
 
 impl MacroProcessor for AssertMessageMacro {
@@ -27,9 +24,7 @@ impl MacroProcessor for AssertMessageMacro {
     fn process_typed_ast(&self, _crate_id: &CrateId, _context: &mut HirContext) {}
 }
 
-fn transform(
-    mut ast: SortedModule,
-) -> Result<SortedModule, (MacroError, FileId)> {
+fn transform(mut ast: SortedModule) -> Result<SortedModule, (MacroError, FileId)> {
     let assert_message_oracles = "#[oracle(assert_message)]
     unconstrained fn assert_message_oracle<T>(_input: T) {}
     unconstrained pub fn resolve_assert_message<T>(input: T) {
@@ -48,30 +43,37 @@ fn transform(
         let mut calls_to_insert = Vec::new();
         for (i, stmt) in func.def.body.0.iter().enumerate() {
             match stmt {
-                Statement { kind, span } => {
-                    match kind {
-                        StatementKind::Constrain(constrain_stmt) => {
-                            if let Some(assert_msg_expr) = &constrain_stmt.1 {
-                                let call_expr = Expression::call(
-                                    Expression { kind: ExpressionKind::Variable(Path {
-                                        segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
+                Statement { kind, span } => match kind {
+                    StatementKind::Constrain(constrain_stmt) => {
+                        if let Some(assert_msg_expr) = &constrain_stmt.1 {
+                            let call_expr = Expression::call(
+                                Expression {
+                                    kind: ExpressionKind::Variable(Path {
+                                        segments: vec![
+                                            Ident::from("std"),
+                                            Ident::from("resolve_assert_message"),
+                                        ],
                                         kind: PathKind::Dep,
                                         span: Span::default(),
-                                    }), span: Span::default() }, 
-                                    vec![assert_msg_expr.clone()],
-                                    *span,
-                                );
-                                calls_to_insert.push((i + calls_to_insert.len(), call_expr, *span));
-                            }
+                                    }),
+                                    span: Span::default(),
+                                },
+                                vec![assert_msg_expr.clone()],
+                                *span,
+                            );
+                            calls_to_insert.push((i + calls_to_insert.len(), call_expr, *span));
                         }
-                        _ => {}
                     }
-                }
+                    _ => {}
+                },
             }
         }
 
         for (i, call_expr, span) in calls_to_insert {
-            func.def.body.0.insert(i + 1, Statement { kind: StatementKind::Expression(call_expr), span });
+            func.def
+                .body
+                .0
+                .insert(i + 1, Statement { kind: StatementKind::Expression(call_expr), span });
         }
     }
     Ok(ast)

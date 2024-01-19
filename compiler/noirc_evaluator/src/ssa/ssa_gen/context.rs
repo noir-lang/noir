@@ -433,11 +433,7 @@ impl<'a> FunctionContext<'a> {
             let sign = self.builder.insert_binary(rhs, BinaryOp::Lt, half_width);
             // TODO: bring back assert message
             // Some("attempt to bit-shift with overflow".to_owned())
-            self.builder.set_location(location).insert_constrain(
-                sign,
-                one,
-                None,
-            );
+            self.builder.set_location(location).insert_constrain(sign, one, None);
         }
 
         let max = self
@@ -446,11 +442,7 @@ impl<'a> FunctionContext<'a> {
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         // TODO: bring back assert message
         // Some("attempt to bit-shift with overflow".to_owned())
-        self.builder.set_location(location).insert_constrain(
-            overflow,
-            one,
-            None,
-        );
+        self.builder.set_location(location).insert_constrain(overflow, one, None);
         self.builder.insert_truncate(result, bit_size, bit_size + 1)
     }
 

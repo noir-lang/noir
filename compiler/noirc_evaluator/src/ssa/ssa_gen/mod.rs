@@ -141,9 +141,7 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(expr, location) => {
-                self.codegen_constrain(expr, *location)
-            }
+            Expression::Constrain(expr, location) => self.codegen_constrain(expr, *location),
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
         }

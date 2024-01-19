@@ -20,7 +20,6 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
 
     let mut err: Option<OpcodeResolutionError> = None;
     loop {
-
         if let Some(error) = &err {
             let solver_status = if acvm.instruction_pointer() < acvm.opcodes().len() {
                 acvm.solve_opcode()
@@ -40,10 +39,8 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
                         }
                         None => ExecutionError::SolvingError(error.clone()),
                     }));
-                }    
-                _ => {
-                    return Err(resolve_comptime_assert_message(error, circuit))
                 }
+                _ => return Err(resolve_comptime_assert_message(error, circuit)),
             }
         } else {
             let solver_status = acvm.solve();
@@ -61,7 +58,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
                     acvm.resolve_pending_foreign_call(foreign_call_result);
                 }
             }
-        } 
+        }
     }
 
     Ok(acvm.finalize())
@@ -72,9 +69,7 @@ fn resolve_call_stack(error: &OpcodeResolutionError) -> Option<Vec<OpcodeLocatio
         OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: ErrorLocation::Resolved(opcode_location),
         } => Some(vec![*opcode_location]),
-        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
-            Some(call_stack.clone())
-        }
+        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => Some(call_stack.clone()),
         _ => None,
     }
 }
@@ -84,9 +79,9 @@ fn resolve_comptime_assert_message(error: &OpcodeResolutionError, circuit: &Circ
 
     NargoError::ExecutionError(match call_stack {
         Some(call_stack) => {
-            if let Some(assert_message) = circuit.get_assert_message(
-                *call_stack.last().expect("Call stacks should not be empty"),
-            ) {
+            if let Some(assert_message) = circuit
+                .get_assert_message(*call_stack.last().expect("Call stacks should not be empty"))
+            {
                 ExecutionError::AssertionFailed(assert_message.to_owned(), call_stack)
             } else {
                 ExecutionError::SolvingError(error.clone())
