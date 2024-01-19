@@ -525,7 +525,7 @@ mod tests {
 
     use crate::ssa::ir::{
         function::RuntimeType,
-        instruction::{Endian, Intrinsic},
+        instruction::{Endian, Instruction, Intrinsic},
         map::Id,
         types::Type,
         value::Value,
@@ -564,5 +564,25 @@ mod tests {
         assert_eq!(slice[1], one);
         assert_eq!(slice[2], one);
         assert_eq!(slice[3], zero);
+    }
+
+    #[test]
+    fn insert_redundant_enable_side_effects() {
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), func_id, RuntimeType::Acir);
+        let one = builder.numeric_constant(FieldElement::one(), Type::bool());
+        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
+
+        builder.insert_instruction(Instruction::EnableSideEffects { condition: one }, None);
+        builder.insert_instruction(Instruction::EnableSideEffects { condition: zero }, None);
+        builder.insert_instruction(Instruction::EnableSideEffects { condition: zero }, None);
+
+        let ssa = builder.finish();
+
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 1);
     }
 }
