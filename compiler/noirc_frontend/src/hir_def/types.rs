@@ -314,7 +314,7 @@ pub struct TypeAliasType {
     pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl std::hash::Hash for TypeAliasType {
@@ -346,11 +346,11 @@ impl TypeAliasType {
     pub fn new(
         id: TypeAliasId,
         name: Ident,
-        span: Span,
+        location: Location,
         typ: Type,
         generics: Generics,
     ) -> TypeAliasType {
-        TypeAliasType { id, typ, name, span, generics }
+        TypeAliasType { id, typ, name, location, generics }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
