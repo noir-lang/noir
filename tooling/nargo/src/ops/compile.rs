@@ -9,6 +9,8 @@ use crate::{package::Package, workspace::Workspace};
 
 use rayon::prelude::*;
 
+use super::{transform_contract, transform_program};
+
 /// Compiles workspace.
 ///
 /// # Errors
@@ -89,7 +91,7 @@ pub fn compile_program(
         noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
 
     // Apply backend specific optimizations.
-    let optimized_program = crate::ops::optimize_program(program, expression_width);
+    let optimized_program = transform_program(program, expression_width);
 
     Ok((optimized_program, warnings))
 }
@@ -105,7 +107,7 @@ pub fn compile_contract(
     let (contract, warnings) =
         noirc_driver::compile_contract(&mut context, crate_id, compile_options)?;
 
-    let optimized_contract = crate::ops::optimize_contract(contract, expression_width);
+    let optimized_contract = transform_contract(contract, expression_width);
 
     Ok((optimized_contract, warnings))
 }
