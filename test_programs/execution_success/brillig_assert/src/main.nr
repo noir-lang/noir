@@ -7,6 +7,9 @@ fn main(x: Field) {
 
 unconstrained fn conditional(x: bool) -> Field {
     assert(x, "x is false");
-    assert_eq(x, true, "x is false");
+    // TODO: this is not accurately printing the assert message
+    // got `Failed to solve brillig function, reason: explicit trap hit in brillig`
+    // expected `x is false`
+    assert_eq(x, false, "x is false");
     1
 }

@@ -25,6 +25,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
             } else {
                 return Err(resolve_comptime_assert_message(error, circuit));
             };
+            dbg!(solver_status.clone());
             match solver_status {
                 ACVMStatus::RequiresForeignCall(foreign_call) => {
                     let foreign_call_result = foreign_call_executor.execute(&foreign_call)?;
@@ -68,7 +69,10 @@ fn resolve_call_stack(error: &OpcodeResolutionError) -> Option<Vec<OpcodeLocatio
         OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: ErrorLocation::Resolved(opcode_location),
         } => Some(vec![*opcode_location]),
-        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => Some(call_stack.clone()),
+        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
+            dbg!("got brillig func failed");
+            Some(call_stack.clone())
+        }
         _ => None,
     }
 }

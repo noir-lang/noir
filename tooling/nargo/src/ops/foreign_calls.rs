@@ -12,24 +12,6 @@ pub trait ForeignCallExecutor {
     ) -> Result<ACVMForeignCallResult, ForeignCallError>;
 }
 
-// #[derive(Debug, PartialEq, Eq, Clone)]
-// pub(crate) enum CustomForeignCallResult {
-//     BrilligOutput(ForeignCallResult),
-//     ResolvedAssertMessage(String)
-// }
-
-// impl From<ForeignCallResult> for CustomForeignCallResult {
-//     fn from(value: ForeignCallResult) -> Self {
-//         Self::BrilligOutput(value)
-//     }
-// }
-
-// impl From<String> for CustomForeignCallResult {
-//     fn from(value: String) -> Self {
-//         Self::ResolvedAssertMessage(value)
-//     }
-// }
-
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub(crate) enum ForeignCall {
@@ -183,14 +165,6 @@ impl DefaultForeignCallExecutor {
         Ok(result)
     }
 }
-
-// pub(crate) fn format_printable_value(foreign_call_inputs: &[ForeignCallParam], skip_newline: bool) -> Result<String, ForeignCallError> {
-//     let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
-
-//     let result = format!("{display_values}{}", if skip_newline { "" } else { "\n" });
-
-//     Ok(result)
-// }
 
 impl ForeignCallExecutor for DefaultForeignCallExecutor {
     fn execute(
