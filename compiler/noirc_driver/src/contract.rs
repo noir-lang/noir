@@ -26,7 +26,7 @@ pub enum ContractFunctionType {
     Unconstrained,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CompiledContract {
     pub noir_version: String,
 
