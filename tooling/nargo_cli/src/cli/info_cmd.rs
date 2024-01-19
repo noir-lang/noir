@@ -78,12 +78,6 @@ pub(crate) fn run(
         &args.compile_options,
     )?;
 
-    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-        .into_iter()
-        .filter(|package| !package.is_library())
-        .cloned()
-        .partition(|package| package.is_binary());
-
     if args.profile_info {
         for compiled_program in &compiled_programs {
             let span_opcodes = compiled_program.debug.count_span_opcodes();
@@ -101,9 +95,10 @@ pub(crate) fn run(
         }
     }
 
+    let binary_packages =
+        workspace.into_iter().filter(|package| !package.is_binary()).zip(compiled_programs);
     let program_info = binary_packages
-        .into_par_iter()
-        .zip(compiled_programs)
+        .par_bridge()
         .map(|(package, program)| {
             count_opcodes_and_gates_in_program(backend, program, &package, expression_width)
         })
