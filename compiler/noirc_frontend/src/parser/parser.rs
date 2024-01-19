@@ -1824,7 +1824,7 @@ mod test {
 
         parser
             .then_ignore(just(Token::EOF))
-            .parse(Stream::from_iter(separated.into_iter()).boxed().spanned(Span::empty(0)))
+            .parse(Stream::from_iter(separated.into_iter()).boxed().spanned(Span::single_char(0)))
             .into_result()
             .map_err(|errors| vecmap(errors, Into::into))
     }
@@ -2066,6 +2066,23 @@ mod test {
     #[test]
     fn parse_type_expression() {
         parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
+    }
+
+    #[test]
+    fn failing_or_test_case() {
+        let tuple_example = "(1, 2)";
+        let expr = expression();
+
+        let parser = parenthesized(expr.clone())
+            .map_with(|sub_expr, extra| {
+                Expression::new(ExpressionKind::Parenthesized(sub_expr.into()), extra.span())
+            })
+            .or(tuple(expr.clone()));
+
+        let result = parse_with(parser, tuple_example);
+        dbg!(&result);
+
+        assert!(result.is_ok());
     }
 
     #[test]
