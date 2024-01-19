@@ -31,7 +31,7 @@ impl<T, T_SERIALIZED_LEN> PublicState<T, T_SERIALIZED_LEN> {
 
     // docs:start:public_state_struct_read
     pub fn read(self) -> T {
-        assert(self.context.private.is_none(), "Public state writes only supported in public functions");
+        assert(self.context.private.is_none(), "Public state reads only supported in public functions");
         storage_read(self.storage_slot, self.serialization_methods.deserialize)
     }
     // docs:end:public_state_struct_read
