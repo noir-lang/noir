@@ -146,7 +146,7 @@ library HeaderLib {
       revert Errors.Rollup__TimestampTooOld();
     }
 
-    // @todo @LHerskind Proper genesis state. If the state is empty, we allow anything for now.
+    // TODO(#4148) Proper genesis state. If the state is empty, we allow anything for now.
     if (_archive != bytes32(0) && _archive != _header.lastArchive.root) {
       revert Errors.Rollup__InvalidArchive(_archive, _header.lastArchive.root);
     }

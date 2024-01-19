@@ -69,6 +69,10 @@ export interface L1ContractArtifactsForDeployment {
    */
   outbox: ContractArtifacts;
   /**
+   * Availability Oracle contract artifacts
+   */
+  availabilityOracle: ContractArtifacts;
+  /**
    * Registry contract artifacts
    */
   registry: ContractArtifacts;
@@ -132,12 +136,20 @@ export const deployL1Contracts = async (
   );
   logger(`Deployed Outbox at ${outboxAddress}`);
 
+  const availabilityOracleAddress = await deployL1Contract(
+    walletClient,
+    publicClient,
+    contractsToDeploy.availabilityOracle.contractAbi,
+    contractsToDeploy.availabilityOracle.contractBytecode,
+  );
+  logger(`Deployed AvailabilityOracle at ${availabilityOracleAddress}`);
+
   const rollupAddress = await deployL1Contract(
     walletClient,
     publicClient,
     contractsToDeploy.rollup.contractAbi,
     contractsToDeploy.rollup.contractBytecode,
-    [getAddress(registryAddress.toString())],
+    [getAddress(registryAddress.toString()), getAddress(availabilityOracleAddress.toString())],
   );
   logger(`Deployed Rollup at ${rollupAddress}`);
 
@@ -162,6 +174,7 @@ export const deployL1Contracts = async (
   logger(`Deployed contract deployment emitter at ${contractDeploymentEmitterAddress}`);
 
   const l1Contracts: L1ContractAddresses = {
+    availabilityOracleAddress,
     rollupAddress,
     registryAddress,
     inboxAddress,

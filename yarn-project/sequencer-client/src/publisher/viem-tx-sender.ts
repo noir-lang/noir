@@ -1,7 +1,7 @@
-import { BLOB_SIZE_IN_BYTES, ExtendedContractData } from '@aztec/circuit-types';
+import { BLOB_SIZE_IN_BYTES, ExtendedContractData, L2Block } from '@aztec/circuit-types';
 import { createEthereumChain } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { ContractDeploymentEmitterAbi, RollupAbi } from '@aztec/l1-artifacts';
+import { AvailabilityOracleAbi, ContractDeploymentEmitterAbi, RollupAbi } from '@aztec/l1-artifacts';
 
 import {
   GetContractReturnType,
@@ -31,6 +31,11 @@ import {
  * Pushes transactions to the L1 rollup contract using viem.
  */
 export class ViemTxSender implements L1PublisherTxSender {
+  private availabilityOracleContract: GetContractReturnType<
+    typeof AvailabilityOracleAbi,
+    PublicClient<HttpTransport, chains.Chain>,
+    WalletClient<HttpTransport, chains.Chain, PrivateKeyAccount>
+  >;
   private rollupContract: GetContractReturnType<
     typeof RollupAbi,
     PublicClient<HttpTransport, chains.Chain>,
@@ -61,6 +66,12 @@ export class ViemTxSender implements L1PublisherTxSender {
       transport: http(chain.rpcUrl),
     });
 
+    this.availabilityOracleContract = getContract({
+      address: getAddress(l1Contracts.availabilityOracleAddress.toString()),
+      abi: AvailabilityOracleAbi,
+      publicClient: this.publicClient,
+      walletClient,
+    });
     this.rollupContract = getContract({
       address: getAddress(l1Contracts.rollupAddress.toString()),
       abi: RollupAbi,
@@ -78,6 +89,11 @@ export class ViemTxSender implements L1PublisherTxSender {
   async getCurrentArchive(): Promise<Buffer> {
     const archive = await this.rollupContract.read.archive();
     return Buffer.from(archive.replace('0x', ''), 'hex');
+  }
+
+  checkIfTxsAreAvailable(block: L2Block): Promise<boolean> {
+    const args = [`0x${block.getCalldataHash().toString('hex')}`] as const;
+    return this.availabilityOracleContract.read.isAvailable(args);
   }
 
   async getTransactionStats(txHash: string): Promise<TransactionStats | undefined> {
@@ -109,11 +125,30 @@ export class ViemTxSender implements L1PublisherTxSender {
         transactionHash: txHash,
         gasUsed: receipt.gasUsed,
         gasPrice: receipt.effectiveGasPrice,
+        logs: receipt.logs,
       };
     }
 
     this.log(`Receipt not found for tx hash ${txHash}`);
     return undefined;
+  }
+
+  /**
+   * Publishes tx effects to Availability Oracle.
+   * @param encodedBody - Encoded block body.
+   * @returns The hash of the mined tx.
+   */
+  async sendPublishTx(encodedBody: Buffer): Promise<string | undefined> {
+    const args = [`0x${encodedBody.toString('hex')}`] as const;
+
+    const gas = await this.availabilityOracleContract.estimateGas.publish(args, {
+      account: this.account,
+    });
+    const hash = await this.availabilityOracleContract.write.publish(args, {
+      gas,
+      account: this.account,
+    });
+    return hash;
   }
 
   /**
@@ -125,6 +160,7 @@ export class ViemTxSender implements L1PublisherTxSender {
     const args = [
       `0x${encodedData.header.toString('hex')}`,
       `0x${encodedData.archive.toString('hex')}`,
+      `0x${encodedData.txsHash.toString('hex')}`,
       `0x${encodedData.body.toString('hex')}`,
       `0x${encodedData.proof.toString('hex')}`,
     ] as const;

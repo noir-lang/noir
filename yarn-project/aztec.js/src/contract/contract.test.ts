@@ -21,6 +21,7 @@ describe('Contract Class', () => {
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
   const mockViewResultValue = 1;
   const l1Addresses: L1ContractAddresses = {
+    availabilityOracleAddress: EthAddress.random(),
     rollupAddress: EthAddress.random(),
     registryAddress: EthAddress.random(),
     inboxAddress: EthAddress.random(),

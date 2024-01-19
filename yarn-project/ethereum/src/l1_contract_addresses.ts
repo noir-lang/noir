@@ -5,6 +5,10 @@ import { EthAddress } from '@aztec/foundation/eth-address';
  */
 export interface L1ContractAddresses {
   /**
+   * Availability Oracle Address.
+   */
+  availabilityOracleAddress: EthAddress;
+  /**
    * Rollup Address.
    */
   rollupAddress: EthAddress;

@@ -56,6 +56,7 @@ export function getConfigEnvVars(): ArchiverConfig {
     ETHEREUM_HOST,
     ARCHIVER_POLLING_INTERVAL_MS,
     ARCHIVER_VIEM_POLLING_INTERVAL_MS,
+    AVAILABILITY_ORACLE_CONTRACT_ADDRESS,
     ROLLUP_CONTRACT_ADDRESS,
     CONTRACT_DEPLOYMENT_EMITTER_ADDRESS,
     API_KEY,
@@ -66,6 +67,9 @@ export function getConfigEnvVars(): ArchiverConfig {
   } = process.env;
   // Populate the relevant addresses for use by the archiver.
   const addresses: L1ContractAddresses = {
+    availabilityOracleAddress: AVAILABILITY_ORACLE_CONTRACT_ADDRESS
+      ? EthAddress.fromString(AVAILABILITY_ORACLE_CONTRACT_ADDRESS)
+      : EthAddress.ZERO,
     rollupAddress: ROLLUP_CONTRACT_ADDRESS ? EthAddress.fromString(ROLLUP_CONTRACT_ADDRESS) : EthAddress.ZERO,
     registryAddress: REGISTRY_CONTRACT_ADDRESS ? EthAddress.fromString(REGISTRY_CONTRACT_ADDRESS) : EthAddress.ZERO,
     inboxAddress: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,

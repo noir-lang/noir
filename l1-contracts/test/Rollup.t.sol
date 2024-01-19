@@ -16,6 +16,7 @@ import {Inbox} from "../src/core/messagebridge/Inbox.sol";
 import {Outbox} from "../src/core/messagebridge/Outbox.sol";
 import {Errors} from "../src/core/libraries/Errors.sol";
 import {Rollup} from "../src/core/Rollup.sol";
+import {AvailabilityOracle} from "../src/core/availability_oracle/AvailabilityOracle.sol";
 
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.
@@ -27,6 +28,7 @@ contract RollupTest is DecoderBase {
   Inbox internal inbox;
   Outbox internal outbox;
   Rollup internal rollup;
+  AvailabilityOracle internal availabilityOracle;
 
   function setUp() public virtual {
     helper = new DecoderHelper();
@@ -34,7 +36,8 @@ contract RollupTest is DecoderBase {
     registry = new Registry();
     inbox = new Inbox(address(registry));
     outbox = new Outbox(address(registry));
-    rollup = new Rollup(registry);
+    availabilityOracle = new AvailabilityOracle();
+    rollup = new Rollup(registry, availabilityOracle);
 
     registry.upgrade(address(rollup), address(inbox), address(outbox));
   }
@@ -67,8 +70,10 @@ contract RollupTest is DecoderBase {
       mstore(add(header, 0x20), 0x420)
     }
 
+    bytes32 txsHash = availabilityOracle.publish(body);
+
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidChainId.selector, 0x420, 31337));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, txsHash, body, bytes(""));
   }
 
   function testRevertInvalidVersion() public {
@@ -81,8 +86,10 @@ contract RollupTest is DecoderBase {
       mstore(add(header, 0x40), 0x420)
     }
 
+    bytes32 txsHash = availabilityOracle.publish(body);
+
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidVersion.selector, 0x420, 1));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, txsHash, body, bytes(""));
   }
 
   function testRevertTimestampInFuture() public {
@@ -96,8 +103,10 @@ contract RollupTest is DecoderBase {
       mstore(add(header, 0x80), ts)
     }
 
+    bytes32 txsHash = availabilityOracle.publish(body);
+
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampInFuture.selector));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, txsHash, body, bytes(""));
   }
 
   function testRevertTimestampTooOld() public {
@@ -109,8 +118,10 @@ contract RollupTest is DecoderBase {
     // Overwrite in the rollup contract
     vm.store(address(rollup), bytes32(uint256(1)), bytes32(uint256(block.timestamp)));
 
+    bytes32 txsHash = availabilityOracle.publish(body);
+
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampTooOld.selector));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, txsHash, body, bytes(""));
   }
 
   function _testBlock(string memory name) public {
@@ -131,8 +142,10 @@ contract RollupTest is DecoderBase {
       assertTrue(inbox.contains(full.messages.l1ToL2Messages[i]), "msg not in inbox");
     }
 
+    bytes32 txsHash = availabilityOracle.publish(body);
+
     vm.record();
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, txsHash, body, bytes(""));
 
     (, bytes32[] memory inboxWrites) = vm.accesses(address(inbox));
     (, bytes32[] memory outboxWrites) = vm.accesses(address(outbox));

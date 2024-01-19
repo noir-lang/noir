@@ -4,6 +4,7 @@ pragma solidity >=0.8.18;
 
 // Interfaces
 import {IRollup} from "./interfaces/IRollup.sol";
+import {IAvailabilityOracle} from "./interfaces/IAvailabilityOracle.sol";
 import {IInbox} from "./interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "./interfaces/messagebridge/IOutbox.sol";
 import {IRegistry} from "./interfaces/messagebridge/IRegistry.sol";
@@ -16,7 +17,6 @@ import {Errors} from "./libraries/Errors.sol";
 
 // Contracts
 import {MockVerifier} from "../mock/MockVerifier.sol";
-import {AvailabilityOracle} from "./availability_oracle/AvailabilityOracle.sol";
 
 /**
  * @title Rollup
@@ -27,8 +27,8 @@ import {AvailabilityOracle} from "./availability_oracle/AvailabilityOracle.sol";
 contract Rollup is IRollup {
   MockVerifier public immutable VERIFIER;
   IRegistry public immutable REGISTRY;
+  IAvailabilityOracle public immutable AVAILABILITY_ORACLE;
   uint256 public immutable VERSION;
-  AvailabilityOracle public immutable AVAILABILITY_ORACLE;
 
   bytes32 public archive; // Root of the archive tree
   uint256 public lastBlockTs;
@@ -36,10 +36,10 @@ contract Rollup is IRollup {
   // See https://github.com/AztecProtocol/aztec-packages/issues/1614
   uint256 public lastWarpedBlockTs;
 
-  constructor(IRegistry _registry) {
+  constructor(IRegistry _registry, IAvailabilityOracle _availabilityOracle) {
     VERIFIER = new MockVerifier();
-    AVAILABILITY_ORACLE = new AvailabilityOracle();
     REGISTRY = _registry;
+    AVAILABILITY_ORACLE = _availabilityOracle;
     VERSION = 1;
   }
 
@@ -47,13 +47,15 @@ contract Rollup is IRollup {
    * @notice Process an incoming L2 block and progress the state
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
+   * @param _txsHash - Transactions hash.
    * @param _body - The L2 block body
    * @param _proof - The proof of correct execution
    */
   function process(
     bytes calldata _header,
     bytes32 _archive,
-    bytes calldata _body, // TODO(#3944): this will be replaced with _txsHash once the separation is finished.
+    bytes32 _txsHash, // TODO(#3938) Update this to be actual txs hash and not the old block calldata hash.
+    bytes calldata _body, // TODO(#3938) Update this to pass in only th messages and not the whole body.
     bytes memory _proof
   ) external override(IRollup) {
     // Decode and validate header
@@ -61,16 +63,8 @@ contract Rollup is IRollup {
     HeaderLib.validate(header, VERSION, lastBlockTs, archive);
 
     // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
-    bytes32 txsHash;
-    {
-      // @todo @LHerskind Hack such that the node is unchanged for now.
-      // should be removed when we have a proper block publication.
-      txsHash = AVAILABILITY_ORACLE.publish(_body);
-    }
-
-    if (!AVAILABILITY_ORACLE.isAvailable(txsHash)) {
-      // @todo @LHerskind Impossible to hit with above hack.
-      revert Errors.Rollup__UnavailableTxs(txsHash);
+    if (!AVAILABILITY_ORACLE.isAvailable(_txsHash)) {
+      revert Errors.Rollup__UnavailableTxs(_txsHash);
     }
 
     // Decode the cross-chain messages
@@ -78,7 +72,7 @@ contract Rollup is IRollup {
       MessagesDecoder.decode(_body);
 
     bytes32[] memory publicInputs = new bytes32[](1);
-    publicInputs[0] = _computePublicInputHash(_header, txsHash, inHash);
+    publicInputs[0] = _computePublicInputHash(_header, _txsHash, inHash);
 
     // @todo @benesjan We will need `nextAvailableLeafIndex` of archive to verify the proof. This value is equal to
     // current block number which is stored in the header (header.globalVariables.blockNumber).

@@ -18,12 +18,15 @@ contract AvailabilityOracle is IAvailabilityOracle {
 
   /**
    * @notice Publishes transactions and marks its commitment, the TxsHash, as available
-   * @param _body - The L1 calldata
+   * @param _body - The block body
    * @return txsHash - The TxsHash
    */
   function publish(bytes calldata _body) external override(IAvailabilityOracle) returns (bytes32) {
     bytes32 _txsHash = TxsDecoder.decode(_body);
     isAvailable[_txsHash] = true;
+
+    emit TxsPublished(_txsHash);
+
     return _txsHash;
   }
 }

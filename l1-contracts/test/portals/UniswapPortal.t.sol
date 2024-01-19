@@ -4,6 +4,7 @@ import "forge-std/Test.sol";
 
 // Rollup Processor
 import {Rollup} from "../../src/core/Rollup.sol";
+import {AvailabilityOracle} from "../../src/core/availability_oracle/AvailabilityOracle.sol";
 import {Inbox} from "../../src/core/messagebridge/Inbox.sol";
 import {Registry} from "../../src/core/messagebridge/Registry.sol";
 import {Outbox} from "../../src/core/messagebridge/Outbox.sol";
@@ -51,7 +52,7 @@ contract UniswapPortalTest is Test {
     Registry registry = new Registry();
     inbox = new Inbox(address(registry));
     outbox = new Outbox(address(registry));
-    rollup = new Rollup(registry);
+    rollup = new Rollup(registry, new AvailabilityOracle());
     registry.upgrade(address(rollup), address(inbox), address(outbox));
 
     daiTokenPortal = new TokenPortal();
