@@ -6,7 +6,7 @@ using namespace bb::plonk;
 
 template <typename Builder> void create_pedersen_constraint(Builder& builder, const PedersenConstraint& input)
 {
-    using field_ct = bb::plonk::stdlib::field_t<Builder>;
+    using field_ct = bb::stdlib::field_t<Builder>;
 
     std::vector<field_ct> scalars;
 
@@ -24,7 +24,7 @@ template <typename Builder> void create_pedersen_constraint(Builder& builder, co
 
 template <typename Builder> void create_pedersen_hash_constraint(Builder& builder, const PedersenHashConstraint& input)
 {
-    using field_ct = bb::plonk::stdlib::field_t<Builder>;
+    using field_ct = bb::stdlib::field_t<Builder>;
 
     std::vector<field_ct> scalars;
 

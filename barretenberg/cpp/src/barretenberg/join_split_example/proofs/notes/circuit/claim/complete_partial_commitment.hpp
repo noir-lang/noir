@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 
 inline auto complete_partial_commitment(field_ct const& partial_commitment,
                                         field_ct const& interaction_nonce,

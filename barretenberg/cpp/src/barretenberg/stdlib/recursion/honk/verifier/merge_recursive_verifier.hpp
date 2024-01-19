@@ -4,7 +4,7 @@
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 
-namespace bb::plonk::stdlib::recursion::goblin {
+namespace bb::stdlib::recursion::goblin {
 template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
   public:
     using Curve = bn254<CircuitBuilder>;
@@ -26,4 +26,4 @@ template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
     PairingPoints verify_proof(const plonk::proof& proof);
 };
 
-} // namespace bb::plonk::stdlib::recursion::goblin
+} // namespace bb::stdlib::recursion::goblin

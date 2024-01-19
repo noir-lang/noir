@@ -5,7 +5,7 @@
 
 using namespace bb;
 
-namespace bb::plonk::stdlib {
+namespace bb::stdlib {
 
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G>::element()
@@ -730,4 +730,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator*(const Fr& scalar) const
         return element(out_x, out_y) - element(offset_generators.second);
     }
 }
-} // namespace bb::plonk::stdlib
+} // namespace bb::stdlib

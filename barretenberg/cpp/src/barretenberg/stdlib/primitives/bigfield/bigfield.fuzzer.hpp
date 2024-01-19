@@ -121,11 +121,11 @@ FastRandom VarianceRNG(0);
  */
 template <typename Builder> class BigFieldBase {
   private:
-    typedef bb::plonk::stdlib::bool_t<Builder> bool_t;
-    typedef bb::plonk::stdlib::field_t<Builder> field_t;
-    typedef bb::plonk::stdlib::witness_t<Builder> witness_t;
-    typedef bb::plonk::stdlib::public_witness_t<Builder> public_witness_t;
-    typedef bb::plonk::stdlib::bigfield<Builder, bb::Bn254FqParams> bigfield_t;
+    typedef bb::stdlib::bool_t<Builder> bool_t;
+    typedef bb::stdlib::field_t<Builder> field_t;
+    typedef bb::stdlib::witness_t<Builder> witness_t;
+    typedef bb::stdlib::public_witness_t<Builder> public_witness_t;
+    typedef bb::stdlib::bigfield<Builder, bb::Bn254FqParams> bigfield_t;
 
   public:
     /**
@@ -163,7 +163,7 @@ template <typename Builder> class BigFieldBase {
             Element(uint64_t v)
                 : value(v)
             {}
-            fq value;
+            bb::fq value;
         };
         struct TwoArgs {
             uint8_t in;
@@ -364,7 +364,7 @@ template <typename Builder> class BigFieldBase {
          * @return Mutated element
          */
         template <typename T>
-        inline static fq mutateFieldElement(fq e, T& rng, HavocSettings& havoc_config)
+        inline static bb::fq mutateFieldElement(bb::fq e, T& rng, HavocSettings& havoc_config)
             requires SimpleRng<T>
         {
             // With a certain probability, we apply changes to the Montgomery form, rather than the plain form. This
@@ -384,9 +384,9 @@ template <typename Builder> class BigFieldBase {
             // Inverse conversion at the end
 #define INV_MONT_CONVERSION                                                                                            \
     if (convert_to_montgomery) {                                                                                       \
-        e = fq(value_data).from_montgomery_form();                                                                     \
+        e = bb::fq(value_data).from_montgomery_form();                                                                 \
     } else {                                                                                                           \
-        e = fq(value_data);                                                                                            \
+        e = bb::fq(value_data);                                                                                        \
     }
 
             // Pick the last value from the mutation distrivution vector
@@ -404,9 +404,9 @@ template <typename Builder> class BigFieldBase {
                     e = e.to_montgomery_form();
                 }
                 if (rng.next() & 1) {
-                    value_data = e + fq(rng.next() & 0xff);
+                    value_data = e + bb::fq(rng.next() & 0xff);
                 } else {
-                    value_data = e - fq(rng.next() & 0xff);
+                    value_data = e - bb::fq(rng.next() & 0xff);
                 }
                 if (convert_to_montgomery) {
                     e = e.from_montgomery_form();
@@ -416,31 +416,31 @@ template <typename Builder> class BigFieldBase {
                 MONT_CONVERSION
                 switch (rng.next() % 9) {
                 case 0:
-                    e = fq::zero();
+                    e = bb::fq::zero();
                     break;
                 case 1:
-                    e = fq::one();
+                    e = bb::fq::one();
                     break;
                 case 2:
-                    e = -fq::one();
+                    e = -bb::fq::one();
                     break;
                 case 3:
-                    e = fq::one().sqrt().second;
+                    e = bb::fq::one().sqrt().second;
                     break;
                 case 4:
-                    e = fq::one().sqrt().second.invert();
+                    e = bb::fq::one().sqrt().second.invert();
                     break;
                 case 5:
-                    e = fq::get_root_of_unity(8);
+                    e = bb::fq::get_root_of_unity(8);
                     break;
                 case 6:
-                    e = fq(2);
+                    e = bb::fq(2);
                     break;
                 case 7:
-                    e = fq((fq::modulus - 1) / 2);
+                    e = bb::fq((bb::fq::modulus - 1) / 2);
                     break;
                 case 8:
-                    e = fq((fr::modulus));
+                    e = bb::fq((bb::fr::modulus));
                     break;
                 default:
                     abort();
@@ -585,9 +585,9 @@ template <typename Builder> class BigFieldBase {
     // instruction is enabled (if it is -1,it's disabled )
     class ArgSizes {
       public:
-        static constexpr size_t CONSTANT = sizeof(fq);
-        static constexpr size_t WITNESS = sizeof(fq);
-        static constexpr size_t CONSTANT_WITNESS = sizeof(fq);
+        static constexpr size_t CONSTANT = sizeof(bb::fq);
+        static constexpr size_t WITNESS = sizeof(bb::fq);
+        static constexpr size_t CONSTANT_WITNESS = sizeof(bb::fq);
         static constexpr size_t SQR = 2;
         static constexpr size_t ASSERT_EQUAL = 2;
         static constexpr size_t ASSERT_NOT_EQUAL = 2;
@@ -665,7 +665,7 @@ template <typename Builder> class BigFieldBase {
                           opcode == Instruction::OPCODE::CONSTANT_WITNESS) {
                 Instruction instr;
                 instr.id = static_cast<typename Instruction::OPCODE>(opcode);
-                instr.arguments.element.value = fq::serialize_from_buffer(Data);
+                instr.arguments.element.value = bb::fq::serialize_from_buffer(Data);
                 return instr;
             };
             if constexpr (opcode == Instruction::OPCODE::RANDOMSEED) {
@@ -821,14 +821,14 @@ template <typename Builder> class BigFieldBase {
         }
         uint256_t bf_u256(void) const
         {
-            return static_cast<uint256_t>((this->bigfield.get_value() % uint512_t(fq::modulus)).lo);
+            return static_cast<uint256_t>((this->bigfield.get_value() % uint512_t(bb::fq::modulus)).lo);
         }
 
       public:
-        fq base;
+        bb::fq base;
         bigfield_t bigfield;
         ExecutionHandler() = default;
-        ExecutionHandler(fq a, bigfield_t b)
+        ExecutionHandler(bb::fq a, bigfield_t b)
             : base(a)
             , bigfield(b)
         {
@@ -844,7 +844,7 @@ template <typename Builder> class BigFieldBase {
                 }
             }
         }
-        ExecutionHandler(fq a, bigfield_t& b)
+        ExecutionHandler(bb::fq a, bigfield_t& b)
             : base(a)
             , bigfield(b)
         {
@@ -860,7 +860,7 @@ template <typename Builder> class BigFieldBase {
                 }
             }
         }
-        ExecutionHandler(fq& a, bigfield_t& b)
+        ExecutionHandler(bb::fq& a, bigfield_t& b)
             : base(a)
             , bigfield(b)
         {
@@ -905,12 +905,12 @@ template <typename Builder> class BigFieldBase {
             case 2: {
                 /* Construct 'numerators' such that its sum equals this->base */
 
-                fq v = 0;
+                bb::fq v = 0;
                 std::vector<bigfield_t> numerators;
                 while (v != this->base) {
                     const auto add =
-                        static_cast<uint256_t>(fq::random_element()) % (static_cast<uint256_t>(this->base - v) + 1);
-                    numerators.push_back(bigfield_t(this->bigfield.context, fq(add)));
+                        static_cast<uint256_t>(bb::fq::random_element()) % (static_cast<uint256_t>(this->base - v) + 1);
+                    numerators.push_back(bigfield_t(this->bigfield.context, bb::fq(add)));
                     v += add;
                 }
 
@@ -932,7 +932,7 @@ template <typename Builder> class BigFieldBase {
         ExecutionHandler sqr_add(const std::vector<ExecutionHandler>& to_add)
         {
             std::vector<bigfield_t> to_add_bf;
-            fq accumulator = this->base.sqr();
+            bb::fq accumulator = this->base.sqr();
             for (size_t i = 0; i < to_add.size(); i++) {
                 to_add_bf.push_back(to_add[i].bigfield);
                 accumulator += to_add[i].base;
@@ -947,7 +947,7 @@ template <typename Builder> class BigFieldBase {
             std::vector<bigfield_t> input_left_bf;
             std::vector<bigfield_t> input_right_bf;
             std::vector<bigfield_t> to_add_bf;
-            fq accumulator = fq::zero();
+            bb::fq accumulator = bb::fq::zero();
             for (size_t i = 0; i < input_left.size(); i++) {
                 input_left_bf.push_back(input_left[i].bigfield);
                 input_right_bf.push_back(input_right[i].bigfield);
@@ -967,7 +967,7 @@ template <typename Builder> class BigFieldBase {
             std::vector<bigfield_t> input_left_bf;
             std::vector<bigfield_t> input_right_bf;
             std::vector<bigfield_t> to_sub_bf;
-            fq accumulator = fq::zero();
+            bb::fq accumulator = bb::fq::zero();
             for (size_t i = 0; i < input_left.size(); i++) {
                 input_left_bf.push_back(input_left[i].bigfield);
                 input_right_bf.push_back(input_right[i].bigfield);
@@ -1128,7 +1128,7 @@ template <typename Builder> class BigFieldBase {
             // THis is strange
             stack.push_back(
                 ExecutionHandler(instruction.arguments.element.value,
-                                 bigfield_t::from_witness(builder, fq(instruction.arguments.element.value))));
+                                 bigfield_t::from_witness(builder, bb::fq(instruction.arguments.element.value))));
             // stack.push_back(
             //    bigfield_t::create_from_u512_as_witness(builder,
             //    uint256_t(instruction.arguments.element.value)));
@@ -1387,11 +1387,11 @@ template <typename Builder> class BigFieldBase {
             PRINT_TWO_ARG_INSTRUCTION(first_index, second_index, stack, "Dividing", "/")
 
             ExecutionHandler result;
-            if (fq((stack[second_index].bigfield.get_value() % fq::modulus).lo) == 0) {
+            if (bb::fq((stack[second_index].bigfield.get_value() % bb::fq::modulus).lo) == 0) {
                 return 0; // This is not handled by bigfield
             }
             // TODO: FIX THIS. I can't think of an elegant fix for this bigfield issue right now
-            // if (fq((stack[first_index].bigfield.get_value() % fq::modulus).lo) == 0) {
+            // if (bb::fq((stack[first_index].bigfield.get_value() % bb::fq::modulus).lo) == 0) {
             //     return 0;
             // }
             result = stack[first_index] / stack[second_index];
@@ -1569,7 +1569,7 @@ template <typename Builder> class BigFieldBase {
                       << stack[divisor_index].bigfield.get_value() << ") at " << divisor_index << std::endl;
 
 #endif
-            if (fq((stack[divisor_index].bigfield.get_value() % fq::modulus).lo) == 0) {
+            if (bb::fq((stack[divisor_index].bigfield.get_value() % bb::fq::modulus).lo) == 0) {
                 return 0; // This is not handled by bigfield by default, need to enable check
             }
             for (size_t i = 0; i < instruction.arguments.multOpArgs.mult_pairs_count; i++) {
@@ -1792,7 +1792,7 @@ template <typename Builder> class BigFieldBase {
         (void)builder;
         for (size_t i = 0; i < stack.size(); i++) {
             auto element = stack[i];
-            if (fq((element.bigfield.get_value() % uint512_t(fq::modulus)).lo) != element.base) {
+            if (bb::fq((element.bigfield.get_value() % uint512_t(bb::fq::modulus)).lo) != element.base) {
                 std::cerr << "Failed at " << i << " with actual value " << element.base << " and value in bigfield "
                           << element.bigfield.get_value() << std::endl;
                 return false;

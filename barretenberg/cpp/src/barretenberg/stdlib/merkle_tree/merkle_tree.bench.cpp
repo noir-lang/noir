@@ -5,7 +5,7 @@
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;
-using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::stdlib::merkle_tree;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

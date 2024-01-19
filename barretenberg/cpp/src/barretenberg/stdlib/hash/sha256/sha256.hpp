@@ -5,10 +5,9 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "sha256_plookup.hpp"
 #include <array>
-// namespace bb::plonk
+// namespace bb
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 template <typename Builder> class bit_array;
 
 template <typename Builder>
@@ -24,5 +23,4 @@ template <typename Builder> field_t<Builder> sha256_to_field(const packed_byte_a
     return slices[1] + (slices[0] * (uint256_t(1) << 128));
 }
 
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

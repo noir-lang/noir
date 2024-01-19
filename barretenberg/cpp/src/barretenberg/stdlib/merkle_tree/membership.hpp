@@ -4,7 +4,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "hash_path.hpp"
 
-namespace bb::plonk::stdlib::merkle_tree {
+namespace bb::stdlib::merkle_tree {
 
 template <typename Builder> using bit_vector = std::vector<bool_t<Builder>>;
 /**
@@ -314,4 +314,4 @@ void batch_update_membership(field_t<Builder> const& new_root,
         new_root, rollup_root, old_root, old_path, zero_subtree_root, start_index.decompose_into_bits(), height, msg);
 }
 
-} // namespace bb::plonk::stdlib::merkle_tree
+} // namespace bb::stdlib::merkle_tree

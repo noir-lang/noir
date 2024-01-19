@@ -20,7 +20,6 @@
 
 namespace test_stdlib_bigfield {
 using namespace bb;
-using namespace bb::plonk;
 
 /* A note regarding Plookup:
    stdlib_bigfield_plookup tests were present when this file was standardized

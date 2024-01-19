@@ -8,7 +8,7 @@
 namespace bb::stdlib_merkle_tree_hash_test {
 
 using namespace bb;
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 
 using Builder = bb::UltraCircuitBuilder;
 

@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::stdlib::merkle_tree;
 
 void print_tree(const size_t depth, std::vector<fr> hashes, std::string const& msg)
 {

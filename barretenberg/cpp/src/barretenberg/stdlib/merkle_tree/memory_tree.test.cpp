@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::stdlib::merkle_tree;
 
 static std::vector<fr> VALUES = []() {
     std::vector<fr> values(4);

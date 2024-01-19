@@ -5,7 +5,7 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include "transcript.hpp"
 
-namespace bb::plonk::stdlib::recursion {
+namespace bb::stdlib::recursion {
 
 // TODO(Cody): Testing only one circuit type.
 using Builder = StandardCircuitBuilder;
@@ -273,4 +273,4 @@ TEST(stdlib_transcript, validate_transcript)
     auto result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
-} // namespace bb::plonk::stdlib::recursion
+} // namespace bb::stdlib::recursion

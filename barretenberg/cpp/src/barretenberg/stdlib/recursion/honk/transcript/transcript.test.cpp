@@ -8,7 +8,7 @@
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace bb::plonk::stdlib::recursion::honk {
+namespace bb::stdlib::recursion::honk {
 
 using Builder = UltraCircuitBuilder;
 using UltraFlavor = ::bb::honk::flavor::Ultra;
@@ -176,4 +176,4 @@ TEST(RecursiveHonkTranscript, ReturnValuesMatch)
     EXPECT_EQ(static_cast<FF>(native_alpha), stdlib_alpha.get_value());
     EXPECT_EQ(static_cast<FF>(native_beta), stdlib_beta.get_value());
 }
-} // namespace bb::plonk::stdlib::recursion::honk
+} // namespace bb::stdlib::recursion::honk

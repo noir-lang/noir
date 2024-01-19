@@ -14,8 +14,8 @@ auto& engine = numeric::random::get_debug_engine();
 namespace bb::stdlib_merkle_test {
 
 using namespace bb;
-using namespace bb::plonk::stdlib::merkle_tree;
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib::merkle_tree;
+using namespace bb::stdlib;
 
 using Builder = bb::UltraCircuitBuilder;
 

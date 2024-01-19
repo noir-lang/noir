@@ -9,11 +9,7 @@
 #include <iostream>
 #include <sstream>
 
-namespace bb::plonk {
-namespace stdlib {
-namespace merkle_tree {
-
-using namespace bb;
+namespace bb::stdlib::merkle_tree {
 
 template <typename T> inline bool bit_set(T const& index, size_t i)
 {
@@ -85,6 +81,4 @@ template <typename Store> fr NullifierTree<Store>::update_element(fr const& valu
 
 template class NullifierTree<MemoryStore>;
 
-} // namespace merkle_tree
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::merkle_tree

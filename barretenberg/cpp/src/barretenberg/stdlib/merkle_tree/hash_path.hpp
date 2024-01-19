@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace bb::plonk::stdlib::merkle_tree {
+namespace bb::stdlib::merkle_tree {
 
 using namespace bb;
 
@@ -61,13 +61,13 @@ inline fr zero_hash_at_height(size_t height)
     return current;
 }
 
-} // namespace bb::plonk::stdlib::merkle_tree
+} // namespace bb::stdlib::merkle_tree
 
 // We add to std namespace as fr_hash_path is actually a std::vector, and this is the only way
 // to achieve effective ADL.
 namespace std {
 template <typename Ctx>
-inline std::ostream& operator<<(std::ostream& os, bb::plonk::stdlib::merkle_tree::hash_path<Ctx> const& path)
+inline std::ostream& operator<<(std::ostream& os, bb::stdlib::merkle_tree::hash_path<Ctx> const& path)
 {
     os << "[\n";
     for (size_t i = 0; i < path.size(); ++i) {
@@ -77,7 +77,7 @@ inline std::ostream& operator<<(std::ostream& os, bb::plonk::stdlib::merkle_tree
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, bb::plonk::stdlib::merkle_tree::fr_hash_path const& path)
+inline std::ostream& operator<<(std::ostream& os, bb::stdlib::merkle_tree::fr_hash_path const& path)
 {
     os << "[\n";
     for (size_t i = 0; i < path.size(); ++i) {

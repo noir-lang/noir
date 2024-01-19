@@ -14,7 +14,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-using namespace bb::plonk;
+using namespace bb;
 
 template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
     using element_ct = typename Curve::Element;

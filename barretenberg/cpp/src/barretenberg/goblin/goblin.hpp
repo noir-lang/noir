@@ -65,8 +65,7 @@ class Goblin {
     using ECCVMProver = bb::honk::ECCVMProver_<ECCVMFlavor>;
     using TranslatorBuilder = bb::GoblinTranslatorCircuitBuilder;
     using TranslatorComposer = bb::honk::GoblinTranslatorComposer;
-    using RecursiveMergeVerifier =
-        bb::plonk::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
+    using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
     using MergeVerifier = bb::honk::MergeVerifier_<GUHFlavor>;
 
     std::shared_ptr<OpQueue> op_queue = std::make_shared<OpQueue>();

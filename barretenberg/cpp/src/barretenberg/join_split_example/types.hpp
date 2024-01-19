@@ -25,22 +25,22 @@ using Prover = std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, 
 using Verifier =
     std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, plonk::UltraVerifier, plonk::Verifier>;
 
-using witness_ct = bb::plonk::stdlib::witness_t<Builder>;
-using public_witness_ct = bb::plonk::stdlib::public_witness_t<Builder>;
-using bool_ct = bb::plonk::stdlib::bool_t<Builder>;
-using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
-using field_ct = bb::plonk::stdlib::field_t<Builder>;
-using suint_ct = bb::plonk::stdlib::safe_uint_t<Builder>;
-using uint32_ct = bb::plonk::stdlib::uint32<Builder>;
-using group_ct = bb::plonk::stdlib::cycle_group<Builder>;
-using pedersen_commitment = bb::plonk::stdlib::pedersen_commitment<Builder>;
-using pedersen_hash = bb::plonk::stdlib::pedersen_hash<Builder>;
-using bn254 = bb::plonk::stdlib::bn254<Builder>;
+using witness_ct = bb::stdlib::witness_t<Builder>;
+using public_witness_ct = bb::stdlib::public_witness_t<Builder>;
+using bool_ct = bb::stdlib::bool_t<Builder>;
+using byte_array_ct = bb::stdlib::byte_array<Builder>;
+using field_ct = bb::stdlib::field_t<Builder>;
+using suint_ct = bb::stdlib::safe_uint_t<Builder>;
+using uint32_ct = bb::stdlib::uint32<Builder>;
+using group_ct = bb::stdlib::cycle_group<Builder>;
+using pedersen_commitment = bb::stdlib::pedersen_commitment<Builder>;
+using pedersen_hash = bb::stdlib::pedersen_hash<Builder>;
+using bn254 = bb::stdlib::bn254<Builder>;
 
-using hash_path_ct = bb::plonk::stdlib::merkle_tree::hash_path<Builder>;
+using hash_path_ct = bb::stdlib::merkle_tree::hash_path<Builder>;
 
 namespace schnorr {
-using signature_bits = bb::plonk::stdlib::schnorr::signature_bits<Builder>;
+using signature_bits = bb::stdlib::schnorr::signature_bits<Builder>;
 } // namespace schnorr
 
 } // namespace join_split_example

@@ -1,7 +1,6 @@
 #pragma once
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 using plookup::MultiTableId;
 
@@ -643,5 +642,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::lookup_table_base<length>::get(
     }
     return element::one(bits[0].get_context());
 }
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

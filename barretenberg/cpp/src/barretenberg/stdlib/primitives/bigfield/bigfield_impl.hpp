@@ -9,10 +9,7 @@
 #include "../bit_array/bit_array.hpp"
 #include "../field/field.hpp"
 
-using namespace bb;
-
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 template <typename Builder, typename T>
 bigfield<Builder, T>::bigfield(Builder* parent_context)
@@ -2937,5 +2934,4 @@ std::pair<bool, size_t> bigfield<Builder, T>::get_quotient_reduction_info(const 
     return std::pair<bool, size_t>(false, num_quotient_bits);
 }
 
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

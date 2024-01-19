@@ -33,9 +33,9 @@ void generate_test_plonk_circuit(Builder& builder, size_t num_bytes)
 {
     std::string in;
     in.resize(num_bytes);
-    bb::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
+    bb::stdlib::packed_byte_array<Builder> input(&builder, in);
 
-    bb::plonk::stdlib::sha256<Builder>(input);
+    bb::stdlib::sha256<Builder>(input);
 }
 
 // Because of the way we do internal allocations in some of our more complex structures, we can't just globally allocate

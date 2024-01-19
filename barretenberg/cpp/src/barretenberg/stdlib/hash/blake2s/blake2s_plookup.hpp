@@ -9,14 +9,8 @@
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
-
-namespace blake2s_plookup {
+namespace bb::stdlib::blake2s_plookup {
 
 template <typename Builder> byte_array<Builder> blake2s(const byte_array<Builder>& input);
 
-} // namespace blake2s_plookup
-
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::blake2s_plookup

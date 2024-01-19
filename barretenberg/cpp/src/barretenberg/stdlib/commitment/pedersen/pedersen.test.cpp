@@ -8,7 +8,6 @@
 
 namespace test_StdlibPedersen {
 using namespace bb;
-using namespace bb::plonk;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }

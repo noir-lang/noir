@@ -2,9 +2,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
-namespace merkle_tree {
+namespace bb::stdlib::merkle_tree {
 
 using namespace bb;
 typedef uint256_t index_t;
@@ -113,6 +111,4 @@ inline std::pair<size_t, bool> find_closest_leaf(std::vector<WrappedNullifierLea
     return std::make_pair(static_cast<size_t>(it - diff.begin()), repeated);
 }
 
-} // namespace merkle_tree
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::merkle_tree

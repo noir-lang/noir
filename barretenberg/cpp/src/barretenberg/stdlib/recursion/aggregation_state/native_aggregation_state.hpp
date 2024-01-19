@@ -3,9 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/groups/affine_element.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
-namespace recursion {
+namespace bb::stdlib::recursion {
 
 /**
  * Native aggregation state contains the following:
@@ -39,6 +37,4 @@ inline std::ostream& operator<<(std::ostream& os, native_aggregation_state const
               << "has_data: " << obj.has_data << "\n";
 };
 
-} // namespace recursion
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::recursion

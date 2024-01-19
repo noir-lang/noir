@@ -28,9 +28,9 @@ void create_ecdsa_r1_verify_constraints(Builder& builder,
                                         const EcdsaSecp256r1Constraint& input,
                                         bool has_valid_witness_assignments)
 {
-    using secp256r1_ct = bb::plonk::stdlib::secp256r1<Builder>;
-    using bool_ct = bb::plonk::stdlib::bool_t<Builder>;
-    using field_ct = bb::plonk::stdlib::field_t<Builder>;
+    using secp256r1_ct = bb::stdlib::secp256r1<Builder>;
+    using bool_ct = bb::stdlib::bool_t<Builder>;
+    using field_ct = bb::stdlib::field_t<Builder>;
 
     if (has_valid_witness_assignments == false) {
         dummy_ecdsa_constraint(builder, input);

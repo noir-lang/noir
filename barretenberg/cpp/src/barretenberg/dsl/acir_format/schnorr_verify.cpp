@@ -4,7 +4,7 @@
 
 namespace acir_format {
 
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 
 template <typename Builder>
 crypto::schnorr::signature convert_signature(Builder& builder, std::vector<uint32_t> signature)
@@ -45,11 +45,10 @@ crypto::schnorr::signature convert_signature(Builder& builder, std::vector<uint3
 // with just a byte.
 // notice that this function truncates each field_element to a byte
 template <typename Builder>
-bb::plonk::stdlib::byte_array<Builder> vector_of_bytes_to_byte_array(Builder& builder,
-                                                                     std::vector<uint32_t> vector_of_bytes)
+bb::stdlib::byte_array<Builder> vector_of_bytes_to_byte_array(Builder& builder, std::vector<uint32_t> vector_of_bytes)
 {
-    using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
-    using field_ct = bb::plonk::stdlib::field_t<Builder>;
+    using byte_array_ct = bb::stdlib::byte_array<Builder>;
+    using field_ct = bb::stdlib::field_t<Builder>;
 
     byte_array_ct arr(&builder);
 
@@ -66,7 +65,7 @@ bb::plonk::stdlib::byte_array<Builder> vector_of_bytes_to_byte_array(Builder& bu
     return arr;
 }
 
-template <typename Builder> bb::plonk::stdlib::witness_t<Builder> index_to_witness(Builder& builder, uint32_t index)
+template <typename Builder> bb::stdlib::witness_t<Builder> index_to_witness(Builder& builder, uint32_t index)
 {
     fr value = builder.get_variable(index);
     return { &builder, value };
@@ -74,10 +73,10 @@ template <typename Builder> bb::plonk::stdlib::witness_t<Builder> index_to_witne
 
 template <typename Builder> void create_schnorr_verify_constraints(Builder& builder, const SchnorrConstraint& input)
 {
-    using witness_ct = bb::plonk::stdlib::witness_t<Builder>;
-    using cycle_group_ct = bb::plonk::stdlib::cycle_group<Builder>;
-    using schnorr_signature_bits_ct = bb::plonk::stdlib::schnorr::signature_bits<Builder>;
-    using bool_ct = bb::plonk::stdlib::bool_t<Builder>;
+    using witness_ct = bb::stdlib::witness_t<Builder>;
+    using cycle_group_ct = bb::stdlib::cycle_group<Builder>;
+    using schnorr_signature_bits_ct = bb::stdlib::schnorr::signature_bits<Builder>;
+    using bool_ct = bb::stdlib::bool_t<Builder>;
 
     auto new_sig = convert_signature(builder, input.signature);
     // From ignorance, you will see me convert a bunch of witnesses from ByteArray -> BitArray

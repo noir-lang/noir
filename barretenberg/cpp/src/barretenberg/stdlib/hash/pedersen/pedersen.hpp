@@ -6,7 +6,7 @@
 
 #include "../../primitives/circuit_builders/circuit_builders.hpp"
 
-namespace bb::plonk::stdlib {
+namespace bb::stdlib {
 
 using namespace bb;
 /**
@@ -31,4 +31,4 @@ template <typename Builder> class pedersen_hash {
     static field_ct hash_buffer(const stdlib::byte_array<Builder>& input, GeneratorContext context = {});
 };
 
-} // namespace bb::plonk::stdlib
+} // namespace bb::stdlib

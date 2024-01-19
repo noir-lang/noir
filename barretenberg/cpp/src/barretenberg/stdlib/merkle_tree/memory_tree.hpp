@@ -1,7 +1,7 @@
 #pragma once
 #include "hash_path.hpp"
 
-namespace bb::plonk::stdlib::merkle_tree {
+namespace bb::stdlib::merkle_tree {
 
 using namespace bb;
 
@@ -41,4 +41,4 @@ class MemoryTree {
     std::vector<bb::fr> hashes_;
 };
 
-} // namespace bb::plonk::stdlib::merkle_tree
+} // namespace bb::stdlib::merkle_tree

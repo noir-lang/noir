@@ -4,9 +4,7 @@
 #include <map>
 #include <set>
 
-namespace bb::plonk {
-namespace stdlib {
-namespace merkle_tree {
+namespace bb::stdlib::merkle_tree {
 
 class MemoryStore {
   public:
@@ -86,6 +84,4 @@ class MemoryStore {
     std::set<std::string> deletes_;
 };
 
-} // namespace merkle_tree
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::merkle_tree

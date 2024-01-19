@@ -7,8 +7,8 @@
 
 namespace bb::test_stdlib_merkle_tree {
 
-using namespace bb::plonk::stdlib;
-using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::stdlib;
+using namespace bb::stdlib::merkle_tree;
 
 using Builder = bb::UltraCircuitBuilder;
 

@@ -4,7 +4,7 @@
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace bb::plonk::stdlib::recursion::honk {
+namespace bb::stdlib::recursion::honk {
 
 template <typename Flavor>
 UltraRecursiveVerifier_<Flavor>::UltraRecursiveVerifier_(
@@ -128,4 +128,4 @@ template class UltraRecursiveVerifier_<bb::honk::flavor::UltraRecursive_<UltraCi
 template class UltraRecursiveVerifier_<bb::honk::flavor::UltraRecursive_<GoblinUltraCircuitBuilder>>;
 template class UltraRecursiveVerifier_<bb::honk::flavor::GoblinUltraRecursive_<UltraCircuitBuilder>>;
 template class UltraRecursiveVerifier_<bb::honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>>;
-} // namespace bb::plonk::stdlib::recursion::honk
+} // namespace bb::stdlib::recursion::honk

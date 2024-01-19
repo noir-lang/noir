@@ -7,8 +7,7 @@
  * We use a special case algorithm to split bn254 scalar multipliers into endomorphism scalars
  *
  **/
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 /**
  * Perform a multi-scalar multiplication over the BN254 curve
@@ -423,5 +422,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vec
     // Return our scalar mul output
     return accumulator;
 }
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

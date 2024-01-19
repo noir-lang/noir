@@ -19,7 +19,6 @@
 
 namespace stdlib_cycle_group_tests {
 using namespace bb;
-using namespace bb::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

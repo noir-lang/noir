@@ -7,7 +7,7 @@
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 #include <array>
 
-namespace bb::plonk::stdlib::schnorr {
+namespace bb::stdlib::schnorr {
 
 /**
  * @brief Instantiate a witness containing the signature (s, e) as a quadruple of
@@ -112,4 +112,4 @@ SIGNATURE_VERIFICATION_RESULT(bb::GoblinUltraCircuitBuilder);
 CONVERT_SIGNATURE(bb::StandardCircuitBuilder);
 CONVERT_SIGNATURE(bb::UltraCircuitBuilder);
 CONVERT_SIGNATURE(bb::GoblinUltraCircuitBuilder);
-} // namespace bb::plonk::stdlib::schnorr
+} // namespace bb::stdlib::schnorr

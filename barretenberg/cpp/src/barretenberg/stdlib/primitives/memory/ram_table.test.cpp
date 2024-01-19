@@ -6,7 +6,7 @@
 
 namespace test_stdlib_ram_table {
 
-using namespace bb::plonk;
+using namespace bb;
 // Defining ultra-specific types for local testing.
 using Builder = bb::UltraCircuitBuilder;
 using field_ct = stdlib::field_t<Builder>;

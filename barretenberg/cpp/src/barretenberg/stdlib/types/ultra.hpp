@@ -19,9 +19,9 @@
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 #include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
 
-namespace bb::plonk::stdlib::types {
+namespace bb::stdlib::types {
 
-using namespace bb::plonk;
+using namespace bb;
 
 using Builder = bb::UltraCircuitBuilder;
 using Composer = plonk::UltraComposer;
@@ -66,4 +66,4 @@ using rom_table_ct = stdlib::rom_table<plonk::UltraComposer>;
 
 using recursive_inner_verifier_settings = recursion::recursive_ultra_verifier_settings<bn254>;
 
-} // namespace bb::plonk::stdlib::types
+} // namespace bb::stdlib::types

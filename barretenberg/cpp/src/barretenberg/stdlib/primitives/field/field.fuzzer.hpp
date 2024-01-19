@@ -120,10 +120,10 @@ FastRandom VarianceRNG(0);
  */
 template <typename Builder> class FieldBase {
   private:
-    typedef bb::plonk::stdlib::bool_t<Builder> bool_t;
-    typedef bb::plonk::stdlib::field_t<Builder> field_t;
-    typedef bb::plonk::stdlib::witness_t<Builder> witness_t;
-    typedef bb::plonk::stdlib::public_witness_t<Builder> public_witness_t;
+    typedef bb::stdlib::bool_t<Builder> bool_t;
+    typedef bb::stdlib::field_t<Builder> field_t;
+    typedef bb::stdlib::witness_t<Builder> witness_t;
+    typedef bb::stdlib::public_witness_t<Builder> public_witness_t;
 
   public:
     /**

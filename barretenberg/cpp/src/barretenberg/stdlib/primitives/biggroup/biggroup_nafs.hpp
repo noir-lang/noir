@@ -1,8 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 /**
  * Split a secp256k1 Fr element into two 129 bit scalars `klo, khi`, where `scalar = klo + \lambda * khi mod n`
@@ -567,5 +566,4 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
     }
     return naf_entries;
 }
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

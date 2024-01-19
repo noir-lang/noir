@@ -4,7 +4,7 @@
 #include "barretenberg/common/assert.hpp"
 #include <functional>
 
-namespace bb::plonk::stdlib {
+namespace bb::stdlib {
 
 template <typename Builder> class bool_t;
 template <typename Builder> class field_t {
@@ -424,4 +424,4 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, fi
 {
     return os << v.get_value();
 }
-} // namespace bb::plonk::stdlib
+} // namespace bb::stdlib

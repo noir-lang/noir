@@ -3,7 +3,7 @@
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 
 namespace rollup {
 namespace proofs {

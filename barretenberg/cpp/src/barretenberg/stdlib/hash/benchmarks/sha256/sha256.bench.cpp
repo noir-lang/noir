@@ -26,8 +26,8 @@ void generate_test_plonk_circuit(Builder& builder, size_t num_bytes)
     for (size_t i = 0; i < num_bytes; ++i) {
         in[i] = get_random_char();
     }
-    bb::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
-    bb::plonk::stdlib::sha256<Builder>(input);
+    bb::stdlib::packed_byte_array<Builder> input(&builder, in);
+    bb::stdlib::sha256<Builder>(input);
 }
 
 void* builders[NUM_HASHES];

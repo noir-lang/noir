@@ -4,8 +4,7 @@
 
 using namespace bb;
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 namespace {
 template <typename Builder> Builder* get_context_from_fields(const std::vector<field_t<Builder>>& input)
@@ -270,5 +269,4 @@ template class packed_byte_array<bb::StandardCircuitBuilder>;
 template class packed_byte_array<bb::UltraCircuitBuilder>;
 template class packed_byte_array<bb::GoblinUltraCircuitBuilder>;
 
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

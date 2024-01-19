@@ -14,7 +14,7 @@ namespace join_split {
 
 using namespace bb::plonk;
 using namespace notes::circuit;
-using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::stdlib::merkle_tree;
 using namespace crypto::schnorr;
 
 /**
@@ -33,7 +33,7 @@ field_ct process_input_note(field_ct const& account_private_key,
     const bool_ct valid_value = note.value == 0 || is_note_in_use;
     valid_value.assert_equal(true, "padding note non zero");
 
-    const bool_ct exists = bb::plonk::stdlib::merkle_tree::check_membership(
+    const bool_ct exists = bb::stdlib::merkle_tree::check_membership(
         merkle_root, hash_path, note.commitment, index.value.decompose_into_bits(DATA_TREE_DEPTH));
     const bool_ct valid = exists || is_propagated || !is_note_in_use;
     valid.assert_equal(true, "input note not a member");

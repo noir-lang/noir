@@ -15,7 +15,7 @@
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include <map>
 
-namespace bb::plonk::stdlib::recursion {
+namespace bb::stdlib::recursion {
 
 /**
  * @brief Constructs a packed buffer of field elements to be fed into a Pedersen hash function
@@ -244,7 +244,7 @@ template <typename Curve> struct verification_key {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
 
-        key->polynomial_manifest = PolynomialManifest(Builder::CIRCUIT_TYPE);
+        key->polynomial_manifest = plonk::PolynomialManifest(Builder::CIRCUIT_TYPE);
         key->domain = evaluation_domain<Builder>::from_field_elements({ fields[0], fields[1], fields[2] });
 
         key->n = fields[3];
@@ -260,7 +260,8 @@ template <typename Curve> struct verification_key {
 
         size_t count = 22;
         for (const auto& descriptor : key->polynomial_manifest.get()) {
-            if (descriptor.source == PolynomialSource::SELECTOR || descriptor.source == PolynomialSource::PERMUTATION) {
+            if (descriptor.source == plonk::PolynomialSource::SELECTOR ||
+                descriptor.source == plonk::PolynomialSource::PERMUTATION) {
 
                 const auto x_lo = fields[count++];
                 const auto x_hi = fields[count++];
@@ -441,7 +442,7 @@ template <typename Curve> struct verification_key {
 
     std::shared_ptr<bb::srs::factories::VerifierCrs<curve::BN254>> reference_string;
 
-    PolynomialManifest polynomial_manifest;
+    plonk::PolynomialManifest polynomial_manifest;
     // Used to check in the circuit if a proof contains any aggregated state.
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
@@ -449,4 +450,4 @@ template <typename Curve> struct verification_key {
     Builder* context;
 };
 
-} // namespace bb::plonk::stdlib::recursion
+} // namespace bb::stdlib::recursion

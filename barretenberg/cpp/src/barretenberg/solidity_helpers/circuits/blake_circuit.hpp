@@ -4,7 +4,7 @@
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
 using namespace bb::plonk;
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 
 using numeric::uint256_t;
 

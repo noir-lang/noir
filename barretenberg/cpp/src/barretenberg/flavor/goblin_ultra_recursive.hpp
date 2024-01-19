@@ -41,7 +41,7 @@ namespace bb::honk::flavor {
 template <typename BuilderType> class GoblinUltraRecursive_ {
   public:
     using CircuitBuilder = BuilderType; // Determines arithmetization of circuit instantiated with this flavor
-    using Curve = plonk::stdlib::bn254<CircuitBuilder>;
+    using Curve = stdlib::bn254<CircuitBuilder>;
     using GroupElement = typename Curve::Element;
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::Element;
@@ -152,7 +152,7 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
     // Reuse the VerifierCommitments from GoblinUltra
     using VerifierCommitments = GoblinUltra::VerifierCommitments_<Commitment, VerificationKey>;
     // Reuse the transcript from GoblinUltra
-    using Transcript = bb::plonk::stdlib::recursion::honk::Transcript<CircuitBuilder>;
+    using Transcript = bb::stdlib::recursion::honk::Transcript<CircuitBuilder>;
 };
 
 } // namespace bb::honk::flavor

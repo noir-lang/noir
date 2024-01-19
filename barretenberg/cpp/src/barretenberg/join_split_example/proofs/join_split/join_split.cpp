@@ -9,7 +9,7 @@ namespace proofs {
 namespace join_split {
 
 using namespace bb::plonk;
-using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::stdlib::merkle_tree;
 
 static std::shared_ptr<plonk::proving_key> proving_key;
 static std::shared_ptr<plonk::verification_key> verification_key;

@@ -1,7 +1,6 @@
 #pragma once
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 /**
  * only works for Plookup (otherwise falls back on batch_mul)! Multiscalar multiplication that utilizes 4-bit wNAF
@@ -57,5 +56,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::wnaf_batch_mul(const std::vector<el
     accumulator -= offset_generators.second;
     return accumulator;
 }
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

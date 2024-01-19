@@ -20,8 +20,8 @@ using namespace bb::plonk;
  */
 template <typename Builder> class VerificationKeyFixture : public testing::Test {
   public:
-    using Curve = bb::plonk::stdlib::bn254<Builder>;
-    using RecursVk = bb::plonk::stdlib::recursion::verification_key<Curve>;
+    using Curve = bb::stdlib::bn254<Builder>;
+    using RecursVk = bb::stdlib::recursion::verification_key<Curve>;
 
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 

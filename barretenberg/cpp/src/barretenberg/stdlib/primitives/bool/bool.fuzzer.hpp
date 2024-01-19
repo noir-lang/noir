@@ -27,8 +27,8 @@ FastRandom VarianceRNG(0);
  */
 template <typename Builder> class BoolFuzzBase {
   private:
-    typedef bb::plonk::stdlib::bool_t<Builder> bool_t;
-    typedef bb::plonk::stdlib::witness_t<Builder> witness_t;
+    typedef bb::stdlib::bool_t<Builder> bool_t;
+    typedef bb::stdlib::witness_t<Builder> witness_t;
 
   public:
     /**

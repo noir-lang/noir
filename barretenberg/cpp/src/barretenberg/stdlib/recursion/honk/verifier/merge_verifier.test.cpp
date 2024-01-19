@@ -4,7 +4,7 @@
 #include "barretenberg/stdlib/recursion/honk/verifier/merge_recursive_verifier.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
-namespace bb::plonk::stdlib::recursion::goblin {
+namespace bb::stdlib::recursion::goblin {
 
 /**
  * @brief Test suite for recursive verification of Goblin Merge proofs
@@ -97,4 +97,4 @@ TEST_F(RecursiveMergeVerifierTest, SingleRecursiveVerification)
     RecursiveMergeVerifierTest::test_recursive_merge_verification();
 };
 
-} // namespace bb::plonk::stdlib::recursion::goblin
+} // namespace bb::stdlib::recursion::goblin

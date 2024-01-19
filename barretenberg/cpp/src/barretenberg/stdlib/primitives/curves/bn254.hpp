@@ -4,8 +4,7 @@
 #include "../field/field.hpp"
 #include "barretenberg/ecc/curves/types.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 template <typename CircuitBuilder> struct bn254 {
     static constexpr bb::CurveType type = bb::CurveType::BN254;
@@ -40,5 +39,4 @@ template <typename CircuitBuilder> struct bn254 {
     using g1_bigfr_ct = element<CircuitBuilder, BaseField, bigfr_ct, GroupNative>;
 
 }; // namespace bn254
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

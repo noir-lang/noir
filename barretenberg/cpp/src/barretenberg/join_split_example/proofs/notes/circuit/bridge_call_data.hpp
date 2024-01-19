@@ -9,7 +9,7 @@ namespace proofs {
 namespace notes {
 namespace circuit {
 
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 
 constexpr uint32_t input_asset_id_a_shift = DEFI_BRIDGE_ADDRESS_ID_LEN;
 constexpr uint32_t input_asset_id_b_shift = input_asset_id_a_shift + DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN;

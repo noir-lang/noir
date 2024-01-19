@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::plonk;
 
 typedef bb::UltraCircuitBuilder Builder;
 typedef stdlib::byte_array<Builder> byte_array;

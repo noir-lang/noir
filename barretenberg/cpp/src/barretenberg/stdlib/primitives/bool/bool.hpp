@@ -2,7 +2,7 @@
 #include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../witness/witness.hpp"
 
-namespace bb::plonk::stdlib {
+namespace bb::stdlib {
 
 template <typename Builder> class bool_t {
   public:
@@ -75,4 +75,4 @@ template <typename T> inline std::ostream& operator<<(std::ostream& os, bool_t<T
     return os << v.get_value();
 }
 
-} // namespace bb::plonk::stdlib
+} // namespace bb::stdlib

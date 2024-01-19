@@ -3,11 +3,7 @@
 #include "../memory_tree.hpp"
 #include "nullifier_leaf.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
-namespace merkle_tree {
-
-using namespace bb;
+namespace bb::stdlib::merkle_tree {
 
 /**
  * An NullifierMemoryTree is structured just like a usual merkle tree:
@@ -93,6 +89,4 @@ class NullifierMemoryTree : public MemoryTree {
     std::vector<WrappedNullifierLeaf> leaves_;
 };
 
-} // namespace merkle_tree
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::merkle_tree

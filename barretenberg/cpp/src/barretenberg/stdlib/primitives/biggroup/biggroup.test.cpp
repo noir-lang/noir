@@ -14,7 +14,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-using namespace bb::plonk;
+using namespace bb;
 
 // One can only define a TYPED_TEST with a single template paramter.
 // Our workaround is to pass parameters of the following type.

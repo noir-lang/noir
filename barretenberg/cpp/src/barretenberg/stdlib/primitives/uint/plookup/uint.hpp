@@ -5,8 +5,7 @@
 #include "../../field/field.hpp"
 #include "../../plookup/plookup.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 template <typename Builder, typename Native> class uint_plookup {
   public:
@@ -172,5 +171,4 @@ template <typename T, typename w> inline std::ostream& operator<<(std::ostream& 
 {
     return os << v.get_value();
 }
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

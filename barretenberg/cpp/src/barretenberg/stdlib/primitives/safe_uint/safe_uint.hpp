@@ -11,8 +11,7 @@
 // Despite the name, it is *not* a "safe" version of the uint class - as operations are positive integer
 // operations, and not modulo 2^t for some t, as they are in the uint class.
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 template <typename Builder> class safe_uint_t {
   private:
@@ -209,5 +208,4 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, sa
 {
     return os << v.value;
 }
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

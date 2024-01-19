@@ -12,8 +12,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/utility/utility.hpp"
 
-// Note: this namespace will be sensible once stdlib is moved out of the plonk namespace
-namespace bb::plonk::stdlib::recursion::honk {
+namespace bb::stdlib::recursion::honk {
 template <typename Builder> class Transcript {
   public:
     using field_ct = field_t<Builder>;
@@ -101,4 +100,4 @@ template <typename Builder> class Transcript {
         return StdlibTypes::from_witness(builder, element);
     }
 };
-} // namespace bb::plonk::stdlib::recursion::honk
+} // namespace bb::stdlib::recursion::honk

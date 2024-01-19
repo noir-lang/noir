@@ -14,8 +14,7 @@ const size_t CIRCUIT_SIZE = 1 << 19;
 void build_circuit(Builder& builder)
 {
     while (builder.get_num_gates() <= CIRCUIT_SIZE / 2) {
-        plonk::stdlib::pedersen_hash<Builder>::hash(
-            { field_ct(witness_ct(&builder, 1)), field_ct(witness_ct(&builder, 1)) });
+        stdlib::pedersen_hash<Builder>::hash({ field_ct(witness_ct(&builder, 1)), field_ct(witness_ct(&builder, 1)) });
     }
 }
 

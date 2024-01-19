@@ -6,8 +6,7 @@
 
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 template <typename CircuitType> struct secp256r1 {
     static constexpr bb::CurveType type = bb::CurveType::SECP256R1;
@@ -29,5 +28,4 @@ template <typename CircuitType> struct secp256r1 {
     typedef element<Builder, fq_ct, fr_ct, g1> g1_ct;
     typedef element<Builder, fq_ct, bigfr_ct, g1> g1_bigfr_ct;
 };
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

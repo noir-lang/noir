@@ -7,7 +7,7 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
-namespace bb::plonk::stdlib::recursion::honk {
+namespace bb::stdlib::recursion::honk {
 
 /**
  * @brief Test suite for recursive verification of Goblin Ultra Honk proofs
@@ -279,4 +279,4 @@ HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, SingleRecursiveVerificationFailure
     TestFixture::test_recursive_verification_fails();
 };
 
-} // namespace bb::plonk::stdlib::recursion::honk
+} // namespace bb::stdlib::recursion::honk

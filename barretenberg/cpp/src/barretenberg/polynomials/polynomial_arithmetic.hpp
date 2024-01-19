@@ -1,8 +1,7 @@
 #pragma once
 #include "evaluation_domain.hpp"
 
-namespace bb {
-namespace polynomial_arithmetic {
+namespace bb::polynomial_arithmetic {
 
 template <typename T>
 concept SupportsFFT = T::Params::has_high_2adicity;
@@ -360,5 +359,4 @@ template <typename Fr> void factor_roots(std::span<Fr> polynomial, std::span<con
     }
 }
 
-} // namespace polynomial_arithmetic
-} // namespace bb
+} // namespace bb::polynomial_arithmetic

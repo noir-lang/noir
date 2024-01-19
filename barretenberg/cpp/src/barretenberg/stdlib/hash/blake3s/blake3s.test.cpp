@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::plonk;
 
 using byte_array = stdlib::byte_array<bb::StandardCircuitBuilder>;
 using public_witness_t = stdlib::public_witness_t<bb::StandardCircuitBuilder>;

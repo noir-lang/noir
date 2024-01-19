@@ -6,7 +6,7 @@
 
 #include "../../primitives/circuit_builders/circuit_builders.hpp"
 
-namespace bb::plonk::stdlib {
+namespace bb::stdlib {
 
 using namespace bb;
 /**
@@ -32,4 +32,4 @@ template <typename Builder> class poseidon2 {
 
 extern template class poseidon2<bb::GoblinUltraCircuitBuilder>;
 
-} // namespace bb::plonk::stdlib
+} // namespace bb::stdlib

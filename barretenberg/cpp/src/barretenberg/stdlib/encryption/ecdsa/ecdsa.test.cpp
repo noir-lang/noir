@@ -7,7 +7,6 @@
 #include "ecdsa.hpp"
 
 using namespace bb;
-using namespace bb::plonk;
 
 namespace test_stdlib_ecdsa {
 using Builder = bb::UltraCircuitBuilder;

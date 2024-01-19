@@ -4,7 +4,7 @@
 
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace bb::plonk::stdlib {
+namespace bb::stdlib {
 
 template <typename C>
 cycle_group<C> pedersen_commitment<C>::commit(const std::vector<field_t>& inputs, const GeneratorContext context)
@@ -44,4 +44,4 @@ template class pedersen_commitment<bb::StandardCircuitBuilder>;
 template class pedersen_commitment<bb::UltraCircuitBuilder>;
 template class pedersen_commitment<bb::GoblinUltraCircuitBuilder>;
 
-} // namespace bb::plonk::stdlib
+} // namespace bb::stdlib

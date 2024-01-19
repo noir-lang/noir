@@ -8,8 +8,8 @@
 namespace bb::test_stdlib_schnorr {
 
 using namespace bb;
-using namespace bb::plonk::stdlib;
-using namespace bb::plonk::stdlib::schnorr;
+using namespace bb::stdlib;
+using namespace bb::stdlib::schnorr;
 
 using Builder = bb::UltraCircuitBuilder;
 using bool_ct = bool_t<Builder>;

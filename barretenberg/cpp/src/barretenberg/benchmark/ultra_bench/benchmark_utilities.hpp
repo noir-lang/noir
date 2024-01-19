@@ -32,9 +32,9 @@ namespace bench_utils {
  */
 template <typename Builder> void generate_basic_arithmetic_circuit(Builder& builder, size_t log2_num_gates)
 {
-    bb::plonk::stdlib::field_t a(bb::plonk::stdlib::witness_t(&builder, bb::fr::random_element()));
-    bb::plonk::stdlib::field_t b(bb::plonk::stdlib::witness_t(&builder, bb::fr::random_element()));
-    bb::plonk::stdlib::field_t c(&builder);
+    bb::stdlib::field_t a(bb::stdlib::witness_t(&builder, bb::fr::random_element()));
+    bb::stdlib::field_t b(bb::stdlib::witness_t(&builder, bb::fr::random_element()));
+    bb::stdlib::field_t c(&builder);
     size_t passes = (1UL << log2_num_gates) / 4 - 4;
     if (static_cast<int>(passes) <= 0) {
         throw std::runtime_error("too few gates");
@@ -58,9 +58,9 @@ template <typename Builder> void generate_sha256_test_circuit(Builder& builder, 
 {
     std::string in;
     in.resize(32);
-    bb::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
+    bb::stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = bb::plonk::stdlib::sha256<Builder>(input);
+        input = bb::stdlib::sha256<Builder>(input);
     }
 }
 
@@ -74,9 +74,9 @@ template <typename Builder> void generate_keccak_test_circuit(Builder& builder, 
 {
     std::string in = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
 
-    bb::plonk::stdlib::byte_array<Builder> input(&builder, in);
+    bb::stdlib::byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = bb::plonk::stdlib::keccak<Builder>::hash(input);
+        input = bb::stdlib::keccak<Builder>::hash(input);
     }
 }
 
@@ -88,7 +88,7 @@ template <typename Builder> void generate_keccak_test_circuit(Builder& builder, 
  */
 template <typename Builder> void generate_ecdsa_verification_test_circuit(Builder& builder, size_t num_iterations)
 {
-    using curve = bb::plonk::stdlib::secp256k1<Builder>;
+    using curve = bb::stdlib::secp256k1<Builder>;
     using fr = typename curve::fr;
     using fq = typename curve::fq;
     using g1 = typename curve::g1;
@@ -114,18 +114,18 @@ template <typename Builder> void generate_ecdsa_verification_test_circuit(Builde
 
         typename curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&builder, account.public_key);
 
-        bb::plonk::stdlib::ecdsa::signature<Builder> sig{ typename curve::byte_array_ct(&builder, rr),
-                                                          typename curve::byte_array_ct(&builder, ss),
-                                                          bb::plonk::stdlib::uint8<Builder>(&builder, vv) };
+        bb::stdlib::ecdsa::signature<Builder> sig{ typename curve::byte_array_ct(&builder, rr),
+                                                   typename curve::byte_array_ct(&builder, ss),
+                                                   bb::stdlib::uint8<Builder>(&builder, vv) };
 
         typename curve::byte_array_ct message(&builder, message_string);
 
         // Verify ecdsa signature
-        bb::plonk::stdlib::ecdsa::verify_signature<Builder,
-                                                   curve,
-                                                   typename curve::fq_ct,
-                                                   typename curve::bigfr_ct,
-                                                   typename curve::g1_bigfr_ct>(message, public_key, sig);
+        bb::stdlib::ecdsa::verify_signature<Builder,
+                                            curve,
+                                            typename curve::fq_ct,
+                                            typename curve::bigfr_ct,
+                                            typename curve::g1_bigfr_ct>(message, public_key, sig);
     }
 }
 
@@ -137,7 +137,7 @@ template <typename Builder> void generate_ecdsa_verification_test_circuit(Builde
  */
 template <typename Builder> void generate_merkle_membership_test_circuit(Builder& builder, size_t num_iterations)
 {
-    using namespace bb::plonk::stdlib;
+    using namespace bb::stdlib;
     using field_ct = field_t<Builder>;
     using witness_ct = witness_t<Builder>;
     using witness_ct = witness_t<Builder>;

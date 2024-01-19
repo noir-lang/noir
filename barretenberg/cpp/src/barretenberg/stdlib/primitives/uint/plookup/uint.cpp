@@ -3,8 +3,7 @@
 
 using namespace bb;
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 template <typename Builder, typename Native>
 std::vector<uint32_t> uint_plookup<Builder, Native>::constrain_accumulators(Builder* context,
@@ -249,5 +248,4 @@ template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint32_t>;
 template class uint_plookup<bb::UltraCircuitBuilder, uint64_t>;
 template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint64_t>;
 
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

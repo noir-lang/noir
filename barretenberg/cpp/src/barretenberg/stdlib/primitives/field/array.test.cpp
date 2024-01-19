@@ -15,7 +15,6 @@ auto& engine = numeric::random::get_debug_engine();
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
 using namespace bb;
-using namespace bb::plonk;
 
 template <typename Builder> class stdlib_array : public testing::Test {
     typedef stdlib::bool_t<Builder> bool_ct;

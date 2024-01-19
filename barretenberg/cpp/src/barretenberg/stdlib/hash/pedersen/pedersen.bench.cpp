@@ -10,7 +10,7 @@
 #define BARRETENBERG_SRS_PATH "../srs_db/ignition"
 
 using namespace benchmark;
-using namespace bb::plonk;
+using namespace bb;
 
 using Builder = bb::UltraCircuitBuilder;
 using Composer = bb::plonk::UltraComposer;
@@ -41,11 +41,11 @@ constexpr size_t get_index(const size_t target_count_base)
 }
 void generate_test_pedersen_hash_circuit(Builder& builder, size_t num_repetitions)
 {
-    plonk::stdlib::field_t<Builder> left(plonk::stdlib::witness_t(&builder, bb::fr::random_element()));
-    plonk::stdlib::field_t<Builder> out(plonk::stdlib::witness_t(&builder, bb::fr::random_element()));
+    stdlib::field_t<Builder> left(stdlib::witness_t(&builder, bb::fr::random_element()));
+    stdlib::field_t<Builder> out(stdlib::witness_t(&builder, bb::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = bb::plonk::stdlib::pedersen_hash<Builder>::hash({ left, out });
+        out = bb::stdlib::pedersen_hash<Builder>::hash({ left, out });
     }
 }
 
@@ -53,10 +53,10 @@ void generate_test_pedersen_hash_buffer_circuit(Builder& builder, size_t num_rep
 {
     stdlib::byte_array<Builder> input;
     for (size_t i = 0; i < num_repetitions; ++i) {
-        stdlib::byte_array<Builder> tmp(plonk::stdlib::witness_t(&builder, bb::fr::random_element()));
+        stdlib::byte_array<Builder> tmp(stdlib::witness_t(&builder, bb::fr::random_element()));
         input.write(tmp);
     }
-    auto out = bb::plonk::stdlib::pedersen_hash<Builder>::hash_buffer(input);
+    auto out = bb::stdlib::pedersen_hash<Builder>::hash_buffer(input);
     (void)out;
 }
 

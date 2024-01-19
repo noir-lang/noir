@@ -9,7 +9,6 @@
 
 namespace test_stdlib_dynamic_array {
 using namespace bb;
-using namespace bb::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

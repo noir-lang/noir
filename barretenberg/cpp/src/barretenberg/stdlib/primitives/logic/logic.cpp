@@ -6,7 +6,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <cstddef>
 
-namespace bb::plonk::stdlib {
+namespace bb::stdlib {
 
 /**
  * @brief A logical AND or XOR over a variable number of bits.
@@ -116,4 +116,4 @@ field_t<Builder> logic<Builder>::create_logic_constraint(
 template class logic<bb::StandardCircuitBuilder>;
 template class logic<bb::UltraCircuitBuilder>;
 template class logic<bb::GoblinUltraCircuitBuilder>;
-} // namespace bb::plonk::stdlib
+} // namespace bb::stdlib

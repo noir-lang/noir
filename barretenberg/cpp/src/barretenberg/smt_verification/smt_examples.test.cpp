@@ -15,9 +15,9 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-using field_t = bb::plonk::stdlib::field_t<StandardCircuitBuilder>;
-using witness_t = bb::plonk::stdlib::witness_t<StandardCircuitBuilder>;
-using pub_witness_t = bb::plonk::stdlib::public_witness_t<StandardCircuitBuilder>;
+using field_t = bb::stdlib::field_t<StandardCircuitBuilder>;
+using witness_t = bb::stdlib::witness_t<StandardCircuitBuilder>;
+using pub_witness_t = bb::stdlib::public_witness_t<StandardCircuitBuilder>;
 
 TEST(circuit_verification, multiplication_true)
 {

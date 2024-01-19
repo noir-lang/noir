@@ -24,7 +24,6 @@ auto& engine = numeric::random::get_debug_engine();
 
 namespace test_stdlib_safe_uint {
 using namespace bb;
-using namespace bb::plonk;
 
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 

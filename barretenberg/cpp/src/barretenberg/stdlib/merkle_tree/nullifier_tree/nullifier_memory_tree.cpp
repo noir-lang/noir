@@ -1,9 +1,7 @@
 #include "nullifier_memory_tree.hpp"
 #include "../hash.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
-namespace merkle_tree {
+namespace bb::stdlib::merkle_tree {
 
 NullifierMemoryTree::NullifierMemoryTree(size_t depth)
     : MemoryTree(depth)
@@ -72,6 +70,4 @@ fr NullifierMemoryTree::update_element(fr const& value)
     return root;
 }
 
-} // namespace merkle_tree
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::merkle_tree

@@ -1,8 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 // indicates whether a witness index actually contains a constant
 static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
@@ -81,5 +80,4 @@ template <typename Builder> class public_witness_t : public witness_t<Builder> {
     }
 };
 
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

@@ -4,7 +4,7 @@
 
 namespace join_split_example::proofs::notes::circuit::value {
 
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 
 struct witness_data {
     group_ct owner;

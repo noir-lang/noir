@@ -30,10 +30,10 @@ FastRandom VarianceRNG(0);
  */
 template <typename Builder> class BitArrayFuzzBase {
   private:
-    typedef bb::plonk::stdlib::bit_array<Builder> bit_array_t;
-    typedef bb::plonk::stdlib::byte_array<Builder> byte_array_t;
+    typedef bb::stdlib::bit_array<Builder> bit_array_t;
+    typedef bb::stdlib::byte_array<Builder> byte_array_t;
     template <size_t NumBytes, size_t NumWords>
-    static std::vector<uint8_t> to_vector(std::array<bb::plonk::stdlib::uint32<Builder>, NumWords>& a32)
+    static std::vector<uint8_t> to_vector(std::array<bb::stdlib::uint32<Builder>, NumWords>& a32)
     {
         /* Convert array of uint32_t to vector of uint8_t */
         std::vector<uint8_t> v(NumBytes);
@@ -60,7 +60,7 @@ template <typename Builder> class BitArrayFuzzBase {
              */
             return static_cast<byte_array_t>(bit_array).get_value();
         } else if (bit_array.size() - offset == NumBits) {
-            std::array<bb::plonk::stdlib::uint32<Builder>, NumWords> a32;
+            std::array<bb::stdlib::uint32<Builder>, NumWords> a32;
             bit_array.template populate_uint32_array<NumWords>(offset, a32);
             return to_vector<NumBytes, NumWords>(a32);
         } else {
@@ -92,7 +92,7 @@ template <typename Builder> class BitArrayFuzzBase {
              */
             return static_cast<byte_array_t>(bit_array).get_value();
         } else if (bit_array.size() == NumBits) {
-            std::array<bb::plonk::stdlib::uint32<Builder>, NumWords> a32;
+            std::array<bb::stdlib::uint32<Builder>, NumWords> a32;
 
             /* Switch between two different methods to retrieve the uint32 array */
             if (cast_or_populate) {
@@ -444,8 +444,7 @@ template <typename Builder> class BitArrayFuzzBase {
                 static_assert(MAX_ARRAY_SIZE % 32 == 0);
                 if (bit_array.size() == MAX_ARRAY_SIZE / 32) {
                     std::array<uint32_t, MAX_ARRAY_SIZE> a32;
-                    const auto a32_ =
-                        static_cast<std::array<bb::plonk::stdlib::uint32<Builder>, MAX_ARRAY_SIZE>>(bit_array);
+                    const auto a32_ = static_cast<std::array<bb::stdlib::uint32<Builder>, MAX_ARRAY_SIZE>>(bit_array);
                     for (size_t i = 0; i < a32_.size(); i++) {
                         a32[i] = static_cast<uint32_t>(a32_[i].get_value());
                     }

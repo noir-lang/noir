@@ -10,9 +10,9 @@ namespace proofs {
 namespace join_split {
 
 using namespace join_split_example::proofs::join_split;
-using namespace bb::plonk::stdlib;
+using namespace bb::stdlib;
 using namespace join_split_example::proofs::notes::native;
-using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::stdlib::merkle_tree;
 
 join_split_tx noop_tx()
 {

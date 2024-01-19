@@ -64,11 +64,11 @@ secp256k1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256k1::g1::affi
 // with just a byte.
 // notice that this function truncates each field_element to a byte
 template <typename Builder>
-bb::plonk::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(Builder& builder,
-                                                                           std::vector<uint32_t> vector_of_bytes)
+bb::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(Builder& builder,
+                                                                    std::vector<uint32_t> vector_of_bytes)
 {
-    using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
-    using field_ct = bb::plonk::stdlib::field_t<Builder>;
+    using byte_array_ct = bb::stdlib::byte_array<Builder>;
+    using field_ct = bb::stdlib::field_t<Builder>;
 
     byte_array_ct arr(&builder);
 
@@ -95,10 +95,10 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
                                         const EcdsaSecp256k1Constraint& input,
                                         bool has_valid_witness_assignments)
 {
-    using secp256k1_ct = bb::plonk::stdlib::secp256k1<Builder>;
-    using field_ct = bb::plonk::stdlib::field_t<Builder>;
-    using bool_ct = bb::plonk::stdlib::bool_t<Builder>;
-    using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
+    using secp256k1_ct = bb::stdlib::secp256k1<Builder>;
+    using field_ct = bb::stdlib::field_t<Builder>;
+    using bool_ct = bb::stdlib::bool_t<Builder>;
+    using byte_array_ct = bb::stdlib::byte_array<Builder>;
 
     if (has_valid_witness_assignments == false) {
         dummy_ecdsa_constraint(builder, input);

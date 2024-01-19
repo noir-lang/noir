@@ -6,16 +6,7 @@
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
-
-using bb::fr;
-using numeric::uint256_t;
-using stdlib::bool_t;
-using stdlib::cycle_group;
-using stdlib::field_t;
-using stdlib::pedersen_commitment;
-using stdlib::witness_t;
+namespace bb::stdlib {
 
 // Native type
 class address {
@@ -143,5 +134,4 @@ template <typename Builder> class address_t {
     friend std::ostream& operator<<(std::ostream& os, address_t<Builder> const& v) { return os << v.address_; }
 };
 
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

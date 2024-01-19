@@ -31,9 +31,9 @@ FastRandom VarianceRNG(0);
  */
 template <typename Builder> class ByteArrayFuzzBase {
   private:
-    typedef bb::plonk::stdlib::byte_array<Builder> byte_array_t;
-    typedef bb::plonk::stdlib::field_t<Builder> field_t;
-    typedef bb::plonk::stdlib::safe_uint_t<Builder> suint_t;
+    typedef bb::stdlib::byte_array<Builder> byte_array_t;
+    typedef bb::stdlib::field_t<Builder> field_t;
+    typedef bb::stdlib::safe_uint_t<Builder> suint_t;
 
     template <class From, class To> static To from_to(const From& in, const std::optional<size_t> size = std::nullopt)
     {

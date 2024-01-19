@@ -9,9 +9,7 @@
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace bb::plonk {
-namespace stdlib {
-namespace sha256_plookup {
+namespace bb::stdlib::sha256_plookup {
 
 template <typename Builder> struct sparse_ch_value {
     field_t<Builder> normal;
@@ -85,6 +83,4 @@ std::array<field_t<Builder>, 8> sha256_block(const std::array<field_t<Builder>, 
                                              const std::array<field_t<Builder>, 16>& input);
 
 template <typename Builder> packed_byte_array<Builder> sha256(const packed_byte_array<Builder>& input);
-} // namespace sha256_plookup
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib::sha256_plookup

@@ -3,8 +3,7 @@
 #include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../field/field.hpp"
 #include "../safe_uint/safe_uint.hpp"
-namespace bb::plonk {
-namespace stdlib {
+namespace bb::stdlib {
 
 template <typename Builder> class byte_array {
   public:
@@ -99,5 +98,4 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, by
     os.flags(f);
     return os;
 }
-} // namespace stdlib
-} // namespace bb::plonk
+} // namespace bb::stdlib

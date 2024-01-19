@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::plonk;
 
 TEST(stdlib_aes128, encrypt_64_bytes)
 {

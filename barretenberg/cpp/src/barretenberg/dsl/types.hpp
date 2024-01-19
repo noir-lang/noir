@@ -37,38 +37,38 @@ using Verifier =
 
 using RecursiveProver = plonk::UltraProver;
 
-using witness_ct = bb::plonk::stdlib::witness_t<Builder>;
-using public_witness_ct = bb::plonk::stdlib::public_witness_t<Builder>;
-using bool_ct = bb::plonk::stdlib::bool_t<Builder>;
-using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
-using packed_byte_array_ct = bb::plonk::stdlib::packed_byte_array<Builder>;
-using field_ct = bb::plonk::stdlib::field_t<Builder>;
-using suint_ct = bb::plonk::stdlib::safe_uint_t<Builder>;
-using uint8_ct = bb::plonk::stdlib::uint8<Builder>;
-using uint16_ct = bb::plonk::stdlib::uint16<Builder>;
-using uint32_ct = bb::plonk::stdlib::uint32<Builder>;
-using uint64_ct = bb::plonk::stdlib::uint64<Builder>;
-using bit_array_ct = bb::plonk::stdlib::bit_array<Builder>;
-using fq_ct = bb::plonk::stdlib::bigfield<Builder, bb::Bn254FqParams>;
-using biggroup_ct = bb::plonk::stdlib::element<Builder, fq_ct, field_ct, bb::g1>;
-using cycle_group_ct = bb::plonk::stdlib::cycle_group<Builder>;
-using cycle_scalar_ct = bb::plonk::stdlib::cycle_group<Builder>::cycle_scalar;
-using pedersen_commitment = bb::plonk::stdlib::pedersen_commitment<Builder>;
-using bn254 = bb::plonk::stdlib::bn254<Builder>;
-using secp256k1_ct = bb::plonk::stdlib::secp256k1<Builder>;
-using secp256r1_ct = bb::plonk::stdlib::secp256r1<Builder>;
+using witness_ct = bb::stdlib::witness_t<Builder>;
+using public_witness_ct = bb::stdlib::public_witness_t<Builder>;
+using bool_ct = bb::stdlib::bool_t<Builder>;
+using byte_array_ct = bb::stdlib::byte_array<Builder>;
+using packed_byte_array_ct = bb::stdlib::packed_byte_array<Builder>;
+using field_ct = bb::stdlib::field_t<Builder>;
+using suint_ct = bb::stdlib::safe_uint_t<Builder>;
+using uint8_ct = bb::stdlib::uint8<Builder>;
+using uint16_ct = bb::stdlib::uint16<Builder>;
+using uint32_ct = bb::stdlib::uint32<Builder>;
+using uint64_ct = bb::stdlib::uint64<Builder>;
+using bit_array_ct = bb::stdlib::bit_array<Builder>;
+using fq_ct = bb::stdlib::bigfield<Builder, bb::Bn254FqParams>;
+using biggroup_ct = bb::stdlib::element<Builder, fq_ct, field_ct, bb::g1>;
+using cycle_group_ct = bb::stdlib::cycle_group<Builder>;
+using cycle_scalar_ct = bb::stdlib::cycle_group<Builder>::cycle_scalar;
+using pedersen_commitment = bb::stdlib::pedersen_commitment<Builder>;
+using bn254 = bb::stdlib::bn254<Builder>;
+using secp256k1_ct = bb::stdlib::secp256k1<Builder>;
+using secp256r1_ct = bb::stdlib::secp256r1<Builder>;
 
-using hash_path_ct = bb::plonk::stdlib::merkle_tree::hash_path<Builder>;
+using hash_path_ct = bb::stdlib::merkle_tree::hash_path<Builder>;
 
-using schnorr_signature_bits_ct = bb::plonk::stdlib::schnorr::signature_bits<Builder>;
+using schnorr_signature_bits_ct = bb::stdlib::schnorr::signature_bits<Builder>;
 
 // Ultra-composer specific typesv
-using rom_table_ct = bb::plonk::stdlib::rom_table<Builder>;
-using ram_table_ct = bb::plonk::stdlib::ram_table<Builder>;
+using rom_table_ct = bb::stdlib::rom_table<Builder>;
+using ram_table_ct = bb::stdlib::ram_table<Builder>;
 
-using verification_key_ct = bb::plonk::stdlib::recursion::verification_key<bn254>;
-using aggregation_state_ct = bb::plonk::stdlib::recursion::aggregation_state<bn254>;
-using noir_recursive_settings = bb::plonk::stdlib::recursion::recursive_ultra_verifier_settings<bn254>;
-using Transcript_ct = bb::plonk::stdlib::recursion::Transcript<Builder>;
+using verification_key_ct = bb::stdlib::recursion::verification_key<bn254>;
+using aggregation_state_ct = bb::stdlib::recursion::aggregation_state<bn254>;
+using noir_recursive_settings = bb::stdlib::recursion::recursive_ultra_verifier_settings<bn254>;
+using Transcript_ct = bb::stdlib::recursion::Transcript<Builder>;
 
 } // namespace acir_format
