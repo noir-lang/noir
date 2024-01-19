@@ -48,7 +48,7 @@ nargo new hello_world
 > `test`).
 
 A `hello_world` folder would be created. Similar to Rust, the folder houses _src/main.nr_ and
-_Nargo.toml_ that contains the source code and environmental options of your Noir program
+_Nargo.toml_ which contain the source code and environmental options of your Noir program
 respectively.
 
 ### Intro to Noir Syntax
@@ -96,7 +96,7 @@ _Prover.toml_ houses input values, and _Verifier.toml_ houses public values.
 
 ## Prove Our Noir Program
 
-Now that the project is set up, we can create a proof of correct execution on our Noir program.
+Now that the project is set up, we can create a proof of correct execution of our Noir program.
 
 Fill in input values for execution in the _Prover.toml_ file. For example:
 

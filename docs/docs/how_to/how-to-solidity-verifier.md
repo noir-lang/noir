@@ -32,11 +32,11 @@ This guide shows you how to generate a Solidity Verifier and deploy it on the [R
 
 ## Rundown
 
-Generating a Solidity Verifier contract is actually a one-command process. However, compiling it and deploying it can have some caveats. Here's our guide rundown:
+Generating a Solidity Verifier contract is actually a one-command process. However, compiling it and deploying it can have some caveats. Here's the rundown of this guide:
 
-1. How to generate our solidity smart contract
-2. How to compile our smart contract in the RemixIDE
-3. How to deploy it on a testnet
+1. How to generate a solidity smart contract
+2. How to compile the smart contract in the RemixIDE
+3. How to deploy it to a testnet
 
 ## Step 1 - Generate a contract
 
@@ -47,14 +47,13 @@ nargo codegen-verifier
 ```
 
 A new `contract` folder would then be generated in your project directory, containing the Solidity
-file `plonk_vk.sol`. It can be deployed on any EVM blockchain acting as a verifier smart contract.
+file `plonk_vk.sol`. It can be deployed to any EVM blockchain acting as a verifier smart contract.
 
 :::info
 
-It is possible to compile verifier contracts of Noir programs for other smart contract platforms as long as the proving backend supplies an implementation.
+It is possible to generate verifier contracts of Noir programs for other smart contract platforms as long as the proving backend supplies an implementation.
 
-Barretenberg, the default proving backend for Nargo, supports compilation of verifier contracts in Solidity only for the time being.
-
+Barretenberg, the default proving backend for Nargo, supports generation of verifier contracts, for the time being these are only in Solidity.
 :::
 
 ## Step 2 - Compiling
@@ -72,7 +71,7 @@ You'll likely see a warning advising you to not trust pasted code. While it is a
 
 :::
 
-To compile our circuit, we can navigate to the compilation tab:
+To compile our the verifier, we can navigate to the compilation tab:
 
 ![Compilation Tab](@site/static/img/how-tos/solidity_verifier_2.png)
 
@@ -80,11 +79,11 @@ Remix should automatically match a suitable compiler version. However, hitting t
 
 ![Stack too deep](@site/static/img/how-tos/solidity_verifier_3.png)
 
-This is due to a lot of variables being too deep into the stack, but can be fixed by applying some optimization. To do this, let's open the "Advanced Configurations" tab and enable optimization. The error should go away if we apply any number of optimization rounds, but for the sake of reducing gas cost, let's try 2000 rounds.
+This is due to the verify function needing to put many variables on the stack, but enabling the optimizer resolves the issue. To do this, let's open the "Advanced Configurations" tab and enable optimization. The default 200 runs will suffice.
 
 :::info
 
-This time we will see a warning about an unused function parameter. This is expected, as the `verify` function doesn't use the `_proof` parameter inside a solidity block. Most of the contract is actually written in assembly.
+This time we will see a warning about an unused function parameter. This is expected, as the `verify` function doesn't use the `_proof` parameter inside a solidity block, it is loaded from calldata and used in assembly.
 
 :::
 
@@ -98,7 +97,7 @@ Looking closely, we will notice that our "Solidity Verifier" is actually three c
 
 - An `UltraVerificationKey` library which simply stores the verification key for our circuit.
 - An abstract contract `BaseUltraVerifier` containing most of the verifying logic.
-- A main `UltraVerifier` contract that glues these two contracts.
+- A main `UltraVerifier` contract that inherits from the Base and uses the Key contract.
 
 Remix will take care of the dependencies for us so we can simply deploy the UltraVerifier contract by selecting it and hitting "deploy":
 
@@ -110,7 +109,7 @@ A contract will show up in the "Deployed Contracts" section, where we can retrie
 
 Why "UltraVerifier"?
 
-To be precise, Noir doesn't actually generate the contract for us, it simply compiles it and executes it on the backend. The backend returns the contract, not Noir.
+To be precise, the Noir compiler (`nargo`) doesn't generate the verifier contract directly. It compiles the Noir code into an intermediate language (ACIR), which is then executed by the backend. So it is the backend that returns the verifier smart contract, not Noir.
 
 In this case, the Barretenberg Backend uses the UltraPlonk proving system, hence the "UltraVerifier" name.
 
@@ -122,10 +121,10 @@ To verify a proof using the Solidity verifier contract, we call the `verify` fun
 function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)
 ```
 
-When using the default example in the [Hello Noir](../getting_started/hello_noir/index.md) guide, the easiest way to verify the contract is doing its job is just calling `nargo prove` and using the output in the `proof` folder (prepended with a `0x`). We can also copy the public inputs from `Verifier.toml`, as they'll be properly formatted as 32-byte strings:
+When using the default example in the [Hello Noir](../getting_started/hello_noir/index.md) guide, the easiest way to confirm that the verifier contract is doing its job is by calling the `verify` function via remix with the required parameters. For `_proof`, run `nargo prove` and use the string in `proof/<file>.proof` (adding the hex `0x` prefix). We can also copy the public input from `Verifier.toml`, as it will be properly formatted as 32-byte strings:
 
-```json
-["0x0000.....01", "0x0000.....02"]
+```
+0x...<proof bytes>... , [0x0000.....02]
 ```
 
 A programmatic example of how the `verify` function is called can be seen in the example zk voting application [here](https://github.com/noir-lang/noir-examples/blob/33e598c257e2402ea3a6b68dd4c5ad492bce1b0a/foundry-voting/src/zkVote.sol#L35):
@@ -149,7 +148,7 @@ Noir.
 Under the hood, the return value is passed as an input to the circuit and is checked at the end of
 the circuit program.
 
-For example, if you have Noir program like this, the `verify` function will expect 3 public inputs:
+For example, if you have Noir program like this, the `verify` function will expect the public inputs array (second function parameter) to be of length 3:
 
 ```rust
 fn main(
@@ -163,7 +162,7 @@ fn main(
 
 Passing two inputs will result in an error such as `PUBLIC_INPUT_COUNT_INVALID(3, 2)`.
 
-In this case, the 3 inputs to `verify` would be ordered as `[pubkey_x, pubkey_y, return]`.
+In this case, the inputs parameter to `verify` would be an array ordered as `[pubkey_x, pubkey_y, return]`.
 
 :::
 
@@ -201,7 +200,7 @@ It's worth noticing that the `verify` function is actually a `view` function. Th
 
 This can be particularly useful in some situations. If Alice generated a proof and wants Bob to verify its correctness, Bob doesn't need to run Nargo, NoirJS, or any Noir specific infrastructure. He can simply make a call to the blockchain with the proof and verify it is correct without paying any gas.
 
-It would be incorrect to say that a Noir proof verification costs any gas at all. However, most of the time the result of `verify` is used to modify state (for example, to update a balance, a game state, etc). In that case the whole network needs to execute it, which incurs in a significant gas cost.
+It would be incorrect to say that a Noir proof verification costs any gas at all. However, most of the time the result of `verify` is used to modify state (for example, to update a balance, a game state, etc). In that case the whole network needs to execute it, which does incur gas costs (calldata and execution, but not storage).
 
 :::
 

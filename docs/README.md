@@ -15,6 +15,9 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 
 ### Installation
 
+This project requires recent versions of rust and cargo to be installed.
+Any build errors should indicate dependencies that need installing, and at what version.
+
 On the root folder of the repository, run:
 
 ```
