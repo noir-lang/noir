@@ -1,4 +1,4 @@
-import { Archiver, LMDBArchiverStore } from '@aztec/archiver';
+import { Archiver, KVArchiverDataStore } from '@aztec/archiver';
 import { AztecNodeConfig } from '@aztec/aztec-node';
 import {
   AztecAddress,
@@ -10,9 +10,9 @@ import {
   Wallet,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { TokenContract } from '@aztec/noir-contracts/Token';
 
-import { open } from 'lmdb';
 import { Chain, HttpTransport, PublicClient } from 'viem';
 
 import { delay, deployAndInitializeTokenAndBridgeContracts, setNextBlockTimestamp, setup } from './fixtures/utils.js';
@@ -43,7 +43,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     config.archiverPollingIntervalMS = 100;
     archiver = await Archiver.createAndSync(
       { ...config, l1Contracts: deployL1ContractsValues.l1ContractAddresses },
-      new LMDBArchiverStore(open({} as any)),
+      new KVArchiverDataStore(await AztecLmdbStore.create(deployL1ContractsValues.l1ContractAddresses.rollupAddress)),
     );
 
     const walletClient = deployL1ContractsValues.walletClient;

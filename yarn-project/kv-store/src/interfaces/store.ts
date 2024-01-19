@@ -1,4 +1,6 @@
 import { AztecArray } from './array.js';
+import { Key } from './common.js';
+import { AztecCounter } from './counter.js';
 import { AztecMap, AztecMultiMap } from './map.js';
 import { AztecSingleton } from './singleton.js';
 
@@ -31,6 +33,12 @@ export interface AztecKVStore {
    * @returns The singleton
    */
   createSingleton<T>(name: string): AztecSingleton<T>;
+
+  /**
+   * Creates a new count map.
+   * @param name - name of the counter
+   */
+  createCounter<K extends Key>(name: string): AztecCounter<K>;
 
   /**
    * Starts a transaction. All calls to read/write data while in a transaction are queued and executed atomically.

@@ -4,10 +4,12 @@ import { Logger, createDebugLogger } from '@aztec/foundation/log';
 import { Database, Key, RootDatabase, open } from 'lmdb';
 
 import { AztecArray } from '../interfaces/array.js';
+import { AztecCounter } from '../interfaces/counter.js';
 import { AztecMap, AztecMultiMap } from '../interfaces/map.js';
 import { AztecSingleton } from '../interfaces/singleton.js';
 import { AztecKVStore } from '../interfaces/store.js';
 import { LmdbAztecArray } from './array.js';
+import { LmdbAztecCounter } from './counter.js';
 import { LmdbAztecMap } from './map.js';
 import { LmdbAztecSingleton } from './singleton.js';
 
@@ -86,6 +88,10 @@ export class AztecLmdbStore implements AztecKVStore {
    */
   createMultiMap<K extends string | number, V>(name: string): AztecMultiMap<K, V> {
     return new LmdbAztecMap(this.#multiMapData, name);
+  }
+
+  createCounter<K extends string | number | Array<string | number>>(name: string): AztecCounter<K> {
+    return new LmdbAztecCounter(this.#data, name);
   }
 
   /**
