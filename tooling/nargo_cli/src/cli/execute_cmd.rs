@@ -5,7 +5,7 @@ use clap::Args;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::ops::DefaultForeignCallExecutor;
+use nargo::ops::{compile_program, DefaultForeignCallExecutor};
 use nargo::package::Package;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -16,10 +16,10 @@ use noirc_driver::{
 };
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::compile_bin_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::backends::Backend;
+use crate::cli::compile_cmd::report_errors;
 use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value
@@ -69,13 +69,22 @@ pub(crate) fn run(
     let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width = backend.get_backend_info_or_default();
-    for package in &workspace {
-        let compiled_program = compile_bin_package(
+    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+    for package in binary_packages {
+        let compilation_result = compile_program(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
             expression_width,
+            None,
+        );
+
+        let compiled_program = report_errors(
+            compilation_result,
+            &workspace_file_manager,
+            args.compile_options.deny_warnings,
+            args.compile_options.silence_warnings,
         )?;
 
         let (return_value, solved_witness) = execute_program_and_decode(

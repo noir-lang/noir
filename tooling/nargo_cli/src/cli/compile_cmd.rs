@@ -158,36 +158,6 @@ pub(super) fn compile_workspace(
     Ok((compiled_programs, compiled_contracts))
 }
 
-pub(crate) fn compile_bin_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    package: &Package,
-    compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
-) -> Result<CompiledProgram, CliError> {
-    if package.is_library() {
-        return Err(CompileError::LibraryCrate(package.name.clone()).into());
-    }
-
-    let compilation_result = compile_program(
-        file_manager,
-        parsed_files,
-        package,
-        compile_options,
-        expression_width,
-        None,
-    );
-
-    let program = report_errors(
-        compilation_result,
-        file_manager,
-        compile_options.deny_warnings,
-        compile_options.silence_warnings,
-    )?;
-
-    Ok(program)
-}
-
 pub(super) fn save_program(
     program: CompiledProgram,
     package: &Package,
