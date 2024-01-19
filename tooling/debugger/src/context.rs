@@ -1,3 +1,4 @@
+use crate::foreign_calls::DebugForeignCallExecutor;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::{brillig::Value, Registers};
@@ -8,8 +9,8 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::errors::{ExecutionError, Location};
-use nargo::ops::ForeignCallExecutor;
 use nargo::NargoError;
+use noirc_printable_type::{PrintableType, PrintableValue};
 
 use std::collections::{hash_set::Iter, HashSet};
 
@@ -24,7 +25,7 @@ pub(super) enum DebugCommandResult {
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     acvm: ACVM<'a, B>,
     brillig_solver: Option<BrilligSolver<'a, B>>,
-    foreign_call_executor: Box<dyn ForeignCallExecutor + 'a>,
+    foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
     debug_artifact: &'a DebugArtifact,
     breakpoints: HashSet<OpcodeLocation>,
 }
@@ -35,7 +36,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         circuit: &'a Circuit,
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
-        foreign_call_executor: Box<dyn ForeignCallExecutor + 'a>,
+        foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
     ) -> Self {
         Self {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
@@ -76,15 +77,49 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
+    pub(super) fn is_source_location_in_debug_module(&self, location: &Location) -> bool {
+        self.debug_artifact
+            .file_map
+            .get(&location.file)
+            .map(|file| file.path.starts_with("__debug/"))
+            .unwrap_or(false)
+    }
+
     /// Returns the callstack in source code locations for the currently
     /// executing opcode. This can be `None` if the execution finished (and
     /// `get_current_opcode_location()` returns `None`) or if the opcode is not
     /// mapped to a specific source location in the debug artifact (which can
-    /// happen for certain opcodes inserted synthetically by the compiler)
+    /// happen for certain opcodes inserted synthetically by the compiler).
+    /// This function also filters source locations that are determined to be in
+    /// the internal debug module.
     pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
         self.get_current_opcode_location()
             .as_ref()
-            .and_then(|location| self.debug_artifact.debug_symbols[0].opcode_location(location))
+            .map(|opcode_location| self.get_source_location_for_opcode_location(opcode_location))
+            .filter(|v: &Vec<Location>| !v.is_empty())
+    }
+
+    /// Returns the (possible) stack of source locations corresponding to the
+    /// given opcode location. Due to compiler inlining it's possible for this
+    /// function to return multiple source locations. An empty vector means that
+    /// the given opcode location cannot be mapped back to a source location
+    /// (eg. it may be pure debug instrumentation code or other synthetically
+    /// produced opcode by the compiler)
+    pub(super) fn get_source_location_for_opcode_location(
+        &self,
+        opcode_location: &OpcodeLocation,
+    ) -> Vec<Location> {
+        self.debug_artifact.debug_symbols[0]
+            .opcode_location(opcode_location)
+            .map(|source_locations| {
+                source_locations
+                    .into_iter()
+                    .filter(|source_location| {
+                        !self.is_source_location_in_debug_module(source_location)
+                    })
+                    .collect()
+            })
+            .unwrap_or(vec![])
     }
 
     fn get_opcodes_sizes(&self) -> Vec<usize> {
@@ -372,6 +407,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
+    pub(super) fn get_variables(&self) -> Vec<(&str, &PrintableValue, &PrintableType)> {
+        return self.foreign_call_executor.get_variables();
+    }
+
     fn breakpoint_reached(&self) -> bool {
         if let Some(location) = self.get_current_opcode_location() {
             self.breakpoints.contains(&location)
@@ -432,6 +471,7 @@ mod tests {
     use super::*;
     use crate::context::{DebugCommandResult, DebugContext};
 
+    use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
         acir::{
             circuit::{
@@ -445,7 +485,7 @@ mod tests {
             BinaryFieldOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory,
         },
     };
-    use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor};
+    use nargo::artifacts::debug::DebugArtifact;
     use std::collections::BTreeMap;
 
     #[test]
@@ -485,12 +525,14 @@ mod tests {
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
+        let foreign_call_executor =
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, &debug_artifact));
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            foreign_call_executor,
         );
 
         assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(0)));
@@ -577,12 +619,14 @@ mod tests {
 
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
+        let foreign_call_executor =
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, &debug_artifact));
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,
             debug_artifact,
             initial_witness,
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            foreign_call_executor,
         );
 
         // set breakpoint
@@ -631,7 +675,7 @@ mod tests {
             &circuit,
             &debug_artifact,
             WitnessMap::new(),
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            Box::new(DefaultDebugForeignCallExecutor::new(true)),
         );
 
         assert_eq!(context.offset_opcode_location(&None, 0), (None, 0));

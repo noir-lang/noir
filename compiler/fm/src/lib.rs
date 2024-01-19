@@ -78,6 +78,21 @@ impl FileManager {
         Some(file_id)
     }
 
+    pub fn add_file_with_contents(&mut self, file_name: &Path, contents: &str) -> Option<FileId> {
+        // Handle both relative file paths and std/lib virtual paths.
+        let resolved_path: PathBuf = file_name.to_path_buf();
+
+        // Check that the resolved path already exists in the file map, if it is, we return it.
+        if let Some(file_id) = self.path_to_id.get(&resolved_path) {
+            return Some(*file_id);
+        }
+
+        // Otherwise we add the file
+        let file_id = self.file_map.add_file(resolved_path.clone().into(), String::from(contents));
+        self.register_path(file_id, resolved_path);
+        Some(file_id)
+    }
+
     fn register_path(&mut self, file_id: FileId, path: PathBuf) {
         let old_value = self.id_to_path.insert(file_id, path.clone());
         assert!(

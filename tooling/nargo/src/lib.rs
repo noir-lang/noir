@@ -119,6 +119,7 @@ pub fn prepare_package<'file_manager, 'parsed_files>(
     let mut context = Context::from_ref_file_manager(file_manager, parsed_files);
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
+    context.root_crate_id = crate_id;
 
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
 

@@ -46,6 +46,10 @@ pub(crate) fn run(
     args: DebugCommand,
     config: NargoConfig,
 ) -> Result<(), CliError> {
+    // TODO: set clap default for flattened flag
+    let mut args = args.clone();
+    args.compile_options.instrument_debug = true;
+
     let toml_path = get_package_manifest(&config.program_dir)?;
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(

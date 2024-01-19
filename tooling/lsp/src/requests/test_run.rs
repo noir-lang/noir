@@ -4,7 +4,7 @@ use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
-    prepare_package,
+    parse_all, prepare_package,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -13,7 +13,6 @@ use noirc_driver::{
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    parse_diff,
     types::{NargoTestRunParams, NargoTestRunResult},
     LspState,
 };
@@ -26,7 +25,7 @@ pub(crate) fn on_test_run_request(
 }
 
 fn on_test_run_request_inner(
-    state: &mut LspState,
+    state: &LspState,
     params: NargoTestRunParams,
 ) -> Result<NargoTestRunResult, ResponseError> {
     let root_path = state.root_path.as_deref().ok_or_else(|| {
@@ -53,7 +52,7 @@ fn on_test_run_request_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_diff(&workspace_file_manager, state);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
@@ -83,7 +82,7 @@ fn on_test_run_request_inner(
 
             let test_result = run_test(
                 &state.solver,
-                &context,
+                &mut context,
                 test_function,
                 false,
                 None,

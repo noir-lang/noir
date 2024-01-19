@@ -276,7 +276,7 @@ mod tests {
         let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
 
-        let debug_symbols = vec![DebugInfo::new(opcode_locations)];
+        let debug_symbols = vec![DebugInfo::new(opcode_locations, (vec![], vec![]))];
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 
         let location_rendered: Vec<_> = render_location(&debug_artifact, &loc).collect();

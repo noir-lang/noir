@@ -3,7 +3,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness, Visibility,
+    hir_def::function::FunctionSignature, monomorphization::debug_types, BinaryOpKind,
+    Distinctness, Signedness, Visibility,
 };
 
 /// The monomorphized AST is expression-based, all statements are also
@@ -245,6 +246,7 @@ pub struct Program {
     /// forwarding to the next phase.
     pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
+    pub debug_var_types: debug_types::VariableTypes,
     pub return_visibility: Visibility,
 }
 
@@ -254,6 +256,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
         return_location: Option<Location>,
+        debug_var_types: debug_types::VariableTypes,
         return_visibility: Visibility,
     ) -> Program {
         Program {
@@ -261,6 +264,7 @@ impl Program {
             main_function_signature,
             return_distinctness,
             return_location,
+            debug_var_types,
             return_visibility,
         }
     }

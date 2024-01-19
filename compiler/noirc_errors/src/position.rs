@@ -86,6 +86,10 @@ impl Span {
         self.0.end().into()
     }
 
+    pub fn build_from_str(s: &str) -> Span {
+        Span(ByteSpan::from_str(s))
+    }
+
     pub fn contains(&self, other: &Span) -> bool {
         self.start() <= other.start() && self.end() >= other.end()
     }

@@ -1328,7 +1328,15 @@ impl Context {
                 AcirValue::Array(elements.collect())
             }
             Value::Intrinsic(..) => todo!(),
-            Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
+            Value::Function(function_id) => {
+                // This conversion is for debugging support only, to allow the
+                // debugging instrumentation code to work. Taking the reference
+                // of a function in ACIR is useless.
+                AcirValue::Var(
+                    self.acir_context.add_constant(function_id.to_usize()),
+                    AcirType::field(),
+                )
+            }
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
