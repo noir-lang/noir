@@ -96,7 +96,7 @@ pub(crate) fn run(
     }
 
     let binary_packages =
-        workspace.into_iter().filter(|package| !package.is_binary()).zip(compiled_programs);
+        workspace.into_iter().filter(|package| package.is_binary()).zip(compiled_programs);
     let program_info = binary_packages
         .par_bridge()
         .map(|(package, program)| {
