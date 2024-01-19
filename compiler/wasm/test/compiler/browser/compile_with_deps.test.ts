@@ -2,7 +2,8 @@
 import { getPaths } from '../../shared';
 import { expect } from '@esm-bundle/chai';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
-import { CompiledContract } from '../../../src/types/noir_artifact';
+import { ContractArtifact } from '../../../src/types/noir_artifact';
+import { shouldCompileIdentically } from '../shared/compile_with_deps.test';
 
 const paths = getPaths('.');
 
@@ -21,24 +22,22 @@ async function getPrecompiledSource(path: string): Promise<any> {
   return JSON.parse(compiledData);
 }
 
-describe('noir-compiler', () => {
-  it('both nargo and noir_wasm should compile identically', async () => {
-    const { contractExpectedArtifact } = paths;
-    const fm = createFileManager('/');
-    const files = Object.values(paths).filter((fileOrDir) => /^\.?\/.*\..*$/.test(fileOrDir));
-    for (const path of files) {
-      console.log(path);
-      await fm.writeFile(path, (await getFile(path)).body as ReadableStream<Uint8Array>);
-    }
-    const nargoArtifact = (await getPrecompiledSource(contractExpectedArtifact)) as CompiledContract;
-    nargoArtifact.functions.sort((a, b) => a.name.localeCompare(b.name));
-    const noirWasmArtifact = await compile(fm, '/fixtures/noir-contract');
-    if (!('contract' in noirWasmArtifact)) {
-      throw new Error('Compilation failed');
-    }
-    const noirWasmContract = noirWasmArtifact.contract;
-    expect(noirWasmContract).not.to.be.undefined;
-    noirWasmContract.functions.sort((a, b) => a.name.localeCompare(b.name));
-    expect(nargoArtifact).to.deep.eq(noirWasmContract);
-  }).timeout(60 * 20e3);
+describe('noir-compiler/browser', () => {
+  shouldCompileIdentically(
+    async () => {
+      const { contractExpectedArtifact } = paths;
+      const fm = createFileManager('/');
+      const files = Object.values(paths).filter((fileOrDir) => /^\.?\/.*\..*$/.test(fileOrDir));
+      for (const path of files) {
+        console.log(path);
+        await fm.writeFile(path, (await getFile(path)).body as ReadableStream<Uint8Array>);
+      }
+      const nargoArtifact = (await getPrecompiledSource(contractExpectedArtifact)) as ContractArtifact;
+      const noirWasmArtifact = await compile(fm, '/fixtures/noir-contract');
+
+      return { nargoArtifact, noirWasmArtifact };
+    },
+    expect,
+    60 * 20e3,
+  );
 });

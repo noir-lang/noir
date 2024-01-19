@@ -558,6 +558,10 @@ impl<'a> Resolver<'a> {
 
             let result = self.interner.get_type_alias(id).get_type(&args);
 
+            // Collecting Type Alias references [Location]s to be used by LSP in order
+            // to resolve the definition of the type alias
+            self.interner.add_type_alias_ref(id, Location::new(span, self.file));
+
             // Because there is no ordering to when type aliases (and other globals) are resolved,
             // it is possible for one to refer to an Error type and issue no error if it is set
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG

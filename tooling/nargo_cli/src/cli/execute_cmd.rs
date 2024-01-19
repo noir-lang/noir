@@ -5,9 +5,9 @@ use clap::Args;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::ops::DefaultForeignCallExecutor;
 use nargo::package::Package;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
@@ -66,12 +66,13 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width = backend.get_backend_info_or_default();
     for package in &workspace {
         let compiled_program = compile_bin_package(
             &workspace_file_manager,
-            &workspace,
+            &parsed_files,
             package,
             &args.compile_options,
             expression_width,

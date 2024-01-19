@@ -13,7 +13,7 @@ use crate::types::{
 };
 
 use crate::{
-    byte_span_to_range, get_package_tests_in_crate, prepare_source,
+    byte_span_to_range, get_package_tests_in_crate, parse_diff, prepare_source,
     resolve_workspace_for_source_path, LspState,
 };
 
@@ -55,7 +55,7 @@ pub(super) fn on_did_change_text_document(
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
-    let (mut context, crate_id) = prepare_source(text);
+    let (mut context, crate_id) = prepare_source(text, state);
     let _ = check_crate(&mut context, crate_id, false, false);
 
     let workspace = match resolve_workspace_for_source_path(
@@ -131,10 +131,13 @@ fn process_noir_document(
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
+    let parsed_files = parse_diff(&workspace_file_manager, state);
+
     let diagnostics: Vec<_> = workspace
         .into_iter()
         .flat_map(|package| -> Vec<Diagnostic> {
-            let (mut context, crate_id) = prepare_package(&workspace_file_manager, package);
+            let (mut context, crate_id) =
+                prepare_package(&workspace_file_manager, &parsed_files, package);
 
             let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
                 Ok(((), warnings)) => warnings,
