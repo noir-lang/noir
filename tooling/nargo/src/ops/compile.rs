@@ -109,12 +109,7 @@ pub fn compile_contract(
 ) -> CompilationResult<CompiledContract> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     let (contract, warnings) =
-        match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
-            Ok(contracts_and_warnings) => contracts_and_warnings,
-            Err(errors) => {
-                return Err(errors);
-            }
-        };
+        noirc_driver::compile_contract(&mut context, crate_id, compile_options)?;
 
     let optimized_contract = crate::ops::optimize_contract(contract, expression_width);
 
