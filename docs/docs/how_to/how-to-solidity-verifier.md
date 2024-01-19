@@ -148,7 +148,7 @@ Noir.
 Under the hood, the return value is passed as an input to the circuit and is checked at the end of
 the circuit program.
 
-For example, if you have Noir program like this, the `verify` function will expect the public inputs array (second function parameter) to be of length 3:
+For example, if you have Noir program like this: 
 
 ```rust
 fn main(
@@ -159,8 +159,9 @@ fn main(
     priv_key: Field,
 ) -> pub Field
 ```
+the `verify` function will expect the public inputs array (second function parameter) to be of length 3, the two inputs and the return value. Like before, these values are populated in Verifier.toml after running `nargo prove`.
 
-Passing two inputs will result in an error such as `PUBLIC_INPUT_COUNT_INVALID(3, 2)`.
+Passing only two inputs will result in an error such as `PUBLIC_INPUT_COUNT_INVALID(3, 2)`.
 
 In this case, the inputs parameter to `verify` would be an array ordered as `[pubkey_x, pubkey_y, return]`.
 
