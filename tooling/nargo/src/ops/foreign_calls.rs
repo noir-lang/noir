@@ -177,7 +177,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 if self.show_output {
                     Self::execute_print(&foreign_call.inputs)?;
                 }
-                Ok(ForeignCallResult { values: vec![] }.into())
+                Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::AssertMessage) => Self::execute_assert_message(&foreign_call.inputs),
             Some(ForeignCall::CreateMock) => {
@@ -187,7 +187,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 self.mocked_responses.push(MockedCall::new(id, mock_oracle_name));
                 self.last_mock_id += 1;
 
-                Ok(ForeignCallResult { values: vec![Value::from(id).into()] }.into())
+                Ok(vec![Value::from(id)].into())
             }
             Some(ForeignCall::SetMockParams) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -195,7 +195,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .params = Some(params.to_vec());
 
-                Ok(ForeignCallResult { values: vec![] }.into())
+                Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::SetMockReturns) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -203,7 +203,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .result = ForeignCallResult { values: params.to_vec() };
 
-                Ok(ForeignCallResult { values: vec![] }.into())
+                Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::SetMockTimes) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -217,12 +217,12 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .times_left = Some(times);
 
-                Ok(ForeignCallResult { values: vec![] }.into())
+                Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::ClearMock) => {
                 let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.mocked_responses.retain(|response| response.id != id);
-                Ok(ForeignCallResult { values: vec![] }.into())
+                Ok(ForeignCallResult::default().into())
             }
             None => {
                 let mock_response_position = self
@@ -245,7 +245,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                             }
                         }
 
-                        Ok(ForeignCallResult { values: result }.into())
+                        Ok(result.into())
                     }
                     (None, Some(external_resolver)) => {
                         let encoded_params: Vec<_> =
@@ -280,9 +280,7 @@ mod tests {
     use jsonrpc_http_server::{Server, ServerBuilder};
     use serial_test::serial;
 
-    use crate::ops::{
-        foreign_calls::ACVMForeignCallResult, DefaultForeignCallExecutor, ForeignCallExecutor,
-    };
+    use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 
     #[allow(unreachable_pub)]
     #[rpc]
@@ -355,8 +353,7 @@ mod tests {
         };
 
         let result = executor.execute(&foreign_call);
-        let brillig_output: ForeignCallResult = Value::from(3_usize).into();
-        assert_eq!(result.unwrap(), brillig_output.into());
+        assert_eq!(result.unwrap(), Value::from(3_usize).into());
 
         server.close();
     }

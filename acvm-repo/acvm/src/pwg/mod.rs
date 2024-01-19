@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use acir::{
-    brillig::{ForeignCallResult, Value},
+    brillig::{ForeignCallParam, ForeignCallResult, Value},
     circuit::{opcodes::BlockId, Opcode, OpcodeLocation},
     native_types::{Expression, Witness, WitnessMap},
     BlackBoxFunc, FieldElement,
@@ -491,6 +491,20 @@ impl From<String> for ACVMForeignCallResult {
 impl From<Value> for ACVMForeignCallResult {
     fn from(value: Value) -> Self {
         let foreign_call_result: ForeignCallResult = value.into();
+        foreign_call_result.into()
+    }
+}
+
+impl From<Vec<Value>> for ACVMForeignCallResult {
+    fn from(values: Vec<Value>) -> Self {
+        let foreign_call_result: ForeignCallResult = values.into();
+        foreign_call_result.into()
+    }
+}
+
+impl From<Vec<ForeignCallParam>> for ACVMForeignCallResult {
+    fn from(values: Vec<ForeignCallParam>) -> Self {
+        let foreign_call_result: ForeignCallResult = values.into();
         foreign_call_result.into()
     }
 }
