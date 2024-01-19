@@ -494,9 +494,8 @@ impl<'a> FunctionContext<'a> {
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
                 let sign_diff_with_predicate =
                     self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
-                // TODO: bring back assert message
                 let overflow_check =
-                    Instruction::Constrain(sign_diff_with_predicate, same_sign, None);
+                    Instruction::Constrain(sign_diff_with_predicate, same_sign, Some(message));
                 self.builder.set_location(location).insert_instruction(overflow_check, None);
             }
             BinaryOpKind::Multiply => {
@@ -506,11 +505,10 @@ impl<'a> FunctionContext<'a> {
                 let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
                 let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
                 // It must not already overflow the bit_size
-                let message = "attempt to multiply with overflow".to_string();
                 self.builder.set_location(location).insert_range_check(
                     product_field,
                     bit_size,
-                    Some(message.clone()),
+                    Some("attempt to multiply with overflow".to_string()),
                 );
                 let product = self.builder.insert_cast(product_field, Type::unsigned(bit_size));
 
@@ -522,11 +520,10 @@ impl<'a> FunctionContext<'a> {
                     self.builder.insert_binary(half_width, BinaryOp::Add, not_same_sign_field);
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
-                // TODO: bring back assert message
                 self.builder.set_location(location).insert_constrain(
                     product_overflow_check,
                     one,
-                    None,
+                    Some(message),
                 );
             }
             _ => unreachable!("operator {} should not overflow", operator),

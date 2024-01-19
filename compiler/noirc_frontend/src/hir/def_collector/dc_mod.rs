@@ -10,7 +10,7 @@ use crate::{
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
     FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl, UnresolvedGenerics,
+    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{

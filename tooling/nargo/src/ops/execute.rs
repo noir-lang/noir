@@ -2,7 +2,6 @@ use acvm::acir::circuit::OpcodeLocation;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
-use noirc_printable_type::ForeignCallError;
 
 use crate::errors::ExecutionError;
 use crate::NargoError;

@@ -42,30 +42,26 @@ fn transform(mut ast: SortedModule) -> Result<SortedModule, (MacroError, FileId)
     for func in ast.functions.iter_mut() {
         let mut calls_to_insert = Vec::new();
         for (i, stmt) in func.def.body.0.iter().enumerate() {
-            match stmt {
-                Statement { kind, span } => match kind {
-                    StatementKind::Constrain(constrain_stmt) => {
-                        if let Some(assert_msg_expr) = &constrain_stmt.1 {
-                            let call_expr = Expression::call(
-                                Expression {
-                                    kind: ExpressionKind::Variable(Path {
-                                        segments: vec![
-                                            Ident::from("std"),
-                                            Ident::from("resolve_assert_message"),
-                                        ],
-                                        kind: PathKind::Dep,
-                                        span: Span::default(),
-                                    }),
-                                    span: Span::default(),
-                                },
-                                vec![assert_msg_expr.clone()],
-                                *span,
-                            );
-                            calls_to_insert.push((i + calls_to_insert.len(), call_expr, *span));
-                        }
-                    }
-                    _ => {}
-                },
+            let Statement { kind, span } = stmt;
+            if let StatementKind::Constrain(constrain_stmt) = kind {
+                if let Some(assert_msg_expr) = &constrain_stmt.1 {
+                    let call_expr = Expression::call(
+                        Expression {
+                            kind: ExpressionKind::Variable(Path {
+                                segments: vec![
+                                    Ident::from("std"),
+                                    Ident::from("resolve_assert_message"),
+                                ],
+                                kind: PathKind::Dep,
+                                span: Span::default(),
+                            }),
+                            span: Span::default(),
+                        },
+                        vec![assert_msg_expr.clone()],
+                        *span,
+                    );
+                    calls_to_insert.push((i + calls_to_insert.len(), call_expr, *span));
+                }
             }
         }
 

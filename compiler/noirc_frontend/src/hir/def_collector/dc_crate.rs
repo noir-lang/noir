@@ -3,8 +3,6 @@ use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir_def::expr::HirExpression;
-use crate::hir_def::stmt::HirStatement;
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::resolution::resolver::Resolver;
@@ -16,7 +14,6 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 
-use crate::hir_def::stmt::HirConstrainStatement;
 use crate::macros_api::MacroProcessor;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 

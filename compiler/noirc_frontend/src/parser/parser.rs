@@ -843,31 +843,9 @@ where
 
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|expressions, span, emit| {
+        .validate(|expressions, span, _| {
             let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
-            // let mut message_str = None;
-            // if let Some(message) = expressions.get(1) {
-            //     if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
-            //         message_str = Some(message.clone());
-            //     }
-            //     else {
-            //         dbg!(message.kind.clone());
-            //         emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
-            //     }
-            // }
-            let message = expressions.get(1).map(|expr| {
-                // let call_expr = Expression::call(
-                //     Expression { kind: ExpressionKind::Variable(Path {
-                //         segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
-                //         kind: PathKind::Dep,
-                //         span: Span::default(),
-                //     }), span },
-                //     vec![expr.clone()],
-                //     span
-                // );
-                // call_expr
-                expr.clone()
-            });
+            let message = expressions.get(1).cloned();
             StatementKind::Constrain(ConstrainStatement(condition, message, ConstrainKind::Assert))
         })
 }
@@ -881,7 +859,7 @@ where
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|exprs: Vec<Expression>, span, emit| {
+        .validate(|exprs: Vec<Expression>, span, _| {
             let predicate = Expression::new(
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
@@ -890,16 +868,7 @@ where
                 })),
                 span,
             );
-            // let mut message_str = None;
-            // if let Some(message) = exprs.get(2) {
-            //     if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
-            //         message_str = Some(message.clone());
-            //     } else {
-            //         emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
-            //     }
-            // }
-
-            let message = exprs.get(2).map(|expr| expr.clone());
+            let message = exprs.get(2).cloned();
             StatementKind::Constrain(ConstrainStatement(
                 predicate,
                 message,

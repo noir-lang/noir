@@ -438,10 +438,6 @@ impl<'a> FunctionContext<'a> {
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
 
-        // let x = self.builder.import_foreign_function("format");
-        // let y = self.codegen_literal(&ast::Literal::Str("Index out of bounds".to_owned()));
-        let message = self.codegen_string("Index out of bounds").into_leaf().eval(self);
-
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
             true_const,
