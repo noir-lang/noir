@@ -7,6 +7,7 @@ A **reset** circuit is designed to abstain from processing individual private fu
 There are 2 variations of reset circuits:
 
 - [Read Request Reset Private Kernel Circuit](#read-request-reset-private-kernel-circuit).
+- [Nullifier Key Validation Request Reset Private Kernel Circuit](#nullifier-key-validation-request-reset-private-kernel-circuit).
 - [Transient Note Reset Private Kernel Circuit](#transient-note-reset-private-kernel-circuit).
 
 The incorporation of these circuits not only enhances the modularity and repeatability of the "reset" process but also diminishes the overall workload. Rather than conducting resource-intensive computations such as membership checks in each iteration, these tasks are only performed as necessary within the reset circuits.
@@ -55,6 +56,25 @@ A read request can pertain to one of two note types:
    - If _status.state == persistent_, _`i == persistent_read_indices[status.index]`_.
    - If _status.state == transient_, _`i == transient_read_indices[status.index]`_.
    - If _status.state == nada_, _`read_request == public_inputs.transient_accumulated_data.read_request_contexts[status.index]`_.
+
+### Nullifier Key Validation Request Reset Private Kernel Circuit.
+
+This reset circuit validates the correct derivation of nullifier secret keys used in private functions, and subsequently removes them from the _nullifier_key_validation_request_contexts_ in the _[transient_accumulated_data](./private-kernel-initial.md#transientaccumulateddata)_ within the _public_inputs_ of the [_previous_kernel_](#previouskernel).
+
+Initialize _requests_kept_ to _0_.
+
+For each _request_ at index _i_ in _nullifier_key_validation_request_contexts_, locate the _master_secret_key_ at _`master_nullifier_secret_keys[i]`_, provided as [hints](#hints-for-nullifier-key-validation-request-reset-private-kernel-circuit) through _private_inputs_.
+
+1. If _`master_secret_key == 0`_, ensure the request remain within the _public_inputs_.:
+
+   - _`public_inputs.transient_accumulated_data.nullifier_key_validation_request_contexts[requests_kept] == request`_
+   - Increase _requests_kept_ by _1_: _`requests_kept += 1`_
+
+2. Else:
+   - Verify that the public key is associated with the _master_secret_key_:
+     _`request.public_key == master_secret_key * G`_
+   - Verify that the secret key was correctly derived for the contract:
+     _`request.secret_key == hash(master_secret_key, request.contract_address)`_
 
 ### Transient Note Reset Private Kernel Circuit.
 
@@ -198,6 +218,12 @@ The format aligns with the _[PreviousKernel](./private-kernel-inner.md#previousk
 | ------- | ------------------------------- | --------------------------------------- |
 | _state_ | persistent \| transient \| nada | State of the read request.              |
 | _index_ | _field_                         | Index of the hint for the read request. |
+
+### _Hints_ for [Nullifier Key Validation Request Reset Private Kernel Circuit](#nullifier-key-validation-request-reset-private-kernel-circuit)
+
+| Field                          | Type           | Description                                                                                                                |
+| ------------------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| _master_nullifier_secret_keys_ | [_field_; _C_] | Master nullifier secret keys for the nullifier keys. _C_ equals the length of _nullifier_key_validation_request_contexts_. |
 
 ### _Hints_ for [Transient Note Reset Private Kernel Circuit](#transient-note-reset-private-kernel-circuit)
 

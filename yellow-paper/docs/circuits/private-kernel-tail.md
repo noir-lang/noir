@@ -29,6 +29,7 @@ It checks the data within _[private_inputs](#private-inputs).[previous_kernel](#
 2. The following must be empty to ensure a comprehensive final reset:
 
    - _read_requests_
+   - _nullifier_key_validation_request_contexts_
    - The _nullifier_counter_ associated with each note hash in _note_hash_contexts_.
    - The _note_hash_counter_ associated with each nullifier in _nullifier_contexts_.
 

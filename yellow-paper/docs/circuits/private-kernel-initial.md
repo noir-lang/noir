@@ -173,7 +173,11 @@ This circuit verifies that the values in _[private_inputs](#private-inputs).[pri
 3. For each non-empty call request in both _private_call_requests_ and _public_call_requests_:
 
    - The _caller_contract_address_ equals the _contract_address_ in _[private_call](#privatecall).[call_stack_item](#privatecallstackitem)_.
-   - The _caller_context_ is either empty or aligns with the values in the _call_context_ within _private_function_public_inputs_.
+   - The following values in _caller_context_ are either empty or align with the values in the _call_context_ within _private_function_public_inputs_:
+     - _`(caller_context.msg_sender == 0) & (caller_context.storage_contract_address == 0)`_
+     - Or _`(caller_context.msg_sender == call_context.msg_sender) & (caller_context.storage_contract_address == call_context.storage_contract_address)`_
+   - The _is_static_call_ flag must be propagated:
+     - _`caller_context.is_static_call == call_context.is_static_call`_
 
    > The caller context in a call request may be empty for standard calls. This precaution is crucial to prevent information leakage, particularly as revealing the _msg_sender_ of this private function when calling a public function could pose security risks.
 
@@ -183,6 +187,7 @@ This circuit verifies that the values in _[private_inputs](#private-inputs).[pri
    - _nullifier_contexts_
    - _l2_to_l1_message_contexts_
    - _read_request_contexts_
+   - _nullifier_key_validation_request_contexts_
    - _unencrypted_log_hash_contexts_
    - _encrypted_log_hash_contexts_
    - _encrypted_note_preimage_hash_contexts_
@@ -249,17 +254,18 @@ Data that remains the same throughout the entire transaction.
 
 ### _TransientAccumulatedData_
 
-| Field                                   | Type                                                                    | Description                                                                 |
-| --------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| _note_hash_contexts_                    | [_[NoteHashContext](#notehashcontext)_; _C_]                            | Note hashes with extra data aiding verification.                            |
-| _nullifier_contexts_                    | [_[NullifierContext](#nullifiercontext)_; _C_]                          | Nullifiers with extra data aiding verification.                             |
-| _l2_to_l1_message_contexts_             | [_[L2toL1MessageContext](#l2tol1messagecontext)_; _C_]                  | L2-to-l1 messages with extra data aiding verification.                      |
-| _read_request_contexts_                 | [_[ReadRequestContext](#readrequestcontext)_; _C_]                      | Requests to read notes in the note hash tree.                               |
-| _unencrypted_log_hash_contexts_         | [_[EncryptedLogHashContext](#encryptedloghashcontext)_; _C_]            | Hashes of the unencrypted logs with extra data aiding verification.         |
-| _encrypted_log_hash_contexts_           | [_[UnencryptedLogHashContext](#unencryptedloghashcontext)_; _C_]        | Hashes of the encrypted logs with extra data aiding verification.           |
-| _encrypted_note_preimage_hash_contexts_ | [_[EncryptedNotePreimageHashContext](#encryptednotepreimagehash)_; _C_] | Hashes of the encrypted note preimages with extra data aiding verification. |
-| _private_call_requests_                 | [_[CallRequest](#callrequest)_; _C_]                                    | Requests to call private functions.                                         |
-| _public_call_requests_                  | [_[CallRequest](#callrequest)_; _C_]                                    | Requests to call publics functions.                                         |
+| Field                                       | Type                                                                                   | Description                                                                 |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| _note_hash_contexts_                        | [_[NoteHashContext](#notehashcontext)_; _C_]                                           | Note hashes with extra data aiding verification.                            |
+| _nullifier_contexts_                        | [_[NullifierContext](#nullifiercontext)_; _C_]                                         | Nullifiers with extra data aiding verification.                             |
+| _l2_to_l1_message_contexts_                 | [_[L2toL1MessageContext](#l2tol1messagecontext)_; _C_]                                 | L2-to-l1 messages with extra data aiding verification.                      |
+| _read_request_contexts_                     | [_[ReadRequestContext](#readrequestcontext)_; _C_]                                     | Requests to read notes in the note hash tree.                               |
+| _nullifier_key_validation_request_contexts_ | [_[NullifierKeyValidationRequestContext](#nullifierkeyvalidationrequestcontext)_; _C_] | Requests to validate nullifier keys.                                        |
+| _unencrypted_log_hash_contexts_             | [_[EncryptedLogHashContext](#encryptedloghashcontext)_; _C_]                           | Hashes of the unencrypted logs with extra data aiding verification.         |
+| _encrypted_log_hash_contexts_               | [_[UnencryptedLogHashContext](#unencryptedloghashcontext)_; _C_]                       | Hashes of the encrypted logs with extra data aiding verification.           |
+| _encrypted_note_preimage_hash_contexts_     | [_[EncryptedNotePreimageHashContext](#encryptednotepreimagehash)_; _C_]                | Hashes of the encrypted note preimages with extra data aiding verification. |
+| _private_call_requests_                     | [_[CallRequest](#callrequest)_; _C_]                                                   | Requests to call private functions.                                         |
+| _public_call_requests_                      | [_[CallRequest](#callrequest)_; _C_]                                                   | Requests to call publics functions.                                         |
 
 > The above **C**s represent constants defined by the protocol. Each **C** might have a different value from the others.
 
@@ -314,10 +320,11 @@ Data that remains the same throughout the entire transaction.
 
 #### _CallerContext_
 
-| Field              | Type           | Description                                      |
-| ------------------ | -------------- | ------------------------------------------------ |
-| _msg_sender_       | _AztecAddress_ | Address of the caller contract.                  |
-| _storage_contract_ | _AztecAddress_ | Storage contract address of the caller contract. |
+| Field              | Type           | Description                                          |
+| ------------------ | -------------- | ---------------------------------------------------- |
+| _msg_sender_       | _AztecAddress_ | Address of the caller contract.                      |
+| _storage_contract_ | _AztecAddress_ | Storage contract address of the caller contract.     |
+| _is_static_call_   | _bool_         | A flag indicating whether the call is a static call. |
 
 #### _NoteHashContext_
 
@@ -352,6 +359,14 @@ Data that remains the same throughout the entire transaction.
 | _note_hash_        | _field_        | Hash of the note to be read.                  |
 | _counter_          | _field_        | Counter at which the request was made.        |
 | _contract_address_ | _AztecAddress_ | Address of the contract the request was made. |
+
+#### _NullifierKeyValidationRequestContext_
+
+| Field              | Type           | Description                                                |
+| ------------------ | -------------- | ---------------------------------------------------------- |
+| _public_key_       | _field_        | Nullifier public key of an account.                        |
+| _secret_key_       | _field_        | Secret key of an account siloed with the contract address. |
+| _contract_address_ | _AztecAddress_ | Address of the contract the request was made.              |
 
 #### _UnencryptedLogHashContext_
 

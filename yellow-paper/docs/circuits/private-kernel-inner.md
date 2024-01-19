@@ -52,14 +52,14 @@ This circuit will:
 
 For the _call_context_ in the [public_inputs](./private-function.md#public-inputs) of the _[private_call](#privatecall).[call_stack_item](./private-kernel-initial.md#privatecallstackitem)_ and the _call_request_ popped in the [previous step](#ensuring-the-current-call-matches-the-call-request), this circuit checks that:
 
-1. If it is a standard call (`call_context.is_delegate_call == false`):
+1. If it is a standard call: _`call_context.is_delegate_call == false`_
 
    - The _msg_sender_ of the current iteration must be the same as the caller's _contract_address_:
      - _`call_context.msg_sender == call_request.caller_contract_address`_
    - The _storage_contract_address_ of the current iteration must be the same as its _contract_address_:
      - _`call_context.storage_contract_address == call_stack_item.contract_address`_
 
-2. If it is a delegate call (`call_context.is_delegate_call == true`):
+2. If it is a delegate call: _`call_context.is_delegate_call == true`_
 
    - The _caller_context_ in the _call_request_ must not be empty. Specifically, the following values of the caller must not be zeros:
      - _msg_sender_
@@ -71,7 +71,12 @@ For the _call_context_ in the [public_inputs](./private-function.md#public-input
    - The _storage_contract_address_ of the current iteration must not equal the _contract_address_:
      - _`call_context.storage_contract_address != call_stack_item.contract_address`_
 
-3. If it is an internal call (`call_stack_item.function_data.is_internal == true`):
+3. If it is NOT a static call: _`call_context.is_static_call == false`_
+
+   - The previous iteration must not be a static call:
+     - _`caller_context.is_static_call == false`_
+
+4. If it is an internal call: _`call_stack_item.function_data.is_internal == true`_
 
    - The _msg_sender_ of the current iteration must equal the _storage_contract_address_:
      - _`call_context.msg_sender == call_context.storage_contract_address`_
