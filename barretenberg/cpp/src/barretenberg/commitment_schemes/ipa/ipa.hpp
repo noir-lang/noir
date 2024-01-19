@@ -43,7 +43,6 @@ template <typename Curve> class IPA {
         transcript->send_to_verifier("IPA:poly_degree", static_cast<uint64_t>(poly_degree));
         const Fr generator_challenge = transcript->get_challenge("IPA:generator_challenge");
         auto aux_generator = Commitment::one() * generator_challenge;
-
         // Checks poly_degree is greater than zero and a power of two
         // In the future, we might want to consider if non-powers of two are needed
         ASSERT((poly_degree > 0) && (!(poly_degree & (poly_degree - 1))) &&
@@ -90,30 +89,39 @@ template <typename Curve> class IPA {
         std::vector<GroupElement> R_elements(log_poly_degree);
         std::size_t round_size = poly_degree;
 
+        // Allocate vectors for parallel storage of partial products
+        const size_t num_cpus = get_num_cpus();
+        std::vector<Fr> partial_inner_prod_L(num_cpus);
+        std::vector<Fr> partial_inner_prod_R(num_cpus);
         // Perform IPA rounds
         for (size_t i = 0; i < log_poly_degree; i++) {
             round_size >>= 1;
+            // Set partial products to zero
+            memset(&partial_inner_prod_L[0], 0, sizeof(Fr) * num_cpus);
+            memset(&partial_inner_prod_R[0], 0, sizeof(Fr) * num_cpus);
             // Compute inner_prod_L := < a_vec_lo, b_vec_hi > and inner_prod_R := < a_vec_hi, b_vec_lo >
-            std::mutex addition_lock;
             Fr inner_prod_L = Fr::zero();
             Fr inner_prod_R = Fr::zero();
             // Run scalar product in parallel
-            run_loop_in_parallel_if_effective(
+            run_loop_in_parallel_if_effective_with_index(
                 round_size,
-                [&a_vec, &b_vec, &inner_prod_L, &inner_prod_R, round_size, &addition_lock](size_t start, size_t end) {
+                [&a_vec, &b_vec, round_size, &partial_inner_prod_L, &partial_inner_prod_R](
+                    size_t start, size_t end, size_t workload_index) {
                     Fr current_inner_prod_L = Fr::zero();
                     Fr current_inner_prod_R = Fr::zero();
                     for (size_t j = start; j < end; j++) {
                         current_inner_prod_L += a_vec[j] * b_vec[round_size + j];
                         current_inner_prod_R += a_vec[round_size + j] * b_vec[j];
                     }
-                    addition_lock.lock();
-                    inner_prod_L += current_inner_prod_L;
-                    inner_prod_R += current_inner_prod_R;
-                    addition_lock.unlock();
+                    partial_inner_prod_L[workload_index] = current_inner_prod_L;
+                    partial_inner_prod_R[workload_index] = current_inner_prod_R;
                 },
                 /*finite_field_additions_per_iteration=*/2,
                 /*finite_field_multiplications_per_iteration=*/2);
+            for (size_t j = 0; j < num_cpus; j++) {
+                inner_prod_L += partial_inner_prod_L[j];
+                inner_prod_R += partial_inner_prod_R[j];
+            }
 
             // L_i = < a_vec_lo, G_vec_hi > + inner_prod_L * aux_generator
             L_elements[i] = bb::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(

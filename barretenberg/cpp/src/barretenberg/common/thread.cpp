@@ -136,6 +136,8 @@ void run_loop_in_parallel(size_t num_points,
  * @param num_points Total number of elements
  * @param func A function or lambda expression with a for loop inside, for example:
  * [](size_t start, size_t end){for (size_t i=start; i<end; i++){(void)i;}}
+ * Or for the version with index:
+ * [](size_t start, size_t end,size_t workload_index){for (size_t i=start; i<end; i++){(void)i;}}
  * @param finite_field_additions_per_iteration The number of additions/subtractions/negations
  * @param finite_field_multiplications_per_iteration The number of finite field multiplications and squarings
  * @param finite_field_inversions_per_iteration
@@ -144,15 +146,18 @@ void run_loop_in_parallel(size_t num_points,
  * @param scalar_multiplications_per_iteration
  * @param sequential_copy_ops_per_iteration Field element (16 byte) sequential copy number
  */
-void run_loop_in_parallel_if_effective(size_t num_points,
-                                       const std::function<void(size_t, size_t)>& func,
-                                       size_t finite_field_additions_per_iteration,
-                                       size_t finite_field_multiplications_per_iteration,
-                                       size_t finite_field_inversions_per_iteration,
-                                       size_t group_element_additions_per_iteration,
-                                       size_t group_element_doublings_per_iteration,
-                                       size_t scalar_multiplications_per_iteration,
-                                       size_t sequential_copy_ops_per_iteration)
+template <typename FunctionType>
+    requires(std::is_same_v<FunctionType, std::function<void(size_t, size_t)>> ||
+             std::is_same_v<FunctionType, std::function<void(size_t, size_t, size_t)>>)
+void run_loop_in_parallel_if_effective_internal(size_t num_points,
+                                                const FunctionType& func,
+                                                size_t finite_field_additions_per_iteration,
+                                                size_t finite_field_multiplications_per_iteration,
+                                                size_t finite_field_inversions_per_iteration,
+                                                size_t group_element_additions_per_iteration,
+                                                size_t group_element_doublings_per_iteration,
+                                                size_t scalar_multiplications_per_iteration,
+                                                size_t sequential_copy_ops_per_iteration)
 {
     // Rough cost of operations (the operation costs are derives in basics_bench and the units are nanoseconds):
     constexpr size_t FF_ADDITION_COST = 4;
@@ -185,7 +190,12 @@ void run_loop_in_parallel_if_effective(size_t num_points,
 
     // If starting parallel for is longer than computing, just compute
     if (offset_cost < PARALLEL_FOR_COST) {
-        func(0, num_points);
+        if constexpr (std::is_same_v<FunctionType, std::function<void(size_t, size_t)>>) {
+
+            func(0, num_points);
+        } else {
+            func(0, num_points, 0);
+        }
         return;
     }
     // Parallelize over chunks
@@ -201,6 +211,16 @@ void run_loop_in_parallel_if_effective(size_t num_points,
         }
         size_t start = chunk_index * chunk_size;
         size_t end = chunk_index * chunk_size + current_chunk_size;
-        func(start, end);
+
+        if constexpr (std::is_same_v<FunctionType, std::function<void(size_t, size_t)>>) {
+
+            func(start, end);
+        } else {
+            func(start, end, chunk_index);
+        }
     });
 };
+template void run_loop_in_parallel_if_effective_internal(
+    size_t, const std::function<void(size_t, size_t)>&, size_t, size_t, size_t, size_t, size_t, size_t, size_t);
+template void run_loop_in_parallel_if_effective_internal(
+    size_t, const std::function<void(size_t, size_t, size_t)>&, size_t, size_t, size_t, size_t, size_t, size_t, size_t);
