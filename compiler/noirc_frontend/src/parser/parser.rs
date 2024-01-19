@@ -45,7 +45,7 @@ use crate::{
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
-use chumsky::input::Emitter;
+use chumsky::input::{Emitter, Stream};
 use chumsky::prelude::*;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -58,7 +58,20 @@ use noirc_errors::{Span, Spanned};
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let (tokens, lexing_errors) = Lexer::lex(source_program);
-    let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
+    // TODO use from/into
+
+    let separated: Vec<(Token, Span)> = tokens
+        .0
+        .into_iter()
+        .map(|sp_token| {
+            let span = sp_token.to_span();
+            (sp_token.into_token(), span)
+        })
+        .collect();
+
+    let (module, mut parsing_errors) = program()
+        .parse(Stream::from_iter(separated.into_iter()).boxed().spanned(Span::empty(0)))
+        .into_output_errors();
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
 
@@ -1308,9 +1321,9 @@ fn expression() -> impl ExprParser {
     .labelled(ParsingRuleLabel::Expression)
 }
 
-fn expression_no_constructors<'a, P>(expr_parser: P) -> impl ExprParser + 'a
+fn expression_no_constructors<P>(expr_parser: P) -> impl ExprParser
 where
-    P: ExprParser + 'a,
+    P: ExprParser + 'static,
 {
     recursive(|expr_no_constructors| {
         expression_with_precedence(
@@ -1340,6 +1353,7 @@ where
 // An expression is a single term followed by 0 or more (OP subexpression)*
 // where OP is an operator at the given precedence level and subexpression
 // is an expression at the current precedence level plus one.
+// TODO statics
 fn expression_with_precedence<'a, P, P2, S>(
     precedence: Precedence,
     expr_parser: P,
@@ -1353,9 +1367,9 @@ fn expression_with_precedence<'a, P, P2, S>(
     allow_constructors: bool,
 ) -> impl NoirParser<Expression> + 'a
 where
-    P: ExprParser + 'a,
-    P2: ExprParser + 'a,
-    S: NoirParser<StatementKind> + 'a,
+    P: ExprParser + 'a + 'static,
+    P2: ExprParser + 'a + 'static,
+    S: NoirParser<StatementKind> + 'a + 'static,
 {
     if precedence == Precedence::Highest {
         if is_type_expression {
@@ -1415,16 +1429,16 @@ fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<B
         })
 }
 
-fn term<'a, P, P2, S>(
+fn term<P, P2, S>(
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
     allow_constructors: bool,
-) -> impl NoirParser<Expression> + 'a
+) -> impl NoirParser<Expression> + 'static
 where
-    P: ExprParser + 'a,
-    P2: ExprParser + 'a,
-    S: NoirParser<StatementKind> + 'a,
+    P: ExprParser + 'static,
+    P2: ExprParser + 'static,
+    S: NoirParser<StatementKind> + 'static,
 {
     recursive(move |term_parser| {
         choice((
@@ -1459,16 +1473,16 @@ where
     })
 }
 
-fn atom_or_right_unary<'a, P, P2, S>(
+fn atom_or_right_unary<P, P2, S>(
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
     allow_constructors: bool,
-) -> impl NoirParser<Expression> + 'a
+) -> impl NoirParser<Expression> + 'static
 where
-    P: ExprParser + 'a,
-    P2: ExprParser + 'a,
-    S: NoirParser<StatementKind> + 'a,
+    P: ExprParser + 'static,
+    P2: ExprParser + 'static,
+    S: NoirParser<StatementKind> + 'static,
 {
     enum UnaryRhs {
         Call(Vec<Expression>),
@@ -1658,16 +1672,16 @@ where
 /// Atoms are parameterized on whether constructor expressions are allowed or not.
 /// Certain constructs like `if` and `for` disallow constructor expressions when a
 /// block may be expected.
-fn atom<'a, P, P2, S>(
+fn atom<P, P2, S>(
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
     allow_constructors: bool,
-) -> impl NoirParser<Expression> + 'a
+) -> impl NoirParser<Expression> + 'static
 where
-    P: ExprParser + 'a,
-    P2: ExprParser + 'a,
-    S: NoirParser<StatementKind> + 'a,
+    P: ExprParser + 'static,
+    P2: ExprParser + 'static,
+    S: NoirParser<StatementKind> + 'static,
 {
     choice((
         if_expr(expr_no_constructors, statement.clone()),
@@ -1784,6 +1798,7 @@ fn literal_or_collection<'a>(
 
 #[cfg(test)]
 mod test {
+    use chumsky::input::Stream;
     use noirc_errors::CustomDiagnostic;
 
     use super::*;
@@ -1797,9 +1812,20 @@ mod test {
         if !lexer_errors.is_empty() {
             return Err(vecmap(lexer_errors, Into::into));
         }
+        // TODO use from/into
+        let separated: Vec<(Token, Span)> = tokens
+            .0
+            .into_iter()
+            .map(|sp_token| {
+                let span = sp_token.to_span();
+                (sp_token.into_token(), span)
+            })
+            .collect();
+
         parser
             .then_ignore(just(Token::EOF))
-            .parse(tokens)
+            .parse(Stream::from_iter(separated.into_iter()).boxed().spanned(Span::empty(0)))
+            .into_result()
             .map_err(|errors| vecmap(errors, Into::into))
     }
 
@@ -1808,7 +1834,19 @@ mod test {
         P: NoirParser<T>,
     {
         let (tokens, lexer_errors) = Lexer::lex(program);
-        let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
+        let separated: Vec<(Token, Span)> = tokens
+            .0
+            .into_iter()
+            .map(|sp_token| {
+                let span = sp_token.to_span();
+                (sp_token.into_token(), span)
+            })
+            .collect();
+
+        let (opt, errs) = parser
+            .then_ignore(force(just(Token::EOF)))
+            .parse(Stream::from_iter(separated.into_iter()).boxed().spanned(Span::empty(0)))
+            .into_output_errors();
 
         let mut errors = vecmap(lexer_errors, Into::into);
         errors.extend(errs.into_iter().map(Into::into));
