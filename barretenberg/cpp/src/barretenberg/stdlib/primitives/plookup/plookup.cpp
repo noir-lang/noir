@@ -3,11 +3,11 @@
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 class UltraPlonkBuilder;
-} // namespace proof_system::plonk
+} // namespace bb::plonk
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 using plookup::ColumnIdx;
@@ -91,7 +91,7 @@ field_t<Builder> plookup_read<Builder>::read_from_1_to_2_table(const MultiTableI
     return lookup[ColumnIdx::C2][0];
 }
 
-template class plookup_read<proof_system::UltraCircuitBuilder>;
-template class plookup_read<proof_system::GoblinUltraCircuitBuilder>;
+template class plookup_read<bb::UltraCircuitBuilder>;
+template class plookup_read<bb::GoblinUltraCircuitBuilder>;
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -3,9 +3,9 @@
 #include "barretenberg/proof_system/circuit_builder/circuit_builder_base.hpp"
 #include "barretenberg/proof_system/circuit_builder/generated/AvmMini_circuit_builder.hpp"
 
-using Flavor = proof_system::honk::flavor::AvmMiniFlavor;
+using Flavor = bb::honk::flavor::AvmMiniFlavor;
 using FF = Flavor::FF;
-using Row = proof_system::AvmMiniFullRow<bb::fr>;
+using Row = bb::AvmMiniFullRow<bb::fr>;
 
 namespace avm_trace {
 

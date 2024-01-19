@@ -2,7 +2,7 @@
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * @brief Compute witness polynomials
@@ -119,4 +119,4 @@ std::shared_ptr<typename Flavor::VerificationKey> ECCVMComposer_<Flavor>::comput
 }
 template class ECCVMComposer_<honk::flavor::ECCVM>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

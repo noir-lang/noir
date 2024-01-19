@@ -8,7 +8,7 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include <cstddef>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(proving_key* input_key)
@@ -733,7 +733,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
     T0 = numerator - denominator;
     quotient_numerator_eval += T0 * alpha_base;
     return alpha_base * alpha.sqr() * alpha;
-} // namespace proof_system::plonk
+} // namespace bb::plonk
 
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
 Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::
@@ -748,4 +748,4 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
 
 template class VerifierPlookupWidget<bb::fr, bb::g1::affine_element, transcript::StandardTranscript>;
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

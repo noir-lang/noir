@@ -9,12 +9,12 @@ construction in stdlib and contains macros for explicit instantiation.
 #pragma once
 #include <concepts>
 
-namespace proof_system::honk {
+namespace bb::honk {
 namespace flavor {
 class Standard;
 class Ultra;
 } // namespace flavor
-} // namespace proof_system::honk
+} // namespace bb::honk
 
 namespace bb {
 class Bn254FrParams;
@@ -24,7 +24,7 @@ template <class Params> struct alignas(32) field;
 namespace arithmetization {
 template <typename FF_> class Ultra;
 } // namespace arithmetization
-namespace proof_system {
+namespace bb {
 template <class FF> class StandardCircuitBuilder_;
 using StandardCircuitBuilder = StandardCircuitBuilder_<bb::field<bb::Bn254FrParams>>;
 using StandardGrumpkinCircuitBuilder = StandardCircuitBuilder_<bb::field<bb::Bn254FqParams>>;
@@ -32,4 +32,4 @@ template <class Arithmetization> class UltraCircuitBuilder_;
 using UltraCircuitBuilder = UltraCircuitBuilder_<arithmetization::Ultra<bb::field<bb::Bn254FrParams>>>;
 template <class FF> class GoblinUltraCircuitBuilder_;
 using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<bb::field<bb::Bn254FrParams>>;
-} // namespace proof_system
+} // namespace bb

@@ -2,7 +2,7 @@
 
 #include "./transition_widget.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace widget {
 
 /**
@@ -154,4 +154,4 @@ using ProverEllipticWidget = widget::TransitionWidget<bb::fr, Settings, widget::
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierEllipticWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::EllipticKernel>;
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

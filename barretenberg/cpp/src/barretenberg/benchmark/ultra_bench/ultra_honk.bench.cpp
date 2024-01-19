@@ -5,7 +5,7 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 using namespace benchmark;
-using namespace proof_system;
+using namespace bb;
 
 /**
  * @brief Benchmark: Construction of a Ultra Honk proof for a circuit determined by the provided circuit function

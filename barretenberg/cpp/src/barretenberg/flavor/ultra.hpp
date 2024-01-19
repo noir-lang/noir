@@ -16,7 +16,7 @@
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace proof_system::honk::flavor {
+namespace bb::honk::flavor {
 
 class Ultra {
   public:
@@ -43,15 +43,14 @@ class Ultra {
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 7;
 
-    using GrandProductRelations =
-        std::tuple<proof_system::UltraPermutationRelation<FF>, proof_system::LookupRelation<FF>>;
+    using GrandProductRelations = std::tuple<bb::UltraPermutationRelation<FF>, bb::LookupRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
-    using Relations = std::tuple<proof_system::UltraArithmeticRelation<FF>,
-                                 proof_system::UltraPermutationRelation<FF>,
-                                 proof_system::LookupRelation<FF>,
-                                 proof_system::GenPermSortRelation<FF>,
-                                 proof_system::EllipticRelation<FF>,
-                                 proof_system::AuxiliaryRelation<FF>>;
+    using Relations = std::tuple<bb::UltraArithmeticRelation<FF>,
+                                 bb::UltraPermutationRelation<FF>,
+                                 bb::LookupRelation<FF>,
+                                 bb::GenPermSortRelation<FF>,
+                                 bb::EllipticRelation<FF>,
+                                 bb::AuxiliaryRelation<FF>>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
     static_assert(MAX_PARTIAL_RELATION_LENGTH == 6);
@@ -603,4 +602,4 @@ class Ultra {
     };
 };
 
-} // namespace proof_system::honk::flavor
+} // namespace bb::honk::flavor

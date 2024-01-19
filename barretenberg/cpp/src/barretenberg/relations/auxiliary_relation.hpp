@@ -2,7 +2,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class AuxiliaryRelationImpl {
   public:
@@ -337,4 +337,4 @@ template <typename FF_> class AuxiliaryRelationImpl {
 };
 
 template <typename FF> using AuxiliaryRelation = Relation<AuxiliaryRelationImpl<FF>>;
-} // namespace proof_system
+} // namespace bb

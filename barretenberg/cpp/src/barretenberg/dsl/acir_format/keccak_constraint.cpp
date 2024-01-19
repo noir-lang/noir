@@ -7,8 +7,8 @@ namespace acir_format {
 
 template <typename Builder> void create_keccak_constraints(Builder& builder, const KeccakConstraint& constraint)
 {
-    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -28,7 +28,7 @@ template <typename Builder> void create_keccak_constraints(Builder& builder, con
         arr.write(element_bytes);
     }
 
-    byte_array_ct output_bytes = proof_system::plonk::stdlib::keccak<Builder>::hash(arr);
+    byte_array_ct output_bytes = bb::plonk::stdlib::keccak<Builder>::hash(arr);
 
     // Convert byte array to vector of field_t
     auto bytes = output_bytes.bytes();
@@ -40,9 +40,9 @@ template <typename Builder> void create_keccak_constraints(Builder& builder, con
 
 template <typename Builder> void create_keccak_var_constraints(Builder& builder, const KeccakVarConstraint& constraint)
 {
-    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
-    using uint32_ct = proof_system::plonk::stdlib::uint32<Builder>;
+    using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
+    using uint32_ct = bb::plonk::stdlib::uint32<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -64,7 +64,7 @@ template <typename Builder> void create_keccak_var_constraints(Builder& builder,
 
     uint32_ct length = field_ct::from_witness_index(&builder, constraint.var_message_size);
 
-    byte_array_ct output_bytes = proof_system::plonk::stdlib::keccak<Builder>::hash(arr, length);
+    byte_array_ct output_bytes = bb::plonk::stdlib::keccak<Builder>::hash(arr, length);
 
     // Convert byte array to vector of field_t
     auto bytes = output_bytes.bytes();
@@ -76,10 +76,10 @@ template <typename Builder> void create_keccak_var_constraints(Builder& builder,
 
 template <typename Builder> void create_keccak_permutations(Builder& builder, const Keccakf1600& constraint)
 {
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
 
     // Create the array containing the permuted state
-    std::array<field_ct, proof_system::plonk::stdlib::keccak<Builder>::NUM_KECCAK_LANES> state;
+    std::array<field_ct, bb::plonk::stdlib::keccak<Builder>::NUM_KECCAK_LANES> state;
 
     // Get the witness assignment for each witness index
     // Write the witness assignment to the byte_array
@@ -88,8 +88,7 @@ template <typename Builder> void create_keccak_permutations(Builder& builder, co
         state[i] = field_ct::from_witness_index(&builder, constraint.state[i]);
     }
 
-    std::array<field_ct, 25> output_state =
-        proof_system::plonk::stdlib::keccak<Builder>::permutation_opcode(state, &builder);
+    std::array<field_ct, 25> output_state = bb::plonk::stdlib::keccak<Builder>::permutation_opcode(state, &builder);
 
     for (size_t i = 0; i < output_state.size(); ++i) {
         builder.assert_equal(output_state[i].normalize().witness_index, constraint.result[i]);

@@ -19,7 +19,7 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include "relation_definitions.hpp"
 
-namespace proof_system::honk::flavor {
+namespace bb::honk::flavor {
 
 class GoblinUltra {
   public:
@@ -46,25 +46,24 @@ class GoblinUltra {
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 14;
 
-    using GrandProductRelations =
-        std::tuple<proof_system::UltraPermutationRelation<FF>, proof_system::LookupRelation<FF>>;
+    using GrandProductRelations = std::tuple<bb::UltraPermutationRelation<FF>, bb::LookupRelation<FF>>;
 
     // define the tuple of Relations that comprise the Sumcheck relation
     // Note: made generic for use in GoblinUltraRecursive.
     template <typename FF>
-    using Relations_ = std::tuple<proof_system::UltraArithmeticRelation<FF>,
-                                  proof_system::UltraPermutationRelation<FF>,
-                                  proof_system::LookupRelation<FF>,
-                                  proof_system::GenPermSortRelation<FF>,
-                                  proof_system::EllipticRelation<FF>,
-                                  proof_system::AuxiliaryRelation<FF>,
-                                  proof_system::EccOpQueueRelation<FF>,
-                                  proof_system::DatabusLookupRelation<FF>,
-                                  proof_system::Poseidon2ExternalRelation<FF>,
-                                  proof_system::Poseidon2InternalRelation<FF>>;
+    using Relations_ = std::tuple<bb::UltraArithmeticRelation<FF>,
+                                  bb::UltraPermutationRelation<FF>,
+                                  bb::LookupRelation<FF>,
+                                  bb::GenPermSortRelation<FF>,
+                                  bb::EllipticRelation<FF>,
+                                  bb::AuxiliaryRelation<FF>,
+                                  bb::EccOpQueueRelation<FF>,
+                                  bb::DatabusLookupRelation<FF>,
+                                  bb::Poseidon2ExternalRelation<FF>,
+                                  bb::Poseidon2InternalRelation<FF>>;
     using Relations = Relations_<FF>;
 
-    using LogDerivLookupRelation = proof_system::DatabusLookupRelation<FF>;
+    using LogDerivLookupRelation = bb::DatabusLookupRelation<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
     static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
@@ -623,4 +622,4 @@ class GoblinUltra {
     using Transcript = Transcript_<Commitment>;
 };
 
-} // namespace proof_system::honk::flavor
+} // namespace bb::honk::flavor

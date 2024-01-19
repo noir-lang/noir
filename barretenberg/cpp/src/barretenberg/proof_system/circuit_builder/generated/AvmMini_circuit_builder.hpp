@@ -17,7 +17,7 @@
 
 using namespace bb;
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF> struct AvmMiniFullRow {
     FF avmMini_clk{};
@@ -70,7 +70,7 @@ template <typename FF> struct AvmMiniFullRow {
 
 class AvmMiniCircuitBuilder {
   public:
-    using Flavor = proof_system::honk::flavor::AvmMiniFlavor;
+    using Flavor = bb::honk::flavor::AvmMiniFlavor;
     using FF = Flavor::FF;
     using Row = AvmMiniFullRow<FF>;
 
@@ -202,4 +202,4 @@ class AvmMiniCircuitBuilder {
         return num_rows_pow2;
     }
 };
-} // namespace proof_system
+} // namespace bb

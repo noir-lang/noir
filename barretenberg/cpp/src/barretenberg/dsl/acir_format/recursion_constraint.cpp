@@ -7,7 +7,7 @@
 
 namespace acir_format {
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 // `NUM_LIMB_BITS_IN_FIELD_SIMULATION` is the limb size when simulating a non-native field using the bigfield class
 // A aggregation object is two acir_format::g1_ct types where each coordinate in a point is a non-native field.
@@ -136,7 +136,7 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
     vkey->program_width = noir_recursive_settings::program_width;
 
     Transcript_ct transcript(&builder, manifest, proof_fields, input.public_inputs.size());
-    aggregation_state_ct result = proof_system::plonk::stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
+    aggregation_state_ct result = bb::plonk::stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
         &builder, vkey, transcript, previous_aggregation);
 
     // Assign correct witness value to the verification key hash

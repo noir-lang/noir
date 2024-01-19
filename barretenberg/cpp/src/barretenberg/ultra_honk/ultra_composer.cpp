@@ -4,7 +4,7 @@
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
 #include "barretenberg/proof_system/library/grand_product_library.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * Compute verification key consisting of selector precommitments.
@@ -132,4 +132,4 @@ DeciderVerifier_<Flavor> UltraComposer_<Flavor>::create_decider_verifier(const s
 
 template class UltraComposer_<honk::flavor::Ultra>;
 template class UltraComposer_<honk::flavor::GoblinUltra>;
-} // namespace proof_system::honk
+} // namespace bb::honk

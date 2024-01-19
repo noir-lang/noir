@@ -9,7 +9,7 @@
 
 using namespace bb;
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 /**
  * Create ProverBase from proving key, witness and manifest.
@@ -397,7 +397,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     add_blinding_to_quotient_polynomial_parts();
 
     compute_quotient_commitments();
-} // namespace proof_system::plonk
+} // namespace bb::plonk
 
 template <typename settings> void ProverBase<settings>::execute_fifth_round()
 {
@@ -577,4 +577,4 @@ template class ProverBase<ultra_settings>;
 template class ProverBase<ultra_to_standard_settings>;
 template class ProverBase<ultra_with_keccak_settings>;
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

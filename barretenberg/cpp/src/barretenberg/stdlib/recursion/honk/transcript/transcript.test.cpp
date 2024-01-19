@@ -8,13 +8,13 @@
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace proof_system::plonk::stdlib::recursion::honk {
+namespace bb::plonk::stdlib::recursion::honk {
 
 using Builder = UltraCircuitBuilder;
-using UltraFlavor = ::proof_system::honk::flavor::Ultra;
-using UltraRecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive_<Builder>;
+using UltraFlavor = ::bb::honk::flavor::Ultra;
+using UltraRecursiveFlavor = ::bb::honk::flavor::UltraRecursive_<Builder>;
 using FF = bb::fr;
-using BaseTranscript = ::proof_system::honk::BaseTranscript;
+using BaseTranscript = ::bb::honk::BaseTranscript;
 
 /**
  * @brief Create some mock data; add it to the provided prover transcript in various mock rounds
@@ -176,4 +176,4 @@ TEST(RecursiveHonkTranscript, ReturnValuesMatch)
     EXPECT_EQ(static_cast<FF>(native_alpha), stdlib_alpha.get_value());
     EXPECT_EQ(static_cast<FF>(native_beta), stdlib_beta.get_value());
 }
-} // namespace proof_system::plonk::stdlib::recursion::honk
+} // namespace bb::plonk::stdlib::recursion::honk

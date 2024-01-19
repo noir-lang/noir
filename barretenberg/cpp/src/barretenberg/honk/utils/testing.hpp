@@ -2,7 +2,7 @@
 #include "barretenberg/common/zip_view.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 /**
  * @brief Get a ProverPolynomials instance initialized to sequential values starting at 0.
  * @details Values are assigned according to the order specified in the underlying array of the flavor class. The
@@ -43,4 +43,4 @@ template <typename Flavor> typename Flavor::ProverPolynomials get_zero_prover_po
     return prover_polynomials;
 }
 
-} // namespace proof_system::honk
+} // namespace bb::honk

@@ -3,7 +3,7 @@
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 template <typename program_settings>
 inline void compute_gen_permutation_lagrange_base_single(bb::polynomial& output,
                                                          const std::vector<uint32_t>& permutation,
@@ -63,4 +63,4 @@ inline void compute_gen_permutation_lagrange_base_single(bb::polynomial& output,
     }
     ITERATE_OVER_DOMAIN_END;
 }
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -4,7 +4,7 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include <array>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 template <typename Builder> class bit_array;
 
@@ -203,4 +203,4 @@ template <typename Builder> class keccak {
 };
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

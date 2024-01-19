@@ -42,7 +42,7 @@
  * The verifier is able to computed the simulated commitments to A₀₊(X) and A₀₋(X)
  * since they are linear-combinations of the commitments [fⱼ] and [gⱼ].
  */
-namespace proof_system::honk::pcs::gemini {
+namespace bb::honk::pcs::gemini {
 
 /**
  * @brief Prover output (evalutation pair, witness) that can be passed on to Shplonk batch opening.
@@ -109,7 +109,7 @@ template <typename Curve> class GeminiProver_ {
     static ProverOutput<Curve> compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
                                                                    std::vector<Polynomial>&& gemini_polynomials,
                                                                    const Fr& r_challenge);
-}; // namespace proof_system::honk::pcs::gemini
+}; // namespace bb::honk::pcs::gemini
 
 template <typename Curve> class GeminiVerifier_ {
     using Fr = typename Curve::ScalarField;
@@ -262,6 +262,6 @@ template <typename Curve> class GeminiVerifier_ {
         return { C0_r_pos, C0_r_neg };
     }
 
-}; // namespace proof_system::honk::pcs::gemini
+}; // namespace bb::honk::pcs::gemini
 
-} // namespace proof_system::honk::pcs::gemini
+} // namespace bb::honk::pcs::gemini

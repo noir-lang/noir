@@ -3,7 +3,7 @@
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "ultra_circuit_builder.hpp"
 
-namespace proof_system {
+namespace bb {
 
 using namespace bb;
 
@@ -195,4 +195,4 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     bool check_circuit();
 };
 using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<bb::fr>;
-} // namespace proof_system
+} // namespace bb

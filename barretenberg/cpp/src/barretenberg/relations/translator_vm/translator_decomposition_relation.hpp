@@ -2,7 +2,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
   public:
@@ -90,4 +90,4 @@ template <typename FF_> class GoblinTranslatorDecompositionRelationImpl {
 template <typename FF>
 using GoblinTranslatorDecompositionRelation = Relation<GoblinTranslatorDecompositionRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

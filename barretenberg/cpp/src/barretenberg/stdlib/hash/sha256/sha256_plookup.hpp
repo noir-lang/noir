@@ -9,7 +9,7 @@
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace sha256_plookup {
 
@@ -87,4 +87,4 @@ std::array<field_t<Builder>, 8> sha256_block(const std::array<field_t<Builder>, 
 template <typename Builder> packed_byte_array<Builder> sha256(const packed_byte_array<Builder>& input);
 } // namespace sha256_plookup
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

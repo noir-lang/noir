@@ -3,7 +3,7 @@
 #include "barretenberg/plonk/proof_system/types/program_settings.hpp"
 #include "barretenberg/stdlib/recursion/transcript/transcript.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace recursion {
 
@@ -12,18 +12,16 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
     typedef typename Curve::ScalarField fr_ct;
     typedef typename Curve::GroupNative::affine_element g1;
     typedef typename Curve::Builder Builder;
-    typedef proof_system::plonk::stdlib::recursion::Transcript<Builder> Transcript_pt;
-    typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
-    typedef proof_system::plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
+    typedef bb::plonk::stdlib::recursion::Transcript<Builder> Transcript_pt;
+    typedef bb::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
+    typedef bb::plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
-    typedef proof_system::plonk::ultra_settings base_settings;
+    typedef bb::plonk::ultra_settings base_settings;
 
-    typedef proof_system::plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings>
-        PlookupArithmeticWidget;
-    typedef proof_system::plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
-    typedef proof_system::plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
-    typedef proof_system::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings>
-        PlookupAuxiliaryWidget;
+    typedef bb::plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
+    typedef bb::plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
+    typedef bb::plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
+    typedef bb::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupAuxiliaryWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
@@ -89,22 +87,20 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
     typedef typename Curve::ScalarField fr_ct;
     typedef typename Curve::GroupNative::affine_element g1;
     typedef typename Curve::Builder Builder;
-    typedef proof_system::plonk::stdlib::recursion::Transcript<Builder> Transcript_pt;
-    typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
-    typedef proof_system::plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
+    typedef bb::plonk::stdlib::recursion::Transcript<Builder> Transcript_pt;
+    typedef bb::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
+    typedef bb::plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
-    typedef proof_system::plonk::ultra_to_standard_settings base_settings;
+    typedef bb::plonk::ultra_to_standard_settings base_settings;
 
-    typedef proof_system::plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings>
-        PlookupArithmeticWidget;
-    typedef proof_system::plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
-    typedef proof_system::plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
-    typedef proof_system::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings>
-        PlookupAuxiliaryWidget;
+    typedef bb::plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
+    typedef bb::plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
+    typedef bb::plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
+    typedef bb::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupAuxiliaryWidget;
 
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
 };
 
 } // namespace recursion
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

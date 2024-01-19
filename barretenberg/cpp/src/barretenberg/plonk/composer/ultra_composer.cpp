@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <string>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 /**
  * @brief Computes `this.witness`, which is basiclly a set of polynomials mapped-to by strings.
@@ -516,4 +516,4 @@ void UltraComposer::add_table_column_selector_poly_to_proving_key(polynomial& se
     circuit_proving_key->polynomial_store.put(tag + "_fft", std::move(selector_poly_coset_form));
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -4,7 +4,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 
-namespace proof_system::plonk::stdlib {
+namespace bb::plonk::stdlib {
 
 template <typename CircuitBuilder> class pedersen_commitment {
   private:
@@ -20,4 +20,4 @@ template <typename CircuitBuilder> class pedersen_commitment {
     static cycle_group commit(const std::vector<std::pair<field_t, GeneratorContext>>& input_pairs);
 };
 
-} // namespace proof_system::plonk::stdlib
+} // namespace bb::plonk::stdlib

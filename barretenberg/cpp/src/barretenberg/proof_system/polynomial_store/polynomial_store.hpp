@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace proof_system {
+namespace bb {
 
 template <typename Fr> class PolynomialStore {
   private:
@@ -44,4 +44,4 @@ template <typename Fr> class PolynomialStore {
     typename std::unordered_map<std::string, Polynomial>::const_iterator end() const { return polynomial_map.end(); }
 };
 
-} // namespace proof_system
+} // namespace bb

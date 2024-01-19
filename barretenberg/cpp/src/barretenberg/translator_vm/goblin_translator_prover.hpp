@@ -4,7 +4,7 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 // We won't compile this class with honk::flavor::Standard, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
@@ -40,7 +40,7 @@ class GoblinTranslatorProver {
 
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
-    proof_system::RelationParameters<FF> relation_parameters;
+    bb::RelationParameters<FF> relation_parameters;
 
     std::shared_ptr<ProvingKey> key;
 
@@ -57,4 +57,4 @@ class GoblinTranslatorProver {
     plonk::proof proof;
 };
 
-} // namespace proof_system::honk
+} // namespace bb::honk

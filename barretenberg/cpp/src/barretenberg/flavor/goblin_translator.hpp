@@ -16,7 +16,7 @@
 #include "barretenberg/relations/translator_vm/translator_permutation_relation.hpp"
 #include "relation_definitions.hpp"
 
-namespace proof_system::honk::flavor {
+namespace bb::honk::flavor {
 
 class GoblinTranslator {
 
@@ -1138,4 +1138,4 @@ class GoblinTranslator {
 
     using Transcript = BaseTranscript;
 };
-} // namespace proof_system::honk::flavor
+} // namespace bb::honk::flavor

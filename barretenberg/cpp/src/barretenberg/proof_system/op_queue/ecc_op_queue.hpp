@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_builder_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 enum EccOpCode { NULL_OP, ADD_ACCUM, MUL_ACCUM, EQUALITY };
 
@@ -26,7 +26,7 @@ class ECCOpQueue {
     Point accumulator = point_at_infinity;
 
   public:
-    using ECCVMOperation = proof_system_eccvm::VMOperation<Curve::Group>;
+    using ECCVMOperation = bb_eccvm::VMOperation<Curve::Group>;
     std::vector<ECCVMOperation> raw_ops;
     std::array<std::vector<Fr>, 4> ultra_ops; // ops encoded in the width-4 Ultra format
 
@@ -209,4 +209,4 @@ class ECCOpQueue {
     }
 };
 
-} // namespace proof_system
+} // namespace bb

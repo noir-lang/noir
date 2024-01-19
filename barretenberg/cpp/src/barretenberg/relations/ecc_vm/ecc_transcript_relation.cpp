@@ -5,7 +5,7 @@
 #include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/flavor/relation_definitions.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 /**
  * @brief ECCVMTranscriptRelationImpl evaluates the correctness of the ECCVM transcript columns
@@ -258,4 +258,4 @@ void ECCVMTranscriptRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
 template class ECCVMTranscriptRelationImpl<grumpkin::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(ECCVMTranscriptRelationImpl, flavor::ECCVM);
 
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

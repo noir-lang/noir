@@ -4,7 +4,7 @@
 #include <map>
 #include <string>
 
-namespace proof_system {
+namespace bb {
 
 /**
  * A cache that wraps an underlying external store. It favours holding the largest polynomials in it's cache up
@@ -35,4 +35,4 @@ class PolynomialStoreCache {
     void purge_until_free();
 };
 
-} // namespace proof_system
+} // namespace bb

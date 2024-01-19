@@ -2,7 +2,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
@@ -115,4 +115,4 @@ inline std::pair<size_t, bool> find_closest_leaf(std::vector<WrappedNullifierLea
 
 } // namespace merkle_tree
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

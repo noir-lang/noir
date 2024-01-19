@@ -6,7 +6,7 @@ namespace bb::honk_transcript_tests {
 using FF = bb::fr;
 using Fr = bb::fr;
 using Fq = bb::fq;
-using Transcript = proof_system::honk::BaseTranscript;
+using Transcript = bb::honk::BaseTranscript;
 
 /**
  * @brief Test sending, receiving, and exporting proofs

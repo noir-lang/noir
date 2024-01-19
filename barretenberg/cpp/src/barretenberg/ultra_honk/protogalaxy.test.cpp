@@ -3,7 +3,7 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 
 using Flavor = flavor::Ultra;
 using VerificationKey = Flavor::VerificationKey;
@@ -16,7 +16,7 @@ using Projective = Flavor::GroupElement;
 using Builder = Flavor::CircuitBuilder;
 using Polynomial = typename Flavor::Polynomial;
 using ProverPolynomials = Flavor::ProverPolynomials;
-using RelationParameters = proof_system::RelationParameters<FF>;
+using RelationParameters = bb::RelationParameters<FF>;
 using WitnessCommitments = typename Flavor::WitnessCommitments;
 using CommitmentKey = Flavor::CommitmentKey;
 using PowPolynomial = bb::PowPolynomial<FF>;
@@ -149,7 +149,7 @@ TEST_F(ProtoGalaxyTests, PerturbatorPolynomial)
         poly = get_random_polynomial(instance_size);
     }
     auto full_polynomials = construct_ultra_full_polynomials(random_polynomials);
-    auto relation_parameters = proof_system::RelationParameters<FF>::get_random();
+    auto relation_parameters = bb::RelationParameters<FF>::get_random();
     RelationSeparator alphas;
     for (auto& alpha : alphas) {
         alpha = FF::random_element();

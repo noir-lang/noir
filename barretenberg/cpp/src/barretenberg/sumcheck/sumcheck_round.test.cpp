@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
-using namespace proof_system::honk::sumcheck;
+using namespace bb::honk;
+using namespace bb::honk::sumcheck;
 
 using bb::BarycentricData;
 using bb::Univariate;
@@ -22,7 +22,7 @@ namespace test_sumcheck_round {
  */
 TEST(SumcheckRound, SumcheckTupleOfTuplesOfUnivariates)
 {
-    using Flavor = proof_system::honk::flavor::Ultra;
+    using Flavor = bb::honk::flavor::Ultra;
     using FF = typename Flavor::FF;
     using RelationSeparator = typename Flavor::RelationSeparator;
 
@@ -73,7 +73,7 @@ TEST(SumcheckRound, SumcheckTupleOfTuplesOfUnivariates)
  */
 TEST(SumcheckRound, TuplesOfEvaluationArrays)
 {
-    using Flavor = proof_system::honk::flavor::Ultra;
+    using Flavor = bb::honk::flavor::Ultra;
     using Utils = bb::RelationUtils<Flavor>;
     using FF = typename Flavor::FF;
     using RelationSeparator = typename Flavor::RelationSeparator;
@@ -113,7 +113,7 @@ TEST(SumcheckRound, TuplesOfEvaluationArrays)
  */
 TEST(SumcheckRound, AddTuplesOfTuplesOfUnivariates)
 {
-    using Flavor = proof_system::honk::flavor::Ultra;
+    using Flavor = bb::honk::flavor::Ultra;
     using FF = typename Flavor::FF;
 
     // Define some arbitrary univariates

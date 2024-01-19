@@ -9,7 +9,7 @@
 #include <memory>
 #include <utility>
 
-namespace proof_system::honk::pcs::kzg {
+namespace bb::honk::pcs::kzg {
 
 template <typename Curve> class KZG {
     using CK = CommitmentKey<Curve>;
@@ -101,4 +101,4 @@ template <typename Curve> class KZG {
         return { P_0, P_1 };
     };
 };
-} // namespace proof_system::honk::pcs::kzg
+} // namespace bb::honk::pcs::kzg

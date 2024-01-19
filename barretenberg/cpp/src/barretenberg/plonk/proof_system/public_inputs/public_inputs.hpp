@@ -2,7 +2,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <vector>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 template <typename Field>
 Field compute_public_input_delta(const std::vector<Field>& inputs,
                                  const Field& beta,

@@ -41,7 +41,7 @@ template <typename Builder>
 crypto::ecdsa::signature ecdsa_convert_signature(Builder& builder, std::vector<uint32_t> signature);
 witness_ct ecdsa_index_to_witness(Builder& builder, uint32_t index);
 template <typename Builder>
-proof_system::plonk::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(
-    Builder& builder, std::vector<uint32_t> vector_of_bytes);
+bb::plonk::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(Builder& builder,
+                                                                           std::vector<uint32_t> vector_of_bytes);
 
 } // namespace acir_format

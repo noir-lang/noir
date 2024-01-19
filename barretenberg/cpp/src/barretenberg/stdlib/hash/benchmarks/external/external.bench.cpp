@@ -12,11 +12,11 @@
 
 using namespace benchmark;
 
-using Builder = proof_system::UltraCircuitBuilder;
-using Composer = proof_system::plonk::UltraComposer;
+using Builder = bb::UltraCircuitBuilder;
+using Composer = bb::plonk::UltraComposer;
 
-using Prover = proof_system::plonk::UltraProver;
-using Verifier = proof_system::plonk::UltraVerifier;
+using Prover = bb::plonk::UltraProver;
+using Verifier = bb::plonk::UltraVerifier;
 
 constexpr size_t PROOF_COUNT_LOG = 10;
 constexpr size_t NUM_PROOFS = 3;
@@ -36,9 +36,9 @@ void generate_test_sha256_plonk_circuit(Builder& builder, size_t num_iterations)
         in[i] = 0;
     }
 
-    proof_system::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
+    bb::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = proof_system::plonk::stdlib::sha256<Builder>(input);
+        input = bb::plonk::stdlib::sha256<Builder>(input);
     }
 }
 
@@ -117,9 +117,9 @@ void generate_test_blake3s_plonk_circuit(Builder& builder, size_t num_iterations
     for (size_t i = 0; i < 32; ++i) {
         in[i] = 0;
     }
-    proof_system::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
+    bb::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = proof_system::plonk::stdlib::blake3s<Builder>(input);
+        input = bb::plonk::stdlib::blake3s<Builder>(input);
     }
 }
 

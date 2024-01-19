@@ -3,8 +3,8 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
-using namespace proof_system::plonk;
-using namespace proof_system::plonk::stdlib;
+using namespace bb::plonk;
+using namespace bb::plonk::stdlib;
 
 using numeric::uint256_t;
 

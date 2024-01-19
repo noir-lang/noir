@@ -3,7 +3,7 @@
 #include "../safe_uint/safe_uint.hpp"
 #include "field.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 /**
@@ -176,4 +176,4 @@ void push_array_to_array(std::array<field_t<Builder>, size_1> const& source,
 }
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

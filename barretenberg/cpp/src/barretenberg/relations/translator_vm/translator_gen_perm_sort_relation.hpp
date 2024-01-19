@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class GoblinTranslatorGenPermSortRelationImpl {
   public:
@@ -46,4 +46,4 @@ template <typename FF_> class GoblinTranslatorGenPermSortRelationImpl {
 template <typename FF>
 using GoblinTranslatorGenPermSortRelation = Relation<GoblinTranslatorGenPermSortRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

@@ -8,7 +8,7 @@
 #include <vector>
 
 namespace acir_format::tests {
-using curve_ct = proof_system::plonk::stdlib::secp256k1<Builder>;
+using curve_ct = bb::plonk::stdlib::secp256k1<Builder>;
 
 class ECDSASecp256k1 : public ::testing::Test {
   protected:

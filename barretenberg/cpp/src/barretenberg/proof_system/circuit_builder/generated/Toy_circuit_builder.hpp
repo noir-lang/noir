@@ -18,7 +18,7 @@
 
 using namespace bb;
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF> struct ToyFullRow {
     FF toy_first{};
@@ -42,7 +42,7 @@ template <typename FF> struct ToyFullRow {
 
 class ToyCircuitBuilder {
   public:
-    using Flavor = proof_system::honk::flavor::ToyFlavor;
+    using Flavor = bb::honk::flavor::ToyFlavor;
     using FF = Flavor::FF;
     using Row = ToyFullRow<FF>;
 
@@ -94,7 +94,7 @@ class ToyCircuitBuilder {
 
         const FF gamma = FF::random_element();
         const FF beta = FF::random_element();
-        proof_system::RelationParameters<typename Flavor::FF> params{
+        bb::RelationParameters<typename Flavor::FF> params{
             .eta = 0,
             .beta = beta,
             .gamma = gamma,
@@ -137,7 +137,7 @@ class ToyCircuitBuilder {
 
         const auto evaluate_logderivative = [&]<typename LogDerivativeSettings>(const std::string& lookup_name) {
             // Check the logderivative relation
-            proof_system::honk::logderivative_library::compute_logderivative_inverse<Flavor, LogDerivativeSettings>(
+            bb::honk::logderivative_library::compute_logderivative_inverse<Flavor, LogDerivativeSettings>(
                 polys, params, num_rows);
 
             typename LogDerivativeSettings::SumcheckArrayOfValuesOverSubrelations lookup_result;
@@ -183,4 +183,4 @@ class ToyCircuitBuilder {
         return num_rows_pow2;
     }
 };
-} // namespace proof_system
+} // namespace bb

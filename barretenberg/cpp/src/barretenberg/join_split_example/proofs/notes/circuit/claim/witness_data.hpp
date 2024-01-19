@@ -8,7 +8,7 @@
 
 namespace join_split_example::proofs::notes::circuit::claim {
 
-using namespace proof_system::plonk::stdlib;
+using namespace bb::plonk::stdlib;
 
 /**
  * Convert native claim note data into circuit witness data.

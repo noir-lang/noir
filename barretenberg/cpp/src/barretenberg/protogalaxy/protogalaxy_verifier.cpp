@@ -1,6 +1,6 @@
 #include "protogalaxy_verifier.hpp"
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
-namespace proof_system::honk {
+namespace bb::honk {
 
 template <class VerifierInstances>
 void ProtoGalaxyVerifier_<VerifierInstances>::receive_accumulator(const std::shared_ptr<Instance>& inst,
@@ -227,7 +227,7 @@ bool ProtoGalaxyVerifier_<VerifierInstances>::verify_folding_proof(std::vector<u
         auto next_alpha = transcript->template receive_from_prover<FF>("next_alpha_" + std::to_string(alpha_idx));
         verified = verified & (alpha == next_alpha);
     }
-    auto expected_parameters = proof_system::RelationParameters<FF>{};
+    auto expected_parameters = bb::RelationParameters<FF>{};
     for (size_t inst_idx = 0; inst_idx < VerifierInstances::NUM; inst_idx++) {
         auto instance = instances[inst_idx];
         expected_parameters.eta += instance->relation_parameters.eta * lagranges[inst_idx];
@@ -275,4 +275,4 @@ bool ProtoGalaxyVerifier_<VerifierInstances>::verify_folding_proof(std::vector<u
 
 template class ProtoGalaxyVerifier_<VerifierInstances_<honk::flavor::Ultra, 2>>;
 template class ProtoGalaxyVerifier_<VerifierInstances_<honk::flavor::GoblinUltra, 2>>;
-} // namespace proof_system::honk
+} // namespace bb::honk

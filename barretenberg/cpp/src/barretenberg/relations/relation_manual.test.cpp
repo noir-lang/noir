@@ -4,7 +4,7 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 #include <gtest/gtest.h>
 
-namespace proof_system::relation_manual_tests {
+namespace bb::relation_manual_tests {
 
 using FF = bb::fr;
 
@@ -165,4 +165,4 @@ TEST_F(RelationManual, Poseidon2InternalRelationRandom)
     EXPECT_EQ(acc[2], 0);
     EXPECT_EQ(acc[3], 0);
 }
-}; // namespace proof_system::relation_manual_tests
+}; // namespace bb::relation_manual_tests

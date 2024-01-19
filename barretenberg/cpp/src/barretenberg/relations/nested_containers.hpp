@@ -2,7 +2,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include <tuple>
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief Generic templates for constructing a container of containers of varying length, where the various lengths are
@@ -40,4 +40,4 @@ using TupleOfValues = typename TupleOfContainersOverArray<ExtractValueType, FF, 
 
 template <typename FF, auto LENGTHS> using ArrayOfValues = HomogeneousTupleToArray<TupleOfValues<FF, LENGTHS>>;
 
-} // namespace proof_system
+} // namespace bb

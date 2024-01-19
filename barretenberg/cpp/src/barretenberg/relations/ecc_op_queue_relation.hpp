@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class EccOpQueueRelationImpl {
   public:
@@ -107,4 +107,4 @@ template <typename FF_> class EccOpQueueRelationImpl {
 
 template <typename FF> using EccOpQueueRelation = Relation<EccOpQueueRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

@@ -5,7 +5,7 @@
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
 #include "barretenberg/proof_system/library/grand_product_library.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 /**
  * @brief Helper method to compute quantities like total number of gates and dyadic circuit size
  *
@@ -428,4 +428,4 @@ template <class Flavor> void ProverInstance_<Flavor>::compute_grand_product_poly
 template class ProverInstance_<honk::flavor::Ultra>;
 template class ProverInstance_<honk::flavor::GoblinUltra>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

@@ -8,9 +8,9 @@ namespace acir_format {
 
 template <typename Builder> void create_fixed_base_constraint(Builder& builder, const FixedBaseScalarMul& input)
 {
-    using cycle_group_ct = proof_system::plonk::stdlib::cycle_group<Builder>;
-    using cycle_scalar_ct = typename proof_system::plonk::stdlib::cycle_group<Builder>::cycle_scalar;
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using cycle_group_ct = bb::plonk::stdlib::cycle_group<Builder>;
+    using cycle_scalar_ct = typename bb::plonk::stdlib::cycle_group<Builder>::cycle_scalar;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
 
     // Computes low * G + high * 2^128 * G
     //

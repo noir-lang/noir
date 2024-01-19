@@ -7,7 +7,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 template <typename FF_> class ECCVMLookupRelationImpl {
   public:
@@ -247,4 +247,4 @@ template <typename FF_> class ECCVMLookupRelationImpl {
 
 template <typename FF> using ECCVMLookupRelation = Relation<ECCVMLookupRelationImpl<FF>>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

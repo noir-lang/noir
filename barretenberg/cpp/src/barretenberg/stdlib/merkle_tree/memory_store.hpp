@@ -4,7 +4,7 @@
 #include <map>
 #include <set>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
@@ -88,4 +88,4 @@ class MemoryStore {
 
 } // namespace merkle_tree
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

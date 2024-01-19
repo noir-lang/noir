@@ -4,9 +4,9 @@
 #include "barretenberg/transcript/transcript.hpp"
 
 using namespace bb;
-using namespace proof_system::honk::sumcheck;
+using namespace bb::honk::sumcheck;
 
-namespace proof_system::honk {
+namespace bb::honk {
 template <typename Flavor>
 UltraVerifier_<Flavor>::UltraVerifier_(const std::shared_ptr<Transcript>& transcript,
                                        const std::shared_ptr<VerificationKey>& verifier_key)
@@ -54,7 +54,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
 
-    proof_system::RelationParameters<FF> relation_parameters;
+    bb::RelationParameters<FF> relation_parameters;
 
     transcript = std::make_shared<Transcript>(proof.proof_data);
 
@@ -166,4 +166,4 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
 template class UltraVerifier_<honk::flavor::Ultra>;
 template class UltraVerifier_<honk::flavor::GoblinUltra>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

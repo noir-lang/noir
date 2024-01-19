@@ -14,7 +14,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
     using element_ct = typename Curve::Element;
@@ -77,7 +77,7 @@ template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
     }
 };
 
-using TestTypes = testing::Types<stdlib::bn254<proof_system::GoblinUltraCircuitBuilder>>;
+using TestTypes = testing::Types<stdlib::bn254<bb::GoblinUltraCircuitBuilder>>;
 
 TYPED_TEST_SUITE(stdlib_biggroup_goblin, TestTypes);
 

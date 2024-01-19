@@ -13,7 +13,7 @@
 
 namespace join_split_example::proofs::join_split {
 
-using namespace proof_system::plonk::stdlib::merkle_tree;
+using namespace bb::plonk::stdlib::merkle_tree;
 
 /* Old join-split tests below. The value of having all of these logic tests is unclear, but we'll
    leave them around, at least for a while. */
@@ -26,8 +26,8 @@ constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
 #endif
 
 using namespace bb;
-using namespace proof_system::plonk::stdlib;
-using namespace proof_system::plonk::stdlib::merkle_tree;
+using namespace bb::plonk::stdlib;
+using namespace bb::plonk::stdlib::merkle_tree;
 using namespace join_split_example::proofs::notes::native;
 using key_pair = join_split_example::fixtures::grumpkin_key_pair;
 

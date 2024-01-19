@@ -7,10 +7,10 @@
 
 namespace test_stdlib_rom_array {
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 // Defining ultra-specific types for local testing.
-using Builder = proof_system::UltraCircuitBuilder;
+using Builder = bb::UltraCircuitBuilder;
 using field_ct = stdlib::field_t<Builder>;
 using witness_ct = stdlib::witness_t<Builder>;
 using rom_table_ct = stdlib::rom_table<Builder>;

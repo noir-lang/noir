@@ -4,7 +4,7 @@
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 /**
  * @brief Hashes the evaluation domain to match the 'circuit' approach taken in
@@ -44,7 +44,7 @@ bb::fr verification_key_data::hash_native(const size_t hash_index) const
 
     std::vector<uint8_t> preimage_data;
 
-    preimage_data.push_back(static_cast<uint8_t>(proof_system::CircuitType(circuit_type)));
+    preimage_data.push_back(static_cast<uint8_t>(bb::CircuitType(circuit_type)));
 
     const uint256_t domain = eval_domain.domain;
     const uint256_t generator = eval_domain.generator;
@@ -152,4 +152,4 @@ sha256::hash verification_key::sha256_hash()
     return sha256::sha256(to_buffer(vk_data));
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

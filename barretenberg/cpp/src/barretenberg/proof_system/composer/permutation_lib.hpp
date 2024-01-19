@@ -24,7 +24,7 @@
 
 // TODO(Cody): very little code is shared; should split this up into plonk/honk files.
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief cycle_node represents the index of a value of the circuit.
@@ -527,4 +527,4 @@ void compute_honk_generalized_sigma_permutations(const typename Flavor::CircuitB
         proving_key->get_id_polynomials(), mapping.ids, proving_key);
 }
 
-} // namespace proof_system
+} // namespace bb

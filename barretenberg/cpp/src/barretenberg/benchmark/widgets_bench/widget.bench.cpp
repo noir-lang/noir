@@ -22,7 +22,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 #ifdef GET_PER_ROW_TIME
 constexpr size_t LARGE_DOMAIN_SIZE = 4;
@@ -113,4 +113,4 @@ BENCHMARK(accumulate_contribution<ProverGenPermSortWidget<ultra_settings>>);
 BENCHMARK(accumulate_contribution<ProverEllipticWidget<ultra_settings>>);
 BENCHMARK(accumulate_contribution<ProverPlookupAuxiliaryWidget<ultra_settings>>);
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

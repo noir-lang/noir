@@ -20,8 +20,8 @@ namespace toy_avm_circuit_builder_tests {
 TEST(ToyAVMCircuitBuilder, BaseCase)
 {
 
-    using FF = proof_system::honk::flavor::ToyFlavor::FF;
-    using Builder = proof_system::ToyCircuitBuilder;
+    using FF = bb::honk::flavor::ToyFlavor::FF;
+    using Builder = bb::ToyCircuitBuilder;
     using Row = Builder::Row;
     Builder circuit_builder;
 

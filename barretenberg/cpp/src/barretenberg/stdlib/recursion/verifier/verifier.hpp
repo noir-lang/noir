@@ -14,7 +14,7 @@
 #include "barretenberg/stdlib/recursion/transcript/transcript.hpp"
 #include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace recursion {
 
@@ -99,7 +99,7 @@ void populate_kate_element_map(typename Curve::Builder* ctx,
     fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
     fr_ct batch_evaluation =
-        proof_system::plonk::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
+        bb::plonk::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
     batch_opening_scalar = -batch_evaluation;
 
     kate_g1_elements.insert({ "PI_Z_OMEGA", PI_Z_OMEGA });
@@ -431,4 +431,4 @@ aggregation_state<bn254<typename Flavor::CircuitBuilder>> verify_proof(
 
 } // namespace recursion
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

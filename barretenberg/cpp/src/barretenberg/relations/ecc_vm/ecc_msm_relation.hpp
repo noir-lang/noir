@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 /**
  * @brief MSM relations that evaluate the Strauss multiscalar multiplication algorithm.
@@ -51,4 +51,4 @@ template <typename FF_> class ECCVMMSMRelationImpl {
 
 template <typename FF> using ECCVMMSMRelation = Relation<ECCVMMSMRelationImpl<FF>>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

@@ -5,7 +5,7 @@
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 /**
  * @brief  An Instance is normally constructed from a finalized circuit and it's role is to compute all the polynomials
  * involved in creating a proof and, if requested, the verification key.
@@ -46,7 +46,7 @@ template <class Flavor> class ProverInstance_ {
     // instances
     size_t pub_inputs_offset = 0;
     RelationSeparator alphas;
-    proof_system::RelationParameters<FF> relation_parameters;
+    bb::RelationParameters<FF> relation_parameters;
     std::vector<uint32_t> recursive_proof_public_input_indices;
 
     bool is_accumulator = false;
@@ -107,4 +107,4 @@ template <class Flavor> class ProverInstance_ {
     void add_plookup_memory_records_to_wire_4(FF);
 };
 
-} // namespace proof_system::honk
+} // namespace bb::honk

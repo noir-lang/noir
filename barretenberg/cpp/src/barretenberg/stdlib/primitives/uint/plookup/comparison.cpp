@@ -3,7 +3,7 @@
 
 using namespace bb;
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename Builder, typename Native>
@@ -74,13 +74,13 @@ template <typename Builder, typename Native> bool_t<Builder> uint_plookup<Builde
     return (field_t<Builder>(*this).is_zero()).normalize();
 }
 
-template class uint_plookup<proof_system::UltraCircuitBuilder, uint8_t>;
-template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint8_t>;
-template class uint_plookup<proof_system::UltraCircuitBuilder, uint16_t>;
-template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint16_t>;
-template class uint_plookup<proof_system::UltraCircuitBuilder, uint32_t>;
-template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint32_t>;
-template class uint_plookup<proof_system::UltraCircuitBuilder, uint64_t>;
-template class uint_plookup<proof_system::GoblinUltraCircuitBuilder, uint64_t>;
+template class uint_plookup<bb::UltraCircuitBuilder, uint8_t>;
+template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint8_t>;
+template class uint_plookup<bb::UltraCircuitBuilder, uint16_t>;
+template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint16_t>;
+template class uint_plookup<bb::UltraCircuitBuilder, uint32_t>;
+template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint32_t>;
+template class uint_plookup<bb::UltraCircuitBuilder, uint64_t>;
+template class uint_plookup<bb::GoblinUltraCircuitBuilder, uint64_t>;
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

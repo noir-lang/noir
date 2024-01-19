@@ -6,7 +6,7 @@
 #include <array>
 #include <gtest/gtest.h>
 
-namespace proof_system::test_composer_lib {
+namespace bb::test_composer_lib {
 
 class PermutationHelperTests : public ::testing::Test {
   protected:
@@ -90,4 +90,4 @@ TEST_F(PermutationHelperTests, ComputeStandardAuxPolynomials)
     compute_first_and_last_lagrange_polynomials<Flavor>(proving_key);
 }
 
-} // namespace proof_system::test_composer_lib
+} // namespace bb::test_composer_lib

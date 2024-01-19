@@ -3,7 +3,7 @@
 #include "barretenberg/proof_system/arithmetization/gate_data.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 
-namespace proof_system::plonk::stdlib {
+namespace bb::plonk::stdlib {
 
 /**
  * @brief Circuit form of Poseidon2 permutation from https://eprint.iacr.org/2023/323.
@@ -205,4 +205,4 @@ void Poseidon2Permutation<Params, Builder>::initial_external_matrix_multiplicati
 
 template class Poseidon2Permutation<crypto::Poseidon2Bn254ScalarFieldParams, GoblinUltraCircuitBuilder>;
 
-} // namespace proof_system::plonk::stdlib
+} // namespace bb::plonk::stdlib

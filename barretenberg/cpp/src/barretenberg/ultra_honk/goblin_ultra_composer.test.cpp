@@ -8,7 +8,7 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 
 namespace test_ultra_honk_composer {
 
@@ -94,12 +94,12 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
  */
 TEST_F(GoblinUltraHonkComposerTests, SingleCircuit)
 {
-    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
+    auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     // Add mock data to op queue to simulate interaction with a previous circuit
     op_queue->populate_with_mock_initital_data();
 
-    auto builder = proof_system::GoblinUltraCircuitBuilder{ op_queue };
+    auto builder = bb::GoblinUltraCircuitBuilder{ op_queue };
 
     generate_test_circuit(builder);
 
@@ -122,7 +122,7 @@ TEST_F(GoblinUltraHonkComposerTests, SingleCircuit)
 TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
 {
     // Instantiate EccOpQueue. This will be shared across all circuits in the series
-    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
+    auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     // Add mock data to op queue to simulate interaction with a previous circuit
     op_queue->populate_with_mock_initital_data();
@@ -130,7 +130,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
     // Construct multiple test circuits that share an ECC op queue. Generate and verify a proof for each.
     size_t NUM_CIRCUITS = 3;
     for (size_t i = 0; i < NUM_CIRCUITS; ++i) {
-        auto builder = proof_system::GoblinUltraCircuitBuilder{ op_queue };
+        auto builder = bb::GoblinUltraCircuitBuilder{ op_queue };
 
         generate_test_circuit(builder);
 
@@ -150,7 +150,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
 TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkOnly)
 {
     // Instantiate EccOpQueue. This will be shared across all circuits in the series
-    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
+    auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     // Add mock data to op queue to simulate interaction with a previous circuit
     op_queue->populate_with_mock_initital_data();
@@ -158,7 +158,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkOnly)
     // Construct multiple test circuits that share an ECC op queue. Generate and verify a proof for each.
     size_t NUM_CIRCUITS = 3;
     for (size_t i = 0; i < NUM_CIRCUITS; ++i) {
-        auto builder = proof_system::GoblinUltraCircuitBuilder{ op_queue };
+        auto builder = bb::GoblinUltraCircuitBuilder{ op_queue };
 
         generate_test_circuit(builder);
 
@@ -178,7 +178,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkOnly)
 TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkAndMerge)
 {
     // Instantiate EccOpQueue. This will be shared across all circuits in the series
-    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
+    auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     // Add mock data to op queue to simulate interaction with a previous circuit
     op_queue->populate_with_mock_initital_data();
@@ -186,7 +186,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkAndMerge)
     // Construct multiple test circuits that share an ECC op queue. Generate and verify a proof for each.
     size_t NUM_CIRCUITS = 3;
     for (size_t i = 0; i < NUM_CIRCUITS; ++i) {
-        auto builder = proof_system::GoblinUltraCircuitBuilder{ op_queue };
+        auto builder = bb::GoblinUltraCircuitBuilder{ op_queue };
 
         generate_test_circuit(builder);
 

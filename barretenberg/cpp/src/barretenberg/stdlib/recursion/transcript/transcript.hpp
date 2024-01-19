@@ -14,7 +14,7 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/plonk/transcript/transcript.hpp"
 
-namespace proof_system::plonk::stdlib::recursion {
+namespace bb::plonk::stdlib::recursion {
 template <typename Builder> class Transcript {
   public:
     using field_pt = field_t<Builder>;
@@ -405,4 +405,4 @@ template <typename Builder> class Transcript {
 
     size_t current_round = 0;
 };
-} // namespace proof_system::plonk::stdlib::recursion
+} // namespace bb::plonk::stdlib::recursion

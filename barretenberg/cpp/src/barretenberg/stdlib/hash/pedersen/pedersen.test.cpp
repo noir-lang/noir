@@ -7,7 +7,7 @@
 
 namespace test_StdlibPedersen {
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
@@ -245,7 +245,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
     }
 };
 
-using CircuitTypes = testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder>;
+using CircuitTypes = testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
 
 TYPED_TEST_SUITE(StdlibPedersen, CircuitTypes);
 

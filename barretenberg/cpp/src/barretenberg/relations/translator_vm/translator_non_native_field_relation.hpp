@@ -2,7 +2,7 @@
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
   public:
@@ -87,4 +87,4 @@ template <typename FF_> class GoblinTranslatorNonNativeFieldRelationImpl {
 template <typename FF>
 using GoblinTranslatorNonNativeFieldRelation = Relation<GoblinTranslatorNonNativeFieldRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

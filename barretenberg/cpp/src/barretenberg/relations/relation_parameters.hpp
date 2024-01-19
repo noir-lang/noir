@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <array>
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief Container for parameters used by the grand product (permutation, lookup) Honk relations
@@ -75,4 +75,4 @@ template <typename T> struct RelationParameters {
         return result;
     }
 };
-} // namespace proof_system
+} // namespace bb

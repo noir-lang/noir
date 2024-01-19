@@ -30,10 +30,10 @@ FastRandom VarianceRNG(0);
  */
 template <typename Builder> class BitArrayFuzzBase {
   private:
-    typedef proof_system::plonk::stdlib::bit_array<Builder> bit_array_t;
-    typedef proof_system::plonk::stdlib::byte_array<Builder> byte_array_t;
+    typedef bb::plonk::stdlib::bit_array<Builder> bit_array_t;
+    typedef bb::plonk::stdlib::byte_array<Builder> byte_array_t;
     template <size_t NumBytes, size_t NumWords>
-    static std::vector<uint8_t> to_vector(std::array<proof_system::plonk::stdlib::uint32<Builder>, NumWords>& a32)
+    static std::vector<uint8_t> to_vector(std::array<bb::plonk::stdlib::uint32<Builder>, NumWords>& a32)
     {
         /* Convert array of uint32_t to vector of uint8_t */
         std::vector<uint8_t> v(NumBytes);
@@ -60,7 +60,7 @@ template <typename Builder> class BitArrayFuzzBase {
              */
             return static_cast<byte_array_t>(bit_array).get_value();
         } else if (bit_array.size() - offset == NumBits) {
-            std::array<proof_system::plonk::stdlib::uint32<Builder>, NumWords> a32;
+            std::array<bb::plonk::stdlib::uint32<Builder>, NumWords> a32;
             bit_array.template populate_uint32_array<NumWords>(offset, a32);
             return to_vector<NumBytes, NumWords>(a32);
         } else {
@@ -92,7 +92,7 @@ template <typename Builder> class BitArrayFuzzBase {
              */
             return static_cast<byte_array_t>(bit_array).get_value();
         } else if (bit_array.size() == NumBits) {
-            std::array<proof_system::plonk::stdlib::uint32<Builder>, NumWords> a32;
+            std::array<bb::plonk::stdlib::uint32<Builder>, NumWords> a32;
 
             /* Switch between two different methods to retrieve the uint32 array */
             if (cast_or_populate) {
@@ -445,8 +445,7 @@ template <typename Builder> class BitArrayFuzzBase {
                 if (bit_array.size() == MAX_ARRAY_SIZE / 32) {
                     std::array<uint32_t, MAX_ARRAY_SIZE> a32;
                     const auto a32_ =
-                        static_cast<std::array<proof_system::plonk::stdlib::uint32<Builder>, MAX_ARRAY_SIZE>>(
-                            bit_array);
+                        static_cast<std::array<bb::plonk::stdlib::uint32<Builder>, MAX_ARRAY_SIZE>>(bit_array);
                     for (size_t i = 0; i < a32_.size(); i++) {
                         a32[i] = static_cast<uint32_t>(a32_[i].get_value());
                     }
@@ -883,7 +882,7 @@ extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv)
  */
 extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* Data, size_t Size, size_t MaxSize, unsigned int Seed)
 {
-    using FuzzerClass = BitArrayFuzzBase<proof_system::StandardCircuitBuilder>;
+    using FuzzerClass = BitArrayFuzzBase<bb::StandardCircuitBuilder>;
     auto fast_random = FastRandom(Seed);
     auto size_occupied = ArithmeticFuzzHelper<FuzzerClass>::MutateInstructionBuffer(Data, Size, MaxSize, fast_random);
     if ((fast_random.next() % 200) < fuzzer_havoc_settings.GEN_LLVM_POST_MUTATION_PROB) {
@@ -904,7 +903,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
                                             size_t MaxOutSize,
                                             unsigned int Seed)
 {
-    using FuzzerClass = BitArrayFuzzBase<proof_system::StandardCircuitBuilder>;
+    using FuzzerClass = BitArrayFuzzBase<bb::StandardCircuitBuilder>;
     auto fast_random = FastRandom(Seed);
     auto vecA = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data1, Size1);
     auto vecB = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data2, Size2);

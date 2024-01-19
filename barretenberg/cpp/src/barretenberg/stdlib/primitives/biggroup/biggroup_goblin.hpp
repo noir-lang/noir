@@ -1,6 +1,6 @@
 #pragma once
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 /**
@@ -93,4 +93,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::goblin_batch_mul(const std::vector<
 }
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

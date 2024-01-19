@@ -5,7 +5,7 @@
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 struct permutation_subgroup_element {
     uint32_t subgroup_index = 0;
@@ -108,4 +108,4 @@ inline void compute_permutation_lagrange_base_single(bb::polynomial& output,
     }
     ITERATE_OVER_DOMAIN_END;
 }
-} // namespace proof_system::plonk
+} // namespace bb::plonk

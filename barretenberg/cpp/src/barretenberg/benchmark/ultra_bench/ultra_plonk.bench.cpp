@@ -3,7 +3,7 @@
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 using namespace benchmark;
-using namespace proof_system;
+using namespace bb;
 
 /**
  * @brief Benchmark: Construction of a Ultra Plonk proof for a circuit determined by the provided circuit function

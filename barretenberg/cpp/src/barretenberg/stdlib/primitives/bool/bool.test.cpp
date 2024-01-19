@@ -10,7 +10,7 @@
 
 namespace test_stdlib_bool {
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -18,7 +18,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 template <class Builder> class BoolTest : public ::testing::Test {};
 
-using CircuitTypes = ::testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
 
 TYPED_TEST_SUITE(BoolTest, CircuitTypes);
 TYPED_TEST(BoolTest, TestBasicOperations)

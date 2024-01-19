@@ -16,7 +16,7 @@
 template <typename Builder, typename NativeGroup>
 concept IsNotGoblinInefficiencyTrap = !(IsGoblinBuilder<Builder> && std::same_as<NativeGroup, bb::g1>);
 
-namespace proof_system::plonk::stdlib {
+namespace bb::plonk::stdlib {
 
 // ( ͡° ͜ʖ ͡°)
 template <class Builder, class Fq, class Fr, class NativeGroup> class element {
@@ -905,7 +905,7 @@ inline std::ostream& operator<<(std::ostream& os, element<C, Fq, Fr, G> const& v
 {
     return os << "{ " << v.x << " , " << v.y << " }";
 }
-} // namespace proof_system::plonk::stdlib
+} // namespace bb::plonk::stdlib
 
 #include "biggroup_batch_mul.hpp"
 #include "biggroup_bn254.hpp"

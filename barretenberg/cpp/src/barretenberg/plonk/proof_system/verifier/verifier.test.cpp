@@ -14,7 +14,7 @@
 namespace verifier_helpers {
 
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_key)
 {

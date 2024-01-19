@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief LookupRelationImpl defines the algebra for the lookup polynomial:
@@ -209,4 +209,4 @@ template <typename FF_> class LookupRelationImpl {
 
 template <typename FF> using LookupRelation = Relation<LookupRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

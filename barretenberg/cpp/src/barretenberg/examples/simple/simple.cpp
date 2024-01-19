@@ -6,7 +6,7 @@
 
 namespace examples::simple {
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 using namespace stdlib::types;
 
 const size_t CIRCUIT_SIZE = 1 << 19;
@@ -51,7 +51,7 @@ proof create_proof(BuilderComposerPtrs pair)
     return proof;
 }
 
-bool verify_proof(BuilderComposerPtrs pair, proof_system::plonk::proof const& proof)
+bool verify_proof(BuilderComposerPtrs pair, bb::plonk::proof const& proof)
 {
     info("computing verification key...");
     pair.composer->compute_verification_key(*pair.builder);

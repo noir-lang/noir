@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class Poseidon2ExternalRelationImpl {
   public:
@@ -114,4 +114,4 @@ template <typename FF_> class Poseidon2ExternalRelationImpl {
 };
 
 template <typename FF> using Poseidon2ExternalRelation = Relation<Poseidon2ExternalRelationImpl<FF>>;
-} // namespace proof_system
+} // namespace bb

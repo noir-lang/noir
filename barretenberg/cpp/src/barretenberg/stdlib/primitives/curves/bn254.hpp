@@ -4,11 +4,11 @@
 #include "../field/field.hpp"
 #include "barretenberg/ecc/curves/types.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename CircuitBuilder> struct bn254 {
-    static constexpr proof_system::CurveType type = proof_system::CurveType::BN254;
+    static constexpr bb::CurveType type = bb::CurveType::BN254;
     // TODO(#673): This flag is temporary. It is needed in the verifier classes (GeminiVerifier, etc.) while these
     // classes are instantiated with "native" curve types. Eventually, the verifier classes will be instantiated only
     // with stdlib types, and "native" verification will be acheived via a simulated builder.
@@ -41,4 +41,4 @@ template <typename CircuitBuilder> struct bn254 {
 
 }; // namespace bn254
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

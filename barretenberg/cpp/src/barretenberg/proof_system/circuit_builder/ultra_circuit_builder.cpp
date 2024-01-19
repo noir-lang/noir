@@ -12,7 +12,7 @@
 
 using namespace bb;
 
-namespace proof_system {
+namespace bb {
 
 template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::finalize_circuit()
 {
@@ -1514,7 +1514,7 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::decompose_non_nat
  * @details The data queued represents a non-native field multiplication identity a * b = q * p + r,
  * where a, b, q, r are all emulated non-native field elements that are each split across 4 distinct witness variables.
  *
- * Without this queue some functions, such as proof_system::plonk::stdlib::element::multiple_montgomery_ladder, would
+ * Without this queue some functions, such as bb::plonk::stdlib::element::multiple_montgomery_ladder, would
  * duplicate non-native field operations, which can be quite expensive. We queue up these operations, and remove
  * duplicates in the circuit finishing stage of the proving key computation.
  *
@@ -3489,4 +3489,4 @@ template class UltraCircuitBuilder_<arithmetization::UltraHonk<bb::fr>>;
 // To enable this we need to template plookup
 // template class UltraCircuitBuilder_<grumpkin::fr>;
 
-} // namespace proof_system
+} // namespace bb

@@ -3,7 +3,7 @@
 #include "../uint/uint.hpp"
 #include <algorithm>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename Builder> class bit_array {
@@ -180,4 +180,4 @@ template <typename Builder> class bit_array {
 };
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

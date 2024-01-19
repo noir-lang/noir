@@ -26,7 +26,7 @@
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
 
-namespace proof_system::honk {
+namespace bb::honk {
 namespace flavor {
 
 template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBase {
@@ -930,4 +930,4 @@ class ECCVM : public ECCVMBase<bb::g1, curve::Grumpkin, pcs::ipa::IPA<curve::Gru
 // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
 } // namespace flavor
-} // namespace proof_system::honk
+} // namespace bb::honk

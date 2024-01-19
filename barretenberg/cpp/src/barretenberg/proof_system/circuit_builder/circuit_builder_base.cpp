@@ -2,7 +2,7 @@
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
-namespace proof_system {
+namespace bb {
 
 /**
  * Join variable class b to variable class a.
@@ -45,4 +45,4 @@ void CircuitBuilderBase<FF>::assert_equal(const uint32_t a_variable_idx,
 // Standard honk/ plonk instantiation
 template class CircuitBuilderBase<bb::fr>;
 template class CircuitBuilderBase<grumpkin::fr>;
-} // namespace proof_system
+} // namespace bb

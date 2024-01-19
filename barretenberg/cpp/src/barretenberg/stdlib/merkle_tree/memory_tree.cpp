@@ -1,9 +1,7 @@
 #include "memory_tree.hpp"
 #include "hash.hpp"
 
-namespace proof_system::plonk {
-namespace stdlib {
-namespace merkle_tree {
+namespace bb::plonk::stdlib::merkle_tree {
 
 MemoryTree::MemoryTree(size_t depth)
     : depth_(depth)
@@ -76,6 +74,4 @@ fr MemoryTree::update_element(size_t index, fr const& value)
     return root_;
 }
 
-} // namespace merkle_tree
-} // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk::stdlib::merkle_tree

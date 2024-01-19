@@ -11,7 +11,7 @@
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 using Flavor = honk::flavor::ToyFlavor;
 
@@ -28,13 +28,12 @@ ToyProver::ToyProver(std::shared_ptr<Flavor::ProvingKey> input_key, std::shared_
     , commitment_key(commitment_key)
 {
     for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), key->get_all())) {
-        ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
-               proof_system::flavor_get_label(*key, key_poly));
+        ASSERT(bb::flavor_get_label(prover_polynomials, prover_poly) == bb::flavor_get_label(*key, key_poly));
         prover_poly = key_poly.share();
     }
     for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_shifted(), key->get_to_be_shifted())) {
-        ASSERT(proof_system::flavor_get_label(prover_polynomials, prover_poly) ==
-               proof_system::flavor_get_label(*key, key_poly) + "_shift");
+        ASSERT(bb::flavor_get_label(prover_polynomials, prover_poly) ==
+               bb::flavor_get_label(*key, key_poly) + "_shift");
         prover_poly = key_poly.shifted();
     }
 }
@@ -128,4 +127,4 @@ plonk::proof& ToyProver::construct_proof()
     return export_proof();
 }
 
-} // namespace proof_system::honk
+} // namespace bb::honk

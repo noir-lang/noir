@@ -5,7 +5,7 @@
 namespace join_split_example::proofs::notes::circuit {
 
 using namespace bb;
-using namespace proof_system::plonk::stdlib;
+using namespace bb::plonk::stdlib;
 
 field_ct compute_nullifier(field_ct const& note_commitment,
                            field_ct const& account_private_key,
@@ -40,7 +40,7 @@ field_ct compute_nullifier(field_ct const& note_commitment,
      * eth address.
      */
     auto blake_input = byte_array_ct(hashed_inputs);
-    auto blake_result = proof_system::plonk::stdlib::blake2s(blake_input);
+    auto blake_result = bb::plonk::stdlib::blake2s(blake_input);
     return field_ct(blake_result);
 }
 

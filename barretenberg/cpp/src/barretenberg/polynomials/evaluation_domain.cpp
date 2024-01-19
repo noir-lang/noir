@@ -66,7 +66,7 @@ EvaluationDomain<Fr>::EvaluationDomain(const size_t domain_size, const size_t ta
     , roots(nullptr)
 {
     // Grumpkin does not have many roots of unity and, given these are not used for Honk, we set it to one.
-    if (proof_system::IsAnyOf<Fr, grumpkin::fr>) {
+    if (bb::IsAnyOf<Fr, grumpkin::fr>) {
         root = Fr::one();
     } else {
         root = Fr::get_root_of_unity(log2_size);

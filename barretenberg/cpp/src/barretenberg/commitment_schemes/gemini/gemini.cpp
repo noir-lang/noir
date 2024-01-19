@@ -42,7 +42,7 @@
  * The verifier is able to computed the simulated commitments to A₀₊(X) and A₀₋(X)
  * since they are linear-combinations of the commitments [fⱼ] and [gⱼ].
  */
-namespace proof_system::honk::pcs::gemini {
+namespace bb::honk::pcs::gemini {
 
 /**
  * @brief Computes d-1 fold polynomials Fold_i, i = 1, ..., d-1
@@ -188,4 +188,4 @@ ProverOutput<Curve> GeminiProver_<Curve>::compute_fold_polynomial_evaluations(
 
 template class GeminiProver_<curve::BN254>;
 template class GeminiProver_<curve::Grumpkin>;
-}; // namespace proof_system::honk::pcs::gemini
+}; // namespace bb::honk::pcs::gemini

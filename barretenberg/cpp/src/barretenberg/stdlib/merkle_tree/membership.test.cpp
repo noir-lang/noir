@@ -11,13 +11,13 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-namespace proof_system::stdlib_merkle_test {
+namespace bb::stdlib_merkle_test {
 
 using namespace bb;
-using namespace proof_system::plonk::stdlib::merkle_tree;
-using namespace proof_system::plonk::stdlib;
+using namespace bb::plonk::stdlib::merkle_tree;
+using namespace bb::plonk::stdlib;
 
-using Builder = proof_system::UltraCircuitBuilder;
+using Builder = bb::UltraCircuitBuilder;
 
 using bool_ct = bool_t<Builder>;
 using field_ct = field_t<Builder>;
@@ -247,4 +247,4 @@ TEST(stdlib_merkle_tree, test_update_memberships)
     bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
-} // namespace proof_system::stdlib_merkle_test
+} // namespace bb::stdlib_merkle_test

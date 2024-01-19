@@ -32,7 +32,7 @@ void generate_keys(std::string output_path, std::string flavour_prefix, std::str
     {
         auto vk_filename = output_path + "/keys/" + vk_class_name + ".sol";
         std::ofstream os(vk_filename);
-        proof_system::output_vk_sol(os, vkey, vk_class_name);
+        bb::output_vk_sol(os, vkey, vk_class_name);
         info("VK contract written to: ", vk_filename);
     }
 

@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class EllipticRelationImpl {
   public:
@@ -96,4 +96,4 @@ template <typename FF_> class EllipticRelationImpl {
 };
 
 template <typename FF> using EllipticRelation = Relation<EllipticRelationImpl<FF>>;
-} // namespace proof_system
+} // namespace bb

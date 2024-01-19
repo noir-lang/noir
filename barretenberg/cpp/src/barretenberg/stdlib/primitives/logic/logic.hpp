@@ -7,7 +7,7 @@
 #include <functional>
 #include <utility>
 
-namespace proof_system::plonk::stdlib {
+namespace bb::plonk::stdlib {
 
 template <typename Builder> class logic {
   public:
@@ -27,4 +27,4 @@ template <typename Builder> class logic {
                 return std::make_pair(left_chunk, right_chunk);
             });
 };
-} // namespace proof_system::plonk::stdlib
+} // namespace bb::plonk::stdlib

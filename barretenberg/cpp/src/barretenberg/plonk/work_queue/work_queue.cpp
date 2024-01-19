@@ -3,7 +3,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 using namespace bb;
 
@@ -286,4 +286,4 @@ std::vector<work_queue::work_item> work_queue::get_queue() const
     return work_item_queue;
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -8,7 +8,7 @@
 #include "barretenberg/srs/global_crs.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * @brief Verifier class for the Goblin ECC op queue transcript merge protocol
@@ -36,4 +36,4 @@ template <typename Flavor> class MergeVerifier_ {
     bool verify_proof(const plonk::proof& proof);
 };
 
-} // namespace proof_system::honk
+} // namespace bb::honk

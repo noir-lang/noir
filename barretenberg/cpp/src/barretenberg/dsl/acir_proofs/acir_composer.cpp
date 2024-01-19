@@ -32,7 +32,7 @@ void AcirComposer::create_circuit(acir_format::acir_format& constraint_system, W
     vinfo("gates: ", builder_.get_total_circuit_size());
 }
 
-std::shared_ptr<proof_system::plonk::proving_key> AcirComposer::init_proving_key()
+std::shared_ptr<bb::plonk::proving_key> AcirComposer::init_proving_key()
 {
     acir_format::Composer composer;
     vinfo("computing proving key...");
@@ -82,7 +82,7 @@ std::vector<uint8_t> AcirComposer::create_goblin_proof()
     return goblin.construct_proof(goblin_builder_);
 }
 
-std::shared_ptr<proof_system::plonk::verification_key> AcirComposer::init_verification_key()
+std::shared_ptr<bb::plonk::verification_key> AcirComposer::init_verification_key()
 {
     if (!proving_key_) {
         throw_or_abort("Compute proving key first.");
@@ -94,10 +94,10 @@ std::shared_ptr<proof_system::plonk::verification_key> AcirComposer::init_verifi
     return verification_key_;
 }
 
-void AcirComposer::load_verification_key(proof_system::plonk::verification_key_data&& data)
+void AcirComposer::load_verification_key(bb::plonk::verification_key_data&& data)
 {
-    verification_key_ = std::make_shared<proof_system::plonk::verification_key>(
-        std::move(data), srs::get_crs_factory()->get_verifier_crs());
+    verification_key_ =
+        std::make_shared<bb::plonk::verification_key>(std::move(data), srs::get_crs_factory()->get_verifier_crs());
 }
 
 bool AcirComposer::verify_proof(std::vector<uint8_t> const& proof, bool is_recursive)

@@ -9,7 +9,7 @@ using namespace bb;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief Check that a single accumulation gate is created correctly
@@ -129,4 +129,4 @@ TEST(GoblinTranslatorCircuitBuilder, SeveralOperationCorrectness)
     // Check the computation result is in line with what we've computed
     EXPECT_EQ(result, circuit_builder.get_computation_result());
 }
-} // namespace proof_system
+} // namespace bb

@@ -3,9 +3,9 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include <gtest/gtest.h>
 
-using namespace proof_system;
+using namespace bb;
 
-namespace proof_system::nested_contianers_tests {
+namespace bb::nested_contianers_tests {
 
 using FF = bb::fr;
 
@@ -23,4 +23,4 @@ TEST_F(NestedContainers, Univariate)
     EXPECT_EQ(std::get<2>(tuple), result2);
 }
 
-} // namespace proof_system::nested_contianers_tests
+} // namespace bb::nested_contianers_tests

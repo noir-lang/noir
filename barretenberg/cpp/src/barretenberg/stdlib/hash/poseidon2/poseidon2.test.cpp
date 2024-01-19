@@ -6,7 +6,7 @@
 
 namespace test_StdlibPoseidon2 {
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
@@ -148,7 +148,7 @@ template <typename Builder> class StdlibPoseidon2 : public testing::Test {
     }
 };
 
-using CircuitTypes = testing::Types<proof_system::GoblinUltraCircuitBuilder>;
+using CircuitTypes = testing::Types<bb::GoblinUltraCircuitBuilder>;
 
 TYPED_TEST_SUITE(StdlibPoseidon2, CircuitTypes);
 

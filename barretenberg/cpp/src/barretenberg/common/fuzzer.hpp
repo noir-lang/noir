@@ -690,7 +690,7 @@ template <template <typename> class Fuzzer, uint64_t Composers>
 constexpr void RunWithBuilders(const uint8_t* Data, const size_t Size, FastRandom& VarianceRNG)
 {
     if (Composers & 1) {
-        RunWithBuilder<Fuzzer, proof_system::StandardCircuitBuilder>(Data, Size, VarianceRNG);
+        RunWithBuilder<Fuzzer, bb::StandardCircuitBuilder>(Data, Size, VarianceRNG);
     }
 }
 

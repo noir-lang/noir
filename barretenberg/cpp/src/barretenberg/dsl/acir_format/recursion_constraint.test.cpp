@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 class AcirRecursionConstraint : public ::testing::Test {
   protected:

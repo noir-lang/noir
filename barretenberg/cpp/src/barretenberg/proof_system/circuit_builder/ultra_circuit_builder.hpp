@@ -12,7 +12,7 @@
 #include "circuit_builder_base.hpp"
 #include <optional>
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF> struct non_native_field_witnesses {
     // first 4 array elements = limbs
@@ -1167,4 +1167,4 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     bool check_circuit();
 };
 using UltraCircuitBuilder = UltraCircuitBuilder_<arithmetization::Ultra<bb::fr>>;
-} // namespace proof_system
+} // namespace bb

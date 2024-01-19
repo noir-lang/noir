@@ -1,7 +1,7 @@
 #pragma once
 #include "commitment_scheme.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 template <typename settings> class KateCommitmentScheme : public CommitmentScheme {
   public:
@@ -39,4 +39,4 @@ template <typename settings> class KateCommitmentScheme : public CommitmentSchem
     plonk::commitment_open_proof kate_open_proof;
 };
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

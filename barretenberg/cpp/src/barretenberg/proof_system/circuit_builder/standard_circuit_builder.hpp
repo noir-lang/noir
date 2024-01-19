@@ -7,7 +7,7 @@
 #include "circuit_builder_base.hpp"
 #include <array>
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase<FF> {
   public:
@@ -148,4 +148,4 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
 
 using StandardCircuitBuilder = StandardCircuitBuilder_<bb::fr>;
 using StandardGrumpkinCircuitBuilder = StandardCircuitBuilder_<grumpkin::fr>;
-} // namespace proof_system
+} // namespace bb

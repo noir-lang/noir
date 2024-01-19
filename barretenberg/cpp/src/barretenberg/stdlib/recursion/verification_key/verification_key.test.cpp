@@ -10,7 +10,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 } // namespace
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 /**
  * @brief A test fixture that will let us generate VK data and run tests
@@ -20,8 +20,8 @@ using namespace proof_system::plonk;
  */
 template <typename Builder> class VerificationKeyFixture : public testing::Test {
   public:
-    using Curve = proof_system::plonk::stdlib::bn254<Builder>;
-    using RecursVk = proof_system::plonk::stdlib::recursion::verification_key<Curve>;
+    using Curve = bb::plonk::stdlib::bn254<Builder>;
+    using RecursVk = bb::plonk::stdlib::recursion::verification_key<Curve>;
 
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 
@@ -44,7 +44,7 @@ template <typename Builder> class VerificationKeyFixture : public testing::Test 
     }
 };
 
-using CircuitTypes = testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder>;
+using CircuitTypes = testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
 TYPED_TEST_SUITE(VerificationKeyFixture, CircuitTypes);
 
 TYPED_TEST(VerificationKeyFixture, VkDataVsRecursionHashNative)

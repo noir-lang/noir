@@ -5,7 +5,7 @@
 
 namespace acir_format {
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 /**
  * @brief RecursionConstraint struct contains information required to recursively verify a proof!

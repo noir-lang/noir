@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace proof_system {
+namespace bb {
 
 template <typename Fr> class PolynomialStoreWasm {
   private:
@@ -16,4 +16,4 @@ template <typename Fr> class PolynomialStoreWasm {
     Polynomial get(std::string const& key);
 };
 
-} // namespace proof_system
+} // namespace bb

@@ -2,7 +2,7 @@
 #include "barretenberg/srs/global_crs.hpp"
 #include "simple/simple.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
+using namespace bb::plonk::stdlib::types;
 
 WASM_EXPORT void examples_simple_create_and_verify_proof(bool* valid)
 {

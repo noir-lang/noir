@@ -1,7 +1,7 @@
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
 #include "barretenberg/flavor/goblin_translator.hpp"
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief Expression for decomposition of various values into smaller limbs or microlimbs.
@@ -619,4 +619,4 @@ void GoblinTranslatorDecompositionRelationImpl<FF>::accumulate(ContainerOverSubr
 template class GoblinTranslatorDecompositionRelationImpl<bb::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorDecompositionRelationImpl, honk::flavor::GoblinTranslator);
 
-} // namespace proof_system
+} // namespace bb

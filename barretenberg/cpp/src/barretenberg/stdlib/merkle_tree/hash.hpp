@@ -8,7 +8,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <vector>
 
-namespace proof_system::plonk::stdlib::merkle_tree {
+namespace bb::plonk::stdlib::merkle_tree {
 
 inline bb::fr hash_pair_native(bb::fr const& lhs, bb::fr const& rhs)
 {
@@ -63,4 +63,4 @@ inline std::vector<bb::fr> compute_tree_native(std::vector<bb::fr> const& input)
     return tree;
 }
 
-} // namespace proof_system::plonk::stdlib::merkle_tree
+} // namespace bb::plonk::stdlib::merkle_tree

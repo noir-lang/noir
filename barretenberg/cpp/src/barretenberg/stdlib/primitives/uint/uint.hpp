@@ -7,7 +7,7 @@
 
 #include "./plookup/uint.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 /**
@@ -202,4 +202,4 @@ using uint64 =
     typename std::conditional<HasPlookup<Builder>, uint_plookup<Builder, uint64_t>, uint<Builder, uint64_t>>::type;
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -24,13 +24,13 @@ auto& engine = numeric::random::get_debug_engine();
 
 namespace test_stdlib_safe_uint {
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
 template <class Builder> class SafeUintTest : public ::testing::Test {};
 
-using CircuitTypes = ::testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
 TYPED_TEST_SUITE(SafeUintTest, CircuitTypes);
 
 // CONSTRUCTOR

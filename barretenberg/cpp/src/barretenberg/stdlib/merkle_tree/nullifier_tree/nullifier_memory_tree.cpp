@@ -1,7 +1,7 @@
 #include "nullifier_memory_tree.hpp"
 #include "../hash.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
@@ -74,4 +74,4 @@ fr NullifierMemoryTree::update_element(fr const& value)
 
 } // namespace merkle_tree
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -1,7 +1,7 @@
 #include "ultra_prover.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * Create UltraProver_ from an instance.
@@ -215,4 +215,4 @@ template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::construct_proo
 template class UltraProver_<honk::flavor::Ultra>;
 template class UltraProver_<honk::flavor::GoblinUltra>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

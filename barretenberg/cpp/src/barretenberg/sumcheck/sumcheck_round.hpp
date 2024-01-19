@@ -7,7 +7,7 @@
 #include "barretenberg/relations/relation_types.hpp"
 #include "barretenberg/relations/utils.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 /*
  Notation: The polynomial P(X0, X1) that is the low-degree extension of its values vij = P(i,j)
@@ -103,7 +103,7 @@ template <typename Flavor> class SumcheckProverRound {
     template <typename ProverPolynomialsOrPartiallyEvaluatedMultivariates>
     bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH> compute_univariate(
         ProverPolynomialsOrPartiallyEvaluatedMultivariates& polynomials,
-        const proof_system::RelationParameters<FF>& relation_parameters,
+        const bb::RelationParameters<FF>& relation_parameters,
         const bb::PowPolynomial<FF>& pow_polynomial,
         const RelationSeparator alpha)
     {
@@ -204,7 +204,7 @@ template <typename Flavor> class SumcheckProverRound {
 
             using Relation = typename std::tuple_element_t<relation_idx, Relations>;
             const bool is_subrelation_linearly_independent =
-                proof_system::subrelation_is_linearly_independent<Relation, subrelation_idx>();
+                bb::subrelation_is_linearly_independent<Relation, subrelation_idx>();
             // Except from the log derivative subrelation, each other subrelation in part is required to be 0 hence we
             // multiply by the power polynomial. As the sumcheck prover is required to send a univariate to the
             // verifier, we additionally need a univariate contribution from the pow polynomial.
@@ -236,7 +236,7 @@ template <typename Flavor> class SumcheckProverRound {
     template <size_t relation_idx = 0>
     void accumulate_relation_univariates(SumcheckTupleOfTuplesOfUnivariates& univariate_accumulators,
                                          const auto& extended_edges,
-                                         const proof_system::RelationParameters<FF>& relation_parameters,
+                                         const bb::RelationParameters<FF>& relation_parameters,
                                          const FF& scaling_factor)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
@@ -322,7 +322,7 @@ template <typename Flavor> class SumcheckVerifierRound {
     // so instead of having claimed evaluations of each relation in part  you have the actual evaluations
     // kill the pow_univariat
     FF compute_full_honk_relation_purported_value(ClaimedEvaluations purported_evaluations,
-                                                  const proof_system::RelationParameters<FF>& relation_parameters,
+                                                  const bb::RelationParameters<FF>& relation_parameters,
                                                   const bb::PowPolynomial<FF>& pow_polynomial,
                                                   const RelationSeparator alpha)
     {
@@ -335,4 +335,4 @@ template <typename Flavor> class SumcheckVerifierRound {
         return output;
     }
 };
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

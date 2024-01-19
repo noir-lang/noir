@@ -9,7 +9,7 @@
 #include "barretenberg/stdlib/hash/poseidon2/poseidon2_permutation.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
-namespace proof_system::plonk::stdlib {
+namespace bb::plonk::stdlib {
 
 /**
  * @brief Implements the circuit form of a cryptographic sponge over prime fields.
@@ -179,4 +179,4 @@ template <size_t rate, size_t capacity, size_t t, typename Permutation, typename
         return hash_variable_length<1>(builder, input)[0];
     }
 };
-} // namespace proof_system::plonk::stdlib
+} // namespace bb::plonk::stdlib

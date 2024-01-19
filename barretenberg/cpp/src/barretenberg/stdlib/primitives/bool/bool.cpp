@@ -2,9 +2,9 @@
 #include "../circuit_builders/circuit_builders.hpp"
 
 using namespace bb;
-using namespace proof_system;
+using namespace bb;
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename Builder>
@@ -548,9 +548,9 @@ template <typename Builder> bool_t<Builder> bool_t<Builder>::normalize() const
     return *this;
 }
 
-template class bool_t<proof_system::StandardCircuitBuilder>;
-template class bool_t<proof_system::UltraCircuitBuilder>;
-template class bool_t<proof_system::GoblinUltraCircuitBuilder>;
+template class bool_t<bb::StandardCircuitBuilder>;
+template class bool_t<bb::UltraCircuitBuilder>;
+template class bool_t<bb::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

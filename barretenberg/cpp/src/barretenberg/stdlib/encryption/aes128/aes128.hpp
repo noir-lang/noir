@@ -7,7 +7,7 @@
 #include "../../primitives/witness/witness.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 namespace aes128 {
@@ -19,4 +19,4 @@ std::vector<stdlib::field_t<Builder>> encrypt_buffer_cbc(const std::vector<stdli
 
 } // namespace aes128
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

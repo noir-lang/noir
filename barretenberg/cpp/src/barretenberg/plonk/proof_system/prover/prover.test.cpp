@@ -66,7 +66,7 @@ sigma_3 = [39, 23, 4, 40, 41, 25, 33, 36, 37, 42, 43, 44, 45, 46, 47, 48]
 ```
 */
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 namespace prover_helpers {
 

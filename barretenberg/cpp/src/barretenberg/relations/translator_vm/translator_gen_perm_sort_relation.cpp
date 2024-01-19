@@ -1,7 +1,7 @@
 #include "barretenberg/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
 #include "barretenberg/flavor/goblin_translator.hpp"
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief Expression for the generalized permutation sort relation
@@ -129,4 +129,4 @@ void GoblinTranslatorGenPermSortRelationImpl<FF>::accumulate(ContainerOverSubrel
 template class GoblinTranslatorGenPermSortRelationImpl<bb::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorGenPermSortRelationImpl, honk::flavor::GoblinTranslator);
 
-} // namespace proof_system
+} // namespace bb

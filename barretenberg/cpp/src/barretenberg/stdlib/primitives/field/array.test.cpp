@@ -15,7 +15,7 @@ auto& engine = numeric::random::get_debug_engine();
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 template <typename Builder> class stdlib_array : public testing::Test {
     typedef stdlib::bool_t<Builder> bool_ct;
@@ -595,7 +595,7 @@ template <typename Builder> class stdlib_array : public testing::Test {
     }
 };
 
-typedef testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder> CircuitTypes;
+typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder> CircuitTypes;
 
 TYPED_TEST_SUITE(stdlib_array, CircuitTypes);
 

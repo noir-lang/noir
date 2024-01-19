@@ -120,10 +120,10 @@ FastRandom VarianceRNG(0);
  */
 template <typename Builder> class FieldBase {
   private:
-    typedef proof_system::plonk::stdlib::bool_t<Builder> bool_t;
-    typedef proof_system::plonk::stdlib::field_t<Builder> field_t;
-    typedef proof_system::plonk::stdlib::witness_t<Builder> witness_t;
-    typedef proof_system::plonk::stdlib::public_witness_t<Builder> public_witness_t;
+    typedef bb::plonk::stdlib::bool_t<Builder> bool_t;
+    typedef bb::plonk::stdlib::field_t<Builder> field_t;
+    typedef bb::plonk::stdlib::witness_t<Builder> witness_t;
+    typedef bb::plonk::stdlib::public_witness_t<Builder> public_witness_t;
 
   public:
     /**
@@ -1017,8 +1017,8 @@ template <typename Builder> class FieldBase {
                  *
                  * TEST(stdlib_field, test_construct_via_bool_t)
                  * {
-                 *     proof_system::StandardCircuitBuilder builder =
-                 * proof_system::proof_system::StandardCircuitBuilder(); field_t a(witness_t(&builder,
+                 *     bb::StandardCircuitBuilder builder =
+                 * bb::bb::StandardCircuitBuilder(); field_t a(witness_t(&builder,
                  * fr(uint256_t{0xf396b678452ebf15, 0x82ae10893982638b, 0xdf185a29c65fbf80, 0x1d18b2de99e48308})));
                  * field_t b = a - a; field_t c(static_cast<bool_t>(b)); std::cout << c.get_value() << std::endl;
                  * }
@@ -1969,7 +1969,7 @@ extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv)
  */
 extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* Data, size_t Size, size_t MaxSize, unsigned int Seed)
 {
-    using FuzzerClass = FieldBase<proof_system::StandardCircuitBuilder>;
+    using FuzzerClass = FieldBase<bb::StandardCircuitBuilder>;
     auto fast_random = FastRandom(Seed);
     auto size_occupied = ArithmeticFuzzHelper<FuzzerClass>::MutateInstructionBuffer(Data, Size, MaxSize, fast_random);
     if ((fast_random.next() % 200) < fuzzer_havoc_settings.GEN_LLVM_POST_MUTATION_PROB) {
@@ -1990,7 +1990,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
                                             size_t MaxOutSize,
                                             unsigned int Seed)
 {
-    using FuzzerClass = FieldBase<proof_system::StandardCircuitBuilder>;
+    using FuzzerClass = FieldBase<bb::StandardCircuitBuilder>;
     auto fast_random = FastRandom(Seed);
     auto vecA = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data1, Size1);
     auto vecB = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data2, Size2);

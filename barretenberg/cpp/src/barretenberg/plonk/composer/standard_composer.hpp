@@ -10,7 +10,7 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <utility>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 class StandardComposer {
   public:
     using Flavor = plonk::flavor::Standard;
@@ -153,4 +153,4 @@ class StandardComposer {
     }
 };
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

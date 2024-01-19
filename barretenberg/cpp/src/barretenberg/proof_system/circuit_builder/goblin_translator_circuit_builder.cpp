@@ -13,7 +13,7 @@
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include <cstddef>
-namespace proof_system {
+namespace bb {
 using ECCVMOperation = ECCOpQueue::ECCVMOperation;
 
 /**
@@ -1067,4 +1067,4 @@ bool GoblinTranslatorCircuitBuilder::check_circuit()
 };
 template GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(
     bb::fr, bb::fr, bb::fr, bb::fr, bb::fr, bb::fr, bb::fr, bb::fq, bb::fq, bb::fq);
-} // namespace proof_system
+} // namespace bb

@@ -8,10 +8,10 @@
 
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 using CircuitBuilder = flavor::GoblinTranslator::CircuitBuilder;
 using Transcript = flavor::GoblinTranslator::Transcript;
-using OpQueue = proof_system::ECCOpQueue;
+using OpQueue = bb::ECCOpQueue;
 
 namespace test_goblin_translator_composer {
 
@@ -57,7 +57,7 @@ TEST_F(GoblinTranslatorComposerTests, Basic)
     auto z = Fr::random_element();
 
     // Add the same operations to the ECC op queue; the native computation is performed under the hood.
-    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
+    auto op_queue = std::make_shared<bb::ECCOpQueue>();
     for (size_t i = 0; i < 500; i++) {
         op_queue->add_accumulate(P1);
         op_queue->mul_accumulate(P2, z);

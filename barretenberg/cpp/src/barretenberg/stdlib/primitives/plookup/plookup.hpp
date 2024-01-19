@@ -6,7 +6,7 @@
 #include <array>
 #include <vector>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename Builder> class plookup_read {
@@ -26,4 +26,4 @@ template <typename Builder> class plookup_read {
                                                                const bool is_2_to_1_lookup = false);
 };
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

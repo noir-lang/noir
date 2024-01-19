@@ -6,7 +6,7 @@
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 /**
  * @brief Retrieve lagrange forms of selector polynomials and compute monomial and coset-monomial forms and put into
@@ -71,9 +71,9 @@ std::shared_ptr<plonk::verification_key> compute_verification_key_common(
     }
 
     // Set the polynomial manifest in verification key.
-    circuit_verification_key->polynomial_manifest = proof_system::plonk::PolynomialManifest(proving_key->circuit_type);
+    circuit_verification_key->polynomial_manifest = bb::plonk::PolynomialManifest(proving_key->circuit_type);
 
     return circuit_verification_key;
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

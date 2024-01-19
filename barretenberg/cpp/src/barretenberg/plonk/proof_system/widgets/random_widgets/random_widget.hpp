@@ -7,7 +7,7 @@
 namespace transcript {
 class Transcript;
 }
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 struct proving_key;
 
@@ -51,4 +51,4 @@ class ProverRandomWidget {
     proving_key* key;
 };
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

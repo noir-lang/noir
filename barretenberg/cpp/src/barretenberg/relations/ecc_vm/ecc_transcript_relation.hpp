@@ -4,7 +4,7 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 /**
  * @brief ECCVMTranscriptRelationImpl evaluates the correctness of the ECCVM transcript columns
@@ -55,4 +55,4 @@ template <typename FF_> class ECCVMTranscriptRelationImpl {
 
 template <typename FF> using ECCVMTranscriptRelation = Relation<ECCVMTranscriptRelationImpl<FF>>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

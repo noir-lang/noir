@@ -13,7 +13,7 @@
 #include "./prover_settings.hpp"
 #include "barretenberg/plonk/transcript/transcript.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 class standard_verifier_settings : public standard_settings {
   public:
@@ -137,4 +137,4 @@ class ultra_with_keccak_verifier_settings : public ultra_verifier_settings {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
 };
-} // namespace proof_system::plonk
+} // namespace bb::plonk

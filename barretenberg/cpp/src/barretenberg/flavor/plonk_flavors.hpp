@@ -5,10 +5,10 @@
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
-namespace proof_system::plonk::flavor {
+namespace bb::plonk::flavor {
 class Standard {
   public:
-    using CircuitBuilder = proof_system::StandardCircuitBuilder;
+    using CircuitBuilder = bb::StandardCircuitBuilder;
     using ProvingKey = plonk::proving_key;
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
@@ -20,7 +20,7 @@ class Standard {
 
 class Ultra {
   public:
-    using CircuitBuilder = proof_system::UltraCircuitBuilder;
+    using CircuitBuilder = bb::UltraCircuitBuilder;
     using ProvingKey = plonk::proving_key;
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
@@ -151,4 +151,4 @@ class Ultra {
         return output;
     }
 };
-} // namespace proof_system::plonk::flavor
+} // namespace bb::plonk::flavor

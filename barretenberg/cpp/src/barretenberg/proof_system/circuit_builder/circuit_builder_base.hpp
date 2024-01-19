@@ -8,7 +8,7 @@
 
 #include <unordered_map>
 
-namespace proof_system {
+namespace bb {
 static constexpr uint32_t DUMMY_TAG = 0;
 
 template <typename FF_> class CircuitBuilderBase {
@@ -382,7 +382,7 @@ template <typename FF_> class CircuitBuilderBase {
     }
 };
 
-} // namespace proof_system
+} // namespace bb
 
 // TODO(#217)(Cody): This will need updating based on the approach we take to ensure no multivariate is zero.
 /**

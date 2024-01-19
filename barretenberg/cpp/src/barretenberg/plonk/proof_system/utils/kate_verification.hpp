@@ -3,7 +3,7 @@
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include <map>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 template <typename Field, typename Transcript, typename program_settings>
 Field compute_kate_batch_evaluation(typename Transcript::Key* key, const Transcript& transcript)
@@ -106,4 +106,4 @@ void populate_kate_element_map(verification_key* key,
     }
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

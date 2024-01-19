@@ -9,7 +9,7 @@
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 namespace blake2s_plookup {
@@ -19,4 +19,4 @@ template <typename Builder> byte_array<Builder> blake2s(const byte_array<Builder
 } // namespace blake2s_plookup
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

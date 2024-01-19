@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class UltraPermutationRelationImpl {
   public:
@@ -118,4 +118,4 @@ template <typename FF_> class UltraPermutationRelationImpl {
 
 template <typename FF> using UltraPermutationRelation = Relation<UltraPermutationRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

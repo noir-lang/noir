@@ -7,7 +7,7 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 #include <typeinfo>
 
-namespace proof_system::honk::grand_product_library {
+namespace bb::honk::grand_product_library {
 
 // TODO(luke): This contains utilities for grand product computation and is not specific to the permutation grand
 // product. Update comments accordingly.
@@ -50,7 +50,7 @@ namespace proof_system::honk::grand_product_library {
 template <typename Flavor, typename GrandProdRelation>
 void compute_grand_product(const size_t circuit_size,
                            typename Flavor::ProverPolynomials& full_polynomials,
-                           proof_system::RelationParameters<typename Flavor::FF>& relation_parameters)
+                           bb::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
     using FF = typename Flavor::FF;
     using Polynomial = typename Flavor::Polynomial;
@@ -144,7 +144,7 @@ void compute_grand_product(const size_t circuit_size,
 template <typename Flavor>
 void compute_grand_products(std::shared_ptr<typename Flavor::ProvingKey>& key,
                             typename Flavor::ProverPolynomials& full_polynomials,
-                            proof_system::RelationParameters<typename Flavor::FF>& relation_parameters)
+                            bb::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
     using GrandProductRelations = typename Flavor::GrandProductRelations;
     using FF = typename Flavor::FF;
@@ -167,4 +167,4 @@ void compute_grand_products(std::shared_ptr<typename Flavor::ProvingKey>& key,
     });
 }
 
-} // namespace proof_system::honk::grand_product_library
+} // namespace bb::honk::grand_product_library

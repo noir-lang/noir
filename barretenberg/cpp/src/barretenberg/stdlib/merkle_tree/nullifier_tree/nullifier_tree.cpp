@@ -9,7 +9,7 @@
 #include <iostream>
 #include <sstream>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
@@ -87,4 +87,4 @@ template class NullifierTree<MemoryStore>;
 
 } // namespace merkle_tree
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

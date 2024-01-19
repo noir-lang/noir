@@ -9,7 +9,7 @@
 #include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 using namespace stdlib;
 using numeric::uint256_t;
 
@@ -33,7 +33,7 @@ template <typename OuterBuilder> class RecursiveCircuit {
     using inner_scalar_field = typename inner_curve::ScalarFieldNative;
     using outer_scalar_field = typename outer_curve::BaseFieldNative;
     using pairing_target_field = bb::fq12;
-    static constexpr bool is_ultra_to_ultra = std::is_same_v<OuterBuilder, proof_system::UltraCircuitBuilder>;
+    static constexpr bool is_ultra_to_ultra = std::is_same_v<OuterBuilder, bb::UltraCircuitBuilder>;
     using ProverOfInnerCircuit =
         std::conditional_t<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>;
     using VerifierOfInnerProof =

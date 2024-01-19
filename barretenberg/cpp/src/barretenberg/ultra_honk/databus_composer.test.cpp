@@ -10,7 +10,7 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 
 namespace test_ultra_honk_composer {
 
@@ -49,12 +49,12 @@ class DataBusComposerTests : public ::testing::Test {
  */
 TEST_F(DataBusComposerTests, CallDataRead)
 {
-    auto op_queue = std::make_shared<proof_system::ECCOpQueue>();
+    auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     // Add mock data to op queue to simulate interaction with a previous circuit
     op_queue->populate_with_mock_initital_data();
 
-    auto builder = proof_system::GoblinUltraCircuitBuilder{ op_queue };
+    auto builder = bb::GoblinUltraCircuitBuilder{ op_queue };
 
     // Create a general test circuit
     generate_test_circuit(builder);

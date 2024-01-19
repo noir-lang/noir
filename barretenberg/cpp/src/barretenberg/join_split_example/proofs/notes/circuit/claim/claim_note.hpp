@@ -13,7 +13,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace proof_system::plonk::stdlib;
+using namespace bb::plonk::stdlib;
 
 struct partial_claim_note {
     suint_ct deposit_value;

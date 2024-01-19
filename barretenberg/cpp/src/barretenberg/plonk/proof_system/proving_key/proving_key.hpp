@@ -17,7 +17,7 @@
 #include "barretenberg/proof_system/polynomial_store/polynomial_store.hpp"
 #endif
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 struct proving_key_data {
     uint32_t circuit_type;
@@ -84,4 +84,4 @@ struct proving_key {
     static constexpr size_t min_thread_block = 4UL;
 };
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class UltraArithmeticRelationImpl {
   public:
@@ -114,4 +114,4 @@ template <typename FF_> class UltraArithmeticRelationImpl {
 };
 
 template <typename FF> using UltraArithmeticRelation = Relation<UltraArithmeticRelationImpl<FF>>;
-} // namespace proof_system
+} // namespace bb

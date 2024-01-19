@@ -8,8 +8,8 @@ namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-using namespace proof_system::plonk;
-using namespace proof_system::plonk::stdlib::merkle_tree;
+using namespace bb::plonk;
+using namespace bb::plonk::stdlib::merkle_tree;
 
 static std::shared_ptr<plonk::proving_key> proving_key;
 static std::shared_ptr<plonk::verification_key> verification_key;
@@ -49,7 +49,7 @@ void init_verification_key()
     }
 
     verification_key =
-        proof_system::plonk::compute_verification_key_common(proving_key, srs::get_crs_factory()->get_verifier_crs());
+        bb::plonk::compute_verification_key_common(proving_key, srs::get_crs_factory()->get_verifier_crs());
 }
 
 Prover new_join_split_prover(join_split_tx const& tx, bool mock)

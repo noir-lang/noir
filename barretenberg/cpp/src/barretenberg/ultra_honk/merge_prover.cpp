@@ -1,6 +1,6 @@
 #include "merge_prover.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * Create MergeProver_
@@ -119,4 +119,4 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
 template class MergeProver_<honk::flavor::Ultra>;
 template class MergeProver_<honk::flavor::GoblinUltra>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

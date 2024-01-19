@@ -8,7 +8,7 @@
 #include "barretenberg/vm/generated/Toy_prover.hpp"
 #include "barretenberg/vm/generated/Toy_verifier.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 class ToyComposer {
   public:
     using Flavor = honk::flavor::ToyFlavor;
@@ -66,4 +66,4 @@ class ToyComposer {
     };
 };
 
-} // namespace proof_system::honk
+} // namespace bb::honk

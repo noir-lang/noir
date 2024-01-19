@@ -5,14 +5,14 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
-using byte_array = stdlib::byte_array<proof_system::StandardCircuitBuilder>;
-using public_witness_t = stdlib::public_witness_t<proof_system::StandardCircuitBuilder>;
-using byte_array_plookup = stdlib::byte_array<proof_system::UltraCircuitBuilder>;
-using public_witness_t_plookup = stdlib::public_witness_t<proof_system::UltraCircuitBuilder>;
-using StandardBuilder = proof_system::StandardCircuitBuilder;
-using UltraBuilder = proof_system::UltraCircuitBuilder;
+using byte_array = stdlib::byte_array<bb::StandardCircuitBuilder>;
+using public_witness_t = stdlib::public_witness_t<bb::StandardCircuitBuilder>;
+using byte_array_plookup = stdlib::byte_array<bb::UltraCircuitBuilder>;
+using public_witness_t_plookup = stdlib::public_witness_t<bb::UltraCircuitBuilder>;
+using StandardBuilder = bb::StandardCircuitBuilder;
+using UltraBuilder = bb::UltraCircuitBuilder;
 
 TEST(stdlib_blake3s, test_single_block)
 {

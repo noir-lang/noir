@@ -6,7 +6,7 @@
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
 using namespace benchmark;
-using namespace proof_system;
+using namespace bb;
 
 // The rounds to measure
 enum {

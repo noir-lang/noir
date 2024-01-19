@@ -7,7 +7,7 @@
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * @brief Prover class for the Goblin ECC op queue transcript merge protocol
@@ -39,4 +39,4 @@ template <typename Flavor> class MergeProver_ {
     plonk::proof proof;
 };
 
-} // namespace proof_system::honk
+} // namespace bb::honk

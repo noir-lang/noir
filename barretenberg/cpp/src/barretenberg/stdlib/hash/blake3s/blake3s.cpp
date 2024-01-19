@@ -3,7 +3,7 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "blake3s_plookup.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 namespace blake3_internal {
@@ -254,11 +254,8 @@ template <typename Builder> byte_array<Builder> blake3s(const byte_array<Builder
     return result;
 }
 
-template byte_array<proof_system::StandardCircuitBuilder> blake3s(
-    const byte_array<proof_system::StandardCircuitBuilder>& input);
-template byte_array<proof_system::UltraCircuitBuilder> blake3s(
-    const byte_array<proof_system::UltraCircuitBuilder>& input);
-template byte_array<proof_system::GoblinUltraCircuitBuilder> blake3s(
-    const byte_array<proof_system::GoblinUltraCircuitBuilder>& input);
+template byte_array<bb::StandardCircuitBuilder> blake3s(const byte_array<bb::StandardCircuitBuilder>& input);
+template byte_array<bb::UltraCircuitBuilder> blake3s(const byte_array<bb::UltraCircuitBuilder>& input);
+template byte_array<bb::GoblinUltraCircuitBuilder> blake3s(const byte_array<bb::GoblinUltraCircuitBuilder>& input);
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

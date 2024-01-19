@@ -20,7 +20,7 @@
 
 namespace test_stdlib_bigfield {
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 /* A note regarding Plookup:
    stdlib_bigfield_plookup tests were present when this file was standardized
@@ -847,7 +847,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
 };
 
 // Define types for which the above tests will be constructed.
-typedef testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder> CircuitTypes;
+typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder> CircuitTypes;
 // Define the suite of tests.
 TYPED_TEST_SUITE(stdlib_bigfield, CircuitTypes);
 TYPED_TEST(stdlib_bigfield, badmul)
@@ -979,7 +979,7 @@ TYPED_TEST(stdlib_bigfield, division_context)
 // // PLOOKUP TESTS
 // TEST(stdlib_bigfield_plookup, test_mul)
 // {
-//     plonk::UltraPlonkBuilder builder = proof_system::plonk::UltraPlonkBuilder();
+//     plonk::UltraPlonkBuilder builder = bb::plonk::UltraPlonkBuilder();
 //     size_t num_repetitions = 1;
 //     for (size_t i = 0; i < num_repetitions; ++i) {
 //         fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
@@ -1026,7 +1026,7 @@ TYPED_TEST(stdlib_bigfield, division_context)
 
 // TEST(stdlib_bigfield_plookup, test_sqr)
 // {
-//     plonk::UltraPlonkBuilder builder = proof_system::plonk::UltraPlonkBuilder();
+//     plonk::UltraPlonkBuilder builder = bb::plonk::UltraPlonkBuilder();
 //     size_t num_repetitions = 10;
 //     for (size_t i = 0; i < num_repetitions; ++i) {
 //         fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };

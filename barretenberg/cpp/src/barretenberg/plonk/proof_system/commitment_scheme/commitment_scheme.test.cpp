@@ -15,7 +15,7 @@
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 TEST(commitment_scheme, kate_open)
 {

@@ -12,7 +12,7 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_round.hpp"
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 
 namespace test_eccvm_composer {
 
@@ -35,10 +35,9 @@ TYPED_TEST_SUITE(ECCVMComposerTests, FlavorTypes);
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-template <typename Flavor>
-proof_system::ECCVMCircuitBuilder<Flavor> generate_trace(numeric::random::Engine* engine = nullptr)
+template <typename Flavor> bb::ECCVMCircuitBuilder<Flavor> generate_trace(numeric::random::Engine* engine = nullptr)
 {
-    proof_system::ECCVMCircuitBuilder<Flavor> result;
+    bb::ECCVMCircuitBuilder<Flavor> result;
     using G1 = typename Flavor::CycleGroup;
     using Fr = typename G1::Fr;
 

@@ -5,7 +5,7 @@
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
 
 using namespace benchmark;
-using namespace proof_system;
+using namespace bb;
 
 using Flavor = honk::flavor::ECCVM;
 using Builder = ECCVMCircuitBuilder<Flavor>;

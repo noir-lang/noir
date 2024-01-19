@@ -7,7 +7,7 @@
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/work_queue/work_queue.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 template <typename settings> class ProverBase {
 
@@ -106,4 +106,4 @@ typedef ProverBase<ultra_settings> UltraProver; // TODO(Mike): maybe just return
 typedef ProverBase<ultra_to_standard_settings> UltraToStandardProver;
 typedef ProverBase<ultra_with_keccak_settings> UltraWithKeccakProver;
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

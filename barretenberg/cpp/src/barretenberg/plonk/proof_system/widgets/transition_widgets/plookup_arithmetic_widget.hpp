@@ -2,7 +2,7 @@
 
 #include "./transition_widget.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace widget {
 
 /**
@@ -179,4 +179,4 @@ template <typename Field, typename Group, typename Transcript, typename Settings
 using VerifierPlookupArithmeticWidget =
     widget::GenericVerifierWidget<Field, Transcript, Settings, widget::PlookupArithmeticKernel>;
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -7,7 +7,7 @@
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 #include <array>
 
-namespace proof_system::plonk::stdlib::schnorr {
+namespace bb::plonk::stdlib::schnorr {
 
 /**
  * @brief Instantiate a witness containing the signature (s, e) as a quadruple of
@@ -91,25 +91,25 @@ bool_t<C> signature_verification_result(const byte_array<C>& message,
 #define VERIFY_SIGNATURE_INTERNAL(circuit_type)                                                                        \
     template std::array<field_t<circuit_type>, 2> verify_signature_internal<circuit_type>(                             \
         const byte_array<circuit_type>&, const cycle_group<circuit_type>&, const signature_bits<circuit_type>&)
-VERIFY_SIGNATURE_INTERNAL(proof_system::StandardCircuitBuilder);
-VERIFY_SIGNATURE_INTERNAL(proof_system::UltraCircuitBuilder);
-VERIFY_SIGNATURE_INTERNAL(proof_system::GoblinUltraCircuitBuilder);
+VERIFY_SIGNATURE_INTERNAL(bb::StandardCircuitBuilder);
+VERIFY_SIGNATURE_INTERNAL(bb::UltraCircuitBuilder);
+VERIFY_SIGNATURE_INTERNAL(bb::GoblinUltraCircuitBuilder);
 #define VERIFY_SIGNATURE(circuit_type)                                                                                 \
     template void verify_signature<circuit_type>(                                                                      \
         const byte_array<circuit_type>&, const cycle_group<circuit_type>&, const signature_bits<circuit_type>&)
-VERIFY_SIGNATURE(proof_system::StandardCircuitBuilder);
-VERIFY_SIGNATURE(proof_system::UltraCircuitBuilder);
-VERIFY_SIGNATURE(proof_system::GoblinUltraCircuitBuilder);
+VERIFY_SIGNATURE(bb::StandardCircuitBuilder);
+VERIFY_SIGNATURE(bb::UltraCircuitBuilder);
+VERIFY_SIGNATURE(bb::GoblinUltraCircuitBuilder);
 #define SIGNATURE_VERIFICATION_RESULT(circuit_type)                                                                    \
     template bool_t<circuit_type> signature_verification_result<circuit_type>(                                         \
         const byte_array<circuit_type>&, const cycle_group<circuit_type>&, const signature_bits<circuit_type>&)
-SIGNATURE_VERIFICATION_RESULT(proof_system::StandardCircuitBuilder);
-SIGNATURE_VERIFICATION_RESULT(proof_system::UltraCircuitBuilder);
-SIGNATURE_VERIFICATION_RESULT(proof_system::GoblinUltraCircuitBuilder);
+SIGNATURE_VERIFICATION_RESULT(bb::StandardCircuitBuilder);
+SIGNATURE_VERIFICATION_RESULT(bb::UltraCircuitBuilder);
+SIGNATURE_VERIFICATION_RESULT(bb::GoblinUltraCircuitBuilder);
 #define CONVERT_SIGNATURE(circuit_type)                                                                                \
     template signature_bits<circuit_type> convert_signature<circuit_type>(circuit_type*,                               \
                                                                           const crypto::schnorr::signature&)
-CONVERT_SIGNATURE(proof_system::StandardCircuitBuilder);
-CONVERT_SIGNATURE(proof_system::UltraCircuitBuilder);
-CONVERT_SIGNATURE(proof_system::GoblinUltraCircuitBuilder);
-} // namespace proof_system::plonk::stdlib::schnorr
+CONVERT_SIGNATURE(bb::StandardCircuitBuilder);
+CONVERT_SIGNATURE(bb::UltraCircuitBuilder);
+CONVERT_SIGNATURE(bb::GoblinUltraCircuitBuilder);
+} // namespace bb::plonk::stdlib::schnorr

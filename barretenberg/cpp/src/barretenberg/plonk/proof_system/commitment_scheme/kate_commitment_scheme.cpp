@@ -2,7 +2,7 @@
 #include "../../../polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 // Constructors for KateCommitmentScheme
 template <typename settings>
@@ -391,4 +391,4 @@ template class KateCommitmentScheme<standard_settings>;
 template class KateCommitmentScheme<ultra_settings>;
 template class KateCommitmentScheme<ultra_to_standard_settings>;
 template class KateCommitmentScheme<ultra_with_keccak_settings>;
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -5,7 +5,7 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include "sumcheck_round.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 template <typename Flavor> class SumcheckProver {
 
@@ -83,7 +83,7 @@ template <typename Flavor> class SumcheckProver {
      * @details
      */
     SumcheckOutput<Flavor> prove(ProverPolynomials& full_polynomials,
-                                 const proof_system::RelationParameters<FF>& relation_parameters,
+                                 const bb::RelationParameters<FF>& relation_parameters,
                                  const RelationSeparator alpha,
                                  const std::vector<FF>& gate_challenges)
     {
@@ -202,7 +202,7 @@ template <typename Flavor> class SumcheckVerifier {
      * @param relation_parameters
      * @param transcript
      */
-    SumcheckOutput<Flavor> verify(const proof_system::RelationParameters<FF>& relation_parameters,
+    SumcheckOutput<Flavor> verify(const bb::RelationParameters<FF>& relation_parameters,
                                   RelationSeparator alpha,
                                   const std::vector<FF>& gate_challenges)
     {
@@ -257,4 +257,4 @@ template <typename Flavor> class SumcheckVerifier {
         return SumcheckOutput<Flavor>{ multivariate_challenge, purported_evaluations, verified };
     };
 };
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

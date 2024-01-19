@@ -1,7 +1,7 @@
 #include "barretenberg/relations/translator_vm/translator_extra_relations.hpp"
 #include "barretenberg/flavor/goblin_translator.hpp"
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief Expression for enforcing the value of the Opcode to be {0,1,2,3,4,8}
@@ -152,4 +152,4 @@ template class GoblinTranslatorAccumulatorTransferRelationImpl<bb::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorOpcodeConstraintRelationImpl, honk::flavor::GoblinTranslator);
 DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorAccumulatorTransferRelationImpl, honk::flavor::GoblinTranslator);
 
-} // namespace proof_system
+} // namespace bb

@@ -8,7 +8,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <optional>
 
-namespace proof_system::plonk::stdlib {
+namespace bb::plonk::stdlib {
 
 template <typename Composer>
 concept IsUltraArithmetic = (Composer::CIRCUIT_TYPE == CircuitType::ULTRA);
@@ -233,4 +233,4 @@ inline std::ostream& operator<<(std::ostream& os, cycle_group<ComposerContext> c
 {
     return os << v.get_value();
 }
-} // namespace proof_system::plonk::stdlib
+} // namespace bb::plonk::stdlib

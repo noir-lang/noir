@@ -1,7 +1,7 @@
 #include "decider_prover.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * Create DeciderProver_ from an accumulator.
@@ -118,4 +118,4 @@ template <UltraFlavor Flavor> plonk::proof& DeciderProver_<Flavor>::construct_pr
 template class DeciderProver_<honk::flavor::Ultra>;
 template class DeciderProver_<honk::flavor::GoblinUltra>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

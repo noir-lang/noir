@@ -15,12 +15,12 @@ using namespace avm_trace;
  */
 void validate_trace_proof(std::vector<Row>&& trace)
 {
-    auto circuit_builder = proof_system::AvmMiniCircuitBuilder();
+    auto circuit_builder = bb::AvmMiniCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
     EXPECT_TRUE(circuit_builder.check_circuit());
 
-    auto composer = proof_system::honk::AvmMiniComposer();
+    auto composer = bb::honk::AvmMiniComposer();
     auto prover = composer.create_prover(circuit_builder);
     auto proof = prover.construct_proof();
 

@@ -7,7 +7,7 @@
 #include "barretenberg/translator_vm/goblin_translator_prover.hpp"
 #include "barretenberg/translator_vm/goblin_translator_verifier.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 class GoblinTranslatorComposer {
   public:
     using Flavor = honk::flavor::GoblinTranslator;
@@ -70,4 +70,4 @@ class GoblinTranslatorComposer {
         return commitment_key;
     };
 };
-} // namespace proof_system::honk
+} // namespace bb::honk

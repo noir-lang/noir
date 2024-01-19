@@ -2,14 +2,14 @@
 #include "barretenberg/stdlib/primitives/memory/ram_table.hpp"
 #include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 namespace acir_format {
 
 template <typename Builder>
-proof_system::plonk::stdlib::field_t<Builder> poly_to_field_ct(const poly_triple poly, Builder& builder)
+bb::plonk::stdlib::field_t<Builder> poly_to_field_ct(const poly_triple poly, Builder& builder)
 {
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
 
     ASSERT(poly.q_m == 0);
     ASSERT(poly.q_r == 0);
@@ -26,9 +26,9 @@ proof_system::plonk::stdlib::field_t<Builder> poly_to_field_ct(const poly_triple
 template <typename Builder>
 void create_block_constraints(Builder& builder, const BlockConstraint constraint, bool has_valid_witness_assignments)
 {
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
-    using rom_table_ct = proof_system::plonk::stdlib::rom_table<Builder>;
-    using ram_table_ct = proof_system::plonk::stdlib::ram_table<Builder>;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
+    using rom_table_ct = bb::plonk::stdlib::rom_table<Builder>;
+    using ram_table_ct = bb::plonk::stdlib::ram_table<Builder>;
 
     std::vector<field_ct> init;
     for (auto i : constraint.init) {

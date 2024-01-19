@@ -6,7 +6,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace proof_system {
+namespace bb {
 
 template <typename Fr> void PolynomialStore<Fr>::put(std::string const& key, Polynomial&& value)
 {
@@ -73,4 +73,4 @@ template <typename Fr> void PolynomialStore<Fr>::print()
 
 template class PolynomialStore<bb::fr>;
 
-} // namespace proof_system
+} // namespace bb

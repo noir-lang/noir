@@ -4,7 +4,7 @@
 
 #include <memory>
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief Construct selector polynomials from circuit selector information and put into polynomial cache
@@ -145,4 +145,4 @@ std::vector<typename Flavor::Polynomial> construct_wire_polynomials_base(
     }
     return wire_polynomials;
 }
-} // namespace proof_system
+} // namespace bb

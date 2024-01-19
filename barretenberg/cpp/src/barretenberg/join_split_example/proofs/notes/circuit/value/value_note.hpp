@@ -5,7 +5,7 @@
 
 namespace join_split_example::proofs::notes::circuit::value {
 
-using namespace proof_system::plonk::stdlib;
+using namespace bb::plonk::stdlib;
 
 struct value_note {
     group_ct owner;

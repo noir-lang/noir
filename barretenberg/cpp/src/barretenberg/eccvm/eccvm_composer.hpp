@@ -7,7 +7,7 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/srs/global_crs.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 template <ECCVMFlavor Flavor> class ECCVMComposer_ {
   public:
     using FF = typename Flavor::FF;
@@ -77,4 +77,4 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
 using ECCVMComposer = ECCVMComposer_<honk::flavor::ECCVM>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

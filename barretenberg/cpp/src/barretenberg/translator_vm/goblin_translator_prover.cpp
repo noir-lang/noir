@@ -5,7 +5,7 @@
 #include "barretenberg/proof_system/library/grand_product_library.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 /**
  * Create GoblinTranslatorProver from proving key, witness and manifest.
@@ -197,4 +197,4 @@ plonk::proof& GoblinTranslatorProver::construct_proof()
     return export_proof();
 }
 
-} // namespace proof_system::honk
+} // namespace bb::honk

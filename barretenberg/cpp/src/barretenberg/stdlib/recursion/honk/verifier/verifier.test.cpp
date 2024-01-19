@@ -7,7 +7,7 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
-namespace proof_system::plonk::stdlib::recursion::honk {
+namespace bb::plonk::stdlib::recursion::honk {
 
 /**
  * @brief Test suite for recursive verification of conventional Ultra Honk proofs
@@ -19,10 +19,10 @@ namespace proof_system::plonk::stdlib::recursion::honk {
 template <typename BuilderType> class RecursiveVerifierTest : public testing::Test {
 
     // Define types relevant for testing
-    using UltraFlavor = ::proof_system::honk::flavor::Ultra;
-    using GoblinUltraFlavor = ::proof_system::honk::flavor::GoblinUltra;
-    using UltraComposer = ::proof_system::honk::UltraComposer_<UltraFlavor>;
-    using GoblinUltraComposer = ::proof_system::honk::UltraComposer_<GoblinUltraFlavor>;
+    using UltraFlavor = ::bb::honk::flavor::Ultra;
+    using GoblinUltraFlavor = ::bb::honk::flavor::GoblinUltra;
+    using UltraComposer = ::bb::honk::UltraComposer_<UltraFlavor>;
+    using GoblinUltraComposer = ::bb::honk::UltraComposer_<GoblinUltraFlavor>;
 
     using InnerFlavor = UltraFlavor;
     using InnerComposer = UltraComposer;
@@ -32,7 +32,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
     using FF = InnerFlavor::FF;
 
     // Types for recursive verifier circuit
-    using RecursiveFlavor = ::proof_system::honk::flavor::UltraRecursive_<BuilderType>;
+    using RecursiveFlavor = ::bb::honk::flavor::UltraRecursive_<BuilderType>;
     using RecursiveVerifier = UltraRecursiveVerifier_<RecursiveFlavor>;
     using OuterBuilder = BuilderType;
     using VerificationKey = typename RecursiveVerifier::VerificationKey;
@@ -263,4 +263,4 @@ HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerificationFailure)
     TestFixture::test_recursive_verification_fails();
 };
 
-} // namespace proof_system::plonk::stdlib::recursion::honk
+} // namespace bb::plonk::stdlib::recursion::honk

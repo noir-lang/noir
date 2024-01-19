@@ -76,7 +76,7 @@
 #include <concepts>
 #include <vector>
 
-namespace proof_system::honk::flavor {
+namespace bb::honk::flavor {
 
 /**
  * @brief Base class template containing circuit-specifying data.
@@ -255,25 +255,25 @@ template <typename Tuple, std::size_t Index = 0> static constexpr auto create_tu
     }
 }
 
-} // namespace proof_system::honk::flavor
+} // namespace bb::honk::flavor
 
 // Forward declare honk flavors
-namespace proof_system::honk::flavor {
+namespace bb::honk::flavor {
 class Ultra;
 class ECCVM;
 class GoblinUltra;
 template <typename BuilderType> class UltraRecursive_;
 template <typename BuilderType> class GoblinUltraRecursive_;
-} // namespace proof_system::honk::flavor
+} // namespace bb::honk::flavor
 
 // Forward declare plonk flavors
-namespace proof_system::plonk::flavor {
+namespace bb::plonk::flavor {
 class Standard;
 class Ultra;
-} // namespace proof_system::plonk::flavor
+} // namespace bb::plonk::flavor
 
 // Establish concepts for testing flavor attributes
-namespace proof_system {
+namespace bb {
 /**
  * @brief Test whether a type T lies in a list of types ...U.
  *
@@ -326,4 +326,4 @@ inline std::string flavor_get_label(Container&& container, const Element& elemen
 }
 
 // clang-format on
-} // namespace proof_system
+} // namespace bb

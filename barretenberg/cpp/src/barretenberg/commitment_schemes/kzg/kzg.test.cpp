@@ -12,7 +12,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-namespace proof_system::honk::pcs::kzg {
+namespace bb::honk::pcs::kzg {
 
 template <class Curve> class KZGTest : public CommitmentTest<Curve> {
   public:
@@ -177,4 +177,4 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     EXPECT_EQ(verified, true);
 }
 
-} // namespace proof_system::honk::pcs::kzg
+} // namespace bb::honk::pcs::kzg

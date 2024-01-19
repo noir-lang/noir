@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 /**
  * @brief ECCVMPointTableRelationImpl
@@ -30,4 +30,4 @@ template <typename FF_> class ECCVMPointTableRelationImpl {
 
 template <typename FF> using ECCVMPointTableRelation = Relation<ECCVMPointTableRelationImpl<FF>>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

@@ -6,7 +6,7 @@
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 using bb::fr;
@@ -144,4 +144,4 @@ template <typename Builder> class address_t {
 };
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

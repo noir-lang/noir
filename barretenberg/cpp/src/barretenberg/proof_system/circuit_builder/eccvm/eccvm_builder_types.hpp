@@ -2,7 +2,7 @@
 
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
-namespace proof_system_eccvm {
+namespace bb_eccvm {
 
 static constexpr size_t NUM_SCALAR_BITS = 128;
 static constexpr size_t WNAF_SLICE_BITS = 4;
@@ -44,4 +44,4 @@ template <typename CycleGroup> struct ScalarMul {
 
 template <typename CycleGroup> using MSM = std::vector<ScalarMul<CycleGroup>>;
 
-} // namespace proof_system_eccvm
+} // namespace bb_eccvm

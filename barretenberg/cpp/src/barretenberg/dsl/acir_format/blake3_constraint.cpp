@@ -5,8 +5,8 @@ namespace acir_format {
 
 template <typename Builder> void create_blake3_constraints(Builder& builder, const Blake3Constraint& constraint)
 {
-    using byte_array_ct = proof_system::plonk::stdlib::byte_array<Builder>;
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using byte_array_ct = bb::plonk::stdlib::byte_array<Builder>;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -26,7 +26,7 @@ template <typename Builder> void create_blake3_constraints(Builder& builder, con
         arr.write(element_bytes);
     }
 
-    byte_array_ct output_bytes = proof_system::plonk::stdlib::blake3s<Builder>(arr);
+    byte_array_ct output_bytes = bb::plonk::stdlib::blake3s<Builder>(arr);
 
     // Convert byte array to vector of field_t
     auto bytes = output_bytes.bytes();

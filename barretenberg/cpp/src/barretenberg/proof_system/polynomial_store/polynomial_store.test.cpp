@@ -4,25 +4,21 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "polynomial_store.hpp"
 
-namespace proof_system {
-
 using namespace bb;
-using Fr = bb::fr;
-using Polynomial = bb::Polynomial<Fr>;
 
 // Test basic put and get functionality
 TEST(PolynomialStore, PutThenGet)
 {
-    PolynomialStore<Fr> polynomial_store;
+    PolynomialStore<fr> polynomial_store;
 
     // Instantiate a polynomial with random coefficients
-    Polynomial poly(1024);
+    Polynomial<fr> poly(1024);
     for (auto& coeff : poly) {
-        coeff = Fr::random_element();
+        coeff = fr::random_element();
     }
 
     // Make a copy for comparison after original is moved into container
-    Polynomial poly_copy(poly);
+    Polynomial<fr> poly_copy(poly);
 
     // Move the poly into the container
     polynomial_store.put("id", std::move(poly));
@@ -34,9 +30,9 @@ TEST(PolynomialStore, PutThenGet)
 // Ensure that attempt to access non-existent key throws out_of_range exception
 TEST(PolynomialStore, NonexistentKey)
 {
-    PolynomialStore<Fr> polynomial_store;
+    PolynomialStore<fr> polynomial_store;
 
-    polynomial_store.put("id_1", Polynomial(100));
+    polynomial_store.put("id_1", Polynomial<fr>(100));
 
     polynomial_store.get("id_1"); // no problem!
 
@@ -46,14 +42,14 @@ TEST(PolynomialStore, NonexistentKey)
 // Ensure correct calculation of volume in bytes
 TEST(PolynomialStore, Volume)
 {
-    PolynomialStore<Fr> polynomial_store;
+    PolynomialStore<fr> polynomial_store;
     size_t size1 = 100;
     size_t size2 = 10;
     size_t size3 = 5000;
 
-    Polynomial poly1(size1);
-    Polynomial poly2(size2);
-    Polynomial poly3(size3);
+    Polynomial<fr> poly1(size1);
+    Polynomial<fr> poly2(size2);
+    Polynomial<fr> poly3(size3);
 
     polynomial_store.put("id_1", std::move(poly1));
     polynomial_store.put("id_2", std::move(poly2));
@@ -61,7 +57,7 @@ TEST(PolynomialStore, Volume)
 
     // polynomial_store.print();
 
-    size_t bytes_expected = sizeof(Fr) * (size1 + size2 + size3);
+    size_t bytes_expected = sizeof(fr) * (size1 + size2 + size3);
 
     EXPECT_EQ(polynomial_store.get_size_in_bytes(), bytes_expected);
 }
@@ -69,25 +65,23 @@ TEST(PolynomialStore, Volume)
 // Ensure that the remove method erases entry and reduces memory
 TEST(PolynomialStore, Remove)
 {
-    PolynomialStore<Fr> polynomial_store;
+    PolynomialStore<fr> polynomial_store;
     size_t size1 = 100;
     size_t size2 = 500;
-    Polynomial poly1(size1);
-    Polynomial poly2(size2);
+    Polynomial<fr> poly1(size1);
+    Polynomial<fr> poly2(size2);
 
     polynomial_store.put("id_1", std::move(poly1));
     polynomial_store.put("id_2", std::move(poly2));
 
-    size_t bytes_expected = sizeof(Fr) * (size1 + size2);
+    size_t bytes_expected = sizeof(fr) * (size1 + size2);
 
     EXPECT_EQ(polynomial_store.get_size_in_bytes(), bytes_expected);
 
     polynomial_store.remove("id_1");
 
-    bytes_expected -= sizeof(Fr) * size1;
+    bytes_expected -= sizeof(fr) * size1;
 
     EXPECT_THROW(polynomial_store.get("id_1"), std::out_of_range);
     EXPECT_EQ(polynomial_store.get_size_in_bytes(), bytes_expected);
 }
-
-} // namespace proof_system

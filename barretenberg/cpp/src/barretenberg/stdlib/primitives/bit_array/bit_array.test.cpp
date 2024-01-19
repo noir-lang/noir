@@ -20,7 +20,7 @@
 namespace test_stdlib_bit_array {
 
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -28,7 +28,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 template <class Builder> class BitArrayTest : public ::testing::Test {};
 
-using CircuitTypes = ::testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
 TYPED_TEST_SUITE(BitArrayTest, CircuitTypes);
 
 TYPED_TEST(BitArrayTest, test_uint32_input_output_consistency)

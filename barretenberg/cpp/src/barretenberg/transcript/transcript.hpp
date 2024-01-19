@@ -7,7 +7,7 @@
 // #define LOG_CHALLENGES
 // #define LOG_INTERACTIONS
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 template <typename T, typename... U>
 concept Loggable = (std::same_as<T, bb::fr> || std::same_as<T, grumpkin::fr> ||
@@ -363,4 +363,4 @@ template <typename FF, typename T, size_t N> std::array<FF, N> challenges_to_fie
     std::move(arr.begin(), arr.end(), result.begin());
     return result;
 }
-} // namespace proof_system::honk
+} // namespace bb::honk

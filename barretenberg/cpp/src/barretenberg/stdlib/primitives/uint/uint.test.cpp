@@ -4,8 +4,8 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace proof_system::plonk;
-using namespace proof_system;
+using namespace bb::plonk;
+using namespace bb;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -1739,7 +1739,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
     }
 };
 
-typedef testing::Types<proof_system::StandardCircuitBuilder, proof_system::UltraCircuitBuilder> CircuitTypes;
+typedef testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder> CircuitTypes;
 
 TYPED_TEST_SUITE(stdlib_uint, CircuitTypes);
 
@@ -1916,10 +1916,10 @@ TYPED_TEST(stdlib_uint, test_at)
 // There was one plookup-specific test in the ./plookup/uint_plookup.test.cpp
 TEST(stdlib_uint32, test_accumulators_plookup_uint32)
 {
-    using uint32_ct = proof_system::plonk::stdlib::uint32<proof_system::UltraCircuitBuilder>;
-    using witness_ct = proof_system::plonk::stdlib::witness_t<proof_system::UltraCircuitBuilder>;
+    using uint32_ct = bb::plonk::stdlib::uint32<bb::UltraCircuitBuilder>;
+    using witness_ct = bb::plonk::stdlib::witness_t<bb::UltraCircuitBuilder>;
 
-    proof_system::UltraCircuitBuilder builder;
+    bb::UltraCircuitBuilder builder;
 
     uint32_t a_val = engine.get_random_uint32();
     uint32_t b_val = engine.get_random_uint32();

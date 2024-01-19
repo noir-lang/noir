@@ -5,7 +5,7 @@
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 class ToyVerifier {
     using Flavor = honk::flavor::ToyFlavor;
     using FF = Flavor::FF;
@@ -30,4 +30,4 @@ class ToyVerifier {
     std::shared_ptr<Transcript> transcript;
 };
 
-} // namespace proof_system::honk
+} // namespace bb::honk

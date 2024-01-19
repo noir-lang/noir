@@ -3,7 +3,7 @@
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 struct SelectorProperties {
     std::string name;
     // TODO: does the prover need the raw lagrange-base selector values?
@@ -81,4 +81,4 @@ std::shared_ptr<plonk::verification_key> compute_verification_key_common(
     // silencing for now but need to figure out where to extract type of VerifierCrs from :-/
     std::shared_ptr<bb::srs::factories::VerifierCrs<curve::BN254>> const& vrs);
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -1,6 +1,6 @@
 #include "./polynomial_store_cache.hpp"
 
-namespace proof_system {
+namespace bb {
 
 PolynomialStoreCache::PolynomialStoreCache()
     : max_cache_size_(40)
@@ -52,4 +52,4 @@ void PolynomialStoreCache::purge_until_free()
     }
 }
 
-} // namespace proof_system
+} // namespace bb

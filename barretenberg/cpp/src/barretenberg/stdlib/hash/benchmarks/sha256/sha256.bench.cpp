@@ -4,10 +4,10 @@
 
 using namespace benchmark;
 
-using Builder = proof_system::UltraCircuitBuilder;
-using Composer = proof_system::plonk::UltraComposer;
-using Prover = proof_system::plonk::UltraProver;
-using Verifier = proof_system::plonk::UltraVerifier;
+using Builder = bb::UltraCircuitBuilder;
+using Composer = bb::plonk::UltraComposer;
+using Prover = bb::plonk::UltraProver;
+using Verifier = bb::plonk::UltraVerifier;
 
 constexpr size_t NUM_HASHES = 8;
 constexpr size_t BYTES_PER_CHUNK = 512;
@@ -26,8 +26,8 @@ void generate_test_plonk_circuit(Builder& builder, size_t num_bytes)
     for (size_t i = 0; i < num_bytes; ++i) {
         in[i] = get_random_char();
     }
-    proof_system::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
-    proof_system::plonk::stdlib::sha256<Builder>(input);
+    bb::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
+    bb::plonk::stdlib::sha256<Builder>(input);
 }
 
 void* builders[NUM_HASHES];

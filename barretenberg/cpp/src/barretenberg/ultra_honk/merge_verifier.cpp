@@ -1,6 +1,6 @@
 #include "merge_verifier.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 template <typename Flavor>
 MergeVerifier_<Flavor>::MergeVerifier_()
@@ -82,4 +82,4 @@ template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const plonk
 template class MergeVerifier_<honk::flavor::Ultra>;
 template class MergeVerifier_<honk::flavor::GoblinUltra>;
 
-} // namespace proof_system::honk
+} // namespace bb::honk

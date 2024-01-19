@@ -4,7 +4,7 @@
 #include "../../relation_types.hpp"
 #include "./declare_views.hpp"
 
-namespace proof_system::Toy_vm {
+namespace bb::Toy_vm {
 
 template <typename FF> struct Toy_avmRow {
     FF toy_q_xor_table{};
@@ -64,4 +64,4 @@ template <typename FF_> class toy_avmImpl {
 
 template <typename FF> using toy_avm = Relation<toy_avmImpl<FF>>;
 
-} // namespace proof_system::Toy_vm
+} // namespace bb::Toy_vm

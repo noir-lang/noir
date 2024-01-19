@@ -3,7 +3,7 @@
 
 namespace join_split_example::proofs::notes::circuit {
 
-using namespace proof_system::plonk::stdlib;
+using namespace bb::plonk::stdlib;
 
 std::pair<bool_ct, suint_ct> deflag_asset_id(suint_ct const& asset_id)
 {

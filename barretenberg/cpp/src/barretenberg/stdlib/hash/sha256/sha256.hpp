@@ -5,9 +5,9 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "sha256_plookup.hpp"
 #include <array>
-// namespace proof_system::plonk
+// namespace bb::plonk
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 template <typename Builder> class bit_array;
 
@@ -25,4 +25,4 @@ template <typename Builder> field_t<Builder> sha256_to_field(const packed_byte_a
 }
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

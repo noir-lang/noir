@@ -6,7 +6,7 @@ using namespace bb;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-namespace proof_system {
+namespace bb {
 
 TEST(GoblinUltraCircuitBuilder, CopyConstructor)
 {
@@ -157,4 +157,4 @@ TEST(GoblinUltraCircuitBuilder, GoblinEccOpQueueUltraOps)
     }
 }
 
-} // namespace proof_system
+} // namespace bb

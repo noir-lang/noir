@@ -8,7 +8,7 @@
 #include <ios>
 #include <sys/stat.h>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 // Read the pre-computed polynomials
 template <typename B> inline void read(B& any, proving_key_data& key)
@@ -138,4 +138,4 @@ template <typename B> inline void write_to_file(B& os, std::string const& path, 
     write(os, key.memory_write_records);
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -3,7 +3,7 @@
 #include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../field/field.hpp"
 #include "../safe_uint/safe_uint.hpp"
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename Builder> class byte_array {
@@ -100,4 +100,4 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, by
     return os;
 }
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

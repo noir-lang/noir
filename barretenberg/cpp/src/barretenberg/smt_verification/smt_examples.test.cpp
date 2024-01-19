@@ -9,15 +9,15 @@
 #include "barretenberg/smt_verification/circuit/circuit.hpp"
 
 using namespace bb;
-using namespace proof_system;
+using namespace bb;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-using field_t = proof_system::plonk::stdlib::field_t<StandardCircuitBuilder>;
-using witness_t = proof_system::plonk::stdlib::witness_t<StandardCircuitBuilder>;
-using pub_witness_t = proof_system::plonk::stdlib::public_witness_t<StandardCircuitBuilder>;
+using field_t = bb::plonk::stdlib::field_t<StandardCircuitBuilder>;
+using witness_t = bb::plonk::stdlib::witness_t<StandardCircuitBuilder>;
+using pub_witness_t = bb::plonk::stdlib::public_witness_t<StandardCircuitBuilder>;
 
 TEST(circuit_verification, multiplication_true)
 {

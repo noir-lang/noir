@@ -9,14 +9,14 @@
 
 namespace test_stdlib_dynamic_array {
 using namespace bb;
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
 // Defining ultra-specific types for local testing.
-using Builder = proof_system::UltraCircuitBuilder;
+using Builder = bb::UltraCircuitBuilder;
 using bool_ct = stdlib::bool_t<Builder>;
 using field_ct = stdlib::field_t<Builder>;
 using witness_ct = stdlib::witness_t<Builder>;

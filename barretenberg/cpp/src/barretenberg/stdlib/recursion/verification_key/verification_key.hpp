@@ -15,7 +15,7 @@
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include <map>
 
-namespace proof_system::plonk::stdlib::recursion {
+namespace bb::plonk::stdlib::recursion {
 
 /**
  * @brief Constructs a packed buffer of field elements to be fed into a Pedersen hash function
@@ -449,4 +449,4 @@ template <typename Curve> struct verification_key {
     Builder* context;
 };
 
-} // namespace proof_system::plonk::stdlib::recursion
+} // namespace bb::plonk::stdlib::recursion

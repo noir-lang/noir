@@ -1,7 +1,7 @@
 #pragma once
 #include "../../primitives/field/field.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 namespace recursion {
 
@@ -109,4 +109,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, aggregation_s
 
 } // namespace recursion
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

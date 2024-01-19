@@ -6,7 +6,7 @@
 #include "../../primitives/witness/witness.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
 
-namespace proof_system::plonk::stdlib::schnorr {
+namespace bb::plonk::stdlib::schnorr {
 
 template <typename C> struct signature_bits {
     typename cycle_group<C>::cycle_scalar s;
@@ -28,4 +28,4 @@ bool_t<C> signature_verification_result(const byte_array<C>& message,
                                         const cycle_group<C>& pub_key,
                                         const signature_bits<C>& sig);
 
-} // namespace proof_system::plonk::stdlib::schnorr
+} // namespace bb::plonk::stdlib::schnorr

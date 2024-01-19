@@ -2,9 +2,9 @@
 #include "../circuit_builders/circuit_builders.hpp"
 
 using namespace bb;
-using namespace proof_system;
+using namespace bb;
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 /**
@@ -390,10 +390,10 @@ template <typename Builder, typename Native> bool_t<Builder> uint<Builder, Nativ
     return result;
 }
 
-template class uint<proof_system::StandardCircuitBuilder, uint8_t>;
-template class uint<proof_system::StandardCircuitBuilder, uint16_t>;
-template class uint<proof_system::StandardCircuitBuilder, uint32_t>;
-template class uint<proof_system::StandardCircuitBuilder, uint64_t>;
+template class uint<bb::StandardCircuitBuilder, uint8_t>;
+template class uint<bb::StandardCircuitBuilder, uint16_t>;
+template class uint<bb::StandardCircuitBuilder, uint32_t>;
+template class uint<bb::StandardCircuitBuilder, uint64_t>;
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

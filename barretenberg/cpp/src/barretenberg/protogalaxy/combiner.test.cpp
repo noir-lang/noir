@@ -6,12 +6,12 @@
 #include "barretenberg/sumcheck/instance/instances.hpp"
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 namespace bb::test_protogalaxy_prover {
-using Flavor = proof_system::honk::flavor::Ultra;
+using Flavor = bb::honk::flavor::Ultra;
 using Polynomial = typename Flavor::Polynomial;
 using FF = typename Flavor::FF;
-using RelationParameters = proof_system::RelationParameters<FF>;
+using RelationParameters = bb::RelationParameters<FF>;
 using PowPolynomial = bb::PowPolynomial<FF>;
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/780): Improve combiner tests to check more than the
@@ -43,7 +43,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
 
             for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
                 auto instance = std::make_shared<ProverInstance>();
-                auto prover_polynomials = proof_system::honk::get_sequential_prover_polynomials<Flavor>(
+                auto prover_polynomials = bb::honk::get_sequential_prover_polynomials<Flavor>(
                     /*log_circuit_size=*/1, idx * 128);
                 restrict_to_standard_arithmetic_relation(prover_polynomials);
                 instance->prover_polynomials = std::move(prover_polynomials);
@@ -75,7 +75,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
 
             for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
                 auto instance = std::make_shared<ProverInstance>();
-                auto prover_polynomials = proof_system::honk::get_zero_prover_polynomials<Flavor>(
+                auto prover_polynomials = bb::honk::get_zero_prover_polynomials<Flavor>(
                     /*log_circuit_size=*/1);
                 restrict_to_standard_arithmetic_relation(prover_polynomials);
                 instance->prover_polynomials = std::move(prover_polynomials);
@@ -166,7 +166,7 @@ TEST(Protogalaxy, CombinerOn4Instances)
 
         for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
             auto instance = std::make_shared<ProverInstance>();
-            auto prover_polynomials = proof_system::honk::get_zero_prover_polynomials<Flavor>(
+            auto prover_polynomials = bb::honk::get_zero_prover_polynomials<Flavor>(
                 /*log_circuit_size=*/1);
             instance->prover_polynomials = std::move(prover_polynomials);
             instance->instance_size = 2;

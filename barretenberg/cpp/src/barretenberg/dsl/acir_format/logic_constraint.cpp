@@ -3,7 +3,7 @@
 
 namespace acir_format {
 
-using namespace proof_system::plonk;
+using namespace bb::plonk;
 
 template <typename Builder>
 void create_logic_gate(Builder& builder,
@@ -13,7 +13,7 @@ void create_logic_gate(Builder& builder,
                        const size_t num_bits,
                        const bool is_xor_gate)
 {
-    using field_ct = proof_system::plonk::stdlib::field_t<Builder>;
+    using field_ct = bb::plonk::stdlib::field_t<Builder>;
 
     field_ct left = field_ct::from_witness_index(&builder, a);
     field_ct right = field_ct::from_witness_index(&builder, b);

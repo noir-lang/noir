@@ -5,7 +5,7 @@
  * TODO: we should try to genericize this, but this method is super fiddly and we need it to be efficient!
  *
  **/
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename C, class Fq, class Fr, class G>
@@ -141,4 +141,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::secp256k1_ecdsa_mul(const element& 
     return accumulator;
 }
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

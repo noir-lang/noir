@@ -2,7 +2,7 @@
 #include "barretenberg/crypto/poseidon2/poseidon2_params.hpp"
 #include "relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class Poseidon2InternalRelationImpl {
   public:
@@ -91,7 +91,7 @@ template <typename FF_> class Poseidon2InternalRelationImpl {
         tmp *= scaling_factor;
         std::get<3>(evals) += tmp;
     };
-}; // namespace proof_system
+}; // namespace bb
 
 template <typename FF> using Poseidon2InternalRelation = Relation<Poseidon2InternalRelationImpl<FF>>;
-} // namespace proof_system
+} // namespace bb

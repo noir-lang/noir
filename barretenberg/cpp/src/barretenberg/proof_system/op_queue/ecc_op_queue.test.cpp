@@ -1,7 +1,7 @@
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include <gtest/gtest.h>
 
-namespace proof_system::test_flavor {
+namespace bb::test_flavor {
 TEST(ECCOpQueueTest, Basic)
 {
     ECCOpQueue op_queue;
@@ -37,4 +37,4 @@ TEST(ECCOpQueueTest, InternalAccumulatorCorrectness)
     EXPECT_TRUE(op_queue.get_accumulator().is_point_at_infinity());
 }
 
-} // namespace proof_system::test_flavor
+} // namespace bb::test_flavor

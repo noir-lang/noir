@@ -11,8 +11,8 @@
 #include "barretenberg/plonk/work_queue/work_queue.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 
-using namespace proof_system;
-namespace proof_system::plonk {
+using namespace bb;
+namespace bb::plonk {
 
 namespace widget {
 enum ChallengeIndex {
@@ -378,4 +378,4 @@ class GenericVerifierWidget {
     }
 };
 } // namespace widget
-} // namespace proof_system::plonk
+} // namespace bb::plonk

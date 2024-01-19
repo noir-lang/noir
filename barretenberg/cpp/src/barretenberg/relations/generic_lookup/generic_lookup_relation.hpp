@@ -24,7 +24,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 /**
  * @brief Specifies positions of elements in the tuple of entities received from methods in the Settings class
  *
@@ -479,4 +479,4 @@ using GenericLookupRelation = Relation<GenericLookupRelationImpl<Settings, FF>>;
 
 template <typename Settings, typename FF> using GenericLookup = GenericLookupRelationImpl<Settings, FF>;
 
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

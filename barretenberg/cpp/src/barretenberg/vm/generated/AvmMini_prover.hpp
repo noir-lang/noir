@@ -8,7 +8,7 @@
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace proof_system::honk {
+namespace bb::honk {
 
 class AvmMiniProver {
 
@@ -38,7 +38,7 @@ class AvmMiniProver {
 
     std::vector<FF> public_inputs;
 
-    proof_system::RelationParameters<FF> relation_parameters;
+    bb::RelationParameters<FF> relation_parameters;
 
     std::shared_ptr<ProvingKey> key;
 
@@ -59,4 +59,4 @@ class AvmMiniProver {
     plonk::proof proof;
 };
 
-} // namespace proof_system::honk
+} // namespace bb::honk

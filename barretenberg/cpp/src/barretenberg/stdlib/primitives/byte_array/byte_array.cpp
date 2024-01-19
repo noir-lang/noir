@@ -6,7 +6,7 @@
 
 using namespace bb;
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 // ULTRA: Further merging with
@@ -380,9 +380,9 @@ typename byte_array<Builder>::byte_slice byte_array<Builder>::split_byte(const s
     return { low, scaled_high, bit };
 }
 
-template class byte_array<proof_system::StandardCircuitBuilder>;
-template class byte_array<proof_system::UltraCircuitBuilder>;
-template class byte_array<proof_system::GoblinUltraCircuitBuilder>;
+template class byte_array<bb::StandardCircuitBuilder>;
+template class byte_array<bb::UltraCircuitBuilder>;
+template class byte_array<bb::GoblinUltraCircuitBuilder>;
 
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

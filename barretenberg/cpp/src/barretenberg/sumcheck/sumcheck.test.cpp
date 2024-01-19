@@ -12,9 +12,9 @@
 
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
-using namespace proof_system::honk::sumcheck;
-using Flavor = proof_system::honk::flavor::Ultra;
+using namespace bb::honk;
+using namespace bb::honk::sumcheck;
+using Flavor = bb::honk::flavor::Ultra;
 using FF = typename Flavor::FF;
 using ProverPolynomials = typename Flavor::ProverPolynomials;
 using RelationSeparator = Flavor::RelationSeparator;
@@ -213,7 +213,7 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
         full_polynomials.q_arith = q_arith;
 
         // Set aribitrary random relation parameters
-        proof_system::RelationParameters<FF> relation_parameters{
+        bb::RelationParameters<FF> relation_parameters{
             .beta = FF::random_element(),
             .gamma = FF::random_element(),
             .public_input_delta = FF::one(),

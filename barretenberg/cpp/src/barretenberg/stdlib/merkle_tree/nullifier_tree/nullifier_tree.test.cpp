@@ -6,7 +6,7 @@
 #include "nullifier_memory_tree.hpp"
 
 using namespace bb;
-using namespace proof_system::plonk::stdlib::merkle_tree;
+using namespace bb::plonk::stdlib::merkle_tree;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

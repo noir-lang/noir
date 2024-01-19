@@ -9,7 +9,7 @@
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include <gtest/gtest.h>
 using namespace bb;
-namespace proof_system::honk::pcs::ipa::test {
+namespace bb::honk::pcs::ipa::test {
 
 using Curve = curve::Grumpkin;
 
@@ -176,4 +176,4 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
 
     EXPECT_EQ(verified, true);
 }
-} // namespace proof_system::honk::pcs::ipa::test
+} // namespace bb::honk::pcs::ipa::test

@@ -8,11 +8,10 @@
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 template <typename T>
-concept HasPlookup =
-    proof_system::IsAnyOf<T, proof_system::UltraCircuitBuilder, proof_system::GoblinUltraCircuitBuilder>;
+concept HasPlookup = bb::IsAnyOf<T, bb::UltraCircuitBuilder, bb::GoblinUltraCircuitBuilder>;
 
 template <typename T>
-concept IsGoblinBuilder = proof_system::IsAnyOf<T, proof_system::GoblinUltraCircuitBuilder>;
+concept IsGoblinBuilder = bb::IsAnyOf<T, bb::GoblinUltraCircuitBuilder>;
 template <typename T>
 concept IsNotGoblinBuilder = !
 IsGoblinBuilder<T>;

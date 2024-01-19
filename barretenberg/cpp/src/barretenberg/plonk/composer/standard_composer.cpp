@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <string>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 /**
  * Compute witness polynomials (w_1, w_2, w_3, w_4).
@@ -169,4 +169,4 @@ plonk::Prover StandardComposer::create_prover(const CircuitBuilder& circuit_cons
     return output_state;
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

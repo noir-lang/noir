@@ -4,7 +4,7 @@
 #include "../../relation_types.hpp"
 #include "./declare_views.hpp"
 
-namespace proof_system::AvmMini_vm {
+namespace bb::AvmMini_vm {
 
 template <typename FF> struct Mem_traceRow {
     FF memTrace_m_val{};
@@ -149,4 +149,4 @@ template <typename FF_> class mem_traceImpl {
 
 template <typename FF> using mem_trace = Relation<mem_traceImpl<FF>>;
 
-} // namespace proof_system::AvmMini_vm
+} // namespace bb::AvmMini_vm

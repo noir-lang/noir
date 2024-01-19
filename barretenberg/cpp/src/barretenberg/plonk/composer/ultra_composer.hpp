@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <utility>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 class UltraComposer {
   public:
     using Flavor = flavor::Ultra;
@@ -97,4 +97,4 @@ class UltraComposer {
     }
 };
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

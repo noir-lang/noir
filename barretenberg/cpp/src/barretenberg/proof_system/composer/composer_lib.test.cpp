@@ -6,7 +6,7 @@
 #include <array>
 #include <gtest/gtest.h>
 
-namespace proof_system::test_composer_lib {
+namespace bb::test_composer_lib {
 
 class ComposerLibTests : public ::testing::Test {
   protected:
@@ -60,4 +60,4 @@ TEST_F(ComposerLibTests, ConstructSelectors)
     EXPECT_EQ(proving_key.q_c[3 + offset], 20);
 }
 
-} // namespace proof_system::test_composer_lib
+} // namespace bb::test_composer_lib

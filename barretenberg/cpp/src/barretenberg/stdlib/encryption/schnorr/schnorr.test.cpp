@@ -5,13 +5,13 @@
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "schnorr.hpp"
 
-namespace proof_system::test_stdlib_schnorr {
+namespace bb::test_stdlib_schnorr {
 
 using namespace bb;
-using namespace proof_system::plonk::stdlib;
-using namespace proof_system::plonk::stdlib::schnorr;
+using namespace bb::plonk::stdlib;
+using namespace bb::plonk::stdlib::schnorr;
 
-using Builder = proof_system::UltraCircuitBuilder;
+using Builder = bb::UltraCircuitBuilder;
 using bool_ct = bool_t<Builder>;
 using byte_array_ct = byte_array<Builder>;
 using field_ct = field_t<Builder>;
@@ -179,4 +179,4 @@ TEST(stdlib_schnorr, signature_verification_result_failure)
     EXPECT_EQ(verification_result, true);
 }
 
-} // namespace proof_system::test_stdlib_schnorr
+} // namespace bb::test_stdlib_schnorr

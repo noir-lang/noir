@@ -14,7 +14,7 @@
  * https://hackmd.io/q-A8y6aITWyWJrvsGGMWNA?view.
  *
  */
-namespace proof_system::honk::pcs::ipa {
+namespace bb::honk::pcs::ipa {
 template <typename Curve> class IPA {
     using Fr = typename Curve::ScalarField;
     using GroupElement = typename Curve::Element;
@@ -280,4 +280,4 @@ template <typename Curve> class IPA {
     }
 };
 
-} // namespace proof_system::honk::pcs::ipa
+} // namespace bb::honk::pcs::ipa

@@ -19,7 +19,7 @@
 #include <cstdlib>
 #include <iterator>
 #include <tuple>
-namespace proof_system {
+namespace bb {
 /**
  * @brief GoblinTranslatorCircuitBuilder creates a circuit that evaluates the correctness of the evaluation of
  * EccOpQueue in Fq while operating in the Fr scalar field (r is the modulus of Fr and p is the modulus of Fp)
@@ -472,4 +472,4 @@ GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(Fr op_
                                                                           Fq previous_accumulator,
                                                                           Fq batching_challenge_v,
                                                                           Fq evaluation_input_x);
-} // namespace proof_system
+} // namespace bb

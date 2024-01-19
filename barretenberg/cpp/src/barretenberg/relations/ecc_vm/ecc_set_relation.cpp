@@ -2,7 +2,7 @@
 #include "barretenberg/flavor/relation_definitions.hpp"
 #include "ecc_msm_relation.hpp"
 
-namespace proof_system::honk::sumcheck {
+namespace bb::honk::sumcheck {
 
 /**
  * @brief Performs list-equivalence checks for the ECCVM
@@ -397,4 +397,4 @@ template class ECCVMSetRelationImpl<grumpkin::fr>;
 DEFINE_SUMCHECK_RELATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVM);
 DEFINE_SUMCHECK_PERMUTATION_CLASS(ECCVMSetRelationImpl, flavor::ECCVM);
 
-} // namespace proof_system::honk::sumcheck
+} // namespace bb::honk::sumcheck

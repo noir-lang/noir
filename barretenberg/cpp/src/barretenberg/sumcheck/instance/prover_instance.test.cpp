@@ -6,7 +6,7 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 namespace instance_tests {
 
 template <class Flavor> class InstanceTests : public testing::Test {

@@ -6,7 +6,7 @@
 template <typename T>
 concept IsField = std::same_as<T, bb::fr> /* || std::same_as<T, grumpkin::fr> */;
 
-namespace proof_system {
+namespace bb {
 
 /**
  * @brief A type to optionally extract a view of a relation parameter in a relation.
@@ -143,4 +143,4 @@ template <typename RelationImpl> class Relation : public RelationImpl {
     using UnivariateAccumulator0 = std::tuple_element_t<0, SumcheckTupleOfUnivariatesOverSubrelations>;
     using ValueAccumulator0 = std::tuple_element_t<0, SumcheckArrayOfValuesOverSubrelations>;
 };
-} // namespace proof_system
+} // namespace bb

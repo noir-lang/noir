@@ -12,7 +12,7 @@
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename Flavor> class ECCVMCircuitBuilder {
   public:
@@ -24,21 +24,21 @@ template <typename Flavor> class ECCVMCircuitBuilder {
     using Element = typename CycleGroup::element;
     using AffineElement = typename CycleGroup::affine_element;
 
-    static constexpr size_t NUM_SCALAR_BITS = proof_system_eccvm::NUM_SCALAR_BITS;
-    static constexpr size_t WNAF_SLICE_BITS = proof_system_eccvm::WNAF_SLICE_BITS;
-    static constexpr size_t NUM_WNAF_SLICES = proof_system_eccvm::NUM_WNAF_SLICES;
-    static constexpr uint64_t WNAF_MASK = proof_system_eccvm::WNAF_MASK;
-    static constexpr size_t POINT_TABLE_SIZE = proof_system_eccvm::POINT_TABLE_SIZE;
-    static constexpr size_t WNAF_SLICES_PER_ROW = proof_system_eccvm::WNAF_SLICES_PER_ROW;
-    static constexpr size_t ADDITIONS_PER_ROW = proof_system_eccvm::ADDITIONS_PER_ROW;
+    static constexpr size_t NUM_SCALAR_BITS = bb_eccvm::NUM_SCALAR_BITS;
+    static constexpr size_t WNAF_SLICE_BITS = bb_eccvm::WNAF_SLICE_BITS;
+    static constexpr size_t NUM_WNAF_SLICES = bb_eccvm::NUM_WNAF_SLICES;
+    static constexpr uint64_t WNAF_MASK = bb_eccvm::WNAF_MASK;
+    static constexpr size_t POINT_TABLE_SIZE = bb_eccvm::POINT_TABLE_SIZE;
+    static constexpr size_t WNAF_SLICES_PER_ROW = bb_eccvm::WNAF_SLICES_PER_ROW;
+    static constexpr size_t ADDITIONS_PER_ROW = bb_eccvm::ADDITIONS_PER_ROW;
 
     static constexpr size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
     static constexpr size_t NUM_WIRES = Flavor::NUM_WIRES;
 
-    using MSM = proof_system_eccvm::MSM<CycleGroup>;
-    using VMOperation = proof_system_eccvm::VMOperation<CycleGroup>;
+    using MSM = bb_eccvm::MSM<CycleGroup>;
+    using VMOperation = bb_eccvm::VMOperation<CycleGroup>;
     std::shared_ptr<ECCOpQueue> op_queue;
-    using ScalarMul = proof_system_eccvm::ScalarMul<CycleGroup>;
+    using ScalarMul = bb_eccvm::ScalarMul<CycleGroup>;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
 
     ECCVMCircuitBuilder()
@@ -492,7 +492,7 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         auto eccvm_set_permutation_delta =
             gamma * (gamma + beta_sqr) * (gamma + beta_sqr + beta_sqr) * (gamma + beta_sqr + beta_sqr + beta_sqr);
         eccvm_set_permutation_delta = eccvm_set_permutation_delta.invert();
-        proof_system::RelationParameters<typename Flavor::FF> params{
+        bb::RelationParameters<typename Flavor::FF> params{
             .eta = 0,
             .beta = beta,
             .gamma = gamma,
@@ -505,9 +505,8 @@ template <typename Flavor> class ECCVMCircuitBuilder {
 
         auto polynomials = compute_polynomials();
         const size_t num_rows = polynomials.get_polynomial_size();
-        proof_system::honk::logderivative_library::
-            compute_logderivative_inverse<Flavor, honk::sumcheck::ECCVMLookupRelation<FF>>(
-                polynomials, params, num_rows);
+        bb::honk::logderivative_library::compute_logderivative_inverse<Flavor, honk::sumcheck::ECCVMLookupRelation<FF>>(
+            polynomials, params, num_rows);
 
         honk::permutation_library::compute_permutation_grand_product<Flavor, honk::sumcheck::ECCVMSetRelation<FF>>(
             num_rows, polynomials, params);
@@ -599,4 +598,4 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         return num_rows_pow2;
     }
 };
-} // namespace proof_system
+} // namespace bb

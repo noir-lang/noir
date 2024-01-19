@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace proof_system;
-using namespace proof_system::plonk;
+using namespace bb;
+using namespace bb::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

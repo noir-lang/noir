@@ -4,7 +4,7 @@
 #include "../../relation_types.hpp"
 #include "./declare_views.hpp"
 
-namespace proof_system::AvmMini_vm {
+namespace bb::AvmMini_vm {
 
 template <typename FF> struct Avm_miniRow {
     FF avmMini_rwa{};
@@ -423,4 +423,4 @@ template <typename FF_> class avm_miniImpl {
 
 template <typename FF> using avm_mini = Relation<avm_miniImpl<FF>>;
 
-} // namespace proof_system::AvmMini_vm
+} // namespace bb::AvmMini_vm

@@ -6,7 +6,7 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 
 template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
   public:
@@ -183,9 +183,9 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
 
         return manifest_expected;
     }
-    proof_system::ECCVMCircuitBuilder<Flavor> generate_trace(numeric::random::Engine* engine = nullptr)
+    bb::ECCVMCircuitBuilder<Flavor> generate_trace(numeric::random::Engine* engine = nullptr)
     {
-        proof_system::ECCVMCircuitBuilder<Flavor> result;
+        bb::ECCVMCircuitBuilder<Flavor> result;
         using G1 = typename Flavor::CycleGroup;
         using Fr = typename G1::Fr;
 

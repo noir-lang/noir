@@ -2,7 +2,7 @@
 
 #include "../circuit_builders/circuit_builders.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 /**
@@ -252,7 +252,7 @@ template <typename Builder> void ram_table<Builder>::write(const field_pt& index
     }
 }
 
-template class ram_table<proof_system::UltraCircuitBuilder>;
-template class ram_table<proof_system::GoblinUltraCircuitBuilder>;
+template class ram_table<bb::UltraCircuitBuilder>;
+template class ram_table<bb::GoblinUltraCircuitBuilder>;
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

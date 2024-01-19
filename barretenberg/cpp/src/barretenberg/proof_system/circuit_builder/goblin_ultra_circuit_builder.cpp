@@ -8,7 +8,7 @@
 using namespace bb;
 using namespace crypto;
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::finalize_circuit()
 {
@@ -540,4 +540,4 @@ template <typename FF> bool GoblinUltraCircuitBuilder_<FF>::check_circuit()
 }
 
 template class GoblinUltraCircuitBuilder_<bb::fr>;
-} // namespace proof_system
+} // namespace bb

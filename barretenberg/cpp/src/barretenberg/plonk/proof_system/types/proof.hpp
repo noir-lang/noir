@@ -6,7 +6,7 @@
 #include <ostream>
 #include <vector>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 struct proof {
     std::vector<uint8_t> proof_data;
@@ -45,4 +45,4 @@ inline std::ostream& operator<<(std::ostream& os, proof const& data)
     return os;
 }
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -4,8 +4,8 @@
 
 using namespace benchmark;
 
-using StandardBuilder = proof_system::StandardCircuitBuilder;
-using StandardPlonk = proof_system::plonk::StandardComposer;
+using StandardBuilder = bb::StandardCircuitBuilder;
+using StandardPlonk = bb::plonk::StandardComposer;
 
 /**
  * @brief Benchmark: Construction of a Standard proof for a circuit determined by the provided circuit function
@@ -13,8 +13,8 @@ using StandardPlonk = proof_system::plonk::StandardComposer;
 static void construct_proof_standard_power_of_2(State& state) noexcept
 {
     auto log2_of_gates = static_cast<size_t>(state.range(0));
-    bench_utils::construct_proof_with_specified_num_iterations<proof_system::plonk::StandardComposer>(
-        state, &bench_utils::generate_basic_arithmetic_circuit<proof_system::StandardCircuitBuilder>, log2_of_gates);
+    bench_utils::construct_proof_with_specified_num_iterations<bb::plonk::StandardComposer>(
+        state, &bench_utils::generate_basic_arithmetic_circuit<bb::StandardCircuitBuilder>, log2_of_gates);
 }
 
 BENCHMARK(construct_proof_standard_power_of_2)

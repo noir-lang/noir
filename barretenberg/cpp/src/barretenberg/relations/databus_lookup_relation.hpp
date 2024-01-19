@@ -8,7 +8,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class DatabusLookupRelationImpl {
   public:
@@ -183,4 +183,4 @@ template <typename FF_> class DatabusLookupRelationImpl {
 
 template <typename FF> using DatabusLookupRelation = Relation<DatabusLookupRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

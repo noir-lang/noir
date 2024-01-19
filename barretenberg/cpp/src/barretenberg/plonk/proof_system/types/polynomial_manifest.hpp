@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 
 enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION, OTHER };
 
@@ -224,4 +224,4 @@ class PrecomputedPolyList {
     std::string operator[](size_t index) const { return precomputed_poly_ids[index]; }
 };
 
-} // namespace proof_system::plonk
+} // namespace bb::plonk

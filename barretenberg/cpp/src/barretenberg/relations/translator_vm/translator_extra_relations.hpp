@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace proof_system {
+namespace bb {
 
 template <typename FF_> class GoblinTranslatorOpcodeConstraintRelationImpl {
   public:
@@ -79,4 +79,4 @@ using GoblinTranslatorOpcodeConstraintRelation = Relation<GoblinTranslatorOpcode
 template <typename FF>
 using GoblinTranslatorAccumulatorTransferRelation = Relation<GoblinTranslatorAccumulatorTransferRelationImpl<FF>>;
 
-} // namespace proof_system
+} // namespace bb

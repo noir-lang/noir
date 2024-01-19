@@ -4,7 +4,7 @@
 #include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../field/field.hpp"
 
-namespace proof_system::plonk {
+namespace bb::plonk {
 namespace stdlib {
 
 template <typename Builder> class packed_byte_array {
@@ -64,4 +64,4 @@ template <typename Builder> inline std::ostream& operator<<(std::ostream& os, pa
     return os;
 }
 } // namespace stdlib
-} // namespace proof_system::plonk
+} // namespace bb::plonk

@@ -11,7 +11,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace proof_system::honk;
+using namespace bb::honk;
 namespace goblin_recursion_tests {
 
 class GoblinRecursionTests : public ::testing::Test {
@@ -24,7 +24,7 @@ class GoblinRecursionTests : public ::testing::Test {
 
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
-    using GoblinUltraBuilder = proof_system::GoblinUltraCircuitBuilder;
+    using GoblinUltraBuilder = bb::GoblinUltraCircuitBuilder;
     using KernelInput = Goblin::AccumulationOutput;
 };
 
