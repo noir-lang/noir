@@ -117,7 +117,6 @@ pub(super) fn compile_workspace(
             compile_program(
                 file_manager,
                 parsed_files,
-                workspace,
                 package,
                 compile_options,
                 expression_width,
@@ -162,7 +161,6 @@ pub(super) fn compile_workspace(
 pub(crate) fn compile_bin_package(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
-    workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
@@ -174,7 +172,6 @@ pub(crate) fn compile_bin_package(
     let compilation_result = compile_program(
         file_manager,
         parsed_files,
-        workspace,
         package,
         compile_options,
         expression_width,

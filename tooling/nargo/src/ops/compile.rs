@@ -34,7 +34,6 @@ pub fn compile_workspace(
             compile_program(
                 file_manager,
                 parsed_files,
-                workspace,
                 package,
                 compile_options,
                 expression_width,
@@ -79,17 +78,12 @@ pub fn compile_workspace(
 pub fn compile_program(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
-    workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-
-    let program_artifact_path = workspace.package_build_path(package);
-    let mut debug_artifact_path = program_artifact_path.clone();
-    debug_artifact_path.set_file_name(format!("debug_{}.json", package.name));
 
     let (program, warnings) =
         noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
