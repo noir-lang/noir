@@ -114,7 +114,12 @@ impl chumsky::span::Span for Span {
 
     type Offset = u32;
 
-    fn new(_context: Self::Context, range: Range<Self::Offset>) -> Self {
+    fn new(_context: Self::Context, mut range: Range<Self::Offset>) -> Self {
+        // TODO why chumsky reports reversed ranges??
+        if range.start > range.end {
+            range = Range { start: range.end, end: range.start };
+        } else {
+        }
         Span(ByteSpan::from(range))
     }
 
