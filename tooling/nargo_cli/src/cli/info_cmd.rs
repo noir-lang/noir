@@ -100,7 +100,7 @@ pub(crate) fn run(
     let program_info = binary_packages
         .par_bridge()
         .map(|(package, program)| {
-            count_opcodes_and_gates_in_program(backend, program, &package, expression_width)
+            count_opcodes_and_gates_in_program(backend, program, package, expression_width)
         })
         .collect::<Result<_, _>>()?;
 
