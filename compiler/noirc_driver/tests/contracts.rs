@@ -7,8 +7,6 @@ use noirc_frontend::hir::{def_map::parse_file, Context};
 
 #[test]
 fn reject_crates_containing_multiple_contracts() -> Result<(), ErrorsAndWarnings> {
-    // We use a minimal source file so that if stdlib produces warnings then we can expect these warnings to _always_
-    // be emitted.
     let source = "
 contract Foo {}
 
