@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
+use crate::ssa::{
+    ir::instruction::{Instruction, InstructionId},
+    ssa_gen::Ssa,
+};
 
 impl Ssa {
     /// A simple SSA pass to go through each instruction and move every `Instruction::Constrain` to immediately
@@ -11,7 +14,10 @@ impl Ssa {
             for block in function.reachable_blocks() {
                 let instructions = function.dfg[block].take_instructions();
                 let mut filtered_instructions = Vec::with_capacity(instructions.len());
-                let mut inserted_at_index: HashMap<usize, usize> =
+
+                // Some insertions will be done at the same index, so we need to keep track of how many
+                // Some assertions don't operate on instruction results, so we use Option so we also track the None case
+                let mut inserted_at_index: HashMap<Option<InstructionId>, usize> =
                     HashMap::with_capacity(instructions.len());
 
                 let dfg = &function.dfg;
@@ -24,22 +30,35 @@ impl Ssa {
                         }
                     };
 
-                    let index = filtered_instructions
+                    let last_instruction_that_creates_inputs = filtered_instructions
                         .iter()
                         .rev()
-                        .position(|instruction_id| {
-                            let results = dfg.instruction_results(*instruction_id).to_vec();
+                        .find(|&&instruction_id| {
+                            let results = dfg.instruction_results(instruction_id).to_vec();
                             results.contains(&lhs) || results.contains(&rhs)
                         })
-                        // We iterate through the previous instructions in reverse order so the index is from the
-                        // back of the vector. Subtract from vector length to get correct index.
-                        .map(|reversed_index| filtered_instructions.len() - reversed_index)
-                        .unwrap_or(0);
+                        .copied();
 
-                    let already_inserted_at_index = inserted_at_index.entry(index).or_default();
+                    let insertion_index = last_instruction_that_creates_inputs
+                        .map(|id| {
+                            filtered_instructions
+                                .iter()
+                                .position(|&x| x == id)
+                                .expect("Instruction should exist")
+                                // We want to insert just after the last instruction that creates the inputs
+                                + 1
+                        })
+                        .unwrap_or_default();
 
-                    filtered_instructions.insert(index + *already_inserted_at_index, instruction);
-                    *already_inserted_at_index += 1;
+                    let already_inserted_for_this_instruction =
+                        inserted_at_index.entry(last_instruction_that_creates_inputs).or_default();
+
+                    filtered_instructions.insert(
+                        insertion_index + *already_inserted_for_this_instruction,
+                        instruction,
+                    );
+
+                    *already_inserted_for_this_instruction += 1;
                 }
 
                 *function.dfg[block].instructions_mut() = filtered_instructions;
