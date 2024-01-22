@@ -18,7 +18,7 @@ This guide shows you how to use oracles in your Noir program. For the sake of cl
 - You understand the concept of a JSON-RPC server. Visit the [JSON-RPC website](https://www.jsonrpc.org/) if you need a refresher.
 - You are comfortable with server-side JavaScript (e.g. Node.js, managing packages, etc.).
 
-For reference, you can find the snippets used in this tutorial on the [Aztec DevRel Repository](https://github.com/AztecProtocol/dev-rel/tree/main/how_to_oracles/code-snippets/how-to-oracles).
+For reference, you can find the snippets used in this tutorial on the [Aztec DevRel Repository](https://github.com/AztecProtocol/dev-rel/tree/main/code-snippets/how-to-oracles).
 
 ## Rundown
 
