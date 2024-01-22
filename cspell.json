@@ -175,7 +175,8 @@
         "zshell",
         "nouner",
         "devcontainer",
-        "boilerplate"
+        "boilerplate",
+        "boilerplates"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
