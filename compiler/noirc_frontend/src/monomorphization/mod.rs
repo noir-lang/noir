@@ -962,6 +962,133 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id
     }
 
+    /// Update instrumentation code inserted on variable assignment. We need to
+    /// register the variable instance, its type and replace the temporary ID
+    /// (fe_var_id) with the ID of the registration. Multiple registrations of
+    /// the same variable are possible if using generic functions, hence the
+    /// temporary ID created when injecting the instrumentation code can map to
+    /// multiple IDs at runtime.
+    fn patch_debug_var_assign(
+        &mut self,
+        call: &HirCallExpression,
+        arguments: &mut [ast::Expression],
+    ) {
+        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = hir_arguments.get(0) else {
+            unreachable!("Missing FE var ID in __debug_var_assign call");
+        };
+        let Some(HirExpression::Ident(HirIdent { id, .. })) = hir_arguments.get(1) else {
+            unreachable!("Missing value identifier in __debug_var_assign call");
+        };
+
+        // update variable assignments
+        let var_def = self.interner.definition(*id);
+        let var_type = self.interner.id_type(call.arguments[1]);
+        let fe_var_id = fe_var_id.to_u128() as u32;
+        let var_id = if var_def.name != "__debug_expr" {
+            self.debug_types.insert_var(fe_var_id, &var_def.name, var_type)
+        } else {
+            self.debug_types.get_var_id(fe_var_id).unwrap()
+        };
+        let interned_var_id = self.intern_var_id(var_id, &call.location);
+        arguments[0] = self.expr(interned_var_id);
+    }
+
+    /// Update instrumentation code for a variable being dropped out of scope.
+    /// Given the fe_var_id we search for the last assigned runtime variable ID
+    /// and replace it instead.
+    fn patch_debug_var_drop(
+        &mut self,
+        call: &HirCallExpression,
+        arguments: &mut [ast::Expression],
+    ) {
+        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = hir_arguments.get(0) else {
+            unreachable!("Missing FE var ID in __debug_var_drop call");
+        };
+        // update variable drops (ie. when the var goes out of scope)
+        let fe_var_id = fe_var_id.to_u128() as u32;
+        if let Some(var_id) = self.debug_types.get_var_id(fe_var_id) {
+            let interned_var_id = self.intern_var_id(var_id, &call.location);
+            arguments[0] = self.expr(interned_var_id);
+        }
+    }
+
+    /// Update instrumentation code inserted when assigning to a member of an
+    /// existing variable. Same as above for replacing the fe_var_id, but also
+    /// we need to resolve the path and the type of the member being assigned.
+    /// For this last part, we need to resolve the mapping from field names in
+    /// structs to positions in the runtime tuple, since all structs are
+    /// replaced by tuples during compilation.
+    fn patch_debug_member_assign(
+        &mut self,
+        call: &HirCallExpression,
+        arguments: &mut [ast::Expression],
+        arity: usize,
+    ) {
+        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = hir_arguments.get(0) else {
+            unreachable!("Missing FE var ID in __debug_member_assign call");
+        };
+        let Some(HirExpression::Ident(HirIdent { id, .. })) = hir_arguments.get(1) else {
+            unreachable!("Missing value identifier in __debug_member_assign call");
+        };
+        // update variable member assignments
+        let var_def_name = self.interner.definition(*id).name.clone();
+        let var_type = self.interner.id_type(call.arguments[2]);
+        let fe_var_id = fe_var_id.to_u128() as u32;
+
+        let mut cursor_type = self
+            .debug_types
+            .get_type(fe_var_id)
+            .unwrap_or_else(|| panic!("type not found for fe_var_id={fe_var_id}"))
+            .clone();
+        for i in 0..arity {
+            if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i, i_neg))) =
+                hir_arguments.get(2 + i)
+            {
+                let mut index = fe_i.to_i128();
+                if *i_neg {
+                    index = -index;
+                }
+                if index < 0 {
+                    let index = index.unsigned_abs();
+                    let field_name = self
+                        .debug_field_names
+                        .get(&(index as u32))
+                        .unwrap_or_else(|| panic!("field name not available for {i:?}"));
+                    let field_i = (get_field(&cursor_type, field_name)
+                        .unwrap_or_else(|| panic!("failed to find field_name: {field_name}"))
+                        as i128)
+                        .unsigned_abs();
+                    cursor_type = next_type(&cursor_type, field_i as usize);
+                    let index_id = self.interner.push_expr(HirExpression::Literal(
+                        HirLiteral::Integer(field_i.into(), false),
+                    ));
+                    self.interner.push_expr_type(&index_id, Type::FieldElement);
+                    self.interner.push_expr_location(
+                        index_id,
+                        call.location.span,
+                        call.location.file,
+                    );
+                    arguments[2 + i] = self.expr(index_id);
+                } else {
+                    cursor_type = next_type(&cursor_type, 0);
+                }
+            } else {
+                cursor_type = next_type(&cursor_type, 0);
+            }
+        }
+
+        let var_id = if &var_def_name != "__debug_expr" {
+            self.debug_types.insert_var(fe_var_id, &var_def_name, var_type)
+        } else {
+            self.debug_types.get_var_id(fe_var_id).unwrap()
+        };
+        let interned_var_id = self.intern_var_id(var_id, &call.location);
+        arguments[0] = self.expr(interned_var_id);
+    }
+
     fn function_call(
         &mut self,
         call: HirCallExpression,
@@ -970,102 +1097,19 @@ impl<'interner> Monomorphizer<'interner> {
         let original_func = Box::new(self.expr(call.func));
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+
+        // patch instrumentation code inserted for debugging
         if let ast::Expression::Ident(ast::Ident { name, .. }) = original_func.as_ref() {
-            if let (
-                Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))),
-                Some(HirExpression::Ident(HirIdent { id, .. })),
-                true,
-            ) = (hir_arguments.get(0), hir_arguments.get(1), name == "__debug_var_assign")
-            {
-                // update variable assignments
-                let var_def = self.interner.definition(*id);
-                let var_type = self.interner.id_type(call.arguments[1]);
-                let fe_var_id = fe_var_id.to_u128() as u32;
-                let var_id = if var_def.name != "__debug_expr" {
-                    self.debug_types.insert_var(fe_var_id, &var_def.name, var_type)
-                } else {
-                    self.debug_types.get_var_id(fe_var_id).unwrap()
-                };
-                let interned_var_id = self.intern_var_id(var_id, &call.location);
-                arguments[0] = self.expr(interned_var_id);
-            } else if let (Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))), true) =
-                (hir_arguments.get(0), name == "__debug_var_drop")
-            {
-                // update variable drops (ie. when the var goes out of scope)
-                let fe_var_id = fe_var_id.to_u128() as u32;
-                if let Some(var_id) = self.debug_types.get_var_id(fe_var_id) {
-                    let interned_var_id = self.intern_var_id(var_id, &call.location);
-                    arguments[0] = self.expr(interned_var_id);
-                }
-            } else if let (
-                Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))),
-                Some(HirExpression::Ident(HirIdent { id, .. })),
-                true,
-            ) = (
-                hir_arguments.get(0),
-                hir_arguments.get(1),
-                name.starts_with(DEBUG_MEMBER_ASSIGN_PREFIX),
-            ) {
-                // update variable member assignments
-                let var_def_name = self.interner.definition(*id).name.clone();
-                let var_type = self.interner.id_type(call.arguments[2]);
-                let fe_var_id = fe_var_id.to_u128() as u32;
-                let arity = name[DEBUG_MEMBER_ASSIGN_PREFIX.len()..]
-                    .parse::<usize>()
-                    .expect("failed to parse member assign arity");
-
-                let mut cursor_type = self
-                    .debug_types
-                    .get_type(fe_var_id)
-                    .unwrap_or_else(|| panic!("type not found for fe_var_id={fe_var_id}"))
-                    .clone();
-                for i in 0..arity {
-                    if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i, i_neg))) =
-                        hir_arguments.get(2 + i)
-                    {
-                        let mut index = fe_i.to_i128();
-                        if *i_neg {
-                            index = -index;
-                        }
-                        if index < 0 {
-                            let index = index.unsigned_abs();
-                            let field_name = self
-                                .debug_field_names
-                                .get(&(index as u32))
-                                .unwrap_or_else(|| panic!("field name not available for {i:?}"));
-                            let field_i =
-                                (get_field(&cursor_type, field_name).unwrap_or_else(|| {
-                                    panic!("failed to find field_name: {field_name}")
-                                }) as i128)
-                                    .unsigned_abs();
-                            cursor_type = next_type(&cursor_type, field_i as usize);
-                            let index_id = self.interner.push_expr(HirExpression::Literal(
-                                HirLiteral::Integer(field_i.into(), false),
-                            ));
-                            self.interner.push_expr_type(&index_id, Type::FieldElement);
-                            self.interner.push_expr_location(
-                                index_id,
-                                call.location.span,
-                                call.location.file,
-                            );
-                            arguments[2 + i] = self.expr(index_id);
-                        } else {
-                            cursor_type = next_type(&cursor_type, 0);
-                        }
-                    } else {
-                        cursor_type = next_type(&cursor_type, 0);
-                    }
-                }
-
-                let var_id = if &var_def_name != "__debug_expr" {
-                    self.debug_types.insert_var(fe_var_id, &var_def_name, var_type)
-                } else {
-                    self.debug_types.get_var_id(fe_var_id).unwrap()
-                };
-                let interned_var_id = self.intern_var_id(var_id, &call.location);
-                arguments[0] = self.expr(interned_var_id);
+            if name == "__debug_var_assign" {
+                self.patch_debug_var_assign(&call, &mut arguments);
+            } else if name == "__debug_var_drop" {
+                self.patch_debug_var_drop(&call, &mut arguments);
+            } else if let Some(arity) = name.strip_prefix(DEBUG_MEMBER_ASSIGN_PREFIX) {
+                let arity = arity.parse::<usize>().expect("failed to parse member assign arity");
+                self.patch_debug_member_assign(&call, &mut arguments, arity);
             }
         }
+
         let return_type = self.interner.id_type(id);
         let return_type = self.convert_type(&return_type);
 

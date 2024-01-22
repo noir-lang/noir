@@ -531,16 +531,16 @@ pub fn create_prologue_program(n: u32) -> String {
                 format!(
                     r#"
                 #[oracle(__debug_member_assign_{n})]
-                unconstrained fn __debug_member_assign_oracle_{n}<T>(
+                unconstrained fn __debug_oracle_member_assign_{n}<T>(
                     _var_id: u32, _value: T, {var_sig}
                 ) {{}}
-                unconstrained fn __debug_member_assign_inner_{n}<T>(
+                unconstrained fn __debug_inner_member_assign_{n}<T>(
                     var_id: u32, value: T, {var_sig}
                 ) {{
-                    __debug_member_assign_oracle_{n}(var_id, value, {vars});
+                    __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
                 pub fn __debug_member_assign_{n}<T>(var_id: u32, value: T, {var_sig}) {{
-                    __debug_member_assign_inner_{n}(var_id, value, {vars});
+                    __debug_inner_member_assign_{n}(var_id, value, {vars});
                 }}
 
             "#
