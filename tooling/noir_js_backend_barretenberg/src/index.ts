@@ -47,8 +47,8 @@ export class BarretenbergBackend implements Backend {
   }
 
   /**
-   * Generate an outer proof. This is the proof for the circuit which will verify
-   * inner proofs and or can be seen as the proof created for regular circuits.
+   * Generate a final proof. This is the proof for the circuit which will verify
+   * intermediate proofs and or can be seen as the proof created for regular circuits.
    */
   async generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData> {
     // The settings for this proof are the same as the settings for a "normal" proof
