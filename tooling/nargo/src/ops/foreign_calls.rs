@@ -55,6 +55,13 @@ impl ForeignCall {
             _ => None,
         }
     }
+
+    pub(crate) fn execution_allowed_after_failure(op_name: &str) -> bool {
+        match op_name {
+            "assert_message" => true,
+            _ => true,
+        }
+    }
 }
 
 /// This struct represents an oracle mock. It can be used for testing programs that use oracles.

@@ -25,7 +25,8 @@ impl MacroProcessor for AssertMessageMacro {
 }
 
 fn transform(mut ast: SortedModule) -> Result<SortedModule, (MacroError, FileId)> {
-    let assert_message_oracles = "#[oracle(assert_message)]
+    let assert_message_oracles = "
+    #[oracle(assert_message)]
     unconstrained fn assert_message_oracle<T>(_input: T) {}
     unconstrained pub fn resolve_assert_message<T>(input: T) {
         assert_message_oracle(input);
@@ -41,6 +42,7 @@ fn transform(mut ast: SortedModule) -> Result<SortedModule, (MacroError, FileId)
 
     for func in ast.functions.iter_mut() {
         let mut calls_to_insert = Vec::new();
+        dbg!(func.def.body.0.len());
         for (i, stmt) in func.def.body.0.iter().enumerate() {
             let Statement { kind, span } = stmt;
             if let StatementKind::Constrain(constrain_stmt) = kind {
@@ -60,17 +62,30 @@ fn transform(mut ast: SortedModule) -> Result<SortedModule, (MacroError, FileId)
                         vec![assert_msg_expr.clone()],
                         *span,
                     );
+                    dbg!(i);
+                    dbg!(i + calls_to_insert.len());
                     calls_to_insert.push((i + calls_to_insert.len(), call_expr, *span));
                 }
             }
         }
-
+        dbg!(func.name());
+        dbg!(func.def.body.0.len());
+        if func.name() == "conditional" {
+            dbg!(func.def.body.0.clone());
+        }
+        
         for (i, call_expr, span) in calls_to_insert {
+            dbg!(i);
             func.def
                 .body
                 .0
-                .insert(i + 1, Statement { kind: StatementKind::Expression(call_expr), span });
+                .insert(i, Statement { kind: StatementKind::Expression(call_expr), span });
         }
+        if func.name() == "conditional" {
+            dbg!(func.def.body.0.clone());
+        }
+        dbg!(func.def.body.0.len());
+        // dbg!(func.def.body.0.clone());
     }
     Ok(ast)
 }
