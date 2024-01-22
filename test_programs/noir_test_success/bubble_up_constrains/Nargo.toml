@@ -1,0 +1,5 @@
+[package]
+name = "bubble_up_constrains"
+type = "bin"
+authors = [""]
+[dependencies]
