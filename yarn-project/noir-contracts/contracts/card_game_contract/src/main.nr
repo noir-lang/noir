@@ -112,7 +112,7 @@ contract CardGame {
     fn buy_pack(seed: Field // The randomness used to generate the cards. Passed in for now.
     ) {
         let buyer = context.msg_sender();
-        let mut cards = get_pack_cards(seed, buyer);
+        let mut cards = get_pack_cards(seed, buyer, &mut context);
 
         let mut collection = storage.collections.at(buyer);
         let _inserted_cards = collection.add_cards(cards, buyer);

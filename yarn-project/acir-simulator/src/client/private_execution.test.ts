@@ -9,8 +9,10 @@ import {
   MAX_NEW_COMMITMENTS_PER_CALL,
   NOTE_HASH_TREE_HEIGHT,
   PublicCallRequest,
-  PublicKey,
   TxContext,
+  computeNullifierSecretKey,
+  computeSiloedNullifierSecretKey,
+  derivePublicKey,
   nonEmptySideEffects,
   sideEffectArrayToValueArray,
 } from '@aztec/circuits.js';
@@ -52,6 +54,7 @@ import { default as levelup } from 'levelup';
 import { type MemDown, default as memdown } from 'memdown';
 import { getFunctionSelector } from 'viem';
 
+import { KeyPair } from '../acvm/index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
@@ -75,6 +78,8 @@ describe('Private Execution test suite', () => {
   let recipient: AztecAddress;
   let ownerCompleteAddress: CompleteAddress;
   let recipientCompleteAddress: CompleteAddress;
+  let ownerNullifierKeyPair: KeyPair;
+  let recipientNullifierKeyPair: KeyPair;
 
   const treeHeights: { [name: string]: number } = {
     noteHash: NOTE_HASH_TREE_HEIGHT,
@@ -157,18 +162,36 @@ describe('Private Execution test suite', () => {
 
     owner = ownerCompleteAddress.address;
     recipient = recipientCompleteAddress.address;
+
+    const ownerNullifierSecretKey = computeNullifierSecretKey(ownerPk);
+    ownerNullifierKeyPair = {
+      secretKey: ownerNullifierSecretKey,
+      publicKey: derivePublicKey(ownerNullifierSecretKey),
+    };
+
+    const recipientNullifierSecretKey = computeNullifierSecretKey(recipientPk);
+    recipientNullifierKeyPair = {
+      secretKey: recipientNullifierSecretKey,
+      publicKey: derivePublicKey(recipientNullifierSecretKey),
+    };
   });
 
   beforeEach(() => {
     oracle = mock<DBOracle>();
-    oracle.getSecretKey.mockImplementation((contractAddress: AztecAddress, pubKey: PublicKey) => {
-      if (pubKey.equals(ownerCompleteAddress.publicKey)) {
-        return Promise.resolve(ownerPk);
+    oracle.getNullifierKeyPair.mockImplementation((accountAddress: AztecAddress, contractAddress: AztecAddress) => {
+      if (accountAddress.equals(ownerCompleteAddress.address)) {
+        return Promise.resolve({
+          publicKey: ownerNullifierKeyPair.publicKey,
+          secretKey: computeSiloedNullifierSecretKey(ownerNullifierKeyPair.secretKey, contractAddress),
+        });
       }
-      if (pubKey.equals(recipientCompleteAddress.publicKey)) {
-        return Promise.resolve(recipientPk);
+      if (accountAddress.equals(recipientCompleteAddress.address)) {
+        return Promise.resolve({
+          publicKey: recipientNullifierKeyPair.publicKey,
+          secretKey: computeSiloedNullifierSecretKey(recipientNullifierKeyPair.secretKey, contractAddress),
+        });
       }
-      throw new Error(`Unknown address ${pubKey}`);
+      throw new Error(`Unknown address ${accountAddress}`);
     });
     oracle.getBlockHeader.mockResolvedValue(blockHeader);
 
@@ -659,7 +682,15 @@ describe('Private Execution test suite', () => {
       expect(gotNoteValue).toEqual(amountToTransfer);
 
       const nullifier = result.callStackItem.publicInputs.newNullifiers[0];
-      const expectedNullifier = hashFields([innerNoteHash, ownerPk.low, ownerPk.high]);
+      const siloedNullifierSecretKey = computeSiloedNullifierSecretKey(
+        ownerNullifierKeyPair.secretKey,
+        contractAddress,
+      );
+      const expectedNullifier = hashFields([
+        innerNoteHash,
+        siloedNullifierSecretKey.low,
+        siloedNullifierSecretKey.high,
+      ]);
       expect(nullifier.value).toEqual(expectedNullifier);
     });
 
@@ -732,7 +763,15 @@ describe('Private Execution test suite', () => {
       expect(gotNoteValue).toEqual(amountToTransfer);
 
       const nullifier = execGetThenNullify.callStackItem.publicInputs.newNullifiers[0];
-      const expectedNullifier = hashFields([innerNoteHash, ownerPk.low, ownerPk.high]);
+      const siloedNullifierSecretKey = computeSiloedNullifierSecretKey(
+        ownerNullifierKeyPair.secretKey,
+        contractAddress,
+      );
+      const expectedNullifier = hashFields([
+        innerNoteHash,
+        siloedNullifierSecretKey.low,
+        siloedNullifierSecretKey.high,
+      ]);
       expect(nullifier.value).toEqual(expectedNullifier);
 
       // check that the last get_notes call return no note

@@ -1,4 +1,4 @@
-import { GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a secure storage for managing keys.
@@ -36,4 +36,29 @@ export interface KeyStore {
    * @deprecated We should not require a keystore to expose private keys in plain.
    */
   getAccountPrivateKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey>;
+
+  /**
+   * Retrieves the nullifier secret key of the account associated with the specified AztecAddress.
+   * Throws an error if the provided public key is not found in the list of registered accounts.
+   * @param pubKey - The public key of the account for which the secret key is requested.
+   * @returns A Promise that resolves to the nullifier secret key.
+   */
+  getNullifierSecretKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey>;
+
+  /**
+   * Retrieves the nullifier public key of the account associated with the specified AztecAddress.
+   * Throws an error if the provided public key is not found in the list of registered accounts.
+   * @param pubKey - The public key of the account for which the nullifier public key is requested.
+   * @returns A Promise that resolves to the nullifier public key.
+   */
+  getNullifierPublicKey(pubKey: PublicKey): Promise<PublicKey>;
+
+  /**
+   * Retrieves the nullifier secret key for use in a specific contract.
+   * Throws an error if the provided public key is not found in the list of registered accounts.
+   * @param pubKey - The public key of the account for which the private key is requested.
+   * @param contractAddress - The address of the contract requesting the nullifier key.
+   * @returns A Promise that resolves to the nullifier secret key.
+   */
+  getSiloedNullifierSecretKey(pubKey: PublicKey, contractAddress: AztecAddress): Promise<GrumpkinPrivateKey>;
 }

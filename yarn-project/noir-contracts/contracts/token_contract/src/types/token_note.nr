@@ -17,7 +17,7 @@ use dep::aztec::{
 };
 use dep::aztec::oracle::{
     rand::rand,
-    get_secret_key::get_secret_key,
+    nullifier_key::get_nullifier_secret_key,
     get_public_key::get_public_key,
 };
 use dep::safe_math::SafeU120;
@@ -72,9 +72,9 @@ impl TokenNote {
     }
 
     // docs:start:nullifier
-    pub fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(TokenNoteMethods, self);
-        let secret = get_secret_key(self.owner);
+        let secret = context.request_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
             note_hash_for_nullify,
@@ -83,6 +83,17 @@ impl TokenNote {
         ],0)
     }
     // docs:end:nullifier
+
+    pub fn compute_nullifier_without_context(self) -> Field {
+        let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(TokenNoteMethods, self);
+        let secret = get_nullifier_secret_key(self.owner);
+        // TODO(#1205) Should use a non-zero generator index.
+        pedersen_hash([
+            note_hash_for_nullify,
+            secret.low,
+            secret.high,
+        ],0)
+    }
 
     pub fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
@@ -116,8 +127,12 @@ fn compute_note_hash(note: TokenNote) -> Field {
     note.compute_note_hash()
 }
 
-fn compute_nullifier(note: TokenNote) -> Field {
-    note.compute_nullifier()
+fn compute_nullifier(note: TokenNote, context: &mut PrivateContext) -> Field {
+    note.compute_nullifier(context)
+}
+
+fn compute_nullifier_without_context(note: TokenNote) -> Field {
+    note.compute_nullifier_without_context()
 }
 
 fn get_header(note: TokenNote) -> NoteHeader {
@@ -138,6 +153,7 @@ global TokenNoteMethods = NoteInterface {
     serialize,
     compute_note_hash,
     compute_nullifier,
+    compute_nullifier_without_context,
     get_header,
     set_header,
     broadcast,

@@ -144,7 +144,7 @@ contract InclusionProofs {
                 ValueNoteMethods,
                 maybe_note.unwrap_unchecked(),
                 block_number,
-                context
+                &mut context
             );
         } else {
             // Note was not found so we will use the spare nullifier
@@ -164,7 +164,7 @@ contract InclusionProofs {
         let note = notes[0].unwrap();
 
         // 2) Prove the note validity
-        prove_note_validity(ValueNoteMethods, note, block_number, context);
+        prove_note_validity(ValueNoteMethods, note, block_number, &mut context);
     }
 
     #[aztec(private)]

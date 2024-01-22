@@ -60,7 +60,7 @@ pub fn destroy_note<Note, N>(
     let mut nullifier = 0;
     let mut nullified_commitment: Field = 0;
     let compute_nullifier = note_interface.compute_nullifier;
-    nullifier = compute_nullifier(note);
+    nullifier = compute_nullifier(note, context);
 
     // We also need the note commitment corresponding to the "nullifier"
     let get_header = note_interface.get_header;

@@ -9,7 +9,9 @@ struct NoteInterface<Note, N> {
 
     compute_note_hash: fn (Note) -> Field,
 
-    compute_nullifier: fn (Note) -> Field,
+    compute_nullifier: fn (Note, &mut PrivateContext) -> Field,
+
+    compute_nullifier_without_context: fn (Note) -> Field,
 
     get_header: fn (Note) -> NoteHeader,
 

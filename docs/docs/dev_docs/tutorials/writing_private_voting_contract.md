@@ -71,7 +71,7 @@ Inside this, paste these imports:
 We are using various utils within the Aztec library:
 
 - `context` - exposes things such as the contract address, msg_sender, etc
-- `oracle::get_secret_key` - get your secret key to help us create a randomized nullifier
+- `context.request_nullifier_secret_key` - get your secret key to help us create a randomized nullifier
 - `FunctionSelector::from_signature` - compute a function selector from signature so we can call functions from other functions
 - `state_vars::{ map::Map, public_state::PublicState, }` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicState to hold our public values that we mentioned earlier
 - `types::type_serialization::{..}` - various serialization methods for defining how to use these types

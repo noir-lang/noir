@@ -6,7 +6,6 @@ contract EasyPrivateVoting {
             address::AztecAddress,
         },
         context::{PrivateContext, Context},
-        oracle::get_secret_key::get_secret_key, // used to compute nullifier
         state_vars::{ map::Map, public_state::PublicState,}, 
         types::type_serialization::{ // serialization methods for using booleans and aztec addresses
             bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
@@ -71,7 +70,7 @@ contract EasyPrivateVoting {
     // docs:start:cast_vote
     #[aztec(private)] // annotation to mark function as private and expose private context
     fn cast_vote(candidate: Field) {
-        let secret = get_secret_key(context.msg_sender()); // get secret key of caller of function
+        let secret = context.request_nullifier_secret_key(context.msg_sender()); // get secret key of caller of function
         let nullifier = dep::std::hash::pedersen_hash([context.msg_sender().to_field(), secret.low, secret.high]); // compute nullifier with this secret key so others can't descrypt it
         context.push_new_nullifier(nullifier, 0); // push nullifier
         context.call_public_function(

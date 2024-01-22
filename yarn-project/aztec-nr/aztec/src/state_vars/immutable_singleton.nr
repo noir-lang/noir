@@ -18,7 +18,7 @@ struct ImmutableSingleton<Note, N> {
     context: Option<&mut PrivateContext>,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    compute_initialization_nullifier: fn (Field, Option<AztecAddress>) -> Field,
+    compute_initialization_nullifier: fn (Field, Option<AztecAddress>, Option<&mut PrivateContext>) -> Field,
 }
 // docs:end:struct
 
@@ -42,7 +42,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     // docs:start:is_initialized
     unconstrained pub fn is_initialized(self, owner: Option<AztecAddress>) -> bool {
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
-        let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
+        let nullifier = compute_initialization_nullifier(self.storage_slot, owner, Option::none());
         check_nullifier_exists(nullifier)
     }
     // docs:end:is_initialized
@@ -58,7 +58,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
 
         // Nullify the storage slot.
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
-        let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
+        let nullifier = compute_initialization_nullifier(self.storage_slot, owner, self.context);
         context.push_new_nullifier(nullifier, 0);
 
         create_note(

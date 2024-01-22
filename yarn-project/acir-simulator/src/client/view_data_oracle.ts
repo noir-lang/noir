@@ -7,7 +7,7 @@ import {
   NullifierMembershipWitness,
   PublicDataWitness,
 } from '@aztec/circuit-types';
-import { BlockHeader, PublicKey } from '@aztec/circuits.js';
+import { BlockHeader } from '@aztec/circuits.js';
 import { computeGlobalsHash, siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -36,11 +36,11 @@ export class ViewDataOracle extends TypedOracle {
   }
 
   /**
-   * Return the secret key of a owner to use in a specific contract.
-   * @param owner - The owner of the secret key.
+   * Return the nullifier key pair of an account to use in a specific contract.
+   * @param account - The account address of the nullifier key.
    */
-  public getSecretKey(owner: PublicKey) {
-    return this.db.getSecretKey(this.contractAddress, owner);
+  public getNullifierKeyPair(account: AztecAddress) {
+    return this.db.getNullifierKeyPair(account, this.contractAddress);
   }
 
   /**

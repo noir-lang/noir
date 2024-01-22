@@ -12,7 +12,6 @@ use dep::aztec::{
         note_viewer_options::NoteViewerOptions,
         note_getter::view_notes,
     },
-    oracle::get_secret_key::get_secret_key,
     state_vars::set::Set,
 };
 use dep::std;
@@ -196,9 +195,9 @@ impl Deck {
 
 global PACK_CARDS = 3; // Limited by number of write requests (max 4)
 
-pub fn get_pack_cards(seed: Field, owner: AztecAddress) -> [Card; PACK_CARDS] {
+pub fn get_pack_cards(seed: Field, owner: AztecAddress, context: &mut PrivateContext) -> [Card; PACK_CARDS] {
     // generate pseudo randomness deterministically from 'seed' and user secret
-    let secret = get_secret_key(owner);
+    let secret = context.request_nullifier_secret_key(owner);
     let mix = secret.high + secret.low + seed;
     let random_bytes = std::hash::sha256(mix.to_le_bytes(32));
 

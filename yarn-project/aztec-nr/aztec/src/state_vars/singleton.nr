@@ -16,13 +16,21 @@ use crate::note::{
     note_viewer_options::NoteViewerOptions,
 };
 use crate::oracle::{
-    get_secret_key::get_secret_key,
+    nullifier_key::get_nullifier_secret_key,
     notes::check_nullifier_exists,
 };
 
-pub fn compute_singleton_initialization_nullifier(storage_slot: Field, owner: Option<AztecAddress>) -> Field {
+pub fn compute_singleton_initialization_nullifier(
+    storage_slot: Field,
+    owner: Option<AztecAddress>,
+    context: Option<&mut PrivateContext>
+) -> Field {
     if owner.is_some() {
-        let secret = get_secret_key(owner.unwrap_unchecked());
+        let secret = if context.is_some() {
+            context.unwrap_unchecked().request_nullifier_secret_key(owner.unwrap_unchecked())
+        } else {
+            get_nullifier_secret_key(owner.unwrap_unchecked())
+        };
         pedersen_hash(
             [storage_slot, secret.low, secret.high],
             GENERATOR_INDEX__INITIALIZATION_NULLIFIER
@@ -37,7 +45,7 @@ struct Singleton<Note, N> {
     context: Option<&mut PrivateContext>,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    compute_initialization_nullifier: fn (Field, Option<AztecAddress>) -> Field,
+    compute_initialization_nullifier: fn (Field, Option<AztecAddress>, Option<&mut PrivateContext>) -> Field,
 }
 // docs:end:struct
 
@@ -61,7 +69,7 @@ impl<Note, N> Singleton<Note, N> {
     // docs:start:is_initialized
     unconstrained pub fn is_initialized(self, owner: Option<AztecAddress>) -> bool {
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
-        let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
+        let nullifier = compute_initialization_nullifier(self.storage_slot, owner, Option::none());
         check_nullifier_exists(nullifier)
     }
     // docs:end:is_initialized
@@ -77,7 +85,7 @@ impl<Note, N> Singleton<Note, N> {
 
         // Nullify the storage slot.
         let compute_initialization_nullifier = self.compute_initialization_nullifier;
-        let nullifier = compute_initialization_nullifier(self.storage_slot, owner);
+        let nullifier = compute_initialization_nullifier(self.storage_slot, owner, self.context);
         context.push_new_nullifier(nullifier, 0);
 
         create_note(context, self.storage_slot, note, self.note_interface, broadcast);

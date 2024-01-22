@@ -6,7 +6,7 @@ use dep::aztec::{
     },
     hash::pedersen_hash,
     oracle::{
-        get_secret_key::get_secret_key,
+        nullifier_key::get_nullifier_secret_key,
         get_public_key::get_public_key,
     },
     log::emit_encrypted_log,
@@ -40,9 +40,20 @@ impl PublicKeyNote {
         [self.x, self.y, self.owner.to_field()]
     }
 
-    pub fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let unique_siloed_note_hash = compute_unique_siloed_note_hash(PublicKeyNoteMethods, self);
-        let secret = get_secret_key(self.owner);
+        let secret = context.request_nullifier_secret_key(self.owner);
+        // TODO(#1205) Should use a non-zero generator index.
+        pedersen_hash([
+            unique_siloed_note_hash,
+            secret.low,
+            secret.high,
+        ],0)
+    }
+
+    pub fn compute_nullifier_without_context(self) -> Field {
+        let unique_siloed_note_hash = compute_unique_siloed_note_hash(PublicKeyNoteMethods, self);
+        let secret = get_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
             unique_siloed_note_hash,
@@ -86,8 +97,12 @@ fn compute_note_hash(note: PublicKeyNote) -> Field {
     pedersen_hash(note.serialize(), 0)
 }
 
-fn compute_nullifier(note: PublicKeyNote) -> Field {
-    note.compute_nullifier()
+fn compute_nullifier(note: PublicKeyNote, context: &mut PrivateContext) -> Field {
+    note.compute_nullifier(context)
+}
+
+fn compute_nullifier_without_context(note: PublicKeyNote) -> Field {
+    note.compute_nullifier_without_context()
 }
 
 fn get_header(note: PublicKeyNote) -> NoteHeader {
@@ -108,6 +123,7 @@ global PublicKeyNoteMethods = NoteInterface {
     serialize,
     compute_note_hash,
     compute_nullifier,
+    compute_nullifier_without_context,
     get_header,
     set_header,
     broadcast,

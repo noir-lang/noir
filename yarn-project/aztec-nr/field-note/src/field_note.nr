@@ -41,7 +41,12 @@ impl FieldNote {
         pedersen_hash(self.serialize(), 0)
     }
 
-    pub fn compute_nullifier(self) -> Field {
+    pub fn compute_nullifier(_self: Self, _context: &mut PrivateContext) -> Field {
+        // This note is expected to be shared between users and for this reason can't be nullified using a secret.
+        0
+    }
+
+    pub fn compute_nullifier_without_context(_self: Self) -> Field {
         // This note is expected to be shared between users and for this reason can't be nullified using a secret.
         0
     }
@@ -63,8 +68,12 @@ fn compute_note_hash(note: FieldNote) -> Field {
     note.compute_note_hash()
 }
 
-fn compute_nullifier(note: FieldNote) -> Field {
-    note.compute_nullifier()
+fn compute_nullifier(note: FieldNote, context: &mut PrivateContext) -> Field {
+    note.compute_nullifier(context)
+}
+
+fn compute_nullifier_without_context(note: FieldNote) -> Field {
+    note.compute_nullifier_without_context()
 }
 
 fn get_header(note: FieldNote) -> NoteHeader {
@@ -86,6 +95,7 @@ global FieldNoteMethods = NoteInterface {
     serialize,
     compute_note_hash,
     compute_nullifier,
+    compute_nullifier_without_context,
     get_header,
     set_header,
     broadcast,

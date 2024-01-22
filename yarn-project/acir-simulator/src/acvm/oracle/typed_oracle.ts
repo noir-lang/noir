@@ -7,11 +7,25 @@ import {
   PublicKey,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
-import { BlockHeader, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import { BlockHeader, GrumpkinPrivateKey, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
+
+/**
+ * A pair of public key and secret key.
+ */
+export interface KeyPair {
+  /**
+   * Public key.
+   */
+  publicKey: PublicKey;
+  /**
+   * Secret Key.
+   */
+  secretKey: GrumpkinPrivateKey;
+}
 
 /**
  * Information about a note needed during execution.
@@ -76,7 +90,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  getSecretKey(_owner: PublicKey): Promise<GrumpkinScalar> {
+  getNullifierKeyPair(_accountAddress: AztecAddress): Promise<KeyPair> {
     throw new Error('Not available.');
   }
 

@@ -1,3 +1,22 @@
+use crate::{
+    abi::{
+        PrivateContextInputs,
+        PublicContextInputs,
+    },
+    key::nullifier_key::validate_nullifier_key_against_address,
+    messaging::process_l1_to_l2_message,
+    oracle::{
+        arguments,
+        call_private_function::call_private_function_internal,
+        public_call::call_public_function_internal,
+        enqueue_public_function_call::enqueue_public_function_call_internal,
+        context::get_portal_address,
+        get_block_header::get_block_header,
+        nullifier_key::get_nullifier_key_pair,
+    },
+    types::vec::BoundedVec,
+    utils::Reader,
+};
 use dep::protocol_types::{
     abis::{
         block_header::BlockHeader,
@@ -34,34 +53,13 @@ use dep::protocol_types::{
     hash::hash_args,
     grumpkin_point::GrumpkinPoint,
 };
+use dep::std::{
+    grumpkin_scalar::GrumpkinScalar,
+    option::Option,
+};
 
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
 // use dep::std::collections::vec::Vec;
-
-use crate::abi::{
-    PrivateContextInputs,
-    PublicContextInputs,
-};
-
-// l1 to l2 messaging
-use crate::messaging::process_l1_to_l2_message;
-
-use crate::types::{
-    vec::BoundedVec,
-};
-
-use crate::utils::Reader;
-
-use crate::oracle::{
-    arguments,
-    call_private_function::call_private_function_internal,
-    public_call::call_public_function_internal,
-    enqueue_public_function_call::enqueue_public_function_call_internal,
-    context::get_portal_address,
-    get_block_header::get_block_header,
-};
-
-use dep::std::option::Option;
 
 // When finished, one can call .finish() to convert back to the abi
 struct PrivateContext {
@@ -199,6 +197,14 @@ impl PrivateContext {
         };
         self.new_nullifiers.push(side_effect);
         self.side_effect_counter = self.side_effect_counter + 1;
+    }
+
+    pub fn request_nullifier_secret_key(&mut self, account: AztecAddress) -> GrumpkinScalar {
+        let key_pair = get_nullifier_key_pair(account);
+        validate_nullifier_key_against_address(account, key_pair.public_key, key_pair.secret_key);
+        // TODO: Add request to context.
+        // self.context.push_nullifier_key_validation_request(public_key, secret_key);
+        key_pair.secret_key
     }
 
     // docs:start:context_message_portal

@@ -1,5 +1,13 @@
 import { KeyPair, KeyStore, PublicKey } from '@aztec/circuit-types';
-import { GrumpkinPrivateKey, GrumpkinScalar, Point } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  GrumpkinPrivateKey,
+  GrumpkinScalar,
+  Point,
+  computeNullifierSecretKey,
+  computeSiloedNullifierSecretKey,
+  derivePublicKey,
+} from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
 
@@ -36,6 +44,21 @@ export class TestKeyStore implements KeyStore {
   public getAccountPrivateKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey> {
     const account = this.getAccount(pubKey);
     return Promise.resolve(account.getPrivateKey());
+  }
+
+  public async getNullifierSecretKey(pubKey: PublicKey) {
+    const privateKey = await this.getAccountPrivateKey(pubKey);
+    return computeNullifierSecretKey(privateKey);
+  }
+
+  public async getNullifierPublicKey(pubKey: PublicKey) {
+    const secretKey = await this.getNullifierSecretKey(pubKey);
+    return derivePublicKey(secretKey);
+  }
+
+  public async getSiloedNullifierSecretKey(pubKey: PublicKey, contractAddress: AztecAddress) {
+    const secretKey = await this.getNullifierSecretKey(pubKey);
+    return computeSiloedNullifierSecretKey(secretKey, contractAddress);
   }
 
   /**
