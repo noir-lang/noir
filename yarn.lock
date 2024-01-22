@@ -221,6 +221,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@aztec/bb.js@npm:0.16.0":
+  version: 0.16.0
+  resolution: "@aztec/bb.js@npm:0.16.0"
+  dependencies:
+    comlink: ^4.4.1
+    commander: ^10.0.1
+    debug: ^4.3.4
+    tslib: ^2.4.0
+  bin:
+    bb.js: dest/node/main.js
+  checksum: 5f68b4ad16284a3a871e0ad21fea05aed670383bc639c9d07ab3bf9b7a9d15cc8a4e5cda404a9290775ad5023924739543a8aac37d602892dd1fb5087521970b
+  languageName: node
+  linkType: hard
+
 "@aztec/bb.js@npm:0.19.0":
   version: 0.19.0
   resolution: "@aztec/bb.js@npm:0.19.0"
@@ -4381,6 +4395,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noir-lang/acvm_js@npm:0.38.0":
+  version: 0.38.0
+  resolution: "@noir-lang/acvm_js@npm:0.38.0"
+  checksum: 42a5bba45135d1df0d0eb3f7b65439733e016580bad610e859e140638d42200d6b856ff11c4b30417b74ce011da7c39861aafb1c5b8c7211de2172aea449c635
+  languageName: node
+  linkType: hard
+
 "@noir-lang/acvm_js@workspace:*, @noir-lang/acvm_js@workspace:acvm-repo/acvm_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/acvm_js@workspace:acvm-repo/acvm_js"
@@ -4399,7 +4420,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/backend_barretenberg@^0.22.0, @noir-lang/backend_barretenberg@workspace:*, @noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
+"@noir-lang/backend_barretenberg@npm:^0.22.0":
+  version: 0.22.0
+  resolution: "@noir-lang/backend_barretenberg@npm:0.22.0"
+  dependencies:
+    "@aztec/bb.js": 0.16.0
+    "@noir-lang/types": 0.22.0
+    fflate: ^0.8.0
+  checksum: ead456218ba61d925e0fc5b47d1b94272e980b44a220f1262fb6cdc73cff7cd4232ddc69dd67bb21e50f0b43e7696d4a96fde15e3eadc0bf223ec6d59e014e23
+  languageName: node
+  linkType: hard
+
+"@noir-lang/backend_barretenberg@workspace:*, @noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
@@ -4443,7 +4475,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_js@^0.22.0, @noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
+"@noir-lang/noir_js@npm:^0.22.0":
+  version: 0.22.0
+  resolution: "@noir-lang/noir_js@npm:0.22.0"
+  dependencies:
+    "@noir-lang/acvm_js": 0.38.0
+    "@noir-lang/noirc_abi": 0.22.0
+    "@noir-lang/types": 0.22.0
+  checksum: 3b0873ad87521415af11208bebe5690191d03fa06dcd515789f0a63f7641146cdcb01d292b208452856ea3967e196c8332cb2618e013f9e7e5ce7d6e09de043d
+  languageName: node
+  linkType: hard
+
+"@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
   dependencies:
@@ -4466,7 +4509,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_wasm@^0.22.0, @noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
+"@noir-lang/noir_wasm@npm:^0.22.0":
+  version: 0.22.0
+  resolution: "@noir-lang/noir_wasm@npm:0.22.0"
+  checksum: 7ac0ca170bf312df761d7ccfd32a67a27f88f15ad4eed1807864295d761d3b2176ffb82f4c6931e1bc06b225d6f738519962c79ffbce9a33d5ef8a6a2bdea82c
+  languageName: node
+  linkType: hard
+
+"@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@workspace:compiler/wasm"
   dependencies:
@@ -4510,6 +4560,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@noir-lang/noirc_abi@npm:0.22.0":
+  version: 0.22.0
+  resolution: "@noir-lang/noirc_abi@npm:0.22.0"
+  checksum: a250c6cc5ca37fcf02663f8d6b027776f0e58920fb8f8a84efcf74f079f235bb11bbad682ba332211d9b9a79b6a3eb7faede7701cd88582b682971a41ca6212d
+  languageName: node
+  linkType: hard
+
 "@noir-lang/noirc_abi@workspace:*, @noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm"
@@ -4540,7 +4597,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/types@^0.22.0, @noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
+"@noir-lang/types@npm:0.22.0, @noir-lang/types@npm:^0.22.0":
+  version: 0.22.0
+  resolution: "@noir-lang/types@npm:0.22.0"
+  dependencies:
+    "@noir-lang/noirc_abi": 0.22.0
+  checksum: 5dd1badf0449c518e755172de1d2f2c1b95bfaf7b7328b7de00b8ce9ba68bd447ca65e827185da7d737e7e88dcaf296b29687ffe2e1f5b4d5cc31ce3e3b4f208
+  languageName: node
+  linkType: hard
+
+"@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:

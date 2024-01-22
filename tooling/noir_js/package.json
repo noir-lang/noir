@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.22.0",
+  "version": "0.23.0",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
