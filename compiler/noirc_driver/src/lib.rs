@@ -396,7 +396,6 @@ pub fn compile_no_check(
     let hash = fxhash::hash64(&program);
     let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
     if options.show_monomorphized {
-        println!("Monomorphized AST for program with hash: {}", hash);
         println!("{program}");
     }
 
