@@ -5,9 +5,7 @@ use std::{
 
 use acvm::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{
-    artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager, parse_all,
-};
+use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
@@ -15,6 +13,7 @@ use noirc_driver::{
 use noirc_errors::{debug_info::OpCodesCount, Location};
 
 use crate::{
+    parse_diff,
     types::{NargoProfileRunParams, NargoProfileRunResult},
     LspState,
 };
@@ -28,7 +27,7 @@ pub(crate) fn on_profile_run_request(
 }
 
 fn on_profile_run_request_inner(
-    state: &LspState,
+    state: &mut LspState,
     params: NargoProfileRunParams,
 ) -> Result<NargoProfileRunResult, ResponseError> {
     let root_path = state.root_path.as_deref().ok_or_else(|| {
@@ -54,25 +53,17 @@ fn on_profile_run_request_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let parsed_files = parse_diff(&workspace_file_manager, state);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(_package) => {
-            let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-                .into_iter()
-                .filter(|package| !package.is_library())
-                .cloned()
-                .partition(|package| package.is_binary());
-
             let expression_width = ExpressionWidth::Bounded { width: 3 };
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace_file_manager,
                 &parsed_files,
                 &workspace,
-                &binary_packages,
-                &contract_packages,
                 expression_width,
                 &CompileOptions::default(),
             )
