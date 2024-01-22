@@ -306,7 +306,7 @@ To update the value of a `Singleton`, we can use the `replace` method. The metho
 
 An example of this is seen in a example card game, where we create a new note (a `CardNote`) containing some new data, and replace the current note with it:
 
-#include_code state_vars-SingletonReplace /yarn-project/noir-contracts/contracts/docs_example_contract/src/actions.nr rust
+#include_code state_vars-SingletonReplace /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 If two people are trying to modify the Singleton at the same time, only one will succeed as we don't allow duplicate nullifiers! Developers should put in place appropriate access controls to avoid race conditions (unless a race is intended!).
 
@@ -314,7 +314,7 @@ If two people are trying to modify the Singleton at the same time, only one will
 
 This function allows us to get the note of a Singleton, essentially reading the value.
 
-#include_code state_vars-SingletonGet /yarn-project/noir-contracts/contracts/docs_example_contract/src/actions.nr rust
+#include_code state_vars-SingletonGet /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 #### Nullifying Note reads
 

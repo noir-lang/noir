@@ -250,18 +250,6 @@ describe('e2e_lending_contract', () => {
           .send(),
       );
     });
-    describe('failure cases', () => {
-      it('calling internal _deposit function directly', async () => {
-        // Try to call the internal `_deposit` function directly
-        // This should:
-        // - not change any storage values.
-        // - fail
-
-        await expect(
-          lendingContract.methods._deposit(lendingAccount.address.toField(), 42n, collateralAsset.address).simulate(),
-        ).rejects.toThrow();
-      });
-    });
   });
 
   describe('Borrow', () => {

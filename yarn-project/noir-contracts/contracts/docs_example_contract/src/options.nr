@@ -6,6 +6,8 @@ use dep::aztec::protocol_types::{
 use dep::aztec::note::note_getter_options::{NoteGetterOptions, Sort, SortOrder};
 use dep::std::option::Option;
 
+// Shows how to use NoteGetterOptions and query for notes.
+
 // docs:start:state_vars-NoteGetterOptionsSelectSortOffset
 pub fn create_account_card_getter_options(
     account: AztecAddress,

@@ -1,68 +1,126 @@
-mod actions;
 mod options;
 mod types;
 
+// Following is a very simple game to show case use of singleton in as minimalistic way as possible
+// It also serves as an e2e test that you can read and then replace the singleton in the same call
+// (tests ordering in the circuit)
+
+// you have a card (singleton). Anyone can create a bigger card. Whoever is bigger will be the leader.
+// it also has dummy methods and other examples used for documentation e.g. 
+// how to create custom notes, a custom struct for public state, a custom note that may be unencrypted
+// also has `options.nr` which shows various ways of using `NoteGetterOptions` to query notes
+// it also shows what our macros do behind the scenes!
+
 contract DocsExample {
+    // how to import dependencies defined in your workspace
     use dep::aztec::protocol_types::{
+        abis::function_selector::FunctionSelector,
         address::AztecAddress,
     };
     use dep::aztec::{
-        context::{PrivateContext, Context},
-        state_vars::{
-            map::Map,
-            singleton::Singleton,
+        note::{
+            note_header::NoteHeader,
+            utils as note_utils,
         },
+        context::{PrivateContext, PublicContext, Context},
+        state_vars::{map::Map, public_state::PublicState,singleton::Singleton},
     };
-    use crate::actions;
+    // how to import methods from other files/folders within your workspace
     use crate::options::create_account_card_getter_options;
     use crate::types::{
         card_note::{CardNote, CardNoteMethods, CARD_NOTE_LEN},
+        leader::{Leader, LeaderSerializationMethods, LEADER_SERIALIZED_LEN},
     };
 
     struct Storage {
+        // Shows how to create a custom struct in Public
+        leader: PublicState<Leader, LEADER_SERIALIZED_LEN>,
         // docs:start:storage-singleton-declaration
         legendary_card: Singleton<CardNote, CARD_NOTE_LEN>,
         // docs:end:storage-singleton-declaration
+        // just used for docs example to show how to create a singleton map. 
         // docs:start:storage-map-singleton-declaration
         profiles: Map<AztecAddress, Singleton<CardNote, CARD_NOTE_LEN>>,
         // docs:end:storage-map-singleton-declaration
     }
 
-    // docs:start:state_vars-MapSingleton
     impl Storage {
         fn init(context: Context) -> Self {
             Storage {
+                leader: PublicState::new(
+                    context,
+                    1,
+                    LeaderSerializationMethods,
+                ),
                 // docs:start:start_vars_singleton
-                legendary_card: Singleton::new(context, 1, CardNoteMethods),
+                legendary_card: Singleton::new(context, 2, CardNoteMethods),
                 // docs:end:start_vars_singleton
-                // highlight-next-line:state_vars-MapSingleton
+                // just used for docs example (not for game play):
+                // docs:start:state_vars-MapSingleton
                 profiles: Map::new(
                     context,
-                    2,
+                    3,
                     |context, slot| {
                         Singleton::new(context, slot, CardNoteMethods)
                     },
                 ),
+                // docs:end:state_vars-MapSingleton
             }
         }
     }
-    // docs:end:state_vars-MapSingleton
 
     #[aztec(private)]
-    fn constructor(legendary_card_secret: Field) {
-        let mut legendary_card = CardNote::new(0, legendary_card_secret, AztecAddress::zero());
-        actions::init_legendary_card(storage.legendary_card, &mut legendary_card);
+    fn constructor() {}
+
+    #[aztec(private)]
+    // msg_sender() is 0 at deploy time. So created another function
+    fn initialize_private(randomness: Field, points: u8) {
+        let mut legendary_card = CardNote::new(points, randomness, context.msg_sender());
+        // create and broadcast note
+        storage.legendary_card.initialize(&mut legendary_card, Option::none(), true);
     }
 
     #[aztec(private)]
-    fn update_legendary_card(new_points: u8, new_secret: Field) {
-        let owner = inputs.call_context.msg_sender;
-        let mut updated_card = CardNote::new(new_points, new_secret, owner);
-        actions::update_legendary_card(storage.legendary_card, &mut updated_card);
+    fn update_legendary_card(randomness: Field, points: u8) {
+        // Ensure `points` > current value
+        // Also serves as a e2e test that you can `get_note()` and then `replace()`
+
+        // docs:start:state_vars-SingletonGet
+        let card = storage.legendary_card.get_note(true);
+        // docs:end:state_vars-SingletonGet
+
+        assert(points > card.points, "can only update to higher value");
+        let mut new_card = CardNote::new(points, randomness, context.msg_sender());
+        // docs:start:state_vars-SingletonReplace
+        storage.legendary_card.replace(&mut new_card, true);
+        // docs:end:state_vars-SingletonReplace
+
+        context.call_public_function(
+            context.this_address(),
+            FunctionSelector::from_signature("update_leader((Field),u8)"),
+            [context.msg_sender().to_field(), points as Field]
+        );
     }
 
-    unconstrained fn get_legendary_card() -> pub CardNote {
-        actions::get_legendary_card(storage.legendary_card)
+    #[aztec(public)]
+    internal fn update_leader(account: AztecAddress, points: u8) {
+        let new_leader = Leader { account, points };
+        storage.leader.write(new_leader);
+    }
+
+    unconstrained fn get_leader() -> pub Leader {
+        storage.leader.read()
+    }
+
+    // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
+    unconstrained fn compute_note_hash_and_nullifier(
+        contract_address: AztecAddress,
+        nonce: Field,
+        storage_slot: Field,
+        serialized_note: [Field; CARD_NOTE_LEN]
+    ) -> pub [Field; 4] {
+        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        note_utils::compute_note_hash_and_nullifier(CardNoteMethods, note_header, serialized_note)
     }
 
     /// Macro equivalence section
@@ -128,21 +186,4 @@ contract DocsExample {
         // ************************************************************
     }
     // docs:end:simple_macro_example_expanded
-
-    // Cross chain messaging section
-    // Demonstrates a cross chain message 
-    // docs:start:l1_to_l2_cross_chain_message 
-    #[aztec(private)]
-    fn send_to_l1() {}
-    // docs:end:l1_to_l2_cross_chain_message  
-
-    // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        serialized_note: [Field; 0]
-    ) -> pub [Field; 4] {
-        [0, 0, 0, 0]
-    }
 }

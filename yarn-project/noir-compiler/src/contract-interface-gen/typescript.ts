@@ -166,7 +166,7 @@ function generateAbiStatement(name: string, artifactImportPath: string) {
  * @returns The corresponding ts code.
  */
 export function generateTypescriptContractInterface(input: ContractArtifact, artifactImportPath?: string) {
-  const methods = input.functions.filter(f => f.name !== 'constructor').map(generateMethod);
+  const methods = input.functions.filter(f => f.name !== 'constructor' && !f.isInternal).map(generateMethod);
   const deploy = artifactImportPath && generateDeploy(input);
   const ctor = artifactImportPath && generateConstructor(input.name);
   const at = artifactImportPath && generateAt(input.name);
