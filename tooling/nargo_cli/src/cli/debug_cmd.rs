@@ -74,8 +74,7 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let debug_state =
-        instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
+    let debug_state = instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
 
     let compilation_result = compile_program_with_debug_state(
         &workspace_file_manager,

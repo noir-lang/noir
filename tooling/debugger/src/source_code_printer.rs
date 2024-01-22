@@ -30,10 +30,7 @@ struct LocationPrintContext {
 // Given a DebugArtifact and an OpcodeLocation, prints all the source code
 // locations the OpcodeLocation maps to, with some surrounding context and
 // visual aids to highlight the location itself.
-pub(crate) fn print_source_code_location(
-    debug_artifact: &DebugArtifact,
-    locations: &[Location],
-) {
+pub(crate) fn print_source_code_location(debug_artifact: &DebugArtifact, locations: &[Location]) {
     let locations = locations.iter();
 
     for loc in locations {

@@ -74,9 +74,10 @@ fn load_and_compile_project(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let mut parsed_files = parse_all(&workspace_file_manager);
 
-    let compile_options = CompileOptions::default();
-    let debug_state =
-        instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
+    let compile_options =
+        CompileOptions { instrument_debug: true, force_brillig: true, ..CompileOptions::default() };
+
+    let debug_state = instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
 
     let compilation_result = compile_program_with_debug_state(
         &workspace_file_manager,
