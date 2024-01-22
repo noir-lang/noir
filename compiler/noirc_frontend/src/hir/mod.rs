@@ -8,10 +8,10 @@ use crate::debug::DebugState;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
-use crate::parser::{ParserError, SortedModule};
+use crate::parser::ParserError;
 use crate::ParsedModule;
-use def_map::{parse_file, Contract, CrateDefMap};
-use fm::{FileId, FileManager};
+use def_map::{Contract, CrateDefMap};
+use fm::FileManager;
 use noirc_errors::Location;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
@@ -32,9 +32,7 @@ pub struct Context<'file_manager, 'parsed_files> {
     // is read-only however, once it has been passed to the Context.
     pub file_manager: Cow<'file_manager, FileManager>,
 
-    pub root_crate_id: CrateId,
     pub debug_state: DebugState,
-    pub instrument_debug: bool,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
@@ -63,9 +61,7 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
-            root_crate_id: CrateId::Dummy,
             debug_state: DebugState::default(),
-            instrument_debug: false,
             parsed_files: Cow::Owned(parsed_files),
         }
     }
@@ -80,9 +76,7 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
-            root_crate_id: CrateId::Dummy,
             debug_state: DebugState::default(),
-            instrument_debug: false,
             parsed_files: Cow::Borrowed(parsed_files),
         }
     }
@@ -247,24 +241,5 @@ impl Context<'_, '_> {
 
     fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
         module_id.module(&self.def_maps)
-    }
-
-    /// Given a FileId, fetch the File, from the FileManager and parse its content,
-    /// applying sorting and debug transforms if debug mode is enabled.
-    pub fn parse_file(
-        &mut self,
-        file_id: FileId,
-        crate_id: CrateId,
-    ) -> (SortedModule, Vec<ParserError>) {
-        let (mut ast, parsing_errors) = parse_file(&self.file_manager, file_id);
-
-        if self.instrument_debug && crate_id == self.root_crate_id {
-            self.debug_state.insert_symbols(&mut ast);
-        }
-        (ast.into_sorted(), parsing_errors)
-    }
-
-    pub fn get_root_id(&self, crate_id: CrateId) -> FileId {
-        self.crate_graph[crate_id].root_file_id
     }
 }
