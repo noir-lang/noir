@@ -449,7 +449,7 @@ impl<'a> Resolver<'a> {
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         use UnresolvedTypeData::*;
 
-        match typ.typ {
+        let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
@@ -510,7 +510,18 @@ impl<'a> Resolver<'a> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
+        };
+
+        if let Type::Struct(_, _) = resolved_type {
+            if let Some(unresolved_span) = typ.span {
+                // Record the location of the type reference
+                self.interner.push_type_ref_location(
+                    resolved_type.clone(),
+                    Location::new(unresolved_span, self.file),
+                );
+            }
         }
+        resolved_type
     }
 
     fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
@@ -714,6 +725,7 @@ impl<'a> Resolver<'a> {
         if resolved_type.is_nested_slice() {
             self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
         }
+
         resolved_type
     }
 
