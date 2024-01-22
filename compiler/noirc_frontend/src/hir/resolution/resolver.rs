@@ -512,19 +512,15 @@ impl<'a> Resolver<'a> {
             Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
         };
 
-        match resolved_type {
-            Type::Struct(_, _) => {
-                if let Some(unresolved_span) = typ.span {
-                    // Record the location of the type reference
-                    self.interner.push_type_ref_location(
-                        resolved_type.clone(),
-                        Location::new(unresolved_span, self.file),
-                    );
-                }
+        if let Type::Struct(_, _) = resolved_type {
+            if let Some(unresolved_span) = typ.span {
+                // Record the location of the type reference
+                self.interner.push_type_ref_location(
+                    resolved_type.clone(),
+                    Location::new(unresolved_span, self.file),
+                );
             }
-            _ => (),
-        };
-
+        }
         resolved_type
     }
 
