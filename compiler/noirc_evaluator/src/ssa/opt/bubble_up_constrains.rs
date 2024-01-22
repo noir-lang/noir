@@ -70,3 +70,83 @@ impl Ssa {
         self
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{
+            function::RuntimeType,
+            instruction::{Binary, BinaryOp, Instruction},
+            map::Id,
+            types::Type,
+        },
+    };
+
+    #[test]
+    fn check_bubble_up_constrains() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = add v0, Field 1
+        //     v2 = add v1, Field 1
+        //     constrain v0 == Field 1 'With message'
+        //     constrain v0 == Field 1
+        //     constrain v1 == Field 2
+        //     constrain v1 == Field 2 'With message'
+        //     constrain v2 == Field 3
+        // }
+        //
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let v0 = builder.add_parameter(Type::field());
+
+        let one = builder.field_constant(1u128);
+        let two = builder.field_constant(2u128);
+        let three = builder.field_constant(3u128);
+
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let v2 = builder.insert_binary(v1, BinaryOp::Add, one);
+        builder.insert_constrain(v0, one, Some("With message".to_string()));
+        builder.insert_constrain(v0, one, None);
+        builder.insert_constrain(v1, two, None);
+        builder.insert_constrain(v1, two, Some("With message".to_string()));
+        builder.insert_constrain(v2, three, None);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     constrain v0 == Field 1 'With message'
+        //     constrain v0 == Field 1
+        //     v1 = add v0, Field 1
+        //     constrain v1 == Field 2
+        //     constrain v1 == Field 2 'With message'
+        //     v2 = add v1, Field 1
+        //     constrain v2 == Field 3
+        // }
+        //
+        let ssa = ssa.bubble_up_constrains();
+        let main = ssa.main();
+        let block = &main.dfg[main.entry_block()];
+        assert_eq!(block.instructions().len(), 7);
+
+        let expected_instructions = vec![
+            Instruction::Constrain(v0, one, Some("With message".to_string())),
+            Instruction::Constrain(v0, one, None),
+            Instruction::Binary(Binary { lhs: v0, rhs: one, operator: BinaryOp::Add }),
+            Instruction::Constrain(v1, two, None),
+            Instruction::Constrain(v1, two, Some("With message".to_string())),
+            Instruction::Binary(Binary { lhs: v1, rhs: one, operator: BinaryOp::Add }),
+            Instruction::Constrain(v2, three, None),
+        ];
+
+        for (index, instruction) in block.instructions().iter().enumerate() {
+            assert_eq!(&main.dfg[*instruction], &expected_instructions[index]);
+        }
+    }
+}
