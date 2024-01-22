@@ -64,7 +64,7 @@ pub enum Type {
     TypeVariable(TypeVariable, TypeVariableKind),
 
     /// `impl Trait` when used in a type position.
-    /// These are only matched based on the TraitId. The trait name paramer is only
+    /// These are only matched based on the TraitId. The trait name parameter is only
     /// used for displaying error messages using the name of the trait.
     TraitAsType(TraitId, /*name:*/ Rc<String>, /*generics:*/ Vec<Type>),
 

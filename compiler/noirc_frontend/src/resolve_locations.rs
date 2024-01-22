@@ -42,6 +42,7 @@ impl NodeInterner {
             .and_then(|index| self.resolve_location(index, return_type_location_instead))
             .or_else(|| self.try_resolve_trait_impl_location(location))
             .or_else(|| self.try_resolve_trait_method_declaration(location))
+            .or_else(|| self.try_resolve_type_ref(location))
             .or_else(|| self.try_resolve_type_alias(location))
     }
 
@@ -196,7 +197,17 @@ impl NodeInterner {
             })
     }
 
-    #[tracing::instrument(skip(self), ret)]
+    /// Attempts to resolve [Location] of [Type] based on [Location] of reference in code
+    pub(crate) fn try_resolve_type_ref(&self, location: Location) -> Option<Location> {
+        self.type_ref_locations
+            .iter()
+            .find(|(_typ, type_ref_location)| type_ref_location.contains(&location))
+            .and_then(|(typ, _)| match typ {
+                Type::Struct(struct_typ, _) => Some(struct_typ.borrow().location),
+                _ => None,
+            })
+    }
+
     fn try_resolve_type_alias(&self, location: Location) -> Option<Location> {
         self.type_alias_ref
             .iter()
