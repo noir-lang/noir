@@ -33,25 +33,27 @@ impl Ssa {
                     let last_instruction_that_creates_inputs = filtered_instructions
                         .iter()
                         .rev()
-                        .find(|&&instruction_id| {
+                        .position(|&instruction_id| {
                             let results = dfg.instruction_results(instruction_id).to_vec();
                             results.contains(&lhs) || results.contains(&rhs)
                         })
-                        .copied();
+                        // We iterate through the previous instructions in reverse order so the index is from the
+                        // back of the vector
+                        .map(|reversed_index| filtered_instructions.len() - reversed_index - 1);
 
                     let insertion_index = last_instruction_that_creates_inputs
-                        .map(|id| {
-                            filtered_instructions
-                                .iter()
-                                .position(|&x| x == id)
-                                .expect("Instruction should exist")
-                                // We want to insert just after the last instruction that creates the inputs
-                                + 1
+                        .map(|index| {
+                            // We want to insert just after the last instruction that creates the inputs
+                            index + 1
                         })
+                        // If it doesn't depend from the previous instructions, then we insert at the start
                         .unwrap_or_default();
 
                     let already_inserted_for_this_instruction = inserted_at_instruction
-                        .entry(last_instruction_that_creates_inputs)
+                        .entry(
+                            last_instruction_that_creates_inputs
+                                .map(|index| filtered_instructions[index]),
+                        )
                         .or_default();
 
                     filtered_instructions.insert(
