@@ -17,7 +17,7 @@ impl Ssa {
 
                 // Some insertions will be done at the same index, so we need to keep track of how many
                 // Some assertions don't operate on instruction results, so we use Option so we also track the None case
-                let mut inserted_at_index: HashMap<Option<InstructionId>, usize> =
+                let mut inserted_at_instruction: HashMap<Option<InstructionId>, usize> =
                     HashMap::with_capacity(instructions.len());
 
                 let dfg = &function.dfg;
@@ -50,8 +50,9 @@ impl Ssa {
                         })
                         .unwrap_or_default();
 
-                    let already_inserted_for_this_instruction =
-                        inserted_at_index.entry(last_instruction_that_creates_inputs).or_default();
+                    let already_inserted_for_this_instruction = inserted_at_instruction
+                        .entry(last_instruction_that_creates_inputs)
+                        .or_default();
 
                     filtered_instructions.insert(
                         insertion_index + *already_inserted_for_this_instruction,
