@@ -29,6 +29,7 @@ fi
 
 export BIN CRS_PATH VERBOSE BRANCH
 
+# copy the gzipped acir test data from noir/test_programs to barretenberg/acir_tests
 ./clone_test_vectors.sh
 
 cd acir_tests

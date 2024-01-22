@@ -6,6 +6,7 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
+#include "barretenberg/dsl/acir_proofs/goblin_acir_composer.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/srs/global_crs.hpp"
@@ -24,6 +25,11 @@ WASM_EXPORT void acir_get_circuit_sizes(uint8_t const* acir_vec, uint32_t* exact
 WASM_EXPORT void acir_new_acir_composer(uint32_t const* size_hint, out_ptr out)
 {
     *out = new acir_proofs::AcirComposer(ntohl(*size_hint));
+}
+
+WASM_EXPORT void acir_new_goblin_acir_composer(out_ptr out)
+{
+    *out = new acir_proofs::GoblinAcirComposer();
 }
 
 WASM_EXPORT void acir_delete_acir_composer(in_ptr acir_composer_ptr)
@@ -57,17 +63,31 @@ WASM_EXPORT void acir_create_proof(in_ptr acir_composer_ptr,
     *out = to_heap_buffer(proof_data);
 }
 
-WASM_EXPORT void acir_create_goblin_proof(in_ptr acir_composer_ptr,
-                                          uint8_t const* acir_vec,
-                                          uint8_t const* witness_vec,
-                                          uint8_t** out)
+WASM_EXPORT void acir_goblin_accumulate(in_ptr acir_composer_ptr,
+                                        uint8_t const* acir_vec,
+                                        uint8_t const* witness_vec,
+                                        uint8_t** out)
 {
-    auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
+    auto acir_composer = reinterpret_cast<acir_proofs::GoblinAcirComposer*>(*acir_composer_ptr);
     auto constraint_system = acir_format::circuit_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec));
     auto witness = acir_format::witness_buf_to_witness_data(from_buffer<std::vector<uint8_t>>(witness_vec));
 
-    acir_composer->create_goblin_circuit(constraint_system, witness);
-    auto proof_data = acir_composer->create_goblin_proof();
+    acir_composer->create_circuit(constraint_system, witness);
+    auto proof_data = acir_composer->accumulate();
+    *out = to_heap_buffer(proof_data);
+}
+
+WASM_EXPORT void acir_goblin_prove(in_ptr acir_composer_ptr,
+                                   uint8_t const* acir_vec,
+                                   uint8_t const* witness_vec,
+                                   uint8_t** out)
+{
+    auto acir_composer = reinterpret_cast<acir_proofs::GoblinAcirComposer*>(*acir_composer_ptr);
+    auto constraint_system = acir_format::circuit_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec));
+    auto witness = acir_format::witness_buf_to_witness_data(from_buffer<std::vector<uint8_t>>(witness_vec));
+
+    acir_composer->create_circuit(constraint_system, witness);
+    auto proof_data = acir_composer->accumulate_and_prove();
     *out = to_heap_buffer(proof_data);
 }
 
@@ -102,11 +122,18 @@ WASM_EXPORT void acir_get_proving_key(in_ptr acir_composer_ptr, uint8_t const* a
     *out = to_heap_buffer(to_buffer(*pk));
 }
 
-WASM_EXPORT void acir_verify_goblin_proof(in_ptr acir_composer_ptr, uint8_t const* proof_buf, bool* result)
+WASM_EXPORT void acir_goblin_verify_accumulator(in_ptr acir_composer_ptr, uint8_t const* proof_buf, bool* result)
 {
-    auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
+    auto acir_composer = reinterpret_cast<acir_proofs::GoblinAcirComposer*>(*acir_composer_ptr);
     auto proof = from_buffer<std::vector<uint8_t>>(proof_buf);
-    *result = acir_composer->verify_goblin_proof(proof);
+    *result = acir_composer->verify_accumulator(proof);
+}
+
+WASM_EXPORT void acir_goblin_verify(in_ptr acir_composer_ptr, uint8_t const* proof_buf, bool* result)
+{
+    auto acir_composer = reinterpret_cast<acir_proofs::GoblinAcirComposer*>(*acir_composer_ptr);
+    auto proof = from_buffer<std::vector<uint8_t>>(proof_buf);
+    *result = acir_composer->verify(proof);
 }
 
 WASM_EXPORT void acir_verify_proof(in_ptr acir_composer_ptr,

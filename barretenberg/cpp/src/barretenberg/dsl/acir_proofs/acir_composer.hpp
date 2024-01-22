@@ -1,6 +1,5 @@
 #pragma once
 #include <barretenberg/dsl/acir_format/acir_format.hpp>
-#include <barretenberg/goblin/goblin.hpp>
 
 namespace acir_proofs {
 
@@ -38,15 +37,8 @@ class AcirComposer {
 
     std::vector<bb::fr> serialize_verification_key_into_fields();
 
-    // Goblin specific methods
-    void create_goblin_circuit(acir_format::acir_format& constraint_system, acir_format::WitnessVector& witness);
-    std::vector<uint8_t> create_goblin_proof();
-    bool verify_goblin_proof(std::vector<uint8_t> const& proof);
-
   private:
     acir_format::Builder builder_;
-    acir_format::GoblinBuilder goblin_builder_;
-    Goblin goblin;
     size_t size_hint_;
     std::shared_ptr<bb::plonk::proving_key> proving_key_;
     std::shared_ptr<bb::plonk::verification_key> verification_key_;
