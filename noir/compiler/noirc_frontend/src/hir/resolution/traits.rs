@@ -18,7 +18,7 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Generics, Path, Shared, TraitItem, Type, TypeBinding, TypeVariable, TypeVariableKind,
+    Generics, Path, Shared, TraitItem, Type, TypeVariable, TypeVariableKind,
 };
 
 use super::{
@@ -42,8 +42,7 @@ pub(crate) fn resolve_traits(
 
     for (trait_id, unresolved_trait) in traits {
         let generics = vecmap(&unresolved_trait.trait_def.generics, |_| {
-            let id = context.def_interner.next_type_variable_id();
-            (id, TypeVariable::unbound(id))
+            TypeVariable::unbound(context.def_interner.next_type_variable_id())
         });
 
         // Resolve order
@@ -142,17 +141,7 @@ fn resolve_trait_methods(
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let return_type = resolver.resolve_type(return_type.get_type().into_owned());
 
-            let generics =
-                vecmap(resolver.get_generics(), |(_, type_var, _)| match &*type_var.borrow() {
-                    TypeBinding::Unbound(id) => (*id, type_var.clone()),
-                    TypeBinding::Bound(binding) => {
-                        unreachable!("Trait generic was bound to {binding}")
-                    }
-                });
-
-            // Ensure the trait is generic over the Self type as well
-            // let the_trait = resolver.interner.get_trait(trait_id);
-            // generics.push((the_trait.self_type_typevar_id, the_trait.self_type_typevar.clone()));
+            let generics = vecmap(resolver.get_generics(), |(_, type_var, _)| type_var.clone());
 
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
@@ -465,8 +454,7 @@ pub(crate) fn resolve_trait_impls(
                 methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
             });
 
-            let impl_generics =
-                vecmap(impl_generics, |(_, type_variable, _)| (type_variable.id(), type_variable));
+            let impl_generics = vecmap(impl_generics, |(_, type_variable, _)| type_variable);
 
             if let Err((prev_span, prev_file)) = interner.add_trait_implementation(
                 self_type.clone(),

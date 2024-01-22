@@ -2,8 +2,8 @@ use acvm::acir::native_types::WitnessMap;
 use backend_interface::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo::workspace::Workspace;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
 use noirc_driver::{
@@ -70,10 +70,11 @@ fn load_and_compile_project(
 
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let compiled_program = compile_bin_package(
         &workspace_file_manager,
-        &workspace,
+        &parsed_files,
         package,
         &CompileOptions::default(),
         expression_width,

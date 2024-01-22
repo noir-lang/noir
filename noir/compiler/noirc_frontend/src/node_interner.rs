@@ -78,7 +78,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<TypeAliasType>,
 
     // Trait map.
     //
@@ -142,6 +142,10 @@ pub struct NodeInterner {
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
+
+    /// A list of all type aliases that are referenced in the program.
+    /// Searched by LSP to resolve [Location]s of [TypeAliasType]s
+    pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -450,6 +454,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            type_alias_ref: Vec::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -499,8 +504,7 @@ impl NodeInterner {
                 // This lets us record how many arguments the type expects so that other types
                 // can refer to it with generic arguments before the generic parameters themselves
                 // are resolved.
-                let id = TypeVariableId(0);
-                (id, TypeVariable::unbound(id))
+                TypeVariable::unbound(TypeVariableId(0))
             }),
             self_type_typevar_id,
             self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
@@ -530,8 +534,7 @@ impl NodeInterner {
             // This lets us record how many arguments the type expects so that other types
             // can refer to it with generic arguments before the generic parameters themselves
             // are resolved.
-            let id = TypeVariableId(0);
-            (id, TypeVariable::unbound(id))
+            TypeVariable::unbound(TypeVariableId(0))
         });
 
         let location = Location::new(typ.struct_def.span, file_id);
@@ -547,17 +550,19 @@ impl NodeInterner {
         self.type_aliases.push(TypeAliasType::new(
             type_id,
             typ.type_alias_def.name.clone(),
-            typ.type_alias_def.span,
+            Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
-            vecmap(&typ.type_alias_def.generics, |_| {
-                let id = TypeVariableId(0);
-                (id, TypeVariable::unbound(id))
-            }),
+            vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
         ));
 
         type_id
     }
 
+    /// Adds [TypeLiasId] and [Location] to the type_alias_ref vector
+    /// So that we can later resolve [Location]s type aliases from the LSP requests
+    pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
+        self.type_alias_ref.push((type_id, location));
+    }
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
@@ -1195,19 +1200,18 @@ impl NodeInterner {
 
         self.trait_implementations.push(trait_impl.clone());
 
-        // Ignoring overlapping TraitImplKind::Assumed impls here is perfectly fine.
-        // It should never happen since impls are defined at global scope, but even
-        // if they were, we should never prevent defining a new impl because a where
-        // clause already assumes it exists.
-
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
-            .map(|(id, typevar)| (id, (typevar, self.next_type_variable())))
+            .map(|typevar| (typevar.id(), (typevar, self.next_type_variable())))
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);
 
+        // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
+        // It should never happen since impls are defined at global scope, but even
+        // if they were, we should never prevent defining a new impl because a 'where'
+        // clause already assumes it exists.
         if let Ok((TraitImplKind::Normal(existing), _)) = self.try_lookup_trait_implementation(
             &instantiated_object_type,
             trait_id,

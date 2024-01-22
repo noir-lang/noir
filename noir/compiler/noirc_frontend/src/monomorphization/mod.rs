@@ -27,7 +27,7 @@ use crate::{
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableId, TypeVariableKind, UnaryOp, Visibility,
+    TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -1029,11 +1029,16 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+        // Disallow printing slices and mutable references for consistency,
+        // since they cannot be passed from ACIR into Brillig
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
                 unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
             }
+        } else if matches!(typ, HirType::MutableReference(_)) {
+            unreachable!("println does not support mutable references.");
         }
+
         let printable_type: PrintableType = typ.into();
         let abi_as_string = serde_json::to_string(&printable_type)
             .expect("ICE: expected PrintableType to serialize");
@@ -1533,8 +1538,8 @@ impl<'interner> Monomorphizer<'interner> {
             let (generics, impl_method_type) =
                 self.interner.function_meta(&impl_method).typ.unwrap_forall();
 
-            let replace_type_variable = |(id, var): &(TypeVariableId, TypeVariable)| {
-                (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+            let replace_type_variable = |var: &TypeVariable| {
+                (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
             };
 
             // Replace each NamedGeneric with a TypeVariable containing the same internal type variable

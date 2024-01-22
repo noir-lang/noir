@@ -39,7 +39,7 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
     FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable,
+    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeVariable,
     TypeVariableKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
     UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
@@ -558,6 +558,10 @@ impl<'a> Resolver<'a> {
 
             let result = self.interner.get_type_alias(id).get_type(&args);
 
+            // Collecting Type Alias references [Location]s to be used by LSP in order
+            // to resolve the definition of the type alias
+            self.interner.add_type_alias_ref(id, Location::new(span, self.file));
+
             // Because there is no ordering to when type aliases (and other globals) are resolved,
             // it is possible for one to refer to an Error type and issue no error if it is set
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG
@@ -643,7 +647,7 @@ impl<'a> Resolver<'a> {
             None => {
                 let id = self.interner.next_type_variable_id();
                 let typevar = TypeVariable::unbound(id);
-                new_variables.push((id, typevar.clone()));
+                new_variables.push(typevar.clone());
 
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
                 // wont be bound over but this one has no name since we do not currently
@@ -773,7 +777,7 @@ impl<'a> Resolver<'a> {
                 self.generics.push((name, typevar.clone(), span));
             }
 
-            (id, typevar)
+            typevar
         })
     }
 
@@ -783,7 +787,7 @@ impl<'a> Resolver<'a> {
     pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
         assert_eq!(names.len(), generics.len());
 
-        for (name, (_id, typevar)) in names.iter().zip(generics) {
+        for (name, typevar) in names.iter().zip(generics) {
             self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
         }
     }
@@ -851,14 +855,7 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attributes().clone();
 
-        let mut generics =
-            vecmap(self.generics.clone(), |(name, typevar, _)| match &*typevar.borrow() {
-                TypeBinding::Unbound(id) => (*id, typevar.clone()),
-                TypeBinding::Bound(binding) => {
-                    unreachable!("Expected {} to be unbound, but it is bound to {}", name, binding)
-                }
-            });
-
+        let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 

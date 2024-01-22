@@ -207,11 +207,8 @@ pub struct StructType {
     pub location: Location,
 }
 
-/// Corresponds to generic lists such as `<T, U>` in the source
-/// program. The `TypeVariableId` portion is used to match two
-/// type variables to check for equality, while the `TypeVariable` is
-/// the actual part that can be mutated to bind it to another type.
-pub type Generics = Vec<(TypeVariableId, TypeVariable)>;
+/// Corresponds to generic lists such as `<T, U>` in the source program.
+pub type Generics = Vec<TypeVariable>;
 
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -260,7 +257,7 @@ impl StructType {
                     .generics
                     .iter()
                     .zip(generic_args)
-                    .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+                    .map(|(old, new)| (old.id(), (old.clone(), new.clone())))
                     .collect();
 
                 (typ.substitute(&substitutions), i)
@@ -276,7 +273,7 @@ impl StructType {
             .generics
             .iter()
             .zip(generic_args)
-            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .map(|(old, new)| (old.id(), (old.clone(), new.clone())))
             .collect();
 
         vecmap(&self.fields, |(name, typ)| {
@@ -317,7 +314,7 @@ pub struct TypeAliasType {
     pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl std::hash::Hash for TypeAliasType {
@@ -337,7 +334,7 @@ impl std::fmt::Display for TypeAliasType {
         write!(f, "{}", self.name)?;
 
         if !self.generics.is_empty() {
-            let generics = vecmap(&self.generics, |(_, binding)| binding.borrow().to_string());
+            let generics = vecmap(&self.generics, |binding| binding.borrow().to_string());
             write!(f, "{}", generics.join(", "))?;
         }
 
@@ -349,11 +346,11 @@ impl TypeAliasType {
     pub fn new(
         id: TypeAliasId,
         name: Ident,
-        span: Span,
+        location: Location,
         typ: Type,
         generics: Generics,
     ) -> TypeAliasType {
-        TypeAliasType { id, typ, name, span, generics }
+        TypeAliasType { id, typ, name, location, generics }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
@@ -369,7 +366,7 @@ impl TypeAliasType {
             .generics
             .iter()
             .zip(generic_args)
-            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .map(|(old, new)| (old.id(), (old.clone(), new.clone())))
             .collect();
 
         self.typ.substitute(&substitutions)
@@ -707,7 +704,7 @@ impl Type {
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
-        let polymorphic_type_vars = vecmap(type_bindings, |(id, (type_var, _))| (id, type_var));
+        let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, _))| type_var);
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
@@ -801,7 +798,7 @@ impl std::fmt::Display for Type {
             },
             Type::Constant(x) => x.fmt(f),
             Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, |(var, _)| var.to_string());
+                let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
             Type::Function(args, ret, env) => {
@@ -1307,9 +1304,9 @@ impl Type {
     ) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
-                for (id, var) in typevars {
+                for var in typevars {
                     bindings
-                        .entry(*id)
+                        .entry(var.id())
                         .or_insert_with(|| (var.clone(), interner.next_type_variable()));
                 }
 
@@ -1328,9 +1325,9 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 let replacements = typevars
                     .iter()
-                    .map(|(id, var)| {
+                    .map(|var| {
                         let new = interner.next_type_variable();
-                        (*id, (var.clone(), new))
+                        (var.id(), (var.clone(), new))
                     })
                     .collect();
 
@@ -1428,8 +1425,8 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 // Trying to substitute_helper a variable de, substitute_bound_typevarsfined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
-                for (var, _) in typevars {
-                    assert!(!type_bindings.contains_key(var));
+                for var in typevars {
+                    assert!(!type_bindings.contains_key(&var.id()));
                 }
                 let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Forall(typevars.clone(), typ)
@@ -1476,7 +1473,7 @@ impl Type {
                 }
             }
             Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|(id, _)| *id == target_id) && typ.occurs(target_id)
+                !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
             Type::Function(args, ret, env) => {
                 args.iter().any(|arg| arg.occurs(target_id))
@@ -1549,7 +1546,7 @@ impl Type {
     }
 
     pub fn from_generics(generics: &Generics) -> Vec<Type> {
-        vecmap(generics, |(_, var)| Type::TypeVariable(var.clone(), TypeVariableKind::Normal))
+        vecmap(generics, |var| Type::TypeVariable(var.clone(), TypeVariableKind::Normal))
     }
 }
 
@@ -1620,7 +1617,7 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
+                let length = size.evaluate_to_u64();
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -1641,7 +1638,7 @@ impl From<&Type> for PrintableType {
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
             Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
+            Type::Unit => PrintableType::Unit,
             Type::Constant(_) => unreachable!(),
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
@@ -1649,13 +1646,17 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
-            Type::TraitAsType(..) => unreachable!(),
-            Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
+            Type::TraitAsType(_, _, _) => unreachable!(),
+            Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
-            Type::MutableReference(_) => unreachable!("cannot print &mut"),
+            Type::Function(_, _, env) => {
+                PrintableType::Function { env: Box::new(env.as_ref().into()) }
+            }
+            Type::MutableReference(typ) => {
+                PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
+            }
             Type::NotConstant => unreachable!(),
         }
     }

@@ -5,10 +5,10 @@ use acvm::ExpressionWidth;
 use fm::FileManager;
 use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::CompileError;
-use nargo::insert_all_files_for_workspace_into_file_manager;
+use nargo::ops::{compile_contract, compile_program};
 use nargo::package::Package;
-use nargo::prepare_package;
 use nargo::workspace::Workspace;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
@@ -17,6 +17,7 @@ use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, Compiled
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
+use noirc_frontend::hir::ParsedFiles;
 
 use crate::backends::Backend;
 use crate::errors::CliError;
@@ -60,6 +61,16 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
+
+    let expression_width = backend.get_backend_info_or_default();
+    let (compiled_program, compiled_contracts) = compile_workspace(
+        &workspace_file_manager,
+        &parsed_files,
+        &workspace,
+        expression_width,
+        &args.compile_options,
+    )?;
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
@@ -67,17 +78,11 @@ pub(crate) fn run(
         .cloned()
         .partition(|package| package.is_binary());
 
-    let expression_width = backend.get_backend_info_or_default();
-    let (_, compiled_contracts) = compile_workspace(
-        &workspace_file_manager,
-        &workspace,
-        &binary_packages,
-        &contract_packages,
-        expression_width,
-        &args.compile_options,
-    )?;
-
     // Save build artifacts to disk.
+    let only_acir = args.compile_options.only_acir;
+    for (package, program) in binary_packages.into_iter().zip(compiled_program) {
+        save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
+    }
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
         save_contract(contract, &package, &circuit_dir);
     }
@@ -87,22 +92,43 @@ pub(crate) fn run(
 
 pub(super) fn compile_workspace(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     workspace: &Workspace,
-    binary_packages: &[Package],
-    contract_packages: &[Package],
     expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
+    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
+        .into_iter()
+        .filter(|package| !package.is_library())
+        .cloned()
+        .partition(|package| package.is_binary());
+
     // Compile all of the packages in parallel.
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_program(file_manager, workspace, package, compile_options, expression_width)
+            let program_artifact_path = workspace.package_build_path(package);
+            let cached_program: Option<CompiledProgram> =
+                read_program_from_file(program_artifact_path)
+                    .ok()
+                    .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
+                    .map(|p| p.into());
+
+            compile_program(
+                file_manager,
+                parsed_files,
+                package,
+                compile_options,
+                expression_width,
+                cached_program,
+            )
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
-        .map(|package| compile_contract(file_manager, package, compile_options, expression_width))
+        .map(|package| {
+            compile_contract(file_manager, parsed_files, package, compile_options, expression_width)
+        })
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -134,7 +160,7 @@ pub(super) fn compile_workspace(
 
 pub(crate) fn compile_bin_package(
     file_manager: &FileManager,
-    workspace: &Workspace,
+    parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     expression_width: ExpressionWidth,
@@ -143,8 +169,14 @@ pub(crate) fn compile_bin_package(
         return Err(CompileError::LibraryCrate(package.name.clone()).into());
     }
 
-    let compilation_result =
-        compile_program(file_manager, workspace, package, compile_options, expression_width);
+    let compilation_result = compile_program(
+        file_manager,
+        parsed_files,
+        package,
+        compile_options,
+        expression_width,
+        None,
+    );
 
     let program = report_errors(
         compilation_result,
@@ -154,53 +186,6 @@ pub(crate) fn compile_bin_package(
     )?;
 
     Ok(program)
-}
-
-fn compile_program(
-    file_manager: &FileManager,
-    workspace: &Workspace,
-    package: &Package,
-    compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
-) -> CompilationResult<CompiledProgram> {
-    let (mut context, crate_id) = prepare_package(file_manager, package);
-
-    let program_artifact_path = workspace.package_build_path(package);
-    let cached_program: Option<CompiledProgram> =
-        read_program_from_file(program_artifact_path)
-        .ok()
-        .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
-        .map(|p| p.into());
-
-    let (program, warnings) =
-        noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
-
-    // Apply backend specific optimizations.
-    let optimized_program = nargo::ops::optimize_program(program, expression_width);
-    let only_acir = compile_options.only_acir;
-    save_program(optimized_program.clone(), package, &workspace.target_directory_path(), only_acir);
-
-    Ok((optimized_program, warnings))
-}
-
-fn compile_contract(
-    file_manager: &FileManager,
-    package: &Package,
-    compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
-) -> CompilationResult<CompiledContract> {
-    let (mut context, crate_id) = prepare_package(file_manager, package);
-    let (contract, warnings) =
-        match noirc_driver::compile_contract(&mut context, crate_id, compile_options) {
-            Ok(contracts_and_warnings) => contracts_and_warnings,
-            Err(errors) => {
-                return Err(errors);
-            }
-        };
-
-    let optimized_contract = nargo::ops::optimize_contract(contract, expression_width);
-
-    Ok((optimized_contract, warnings))
 }
 
 pub(super) fn save_program(

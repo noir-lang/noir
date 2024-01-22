@@ -8,11 +8,14 @@ use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
     package::Package,
-    prepare_package,
+    parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_frontend::{graph::CrateName, hir::FunctionNameMatch};
+use noirc_frontend::{
+    graph::CrateName,
+    hir::{FunctionNameMatch, ParsedFiles},
+};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{backends::Backend, cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -66,6 +69,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let pattern = match &args.test_name {
         Some(name) => {
@@ -84,6 +88,7 @@ pub(crate) fn run(
         // TODO: We should run the whole suite even if there are failures in a package
         run_tests(
             &workspace_file_manager,
+            &parsed_files,
             &blackbox_solver,
             package,
             pattern,
@@ -96,8 +101,10 @@ pub(crate) fn run(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_tests<S: BlackBoxFunctionSolver>(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     blackbox_solver: &S,
     package: &Package,
     fn_name: FunctionNameMatch,
@@ -105,7 +112,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     foreign_call_resolver_url: Option<&str>,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (mut context, crate_id) = prepare_package(file_manager, package);
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(
         &mut context,
         crate_id,
