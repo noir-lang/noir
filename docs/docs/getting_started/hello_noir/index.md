@@ -1,5 +1,5 @@
 ---
-title: Hello Noir
+title: Creating a Project
 description:
   Learn how to create and verify your first Noir program using Nargo, a programming language for
   zero-knowledge proofs.

@@ -115,6 +115,8 @@ In this case, the Barretenberg Backend uses the UltraPlonk proving system, hence
 
 :::
 
+## Step 4 - Verifying
+
 To verify a proof using the Solidity verifier contract, we call the `verify` function in this extended contract:
 
 ```solidity
@@ -148,7 +150,7 @@ Noir.
 Under the hood, the return value is passed as an input to the circuit and is checked at the end of
 the circuit program.
 
-For example, if you have Noir program like this: 
+For example, if you have Noir program like this:
 
 ```rust
 fn main(
@@ -159,6 +161,7 @@ fn main(
     priv_key: Field,
 ) -> pub Field
 ```
+
 the `verify` function will expect the public inputs array (second function parameter) to be of length 3, the two inputs and the return value. Like before, these values are populated in Verifier.toml after running `nargo prove`.
 
 Passing only two inputs will result in an error such as `PUBLIC_INPUT_COUNT_INVALID(3, 2)`.
@@ -197,7 +200,7 @@ The other function you can call is our entrypoint `verify` function, as defined 
 
 :::tip
 
-It's worth noticing that the `verify` function is actually a `view` function. This means that its execution does not alter the blockchain state, so it doesn't need to be distributed, and therefore doesn't cost any gas. The EVM node can verify the proof locally.
+It's worth noticing that the `verify` function is actually a `view` function. A `view` function does not alter the blockchain state, so it doesn't need to be distributed (i.e. it will run only on the executing node), and therefore doesn't cost any gas.
 
 This can be particularly useful in some situations. If Alice generated a proof and wants Bob to verify its correctness, Bob doesn't need to run Nargo, NoirJS, or any Noir specific infrastructure. He can simply make a call to the blockchain with the proof and verify it is correct without paying any gas.
 
@@ -218,3 +221,11 @@ For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently suppo
 - Celo
 
 If you test any other chains, please open a PR on this page to update the list. See [this doc](https://github.com/noir-lang/noir-starter/tree/main/with-foundry#testing-on-chain) for more info about testing verifier contracts on different EVM chains.
+
+## What's next
+
+Now that you know how to call a Noir Solidity Verifier on a smart contract using Remix, you should be comfortable with using it with some programmatic frameworks, such as [hardhat](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat) and [foundry](https://github.com/noir-lang/noir-starter/tree/main/with-foundry).
+
+You can find other tools, examples, boilerplates and libraries in the [awesome-noir](https://github.com/noir-lang/awesome-noir) repository.
+
+You should also be ready to write and deploy your first NoirJS app and start generating proofs on websites, phones, and NodeJS environments! Head on to the [NoirJS tutorial](../tutorials/noirjs_app.md) to learn how to do that.
