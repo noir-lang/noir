@@ -2,7 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 
-import headerPic from '/static/img/homepage_header_pic.png';
+import headerPic from '@site/static/img/homepage_header_pic.png';
 import { BeatLoader } from 'react-spinners';
 
 const NoirEditor = lazy(() => import('@signorecello/noir_playground'));
@@ -28,7 +28,7 @@ export default function Landing() {
             marginBottom: '4rem',
             backgroundPosition: 'center',
             backgroundSize: 'cover',
-            backgroundImage: `url(${headerPic.src || headerPic})`,
+            backgroundImage: `url(${headerPic})`,
           }}
           alt="Revolutionizing SNARK proving systems"
         />
