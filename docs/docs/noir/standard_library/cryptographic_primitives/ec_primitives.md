@@ -72,7 +72,7 @@ does indeed lie on `c` by calling `c.contains(p1)`.
 ## Examples
 
 The
-[ec_baby_jubjub test](https://github.com/noir-lang/noir/blob/master/crates/nargo_cli/tests/test_data/ec_baby_jubjub/src/main.nr)
+[ec_baby_jubjub test](https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/ec_baby_jubjub/src/main.nr)
 illustrates all of the above primitives on various forms of the Baby Jubjub curve. A couple of more
 interesting examples in Noir would be:
 

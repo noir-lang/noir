@@ -367,10 +367,12 @@ impl FunctionBuilder {
                 let r_squared = self.insert_binary(r, BinaryOp::Mul, r);
                 let a = self.insert_binary(r_squared, BinaryOp::Mul, lhs);
                 let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
-                let b = self.insert_array_get(rhs_bits, idx, Type::field());
+                let b = self.insert_array_get(rhs_bits, idx, Type::bool());
+                let not_b = self.insert_not(b);
+                let b = self.insert_cast(b, Type::field());
+                let not_b = self.insert_cast(not_b, Type::field());
                 let r1 = self.insert_binary(a, BinaryOp::Mul, b);
-                let c = self.insert_binary(one, BinaryOp::Sub, b);
-                let r2 = self.insert_binary(c, BinaryOp::Mul, r_squared);
+                let r2 = self.insert_binary(r_squared, BinaryOp::Mul, not_b);
                 r = self.insert_binary(r1, BinaryOp::Add, r2);
             }
             r
