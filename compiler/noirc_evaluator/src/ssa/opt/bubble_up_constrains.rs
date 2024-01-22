@@ -90,10 +90,10 @@ mod test {
         //     v1 = add v0, Field 1
         //     v2 = add v1, Field 1
         //     constrain v0 == Field 1 'With message'
+        //     constrain v2 == Field 3
         //     constrain v0 == Field 1
         //     constrain v1 == Field 2
         //     constrain v1 == Field 2 'With message'
-        //     constrain v2 == Field 3
         // }
         //
         let main_id = Id::test_new(0);
@@ -109,10 +109,10 @@ mod test {
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
         let v2 = builder.insert_binary(v1, BinaryOp::Add, one);
         builder.insert_constrain(v0, one, Some("With message".to_string()));
+        builder.insert_constrain(v2, three, None);
         builder.insert_constrain(v0, one, None);
         builder.insert_constrain(v1, two, None);
         builder.insert_constrain(v1, two, Some("With message".to_string()));
-        builder.insert_constrain(v2, three, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
