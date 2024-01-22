@@ -76,7 +76,7 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub disable_macros: bool,
 
-    /// Disables the builtin macros being used in the compiler
+    /// Outputs the monomorphized IR to stdout for debugging
     #[arg(long, hide = true)]
     pub show_monomorphized: bool,
 }
