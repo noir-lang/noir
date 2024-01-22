@@ -1,11 +1,12 @@
-/* eslint-disable  @typescript-eslint/no-explicit-any */
 import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
 import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
+import { type Barretenberg } from '@aztec/bb.js';
 
 export { publicInputsToWitnessMap } from './public_inputs.js';
+
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;
@@ -15,7 +16,9 @@ export class BarretenbergBackend implements Backend {
   // have to initialize `api` and `acirComposer` in the constructor.
   // These are initialized asynchronously in the `init` function,
   // constructors cannot be asynchronous which is why we do this.
-  private api: any;
+
+  private api!: Barretenberg;
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   private acirComposer: any;
   private acirUncompressedBytecode: Uint8Array;
 
@@ -30,8 +33,6 @@ export class BarretenbergBackend implements Backend {
   /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //@ts-ignore
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
       const api = await Barretenberg.new({ threads: this.options.threads });
 
