@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
 
 impl Ssa {
@@ -9,6 +11,8 @@ impl Ssa {
             for block in function.reachable_blocks() {
                 let instructions = function.dfg[block].take_instructions();
                 let mut filtered_instructions = Vec::with_capacity(instructions.len());
+                let mut inserted_at_index: HashMap<usize, usize> =
+                    HashMap::with_capacity(instructions.len());
 
                 let dfg = &function.dfg;
                 for instruction in instructions {
@@ -32,7 +36,10 @@ impl Ssa {
                         .map(|reversed_index| filtered_instructions.len() - reversed_index)
                         .unwrap_or(0);
 
-                    filtered_instructions.insert(index, instruction);
+                    let already_inserted_at_index = inserted_at_index.entry(index).or_default();
+
+                    filtered_instructions.insert(index + *already_inserted_at_index, instruction);
+                    *already_inserted_at_index += 1;
                 }
 
                 *function.dfg[block].instructions_mut() = filtered_instructions;
