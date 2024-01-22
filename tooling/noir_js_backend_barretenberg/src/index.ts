@@ -20,7 +20,7 @@ export class BarretenbergBackend implements Backend {
   private acirUncompressedBytecode: Uint8Array;
 
   constructor(
-    private acirCircuit: CompiledCircuit,
+    acirCircuit: CompiledCircuit,
     private options: BackendOptions = { threads: 1 },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
@@ -46,29 +46,25 @@ export class BarretenbergBackend implements Backend {
     }
   }
 
-  // Generate an outer proof. This is the proof for the circuit which will verify
-  // inner proofs and or can be seen as the proof created for regular circuits.
-  //
-  // The settings for this proof are the same as the settings for a "normal" proof
-  // ie one that is not in the recursive setting.
+  /**
+   * Generate a final proof. This is the proof for the circuit which will verify
+   * intermediate proofs and or can be seen as the proof created for regular circuits.
+   */
   async generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData> {
+    // The settings for this proof are the same as the settings for a "normal" proof
+    // i.e. one that is not in the recursive setting.
     const makeEasyToVerifyInCircuit = false;
     return this.generateProof(decompressedWitness, makeEasyToVerifyInCircuit);
   }
 
-  // Generates an inner proof. This is the proof that will be verified
-  // in another circuit.
-  //
-  // This is sometimes referred to as a recursive proof.
-  // We avoid this terminology as the only property of this proof
-  // that matters, is the fact that it is easy to verify in another
-  // circuit. We _could_ choose to verify this proof in the CLI.
-  //
-  // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
-  // generate the proof using components that will make the proof
-  // easier to verify in a circuit.
-
   /**
+   * Generates an intermediate proof. This is the proof that can be verified
+   * in another circuit.
+   *
+   * This is sometimes referred to as a recursive proof.
+   * We avoid this terminology as the only property of this proof
+   * that matters is the fact that it is easy to verify in another circuit.
+   * We _could_ choose to verify this proof outside of a circuit just as easily.
    *
    * @example
    * ```typescript
@@ -76,6 +72,9 @@ export class BarretenbergBackend implements Backend {
    * ```
    */
   async generateIntermediateProof(witness: Uint8Array): Promise<ProofData> {
+    // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
+    // generate the proof using components that will make the proof
+    // easier to verify in a circuit.
     const makeEasyToVerifyInCircuit = true;
     return this.generateProof(witness, makeEasyToVerifyInCircuit);
   }
@@ -99,17 +98,16 @@ export class BarretenbergBackend implements Backend {
     return { proof, publicInputs };
   }
 
-  // Generates artifacts that will be passed to a circuit that will verify this proof.
-  //
-  // Instead of passing the proof and verification key as a byte array, we pass them
-  // as fields which makes it cheaper to verify in a circuit.
-  //
-  // The proof that is passed here will have been created using the `generateInnerProof`
-  // method.
-  //
-  // The number of public inputs denotes how many public inputs are in the inner proof.
-
   /**
+   * Generates artifacts that will be passed to a circuit that will verify this proof.
+   *
+   * Instead of passing the proof and verification key as a byte array, we pass them
+   * as fields which makes it cheaper to verify in a circuit.
+   *
+   * The proof that is passed here will have been created using the `generateIntermediateProof`
+   * method.
+   *
+   * The number of public inputs denotes how many public inputs are in the inner proof.
    *
    * @example
    * ```typescript
