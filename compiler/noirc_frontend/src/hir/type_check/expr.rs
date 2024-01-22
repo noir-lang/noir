@@ -5,8 +5,8 @@ use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression, ImplKind, HirIdent,
+            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
+            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
@@ -309,7 +309,7 @@ impl<'interner> TypeChecker<'interner> {
         if let ImplKind::TraitMethod(_, constraint, _) = &ident.impl_kind {
             let the_trait = self.interner.get_trait(constraint.trait_id);
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
-            
+
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
                 bindings.insert(param.id(), (param.clone(), arg.clone()));
             }
