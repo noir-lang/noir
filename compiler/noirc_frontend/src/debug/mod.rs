@@ -77,7 +77,14 @@ impl DebugInstrumenter {
     }
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
+        let func_name = &func.name.0.contents;
+        if is_instrumentation_method(func_name) {
+            return;
+        }
         self.scope.push(HashMap::default());
+        let func_name_span = func.name.span();
+        let fn_id = self.insert_var(func_name);
+        let enter_fn = Self::call_fn("enter", vec![uint_expr(fn_id.0 as u128, func_name_span)], func_name_span);
 
         let set_fn_params = func
             .parameters
@@ -93,15 +100,19 @@ impl DebugInstrumenter {
             })
             .collect();
 
-        self.walk_scope(&mut func.body.0, func.span);
+        self.walk_scope(&mut func.body.0, func.span, Some(fn_id));
 
         // prepend fn params:
-        func.body.0 = vec![set_fn_params, func.body.0.clone()].concat();
+        func.body.0 = vec![
+            vec![enter_fn],
+            set_fn_params,
+            func.body.0.clone(),
+        ].concat();
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span) {
+    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span, opt_fn_id: Option<SourceVarId>) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
         // extract and save the return value from the scope if there is one
@@ -134,6 +145,11 @@ impl DebugInstrumenter {
         let drop_vars_stmts = scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, span));
         statements.extend(drop_vars_stmts);
 
+        // exit fn for fn scopes
+        if let Some(fn_id) = opt_fn_id {
+            statements.push(Self::call_fn("exit", vec![uint_expr(fn_id.0 as u128, span)], span));
+        }
+
         // return the saved value in __debug_expr, or unit otherwise
         let last_stmt = if has_ret_expr {
             ast::Statement {
@@ -157,6 +173,21 @@ impl DebugInstrumenter {
             }
         };
         statements.push(last_stmt);
+    }
+
+    fn call_fn(fname: &str, arguments: Vec<ast::Expression>, span: Span) -> ast::Statement {
+        let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
+            func: Box::new(ast::Expression {
+                kind: ast::ExpressionKind::Variable(ast::Path {
+                    segments: vec![ident(&format!["__debug_fn_{fname}"], span)],
+                    kind: PathKind::Plain,
+                    span,
+                }),
+                span,
+            }),
+            arguments,
+        }));
+        ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
     }
 
     fn walk_let_statement(&mut self, let_stmt: &ast::LetStatement, span: &Span) -> ast::Statement {
@@ -310,7 +341,7 @@ impl DebugInstrumenter {
         match &mut expr.kind {
             ast::ExpressionKind::Block(ast::BlockExpression(ref mut statements)) => {
                 self.scope.push(HashMap::default());
-                self.walk_scope(statements, expr.span);
+                self.walk_scope(statements, expr.span, None);
             }
             ast::ExpressionKind::Prefix(prefix_expr) => {
                 self.walk_expr(&mut prefix_expr.rhs);
@@ -422,6 +453,8 @@ impl DebugInstrumenter {
             use dep::__debug::{{
                 __debug_var_assign,
                 __debug_var_drop,
+                __debug_fn_enter,
+                __debug_fn_exit,
                 __debug_dereference_assign,
                 {member_assigns},
             }};"#
@@ -446,12 +479,30 @@ pub fn build_debug_crate_file() -> String {
             }
 
             #[oracle(__debug_var_drop)]
-            unconstrained fn __debug_var_drop_oracle<T>(_var_id: u32) {}
-            unconstrained fn __debug_var_drop_inner<T>(var_id: u32) {
+            unconstrained fn __debug_var_drop_oracle(_var_id: u32) {}
+            unconstrained fn __debug_var_drop_inner(var_id: u32) {
                 __debug_var_drop_oracle(var_id);
             }
-            pub fn __debug_var_drop<T>(var_id: u32) {
+            pub fn __debug_var_drop(var_id: u32) {
                 __debug_var_drop_inner(var_id);
+            }
+
+            #[oracle(__debug_fn_enter)]
+            unconstrained fn __debug_fn_enter_oracle(_fn_id: u32) {}
+            unconstrained fn __debug_fn_enter_inner(var_id: u32) {
+                __debug_fn_enter_oracle(var_id);
+            }
+            pub fn __debug_fn_enter(var_id: u32) {
+                __debug_fn_enter_inner(var_id);
+            }
+
+            #[oracle(__debug_fn_exit)]
+            unconstrained fn __debug_fn_exit_oracle(_fn_id: u32) {}
+            unconstrained fn __debug_fn_exit_inner(var_id: u32) {
+                __debug_fn_exit_oracle(var_id);
+            }
+            pub fn __debug_fn_exit(var_id: u32) {
+                __debug_fn_exit_inner(var_id);
             }
 
             #[oracle(__debug_dereference_assign)]
@@ -603,5 +654,16 @@ fn sint_expr(x: i128, span: Span) -> ast::Expression {
     ast::Expression {
         kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0)),
         span,
+    }
+}
+
+fn is_instrumentation_method(fname: &str) -> bool {
+    match fname {
+        "__debug_var_assign"
+        | "__debug_var_drop"
+        | "__debug_dereference_assign"
+        | "__debug_fn_enter"
+        | "__debug_fn_exit" => true,
+        _ => fname.starts_with("__debug_member_assign_")
     }
 }

@@ -83,6 +83,8 @@ struct Monomorphizer<'interner> {
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
+
+    current_function_id: Option<node_interner::FuncId>,
 }
 
 type HirType = crate::Type;
@@ -154,6 +156,7 @@ impl<'interner> Monomorphizer<'interner> {
             is_range_loop: false,
             return_location: None,
             debug_type_tracker,
+            current_function_id: None,
         }
     }
 
@@ -249,6 +252,8 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
+        self.current_function_id = Some(f);
+
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
             the_trait.self_type_typevar.force_bind(self_type);
@@ -1589,6 +1594,28 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         bindings
+    }
+
+    fn pattern_to_string(&self, pat: &HirPattern) -> String {
+        match pat {
+            HirPattern::Identifier(hir_id) => self.interner.definition(hir_id.id).name.clone(),
+            HirPattern::Mutable(mpat, _) => format!("mut {}", self.pattern_to_string(mpat)),
+            HirPattern::Tuple(pats, _) => format!("({})", pats.iter()
+                .map(|tpat| self.pattern_to_string(tpat)).collect::<Vec<String>>().join(",")),
+            HirPattern::Struct(Type::Struct(sh_stype, _field_types), fields, _) => {
+                let stype = sh_stype.borrow();
+                format!(
+                    "{} {{ {} }}",
+                    &stype.name.0.contents,
+                    fields.iter().map(|(id,pat)| {
+                        format!("{}: {}", &id.0.contents, self.pattern_to_string(pat))
+                    }).collect::<Vec<String>>().join(", "),
+                )
+            },
+            HirPattern::Struct(typ, _, _) => {
+                panic!("unexpected type of struct: {typ:?}");
+            },
+        }
     }
 }
 

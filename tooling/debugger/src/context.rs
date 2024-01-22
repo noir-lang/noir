@@ -467,7 +467,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_variables(&self) -> Vec<(&str, &PrintableValue, &PrintableType)> {
+    pub(super) fn get_variables(&self) -> Vec<(&str, Vec<&str>, Vec<(&str, &PrintableValue, &PrintableType)>)> {
         return self.foreign_call_executor.get_variables();
     }
 

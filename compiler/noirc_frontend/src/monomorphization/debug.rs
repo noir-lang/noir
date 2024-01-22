@@ -46,6 +46,8 @@ impl<'interner> Monomorphizer<'interner> {
                 self.patch_debug_var_assign(call, arguments);
             } else if name == "__debug_var_drop" {
                 self.patch_debug_var_drop(call, arguments);
+            } else if name == "__debug_fn_enter" {
+                self.patch_debug_fn_enter(call, arguments);
             } else if let Some(arity) = name.strip_prefix(DEBUG_MEMBER_ASSIGN_PREFIX) {
                 let arity = arity.parse::<usize>().expect("failed to parse member assign arity");
                 self.patch_debug_member_assign(call, arguments, arity);
@@ -165,6 +167,30 @@ impl<'interner> Monomorphizer<'interner> {
             .get_var_id(source_var_id)
             .unwrap_or_else(|| unreachable!("failed to find debug variable"));
         let interned_var_id = self.intern_var_id(var_id, &call.location);
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
+    }
+
+    /// Update instrumentation code to track function enter and exit.
+    fn patch_debug_fn_enter(&mut self, call: &HirCallExpression, arguments: &mut [Expression]) {
+        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
+        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
+            unreachable!("Missing source_var_id in __debug_fn_enter call");
+        };
+        let source_var_id = source_var_id.to_u128().into();
+        let func_id = self.current_function_id.expect("current function not set");
+        let fn_meta = self.interner.function_meta(&func_id);
+        let fn_name = self.interner.definition(fn_meta.name.id).name.clone();
+        let ptype = PrintableType::Function {
+            name: fn_name.clone(),
+            arguments: fn_meta.parameters.iter().map(|(arg_pattern, arg_type, _arg_vis)| {
+                let arg_str = self.pattern_to_string(arg_pattern);
+                (arg_str, arg_type.follow_bindings().into())
+            }).collect(),
+            env: Box::new(PrintableType::Tuple { types: vec![] }),
+        };
+        let fn_id = self.debug_type_tracker.insert_var_printable(source_var_id, ptype);
+        let interned_var_id = self.intern_var_id(fn_id, &call.location);
         arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
     }
 

@@ -9,24 +9,36 @@ use std::collections::{HashMap, HashSet};
 pub struct DebugVars {
     variables: HashMap<DebugVarId, DebugVariable>,
     types: HashMap<DebugTypeId, PrintableType>,
-    active: HashSet<DebugVarId>,
     values: HashMap<DebugVarId, PrintableValue>,
+    frames: Vec<(DebugVarId, HashSet<DebugVarId>)>,
 }
 
 impl DebugVars {
-    pub fn get_variables(&self) -> Vec<(&str, &PrintableValue, &PrintableType)> {
-        self.active
-            .iter()
-            .filter_map(|var_id| {
-                self.variables
-                    .get(var_id)
-                    .and_then(|debug_var| {
-                        let Some(value) = self.values.get(var_id) else { return None; };
-                        let Some(ptype) = self.types.get(&debug_var.debug_type_id) else { return None; };
-                        Some((debug_var.name.as_str(), value, ptype))
-                    })
+    pub fn get_variables(&self) -> Vec<(&str, Vec<&str>, Vec<(&str, &PrintableValue, &PrintableType)>)> {
+        self.frames.iter().map(|(fn_id, frame)| {
+            let fn_type_id = &self.variables.get(fn_id)
+                .expect("failed to find type for fn_id={fn_id:?}")
+                .debug_type_id;
+            let fn_type = self.types.get(fn_type_id)
+                .expect(&format!("failed to get function type for fn_type_id={fn_type_id:?}"));
+            let PrintableType::Function { name, arguments, .. } = fn_type
+                else { panic!("unexpected function type {fn_type:?}") };
+            let params: Vec<&str> = arguments.iter().map(|(var_name,_)| var_name.as_str()).collect();
+            let vars: Vec<(&str, &PrintableValue, &PrintableType)> = frame.iter()
+                .filter_map(|var_id| { self.lookup_var(*var_id) })
+                .collect();
+            (name.as_str(), params, vars)
+        }).collect()
+    }
+
+    fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableValue, &PrintableType)> {
+        self.variables
+            .get(&var_id)
+            .and_then(|debug_var| {
+                let Some(value) = self.values.get(&var_id) else { return None; };
+                let Some(ptype) = self.types.get(&debug_var.debug_type_id) else { return None; };
+                Some((debug_var.name.as_str(), value, ptype))
             })
-            .collect()
     }
 
     pub fn insert_variables(&mut self, vars: &DebugVariables) {
@@ -38,7 +50,7 @@ impl DebugVars {
     }
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[Value]) {
-        self.active.insert(var_id);
+        self.frames.last_mut().expect("unexpected empty stack frames").1.insert(var_id);
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
         let ptype = self.types.get(type_id).unwrap();
         self.values.insert(var_id, decode_value(&mut values.iter().map(|v| v.to_field()), ptype));
@@ -100,7 +112,7 @@ impl DebugVars {
             };
         }
         *cursor = decode_value(&mut values.iter().map(|v| v.to_field()), cursor_type);
-        self.active.insert(var_id);
+        self.frames.last_mut().expect("unexpected empty stack frames").1.insert(var_id);
     }
 
     pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[Value]) {
@@ -112,6 +124,14 @@ impl DebugVars {
     }
 
     pub fn drop_var(&mut self, var_id: DebugVarId) {
-        self.active.remove(&var_id);
+        self.frames.last_mut().expect("unexpected empty stack frames").1.remove(&var_id);
+    }
+
+    pub fn push_fn(&mut self, fn_id: DebugVarId) {
+        self.frames.push((fn_id, HashSet::default()));
+    }
+
+    pub fn pop_fn(&mut self) {
+        self.frames.pop();
     }
 }

@@ -84,11 +84,15 @@ impl DebugTypeTracker {
     }
 
     pub fn insert_var(&mut self, source_var_id: SourceVarId, var_type: Type) -> DebugVarId {
+        let ptype: PrintableType = var_type.follow_bindings().into();
+        self.insert_var_printable(source_var_id, ptype)
+    }
+
+    pub fn insert_var_printable(&mut self, source_var_id: SourceVarId, ptype: PrintableType) -> DebugVarId {
         if !self.source_variables.contains_key(&source_var_id) {
             unreachable!("cannot find source debug variable {source_var_id:?}");
         }
 
-        let ptype: PrintableType = var_type.follow_bindings().into();
         let type_id = self.types_reverse.get(&ptype).copied().unwrap_or_else(|| {
             let type_id = DebugTypeId(self.next_type_id);
             self.next_type_id += 1;
