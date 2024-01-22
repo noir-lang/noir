@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.0](https://github.com/noir-lang/noir/compare/v0.38.0...v0.39.0) (2024-01-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Breaking changes from aztec-packages ([#3955](https://github.com/noir-lang/noir/issues/3955))
+* Rename Arithmetic opcode to AssertZero ([#3840](https://github.com/noir-lang/noir/issues/3840))
+* Remove unused methods on ACIR opcodes ([#3841](https://github.com/noir-lang/noir/issues/3841))
+* Remove partial backend feature ([#3805](https://github.com/noir-lang/noir/issues/3805))
+
+### Features
+
+* Aztec-packages ([#3754](https://github.com/noir-lang/noir/issues/3754)) ([c043265](https://github.com/noir-lang/noir/commit/c043265e550b59bd4296504826fe15d3ce3e9ad2))
+* Breaking changes from aztec-packages ([#3955](https://github.com/noir-lang/noir/issues/3955)) ([5be049e](https://github.com/noir-lang/noir/commit/5be049eee6c342649462282ee04f6411e6ea392c))
+* Remove range constraints from witnesses which are constrained to be constants ([#3928](https://github.com/noir-lang/noir/issues/3928)) ([afe9c7a](https://github.com/noir-lang/noir/commit/afe9c7a38bb9d4245205d3aa46d4ce23d70a5671))
+* Speed up transformation of debug messages ([#3815](https://github.com/noir-lang/noir/issues/3815)) ([2a8af1e](https://github.com/noir-lang/noir/commit/2a8af1e4141ffff61547ee1c2837a6392bd5db48))
+* Sync `aztec-packages` ([#4011](https://github.com/noir-lang/noir/issues/4011)) ([fee2452](https://github.com/noir-lang/noir/commit/fee24523c427c27f0bdaf98ea09a852a2da3e94c))
+* Sync commits from `aztec-packages` ([#4068](https://github.com/noir-lang/noir/issues/4068)) ([7a8f3a3](https://github.com/noir-lang/noir/commit/7a8f3a33b57875e681e3d81e667e3570a1cdbdcc))
+
+
+### Bug Fixes
+
+* Deserialize odd length hex literals ([#3747](https://github.com/noir-lang/noir/issues/3747)) ([4000fb2](https://github.com/noir-lang/noir/commit/4000fb279221eb07187d657bfaa7f1c7b311abf2))
+* Return error rather instead of panicking on invalid circuit ([#3976](https://github.com/noir-lang/noir/issues/3976)) ([67201bf](https://github.com/noir-lang/noir/commit/67201bfc21a9c8858aa86be9cd47d463fb78d925))
+
+
+### Miscellaneous Chores
+
+* Remove partial backend feature ([#3805](https://github.com/noir-lang/noir/issues/3805)) ([0383100](https://github.com/noir-lang/noir/commit/0383100853a80a5b28b797cdfeae0d271f1b7805))
+* Remove unused methods on ACIR opcodes ([#3841](https://github.com/noir-lang/noir/issues/3841)) ([9e5d0e8](https://github.com/noir-lang/noir/commit/9e5d0e813d61a0bfb5ee68174ed287c5a20f1579))
+* Rename Arithmetic opcode to AssertZero ([#3840](https://github.com/noir-lang/noir/issues/3840)) ([836f171](https://github.com/noir-lang/noir/commit/836f17145c2901060706294461c2d282dd121b3e))
+
 ## [0.38.0](https://github.com/noir-lang/noir/compare/v0.37.1...v0.38.0) (2023-12-18)
 
 
