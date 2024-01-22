@@ -43,6 +43,7 @@ impl NodeInterner {
             .or_else(|| self.try_resolve_trait_impl_location(location))
             .or_else(|| self.try_resolve_trait_method_declaration(location))
             .or_else(|| self.try_resolve_type_ref(location))
+            .or_else(|| self.try_resolve_type_alias(location))
     }
 
     pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {
@@ -205,5 +206,12 @@ impl NodeInterner {
                 Type::Struct(struct_typ, _) => Some(struct_typ.borrow().location),
                 _ => None,
             })
+    }
+
+    fn try_resolve_type_alias(&self, location: Location) -> Option<Location> {
+        self.type_alias_ref
+            .iter()
+            .find(|(_, named_type_location)| named_type_location.span.contains(&location.span))
+            .map(|(type_alias_id, _found_location)| self.get_type_alias(*type_alias_id).location)
     }
 }

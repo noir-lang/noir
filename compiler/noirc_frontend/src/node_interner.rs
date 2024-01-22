@@ -78,7 +78,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<TypeAliasType>,
 
     // Trait map.
     //
@@ -142,6 +142,10 @@ pub struct NodeInterner {
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
+
+    /// A list of all type aliases that are referenced in the program.
+    /// Searched by LSP to resolve [Location]s of [TypeAliasType]s
+    pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
@@ -453,6 +457,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
         };
 
@@ -549,7 +554,7 @@ impl NodeInterner {
         self.type_aliases.push(TypeAliasType::new(
             type_id,
             typ.type_alias_def.name.clone(),
-            typ.type_alias_def.span,
+            Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
         ));
@@ -557,6 +562,11 @@ impl NodeInterner {
         type_id
     }
 
+    /// Adds [TypeLiasId] and [Location] to the type_alias_ref vector
+    /// So that we can later resolve [Location]s type aliases from the LSP requests
+    pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
+        self.type_alias_ref.push((type_id, location));
+    }
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
@@ -1185,7 +1195,6 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
-    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,

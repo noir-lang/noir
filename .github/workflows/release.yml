@@ -77,11 +77,6 @@ jobs:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18'
-
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 

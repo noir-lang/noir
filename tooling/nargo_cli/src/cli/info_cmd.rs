@@ -69,19 +69,11 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-        .into_iter()
-        .filter(|package| !package.is_library())
-        .cloned()
-        .partition(|package| package.is_binary());
-
     let expression_width = backend.get_backend_info_or_default();
     let (compiled_programs, compiled_contracts) = compile_workspace(
         &workspace_file_manager,
         &parsed_files,
         &workspace,
-        &binary_packages,
-        &contract_packages,
         expression_width,
         &args.compile_options,
     )?;
@@ -103,11 +95,12 @@ pub(crate) fn run(
         }
     }
 
+    let binary_packages =
+        workspace.into_iter().filter(|package| package.is_binary()).zip(compiled_programs);
     let program_info = binary_packages
-        .into_par_iter()
-        .zip(compiled_programs)
+        .par_bridge()
         .map(|(package, program)| {
-            count_opcodes_and_gates_in_program(backend, program, &package, expression_width)
+            count_opcodes_and_gates_in_program(backend, program, package, expression_width)
         })
         .collect::<Result<_, _>>()?;
 

@@ -69,7 +69,6 @@ pub(crate) fn run(
     let compiled_program = compile_bin_package(
         &workspace_file_manager,
         &parsed_files,
-        &workspace,
         package,
         &args.compile_options,
         expression_width,

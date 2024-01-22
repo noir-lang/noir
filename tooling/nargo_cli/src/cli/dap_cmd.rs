@@ -75,7 +75,6 @@ fn load_and_compile_project(
     let compiled_program = compile_bin_package(
         &workspace_file_manager,
         &parsed_files,
-        &workspace,
         package,
         &CompileOptions::default(),
         expression_width,
