@@ -75,6 +75,10 @@ pub struct CompileOptions {
     /// Disables the builtin macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
+
+    /// Disables the builtin macros being used in the compiler
+    #[arg(long, hide = true)]
+    pub show_monomorphized: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -391,6 +395,11 @@ pub fn compile_no_check(
 
     let hash = fxhash::hash64(&program);
     let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
+    if options.show_monomorphized {
+        println!("Monomorphized AST for program with hash: {}", hash);
+        println!("{program}");
+        println!();
+    }
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
