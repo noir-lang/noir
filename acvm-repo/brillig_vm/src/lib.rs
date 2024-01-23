@@ -143,9 +143,6 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     /// Indicating that the VM encountered a `Trap` Opcode
     /// or an invalid state.
     fn fail(&mut self, message: String) -> VMStatus {
-        dbg!(self.program_counter);
-        dbg!(&self.bytecode[self.program_counter]);
-        dbg!(&self.bytecode[self.program_counter - 1]);
         let mut error_stack: Vec<_> =
             self.call_stack.iter().map(|value| value.to_usize()).collect();
         error_stack.push(self.program_counter);

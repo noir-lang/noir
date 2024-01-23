@@ -5,6 +5,7 @@ use noirc_frontend::macros_api::SortedModule;
 use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{
     Expression, ExpressionKind, HirContext, Ident, Path, PathKind, Span, Statement, StatementKind,
+    Literal,
 };
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 
@@ -42,7 +43,6 @@ fn transform(mut ast: SortedModule) -> Result<SortedModule, (MacroError, FileId)
 
     for func in ast.functions.iter_mut() {
         let mut calls_to_insert = Vec::new();
-        dbg!(func.def.body.0.len());
         for (i, stmt) in func.def.body.0.iter().enumerate() {
             let Statement { kind, span } = stmt;
             if let StatementKind::Constrain(constrain_stmt) = kind {
@@ -62,30 +62,36 @@ fn transform(mut ast: SortedModule) -> Result<SortedModule, (MacroError, FileId)
                         vec![assert_msg_expr.clone()],
                         *span,
                     );
-                    dbg!(i);
-                    dbg!(i + calls_to_insert.len());
+                    calls_to_insert.push((i + calls_to_insert.len(), call_expr, *span));
+                } else {
+                    let kind = ExpressionKind::string("".to_owned());
+                    let arg = Expression { kind, span: Span::default() };
+                    let call_expr = Expression::call(
+                        Expression {
+                            kind: ExpressionKind::Variable(Path {
+                                segments: vec![
+                                    Ident::from("std"),
+                                    Ident::from("resolve_assert_message"),
+                                ],
+                                kind: PathKind::Dep,
+                                span: Span::default(),
+                            }),
+                            span: Span::default(),
+                        },
+                        vec![arg],
+                        *span,
+                    );
                     calls_to_insert.push((i + calls_to_insert.len(), call_expr, *span));
                 }
             }
         }
-        dbg!(func.name());
-        dbg!(func.def.body.0.len());
-        if func.name() == "conditional" {
-            dbg!(func.def.body.0.clone());
-        }
         
         for (i, call_expr, span) in calls_to_insert {
-            dbg!(i);
             func.def
                 .body
                 .0
                 .insert(i, Statement { kind: StatementKind::Expression(call_expr), span });
         }
-        if func.name() == "conditional" {
-            dbg!(func.def.body.0.clone());
-        }
-        dbg!(func.def.body.0.len());
-        // dbg!(func.def.body.0.clone());
     }
     Ok(ast)
 }

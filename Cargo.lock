@@ -2996,7 +2996,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_macros"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "iter-extended",
  "noirc_frontend",

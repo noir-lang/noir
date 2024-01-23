@@ -140,6 +140,8 @@ pub struct ACVM<'a, B: BlackBoxFunctionSolver> {
     witness_map: WitnessMap,
 
     brillig_solver: Option<BrilligSolver<'a, B>>,
+
+    current_assert_message: Option<String>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
@@ -153,6 +155,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             instruction_pointer: 0,
             witness_map: initial_witness,
             brillig_solver: None,
+            current_assert_message: None,
         }
     }
 
@@ -203,7 +206,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
     /// Sets the VM status to [ACVMStatus::Failure] using the provided `error`.
     /// Returns the new status.
     fn fail(&mut self, error: OpcodeResolutionError) -> ACVMStatus {
-        self.instruction_pointer += 1;
+        // self.instruction_pointer += 1;
         self.status(ACVMStatus::Failure(error))
     }
 
@@ -235,7 +238,12 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             ACVMForeignCallResult::BrilligOutput(foreign_call_result) => {
                 brillig_solver.resolve_pending_foreign_call(foreign_call_result);
             }
-            ACVMForeignCallResult::ResolvedAssertMessage(_) => {
+            ACVMForeignCallResult::ResolvedAssertMessage(assert_message) => {
+                if assert_message.is_empty() {
+                    self.current_assert_message = None;
+                } else {
+                    self.current_assert_message = Some(assert_message);
+                }
                 brillig_solver.resolve_pending_foreign_call(ForeignCallResult::default());
             }
         }
@@ -259,7 +267,6 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
 
     pub fn solve_opcode(&mut self) -> ACVMStatus {
         let opcode = &self.opcodes[self.instruction_pointer];
-
         let resolution = match opcode {
             Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
             Opcode::BlackBoxFuncCall(bb_func) => {
@@ -296,6 +303,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 }
             }
             Err(mut error) => {
+                dbg!("got error");
                 match &mut error {
                     // If we have an index out of bounds or an unsatisfied constraint, the opcode label will be unresolved
                     // because the solvers do not have knowledge of this information.
@@ -383,6 +391,10 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         }
         self.brillig_solver = Some(solver);
         self.solve_opcode()
+    }
+
+    pub fn get_assert_message(&self) -> &Option<String> {
+        &self.current_assert_message
     }
 }
 

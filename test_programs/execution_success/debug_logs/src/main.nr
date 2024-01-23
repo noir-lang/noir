@@ -12,9 +12,6 @@ fn main(x: Field, y: pub Field) {
     // A `fmtstr` lets you easily perform string interpolation.
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
     
-    // TODO
-    // assert(x == y, fmt_str);
-
     let fmt_str = string_identity(fmt_str);
     std::println(fmt_str);
 
