@@ -666,14 +666,12 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expr: &Expression,
         location: Location,
-        assert_message: &Option<Box<Expression>>,
+        assert_message: &Expression,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
 
-        assert_message
-            .as_ref()
-            .map(|assert_message_expr| self.codegen_expression(assert_message_expr.as_ref()));
+        self.codegen_expression(assert_message)?;
 
         // Assert messages from constrain statements specified by the user are codegen'd with a call expression,
         // thus the assert_message field here should always be `None`
