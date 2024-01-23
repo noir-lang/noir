@@ -305,6 +305,9 @@ impl<'interner> TypeChecker<'interner> {
         let expr_type = self.check_expression(&stmt.0);
         let expr_span = self.interner.expr_span(&stmt.0);
 
+        // Must type check the assertion message expression so that we instantiate bindings
+        stmt.2.map(|assert_msg_expr| self.check_expression(&assert_msg_expr));
+
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
             expected_typ: Type::Bool.to_string(),

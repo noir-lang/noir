@@ -140,7 +140,9 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(expr, location) => self.codegen_constrain(expr, *location),
+            Expression::Constrain(expr, location, assert_message) => {
+                self.codegen_constrain(expr, *location, assert_message)
+            }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
         }
@@ -664,10 +666,16 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expr: &Expression,
         location: Location,
+        assert_message: &Option<Box<Expression>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
-        // Assert messages from constrain statements specified by the user should be handled before SSA,
+
+        assert_message
+            .as_ref()
+            .map(|assert_message_expr| self.codegen_expression(assert_message_expr.as_ref()));
+
+        // Assert messages from constrain statements specified by the user are codegen'd with a call expression,
         // thus the assert_message field here should always be `None`
         self.builder.set_location(location).insert_constrain(expr, true_literal, None);
 

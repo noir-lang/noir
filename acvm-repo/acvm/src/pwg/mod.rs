@@ -206,7 +206,6 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
     /// Sets the VM status to [ACVMStatus::Failure] using the provided `error`.
     /// Returns the new status.
     fn fail(&mut self, error: OpcodeResolutionError) -> ACVMStatus {
-        // self.instruction_pointer += 1;
         self.status(ACVMStatus::Failure(error))
     }
 

@@ -1107,7 +1107,46 @@ impl<'a> Resolver<'a> {
             }
             StatementKind::Constrain(constrain_stmt) => {
                 let expr_id = self.resolve_expression(constrain_stmt.0);
-                HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
+                let call_resolve_msg_expr = constrain_stmt.1.map(|assert_msg_expr| {
+                    let span = assert_msg_expr.span;
+                    let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
+                    let call_expr = if is_in_stdlib {
+                        Expression::call(
+                            Expression {
+                                kind: ExpressionKind::Variable(Path {
+                                    segments: vec![Ident::from("resolve_assert_message")],
+                                    kind: PathKind::Crate,
+                                    span,
+                                }),
+                                span,
+                            },
+                            vec![assert_msg_expr.clone()],
+                            span,
+                        )
+                    } else {
+                        Expression::call(
+                            Expression {
+                                kind: ExpressionKind::Variable(Path {
+                                    segments: vec![
+                                        Ident::from("std"),
+                                        Ident::from("resolve_assert_message"),
+                                    ],
+                                    kind: PathKind::Dep,
+                                    span: Span::default(),
+                                }),
+                                span: Span::default(),
+                            },
+                            vec![assert_msg_expr.clone()],
+                            Span::default(),
+                        )
+                    };
+                    self.resolve_expression(call_expr)
+                });
+                HirStatement::Constrain(HirConstrainStatement(
+                    expr_id,
+                    self.file,
+                    call_resolve_msg_expr,
+                ))
             }
             StatementKind::Expression(expr) => {
                 HirStatement::Expression(self.resolve_expression(expr))
