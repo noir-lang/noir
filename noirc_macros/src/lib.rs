@@ -41,7 +41,7 @@ fn add_resolve_assert_message_funcs(
     unconstrained pub fn resolve_assert_message<T>(input: T) {
         assert_message_oracle(input);
     }";
-    // TODO: return parsing errors?
+
     let (assert_msg_funcs_ast, errors) = parse_program(assert_message_oracles);
     assert_eq!(errors.len(), 0, "Failed to parse Noir macro code. This is either a bug in the compiler or the Noir macro code");
 
