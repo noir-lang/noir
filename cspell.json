@@ -174,7 +174,9 @@
         "Weierstraß",
         "zshell",
         "nouner",
-        "devcontainer"
+        "devcontainer",
+        "boilerplate",
+        "boilerplates"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
