@@ -164,8 +164,4 @@ pub enum BinaryIntOp {
     Or,
     /// (^) Bitwise XOR
     Xor,
-    /// (<<) Shift left
-    Shl,
-    /// (>>) Shift right
-    Shr,
 }

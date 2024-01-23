@@ -1,7 +1,7 @@
 use acir::brillig::{BinaryFieldOp, BinaryIntOp};
 use acir::FieldElement;
 use num_bigint::{BigInt, BigUint};
-use num_traits::{One, ToPrimitive, Zero};
+use num_traits::{One, Zero};
 
 /// Evaluate a binary operation on two FieldElements and return the result as a FieldElement.
 pub(crate) fn evaluate_binary_field_op(
@@ -77,16 +77,6 @@ pub(crate) fn evaluate_binary_bigint_op(
         BinaryIntOp::And => (a & b) % bit_modulo,
         BinaryIntOp::Or => (a | b) % bit_modulo,
         BinaryIntOp::Xor => (a ^ b) % bit_modulo,
-        BinaryIntOp::Shl => {
-            assert!(bit_size <= 128, "unsupported bit size for right shift");
-            let b = b.to_u128().unwrap();
-            (a << b) % bit_modulo
-        }
-        BinaryIntOp::Shr => {
-            assert!(bit_size <= 128, "unsupported bit size for right shift");
-            let b = b.to_u128().unwrap();
-            (a >> b) % bit_modulo
-        }
     };
 
     Ok(result)
@@ -112,6 +102,7 @@ fn to_big_unsigned(a: BigInt, bit_size: u32) -> BigUint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use num_traits::ToPrimitive;
 
     struct TestParams {
         a: u128,
