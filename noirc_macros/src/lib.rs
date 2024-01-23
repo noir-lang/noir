@@ -4,8 +4,7 @@ use noirc_frontend::macros_api::parse_program;
 use noirc_frontend::macros_api::SortedModule;
 use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{
-    Expression, ExpressionKind, HirContext, Ident, Literal, Path, PathKind, Span, Statement,
-    StatementKind,
+    Expression, ExpressionKind, HirContext, Ident, Path, PathKind, Span, Statement, StatementKind,
 };
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 
