@@ -16,7 +16,6 @@ use noirc_frontend::graph::CrateName;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use dap::errors::ServerError;
 use dap::requests::Command;
 use dap::responses::ResponseBody;
 use dap::server::Server;
@@ -30,11 +29,31 @@ use crate::errors::CliError;
 
 use super::NargoConfig;
 
+use noir_debugger::errors::{DapError, LoadError};
+
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
     /// Override the expression width requested by the backend.
     #[arg(long, value_parser = parse_expression_width)]
     expression_width: Option<ExpressionWidth>,
+
+    #[clap(long)]
+    preflight_check: bool,
+
+    #[clap(long)]
+    preflight_project_folder: Option<String>,
+
+    #[clap(long)]
+    preflight_package: Option<String>,
+
+    #[clap(long)]
+    preflight_prover_name: Option<String>,
+
+    #[clap(long)]
+    preflight_generate_acir: bool,
+
+    #[clap(long)]
+    preflight_skip_instrumentation: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -46,8 +65,6 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
 
     Ok(ExpressionWidth::from(width))
 }
-
-struct LoadError(&'static str);
 
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
     let Ok(toml_path) = get_package_manifest(Path::new(project_folder)) else {
@@ -69,6 +86,16 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
     }
 }
 
+fn workspace_not_found_error_msg(project_folder: &str, package: Option<&str>) -> String {
+    match package {
+        Some(pkg) => format!(
+            r#"Noir Debugger could not load program from {}, package {}"#,
+            project_folder, pkg
+        ),
+        None => format!(r#"Noir Debugger could not load program from {}"#, project_folder),
+    }
+}
+
 fn load_and_compile_project(
     project_folder: &str,
     package: Option<&str>,
@@ -77,13 +104,12 @@ fn load_and_compile_project(
     generate_acir: bool,
     skip_instrumentation: bool,
 ) -> Result<(CompiledProgram, WitnessMap), LoadError> {
-    let workspace =
-        find_workspace(project_folder, package).ok_or(LoadError("Cannot open workspace"))?;
-
+    let workspace = find_workspace(project_folder, package)
+        .ok_or(LoadError::Generic(workspace_not_found_error_msg(project_folder, package)))?;
     let package = workspace
         .into_iter()
         .find(|p| p.is_binary())
-        .ok_or(LoadError("No matching binary packages found in workspace"))?;
+        .ok_or(LoadError::Generic("No matching binary packages found in workspace".into()))?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
@@ -112,17 +138,19 @@ fn load_and_compile_project(
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
-    .map_err(|_| LoadError("Failed to compile project"))?;
+    .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
     let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)
-            .map_err(|_| LoadError("Failed to read program inputs"))?;
+            .map_err(|_| {
+                LoadError::Generic(format!("Failed to read program inputs from {}", prover_name))
+            })?;
     let initial_witness = compiled_program
         .abi
         .encode(&inputs_map, None)
-        .map_err(|_| LoadError("Failed to encode inputs"))?;
+        .map_err(|_| LoadError::Generic("Failed to encode inputs".into()))?;
 
     Ok((compiled_program, initial_witness))
 }
@@ -130,7 +158,7 @@ fn load_and_compile_project(
 fn loop_uninitialized_dap<R: Read, W: Write>(
     mut server: Server<R, W>,
     expression_width: ExpressionWidth,
-) -> Result<(), ServerError> {
+) -> Result<(), DapError> {
     loop {
         let req = match server.poll_request()? {
             Some(req) => req,
@@ -197,8 +225,8 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                         )?;
                         break;
                     }
-                    Err(LoadError(message)) => {
-                        server.respond(req.error(message))?;
+                    Err(LoadError::Generic(message)) => {
+                        server.respond(req.error(message.as_str()))?;
                     }
                 }
             }
@@ -217,17 +245,55 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
     Ok(())
 }
 
+fn run_preflight_check(expression_width: ExpressionWidth, args: DapCommand) -> Result<(), DapError> {
+    let project_folder = if let Some(project_folder) = args.preflight_project_folder {
+        project_folder
+    } else {
+        return Err(DapError::PreFlightGenericError("Noir Debugger could not initialize because the IDE (for example, VS Code) did not specify a project folder to debug.".into()));
+    };
+
+    let package = args.preflight_package.as_deref();
+    let prover_name = args.preflight_prover_name.as_deref().unwrap_or(PROVER_INPUT_FILE);
+
+    let _ = load_and_compile_project(
+        project_folder.as_str(),
+        package,
+        prover_name,
+        expression_width,
+        args.preflight_generate_acir,
+        args.preflight_skip_instrumentation,
+    )?;
+
+    Ok(())
+}
+
 pub(crate) fn run(
     backend: &Backend,
     args: DapCommand,
     _config: NargoConfig,
 ) -> Result<(), CliError> {
+    let expression_width =
+        args.expression_width.unwrap_or_else(|| backend.get_backend_info_or_default());
+
+    // When the --preflight-check flag is present, we run Noir's DAP server in "pre-flight mode", which test runs
+    // the DAP initialization code without actually starting the DAP server.
+    //
+    // This lets the client IDE present any initialization issues (compiler version mismatches, missing prover files, etc)
+    // in its own interface.
+    //
+    // This was necessary due to the VS Code project being reluctant to let extension authors capture
+    // stderr output generated by a DAP server wrapped in DebugAdapterExecutable.
+    //
+    // Exposing this preflight mode lets us gracefully handle errors that happen *before*
+    // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
+    // More details here: https://github.com/microsoft/vscode/issues/108138
+    if args.preflight_check {
+        return run_preflight_check(expression_width, args).map_err(CliError::DapError);
+    }
+
     let output = BufWriter::new(std::io::stdout());
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
-
-    let expression_width =
-        args.expression_width.unwrap_or_else(|| backend.get_backend_info_or_default());
 
     loop_uninitialized_dap(server, expression_width).map_err(CliError::DapError)
 }
