@@ -1,9 +1,9 @@
 // use noirc_frontend::macros_api::{parse_program, SortedModule, CrateId
 
 use noirc_frontend::macros_api::parse_program;
+use noirc_frontend::macros_api::HirContext;
 use noirc_frontend::macros_api::SortedModule;
 use noirc_frontend::macros_api::{CrateId, FileId};
-use noirc_frontend::macros_api::HirContext;
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 
 pub struct AssertMessageMacro;
@@ -42,7 +42,9 @@ fn add_resolve_assert_message_funcs(
         assert_message_oracle(input);
     }";
     // TODO: return parsing errors?
-    let (assert_msg_funcs_ast, _) = parse_program(assert_message_oracles);
+    let (assert_msg_funcs_ast, errors) = parse_program(assert_message_oracles);
+    assert_eq!(errors.len(), 0, "Failed to parse Noir macro code. This is either a bug in the compiler or the Noir macro code");
+
     let assert_msg_funcs_ast = assert_msg_funcs_ast.into_sorted();
 
     for func in assert_msg_funcs_ast.functions {
