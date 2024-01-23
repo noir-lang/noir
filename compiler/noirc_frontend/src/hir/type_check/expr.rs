@@ -321,7 +321,7 @@ impl<'interner> TypeChecker<'interner> {
         // variable to handle generic functions.
         let t = self.interner.id_type_substitute_trait_as_type(ident.id);
 
-        // This instantiate's a trait's generics as well which need to be set
+        // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
