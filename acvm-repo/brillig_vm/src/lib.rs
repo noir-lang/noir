@@ -168,7 +168,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.registers.set(register_index, value);
     }
 
-    pub fn get_memory(&self) -> &Vec<Value> {
+    pub fn get_memory(&self) -> &[Value] {
         self.memory.values()
     }
 

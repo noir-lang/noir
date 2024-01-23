@@ -1028,9 +1028,9 @@ impl<'interner> TypeChecker<'interner> {
 
     fn bind_function_type_impl(
         &mut self,
-        fn_params: &Vec<Type>,
+        fn_params: &[Type],
         fn_ret: &Type,
-        callsite_args: &Vec<(Type, ExprId, Span)>,
+        callsite_args: &[(Type, ExprId, Span)],
         span: Span,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {
