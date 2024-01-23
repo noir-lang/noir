@@ -70,6 +70,10 @@ jobs:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
 
+      - name: Install wasm-pack
+        working-directory: ./compiler/wasm
+        run: ./scripts/install_wasm-pack.sh
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
