@@ -748,7 +748,7 @@ mod tests {
 
             let opcodes = [&start[..], &loop_body[..]].concat();
             let vm = brillig_execute_and_get_vm(memory, &opcodes);
-            vm.get_memory().clone()
+            vm.get_memory().to_vec()
         }
 
         let memory = brillig_write_memory(vec![Value::from(0u128); 5]);
@@ -904,7 +904,7 @@ mod tests {
 
             let opcodes = [&start[..], &recursive_fn[..]].concat();
             let vm = brillig_execute_and_get_vm(memory, &opcodes);
-            vm.get_memory().clone()
+            vm.get_memory().to_vec()
         }
 
         let memory = brillig_recursive_write_memory(vec![Value::from(0u128); 5]);
