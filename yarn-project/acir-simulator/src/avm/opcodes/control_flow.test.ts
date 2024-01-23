@@ -8,7 +8,7 @@ import { Add, Mul, Sub } from './arithmetic.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 import { Eq, Lt, Lte } from './comparators.js';
 import { InternalCall, InternalCallStackEmptyError, InternalReturn, Jump, JumpI } from './control_flow.js';
-import { CalldataCopy, Cast, Mov, Set } from './memory.js';
+import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Control Flow Opcodes', () => {
   let stateManager = mock<AvmStateManager>();
@@ -132,6 +132,7 @@ describe('Control Flow Opcodes', () => {
       new CalldataCopy(0, 1, 2),
       new Set(0n, 1),
       new Mov(0, 1),
+      new CMov(0, 1, 2, 3),
       new Cast(0, 1),
     ];
 

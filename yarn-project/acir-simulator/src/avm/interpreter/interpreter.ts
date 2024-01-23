@@ -84,5 +84,6 @@ export abstract class AvmInterpreterError extends Error {
 export class InvalidProgramCounterError extends AvmInterpreterError {
   constructor(pc: number, max: number) {
     super(`Invalid program counter ${pc}, max is ${max}`);
+    this.name = 'InvalidProgramCounterError';
   }
 }

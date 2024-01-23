@@ -1,83 +1,87 @@
 /**
- * All AVM opcodes
+ * All AVM opcodes.
+ * Source: https://yp-aztec.netlify.app/docs/public-vm/instruction-set
  */
 export enum Opcode {
   // Compute
   // Compute - Arithmetic
-  ADD,
-  SUB,
-  MUL,
-  DIV,
+  ADD = 0x00,
+  SUB = 0x01,
+  MUL = 0x02,
+  DIV = 0x03,
   // Compute - Comparators
-  EQ,
-  LT,
-  LTE,
+  EQ = 0x04,
+  LT = 0x05,
+  LTE = 0x06,
   // Compute - Bitwise
-  AND,
-  OR,
-  XOR,
-  NOT,
-  SHL,
-  SHR,
+  AND = 0x07,
+  OR = 0x08,
+  XOR = 0x09,
+  NOT = 0x0a,
+  SHL = 0x0b,
+  SHR = 0x0c,
   // Compute - Type Conversions
-  CAST,
+  CAST = 0x0d,
 
   // Execution Environment
-  ADDRESS,
-  STORAGEADDRESS,
-  ORIGIN,
-  SENDER,
-  PORTAL,
-  FEEPERL1GAS,
-  FEEPERL2GAS,
-  FEEPERDAGAS,
-  CONTRACTCALLDEPTH,
+  ADDRESS = 0x0e,
+  STORAGEADDRESS = 0x0f,
+  ORIGIN = 0x10,
+  SENDER = 0x11,
+  PORTAL = 0x12,
+  FEEPERL1GAS = 0x13,
+  FEEPERL2GAS = 0x14,
+  FEEPERDAGAS = 0x15,
+  CONTRACTCALLDEPTH = 0x16,
   // Execution Environment - Globals
-  CHAINID,
-  VERSION,
-  BLOCKNUMBER,
-  TIMESTAMP,
-  COINBASE,
-  BLOCKL1GASLIMIT,
-  BLOCKL2GASLIMIT,
-  BLOCKDAGASLIMIT,
+  CHAINID = 0x17,
+  VERSION = 0x18,
+  BLOCKNUMBER = 0x19,
+  TIMESTAMP = 0x1a,
+  COINBASE = 0x1b,
+  BLOCKL1GASLIMIT = 0x1c,
+  BLOCKL2GASLIMIT = 0x1d,
+  BLOCKDAGASLIMIT = 0x1e,
   // Execution Environment - Calldata
-  CALLDATACOPY,
+  CALLDATACOPY = 0x1f,
 
   // Machine State
   // Machine State - Gas
-  L1GASLEFT,
-  L2GASLEFT,
-  DAGASLEFT,
+  L1GASLEFT = 0x20,
+  L2GASLEFT = 0x21,
+  DAGASLEFT = 0x22,
   // Machine State - Internal Control Flow
-  JUMP,
-  JUMPI,
-  INTERNALCALL,
-  INTERNALRETURN,
+  JUMP = 0x23,
+  JUMPI = 0x24,
+  INTERNALCALL = 0x25,
+  INTERNALRETURN = 0x26,
   // Machine State - Memory
-  SET,
-  MOV,
-  CMOV,
+  SET = 0x27,
+  MOV = 0x28,
+  CMOV = 0x29,
 
   // World State
-  BLOCKHEADERBYNUMBER,
-  SLOAD, // Public Storage
-  SSTORE, // Public Storage
-  READL1TOL2MSG, // Messages
-  SENDL2TOL1MSG, // Messages
-  EMITNOTEHASH, // Notes & Nullifiers
-  EMITNULLIFIER, // Notes & Nullifiers
+  BLOCKHEADERBYNUMBER = 0x2a,
+  SLOAD = 0x2b, // Public Storage
+  SSTORE = 0x2c, // Public Storage
+  READL1TOL2MSG = 0x2d, // Messages
+  SENDL2TOL1MSG = 0x2e, // Messages
+  EMITNOTEHASH = 0x2f, // Notes & Nullifiers
+  EMITNULLIFIER = 0x30, // Notes & Nullifiers
 
   // Accrued Substate
-  EMITUNENCRYPTEDLOG,
+  EMITUNENCRYPTEDLOG = 0x31,
 
   // Control Flow - Contract Calls
-  CALL,
-  STATICCALL,
-  RETURN,
-  REVERT,
+  CALL = 0x32,
+  STATICCALL = 0x33,
+  RETURN = 0x34,
+  REVERT = 0x35,
 
   // Gadgets
-  KECCAK,
-  POSEIDON,
+  KECCAK = 0x36,
+  POSEIDON = 0x37,
+
+  // Add new opcodes before this
+  TOTAL_OPCODES_NUMBER,
 }

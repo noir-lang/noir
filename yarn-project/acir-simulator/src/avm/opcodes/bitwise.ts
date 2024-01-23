@@ -120,6 +120,9 @@ export class Shr extends Instruction {
     const a: Fr = machineState.readMemory(this.aOffset);
     const b: Fr = machineState.readMemory(this.bOffset);
 
+    // Here we are assuming that the field element maps to a positive number.
+    // The >> operator is *signed* in JS (and it sign extends).
+    // E.g.: -1n >> 3n == -1n.
     const dest = new Fr(a.toBigInt() >> b.toBigInt());
     machineState.writeMemory(this.destOffset, dest);
 
