@@ -7,6 +7,7 @@
   "types": "./dest/index.d.ts",
   "exports": {
     "./eslint": "./.eslintrc.cjs",
+    "./eslint.docs": "./.eslintrc.docs.cjs",
     "./prettier": "./.prettierrc.json",
     "./abi": "./dest/abi/index.js",
     "./async-map": "./dest/async-map/index.js",
