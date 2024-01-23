@@ -1,6 +1,8 @@
 use acvm::ExpressionWidth;
 use fm::FileManager;
-use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
+use noirc_driver::{
+    link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
+};
 use noirc_frontend::debug::DebugState;
 use noirc_frontend::hir::ParsedFiles;
 
@@ -105,6 +107,7 @@ pub fn compile_program_with_debug_state(
     debug_state: DebugState,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    link_to_debug_crate(&mut context, crate_id);
     context.debug_state = debug_state;
 
     let (program, warnings) =

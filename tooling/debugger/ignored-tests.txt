@@ -1,6 +1,5 @@
 array_sort
 assign_ex
-bit_shifts_comptime
 brillig_cow
 brillig_nested_arrays
 brillig_references
@@ -12,6 +11,5 @@ nested_array_dynamic
 nested_array_in_slice
 nested_arrays_from_brillig
 references
-signed_comparison
 simple_2d_array
 to_bytes_integration
