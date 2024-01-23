@@ -4,8 +4,8 @@ title: Quickstart
 
 In this guide, you will
 
-1. Set up the Aztec sandbox locally
-2. Install the Aztec CLI
+1. Set up the Aztec sandbox (local development environment) locally
+2. Install the Aztec development kit
 3. Use the CLI to deploy an example contract that comes with the sandbox
 4. Use the CLI to interact with the contract you just deployed
 
@@ -17,7 +17,7 @@ In this guide, you will
 
 ## Install Docker
 
-See this page of the Docker docs for instructions on how to install Docker Desktop for your operating system: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+See [this page of the Docker docs](https://docs.docker.com/get-docker/) for instructions on how to install Docker Desktop for your operating system.
 
 Once you have Docker installed, make sure it is running by opening the Docker Desktop application.
 

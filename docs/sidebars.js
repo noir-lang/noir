@@ -32,7 +32,7 @@ const sidebars = {
       label: "What is Aztec?",
       type: "category",
       link: { type: "doc", id: "intro" },
-      items: ["about_aztec/history/history", "about_aztec/overview"],
+      items: ["about_aztec/overview"],
     },
 
     "about_aztec/vision",
@@ -217,8 +217,8 @@ const sidebars = {
       items: [
         "dev_docs/getting_started/quickstart",
         "dev_docs/getting_started/core-concepts",
-        "dev_docs/getting_started/aztecjs-getting-started",
         "dev_docs/getting_started/aztecnr-getting-started",
+        "dev_docs/getting_started/aztecjs-getting-started",
       ],
     },
 

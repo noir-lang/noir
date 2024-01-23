@@ -2,15 +2,31 @@
 title: Foundational Concepts
 ---
 
-As a layer 2 rollup on Ethereum, the Aztec network includes components that look similar to other layer 2 networks, but since it handles private state it also includes many new components.
+Aztec Labs is building a layer 2 rollup on Ethereum focused on 3 things:
 
-On this page we will introduce the high level network architecture for Aztec with an emphasis on the concepts that are core to understanding Aztec, including:
+- Data privacy
+- Confidentiality
+- Trustlessness
 
-- [The state model](./state_model/main.md)
-- [Accounts](./accounts/main.md)
-- [Aztec Smart Contracts](./contracts.md)
-- [Transactions](./transactions.md)
-- [Communication between network components](./communication/main.md)
+## Data privacy
+
+Data privacy refers to the ability of Aztec smart contract to have private (encrypted) state. Aztec abstracts away many of the complexities associated with managing private state, providing developers with an interface that feels familiar, but is much more powerful.
+
+<!-- Discuss UTXOs, Notes, note tree, nullifier tree? -->
+
+## Confidentiality
+
+Confidentiality is the ability of Aztec smart contracts to execute private functions and transactions. Aztec provides a secure, private environment for the execution of sensitive operations, ensuring private information and decrypted data are not accessible to unauthorized applications.
+
+When a user sends a private transaction on the network, the only information that an external observer can infer is that a transaction was sent. Transaction data, the sender, and the recipient can all be obfuscated.
+
+Aztec achieved this level of privacy by leveraging a Private eXecution Environment (PXE). This software runs client-side, for example in a browser, and is responsible for managing private keys, encrypting and decrypting data, and executing private functions. The PXE is also responsible for generating proofs of private function execution, which are then sent to the sequencer for inclusion in the rollup.
+
+## Trustlessness
+
+Aztec is building a permissionless, censorship resistant, peer-to-peer network. It aims to be credibly neutral, where the same transparent rules apply to everyone, enforced by the protocol.
+
+Aztec will have a network of sequencers that stake tokens to participate in the network. Sequencers are responsible for aggregating transactions into a block, generating proofs of the state updates (or delegating proof generation to the prover network) and posting it to the rollup contract on Ethereum, along with any required public data for data availability.
 
 ## High level network architecture
 
@@ -34,15 +50,8 @@ The sequencer aggregates transactions into a block, generates proofs of the stat
 
 ## Further Reading
 
-Here are links to pages with more information about the network components mentioned above:
-
-- Aztec.js
-  - [Dapp tutorial](../../dev_docs/tutorials/writing_dapp/main.md)
-  - [API reference](../../apis/aztec-js)
-- Private Execution Environment (PXE)
-  - [Dapp tutorial](../../dev_docs/tutorials/writing_dapp/pxe_service.md)
-  - [API reference](../../apis/pxe/index.md)
-- [Private Kernel Circuit](../advanced/circuits/kernels/private_kernel.md)
-- [Sequencer](./nodes_clients/sequencer.md)
-- Prover Network (coming soon<sup>tm</sup>)
-- [Rollup Circuit](../advanced/circuits/rollup_circuits/main.md) -- a component of the rollup contract
+- [The state model](./state_model/main.md)
+- [Accounts](./accounts/main.md)
+- [Aztec Smart Contracts](./contracts.md)
+- [Transactions](./transactions.md)
+- [Communication between network components](./communication/main.md)
