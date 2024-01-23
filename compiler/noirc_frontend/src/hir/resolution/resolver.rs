@@ -1172,19 +1172,13 @@ impl<'a> Resolver<'a> {
                     })
                 } else {
                     ExpressionKind::Variable(Path {
-                        segments: vec![
-                            Ident::from("std"),
-                            Ident::from("resolve_assert_message"),
-                        ],
+                        segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
                         kind: PathKind::Dep,
                         span,
                     })
                 };
                 let assert_msg_call_expr = Expression::call(
-                    Expression {
-                        kind: assert_msg_call_path,
-                        span: span,
-                    },
+                    Expression { kind: assert_msg_call_path, span },
                     assert_msg_call_args,
                     span,
                 );
