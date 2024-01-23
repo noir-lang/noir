@@ -14,7 +14,7 @@ use crate::{
     errors::{RuntimeError, SsaReport},
 };
 use acvm::acir::{
-    circuit::{Circuit, PublicInputs},
+    circuit::{Circuit, Opcode, PublicInputs},
     native_types::Witness,
 };
 
@@ -87,7 +87,16 @@ pub fn create_circuit(
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir =
         optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
-    let opcodes = generated_acir.take_opcodes();
+    let mut opcodes = generated_acir.take_opcodes();
+    let mut only_brillig = true;
+    for opcode in opcodes.iter() {
+        if !matches!(opcode, Opcode::Brillig(_)) {
+            only_brillig = false;
+        }
+    }
+    if only_brillig {
+        opcodes = vec![];
+    }
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
         return_witnesses,
