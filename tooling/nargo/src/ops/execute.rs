@@ -71,7 +71,7 @@ fn resolve_call_stack(error: &OpcodeResolutionError) -> Option<(Vec<OpcodeLocati
 }
 
 fn resolve_comptime_assert_message(error: &OpcodeResolutionError, circuit: &Circuit) -> NargoError {
-    let call_stack= resolve_call_stack(error);
+    let call_stack = resolve_call_stack(error);
 
     NargoError::ExecutionError(match call_stack {
         Some((call_stack, _)) => {
@@ -92,7 +92,7 @@ fn resolve_comptime_assert_message(error: &OpcodeResolutionError, circuit: &Circ
 //         return false;
 //     }
 //     if let Opcode::Brillig(brillig) = &acvm.opcodes()[acvm.instruction_pointer()] {
-//         // We do not want 
+//         // We do not want
 //         match &brillig.bytecode[brillig.bytecode.len() - 2] {
 //             acvm::brillig_vm::brillig::Opcode::ForeignCall { function, .. } => {
 //                 ForeignCall::execution_allowed_after_failure(function)

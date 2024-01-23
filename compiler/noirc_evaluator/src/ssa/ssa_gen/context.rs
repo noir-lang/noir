@@ -432,18 +432,22 @@ impl<'a> FunctionContext<'a> {
                 Type::unsigned(bit_size),
             );
             let sign = self.builder.insert_binary(rhs, BinaryOp::Lt, half_width);
-            // TODO: bring back assert message
-            // Some("attempt to bit-shift with overflow".to_owned())
-            self.builder.set_location(location).insert_constrain(sign, one, None);
+            self.builder.set_location(location).insert_constrain(
+                sign,
+                one,
+                Some("attempt to bit-shift with overflow".to_owned()),
+            );
         }
 
         let max = self
             .builder
             .numeric_constant(FieldElement::from(bit_size as i128), Type::unsigned(bit_size));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
-        // TODO: bring back assert message
-        // Some("attempt to bit-shift with overflow".to_owned())
-        self.builder.set_location(location).insert_constrain(overflow, one, None);
+        self.builder.set_location(location).insert_constrain(
+            overflow,
+            one,
+            Some("attempt to bit-shift with overflow".to_owned()),
+        );
         self.builder.insert_truncate(result, bit_size, bit_size + 1)
     }
 

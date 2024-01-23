@@ -107,7 +107,6 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function);
-        // dbg!(function.name.clone());
         function_context.codegen_function_body(&function.body)?;
     }
 
@@ -668,6 +667,8 @@ impl<'a> FunctionContext<'a> {
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
+        // Assert messages from constrain statements specified by the user should be handled before SSA,
+        // thus the assert_message field here should always be `None`
         self.builder.set_location(location).insert_constrain(expr, true_literal, None);
 
         Ok(Self::unit_value())

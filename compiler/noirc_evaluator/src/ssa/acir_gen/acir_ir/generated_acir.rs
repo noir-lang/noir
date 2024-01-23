@@ -523,7 +523,7 @@ impl GeneratedAcir {
         for (brillig_index, message) in generated_brillig.assert_messages {
             self.assert_messages.insert(
                 OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
-                message.clone(),
+                message,
             );
         }
     }

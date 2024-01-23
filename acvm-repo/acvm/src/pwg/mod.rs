@@ -303,7 +303,6 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
                 }
             }
             Err(mut error) => {
-                dbg!("got error");
                 match &mut error {
                     // If we have an index out of bounds or an unsatisfied constraint, the opcode label will be unresolved
                     // because the solvers do not have knowledge of this information.

@@ -362,30 +362,6 @@ impl DefCollector {
             macro_processor.process_typed_ast(&crate_id, context);
         }
 
-        // TODO: started process for inserting call to `resolve_assert_message` on typed ast
-        // maybe it is better to do it on the untyped ast as we do not need type resolution
-        // for func_ids in file_func_ids.iter() {
-        //     let function_body = context.def_interner.function(&func_ids.1);
-        //     let function_body_id = function_body.as_expr();
-        //     match context.def_interner.expression(function_body_id) {
-        //         HirExpression::Block(block_expr) => {
-        //             let statements = block_expr.statements();
-        //             for stmt in statements.iter() {
-        //                 match context.def_interner.statement(stmt) {
-        //                     HirStatement::Constrain(constrain_stmt) => {
-        //                         if let Some(assert_msg_expr) = constrain_stmt.2 {
-        //                             let hir_expr = context.def_interner.expression(function_body_id);
-        //                             dbg!(hir_expr.clone());
-        //                         }
-        //                     }
-        //                     _ => {}
-        //                 }
-        //             }
-        //         }
-        //         _ => {}
-        //     }
-        // }
-
         errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
         // Type check all of the functions in the crate

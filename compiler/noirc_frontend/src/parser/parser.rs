@@ -2082,8 +2082,13 @@ mod test {
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
             StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                // TODO: update this test
-                // assert_eq!(message, Some("assertion message".to_owned()));
+                let message = message.unwrap();
+                match message.kind {
+                    ExpressionKind::Literal(Literal::Str(message_string)) => {
+                        assert_eq!(message_string, "assertion message".to_owned())
+                    }
+                    _ => unreachable!(),
+                }
             }
             _ => unreachable!(),
         }
@@ -2107,8 +2112,13 @@ mod test {
             .unwrap()
         {
             StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                // TODO: update this test
-                // assert_eq!(message, Some("assertion message".to_owned()));
+                let message = message.unwrap();
+                match message.kind {
+                    ExpressionKind::Literal(Literal::Str(message_string)) => {
+                        assert_eq!(message_string, "assertion message".to_owned())
+                    }
+                    _ => unreachable!(),
+                }
             }
             _ => unreachable!(),
         }
