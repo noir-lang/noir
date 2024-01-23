@@ -215,7 +215,7 @@ you run `nargo test`. To print `println` statements in tests, use the `--show-ou
 
 Takes an optional `--exact` flag which allows you to select tests based on an exact name.
 
-See an example on the [testing page](../getting_started/tooling/testing.md).
+See an example on the [testing page](../noir/tooling/testing.md).
 
 ### Options
 
@@ -251,3 +251,11 @@ Usually this command is not run by a user, but instead will be run by a Language
 ## `nargo fmt`
 
 Automatically formats your Noir source code based on the default formatting settings.
+
+## `nargo debug [OPTIONS] [WITNESS_NAME]`
+
+Runs the Noir REPL debugger. For the complete reference, see [Debugger REPL Reference](../reference/Debugger/debugger_repl.md).
+
+## `nargo dap`
+
+Runs the Noir Debugger Adapter Protocol Server. For the complete reference, see [Debugger VS Code Reference](../reference/Debugger/debugger_vscode.md).
