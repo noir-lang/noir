@@ -22,38 +22,6 @@ void AvmMiniMemTraceBuilder::reset()
 }
 
 /**
- * @brief A comparator on MemoryTraceEntry to be used by sorting algorithm. We sort first by
- *        ascending address (m_addr), then by clock (m_clk) and finally sub-clock (m_sub_clk).
- *
- * @param left The left hand side memory trace entry
- * @param right  The right hand side memory trace entry
- *
- * @return A boolean indicating whether left member is smaller than right member.
- */
-bool AvmMiniMemTraceBuilder::compare_mem_entries(const MemoryTraceEntry& left, const MemoryTraceEntry& right)
-{
-    if (left.m_addr < right.m_addr) {
-        return true;
-    }
-
-    if (left.m_addr > right.m_addr) {
-        return false;
-    }
-
-    if (left.m_clk < right.m_clk) {
-        return true;
-    }
-
-    if (left.m_clk > right.m_clk) {
-        return false;
-    }
-
-    // No safeguard in case they are equal. The caller should ensure this property.
-    // Otherwise, relation will not be satisfied.
-    return left.m_sub_clk < right.m_sub_clk;
-}
-
-/**
  * @brief Prepare the memory trace to be incorporated into the main trace.
  *
  * @return The memory trace (which is moved).
@@ -61,7 +29,7 @@ bool AvmMiniMemTraceBuilder::compare_mem_entries(const MemoryTraceEntry& left, c
 std::vector<AvmMiniMemTraceBuilder::MemoryTraceEntry> AvmMiniMemTraceBuilder::finalize()
 {
     // Sort memTrace
-    std::sort(mem_trace.begin(), mem_trace.end(), compare_mem_entries);
+    std::sort(mem_trace.begin(), mem_trace.end());
     return std::move(mem_trace);
 }
 
@@ -144,19 +112,19 @@ bool AvmMiniMemTraceBuilder::load_in_mem_trace(
 {
     uint32_t sub_clk = 0;
     switch (interm_reg) {
-    case IntermRegister::ia:
+    case IntermRegister::IA:
         sub_clk = SUB_CLK_LOAD_A;
         break;
-    case IntermRegister::ib:
+    case IntermRegister::IB:
         sub_clk = SUB_CLK_LOAD_B;
         break;
-    case IntermRegister::ic:
+    case IntermRegister::IC:
         sub_clk = SUB_CLK_LOAD_C;
         break;
     }
 
     auto m_tag = memory_tag.at(addr);
-    if (m_tag == AvmMemoryTag::u0 || m_tag == m_in_tag) {
+    if (m_tag == AvmMemoryTag::U0 || m_tag == m_in_tag) {
         insert_in_mem_trace(clk, sub_clk, addr, val, m_in_tag, false);
         return true;
     }
@@ -181,13 +149,13 @@ void AvmMiniMemTraceBuilder::store_in_mem_trace(
 {
     uint32_t sub_clk = 0;
     switch (interm_reg) {
-    case IntermRegister::ia:
+    case IntermRegister::IA:
         sub_clk = SUB_CLK_STORE_A;
         break;
-    case IntermRegister::ib:
+    case IntermRegister::IB:
         sub_clk = SUB_CLK_STORE_B;
         break;
-    case IntermRegister::ic:
+    case IntermRegister::IC:
         sub_clk = SUB_CLK_STORE_C;
         break;
     }

@@ -39,6 +39,12 @@ void log_avmMini_trace(std::vector<Row> const& trace, size_t beg, size_t end)
         info("internal_return:    ", trace.at(i).avmMini_sel_internal_return);
         info("internal_return_ptr:", trace.at(i).avmMini_internal_return_ptr);
 
+        info("=======ALU TRACE=====================================================================");
+        info("alu_clk             ", trace.at(i).aluChip_alu_clk);
+        info("alu_ia              ", trace.at(i).aluChip_alu_ia);
+        info("alu_ib              ", trace.at(i).aluChip_alu_ib);
+        info("alu_ic              ", trace.at(i).aluChip_alu_ic);
+
         info("=======MAIN TRACE====================================================================");
         info("ia:                 ", trace.at(i).avmMini_ia);
         info("ib:                 ", trace.at(i).avmMini_ib);

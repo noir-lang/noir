@@ -2,6 +2,7 @@
 
 #include <stack>
 
+#include "AvmMini_alu_trace.hpp"
 #include "AvmMini_common.hpp"
 #include "AvmMini_mem_trace.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
@@ -36,6 +37,9 @@ class AvmMiniTraceBuilder {
     // Division with direct memory access.
     void div(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
+    // Set a constant from bytecode with direct memory access.
+    void set(uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag);
+
     // Jump to a given program counter.
     void jump(uint32_t jmp_dest);
 
@@ -63,6 +67,7 @@ class AvmMiniTraceBuilder {
   private:
     std::vector<Row> main_trace;
     AvmMiniMemTraceBuilder mem_trace_builder;
+    AvmMiniAluTraceBuilder alu_trace_builder;
 
     uint32_t pc = 0;
     uint32_t internal_return_ptr = CALLSTACK_OFFSET;

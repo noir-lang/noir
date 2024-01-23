@@ -1,5 +1,6 @@
 
 include "mem_trace.pil";
+include "alu_chip.pil";
 
 namespace avmMini(256);
 
@@ -101,18 +102,6 @@ namespace avmMini(256);
     tag_err * ia = 0;
     tag_err * ib = 0;
     tag_err * ic = 0;
-
-    // Relation for addition over the finite field
-    #[SUBOP_ADDITION_FF]
-    sel_op_add * (ia + ib - ic) = 0;
-    
-    // Relation for subtraction over the finite field
-    #[SUBOP_SUBTRACTION_FF]
-    sel_op_sub * (ia - ib - ic) = 0;
-
-    // Relation for multiplication over the finite field
-    #[SUBOP_MULTIPLICATION_FF]
-    sel_op_mul * (ia * ib - ic) = 0;
 
     // Relation for division over the finite field
     // If tag_err == 1 in a division, then ib == 0 and op_err == 1.

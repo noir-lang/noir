@@ -16,21 +16,48 @@ class AvmMiniMemTraceBuilder {
     static const uint32_t SUB_CLK_STORE_C = 5;
 
     struct MemoryTraceEntry {
-        uint32_t m_clk;
-        uint32_t m_sub_clk;
-        uint32_t m_addr;
+        uint32_t m_clk{};
+        uint32_t m_sub_clk{};
+        uint32_t m_addr{};
         FF m_val{};
-        AvmMemoryTag m_tag;
-        AvmMemoryTag m_in_tag;
+        AvmMemoryTag m_tag{};
+        AvmMemoryTag m_in_tag{};
         bool m_rw = false;
         bool m_tag_err = false;
         FF m_one_min_inv{};
+
+        /**
+         * @brief A comparator on MemoryTraceEntry to be used by sorting algorithm. We sort first by
+         *        ascending address (m_addr), then by clock (m_clk) and finally sub-clock (m_sub_clk).
+         */
+        bool operator<(const MemoryTraceEntry& other) const
+        {
+            if (m_addr < other.m_addr) {
+                return true;
+            }
+
+            if (m_addr > other.m_addr) {
+                return false;
+            }
+
+            if (m_clk < other.m_clk) {
+                return true;
+            }
+
+            if (m_clk > other.m_clk) {
+                return false;
+            }
+
+            // No safeguard in case they are equal. The caller should ensure this property.
+            // Otherwise, relation will not be satisfied.
+            return m_sub_clk < other.m_sub_clk;
+        }
     };
 
     // Structure to return value and tag matching boolean after a memory read.
     struct MemRead {
-        bool tag_match;
-        FF val;
+        bool tag_match = false;
+        FF val{};
     };
 
     AvmMiniMemTraceBuilder();
@@ -48,8 +75,6 @@ class AvmMiniMemTraceBuilder {
     std::array<FF, MEM_SIZE> memory{};               // Memory table (used for simulation)
     std::array<AvmMemoryTag, MEM_SIZE> memory_tag{}; // The tag of the corresponding memory
                                                      // entry (aligned with the memory array).
-
-    static bool compare_mem_entries(const MemoryTraceEntry& left, const MemoryTraceEntry& right);
 
     void insert_in_mem_trace(
         uint32_t m_clk, uint32_t m_sub_clk, uint32_t m_addr, FF const& m_val, AvmMemoryTag m_in_tag, bool m_rw);

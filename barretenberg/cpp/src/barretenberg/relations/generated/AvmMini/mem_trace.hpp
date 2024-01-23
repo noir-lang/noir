@@ -8,18 +8,18 @@ namespace bb::AvmMini_vm {
 
 template <typename FF> struct Mem_traceRow {
     FF memTrace_m_val{};
-    FF memTrace_m_lastAccess{};
-    FF memTrace_m_tag_err{};
-    FF memTrace_m_rw_shift{};
+    FF memTrace_m_last{};
     FF memTrace_m_in_tag{};
+    FF memTrace_m_tag{};
     FF memTrace_m_rw{};
     FF memTrace_m_tag_shift{};
-    FF memTrace_m_last{};
     FF memTrace_m_addr_shift{};
-    FF memTrace_m_tag{};
+    FF memTrace_m_tag_err{};
     FF memTrace_m_one_min_inv{};
     FF memTrace_m_val_shift{};
+    FF memTrace_m_lastAccess{};
     FF memTrace_m_addr{};
+    FF memTrace_m_rw_shift{};
 };
 
 inline std::string get_relation_label_mem_trace(int index)
@@ -28,11 +28,8 @@ inline std::string get_relation_label_mem_trace(int index)
     case 8:
         return "MEM_IN_TAG_CONSISTENCY_1";
 
-    case 7:
-        return "MEM_ZERO_INIT";
-
-    case 6:
-        return "MEM_READ_WRITE_TAG_CONSISTENCY";
+    case 9:
+        return "MEM_IN_TAG_CONSISTENCY_2";
 
     case 5:
         return "MEM_READ_WRITE_VAL_CONSISTENCY";
@@ -40,8 +37,11 @@ inline std::string get_relation_label_mem_trace(int index)
     case 4:
         return "MEM_LAST_ACCESS_DELIMITER";
 
-    case 9:
-        return "MEM_IN_TAG_CONSISTENCY_2";
+    case 6:
+        return "MEM_READ_WRITE_TAG_CONSISTENCY";
+
+    case 7:
+        return "MEM_ZERO_INIT";
     }
     return std::to_string(index);
 }

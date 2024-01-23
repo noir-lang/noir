@@ -1,0 +1,201 @@
+include "avm_mini.pil";
+
+namespace aluChip(256);
+
+    // ========= Table ALU-TR =================================================
+
+    // References to main trace table of sub-operations, clk, intermediate
+    // registers, operation selectors.
+    // TODO: Think on optimizations to decrease the number of such "copied" columns
+    pol commit alu_clk;
+    pol commit alu_ia; // Intermediate registers
+    pol commit alu_ib;
+    pol commit alu_ic;
+    pol commit alu_op_add; // Operation selectors
+    pol commit alu_op_sub;
+    pol commit alu_op_mul;
+    pol commit alu_op_div;
+
+    // Flattened boolean instruction tags
+    pol commit alu_ff_tag;
+    pol commit alu_u8_tag;
+    pol commit alu_u16_tag;
+    pol commit alu_u32_tag;
+    pol commit alu_u64_tag;
+    pol commit alu_u128_tag;
+
+    // 8-bit slice registers
+    pol commit alu_u8_r0;
+    pol commit alu_u8_r1;
+
+    // 16-bit slice registers
+    pol commit alu_u16_r0;
+    pol commit alu_u16_r1;
+    pol commit alu_u16_r2;
+    pol commit alu_u16_r3;
+    pol commit alu_u16_r4;
+    pol commit alu_u16_r5;
+    pol commit alu_u16_r6;
+    pol commit alu_u16_r7;
+
+    // 64-bit slice register
+    pol commit alu_u64_r0;
+
+    // Carry flag
+    pol commit alu_cf;
+
+    // ========= Type Constraints =============================================
+    // TODO: Range constraints
+    //       - for slice registers
+    //       - intermediate registers ia and ib (inputs) depending on flag (or inherited from previous ops?)
+    //       - intermediate register ic (in some operations it might be inherited based on ia and ib ranges. To be checked.)
+    //       Carry flag: We will have to constraint to ensure that the 
+    //                   arithmetic expressions are not overflowing finite field size
+    // Remark: Operation selectors are constrained in the main trace.
+    //         TODO: Enforce the equivalence check for the selectors between both tables.
+
+    // Boolean flattened instructions tags
+    alu_ff_tag * (1 - alu_ff_tag) = 0;
+    alu_u8_tag * (1 - alu_u8_tag) = 0;
+    alu_u16_tag * (1 - alu_u16_tag) = 0;
+    alu_u32_tag * (1 - alu_u32_tag) = 0;
+    alu_u64_tag * (1 - alu_u64_tag) = 0;
+    alu_u128_tag * (1 - alu_u128_tag) = 0;
+
+    // Operation selectors are copied from main table and do not need to be constrained here.
+    // TODO: Ensure mutual exclusion of alu_op_add and alu_op_sub as some relations below
+    //       requires it.
+    // TODO: Similarly, ensure the mutual exclusion of instruction tags
+
+    // ========= Inter-table Constraints ======================================
+    // TODO: Equivalence between intermediate registers, clk, type flag, operation
+    //       An ALU chiplet flag will be introduced in main trace to select relevant rows.
+
+
+    // ========= EXPLANATIONS =================================================
+    // Main trick for arithmetic operations modulo 2^k is to perform the operation
+    // over the integers and expressing the result as low + high * 2^k with low
+    // smaller than 2^k. low is used as the output. This works as long this does
+    // not underflow/overflow the underlying finite field order (u128 multiplication
+    // will be handled differently). If we want to prove that c = OP(a,b) where OP
+    // denotes an arithmetic operation modulo 2^k, we can achieve this with two relations:
+    // (1) low + high * 2^k - OP'(a,b) = 0
+    // (2) low - c = 0
+    //
+    // where OP' denotes the same operation as OP but over the integers (not mod 2^k).
+    // We support u8, u16, u32, u64, u128 types and decompose low into
+    // smaller bit slices, e.g., 16. For instance, low = s_0 + s_1 * 2^16 + s_2 * 2^32 + ...
+    // The slices have to be range constrained and there is a trade-off between the
+    // number of registers and complexity of the range constraints.
+    //
+    // Optimization: We will capture the relation (1) for all types under the same umbrella
+    //               by re-using the decomposition used for u128 type for the lower types.
+    //               This works because any larger power of 2^k divides 2^l whenever k <= l.
+    //               To be able to express "low" for u8, we need a 8-bit limb for the lowest
+    //               bits. A bit decomposition covering all types is:
+    //  s8_0 + s8_1 * 2^8 + s16_0 * 2^16 + s16_1 * 2^32 ... + s16_6 * 2^112 + carry * 2^128 - OP'(a,b) = 0
+    //               where s8_i's are 8-bit registers and s16's 16-bit registers.
+    //               For type uk, we set low to the k-bit truncated part of register decomposition.
+    //               As example, for u32: low = s8_0 + s8_1 * 2^8 + s16_0 * 2^16
+    //               and for u8: low = s8_0
+    //
+    // TODO: It is open whether we might get efficiency gain to use larger registers for the higher
+    //       parts of the bit decomposition.
+
+    // ============= Helper polynomial terms ============================
+    // These are intermediate polynomial terms which are not commited but
+    // serves to an algebraic expression of commited polynomials in a more concise way.
+
+    // Bit slices partial sums
+    pol sum_8   = alu_u8_r0;
+    pol sum_16  = sum_8      + alu_u8_r1 * 2**8;
+    pol sum_32  = sum_16     + alu_u16_r0 * 2**16;
+    pol sum_64  = sum_32     + alu_u16_r1 * 2**32 + alu_u16_r2 * 2**48;
+    pol sum_96  = sum_64     + alu_u16_r3 * 2**64 + alu_u16_r4 * 2**80;
+    pol sum_128 = sum_96     + alu_u16_r5 * 2**96 + alu_u16_r6 * 2**112;
+
+    // ========= ADDITION/SUBTRACTION Operation Constraints ===============================
+    //
+    // Addition and subtraction relations are very similar and will be consolidated.
+    // For the addition we have to replace OP'(a,b) in the above relation by a+b and
+    // for subtraction by a-b. Using operation selector values to toggle "+b" vs. "-b"
+    // makes the deal with the adaptation that the carry term needs to be subtracted
+    // instead of being added. To sumarize, for the first relation, addition needs to
+    // satisfy:
+    // sum_128 + carry * 2^128 - a - b = 0
+    // while the subtraction satisfies:
+    // sum_128 - carry * 2^128 - a + b = 0
+    //
+    // Finally, we would like this relation to also satisfy the addition over the finite field.
+    // For this, we add c in the relation conditoned by the ff type selector alu_ff_tag. We emphasize
+    // that this relation alone for FF will not imply correctness of the FF addition. We only want
+    // it to be satisfied. A separate relation will ensure correctness of it.
+    //
+    // The second relation will consist in showing that sum_N - c = 0 for N = 8, 16, 32, 64, 128.
+
+    #[ALU_ADD_SUB_1]
+    (alu_op_add + alu_op_sub) * (sum_128 - alu_ia + alu_ff_tag * alu_ic) + (alu_op_add - alu_op_sub) * (alu_cf * 2**128 - alu_ib) = 0;
+
+    // Helper polynomial
+    pol sum_tag = alu_u8_tag * sum_8 + alu_u16_tag * sum_16 + alu_u32_tag * sum_32 + alu_u64_tag * sum_64 + alu_u128_tag * sum_128;
+
+    #[ALU_ADD_SUB_2]
+    (alu_op_add + alu_op_sub) * (sum_tag + alu_ff_tag * alu_ia - alu_ic) + alu_ff_tag * (alu_op_add - alu_op_sub) * alu_ib = 0;
+
+    // ========= MULTIPLICATION Operation Constraints ===============================
+
+    // ff multiplication
+    #[ALU_MULTIPLICATION_FF]
+    alu_ff_tag * alu_op_mul * (alu_ia * alu_ib - alu_ic) = 0;
+
+
+    // We need 2k bits to express the product (a*b) over the integer, i.e., for type uk
+    // we express the product as sum_k (u8 is an exception as we need 8-bit registers)
+
+    // We group relations for u8, u16, u32, u64 together.
+
+    // Helper polynomial
+    pol sum_tag_no_128 = alu_u8_tag * sum_8 + alu_u16_tag * sum_16 + alu_u32_tag * sum_32 + alu_u64_tag * sum_64;
+
+    #[ALU_MUL_COMMON_1]
+    (1 - alu_ff_tag - alu_u128_tag) * alu_op_mul * (sum_128 - alu_ia * alu_ib) = 0;
+
+    #[ALU_MUL_COMMON_2]
+    alu_op_mul * (sum_tag_no_128 - (1 - alu_ff_tag - alu_u128_tag) * alu_ic) = 0;
+
+    // ========= u128 MULTIPLICATION Operation Constraints ===============================
+    //
+    // We express a, b in 64-bit slices: a = a_l + a_h * 2^64
+    //                                   b = b_l + b_h * 2^64
+    // We show that c satisfies: a_l * b_l + (a_h * b_l + a_l * b_h) * 2^64 = R * 2^128 + c
+    // for a R < 2^65. Equivalently:
+    // a * b_l + a_l * b_h * 2^64 = (CF * 2^64 + R') * 2^128 + c
+    // for a bit carry flag CF and R' range constrained to 64 bits.
+    // We use two lines in the execution trace. First line represents a 
+    // as decomposed over 16-bit registers. Second line represents b.
+    // Selector flag is only toggled in the first line and we access b through
+    // shifted polynomials.
+    // R' is stored in alu_u64_r0
+
+    // 64-bit lower limb
+    pol sum_low_64 = alu_u16_r0 + alu_u16_r1 * 2**16 + alu_u16_r2 * 2**32 + alu_u16_r3 * 2**48;
+
+    // 64-bit higher limb
+    pol sum_high_64 = alu_u16_r4 + alu_u16_r5 * 2**16 + alu_u16_r6 * 2**32 + alu_u16_r7 * 2**48;
+
+    // 64-bit lower limb for next row
+    pol sum_low_shifted_64 = alu_u16_r0' + alu_u16_r1' * 2**16 + alu_u16_r2' * 2**32 + alu_u16_r3' * 2**48;
+
+    // 64-bit higher limb for next row
+    pol sum_high_shifted_64 = alu_u16_r4' + alu_u16_r5' * 2**16 + alu_u16_r6' * 2**32 + alu_u16_r7' * 2**48;
+
+    // Arithmetic relations
+    alu_u128_tag * alu_op_mul * (sum_low_64 + sum_high_64 * 2**64 - alu_ia) = 0;
+    alu_u128_tag * alu_op_mul * (sum_low_shifted_64 + sum_high_shifted_64 * 2**64 - alu_ib) = 0;
+    #[ALU_MULTIPLICATION_OUT_U128]
+    alu_u128_tag * alu_op_mul * (
+            alu_ia * sum_low_shifted_64
+          + sum_low_64 * sum_high_shifted_64 * 2**64
+          - (alu_cf * 2**64 + alu_u64_r0) * 2**128
+          - alu_ic
+        ) = 0;
