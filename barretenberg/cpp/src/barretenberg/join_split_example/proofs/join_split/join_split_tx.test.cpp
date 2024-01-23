@@ -14,7 +14,7 @@ using namespace bb;
 using namespace bb::join_split_example::proofs::join_split;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 
 TEST(client_proofs_join_split_tx, test_serialization)

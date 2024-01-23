@@ -3,7 +3,7 @@
 #include "../uint256/uint256.hpp"
 #include <cstdint>
 
-namespace numeric {
+namespace bb::numeric {
 
 /**
  * Returns the number of leading 0 bits for a given integer type.
@@ -49,4 +49,4 @@ template <> constexpr inline size_t count_leading_zeros<uint256_t>(uint256_t con
     return 256;
 }
 
-} // namespace numeric
+} // namespace bb::numeric

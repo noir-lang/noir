@@ -5,7 +5,7 @@ using namespace bb;
 using namespace bb::join_split_example::proofs;
 
 namespace {
-auto& rand_engine = numeric::random::get_debug_engine();
+auto& rand_engine = numeric::get_debug_randomness();
 }
 
 TEST(client_proofs_inner_proof_data, test_proof_to_data)

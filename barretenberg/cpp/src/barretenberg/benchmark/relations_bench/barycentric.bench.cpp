@@ -5,7 +5,7 @@
 using namespace benchmark;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = bb::numeric::get_debug_randomness();
 }
 
 using FF = bb::fr;

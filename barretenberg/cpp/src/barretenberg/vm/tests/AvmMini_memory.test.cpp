@@ -1,8 +1,7 @@
 #include "AvmMini_common.test.hpp"
 
-namespace tests_avm {
+using namespace tests_avm;
 using namespace avm_trace;
-
 class AvmMiniMemoryTests : public ::testing::Test {
   public:
     AvmMiniTraceBuilder trace_builder;
@@ -11,7 +10,7 @@ class AvmMiniMemoryTests : public ::testing::Test {
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
     void SetUp() override
     {
-        bb::srs::init_crs_factory("../srs_db/ignition");
+        srs::init_crs_factory("../srs_db/ignition");
         trace_builder = AvmMiniTraceBuilder(); // Clean instance for every run.
     };
 };
@@ -237,4 +236,3 @@ TEST_F(AvmMiniMemoryTests, consistentTagNoErrorViolation)
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MEM_IN_TAG_CONSISTENCY_1");
 }
-} // namespace tests_avm

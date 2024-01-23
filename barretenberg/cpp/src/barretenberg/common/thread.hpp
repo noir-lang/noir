@@ -19,7 +19,7 @@ inline size_t get_num_cpus()
 // For algorithms that need to be divided amongst power of 2 threads.
 inline size_t get_num_cpus_pow2()
 {
-    return static_cast<size_t>(1ULL << numeric::get_msb(get_num_cpus()));
+    return static_cast<size_t>(1ULL << bb::numeric::get_msb(get_num_cpus()));
 }
 
 void parallel_for(size_t num_iterations, const std::function<void(size_t)>& func);

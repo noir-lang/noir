@@ -2,7 +2,7 @@
 
 #include <array>
 
-// TODO(https://github.com/AztecProtocol/barretenberg/issues/794) namespace this once convenient
+namespace bb {
 /**
  * @brief Concatenates multiple std::array objects into a single array.
  *
@@ -37,3 +37,5 @@ template <typename T, std::size_t... Ns> std::array<T, (Ns + ...)> concatenate(c
 
     return result;
 }
+
+} // namespace bb

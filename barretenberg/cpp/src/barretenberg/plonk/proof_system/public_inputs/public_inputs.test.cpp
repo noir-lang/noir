@@ -138,7 +138,7 @@ TEST(test_public_inputs, compute_delta)
     for (size_t i = 0; i < num_public_inputs; ++i) {
         public_inputs.push_back(left[i]);
     }
-    fr target_delta = bb::plonk::compute_public_input_delta<fr>(public_inputs, beta, gamma, domain.root);
+    fr target_delta = plonk::compute_public_input_delta<fr>(public_inputs, beta, gamma, domain.root);
 
     EXPECT_EQ((modified_result == target_delta), true);
 }

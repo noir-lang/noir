@@ -3,9 +3,11 @@
 #include "barretenberg/common/streams.hpp"
 #include <gtest/gtest.h>
 
+using namespace bb;
+
 TEST(engine, GetRandomUint64)
 {
-    auto& engine = numeric::random::get_engine();
+    auto& engine = numeric::get_randomness();
     auto a = engine.get_random_uint64();
     auto b = engine.get_random_uint64();
     EXPECT_NE(a, 0U);
@@ -15,25 +17,25 @@ TEST(engine, GetRandomUint64)
 
 TEST(engine, ResetDebugEngine)
 {
-    auto& debug_engine = numeric::random::get_debug_engine();
+    auto& debug_engine = numeric::get_debug_randomness();
 
     auto a = debug_engine.get_random_uint64();
     auto b = debug_engine.get_random_uint64();
     EXPECT_NE(a, b);
 
-    debug_engine = numeric::random::get_debug_engine(true);
+    debug_engine = numeric::get_debug_randomness(true);
     auto c = debug_engine.get_random_uint64();
     auto d = debug_engine.get_random_uint64();
     EXPECT_EQ(a, c);
     EXPECT_EQ(b, d);
 
-    auto e = numeric::random::get_engine().get_random_uint64();
+    auto e = numeric::get_randomness().get_random_uint64();
     EXPECT_NE(a, e);
 }
 
 TEST(engine, GetExpectedDebugValue)
 {
-    auto& debug_engine = numeric::random::get_debug_engine(true);
+    auto& debug_engine = numeric::get_debug_randomness(true);
     auto a = debug_engine.get_random_uint1024();
     auto expected = from_buffer<uint1024_t>(std::vector<uint8_t>{
         0x69, 0x1f, 0x71, 0xcb, 0xcd, 0xdb, 0x45, 0x74, 0xe5, 0x17, 0x17, 0xa7, 0x29, 0x02, 0x21, 0x4a,

@@ -40,7 +40,7 @@ using Fr = Curve::ScalarField;
  */
 void parallel_for_field_element_addition(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     size_t num_cpus = get_num_cpus();
     std::vector<std::vector<Fr>> copy_vector(num_cpus);
     for (size_t i = 0; i < num_cpus; i++) {
@@ -72,7 +72,7 @@ void parallel_for_field_element_addition(State& state)
  */
 void ff_addition(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     std::vector<Fr> copy_vector(2);
     for (size_t j = 0; j < 2; j++) {
         copy_vector.emplace_back(Fr::random_element(&engine));
@@ -97,7 +97,7 @@ void ff_addition(State& state)
  */
 void ff_multiplication(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     std::vector<Fr> copy_vector(2);
     for (size_t j = 0; j < 2; j++) {
         copy_vector.emplace_back(Fr::random_element(&engine));
@@ -122,7 +122,7 @@ void ff_multiplication(State& state)
  */
 void ff_sqr(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     std::vector<Fr> copy_vector(2);
     for (size_t j = 0; j < 2; j++) {
         copy_vector.emplace_back(Fr::random_element(&engine));
@@ -147,7 +147,7 @@ void ff_sqr(State& state)
  */
 void ff_invert(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     auto element = Fr::random_element(&engine);
 
     for (auto _ : state) {
@@ -168,7 +168,7 @@ void ff_invert(State& state)
  */
 void ff_to_montgomery(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     auto element = Fr::random_element(&engine);
 
     for (auto _ : state) {
@@ -188,7 +188,7 @@ void ff_to_montgomery(State& state)
  */
 void ff_from_montgomery(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     auto element = Fr::random_element(&engine);
 
     for (auto _ : state) {
@@ -209,7 +209,7 @@ void ff_from_montgomery(State& state)
  */
 void ff_reduce(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     auto element = Fr::random_element(&engine);
 
     for (auto _ : state) {
@@ -230,7 +230,7 @@ void ff_reduce(State& state)
  */
 void projective_point_addition(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     std::vector<Curve::Element> copy_vector(2);
     for (size_t j = 0; j < 2; j++) {
         copy_vector.emplace_back(Curve::Element::random_element(&engine));
@@ -255,7 +255,7 @@ void projective_point_addition(State& state)
  */
 void projective_point_accidental_doubling(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     std::vector<Curve::Element> copy_vector(2);
     for (size_t j = 0; j < 2; j++) {
         copy_vector.emplace_back(Curve::Element::random_element(&engine));
@@ -280,7 +280,7 @@ void projective_point_accidental_doubling(State& state)
  */
 void projective_point_doubling(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     std::vector<Curve::Element> copy_vector(2);
     for (size_t j = 0; j < 2; j++) {
         copy_vector.emplace_back(Curve::Element::random_element(&engine));
@@ -305,7 +305,7 @@ void projective_point_doubling(State& state)
  */
 void scalar_multiplication(State& state)
 {
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     Curve::Element element = Curve::Element::random_element(&engine);
     Fr scalar = Fr::random_element(&engine);
 
@@ -347,7 +347,7 @@ void cycle_waste(State& state)
 void sequential_copy(State& state)
 {
 
-    numeric::random::Engine& engine = numeric::random::get_debug_engine();
+    numeric::RNG& engine = numeric::get_debug_randomness();
     for (auto _ : state) {
         state.PauseTiming();
         size_t num_cycles = 1 << static_cast<size_t>(state.range(0));

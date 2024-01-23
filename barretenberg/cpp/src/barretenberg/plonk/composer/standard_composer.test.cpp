@@ -9,7 +9,7 @@ using namespace bb;
 using namespace bb::plonk;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 
 class StandardPlonkComposer : public ::testing::Test {

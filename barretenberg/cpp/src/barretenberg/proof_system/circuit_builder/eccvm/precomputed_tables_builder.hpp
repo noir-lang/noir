@@ -11,9 +11,9 @@ template <typename Flavor> class ECCVMPrecomputedTablesBuilder {
     using Element = typename CycleGroup::element;
     using AffineElement = typename CycleGroup::affine_element;
 
-    static constexpr size_t NUM_WNAF_SLICES = bb_eccvm::NUM_WNAF_SLICES;
-    static constexpr size_t WNAF_SLICES_PER_ROW = bb_eccvm::WNAF_SLICES_PER_ROW;
-    static constexpr size_t WNAF_SLICE_BITS = bb_eccvm::WNAF_SLICE_BITS;
+    static constexpr size_t NUM_WNAF_SLICES = bb::eccvm::NUM_WNAF_SLICES;
+    static constexpr size_t WNAF_SLICES_PER_ROW = bb::eccvm::WNAF_SLICES_PER_ROW;
+    static constexpr size_t WNAF_SLICE_BITS = bb::eccvm::WNAF_SLICE_BITS;
 
     struct PrecomputeState {
         int s1 = 0;
@@ -34,7 +34,7 @@ template <typename Flavor> class ECCVMPrecomputedTablesBuilder {
     };
 
     static std::vector<PrecomputeState> compute_precompute_state(
-        const std::vector<bb_eccvm::ScalarMul<CycleGroup>>& ecc_muls)
+        const std::vector<bb::eccvm::ScalarMul<CycleGroup>>& ecc_muls)
     {
         std::vector<PrecomputeState> precompute_state;
 
@@ -101,7 +101,7 @@ template <typename Flavor> class ECCVMPrecomputedTablesBuilder {
 
                 row.precompute_double = d2;
                 // fill accumulator in reverse order i.e. first row = 15[P], then 13[P], ..., 1[P]
-                row.precompute_accumulator = entry.precomputed_table[bb_eccvm::POINT_TABLE_SIZE - 1 - i];
+                row.precompute_accumulator = entry.precomputed_table[bb::eccvm::POINT_TABLE_SIZE - 1 - i];
                 precompute_state.emplace_back(row);
             }
         }

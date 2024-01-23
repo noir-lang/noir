@@ -7,7 +7,7 @@
 #include "barretenberg/common/serialize.hpp"
 #include <concepts>
 
-namespace numeric {
+namespace bb::numeric {
 
 class alignas(32) uint128_t {
   public:
@@ -187,7 +187,7 @@ template <typename B> inline void write(B& it, uint128_t const& value)
     write(it, value.data[0]);
 }
 
-} // namespace numeric
+} // namespace bb::numeric
 
 #include "./uint128_impl.hpp"
 

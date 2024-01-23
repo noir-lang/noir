@@ -1,6 +1,8 @@
 #include "get_msb.hpp"
 #include <gtest/gtest.h>
 
+using namespace bb;
+
 TEST(bitop, GetMsbUint640Value)
 {
     uint64_t a = 0b00000000000000000000000000000000;

@@ -13,14 +13,14 @@
    https://blake2.net.
 */
 
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 
 #include "blake2-impl.hpp"
 #include "blake2s.hpp"
 
-namespace blake2 {
+namespace bb::crypto {
 
 static const uint32_t blake2s_IV[8] = { 0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
                                         0x510E527FUL, 0x9B05688CUL, 0x1F83D9ABUL, 0x5BE0CD19UL };
@@ -233,4 +233,4 @@ std::array<uint8_t, BLAKE2S_OUTBYTES> blake2s(std::vector<uint8_t> const& input)
     return output;
 }
 
-} // namespace blake2
+} // namespace bb::crypto

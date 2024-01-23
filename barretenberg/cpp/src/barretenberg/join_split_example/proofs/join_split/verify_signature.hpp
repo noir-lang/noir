@@ -15,14 +15,14 @@ inline void verify_signature(field_ct const& public_value,
                              group_ct const& owner_pub_key,
                              field_ct const& backward_link,
                              field_ct const& allow_chain,
-                             schnorr::signature_bits const& signature)
+                             schnorr_signature_bits const& signature)
 {
     std::vector<field_ct> to_compress = {
         public_value, public_owner,  public_asset_id, output_note1_commitment, output_note2_commitment, nullifier1,
         nullifier2,   backward_link, allow_chain,
     };
     byte_array_ct message = pedersen_hash::hash(to_compress);
-    verify_signature(message, owner_pub_key, signature);
+    schnorr_verify_signature(message, owner_pub_key, signature);
 }
 
 } // namespace bb::join_split_example::proofs::join_split

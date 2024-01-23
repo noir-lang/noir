@@ -1,6 +1,8 @@
 #include "count_leading_zeros.hpp"
 #include <gtest/gtest.h>
 
+using namespace bb;
+
 TEST(bitop, ClzUint3231)
 {
     uint32_t a = 0b00000000000000000000000000000001;

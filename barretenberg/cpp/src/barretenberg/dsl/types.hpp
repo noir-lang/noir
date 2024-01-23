@@ -60,7 +60,7 @@ using secp256r1_ct = bb::stdlib::secp256r1<Builder>;
 
 using hash_path_ct = bb::stdlib::merkle_tree::hash_path<Builder>;
 
-using schnorr_signature_bits_ct = bb::stdlib::schnorr::signature_bits<Builder>;
+using schnorr_signature_bits_ct = bb::stdlib::schnorr_signature_bits<Builder>;
 
 // Ultra-composer specific typesv
 using rom_table_ct = bb::stdlib::rom_table<Builder>;

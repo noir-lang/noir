@@ -6,7 +6,7 @@
 using namespace bb;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 
 // NOTE: We only test width 32, but widths 8, 16, 32 and 64 can all be tested.
@@ -15,7 +15,7 @@ auto& engine = numeric::random::get_debug_engine();
 //           test_xor_special, test_xor_more_constants, test_and_constants, test_and_special, test_or_special,
 //           test_ror_special, test_hash_rounds, test_and, test_xor, test_or.
 // They fail with 'C++ exception with description"Last key slice greater than 64" thrown in the test body."'
-namespace test_stdlib_uint {
+
 typedef uint32_t uint_native;
 size_t uint_native_width = 8 * sizeof(uint_native);
 uint_native uint_native_max = static_cast<uint_native>((static_cast<uint256_t>(1) << uint_native_width) - 1);
@@ -1914,10 +1914,10 @@ TYPED_TEST(stdlib_uint, test_at)
 // There was one plookup-specific test in the ./plookup/uint_plookup.test.cpp
 TEST(stdlib_uint32, test_accumulators_plookup_uint32)
 {
-    using uint32_ct = bb::stdlib::uint32<bb::UltraCircuitBuilder>;
-    using witness_ct = bb::stdlib::witness_t<bb::UltraCircuitBuilder>;
+    using uint32_ct = stdlib::uint32<bb::UltraCircuitBuilder>;
+    using witness_ct = stdlib::witness_t<bb::UltraCircuitBuilder>;
 
-    bb::UltraCircuitBuilder builder;
+    UltraCircuitBuilder builder;
 
     uint32_t a_val = engine.get_random_uint32();
     uint32_t b_val = engine.get_random_uint32();
@@ -1939,4 +1939,3 @@ TEST(stdlib_uint32, test_accumulators_plookup_uint32)
     bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
-} // namespace test_stdlib_uint

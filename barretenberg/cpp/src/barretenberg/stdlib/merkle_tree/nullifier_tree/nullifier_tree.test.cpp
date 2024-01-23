@@ -9,8 +9,8 @@ using namespace bb;
 using namespace bb::stdlib::merkle_tree;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
-auto& random_engine = numeric::random::get_engine();
+auto& engine = numeric::get_debug_randomness();
+auto& random_engine = numeric::get_randomness();
 } // namespace
 
 static std::vector<fr> VALUES = []() {

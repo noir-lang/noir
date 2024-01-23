@@ -3,6 +3,7 @@
 #include "barretenberg/numeric/uint128/uint128.hpp"
 
 using namespace numeric;
+using namespace tests_avm;
 namespace {
 
 void common_validate_arithmetic_op(Row const& main_row,
@@ -140,7 +141,7 @@ std::vector<Row> gen_mutated_trace_add(FF const& a, FF const& b, FF const& c_mut
     auto trace = trace_builder.finalize();
 
     auto select_row = [](Row r) { return r.avmMini_sel_op_add == FF(1); };
-    tests_avm::mutate_ic_in_trace(trace, select_row, c_mutated, true);
+    mutate_ic_in_trace(trace, select_row, c_mutated, true);
 
     return trace;
 }
@@ -158,7 +159,7 @@ std::vector<Row> gen_mutated_trace_sub(FF const& a, FF const& b, FF const& c_mut
     auto trace = trace_builder.finalize();
 
     auto select_row = [](Row r) { return r.avmMini_sel_op_sub == FF(1); };
-    tests_avm::mutate_ic_in_trace(trace, select_row, c_mutated, true);
+    mutate_ic_in_trace(trace, select_row, c_mutated, true);
 
     return trace;
 }
@@ -176,16 +177,14 @@ std::vector<Row> gen_mutated_trace_mul(FF const& a, FF const& b, FF const& c_mut
     auto trace = trace_builder.finalize();
 
     auto select_row = [](Row r) { return r.avmMini_sel_op_mul == FF(1); };
-    tests_avm::mutate_ic_in_trace(trace, select_row, c_mutated, true);
+    mutate_ic_in_trace(trace, select_row, c_mutated, true);
 
     return trace;
 }
 
 } // anonymous namespace
 
-namespace tests_avm {
 using namespace avm_trace;
-
 class AvmMiniArithmeticTests : public ::testing::Test {
   public:
     AvmMiniTraceBuilder trace_builder;
@@ -194,7 +193,7 @@ class AvmMiniArithmeticTests : public ::testing::Test {
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
     void SetUp() override
     {
-        bb::srs::init_crs_factory("../srs_db/ignition");
+        srs::init_crs_factory("../srs_db/ignition");
         trace_builder = AvmMiniTraceBuilder(); // Clean instance for every run.
     };
 };
@@ -1677,5 +1676,3 @@ TEST_F(AvmMiniArithmeticNegativeTestsU128, multiplication)
                                        AvmMemoryTag::U128);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_MULTIPLICATION_OUT_U128");
 }
-
-} // namespace tests_avm

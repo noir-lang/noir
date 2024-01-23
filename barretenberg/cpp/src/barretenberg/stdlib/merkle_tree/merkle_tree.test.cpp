@@ -5,18 +5,16 @@
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
 
-namespace bb::test_stdlib_merkle_tree {
-
 using namespace bb::stdlib;
 using namespace bb::stdlib::merkle_tree;
 
-using Builder = bb::UltraCircuitBuilder;
+using Builder = UltraCircuitBuilder;
 
 using field_ct = field_t<Builder>;
 using witness_ct = witness_t<Builder>;
 namespace {
-auto& engine = numeric::random::get_debug_engine();
-auto& random_engine = numeric::random::get_engine();
+auto& engine = numeric::get_debug_randomness();
+auto& random_engine = numeric::get_randomness();
 } // namespace
 
 static std::vector<fr> VALUES = []() {
@@ -184,4 +182,3 @@ TEST(stdlib_merkle_tree, test_get_sibling_path_layers)
         EXPECT_NE(before[2], after[2]);
     }
 }
-} // namespace bb::test_stdlib_merkle_tree

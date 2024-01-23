@@ -5,17 +5,16 @@
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "rom_table.hpp"
 
-namespace test_stdlib_rom_array {
 using namespace bb;
 
 // Defining ultra-specific types for local testing.
-using Builder = bb::UltraCircuitBuilder;
+using Builder = UltraCircuitBuilder;
 using field_ct = stdlib::field_t<Builder>;
 using witness_ct = stdlib::witness_t<Builder>;
 using rom_table_ct = stdlib::rom_table<Builder>;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 
 TEST(rom_table, rom_table_read_write_consistency)
@@ -31,7 +30,7 @@ TEST(rom_table, rom_table_read_write_consistency)
     rom_table_ct table(table_values);
 
     field_ct result(0);
-    bb::fr expected(0);
+    fr expected(0);
 
     for (size_t i = 0; i < 10; ++i) {
         field_ct index(witness_ct(&builder, (uint64_t)i));
@@ -62,5 +61,3 @@ TEST(rom_table, rom_table_read_write_consistency)
     bool verified = builder.check_circuit();
     EXPECT_EQ(verified, true);
 }
-
-} // namespace test_stdlib_rom_array

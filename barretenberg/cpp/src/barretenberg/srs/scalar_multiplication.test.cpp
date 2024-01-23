@@ -20,11 +20,11 @@
 #include <cstddef>
 #include <vector>
 
-namespace {
-auto& engine = numeric::random::get_debug_engine();
-}
-
 using namespace bb;
+
+namespace {
+auto& engine = numeric::get_debug_randomness();
+}
 
 template <typename Curve> class ScalarMultiplicationTests : public ::testing::Test {
   public:
@@ -231,14 +231,14 @@ TYPED_TEST(ScalarMultiplicationTests, ReduceBucketsSimple)
     std::array<uint32_t, num_points> bucket_counts;
     std::array<uint32_t, num_points> bit_offsets = { 0 };
 
-    bb::scalar_multiplication::affine_product_runtime_state<Curve> product_state{
+    scalar_multiplication::affine_product_runtime_state<Curve> product_state{
         &monomials[0],          &point_pairs[0],   &output_buckets[0],
         &scratch_space[0],      &bucket_counts[0], &bit_offsets[0],
         &point_schedule[0],     num_points,        2,
         &bucket_empty_status[0]
     };
 
-    AffineElement* output = bb::scalar_multiplication::reduce_buckets<Curve>(product_state, true);
+    AffineElement* output = scalar_multiplication::reduce_buckets<Curve>(product_state, true);
 
     for (size_t i = 0; i < product_state.num_buckets; ++i) {
         expected[i] = expected[i].normalize();
@@ -274,7 +274,7 @@ TYPED_TEST(ScalarMultiplicationTests, ReduceBuckets)
 
     TestFixture::read_transcript(monomials, num_initial_points, TestFixture::SRS_PATH);
 
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, num_initial_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, num_initial_points);
 
     Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * num_initial_points));
 
@@ -282,21 +282,21 @@ TYPED_TEST(ScalarMultiplicationTests, ReduceBuckets)
         scalars[i] = Fr::random_element();
     }
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::compute_wnaf_states<Curve>(
+    scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::organize_buckets(state.point_schedule, num_points);
+    scalar_multiplication::organize_buckets(state.point_schedule, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
-    const size_t max_num_buckets = bb::scalar_multiplication::get_num_buckets(num_points * 2);
+    const size_t max_num_buckets = scalar_multiplication::get_num_buckets(num_points * 2);
 
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * 100 * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
@@ -312,19 +312,19 @@ TYPED_TEST(ScalarMultiplicationTests, ReduceBuckets)
     const size_t last_bucket = point_schedule_copy[num_points - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
-    bb::scalar_multiplication::affine_product_runtime_state<Curve> product_state{ monomials,
-                                                                                  point_pairs,
-                                                                                  scratch_points,
-                                                                                  scratch_field,
-                                                                                  bucket_counts,
-                                                                                  &bit_offsets[0],
-                                                                                  &state.point_schedule[num_points],
-                                                                                  num_points,
-                                                                                  static_cast<uint32_t>(num_buckets),
-                                                                                  bucket_empty_status };
+    scalar_multiplication::affine_product_runtime_state<Curve> product_state{ monomials,
+                                                                              point_pairs,
+                                                                              scratch_points,
+                                                                              scratch_field,
+                                                                              bucket_counts,
+                                                                              &bit_offsets[0],
+                                                                              &state.point_schedule[num_points],
+                                                                              num_points,
+                                                                              static_cast<uint32_t>(num_buckets),
+                                                                              bucket_empty_status };
 
     start = std::chrono::steady_clock::now();
-    // bb::scalar_multiplication::scalar_multiplication_internal<Curve><num_points>(state, monomials);
+    // scalar_multiplication::scalar_multiplication_internal<Curve><num_points>(state, monomials);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "scalar mul: " << diff.count() << "ms" << std::endl;
@@ -345,7 +345,7 @@ TYPED_TEST(ScalarMultiplicationTests, ReduceBuckets)
 
     size_t it = 0;
 
-    AffineElement* result_buckets = bb::scalar_multiplication::reduce_buckets<Curve>(product_state, true);
+    AffineElement* result_buckets = scalar_multiplication::reduce_buckets<Curve>(product_state, true);
 
     printf("num buckets = %zu \n", num_buckets);
     for (size_t i = 0; i < num_buckets; ++i) {
@@ -401,22 +401,22 @@ TYPED_TEST(ScalarMultiplicationTests, DISABLED_ReduceBucketsBasic)
         Fr::__copy(source_scalar, scalars[i]);
     }
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, num_initial_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::compute_wnaf_states<Curve>(
+    scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::organize_buckets(state.point_schedule, num_points);
+    scalar_multiplication::organize_buckets(state.point_schedule, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
-    const size_t max_num_buckets = bb::scalar_multiplication::get_num_buckets(num_points * 2);
+    const size_t max_num_buckets = scalar_multiplication::get_num_buckets(num_points * 2);
 
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
@@ -425,20 +425,20 @@ TYPED_TEST(ScalarMultiplicationTests, DISABLED_ReduceBucketsBasic)
     const size_t last_bucket = state.point_schedule[num_points - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
-    bb::scalar_multiplication::affine_product_runtime_state<Curve> product_state{ monomials,
-                                                                                  point_pairs,
-                                                                                  scratch_points,
-                                                                                  scratch_field,
-                                                                                  bucket_counts,
-                                                                                  &bit_offsets[0],
-                                                                                  state.point_schedule,
-                                                                                  (uint32_t)state.round_counts[0],
-                                                                                  static_cast<uint32_t>(num_buckets),
-                                                                                  bucket_empty_status };
+    scalar_multiplication::affine_product_runtime_state<Curve> product_state{ monomials,
+                                                                              point_pairs,
+                                                                              scratch_points,
+                                                                              scratch_field,
+                                                                              bucket_counts,
+                                                                              &bit_offsets[0],
+                                                                              state.point_schedule,
+                                                                              (uint32_t)state.round_counts[0],
+                                                                              static_cast<uint32_t>(num_buckets),
+                                                                              bucket_empty_status };
 
     start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::reduce_buckets<Curve>(product_state, true);
-    // bb::scalar_multiplication::scalar_multiplication_internal<Curve><num_points>(state, monomials);
+    scalar_multiplication::reduce_buckets<Curve>(product_state, true);
+    // scalar_multiplication::scalar_multiplication_internal<Curve><num_points>(state, monomials);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "scalar mul: " << diff.count() << "ms" << std::endl;
@@ -478,7 +478,7 @@ TYPED_TEST(ScalarMultiplicationTests, AddAffinePoints)
         points_copy[count + 1] = points_copy[count + 1].normalize();
     }
 
-    bb::scalar_multiplication::add_affine_points<Curve>(points, num_points, scratch_space);
+    scalar_multiplication::add_affine_points<Curve>(points, num_points, scratch_space);
     for (size_t i = num_points - 1; i > num_points - 1 - (num_points / 2); --i) {
         EXPECT_EQ((points[i].x == points_copy[i].x), true);
         EXPECT_EQ((points[i].y == points_copy[i].y), true);
@@ -509,22 +509,22 @@ TYPED_TEST(ScalarMultiplicationTests, ConstructAdditionChains)
         Fr::__copy(source_scalar, scalars[i]);
     }
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, num_initial_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_initial_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::compute_wnaf_states<Curve>(
+    scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::organize_buckets(state.point_schedule, num_points);
+    scalar_multiplication::organize_buckets(state.point_schedule, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
-    const size_t max_num_buckets = bb::scalar_multiplication::get_num_buckets(num_points * 2);
+    const size_t max_num_buckets = scalar_multiplication::get_num_buckets(num_points * 2);
     bool* bucket_empty_status = static_cast<bool*>(aligned_alloc(64, num_points * sizeof(bool)));
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
@@ -533,20 +533,20 @@ TYPED_TEST(ScalarMultiplicationTests, ConstructAdditionChains)
     const size_t last_bucket = state.point_schedule[state.round_counts[0] - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
-    bb::scalar_multiplication::affine_product_runtime_state<Curve> product_state{ monomials,
-                                                                                  monomials,
-                                                                                  monomials,
-                                                                                  nullptr,
-                                                                                  bucket_counts,
-                                                                                  &bit_offsets[0],
-                                                                                  state.point_schedule,
-                                                                                  static_cast<uint32_t>(
-                                                                                      state.round_counts[0]),
-                                                                                  static_cast<uint32_t>(num_buckets),
-                                                                                  bucket_empty_status };
+    scalar_multiplication::affine_product_runtime_state<Curve> product_state{ monomials,
+                                                                              monomials,
+                                                                              monomials,
+                                                                              nullptr,
+                                                                              bucket_counts,
+                                                                              &bit_offsets[0],
+                                                                              state.point_schedule,
+                                                                              static_cast<uint32_t>(
+                                                                                  state.round_counts[0]),
+                                                                              static_cast<uint32_t>(num_buckets),
+                                                                              bucket_empty_status };
 
     start = std::chrono::steady_clock::now();
-    bb::scalar_multiplication::construct_addition_chains<Curve>(product_state, true);
+    scalar_multiplication::construct_addition_chains<Curve>(product_state, true);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     info("construct addition chains: ", diff.count(), "ms");
@@ -608,7 +608,7 @@ TYPED_TEST(ScalarMultiplicationTests, RadixSort)
 
     // check that our radix sort correctly sorts!
     constexpr size_t target_degree = 1 << 8;
-    constexpr size_t num_rounds = bb::scalar_multiplication::get_num_rounds(target_degree * 2);
+    constexpr size_t num_rounds = scalar_multiplication::get_num_rounds(target_degree * 2);
     Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * target_degree));
 
     Fr source_scalar = Fr::random_element();
@@ -617,14 +617,14 @@ TYPED_TEST(ScalarMultiplicationTests, RadixSort)
         Fr::__copy(source_scalar, scalars[i]);
     }
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(target_degree);
-    bb::scalar_multiplication::compute_wnaf_states<Curve>(
+    scalar_multiplication::pippenger_runtime_state<Curve> state(target_degree);
+    scalar_multiplication::compute_wnaf_states<Curve>(
         state.point_schedule, state.skew_table, state.round_counts, scalars, target_degree);
 
     uint64_t* wnaf_copy = (uint64_t*)(aligned_alloc(64, sizeof(uint64_t) * target_degree * 2 * num_rounds));
     memcpy((void*)wnaf_copy, (void*)state.point_schedule, sizeof(uint64_t) * target_degree * 2 * num_rounds);
 
-    bb::scalar_multiplication::organize_buckets(state.point_schedule, target_degree * 2);
+    scalar_multiplication::organize_buckets(state.point_schedule, target_degree * 2);
     for (size_t i = 0; i < num_rounds; ++i) {
         uint64_t* unsorted_wnaf = &wnaf_copy[i * target_degree * 2];
         uint64_t* sorted_wnaf = &state.point_schedule[i * target_degree * 2];
@@ -668,7 +668,7 @@ TYPED_TEST(ScalarMultiplicationTests, OversizedInputs)
     memcpy((void*)(monomials + (2 * transcript_degree)),
            (void*)monomials,
            ((2 * target_degree - 2 * transcript_degree) * sizeof(AffineElement)));
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, target_degree);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(monomials, monomials, target_degree);
 
     Fr* scalars = (Fr*)(aligned_alloc(64, sizeof(Fr) * target_degree));
 
@@ -678,17 +678,17 @@ TYPED_TEST(ScalarMultiplicationTests, OversizedInputs)
         accumulator *= source_scalar;
         Fr::__copy(accumulator, scalars[i]);
     }
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(target_degree);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(target_degree);
 
-    Element first = bb::scalar_multiplication::pippenger<Curve>(scalars, monomials, target_degree, state);
+    Element first = scalar_multiplication::pippenger<Curve>(scalars, monomials, target_degree, state);
     first = first.normalize();
 
     for (size_t i = 0; i < target_degree; ++i) {
         scalars[i].self_neg();
     }
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state_2(target_degree);
+    scalar_multiplication::pippenger_runtime_state<Curve> state_2(target_degree);
 
-    Element second = bb::scalar_multiplication::pippenger<Curve>(scalars, monomials, target_degree, state_2);
+    Element second = scalar_multiplication::pippenger<Curve>(scalars, monomials, target_degree, state_2);
     second = second.normalize();
 
     EXPECT_EQ((first.z == second.z), true);
@@ -727,11 +727,11 @@ TYPED_TEST(ScalarMultiplicationTests, UndersizedInputs)
         expected += temp;
     }
     expected = expected.normalize();
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    Element result = bb::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
+    Element result = scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -765,10 +765,10 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerSmall)
         expected += temp;
     }
     expected = expected.normalize();
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    Element result = bb::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
+    Element result = scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -805,9 +805,9 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerEdgeCaseDbl)
     if (!expected.is_point_at_infinity()) {
         expected = expected.normalize();
     }
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
-    Element result = bb::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    Element result = scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -827,7 +827,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerShortInputs)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    auto points = bb::scalar_multiplication::point_table_alloc<AffineElement>(num_points);
+    auto points = scalar_multiplication::point_table_alloc<AffineElement>(num_points);
 
     for (std::ptrdiff_t i = 0; i < (std::ptrdiff_t)num_points; ++i) {
         points[i] = AffineElement(Element::random_element());
@@ -862,10 +862,10 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerShortInputs)
         expected += temp;
     }
     expected = expected.normalize();
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points.get(), points.get(), num_points);
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points.get(), points.get(), num_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    Element result = bb::scalar_multiplication::pippenger<Curve>(scalars, points.get(), num_points, state);
+    Element result = scalar_multiplication::pippenger<Curve>(scalars, points.get(), num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -884,7 +884,7 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerUnsafe)
 
     Fr* scalars = (Fr*)aligned_alloc(32, sizeof(Fr) * num_points);
 
-    auto points = bb::scalar_multiplication::point_table_alloc<AffineElement>(num_points);
+    auto points = scalar_multiplication::point_table_alloc<AffineElement>(num_points);
 
     for (std::ptrdiff_t i = 0; i < (std::ptrdiff_t)num_points; ++i) {
         scalars[i] = Fr::random_element();
@@ -898,10 +898,10 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerUnsafe)
         expected += temp;
     }
     expected = expected.normalize();
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points.get(), points.get(), num_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points.get(), points.get(), num_points);
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
-    Element result = bb::scalar_multiplication::pippenger_unsafe<Curve>(scalars, points.get(), num_points, state);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    Element result = scalar_multiplication::pippenger_unsafe<Curve>(scalars, points.get(), num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -955,10 +955,10 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerUnsafeShortInputs)
         expected += temp;
     }
     expected = expected.normalize();
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    Element result = bb::scalar_multiplication::pippenger_unsafe<Curve>(scalars, points, num_points, state);
+    Element result = scalar_multiplication::pippenger_unsafe<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -992,10 +992,10 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerOne)
         expected += temp;
     }
     expected = expected.normalize();
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(num_points);
 
-    Element result = bb::scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
+    Element result = scalar_multiplication::pippenger<Curve>(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -1015,8 +1015,8 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerZeroPoints)
 
     AffineElement* points = (AffineElement*)aligned_alloc(32, sizeof(AffineElement) * (2 + 1));
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(0);
-    Element result = bb::scalar_multiplication::pippenger<Curve>(scalars, points, 0, state);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(0);
+    Element result = scalar_multiplication::pippenger<Curve>(scalars, points, 0, state);
 
     aligned_free(scalars);
     aligned_free(points);
@@ -1038,10 +1038,10 @@ TYPED_TEST(ScalarMultiplicationTests, PippengerMulByZero)
 
     scalars[0] = Fr::zero();
     points[0] = Group::affine_one;
-    bb::scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, 1);
+    scalar_multiplication::generate_pippenger_point_table<Curve>(points, points, 1);
 
-    bb::scalar_multiplication::pippenger_runtime_state<Curve> state(1);
-    Element result = bb::scalar_multiplication::pippenger<Curve>(scalars, points, 1, state);
+    scalar_multiplication::pippenger_runtime_state<Curve> state(1);
+    Element result = scalar_multiplication::pippenger<Curve>(scalars, points, 1, state);
 
     aligned_free(scalars);
     aligned_free(points);

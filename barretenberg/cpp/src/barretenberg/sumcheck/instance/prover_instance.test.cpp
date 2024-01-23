@@ -5,9 +5,8 @@
 #include "barretenberg/proof_system/library/grand_product_library.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <gtest/gtest.h>
-
+using namespace bb;
 using namespace bb::honk;
-namespace instance_tests {
 
 template <class Flavor> class InstanceTests : public testing::Test {
     using FF = typename Flavor::FF;
@@ -89,5 +88,3 @@ TYPED_TEST(InstanceTests, SortedListAccumulator)
 {
     TestFixture::test_sorted_list_accumulator_construction();
 }
-
-} // namespace instance_tests

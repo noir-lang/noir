@@ -238,7 +238,7 @@ template <typename quadratic_field, typename base_field, typename Fq12Params> cl
         };
     }
 
-    static constexpr field12 random_element(numeric::random::Engine* engine = nullptr)
+    static constexpr field12 random_element(numeric::RNG* engine = nullptr)
     {
         return {
             base_field::random_element(engine),

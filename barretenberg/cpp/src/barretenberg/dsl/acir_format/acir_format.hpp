@@ -18,7 +18,7 @@
 
 namespace acir_format {
 
-struct acir_format {
+struct AcirFormat {
     // The number of witnesses in the circuit
     uint32_t varnum;
 
@@ -71,15 +71,15 @@ struct acir_format {
                    constraints,
                    block_constraints);
 
-    friend bool operator==(acir_format const& lhs, acir_format const& rhs) = default;
+    friend bool operator==(AcirFormat const& lhs, AcirFormat const& rhs) = default;
 };
 
 using WitnessVector = std::vector<fr, ContainerSlabAllocator<fr>>;
 
 template <typename Builder = UltraCircuitBuilder>
-Builder create_circuit(const acir_format& constraint_system, size_t size_hint = 0, WitnessVector const& witness = {});
+Builder create_circuit(const AcirFormat& constraint_system, size_t size_hint = 0, WitnessVector const& witness = {});
 
 template <typename Builder>
-void build_constraints(Builder& builder, acir_format const& constraint_system, bool has_valid_witness_assignments);
+void build_constraints(Builder& builder, AcirFormat const& constraint_system, bool has_valid_witness_assignments);
 
 } // namespace acir_format

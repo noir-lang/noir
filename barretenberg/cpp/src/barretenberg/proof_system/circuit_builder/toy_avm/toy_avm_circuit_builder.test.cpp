@@ -8,10 +8,8 @@
 using namespace bb;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
-
-namespace toy_avm_circuit_builder_tests {
 
 /**
  * @brief A test explaining the work of the permutations in Toy AVM
@@ -20,8 +18,8 @@ namespace toy_avm_circuit_builder_tests {
 TEST(ToyAVMCircuitBuilder, BaseCase)
 {
 
-    using FF = bb::honk::flavor::ToyFlavor::FF;
-    using Builder = bb::ToyCircuitBuilder;
+    using FF = honk::flavor::ToyFlavor::FF;
+    using Builder = ToyCircuitBuilder;
     using Row = Builder::Row;
     Builder circuit_builder;
 
@@ -118,4 +116,3 @@ TEST(ToyAVMCircuitBuilder, BaseCase)
     circuit_builder.rows[2].toy_xor_a = tmp;
     EXPECT_EQ(circuit_builder.check_circuit(), true);
 }
-} // namespace toy_avm_circuit_builder_tests

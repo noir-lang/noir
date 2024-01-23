@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
+using namespace bb;
+
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
 #define STDLIB_TYPE_ALIASES                                                                                            \
@@ -19,10 +21,9 @@
     using public_witness_ct = stdlib::public_witness_t<Builder>;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 
-namespace test_stdlib_safe_uint {
 using namespace bb;
 
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
@@ -706,4 +707,3 @@ TYPED_TEST(SafeUintTest, TestByteArrayConversion)
     arr.write(static_cast<byte_array_ct>(safe));
     EXPECT_EQ(arr.get_string(), expected);
 }
-} // namespace test_stdlib_safe_uint

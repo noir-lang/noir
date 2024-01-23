@@ -26,9 +26,7 @@
 
 using namespace bb;
 
-namespace bb::ultra_relation_consistency_tests {
-
-using FF = bb::fr;
+using FF = fr;
 struct InputElements {
     static constexpr size_t NUM_ELEMENTS = 45;
     std::array<FF, NUM_ELEMENTS> _data;
@@ -680,5 +678,3 @@ TEST_F(UltraRelationConsistency, Poseidon2InternalRelation)
     run_test(/*random_inputs=*/false);
     run_test(/*random_inputs=*/true);
 };
-
-} // namespace bb::ultra_relation_consistency_tests

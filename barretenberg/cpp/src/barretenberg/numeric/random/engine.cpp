@@ -4,7 +4,7 @@
 #include <functional>
 #include <random>
 
-namespace numeric::random {
+namespace bb::numeric {
 
 namespace {
 auto generate_random_data()
@@ -16,7 +16,7 @@ auto generate_random_data()
 }
 } // namespace
 
-class RandomEngine : public Engine {
+class RandomEngine : public RNG {
   public:
     uint8_t get_random_uint8() override
     {
@@ -71,7 +71,7 @@ class RandomEngine : public Engine {
     }
 };
 
-class DebugEngine : public Engine {
+class DebugEngine : public RNG {
   public:
     DebugEngine()
         // disable linting for this line: we want the DEBUG engine to produce predictable pseudorandom numbers!
@@ -116,7 +116,7 @@ class DebugEngine : public Engine {
 /**
  * Used by tests to ensure consistent behavior.
  */
-Engine& get_debug_engine(bool reset)
+RNG& get_debug_randomness(bool reset)
 {
     // static std::seed_seq seed({ 1, 2, 3, 4, 5 });
     static DebugEngine debug_engine;
@@ -129,11 +129,11 @@ Engine& get_debug_engine(bool reset)
 /**
  * Default engine. If wanting consistent proof construction, uncomment the line to return the debug engine.
  */
-Engine& get_engine()
+RNG& get_randomness()
 {
-    // return get_debug_engine();
+    // return get_debug_randomness();
     static RandomEngine engine;
     return engine;
 }
 
-} // namespace numeric::random
+} // namespace bb::numeric

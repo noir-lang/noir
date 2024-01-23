@@ -121,7 +121,7 @@ struct Secp256k1G1Params {
 using g1 = bb::group<bb::field<Secp256k1FqParams>, bb::field<Secp256k1FrParams>, Secp256k1G1Params>;
 } // namespace secp256k1
 
-namespace curve {
+namespace bb::curve {
 class SECP256K1 {
   public:
     using ScalarField = secp256k1::fr;
@@ -130,6 +130,6 @@ class SECP256K1 {
     using Element = typename Group::element;
     using AffineElement = typename Group::affine_element;
 };
-} // namespace curve
+} // namespace bb::curve
 
 // NOLINTEND(cppcoreguidelines-avoid-c-arrays)

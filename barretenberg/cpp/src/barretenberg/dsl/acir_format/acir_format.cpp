@@ -6,7 +6,7 @@
 namespace acir_format {
 
 template <typename Builder>
-void build_constraints(Builder& builder, acir_format const& constraint_system, bool has_valid_witness_assignments)
+void build_constraints(Builder& builder, AcirFormat const& constraint_system, bool has_valid_witness_assignments)
 {
     // Add arithmetic gates
     for (const auto& constraint : constraint_system.constraints) {
@@ -188,7 +188,7 @@ void build_constraints(Builder& builder, acir_format const& constraint_system, b
  * @return Builder
  */
 template <typename Builder>
-Builder create_circuit(const acir_format& constraint_system, size_t size_hint, WitnessVector const& witness)
+Builder create_circuit(const AcirFormat& constraint_system, size_t size_hint, WitnessVector const& witness)
 {
     Builder builder{ size_hint, witness, constraint_system.public_inputs, constraint_system.varnum };
 
@@ -198,9 +198,9 @@ Builder create_circuit(const acir_format& constraint_system, size_t size_hint, W
     return builder;
 }
 
-template UltraCircuitBuilder create_circuit<UltraCircuitBuilder>(const acir_format& constraint_system,
+template UltraCircuitBuilder create_circuit<UltraCircuitBuilder>(const AcirFormat& constraint_system,
                                                                  size_t size_hint,
                                                                  WitnessVector const& witness);
-template void build_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder&, acir_format const&, bool);
+template void build_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder&, AcirFormat const&, bool);
 
 } // namespace acir_format

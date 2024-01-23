@@ -4,10 +4,11 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
-namespace bb::test_flavor {
+using namespace bb;
+
 TEST(Flavor, Getters)
 {
-    using Flavor = bb::honk::flavor::Ultra;
+    using Flavor = honk::flavor::Ultra;
     using FF = Flavor::FF;
     using ProvingKey = typename Flavor::ProvingKey;
 
@@ -42,7 +43,7 @@ TEST(Flavor, Getters)
 
 TEST(Flavor, AllEntitiesSpecialMemberFunctions)
 {
-    using Flavor = bb::honk::flavor::Ultra;
+    using Flavor = honk::flavor::Ultra;
     using FF = Flavor::FF;
     using PartiallyEvaluatedMultivariates = Flavor::PartiallyEvaluatedMultivariates;
     using Polynomial = bb::Polynomial<FF>;
@@ -68,7 +69,7 @@ TEST(Flavor, AllEntitiesSpecialMemberFunctions)
 
 TEST(Flavor, GetRow)
 {
-    using Flavor = bb::honk::flavor::Ultra;
+    using Flavor = honk::flavor::Ultra;
     using FF = typename Flavor::FF;
     std::array<std::vector<FF>, Flavor::NUM_ALL_ENTITIES> data;
     std::generate(data.begin(), data.end(), []() {
@@ -83,4 +84,3 @@ TEST(Flavor, GetRow)
     EXPECT_EQ(row0.q_elliptic, prover_polynomials.q_elliptic[0]);
     EXPECT_EQ(row1.w_4_shift, prover_polynomials.w_4_shift[1]);
 }
-} // namespace bb::test_flavor

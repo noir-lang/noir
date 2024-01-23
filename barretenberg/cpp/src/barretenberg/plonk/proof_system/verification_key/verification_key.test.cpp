@@ -3,14 +3,11 @@
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
-namespace {
-auto& engine = numeric::random::get_debug_engine();
-} // namespace
-
 using namespace bb;
 using namespace bb::plonk;
-
-namespace bb::plonk::test_verification_key {
+namespace {
+auto& engine = numeric::get_debug_randomness();
+} // namespace
 
 /**
  * @brief generate a random vk data for use in tests
@@ -154,4 +151,3 @@ TEST(VerificationKey, HashEqualityDifferentRecursiveProofPublicInputIndices)
     vk1_data.recursive_proof_public_input_indices.push_back(42);
     expect_hashes_eq(vk0_data, vk1_data);
 }
-} // namespace bb::plonk::test_verification_key

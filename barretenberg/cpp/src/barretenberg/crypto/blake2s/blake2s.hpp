@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace blake2 {
+namespace bb::crypto {
 
 #if defined(_MSC_VER)
 #define BLAKE2_PACKED(x) __pragma(pack(push, 1)) x __pragma(pack(pop))
@@ -73,4 +73,4 @@ int blake2s_final(blake2s_state* S, void* out, size_t outlen);
 
 std::array<uint8_t, BLAKE2S_OUTBYTES> blake2s(std::vector<uint8_t> const& input);
 
-} // namespace blake2
+} // namespace bb::crypto

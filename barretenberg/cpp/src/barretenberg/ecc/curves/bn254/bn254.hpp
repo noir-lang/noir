@@ -6,7 +6,7 @@
 #include "../bn254/g1.hpp"
 #include "../bn254/g2.hpp"
 
-namespace curve {
+namespace bb::curve {
 class BN254 {
   public:
     using ScalarField = bb::fr;
@@ -23,4 +23,4 @@ class BN254 {
     // with stdlib types, and "native" verification will be acheived via a simulated builder.
     static constexpr bool is_stdlib_type = false;
 };
-} // namespace curve
+} // namespace bb::curve

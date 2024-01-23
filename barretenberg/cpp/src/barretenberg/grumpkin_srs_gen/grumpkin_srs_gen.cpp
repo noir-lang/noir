@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     bb::srs::Manifest manifest{ 0, 1, static_cast<uint32_t>(subgroup_size), 0, static_cast<uint32_t>(subgroup_size),
                                 0, 0 };
 
-    bb::srs::IO<curve::Grumpkin>::write_transcript(&srs[0], manifest, srs_path);
+    bb::srs::IO<bb::curve::Grumpkin>::write_transcript(&srs[0], manifest, srs_path);
 
     return 0;
 }

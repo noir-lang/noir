@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <string.h>
 
-namespace blake2 {
+namespace bb::crypto {
 
 #if !defined(__cplusplus) && (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901L)
 #if defined(_MSC_VER)
@@ -146,6 +146,6 @@ static BLAKE2_INLINE void secure_zero_memory(void* v, size_t n)
     memset_v(v, 0, n);
 }
 
-} // namespace blake2
+} // namespace bb::crypto
 
 #endif

@@ -13,7 +13,7 @@ namespace bb::join_split_example::proofs::join_split {
 using namespace bb::plonk;
 using namespace notes::circuit;
 using namespace bb::stdlib::merkle_tree;
-using namespace bb::crypto::schnorr;
+using namespace bb::crypto;
 
 /**
  * Check that the input note data, follows the given hash paths, to the publically given merkle root.
@@ -286,7 +286,7 @@ void join_split_circuit(Builder& builder, join_split_tx const& tx)
         // many constraints on the bridge_call_data's format and the bit_config's format:
         .partial_claim_note = claim::partial_claim_note_witness_data(builder, tx.partial_claim_note),
         .signing_pub_key = group_ct::from_witness(&builder, tx.signing_pub_key),
-        .signature = stdlib::schnorr::convert_signature(&builder, tx.signature),
+        .signature = stdlib::schnorr_convert_signature(&builder, tx.signature),
         .merkle_root = witness_ct(&builder, tx.old_data_root),
         .input_path1 = stdlib::merkle_tree::create_witness_hash_path(builder, tx.input_path[0]),
         .input_path2 = stdlib::merkle_tree::create_witness_hash_path(builder, tx.input_path[1]),

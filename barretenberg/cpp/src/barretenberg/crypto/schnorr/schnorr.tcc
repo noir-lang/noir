@@ -5,7 +5,7 @@
 
 #include "schnorr.hpp"
 
-namespace bb::crypto::schnorr {
+namespace bb::crypto {
 
 /**
  * @brief Generate the schnorr signature challenge parameter `e` given a message, signer pubkey and nonce
@@ -36,7 +36,7 @@ namespace bb::crypto::schnorr {
  * are always private inputs to circuits) then nothing would be revealed anyway.
  */
 template <typename Hash, typename G1>
-static auto generate_schnorr_challenge(const std::string& message,
+static auto schnorr_generate_challenge(const std::string& message,
                                        const typename G1::affine_element& pubkey,
                                        const typename G1::affine_element& R)
 {
@@ -70,7 +70,7 @@ static auto generate_schnorr_challenge(const std::string& message,
  * @return signature
  */
 template <typename Hash, typename Fq, typename Fr, typename G1>
-signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
+schnorr_signature schnorr_construct_signature(const std::string& message, const schnorr_key_pair<Fr, G1>& account)
 {
     // sanity check to ensure our hash function produces `e_raw`
     // of exactly 32 bytes.
@@ -93,7 +93,7 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
 
     typename G1::affine_element R(G1::one * k);
 
-    auto e_raw = generate_schnorr_challenge<Hash, G1>(message, public_key, R);
+    auto e_raw = schnorr_generate_challenge<Hash, G1>(message, public_key, R);
     // the conversion from e_raw results in a biased field element e
     Fr e = Fr::serialize_from_buffer(&e_raw[0]);
     Fr s = k - (private_key * e);
@@ -105,17 +105,19 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
     // and e = e_uint % r, where r is the order of the curve,
     // and pk as the point representing the public_key,
     // then e•pk = e_uint•pk
-    signature sig;
+    schnorr_signature sig;
     Fr::serialize_to_buffer(s, &sig.s[0]);
     std::copy(e_raw.begin(), e_raw.end(), sig.e.begin());
     return sig;
 }
 
 /**
- * @brief Verify a Schnorr signature of the sort produced by construct_signature.
+ * @brief Verify a Schnorr signature of the sort produced by schnorr_construct_signature.
  */
 template <typename Hash, typename Fq, typename Fr, typename G1>
-bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig)
+bool schnorr_verify_signature(const std::string& message,
+                              const typename G1::affine_element& public_key,
+                              const schnorr_signature& sig)
 {
     using affine_element = typename G1::affine_element;
     using element = typename G1::element;
@@ -148,7 +150,7 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     // compare the _hashes_ rather than field elements modulo r
 
     // e = H(pedersen(r, pk.x, pk.y), m), where r = x(R)
-    auto target_e = generate_schnorr_challenge<Hash, G1>(message, public_key, R);
+    auto target_e = schnorr_generate_challenge<Hash, G1>(message, public_key, R);
     return std::equal(sig.e.begin(), sig.e.end(), target_e.begin(), target_e.end());
 }
-} // namespace bb::crypto::schnorr
+} // namespace bb::crypto

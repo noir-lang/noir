@@ -6,13 +6,13 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+using namespace acir_format;
 using namespace bb::plonk;
 
 class AcirRecursionConstraint : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
-namespace acir_format::test {
 Builder create_inner_circuit()
 {
     /**
@@ -81,27 +81,27 @@ Builder create_inner_circuit()
         .q_c = 1,
     };
 
-    acir_format constraint_system{ .varnum = 6,
-                                   .public_inputs = { 1, 2 },
-                                   .logic_constraints = { logic_constraint },
-                                   .range_constraints = { range_a, range_b },
-                                   .sha256_constraints = {},
-                                   .schnorr_constraints = {},
-                                   .ecdsa_k1_constraints = {},
-                                   .ecdsa_r1_constraints = {},
-                                   .blake2s_constraints = {},
-                                   .blake3_constraints = {},
-                                   .keccak_constraints = {},
-                                   .keccak_var_constraints = {},
-                                   .keccak_permutations = {},
-                                   .pedersen_constraints = {},
-                                   .pedersen_hash_constraints = {},
-                                   .fixed_base_scalar_mul_constraints = {},
-                                   .ec_add_constraints = {},
-                                   .ec_double_constraints = {},
-                                   .recursion_constraints = {},
-                                   .constraints = { expr_a, expr_b, expr_c, expr_d },
-                                   .block_constraints = {} };
+    AcirFormat constraint_system{ .varnum = 6,
+                                  .public_inputs = { 1, 2 },
+                                  .logic_constraints = { logic_constraint },
+                                  .range_constraints = { range_a, range_b },
+                                  .sha256_constraints = {},
+                                  .schnorr_constraints = {},
+                                  .ecdsa_k1_constraints = {},
+                                  .ecdsa_r1_constraints = {},
+                                  .blake2s_constraints = {},
+                                  .blake3_constraints = {},
+                                  .keccak_constraints = {},
+                                  .keccak_var_constraints = {},
+                                  .keccak_permutations = {},
+                                  .pedersen_constraints = {},
+                                  .pedersen_hash_constraints = {},
+                                  .fixed_base_scalar_mul_constraints = {},
+                                  .ec_add_constraints = {},
+                                  .ec_double_constraints = {},
+                                  .recursion_constraints = {},
+                                  .constraints = { expr_a, expr_b, expr_c, expr_d },
+                                  .block_constraints = {} };
 
     uint256_t inverse_of_five = fr(5).invert();
     WitnessVector witness{
@@ -143,10 +143,10 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                                   transcript::HashType::PedersenBlake3s,
                                                   16);
 
-        std::vector<bb::fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
+        std::vector<fr> proof_witnesses = export_transcript_in_recursion_format(transcript);
         // - Save the public inputs so that we can set their values.
         // - Then truncate them from the proof because the ACIR API expects proofs without public inputs
-        std::vector<bb::fr> inner_public_input_values(
+        std::vector<fr> inner_public_input_values(
             proof_witnesses.begin(), proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
 
         // We want to make sure that we do not remove the nested aggregation object in the case of the proof we want to
@@ -233,27 +233,27 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
         circuit_idx++;
     }
 
-    acir_format constraint_system{ .varnum = static_cast<uint32_t>(witness.size()),
-                                   .public_inputs = {},
-                                   .logic_constraints = {},
-                                   .range_constraints = {},
-                                   .sha256_constraints = {},
-                                   .schnorr_constraints = {},
-                                   .ecdsa_k1_constraints = {},
-                                   .ecdsa_r1_constraints = {},
-                                   .blake2s_constraints = {},
-                                   .blake3_constraints = {},
-                                   .keccak_constraints = {},
-                                   .keccak_var_constraints = {},
-                                   .keccak_permutations = {},
-                                   .pedersen_constraints = {},
-                                   .pedersen_hash_constraints = {},
-                                   .fixed_base_scalar_mul_constraints = {},
-                                   .ec_add_constraints = {},
-                                   .ec_double_constraints = {},
-                                   .recursion_constraints = recursion_constraints,
-                                   .constraints = {},
-                                   .block_constraints = {} };
+    AcirFormat constraint_system{ .varnum = static_cast<uint32_t>(witness.size()),
+                                  .public_inputs = {},
+                                  .logic_constraints = {},
+                                  .range_constraints = {},
+                                  .sha256_constraints = {},
+                                  .schnorr_constraints = {},
+                                  .ecdsa_k1_constraints = {},
+                                  .ecdsa_r1_constraints = {},
+                                  .blake2s_constraints = {},
+                                  .blake3_constraints = {},
+                                  .keccak_constraints = {},
+                                  .keccak_var_constraints = {},
+                                  .keccak_permutations = {},
+                                  .pedersen_constraints = {},
+                                  .pedersen_hash_constraints = {},
+                                  .fixed_base_scalar_mul_constraints = {},
+                                  .ec_add_constraints = {},
+                                  .ec_double_constraints = {},
+                                  .recursion_constraints = recursion_constraints,
+                                  .constraints = {},
+                                  .block_constraints = {} };
 
     auto outer_circuit = create_circuit(constraint_system, /*size_hint*/ 0, witness);
 
@@ -364,4 +364,3 @@ TEST_F(AcirRecursionConstraint, TestFullRecursiveComposition)
     auto verifier = layer_3_composer.create_ultra_with_keccak_verifier(layer_3_circuit);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
-} // namespace acir_format::test

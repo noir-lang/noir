@@ -9,13 +9,11 @@
 #include "barretenberg/proof_system/instance_inspector.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
-
+using namespace bb;
 using namespace bb::honk;
 
-namespace test_ultra_honk_composer {
-
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 
 class DataBusComposerTests : public ::testing::Test {
@@ -54,7 +52,7 @@ TEST_F(DataBusComposerTests, CallDataRead)
     // Add mock data to op queue to simulate interaction with a previous circuit
     op_queue->populate_with_mock_initital_data();
 
-    auto builder = bb::GoblinUltraCircuitBuilder{ op_queue };
+    auto builder = GoblinUltraCircuitBuilder{ op_queue };
 
     // Create a general test circuit
     generate_test_circuit(builder);
@@ -95,5 +93,3 @@ TEST_F(DataBusComposerTests, CallDataRead)
     bool verified = verifier.verify_proof(proof);
     EXPECT_TRUE(verified);
 }
-
-} // namespace test_ultra_honk_composer

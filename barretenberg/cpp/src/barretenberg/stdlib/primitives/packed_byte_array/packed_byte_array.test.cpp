@@ -7,11 +7,10 @@
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
-namespace test_stdlib_packed_byte_array {
 using namespace bb;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 #define STDLIB_TYPE_ALIASES                                                                                            \
     using Builder = TypeParam;                                                                                         \
@@ -194,5 +193,3 @@ TYPED_TEST(PackedByteArrayTest, TestAppendUint32)
 
     EXPECT_TRUE(builder.check_circuit());
 }
-
-} // namespace test_stdlib_packed_byte_array

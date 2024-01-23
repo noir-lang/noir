@@ -2,8 +2,10 @@
 #include "../random/engine.hpp"
 #include <gtest/gtest.h>
 
+using namespace bb;
+
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 } // namespace
 
 TEST(uintx, GetBit)
@@ -67,27 +69,27 @@ TEST(uintx, DivAndMod)
 TEST(uintx, DISABLEDMulmod)
 {
     /*
-        bb::fq a = bb::fq::random_element();
-        bb::fq b = bb::fq::random_element();
-        // bb::fq a_converted = a.from_montgomery_form();
-        // bb::fq b_converted = b.from_montgomery_form();
+        fq a = fq::random_element();
+        fq b = fq::random_element();
+        // fq a_converted = a.from_montgomery_form();
+        // fq b_converted = b.from_montgomery_form();
         uint256_t a_uint =
             uint256_t(a); // { a_converted.data[0], a_converted.data[1], a_converted.data[2], a_converted.data[3] };
         uint256_t b_uint =
             uint256_t(b); // { b_converted.data[0], b_converted.data[1], b_converted.data[2], b_converted.data[3] };
         uint256_t modulus_uint{ bb::Bn254FqParams::modulus_0,
-                                bb::Bn254FqParams::modulus_1,
-                                bb::Bn254FqParams::modulus_2,
-                                bb::Bn254FqParams::modulus_3 };
+                                Bn254FqParams::modulus_1,
+                                Bn254FqParams::modulus_2,
+                                Bn254FqParams::modulus_3 };
         uint1024_t a_uintx = uint1024_t(uint512_t(a_uint));
         uint1024_t b_uintx = uint1024_t(uint512_t(b_uint));
         uint1024_t modulus_uintx = uint1024_t(uint512_t(modulus_uint));
 
         const auto [quotient, remainder] = (a_uintx * b_uintx).divmod(modulus_uintx);
 
-        // bb::fq expected_a = a_converted.to_montgomery_form();
-        // bb::fq expected_b = b_converted.to_montgomery_form();
-        bb::fq expected = (a * b).from_montgomery_form();
+        // fq expected_a = a_converted.to_montgomery_form();
+        // fq expected_b = b_converted.to_montgomery_form();
+        fq expected = (a * b).from_montgomery_form();
 
         EXPECT_EQ(remainder.lo.lo.data[0], expected.data[0]);
         EXPECT_EQ(remainder.lo.lo.data[1], expected.data[1]);

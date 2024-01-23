@@ -2,7 +2,7 @@
 #include "../bitop/get_msb.hpp"
 #include "./uint256.hpp"
 #include "barretenberg/common/assert.hpp"
-namespace numeric {
+namespace bb::numeric {
 
 constexpr std::pair<uint64_t, uint64_t> uint256_t::mul_wide(const uint64_t a, const uint64_t b)
 {
@@ -409,4 +409,4 @@ constexpr uint256_t uint256_t::operator<<(const uint256_t& other) const
     return result;
 }
 
-} // namespace numeric
+} // namespace bb::numeric

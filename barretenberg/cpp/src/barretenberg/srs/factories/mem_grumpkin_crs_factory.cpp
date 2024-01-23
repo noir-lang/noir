@@ -7,7 +7,7 @@
 
 namespace {
 
-using namespace curve;
+using namespace bb::curve;
 using namespace bb;
 using namespace bb::srs::factories;
 

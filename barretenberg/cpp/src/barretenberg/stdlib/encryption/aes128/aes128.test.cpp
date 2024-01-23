@@ -8,7 +8,7 @@ using namespace bb;
 
 TEST(stdlib_aes128, encrypt_64_bytes)
 {
-    typedef stdlib::field_t<bb::UltraCircuitBuilder> field_pt;
+    typedef stdlib::field_t<UltraCircuitBuilder> field_pt;
     typedef stdlib::witness_t<bb::UltraCircuitBuilder> witness_pt;
 
     uint8_t key[16]{ 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c };
@@ -31,7 +31,7 @@ TEST(stdlib_aes128, encrypt_64_bytes)
         return converted;
     };
 
-    auto builder = bb::UltraCircuitBuilder();
+    auto builder = UltraCircuitBuilder();
 
     std::vector<field_pt> in_field{
         witness_pt(&builder, fr(convert_bytes(in))),

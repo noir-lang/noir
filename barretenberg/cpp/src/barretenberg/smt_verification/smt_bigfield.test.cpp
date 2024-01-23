@@ -30,9 +30,9 @@ using namespace smt_circuit;
 using namespace bb;
 using namespace bb::plonk;
 
-using field_ct = bb::stdlib::field_t<StandardCircuitBuilder>;
-using witness_t = bb::stdlib::witness_t<StandardCircuitBuilder>;
-using pub_witness_t = bb::stdlib::public_witness_t<StandardCircuitBuilder>;
+using field_ct = stdlib::field_t<StandardCircuitBuilder>;
+using witness_t = stdlib::witness_t<StandardCircuitBuilder>;
+using pub_witness_t = stdlib::public_witness_t<StandardCircuitBuilder>;
 
 using bn254 = stdlib::bn254<StandardCircuitBuilder>;
 

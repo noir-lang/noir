@@ -56,9 +56,9 @@ transcript::Manifest create_manifest(const size_t num_public_inputs)
 } // namespace
 
 struct TestData {
-    std::vector<bb::g1::affine_element> g1_elements;
-    std::vector<bb::fr> fr_elements;
-    std::vector<bb::fr> public_input_elements;
+    std::vector<g1::affine_element> g1_elements;
+    std::vector<fr> fr_elements;
+    std::vector<fr> public_input_elements;
     size_t num_public_inputs;
 };
 
@@ -69,8 +69,8 @@ TestData get_test_data()
         data.g1_elements.push_back(bb::g1::affine_element(bb::g1::element::random_element()));
         data.fr_elements.push_back(bb::fr::random_element());
     }
-    data.fr_elements[2] = bb::fr(0);
-    data.fr_elements[3] = bb::fr(0);
+    data.fr_elements[2] = fr(0);
+    data.fr_elements[3] = fr(0);
     data.num_public_inputs = 13;
     for (size_t i = 0; i < data.num_public_inputs; ++i) {
         data.public_input_elements.push_back(bb::fr::random_element());
@@ -191,8 +191,7 @@ TEST(stdlib_transcript, validate_transcript)
     const auto check_challenge = [&normal_transcript, &recursive_transcript](const std::string& challenge_name,
                                                                              const size_t challenge_idx = 0) {
         field_t result = recursive_transcript.get_challenge_field_element(challenge_name, challenge_idx);
-        bb::fr expected =
-            bb::fr::serialize_from_buffer(&normal_transcript.get_challenge(challenge_name, challenge_idx)[0]);
+        fr expected = fr::serialize_from_buffer(&normal_transcript.get_challenge(challenge_name, challenge_idx)[0]);
         EXPECT_EQ(result.get_value(), expected);
     };
 
@@ -209,21 +208,21 @@ TEST(stdlib_transcript, validate_transcript)
 
     const auto check_field_element = [&normal_transcript, &recursive_transcript](const std::string& element_name) {
         field_t result = recursive_transcript.get_field_element(element_name);
-        bb::fr expected = bb::fr::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
+        fr expected = fr::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
         EXPECT_EQ(result.get_value(), expected);
     };
 
     const auto check_group_element = [&normal_transcript, &recursive_transcript](const std::string& element_name) {
         group_t recursive_value = recursive_transcript.get_circuit_group_element(element_name);
-        bb::g1::affine_element expected =
-            bb::g1::affine_element::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
-        bb::g1::affine_element result{ recursive_value.x.get_value().lo, recursive_value.y.get_value().lo };
+        g1::affine_element expected =
+            g1::affine_element::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
+        g1::affine_element result{ recursive_value.x.get_value().lo, recursive_value.y.get_value().lo };
         EXPECT_EQ(result, expected);
     };
 
     const auto check_public_inputs = [&normal_transcript, &recursive_transcript]() {
         std::vector<field_t> result = recursive_transcript.get_field_element_vector("public_inputs");
-        std::vector<bb::fr> expected = many_from_buffer<fr>(normal_transcript.get_element("public_inputs"));
+        std::vector<fr> expected = many_from_buffer<fr>(normal_transcript.get_element("public_inputs"));
         EXPECT_EQ(result.size(), expected.size());
         for (size_t i = 0; i < result.size(); ++i) {
             EXPECT_EQ(result[i].get_value(), expected[i]);

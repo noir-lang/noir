@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-// TODO(https://github.com/AztecProtocol/barretenberg/issues/794) namespace this once convenient
+namespace bb {
 /**
  * @brief A template class for a reference vector. Behaves as if std::vector<T&> was possible.
  *
@@ -148,3 +148,4 @@ template <typename T> static std::vector<RefVector<T>> to_vector_of_ref_vectors(
     }
     return result;
 }
+} // namespace bb

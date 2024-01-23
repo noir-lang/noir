@@ -31,7 +31,7 @@ struct join_split_tx {
     bb::fr backward_link; // 0: no link, otherwise: any commitment.
     uint32_t allow_chain; // 0: none, 1: output_note1, 2: output_note2
 
-    crypto::schnorr::signature signature;
+    crypto::schnorr_signature signature;
 
     bool operator==(join_split_tx const&) const = default;
 };

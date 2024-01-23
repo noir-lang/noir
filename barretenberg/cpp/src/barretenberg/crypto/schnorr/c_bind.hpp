@@ -7,7 +7,7 @@ extern "C" {
 
 using namespace bb;
 using affine_element = grumpkin::g1::affine_element;
-using multisig = crypto::schnorr::multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
+using multisig = crypto::schnorr_multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
 
 WASM_EXPORT void schnorr_compute_public_key(fr::in_buf private_key, affine_element::out_buf public_key_buf);
 WASM_EXPORT void schnorr_negate_public_key(affine_element::in_buf public_key_buffer, affine_element::out_buf output);

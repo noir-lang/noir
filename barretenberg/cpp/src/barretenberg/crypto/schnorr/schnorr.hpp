@@ -12,8 +12,8 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 
-namespace bb::crypto::schnorr {
-template <typename Fr, typename G1> struct key_pair {
+namespace bb::crypto {
+template <typename Fr, typename G1> struct schnorr_key_pair {
     Fr private_key;
     typename G1::affine_element public_key;
 };
@@ -21,7 +21,7 @@ template <typename Fr, typename G1> struct key_pair {
 // Raw representation of a Schnorr signature (e,s).  We use the short variant of Schnorr
 // where we include the challenge hash `e` instead of the group element R representing
 // the provers initial message.
-struct signature {
+struct schnorr_signature {
 
     // `s` is a serialized field element (also 32 bytes), representing the prover's response to
     // to the verifier challenge `e`.
@@ -35,32 +35,34 @@ struct signature {
 };
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
-bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig);
+bool schnorr_verify_signature(const std::string& message,
+                              const typename G1::affine_element& public_key,
+                              const schnorr_signature& sig);
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
-signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account);
+schnorr_signature schnorr_construct_signature(const std::string& message, const schnorr_key_pair<Fr, G1>& account);
 
-inline bool operator==(signature const& lhs, signature const& rhs)
+inline bool operator==(schnorr_signature const& lhs, schnorr_signature const& rhs)
 {
     return lhs.s == rhs.s && lhs.e == rhs.e;
 }
 
-inline std::ostream& operator<<(std::ostream& os, signature const& sig)
+inline std::ostream& operator<<(std::ostream& os, schnorr_signature const& sig)
 {
     os << "{ " << sig.s << ", " << sig.e << " }";
     return os;
 }
 
-template <typename B> inline void read(B& it, key_pair<grumpkin::fr, grumpkin::g1>& keypair)
+template <typename B> inline void read(B& it, schnorr_key_pair<grumpkin::fr, grumpkin::g1>& keypair)
 {
     read(it, keypair.private_key);
     read(it, keypair.public_key);
 }
 
-template <typename B> inline void write(B& buf, key_pair<grumpkin::fr, grumpkin::g1> const& keypair)
+template <typename B> inline void write(B& buf, schnorr_key_pair<grumpkin::fr, grumpkin::g1> const& keypair)
 {
     write(buf, keypair.private_key);
     write(buf, keypair.public_key);
 }
-} // namespace bb::crypto::schnorr
+} // namespace bb::crypto
 #include "./schnorr.tcc"

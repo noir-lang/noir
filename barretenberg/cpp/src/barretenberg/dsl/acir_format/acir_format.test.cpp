@@ -7,7 +7,7 @@
 #include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
 
-namespace acir_format::tests {
+using namespace acir_format;
 
 class AcirFormatTests : public ::testing::Test {
   protected:
@@ -27,7 +27,7 @@ TEST_F(AcirFormatTests, TestASingleConstraintNoPubInputs)
         .q_c = 0,
     };
 
-    acir_format constraint_system{
+    AcirFormat constraint_system{
         .varnum = 4,
         .public_inputs = {},
         .logic_constraints = {},
@@ -139,27 +139,27 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
     // EXPR [ (1, _4, _6) (-1, _4) 0 ]
     // EXPR [ (-1, _6) 1 ]
 
-    acir_format constraint_system{ .varnum = 6,
-                                   .public_inputs = { 1 },
-                                   .logic_constraints = { logic_constraint },
-                                   .range_constraints = { range_a, range_b },
-                                   .sha256_constraints = {},
-                                   .schnorr_constraints = {},
-                                   .ecdsa_k1_constraints = {},
-                                   .ecdsa_r1_constraints = {},
-                                   .blake2s_constraints = {},
-                                   .blake3_constraints = {},
-                                   .keccak_constraints = {},
-                                   .keccak_var_constraints = {},
-                                   .keccak_permutations = {},
-                                   .pedersen_constraints = {},
-                                   .pedersen_hash_constraints = {},
-                                   .fixed_base_scalar_mul_constraints = {},
-                                   .ec_add_constraints = {},
-                                   .ec_double_constraints = {},
-                                   .recursion_constraints = {},
-                                   .constraints = { expr_a, expr_b, expr_c, expr_d },
-                                   .block_constraints = {} };
+    AcirFormat constraint_system{ .varnum = 6,
+                                  .public_inputs = { 1 },
+                                  .logic_constraints = { logic_constraint },
+                                  .range_constraints = { range_a, range_b },
+                                  .sha256_constraints = {},
+                                  .schnorr_constraints = {},
+                                  .ecdsa_k1_constraints = {},
+                                  .ecdsa_r1_constraints = {},
+                                  .blake2s_constraints = {},
+                                  .blake3_constraints = {},
+                                  .keccak_constraints = {},
+                                  .keccak_var_constraints = {},
+                                  .keccak_permutations = {},
+                                  .pedersen_constraints = {},
+                                  .pedersen_hash_constraints = {},
+                                  .fixed_base_scalar_mul_constraints = {},
+                                  .ec_add_constraints = {},
+                                  .ec_double_constraints = {},
+                                  .recursion_constraints = {},
+                                  .constraints = { expr_a, expr_b, expr_c, expr_d },
+                                  .block_constraints = {} };
 
     uint256_t inverse_of_five = fr(5).invert();
     WitnessVector witness{
@@ -202,44 +202,44 @@ TEST_F(AcirFormatTests, TestSchnorrVerifyPass)
         .result = 76,
         .signature = signature,
     };
-    acir_format constraint_system{ .varnum = 81,
-                                   .public_inputs = {},
-                                   .logic_constraints = {},
-                                   .range_constraints = range_constraints,
-                                   .sha256_constraints = {},
-                                   .schnorr_constraints = { schnorr_constraint },
-                                   .ecdsa_k1_constraints = {},
-                                   .ecdsa_r1_constraints = {},
-                                   .blake2s_constraints = {},
-                                   .blake3_constraints = {},
-                                   .keccak_constraints = {},
-                                   .keccak_var_constraints = {},
-                                   .keccak_permutations = {},
-                                   .pedersen_constraints = {},
-                                   .pedersen_hash_constraints = {},
-                                   .fixed_base_scalar_mul_constraints = {},
-                                   .ec_add_constraints = {},
-                                   .ec_double_constraints = {},
-                                   .recursion_constraints = {},
-                                   .constraints = { poly_triple{
-                                       .a = schnorr_constraint.result,
-                                       .b = schnorr_constraint.result,
-                                       .c = schnorr_constraint.result,
-                                       .q_m = 0,
-                                       .q_l = 0,
-                                       .q_r = 0,
-                                       .q_o = 1,
-                                       .q_c = fr::neg_one(),
-                                   } },
-                                   .block_constraints = {} };
+    AcirFormat constraint_system{ .varnum = 81,
+                                  .public_inputs = {},
+                                  .logic_constraints = {},
+                                  .range_constraints = range_constraints,
+                                  .sha256_constraints = {},
+                                  .schnorr_constraints = { schnorr_constraint },
+                                  .ecdsa_k1_constraints = {},
+                                  .ecdsa_r1_constraints = {},
+                                  .blake2s_constraints = {},
+                                  .blake3_constraints = {},
+                                  .keccak_constraints = {},
+                                  .keccak_var_constraints = {},
+                                  .keccak_permutations = {},
+                                  .pedersen_constraints = {},
+                                  .pedersen_hash_constraints = {},
+                                  .fixed_base_scalar_mul_constraints = {},
+                                  .ec_add_constraints = {},
+                                  .ec_double_constraints = {},
+                                  .recursion_constraints = {},
+                                  .constraints = { poly_triple{
+                                      .a = schnorr_constraint.result,
+                                      .b = schnorr_constraint.result,
+                                      .c = schnorr_constraint.result,
+                                      .q_m = 0,
+                                      .q_l = 0,
+                                      .q_r = 0,
+                                      .q_o = 1,
+                                      .q_c = fr::neg_one(),
+                                  } },
+                                  .block_constraints = {} };
 
     std::string message_string = "tenletters";
-    crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> account;
+    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
     account.private_key = grumpkin::fr::random_element();
     account.public_key = grumpkin::g1::one * account.private_key;
-    crypto::schnorr::signature signature_raw =
-        crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
-                                                                                                      account);
+    crypto::schnorr_signature signature_raw =
+        crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
+                                                                                                     account);
     uint256_t pub_x = account.public_key.x;
     uint256_t pub_y = account.public_key.y;
     WitnessVector witness{ 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   pub_x, pub_y, 5,   202, 31,  146,
@@ -292,7 +292,7 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
         .result = 76,
         .signature = signature,
     };
-    acir_format constraint_system{
+    AcirFormat constraint_system{
         .varnum = 81,
         .public_inputs = {},
         .logic_constraints = {},
@@ -326,12 +326,12 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
     };
 
     std::string message_string = "tenletters";
-    crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> account;
+    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
     account.private_key = grumpkin::fr::random_element();
     account.public_key = grumpkin::g1::one * account.private_key;
-    crypto::schnorr::signature signature_raw =
-        crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
-                                                                                                      account);
+    crypto::schnorr_signature signature_raw =
+        crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
+                                                                                                     account);
     uint256_t pub_x = account.public_key.x;
     uint256_t pub_y = account.public_key.y;
     WitnessVector witness{ 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   pub_x, pub_y, 5,   202, 31,  146,
@@ -402,7 +402,7 @@ TEST_F(AcirFormatTests, TestVarKeccak)
         .q_c = fr::neg_one() * fr(4),
     };
 
-    acir_format constraint_system{
+    AcirFormat constraint_system{
         .varnum = 36,
         .public_inputs = {},
         .logic_constraints = {},
@@ -445,27 +445,27 @@ TEST_F(AcirFormatTests, TestKeccakPermutation)
                         39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 },
         };
 
-    acir_format constraint_system{ .varnum = 51,
-                                   .public_inputs = {},
-                                   .logic_constraints = {},
-                                   .range_constraints = {},
-                                   .sha256_constraints = {},
-                                   .schnorr_constraints = {},
-                                   .ecdsa_k1_constraints = {},
-                                   .ecdsa_r1_constraints = {},
-                                   .blake2s_constraints = {},
-                                   .blake3_constraints = {},
-                                   .keccak_constraints = {},
-                                   .keccak_var_constraints = {},
-                                   .keccak_permutations = { keccak_permutation },
-                                   .pedersen_constraints = {},
-                                   .pedersen_hash_constraints = {},
-                                   .fixed_base_scalar_mul_constraints = {},
-                                   .ec_add_constraints = {},
-                                   .ec_double_constraints = {},
-                                   .recursion_constraints = {},
-                                   .constraints = {},
-                                   .block_constraints = {} };
+    AcirFormat constraint_system{ .varnum = 51,
+                                  .public_inputs = {},
+                                  .logic_constraints = {},
+                                  .range_constraints = {},
+                                  .sha256_constraints = {},
+                                  .schnorr_constraints = {},
+                                  .ecdsa_k1_constraints = {},
+                                  .ecdsa_r1_constraints = {},
+                                  .blake2s_constraints = {},
+                                  .blake3_constraints = {},
+                                  .keccak_constraints = {},
+                                  .keccak_var_constraints = {},
+                                  .keccak_permutations = { keccak_permutation },
+                                  .pedersen_constraints = {},
+                                  .pedersen_hash_constraints = {},
+                                  .fixed_base_scalar_mul_constraints = {},
+                                  .ec_add_constraints = {},
+                                  .ec_double_constraints = {},
+                                  .recursion_constraints = {},
+                                  .constraints = {},
+                                  .block_constraints = {} };
 
     WitnessVector witness{ 1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17,
                            18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
@@ -481,5 +481,3 @@ TEST_F(AcirFormatTests, TestKeccakPermutation)
 
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
-
-} // namespace acir_format::tests

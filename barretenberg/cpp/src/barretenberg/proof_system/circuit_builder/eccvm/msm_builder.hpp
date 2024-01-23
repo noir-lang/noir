@@ -13,9 +13,9 @@ template <typename Flavor> class ECCVMMSMMBuilder {
     using Element = typename CycleGroup::element;
     using AffineElement = typename CycleGroup::affine_element;
 
-    static constexpr size_t ADDITIONS_PER_ROW = bb_eccvm::ADDITIONS_PER_ROW;
-    static constexpr size_t NUM_SCALAR_BITS = bb_eccvm::NUM_SCALAR_BITS;
-    static constexpr size_t WNAF_SLICE_BITS = bb_eccvm::WNAF_SLICE_BITS;
+    static constexpr size_t ADDITIONS_PER_ROW = bb::eccvm::ADDITIONS_PER_ROW;
+    static constexpr size_t NUM_SCALAR_BITS = bb::eccvm::NUM_SCALAR_BITS;
+    static constexpr size_t WNAF_SLICE_BITS = bb::eccvm::WNAF_SLICE_BITS;
 
     struct MSMState {
         uint32_t pc = 0;
@@ -53,7 +53,7 @@ template <typename Flavor> class ECCVMMSMMBuilder {
      * @param total_number_of_muls
      * @return std::vector<MSMState>
      */
-    static std::vector<MSMState> compute_msm_state(const std::vector<bb_eccvm::MSM<CycleGroup>>& msms,
+    static std::vector<MSMState> compute_msm_state(const std::vector<bb::eccvm::MSM<CycleGroup>>& msms,
                                                    std::array<std::vector<size_t>, 2>& point_table_read_counts,
                                                    const uint32_t total_number_of_muls)
     {

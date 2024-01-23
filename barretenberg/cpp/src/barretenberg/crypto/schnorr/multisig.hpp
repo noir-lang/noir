@@ -12,7 +12,7 @@
 #include "proof_of_possession.hpp"
 #include "schnorr.hpp"
 
-namespace bb::crypto::schnorr {
+namespace bb::crypto {
 
 /**
  * @brief Implements the SpeedyMuSig protocol; a secure 2-round interactive multisignature scheme
@@ -25,7 +25,7 @@ namespace bb::crypto::schnorr {
  *
  * @details SpeedyMuSig paper at https://eprint.iacr.org/2021/1375.pdf
  */
-template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> class multisig {
+template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> class schnorr_multisig {
 
     // ensure that a different hash function is used for signature and proof of possession/nonce.
     // we can apply domain separation for HashRegNon but not for HashSig, so this ensures all hash functions
@@ -37,7 +37,7 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
     using Fr = typename G1::subgroup_field;
     using affine_element = typename G1::affine_element;
     using element = typename G1::element;
-    using key_pair = crypto::schnorr::key_pair<Fr, G1>;
+    using key_pair = crypto::schnorr_key_pair<Fr, G1>;
 
     /**
      * @brief MultiSigPublicKey wraps a signer's public key g1::affine_element
@@ -56,7 +56,7 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
 
         affine_element public_key = G1::affine_point_at_infinity;
         // proof of knowledge of the secret_key for public_key
-        ProofOfPossession<G1, HashRegNon> proof_of_possession;
+        SchnorrProofOfPossession<G1, HashRegNon> proof_of_possession;
 
         // For serialization, update with any new fields
         MSGPACK_FIELDS(public_key, proof_of_possession);
@@ -69,15 +69,15 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         {}
         // Needed to appease MSGPACK_FIELDS
         MultiSigPublicKey(const affine_element& public_key,
-                          const ProofOfPossession<G1, HashRegNon>& proof_of_possession)
+                          const SchnorrProofOfPossession<G1, HashRegNon>& proof_of_possession)
             : public_key(public_key)
             , proof_of_possession(proof_of_possession)
         {}
     };
 
     struct RoundOnePrivateOutput {
-        typedef uint8_t const* in_buf;
-        typedef uint8_t* out_buf;
+        using in_buf = const uint8_t*;
+        using out_buf = uint8_t*;
 
         Fr r;
         Fr s;
@@ -86,10 +86,10 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
     };
 
     struct RoundOnePublicOutput {
-        typedef uint8_t const* in_buf;
-        typedef uint8_t const* vec_in_buf;
-        typedef uint8_t* out_buf;
-        typedef uint8_t** vec_out_buf;
+        using in_buf = const uint8_t*;
+        using vec_in_buf = const uint8_t*;
+        using out_buf = uint8_t*;
+        using vec_out_buf = uint8_t**;
 
         // R = r⋅G
         affine_element R;
@@ -371,7 +371,7 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         affine_element R = construct_multisig_nonce(a, round_1_nonces);
 
         // Now we have the multisig nonce, compute schnorr challenge e (termed `c` in the speedyMuSig paper)
-        auto e_buf = generate_schnorr_challenge<HashSig, G1>(message, *aggregate_pubkey, R);
+        auto e_buf = schnorr_generate_challenge<HashSig, G1>(message, *aggregate_pubkey, R);
         Fr e = Fr::serialize_from_buffer(&e_buf[0]);
 
         // output of round 2 is z
@@ -391,7 +391,7 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
      * @return signature it's a Schnorr signature! Looks identical to a regular non-multisig Schnorr signature.
      * @return std::nullopt if any of the signature shares are invalid
      */
-    static std::optional<signature> combine_signatures(
+    static std::optional<schnorr_signature> combine_signatures(
         const std::string& message,
         const std::vector<MultiSigPublicKey>& signer_pubkeys,
         const std::vector<RoundOnePublicOutput>& round_1_nonces,
@@ -423,9 +423,9 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         // compute aggregate nonce R = R1 + ... + Rn + S1 * a + ... + Sn * a
         affine_element R = construct_multisig_nonce(a, round_1_nonces);
 
-        auto e_buf = generate_schnorr_challenge<HashSig, G1>(message, *aggregate_pubkey, R);
+        auto e_buf = schnorr_generate_challenge<HashSig, G1>(message, *aggregate_pubkey, R);
 
-        signature sig;
+        schnorr_signature sig;
         // copy e as its raw bit representation (without modular reduction)
         std::copy(e_buf.begin(), e_buf.end(), sig.e.begin());
 
@@ -437,11 +437,11 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         Fr::serialize_to_buffer(s, &sig.s[0]);
 
         // verify the final signature before returning
-        if (!verify_signature<HashSig, Fq, Fr, G1>(message, *aggregate_pubkey, sig)) {
+        if (!schnorr_verify_signature<HashSig, Fq, Fr, G1>(message, *aggregate_pubkey, sig)) {
             return std::nullopt;
         }
 
         return sig;
     }
 };
-} // namespace bb::crypto::schnorr
+} // namespace bb::crypto

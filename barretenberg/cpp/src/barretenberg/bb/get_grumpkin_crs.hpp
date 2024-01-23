@@ -8,4 +8,8 @@
 #include <fstream>
 #include <ios>
 
+namespace bb {
+
 std::vector<curve::Grumpkin::AffineElement> get_grumpkin_g1_data(const std::filesystem::path& path, size_t num_points);
+
+}

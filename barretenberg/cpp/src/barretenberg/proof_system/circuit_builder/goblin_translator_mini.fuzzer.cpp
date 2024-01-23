@@ -1,7 +1,10 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "goblin_translator_circuit_builder.hpp"
-using Fr = ::curve::BN254::ScalarField;
-using Fq = ::curve::BN254::BaseField;
+
+using namespace bb;
+
+using Fr = curve::BN254::ScalarField;
+using Fq = curve::BN254::BaseField;
 
 extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
 {

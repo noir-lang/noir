@@ -8,5 +8,7 @@
 #include <fstream>
 #include <ios>
 
-std::vector<bb::g1::affine_element> get_bn254_g1_data(const std::filesystem::path& path, size_t num_points);
-bb::g2::affine_element get_bn254_g2_data(const std::filesystem::path& path);
+namespace bb {
+std::vector<g1::affine_element> get_bn254_g1_data(const std::filesystem::path& path, size_t num_points);
+g2::affine_element get_bn254_g2_data(const std::filesystem::path& path);
+} // namespace bb

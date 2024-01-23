@@ -10,9 +10,7 @@
         std::string message = e.what();                                                                                \
         EXPECT_TRUE(message.find(expectedMessage) != std::string::npos);                                               \
     }
-
 namespace tests_avm {
-
 void validate_trace_proof(std::vector<Row>&& trace);
 void mutate_ic_in_trace(std::vector<Row>& trace,
                         std::function<bool(Row)>&& selectRow,

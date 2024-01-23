@@ -16,7 +16,7 @@ namespace bb::stdlib {
 
 template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
-    using InnerComposer = bb::plonk::UltraComposer;
+    using InnerComposer = plonk::UltraComposer;
     using InnerBuilder = typename InnerComposer::CircuitBuilder;
 
     using OuterBuilder = typename OuterComposer::CircuitBuilder;
@@ -36,7 +36,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
     using inner_scalar_field = typename inner_curve::ScalarFieldNative;
     using outer_scalar_field = typename outer_curve::BaseFieldNative;
-    using pairing_target_field = bb::fq12;
+    using pairing_target_field = fq12;
 
     // These constexpr definitions are to allow for the following: An Ultra Pedersen hash evaluates to a
     // different value from the Standard version of the Pedersen hash. Therefore, the fiat-shamir
@@ -212,7 +212,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         plonk::proof proof_to_recursively_verify_b = prover.construct_proof();
 
-        auto output = bb::stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
+        auto output = stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
             &outer_circuit, verification_key_b, recursive_manifest, proof_to_recursively_verify_b, previous_output);
 
         verification_key_b->hash();
@@ -265,8 +265,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover_a.key->num_public_inputs);
 
-        bb::stdlib::recursion::aggregation_state<outer_curve> output =
-            bb::stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
+        stdlib::recursion::aggregation_state<outer_curve> output =
+            stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
                 &outer_circuit, verification_key, recursive_manifest, recursive_proof);
 
         return { output, verification_key };
@@ -320,7 +320,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
                 { x1, y1 },
             };
 
-            pairing_target_field result = bb::pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
+            pairing_target_field result = pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
 
             return (result == pairing_target_field::one());
         }
@@ -332,13 +332,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
     static void check_pairing(const circuit_outputs& circuit_output)
     {
-        auto g2_lines = bb::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
+        auto g2_lines = srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         g1::affine_element P[2];
         P[0].x = outer_scalar_field(circuit_output.aggregation_state.P0.x.get_value().lo);
         P[0].y = outer_scalar_field(circuit_output.aggregation_state.P0.y.get_value().lo);
         P[1].x = outer_scalar_field(circuit_output.aggregation_state.P1.x.get_value().lo);
         P[1].y = outer_scalar_field(circuit_output.aggregation_state.P1.y.get_value().lo);
-        pairing_target_field inner_proof_result = bb::pairing::reduced_ate_pairing_batch_precomputed(P, g2_lines, 2);
+        pairing_target_field inner_proof_result = pairing::reduced_ate_pairing_batch_precomputed(P, g2_lines, 2);
         EXPECT_EQ(inner_proof_result, pairing_target_field::one());
     }
 
@@ -347,7 +347,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         info("number of gates in recursive verification circuit = ", outer_circuit.get_num_gates());
         bool result = outer_circuit.check_circuit();
         EXPECT_EQ(result, expected_result);
-        auto g2_lines = bb::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
+        auto g2_lines = srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         EXPECT_EQ(check_recursive_proof_public_inputs(outer_circuit, g2_lines), true);
     }
 

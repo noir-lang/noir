@@ -58,7 +58,7 @@ template <typename Flavor> class ECCVMTranscriptBuilder {
         }
     };
     static std::vector<TranscriptState> compute_transcript_state(
-        const std::vector<bb_eccvm::VMOperation<CycleGroup>>& vm_operations, const uint32_t total_number_of_muls)
+        const std::vector<bb::eccvm::VMOperation<CycleGroup>>& vm_operations, const uint32_t total_number_of_muls)
     {
         std::vector<TranscriptState> transcript_state;
         VMState state{
@@ -74,7 +74,7 @@ template <typename Flavor> class ECCVMTranscriptBuilder {
         transcript_state.emplace_back(TranscriptState{});
         for (size_t i = 0; i < vm_operations.size(); ++i) {
             TranscriptState row;
-            const bb_eccvm::VMOperation<CycleGroup>& entry = vm_operations[i];
+            const bb::eccvm::VMOperation<CycleGroup>& entry = vm_operations[i];
 
             const bool is_mul = entry.mul;
             const bool z1_zero = (entry.mul) ? entry.z1 == 0 : true;

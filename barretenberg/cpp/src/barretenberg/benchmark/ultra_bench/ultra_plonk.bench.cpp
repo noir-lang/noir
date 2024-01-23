@@ -1,4 +1,4 @@
-#include "barretenberg/benchmark/ultra_bench/benchmark_utilities.hpp"
+#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
@@ -12,7 +12,7 @@ static void construct_proof_ultraplonk(State& state,
                                        void (*test_circuit_function)(UltraCircuitBuilder&, size_t)) noexcept
 {
     size_t num_iterations = 10; // 10x the circuit
-    bench_utils::construct_proof_with_specified_num_iterations<plonk::UltraComposer>(
+    bb::mock_proofs::construct_proof_with_specified_num_iterations<plonk::UltraComposer>(
         state, test_circuit_function, num_iterations);
 }
 
@@ -22,22 +22,26 @@ static void construct_proof_ultraplonk(State& state,
 static void construct_proof_ultraplonk_power_of_2(State& state) noexcept
 {
     auto log2_of_gates = static_cast<size_t>(state.range(0));
-    bench_utils::construct_proof_with_specified_num_iterations<plonk::UltraComposer>(
-        state, &bench_utils::generate_basic_arithmetic_circuit<UltraCircuitBuilder>, log2_of_gates);
+    bb::mock_proofs::construct_proof_with_specified_num_iterations<plonk::UltraComposer>(
+        state, &bb::mock_proofs::generate_basic_arithmetic_circuit<UltraCircuitBuilder>, log2_of_gates);
 }
 
 // Define benchmarks
-BENCHMARK_CAPTURE(construct_proof_ultraplonk, sha256, &bench_utils::generate_sha256_test_circuit<UltraCircuitBuilder>)
+BENCHMARK_CAPTURE(construct_proof_ultraplonk,
+                  sha256,
+                  &bb::mock_proofs::generate_sha256_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
-BENCHMARK_CAPTURE(construct_proof_ultraplonk, keccak, &bench_utils::generate_keccak_test_circuit<UltraCircuitBuilder>)
+BENCHMARK_CAPTURE(construct_proof_ultraplonk,
+                  keccak,
+                  &bb::mock_proofs::generate_keccak_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
 BENCHMARK_CAPTURE(construct_proof_ultraplonk,
                   ecdsa_verification,
-                  &bench_utils::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>)
+                  &bb::mock_proofs::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
 BENCHMARK_CAPTURE(construct_proof_ultraplonk,
                   merkle_membership,
-                  &bench_utils::generate_merkle_membership_test_circuit<UltraCircuitBuilder>)
+                  &bb::mock_proofs::generate_merkle_membership_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
 
 BENCHMARK(construct_proof_ultraplonk_power_of_2)

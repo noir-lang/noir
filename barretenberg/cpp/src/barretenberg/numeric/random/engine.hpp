@@ -5,9 +5,9 @@
 #include "unistd.h"
 #include <cstdint>
 
-namespace numeric::random {
+namespace bb::numeric {
 
-class Engine {
+class RNG {
   public:
     virtual uint8_t get_random_uint8() = 0;
 
@@ -21,12 +21,12 @@ class Engine {
 
     virtual uint256_t get_random_uint256() = 0;
 
-    virtual ~Engine() = default;
-    Engine() noexcept = default;
-    Engine(const Engine& other) = default;
-    Engine(Engine&& other) = default;
-    Engine& operator=(const Engine& other) = default;
-    Engine& operator=(Engine&& other) = default;
+    virtual ~RNG() = default;
+    RNG() noexcept = default;
+    RNG(const RNG& other) = default;
+    RNG(RNG&& other) = default;
+    RNG& operator=(const RNG& other) = default;
+    RNG& operator=(RNG&& other) = default;
 
     uint512_t get_random_uint512()
     {
@@ -45,7 +45,7 @@ class Engine {
     }
 };
 
-Engine& get_debug_engine(bool reset = false);
-Engine& get_engine();
+RNG& get_debug_randomness(bool reset = false);
+RNG& get_randomness();
 
-} // namespace numeric::random
+} // namespace bb::numeric

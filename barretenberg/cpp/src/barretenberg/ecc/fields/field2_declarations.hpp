@@ -2,9 +2,9 @@
 
 #include "barretenberg/numeric/uint256/uint256.hpp"
 
-// forward declare Engine
-namespace numeric::random {
-class Engine;
+// forward declare RNG
+namespace bb::numeric {
+class RNG;
 }
 
 namespace bb {
@@ -115,7 +115,7 @@ template <class base_field, class Params> struct alignas(32) field2 {
     constexpr field2 frobenius_map() const noexcept;
     constexpr void self_frobenius_map() noexcept;
 
-    static field2 random_element(numeric::random::Engine* engine = nullptr);
+    static field2 random_element(numeric::RNG* engine = nullptr);
     static void serialize_to_buffer(const field2& value, uint8_t* buffer)
     {
         base_field::serialize_to_buffer(value.c0, buffer);

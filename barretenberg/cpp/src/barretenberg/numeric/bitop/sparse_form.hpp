@@ -7,7 +7,7 @@
 
 #include "../uint256/uint256.hpp"
 
-namespace numeric {
+namespace bb::numeric {
 
 inline std::vector<uint64_t> slice_input(const uint256_t& input, const uint64_t base, const size_t num_slices)
 {
@@ -154,4 +154,4 @@ template <uint64_t base, size_t num_bits> class sparse_int {
     uint64_t sparse_value;
 };
 
-} // namespace numeric
+} // namespace bb::numeric

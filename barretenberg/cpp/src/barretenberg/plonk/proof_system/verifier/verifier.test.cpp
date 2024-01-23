@@ -28,7 +28,7 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
     poly_coefficients[6] = circuit_proving_key->polynomial_store.get("sigma_2").data();
     poly_coefficients[7] = circuit_proving_key->polynomial_store.get("sigma_3").data();
 
-    std::vector<bb::g1::affine_element> commitments;
+    std::vector<g1::affine_element> commitments;
     scalar_multiplication::pippenger_runtime_state<curve::BN254> state(circuit_proving_key->circuit_size);
     commitments.resize(8);
 

@@ -26,7 +26,7 @@ class ECCOpQueue {
     Point accumulator = point_at_infinity;
 
   public:
-    using ECCVMOperation = bb_eccvm::VMOperation<Curve::Group>;
+    using ECCVMOperation = bb::eccvm::VMOperation<Curve::Group>;
     std::vector<ECCVMOperation> raw_ops;
     std::array<std::vector<Fr>, 4> ultra_ops; // ops encoded in the width-4 Ultra format
 

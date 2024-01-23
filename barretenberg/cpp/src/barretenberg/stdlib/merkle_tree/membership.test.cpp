@@ -7,17 +7,15 @@
 
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
-namespace {
-auto& engine = numeric::random::get_debug_engine();
-}
-
-namespace bb::stdlib_merkle_test {
-
 using namespace bb;
 using namespace bb::stdlib::merkle_tree;
 using namespace bb::stdlib;
 
-using Builder = bb::UltraCircuitBuilder;
+namespace {
+auto& engine = numeric::get_debug_randomness();
+}
+
+using Builder = UltraCircuitBuilder;
 
 using bool_ct = bool_t<Builder>;
 using field_ct = field_t<Builder>;
@@ -247,4 +245,3 @@ TEST(stdlib_merkle_tree, test_update_memberships)
     bool result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
-} // namespace bb::stdlib_merkle_test

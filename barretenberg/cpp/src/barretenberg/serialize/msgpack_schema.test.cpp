@@ -3,37 +3,38 @@
 
 #include <gtest/gtest.h>
 
+using namespace bb;
+
 // Sanity checking for msgpack
-// TODO eventually move to barretenberg
 
 struct GoodExample {
-    bb::fr a;
-    bb::fr b;
+    fr a;
+    fr b;
     MSGPACK_FIELDS(a, b);
 } good_example;
 
 struct BadExampleOverlap {
-    bb::fr a;
-    bb::fr b;
+    fr a;
+    fr b;
     MSGPACK_FIELDS(a, a);
 } bad_example_overlap;
 
 struct BadExampleIncomplete {
-    bb::fr a;
-    bb::fr b;
+    fr a;
+    fr b;
     MSGPACK_FIELDS(a);
 } bad_example_incomplete;
 
 struct BadExampleCompileTimeError {
     std::vector<int> a;
-    bb::fr b;
+    fr b;
 
     MSGPACK_FIELDS(b); // Type mismatch, expect 'a', will catch at compile-time
 } bad_example_compile_time_error;
 
 struct BadExampleOutOfObject {
-    bb::fr a;
-    bb::fr b;
+    fr a;
+    fr b;
     void msgpack(auto ar)
     {
         BadExampleOutOfObject other_object;
@@ -66,9 +67,9 @@ TEST(msgpack_tests, msgpack_sanity_sanity)
 }
 
 struct ComplicatedSchema {
-    std::vector<std::array<bb::fr, 20>> array;
+    std::vector<std::array<fr, 20>> array;
     std::optional<GoodExample> good_or_not;
-    bb::fr bare;
+    fr bare;
     std::variant<bb::fr, GoodExample> huh;
     MSGPACK_FIELDS(array, good_or_not, bare, huh);
 } complicated_schema;

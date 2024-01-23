@@ -1043,7 +1043,7 @@ TYPED_TEST(PolynomialTests, evaluate_mle)
     using FF = TypeParam;
 
     auto test_case = [](size_t N) {
-        auto& engine = numeric::random::get_debug_engine();
+        auto& engine = numeric::get_debug_randomness();
         const size_t m = numeric::get_msb(N);
         EXPECT_EQ(N, 1 << m);
         Polynomial<FF> poly(N);

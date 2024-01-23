@@ -26,7 +26,7 @@ fr compute_nullifier(grumpkin::fq const& note_commitment,
     };
     auto hashed_inputs = crypto::pedersen_hash::hash(buf, GeneratorIndex::JOIN_SPLIT_NULLIFIER);
 
-    auto blake_result = blake2::blake2s(to_buffer(hashed_inputs));
+    auto blake_result = bb::crypto::blake2s(to_buffer(hashed_inputs));
 
     return from_buffer<fr>(blake_result);
 }

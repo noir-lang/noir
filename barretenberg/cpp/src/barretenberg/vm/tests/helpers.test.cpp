@@ -1,8 +1,8 @@
 #include "AvmMini_common.test.hpp"
 
-namespace tests_avm {
-using namespace avm_trace;
+using namespace bb;
 
+namespace tests_avm {
 /**
  * @brief Helper routine proving and verifying a proof based on the supplied trace
  *
@@ -10,12 +10,12 @@ using namespace avm_trace;
  */
 void validate_trace_proof(std::vector<Row>&& trace)
 {
-    auto circuit_builder = bb::AvmMiniCircuitBuilder();
+    auto circuit_builder = AvmMiniCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
     EXPECT_TRUE(circuit_builder.check_circuit());
 
-    auto composer = bb::honk::AvmMiniComposer();
+    auto composer = honk::AvmMiniComposer();
     auto prover = composer.create_prover(circuit_builder);
     auto proof = prover.construct_proof();
 
@@ -23,7 +23,7 @@ void validate_trace_proof(std::vector<Row>&& trace)
     bool verified = verifier.verify_proof(proof);
 
     if (!verified) {
-        log_avmMini_trace(circuit_builder.rows, 0, 10);
+        avm_trace::log_avmMini_trace(circuit_builder.rows, 0, 10);
     }
 };
 
@@ -70,5 +70,4 @@ void mutate_ic_in_trace(std::vector<Row>& trace, std::function<bool(Row)>&& sele
     EXPECT_TRUE(mem_row != trace.end());
     mem_row->memTrace_m_val = newValue;
 };
-
 } // namespace tests_avm

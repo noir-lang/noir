@@ -10,21 +10,20 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 #include <gtest/gtest.h>
-
+using namespace bb;
 using namespace bb::honk;
-namespace goblin_recursion_tests {
 
 class GoblinRecursionTests : public ::testing::Test {
   protected:
     static void SetUpTestSuite()
     {
-        bb::srs::init_crs_factory("../srs_db/ignition");
-        bb::srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+        srs::init_crs_factory("../srs_db/ignition");
+        srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
     }
 
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
-    using GoblinUltraBuilder = bb::GoblinUltraCircuitBuilder;
+    using GoblinUltraBuilder = GoblinUltraCircuitBuilder;
     using KernelInput = Goblin::AccumulationOutput;
 };
 
@@ -61,4 +60,3 @@ TEST_F(GoblinRecursionTests, Pseudo)
 }
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/787) Expand these tests.
-} // namespace goblin_recursion_tests

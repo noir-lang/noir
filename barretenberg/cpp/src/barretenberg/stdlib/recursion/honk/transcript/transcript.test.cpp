@@ -13,7 +13,7 @@ namespace bb::stdlib::recursion::honk {
 using Builder = UltraCircuitBuilder;
 using UltraFlavor = ::bb::honk::flavor::Ultra;
 using UltraRecursiveFlavor = ::bb::honk::flavor::UltraRecursive_<Builder>;
-using FF = bb::fr;
+using FF = fr;
 using BaseTranscript = ::bb::honk::BaseTranscript;
 
 /**
@@ -124,8 +124,8 @@ TEST(RecursiveHonkTranscript, InterfacesMatch)
  */
 TEST(RecursiveHonkTranscript, ReturnValuesMatch)
 {
-    using FF = bb::fr;
-    using Commitment = bb::g1::affine_element;
+    using FF = fr;
+    using Commitment = g1::affine_element;
 
     using field_ct = field_t<Builder>;
     using fq_ct = bigfield<Builder, bb::Bn254FqParams>;

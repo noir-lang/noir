@@ -2,11 +2,11 @@
 #include "../random/engine.hpp"
 #include <gtest/gtest.h>
 
+using namespace bb;
+using namespace bb::numeric;
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
-
-using namespace numeric;
 
 TEST(uint256, TestStringConstructors)
 {

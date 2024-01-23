@@ -7,7 +7,10 @@
 #include <gtest/gtest.h>
 #include <span>
 
-namespace bb::honk::pcs::gemini {
+using namespace bb;
+using namespace bb::honk;
+using namespace bb::honk::pcs;
+using namespace bb::honk::pcs::gemini;
 
 template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
     using GeminiProver = GeminiProver_<Curve>;
@@ -237,5 +240,3 @@ TYPED_TEST(GeminiTest, DoubleWithShift)
                                            multilinear_commitments,
                                            multilinear_commitments_to_be_shifted);
 }
-
-} // namespace bb::honk::pcs::gemini

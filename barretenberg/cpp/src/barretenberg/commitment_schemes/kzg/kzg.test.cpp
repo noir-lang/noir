@@ -32,7 +32,7 @@ TYPED_TEST(KZGTest, single)
     using Fr = typename TypeParam::ScalarField;
 
     auto witness = this->random_polynomial(n);
-    bb::g1::element commitment = this->commit(witness);
+    g1::element commitment = this->commit(witness);
 
     auto challenge = Fr::random_element();
     auto evaluation = witness.evaluate(challenge);

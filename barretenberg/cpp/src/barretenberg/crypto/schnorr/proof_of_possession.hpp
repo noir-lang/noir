@@ -5,7 +5,7 @@
 #include "barretenberg/common/serialize.hpp"
 #include "schnorr.hpp"
 
-namespace bb::crypto::schnorr {
+namespace bb::crypto {
 
 /**
  * @brief A proof of possession is a Schnorr proof of knowledge of a secret key corresponding to a given public key.
@@ -15,12 +15,12 @@ namespace bb::crypto::schnorr {
  * @tparam G1 group over which the key pair was generated
  * @tparam Hash function used to derive the Fiat-Shamir challenge
  */
-template <typename G1, typename Hash> struct ProofOfPossession {
+template <typename G1, typename Hash> struct SchnorrProofOfPossession {
     using Fq = typename G1::coordinate_field;
     using Fr = typename G1::subgroup_field;
     using affine_element = typename G1::affine_element;
     using element = typename G1::element;
-    using key_pair = crypto::schnorr::key_pair<Fr, G1>;
+    using key_pair = crypto::schnorr_key_pair<Fr, G1>;
 
     // challenge = e = H_reg(pk,pk,R)
     std::array<uint8_t, 32> challenge;
@@ -28,7 +28,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
     Fr response = Fr::zero();
 
     // restore default constructor to enable deserialization
-    ProofOfPossession() = default;
+    SchnorrProofOfPossession() = default;
 
     /**
      * @brief Create a new proof of possession for a given account.
@@ -37,7 +37,7 @@ template <typename G1, typename Hash> struct ProofOfPossession {
      *
      * @param account a key_pair (secret_key, public_key)
      */
-    ProofOfPossession(const key_pair& account)
+    SchnorrProofOfPossession(const key_pair& account)
     {
         auto secret_key = account.private_key;
         auto public_key = account.public_key;
@@ -121,17 +121,17 @@ template <typename G1, typename Hash> struct ProofOfPossession {
 };
 
 template <typename B, typename G1, typename Hash>
-inline void read(B& it, ProofOfPossession<G1, Hash>& proof_of_possession)
+inline void read(B& it, SchnorrProofOfPossession<G1, Hash>& proof_of_possession)
 {
     read(it, proof_of_possession.challenge);
     read(it, proof_of_possession.response);
 }
 
 template <typename B, typename G1, typename Hash>
-inline void write(B& buf, ProofOfPossession<G1, Hash> const& proof_of_possession)
+inline void write(B& buf, SchnorrProofOfPossession<G1, Hash> const& proof_of_possession)
 {
     write(buf, proof_of_possession.challenge);
     write(buf, proof_of_possession.response);
 }
 
-} // namespace bb::crypto::schnorr
+} // namespace bb::crypto

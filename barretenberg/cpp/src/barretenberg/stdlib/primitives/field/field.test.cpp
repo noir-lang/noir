@@ -10,10 +10,8 @@
 
 using namespace bb;
 
-namespace test_stdlib_field {
-
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 }
 
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
@@ -193,12 +191,12 @@ template <typename Builder> class stdlib_field : public testing::Test {
         Builder builder = Builder();
 
         field_ct a = witness_ct(&builder, bb::fr::random_element());
-        a *= bb::fr::random_element();
-        a += bb::fr::random_element();
+        a *= fr::random_element();
+        a += fr::random_element();
 
         field_ct b = witness_ct(&builder, bb::fr::random_element());
-        b *= bb::fr::random_element();
-        b += bb::fr::random_element();
+        b *= fr::random_element();
+        b += fr::random_element();
 
         // numerator constant
         field_ct out = field_ct(&builder, b.get_value()) / a;
@@ -618,11 +616,11 @@ template <typename Builder> class stdlib_field : public testing::Test {
             constexpr uint256_t modulus_minus_one = fr::modulus - 1;
             const fr p_lo = modulus_minus_one.slice(0, 130);
 
-            std::vector<bb::fr> test_elements = { bb::fr::random_element(),
-                                                  0,
-                                                  -1,
-                                                  bb::fr(static_cast<uint256_t>(engine.get_random_uint8())),
-                                                  bb::fr((static_cast<uint256_t>(1) << 130) + 1 + p_lo) };
+            std::vector<fr> test_elements = { bb::fr::random_element(),
+                                              0,
+                                              -1,
+                                              fr(static_cast<uint256_t>(engine.get_random_uint8())),
+                                              fr((static_cast<uint256_t>(1) << 130) + 1 + p_lo) };
 
             for (auto a_expected : test_elements) {
                 field_ct a = witness_ct(&builder, a_expected);
@@ -713,13 +711,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        bb::fr base_val(engine.get_random_uint256());
+        fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base = witness_ct(&builder, base_val);
         field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        bb::fr expected = base_val.pow(exponent_val);
+        fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
@@ -732,7 +730,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        bb::fr base_val(engine.get_random_uint256());
+        fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = 0;
 
         field_ct base = witness_ct(&builder, base_val);
@@ -750,7 +748,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        bb::fr base_val(engine.get_random_uint256());
+        fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = 1;
 
         field_ct base = witness_ct(&builder, base_val);
@@ -770,13 +768,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
         const size_t num_gates_start = builder.num_gates;
 
-        bb::fr base_val(engine.get_random_uint256());
+        fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base(&builder, base_val);
         field_ct exponent(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        bb::fr expected = base_val.pow(exponent_val);
+        fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
@@ -788,13 +786,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        bb::fr base_val(engine.get_random_uint256());
+        fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base(&builder, base_val);
         field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        bb::fr expected = base_val.pow(exponent_val);
+        fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
 
@@ -807,13 +805,13 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        bb::fr base_val(engine.get_random_uint256());
+        fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
 
         field_ct base = witness_ct(&builder, base_val);
         field_ct exponent(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        bb::fr expected = base_val.pow(exponent_val);
+        fr expected = base_val.pow(exponent_val);
 
         EXPECT_EQ(result.get_value(), expected);
         info("num gates = ", builder.get_num_gates());
@@ -826,14 +824,14 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        bb::fr base_val(engine.get_random_uint256());
+        fr base_val(engine.get_random_uint256());
         uint64_t exponent_val = engine.get_random_uint32();
         exponent_val += (uint64_t(1) << 32);
 
         field_ct base = witness_ct(&builder, base_val);
         field_ct exponent = witness_ct(&builder, exponent_val);
         field_ct result = base.pow(exponent);
-        bb::fr expected = base_val.pow(exponent_val);
+        fr expected = base_val.pow(exponent_val);
 
         EXPECT_NE(result.get_value(), expected);
         EXPECT_EQ(builder.failed(), true);
@@ -844,7 +842,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
     {
         Builder builder = Builder();
 
-        bb::fr value(engine.get_random_uint256());
+        fr value(engine.get_random_uint256());
         field_ct value_ct = witness_ct(&builder, value);
 
         field_ct first_copy = witness_ct(&builder, value_ct.get_value());
@@ -1035,5 +1033,3 @@ TYPED_TEST(stdlib_field, test_ranged_less_than)
 {
     TestFixture::test_ranged_less_than();
 }
-
-} // namespace test_stdlib_field

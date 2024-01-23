@@ -18,7 +18,7 @@
 #include <iomanip>
 #include <iostream>
 
-namespace numeric {
+namespace bb::numeric {
 
 template <class base_uint> class uintx {
   public:
@@ -187,9 +187,9 @@ template <class base_uint> inline std::ostream& operator<<(std::ostream& os, uin
 using uint512_t = uintx<numeric::uint256_t>;
 using uint1024_t = uintx<uint512_t>;
 
-} // namespace numeric
+} // namespace bb::numeric
 
 #include "./uintx_impl.hpp"
 
-using numeric::uint1024_t; // NOLINT
-using numeric::uint512_t;  // NOLINT
+using bb::numeric::uint1024_t; // NOLINT
+using bb::numeric::uint512_t;  // NOLINT

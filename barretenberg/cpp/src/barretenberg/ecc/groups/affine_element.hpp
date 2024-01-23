@@ -77,7 +77,7 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
      *
      * @return A randomly chosen point on the curve
      */
-    static affine_element random_element(numeric::random::Engine* engine = nullptr) noexcept;
+    static affine_element random_element(numeric::RNG* engine = nullptr) noexcept;
     static constexpr affine_element hash_to_curve(const std::vector<uint8_t>& seed, uint8_t attempt_count = 0) noexcept
         requires SupportsHashToCurve<Params>;
 

@@ -20,9 +20,7 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
-using namespace benchmark;
-
-namespace bench_utils {
+namespace bb::mock_proofs {
 
 /**
  * @brief Generate test circuit with basic arithmetic operations
@@ -32,9 +30,9 @@ namespace bench_utils {
  */
 template <typename Builder> void generate_basic_arithmetic_circuit(Builder& builder, size_t log2_num_gates)
 {
-    bb::stdlib::field_t a(bb::stdlib::witness_t(&builder, bb::fr::random_element()));
-    bb::stdlib::field_t b(bb::stdlib::witness_t(&builder, bb::fr::random_element()));
-    bb::stdlib::field_t c(&builder);
+    stdlib::field_t a(stdlib::witness_t(&builder, fr::random_element()));
+    stdlib::field_t b(stdlib::witness_t(&builder, fr::random_element()));
+    stdlib::field_t c(&builder);
     size_t passes = (1UL << log2_num_gates) / 4 - 4;
     if (static_cast<int>(passes) <= 0) {
         throw std::runtime_error("too few gates");
@@ -58,9 +56,9 @@ template <typename Builder> void generate_sha256_test_circuit(Builder& builder, 
 {
     std::string in;
     in.resize(32);
-    bb::stdlib::packed_byte_array<Builder> input(&builder, in);
+    stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = bb::stdlib::sha256<Builder>(input);
+        input = stdlib::sha256<Builder>(input);
     }
 }
 
@@ -74,9 +72,9 @@ template <typename Builder> void generate_keccak_test_circuit(Builder& builder, 
 {
     std::string in = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
 
-    bb::stdlib::byte_array<Builder> input(&builder, in);
+    stdlib::byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
-        input = bb::stdlib::keccak<Builder>::hash(input);
+        input = stdlib::keccak<Builder>::hash(input);
     }
 }
 
@@ -88,24 +86,24 @@ template <typename Builder> void generate_keccak_test_circuit(Builder& builder, 
  */
 template <typename Builder> void generate_ecdsa_verification_test_circuit(Builder& builder, size_t num_iterations)
 {
-    using curve = bb::stdlib::secp256k1<Builder>;
+    using curve = stdlib::secp256k1<Builder>;
     using fr = typename curve::fr;
     using fq = typename curve::fq;
     using g1 = typename curve::g1;
 
     std::string message_string = "Instructions unclear, ask again later.";
 
-    crypto::ecdsa::key_pair<fr, g1> account;
+    crypto::ecdsa_key_pair<fr, g1> account;
     for (size_t i = 0; i < num_iterations; i++) {
         // Generate unique signature for each iteration
         account.private_key = curve::fr::random_element();
         account.public_key = curve::g1::one * account.private_key;
 
-        crypto::ecdsa::signature signature =
-            crypto::ecdsa::construct_signature<Sha256Hasher, fq, fr, g1>(message_string, account);
+        crypto::ecdsa_signature signature =
+            crypto::ecdsa_construct_signature<Sha256Hasher, fq, fr, g1>(message_string, account);
 
         bool first_result =
-            crypto::ecdsa::verify_signature<Sha256Hasher, fq, fr, g1>(message_string, account.public_key, signature);
+            crypto::ecdsa_verify_signature<Sha256Hasher, fq, fr, g1>(message_string, account.public_key, signature);
         static_cast<void>(first_result); // TODO(Cody): This is not used anywhere.
 
         std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());
@@ -114,18 +112,18 @@ template <typename Builder> void generate_ecdsa_verification_test_circuit(Builde
 
         typename curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&builder, account.public_key);
 
-        bb::stdlib::ecdsa::signature<Builder> sig{ typename curve::byte_array_ct(&builder, rr),
-                                                   typename curve::byte_array_ct(&builder, ss),
-                                                   bb::stdlib::uint8<Builder>(&builder, vv) };
+        stdlib::ecdsa_signature<Builder> sig{ typename curve::byte_array_ct(&builder, rr),
+                                              typename curve::byte_array_ct(&builder, ss),
+                                              stdlib::uint8<Builder>(&builder, vv) };
 
         typename curve::byte_array_ct message(&builder, message_string);
 
         // Verify ecdsa signature
-        bb::stdlib::ecdsa::verify_signature<Builder,
-                                            curve,
-                                            typename curve::fq_ct,
-                                            typename curve::bigfr_ct,
-                                            typename curve::g1_bigfr_ct>(message, public_key, sig);
+        stdlib::ecdsa_verify_signature<Builder,
+                                       curve,
+                                       typename curve::fq_ct,
+                                       typename curve::bigfr_ct,
+                                       typename curve::g1_bigfr_ct>(message, public_key, sig);
     }
 }
 
@@ -137,7 +135,7 @@ template <typename Builder> void generate_ecdsa_verification_test_circuit(Builde
  */
 template <typename Builder> void generate_merkle_membership_test_circuit(Builder& builder, size_t num_iterations)
 {
-    using namespace bb::stdlib;
+    using namespace stdlib;
     using field_ct = field_t<Builder>;
     using witness_ct = witness_t<Builder>;
     using witness_ct = witness_t<Builder>;
@@ -164,33 +162,32 @@ template <typename Builder> void generate_merkle_membership_test_circuit(Builder
 }
 
 // ultrahonk
-inline bb::honk::UltraProver get_prover(bb::honk::UltraComposer& composer,
-                                        void (*test_circuit_function)(bb::honk::UltraComposer::CircuitBuilder&, size_t),
-                                        size_t num_iterations)
+inline honk::UltraProver get_prover(honk::UltraComposer& composer,
+                                    void (*test_circuit_function)(honk::UltraComposer::CircuitBuilder&, size_t),
+                                    size_t num_iterations)
 {
-    bb::honk::UltraComposer::CircuitBuilder builder;
+    honk::UltraComposer::CircuitBuilder builder;
     test_circuit_function(builder, num_iterations);
-    std::shared_ptr<bb::honk::UltraComposer::Instance> instance = composer.create_instance(builder);
+    std::shared_ptr<honk::UltraComposer::Instance> instance = composer.create_instance(builder);
     return composer.create_prover(instance);
 }
 
 // standard plonk
-inline bb::plonk::Prover get_prover(bb::plonk::StandardComposer& composer,
-                                    void (*test_circuit_function)(bb::StandardCircuitBuilder&, size_t),
-                                    size_t num_iterations)
+inline plonk::Prover get_prover(plonk::StandardComposer& composer,
+                                void (*test_circuit_function)(StandardCircuitBuilder&, size_t),
+                                size_t num_iterations)
 {
-    bb::StandardCircuitBuilder builder;
+    StandardCircuitBuilder builder;
     test_circuit_function(builder, num_iterations);
     return composer.create_prover(builder);
 }
 
 // ultraplonk
-inline bb::plonk::UltraProver get_prover(bb::plonk::UltraComposer& composer,
-                                         void (*test_circuit_function)(bb::honk::UltraComposer::CircuitBuilder&,
-                                                                       size_t),
-                                         size_t num_iterations)
+inline plonk::UltraProver get_prover(plonk::UltraComposer& composer,
+                                     void (*test_circuit_function)(honk::UltraComposer::CircuitBuilder&, size_t),
+                                     size_t num_iterations)
 {
-    bb::plonk::UltraComposer::CircuitBuilder builder;
+    plonk::UltraComposer::CircuitBuilder builder;
     test_circuit_function(builder, num_iterations);
     return composer.create_prover(builder);
 }
@@ -205,10 +202,12 @@ inline bb::plonk::UltraProver get_prover(bb::plonk::UltraComposer& composer,
  * @param test_circuit_function
  */
 template <typename Composer>
-void construct_proof_with_specified_num_iterations(
-    State& state, void (*test_circuit_function)(typename Composer::CircuitBuilder&, size_t), size_t num_iterations)
+void construct_proof_with_specified_num_iterations(benchmark::State& state,
+                                                   void (*test_circuit_function)(typename Composer::CircuitBuilder&,
+                                                                                 size_t),
+                                                   size_t num_iterations)
 {
-    bb::srs::init_crs_factory("../srs_db/ignition");
+    srs::init_crs_factory("../srs_db/ignition");
 
     Composer composer;
 
@@ -223,4 +222,4 @@ void construct_proof_with_specified_num_iterations(
     }
 }
 
-} // namespace bench_utils
+} // namespace bb::mock_proofs

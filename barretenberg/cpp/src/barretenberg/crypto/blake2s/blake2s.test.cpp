@@ -5,6 +5,8 @@
 #include <memory>
 #include <vector>
 
+using namespace bb;
+
 struct test_vector {
     std::string input;
     std::array<uint8_t, 32> output;
@@ -382,6 +384,6 @@ TEST(misc_blake2s, test_vectors)
 {
     for (auto v : test_vectors) {
         std::vector<uint8_t> input(v.input.begin(), v.input.end());
-        EXPECT_EQ(blake2::blake2s(input), v.output);
+        EXPECT_EQ(crypto::blake2s(input), v.output);
     }
 }

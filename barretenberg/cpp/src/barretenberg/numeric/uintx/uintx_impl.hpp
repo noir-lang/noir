@@ -2,7 +2,7 @@
 #include "./uintx.hpp"
 #include "barretenberg/common/assert.hpp"
 
-namespace numeric {
+namespace bb::numeric {
 template <class base_uint>
 constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod(const uintx& b) const
 {
@@ -336,4 +336,4 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::operator
     }
     return result;
 }
-} // namespace numeric
+} // namespace bb::numeric

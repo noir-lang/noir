@@ -8,7 +8,7 @@ using namespace benchmark;
 using namespace bb::stdlib::merkle_tree;
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = bb::numeric::get_debug_randomness();
 }
 
 constexpr size_t DEPTH = 256;

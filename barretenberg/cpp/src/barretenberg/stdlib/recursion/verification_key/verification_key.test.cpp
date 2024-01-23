@@ -7,7 +7,7 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 
 namespace {
-auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::get_debug_randomness();
 } // namespace
 
 using namespace bb::plonk;
@@ -20,8 +20,8 @@ using namespace bb::plonk;
  */
 template <typename Builder> class VerificationKeyFixture : public testing::Test {
   public:
-    using Curve = bb::stdlib::bn254<Builder>;
-    using RecursVk = bb::stdlib::recursion::verification_key<Curve>;
+    using Curve = stdlib::bn254<Builder>;
+    using RecursVk = stdlib::recursion::verification_key<Curve>;
 
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 

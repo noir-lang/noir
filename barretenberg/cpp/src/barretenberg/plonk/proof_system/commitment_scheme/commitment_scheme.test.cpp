@@ -35,7 +35,7 @@ TEST(commitment_scheme, kate_open)
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
     plonk::KateCommitmentScheme<ultra_settings> newKate;
 
-    // std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory = (new
+    // std::shared_ptr<srs::factories::CrsFactory<curve::BN254>> crs_factory = (new
     // FileReferenceStringFactory("../srs_db/ignition"));
     auto file_crs = std::make_shared<bb::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);

@@ -49,7 +49,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     constexpr operator affine_element<Fq, Fr, Params>() const noexcept;
 
-    static element random_element(numeric::random::Engine* engine = nullptr) noexcept;
+    static element random_element(numeric::RNG* engine = nullptr) noexcept;
 
     constexpr element dbl() const noexcept;
     constexpr void self_dbl() noexcept;
@@ -106,7 +106,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     element mul_with_endomorphism(const Fr& exponent) const noexcept;
 
     template <typename = typename std::enable_if<Params::can_hash_to_curve>>
-    static element random_coordinates_on_curve(numeric::random::Engine* engine = nullptr) noexcept;
+    static element random_coordinates_on_curve(numeric::RNG* engine = nullptr) noexcept;
     // {
     //     bool found_one = false;
     //     Fq yy;

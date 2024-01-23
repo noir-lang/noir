@@ -38,7 +38,7 @@ void create_ecdsa_k1_verify_constraints(Builder& builder,
 template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaSecp256k1Constraint const& input);
 
 template <typename Builder>
-crypto::ecdsa::signature ecdsa_convert_signature(Builder& builder, std::vector<uint32_t> signature);
+crypto::ecdsa_signature ecdsa_convert_signature(Builder& builder, std::vector<uint32_t> signature);
 witness_ct ecdsa_index_to_witness(Builder& builder, uint32_t index);
 template <typename Builder>
 bb::stdlib::byte_array<Builder> ecdsa_vector_of_bytes_to_byte_array(Builder& builder,

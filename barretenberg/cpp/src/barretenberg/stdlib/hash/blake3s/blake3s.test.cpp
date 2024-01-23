@@ -10,8 +10,8 @@ using byte_array = stdlib::byte_array<bb::StandardCircuitBuilder>;
 using public_witness_t = stdlib::public_witness_t<bb::StandardCircuitBuilder>;
 using byte_array_plookup = stdlib::byte_array<bb::UltraCircuitBuilder>;
 using public_witness_t_plookup = stdlib::public_witness_t<bb::UltraCircuitBuilder>;
-using StandardBuilder = bb::StandardCircuitBuilder;
-using UltraBuilder = bb::UltraCircuitBuilder;
+using StandardBuilder = StandardCircuitBuilder;
+using UltraBuilder = UltraCircuitBuilder;
 
 TEST(stdlib_blake3s, test_single_block)
 {

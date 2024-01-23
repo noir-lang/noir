@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/benchmark/ultra_bench/benchmark_utilities.hpp"
+#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
@@ -23,7 +23,7 @@ void fold_one(State& state) noexcept
 
     const auto construct_instance = [&]() {
         Builder builder;
-        bench_utils::generate_basic_arithmetic_circuit(builder, log2_num_gates);
+        bb::mock_proofs::generate_basic_arithmetic_circuit(builder, log2_num_gates);
         return composer.create_instance(builder);
     };
 

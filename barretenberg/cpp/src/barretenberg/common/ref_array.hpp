@@ -5,7 +5,7 @@
 #include <iterator>
 #include <stdexcept>
 
-// TODO(https://github.com/AztecProtocol/barretenberg/issues/794) namespace this once convenient
+namespace bb {
 /**
  * @brief A template class for a reference array. Behaves as if std::array<T&, N> was possible.
  *
@@ -135,3 +135,4 @@ template <typename T, std::size_t... Ns> RefArray<T, (Ns + ...)> concatenate(con
 
     return RefArray<T, TotalSize>{ concatenated };
 }
+} // namespace bb

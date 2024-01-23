@@ -3,7 +3,7 @@
 #include "../bitop/get_msb.hpp"
 #include "./uint128.hpp"
 #include "barretenberg/common/assert.hpp"
-namespace numeric {
+namespace bb::numeric {
 
 constexpr std::pair<uint32_t, uint32_t> uint128_t::mul_wide(const uint32_t a, const uint32_t b)
 {
@@ -410,5 +410,5 @@ constexpr uint128_t uint128_t::operator<<(const uint128_t& other) const
     return result;
 }
 
-} // namespace numeric
+} // namespace bb::numeric
 #endif

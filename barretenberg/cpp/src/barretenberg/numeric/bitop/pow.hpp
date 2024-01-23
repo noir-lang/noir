@@ -3,7 +3,7 @@
 #include "./get_msb.hpp"
 #include <cstdint>
 
-namespace numeric {
+namespace bb::numeric {
 constexpr uint64_t pow64(const uint64_t input, const uint64_t exponent)
 {
     if (input == 0) {
@@ -31,4 +31,4 @@ constexpr bool is_power_of_two(uint64_t x)
     return (x != 0U) && ((x & (x - 1)) == 0U);
 }
 
-} // namespace numeric
+} // namespace bb::numeric

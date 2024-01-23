@@ -31,5 +31,5 @@ struct Sha256Hasher {
 struct Blake2sHasher {
     static constexpr size_t BLOCK_SIZE = 64;
     static constexpr size_t OUTPUT_SIZE = 32;
-    static auto hash(const std::vector<uint8_t>& message) { return blake2::blake2s(message); }
+    static auto hash(const std::vector<uint8_t>& message) { return bb::crypto::blake2s(message); }
 };

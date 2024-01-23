@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+using namespace bb;
+
 namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)
 {
@@ -135,8 +137,8 @@ TEST(transcript, univariate_serialization)
     constexpr size_t num_public_inputs = 0;
     constexpr size_t LENGTH = 8;
 
-    using Fr = bb::fr;
-    using Univariate = bb::Univariate<Fr, LENGTH>;
+    using Fr = fr;
+    using Univariate = Univariate<Fr, LENGTH>;
     using Transcript = transcript::StandardTranscript;
 
     std::vector<uint8_t> g1_vector(64);

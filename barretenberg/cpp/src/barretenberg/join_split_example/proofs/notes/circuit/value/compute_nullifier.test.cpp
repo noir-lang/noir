@@ -11,7 +11,7 @@ using namespace bb::join_split_example::proofs::notes;
 
 TEST(compute_nullifier_circuit, native_consistency)
 {
-    auto user = bb::join_split_example::fixtures::create_user_context();
+    auto user = join_split_example::fixtures::create_user_context();
     auto priv_key = uint256_t(user.owner.private_key);
 
     auto native_input_note =

@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/benchmark/ultra_bench/benchmark_utilities.hpp"
+#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
@@ -55,8 +55,8 @@ BBERG_PROFILE static void test_round(State& state, size_t index) noexcept
         state.PauseTiming();
         honk::UltraComposer composer;
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/761) benchmark both sparse and dense circuits
-        honk::UltraProver prover = bench_utils::get_prover(
-            composer, &bench_utils::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>, 10);
+        honk::UltraProver prover = bb::mock_proofs::get_prover(
+            composer, &bb::mock_proofs::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>, 10);
         test_round_inner(state, prover, index);
         state.ResumeTiming();
         // NOTE: google bench is very finnicky, must end in ResumeTiming() for correctness

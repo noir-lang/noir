@@ -75,7 +75,7 @@ template <typename Curve> class CommitmentTest : public ::testing::Test {
 
   public:
     CommitmentTest()
-        : engine{ &numeric::random::get_engine() }
+        : engine{ &numeric::get_randomness() }
     {}
 
     std::shared_ptr<CK> ck() { return commitment_key; }
@@ -170,7 +170,7 @@ template <typename Curve> class CommitmentTest : public ::testing::Test {
         }
     }
 
-    numeric::random::Engine* engine;
+    numeric::RNG* engine;
 
     // Per-test-suite set-up.
     // Called before the first test in this test suite.

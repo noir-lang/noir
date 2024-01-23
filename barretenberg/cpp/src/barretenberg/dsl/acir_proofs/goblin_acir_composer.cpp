@@ -6,10 +6,7 @@
 
 namespace acir_proofs {
 
-GoblinAcirComposer::GoblinAcirComposer() {}
-
-void GoblinAcirComposer::create_circuit(acir_format::acir_format& constraint_system,
-                                        acir_format::WitnessVector& witness)
+void GoblinAcirComposer::create_circuit(acir_format::AcirFormat& constraint_system, acir_format::WitnessVector& witness)
 {
     // Construct a builder using the witness and public input data from acir and with the goblin-owned op_queue
     builder_ = acir_format::GoblinBuilder{

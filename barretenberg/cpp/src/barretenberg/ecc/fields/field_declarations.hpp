@@ -437,7 +437,7 @@ template <class Params_> struct alignas(32) field {
         src = T;
     }
 
-    static field random_element(numeric::random::Engine* engine = nullptr) noexcept;
+    static field random_element(numeric::RNG* engine = nullptr) noexcept;
 
     static constexpr field multiplicative_generator() noexcept;
 

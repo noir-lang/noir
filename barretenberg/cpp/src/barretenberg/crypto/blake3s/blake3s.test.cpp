@@ -8,6 +8,8 @@
 #include <memory>
 #include <vector>
 
+using namespace bb;
+
 struct test_vector {
     std::string_view input;
     std::array<uint8_t, 32> output;
@@ -392,7 +394,7 @@ static constexpr std::array<test_vector, 73> test_vectors{
 
 TEST(MiscBlake3s, TestVectors)
 {
-    bb::constexpr_for<0, 1, 73>([&]<size_t index>() {
+    constexpr_for<0, 1, 73>([&]<size_t index>() {
         constexpr auto v = test_vectors[index];
         std::vector<uint8_t> input(v.input.begin(), v.input.end());
         auto result_vector = blake3::blake3s(input);

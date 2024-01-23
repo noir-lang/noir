@@ -2,30 +2,23 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <gtest/gtest.h>
 
-namespace bb::test_univariate {
+using namespace bb;
 
 template <typename FF> class UnivariateTest : public testing::Test {
   public:
     template <size_t view_length> using UnivariateView = UnivariateView<FF, view_length>;
 };
 
-using FieldTypes = testing::Types<bb::fr>;
+using FieldTypes = testing::Types<fr>;
 TYPED_TEST_SUITE(UnivariateTest, FieldTypes);
-
-#define UNIVARIATE_TESTS_ALIASES using FF = TypeParam;
-// IMPROVEMENT: Can't make alias for Univariate<FF, _> for some reason.
-// Might be convenient to solve boilerplate or repeated type aliasing
-// using this or some other means.
 
 TYPED_TEST(UnivariateTest, Constructors)
 {
-    UNIVARIATE_TESTS_ALIASES
+    fr a0 = fr::random_element();
+    fr a1 = fr::random_element();
+    fr a2 = fr::random_element();
 
-    FF a0 = FF::random_element();
-    FF a1 = FF::random_element();
-    FF a2 = FF::random_element();
-
-    Univariate<FF, 3> uni({ a0, a1, a2 });
+    Univariate<fr, 3> uni({ a0, a1, a2 });
 
     EXPECT_EQ(uni.value_at(0), a0);
     EXPECT_EQ(uni.value_at(1), a1);
@@ -34,124 +27,111 @@ TYPED_TEST(UnivariateTest, Constructors)
 
 TYPED_TEST(UnivariateTest, Addition)
 {
-    UNIVARIATE_TESTS_ALIASES
-
-    Univariate<FF, 2> f1{ { 1, 2 } };
-    Univariate<FF, 2> f2{ { 3, 4 } };
+    Univariate<fr, 2> f1{ { 1, 2 } };
+    Univariate<fr, 2> f2{ { 3, 4 } };
     // output should be {4, 6}
-    Univariate<FF, 2> expected_result{ { 4, 6 } };
+    Univariate<fr, 2> expected_result{ { 4, 6 } };
     auto f1f2 = f1 + f2;
     EXPECT_EQ(f1f2, expected_result);
 }
 
 TYPED_TEST(UnivariateTest, Multiplication)
 {
-    UNIVARIATE_TESTS_ALIASES
 
-    Univariate<FF, 3> f1 = Univariate<FF, 2>{ { 1, 2 } }.template extend_to<3>();
-    Univariate<FF, 3> f2 = Univariate<FF, 2>{ { 3, 4 } }.template extend_to<3>();
+    Univariate<fr, 3> f1 = Univariate<fr, 2>{ { 1, 2 } }.template extend_to<3>();
+    Univariate<fr, 3> f2 = Univariate<fr, 2>{ { 3, 4 } }.template extend_to<3>();
     // output should be {3, 8, 15}
-    Univariate<FF, 3> expected_result{ { 3, 8, 15 } };
-    Univariate<FF, 3> f1f2 = f1 * f2;
+    Univariate<fr, 3> expected_result{ { 3, 8, 15 } };
+    Univariate<fr, 3> f1f2 = f1 * f2;
     EXPECT_EQ(f1f2, expected_result);
 }
 
 TYPED_TEST(UnivariateTest, ConstructUnivariateViewFromUnivariate)
 {
-    UNIVARIATE_TESTS_ALIASES
 
-    Univariate<FF, 3> f{ { 1, 2, 3 } };
-    UnivariateView<FF, 2> g(f);
+    Univariate<fr, 3> f{ { 1, 2, 3 } };
+    UnivariateView<fr, 2> g(f);
     EXPECT_EQ(g.value_at(0), f.value_at(0));
     EXPECT_EQ(g.value_at(1), f.value_at(1));
 }
 
 TYPED_TEST(UnivariateTest, ConstructUnivariateFromUnivariateView)
 {
-    UNIVARIATE_TESTS_ALIASES
 
-    Univariate<FF, 3> f{ { 1, 2, 3 } };
-    UnivariateView<FF, 2> g(f);
-    Univariate<FF, 2> h(g);
+    Univariate<fr, 3> f{ { 1, 2, 3 } };
+    UnivariateView<fr, 2> g(f);
+    Univariate<fr, 2> h(g);
     EXPECT_EQ(h.value_at(0), g.value_at(0));
     EXPECT_EQ(h.value_at(1), g.value_at(1));
 }
 
 TYPED_TEST(UnivariateTest, UnivariateViewAddition)
 {
-    UNIVARIATE_TESTS_ALIASES
+    Univariate<fr, 3> f1{ { 1, 2, 3 } };
+    Univariate<fr, 3> f2{ { 3, 4, 3 } };
 
-    Univariate<FF, 3> f1{ { 1, 2, 3 } };
-    Univariate<FF, 3> f2{ { 3, 4, 3 } };
+    UnivariateView<fr, 2> g1(f1);
+    UnivariateView<fr, 2> g2(f2);
 
-    UnivariateView<FF, 2> g1(f1);
-    UnivariateView<FF, 2> g2(f2);
-
-    Univariate<FF, 2> expected_result{ { 4, 6 } };
-    Univariate<FF, 2> result = g1 + g2;
+    Univariate<fr, 2> expected_result{ { 4, 6 } };
+    Univariate<fr, 2> result = g1 + g2;
     EXPECT_EQ(result, expected_result);
 
-    Univariate<FF, 2> result2 = result + g1;
-    Univariate<FF, 2> expected_result2{ { 5, 8 } };
+    Univariate<fr, 2> result2 = result + g1;
+    Univariate<fr, 2> expected_result2{ { 5, 8 } };
     EXPECT_EQ(result2, expected_result2);
 }
 TYPED_TEST(UnivariateTest, UnivariateViewSubtraction)
 {
-    UNIVARIATE_TESTS_ALIASES
+    Univariate<fr, 3> f1{ { 1, 2, 3 } };
+    Univariate<fr, 3> f2{ { 3, 4, 3 } };
 
-    Univariate<FF, 3> f1{ { 1, 2, 3 } };
-    Univariate<FF, 3> f2{ { 3, 4, 3 } };
+    UnivariateView<fr, 2> g1(f1);
+    UnivariateView<fr, 2> g2(f2);
 
-    UnivariateView<FF, 2> g1(f1);
-    UnivariateView<FF, 2> g2(f2);
-
-    Univariate<FF, 2> expected_result{ { -2, -2 } };
-    Univariate<FF, 2> result = g1 - g2;
+    Univariate<fr, 2> expected_result{ { -2, -2 } };
+    Univariate<fr, 2> result = g1 - g2;
     EXPECT_EQ(result, expected_result);
 
-    Univariate<FF, 2> result2 = result - g1;
-    Univariate<FF, 2> expected_result2{ { -3, -4 } };
+    Univariate<fr, 2> result2 = result - g1;
+    Univariate<fr, 2> expected_result2{ { -3, -4 } };
     EXPECT_EQ(result2, expected_result2);
 }
 
 TYPED_TEST(UnivariateTest, UnivariateViewMultiplication)
 {
-    UNIVARIATE_TESTS_ALIASES
+    Univariate<fr, 3> f1{ { 1, 2, 3 } };
+    Univariate<fr, 3> f2{ { 3, 4, 3 } };
 
-    Univariate<FF, 3> f1{ { 1, 2, 3 } };
-    Univariate<FF, 3> f2{ { 3, 4, 3 } };
+    UnivariateView<fr, 2> g1(f1);
+    UnivariateView<fr, 2> g2(f2);
 
-    UnivariateView<FF, 2> g1(f1);
-    UnivariateView<FF, 2> g2(f2);
-
-    Univariate<FF, 2> expected_result{ { 3, 8 } };
-    Univariate<FF, 2> result = g1 * g2;
+    Univariate<fr, 2> expected_result{ { 3, 8 } };
+    Univariate<fr, 2> result = g1 * g2;
     EXPECT_EQ(result, expected_result);
 
-    Univariate<FF, 2> result2 = result * g1;
-    Univariate<FF, 2> expected_result2{ { 3, 16 } };
+    Univariate<fr, 2> result2 = result * g1;
+    Univariate<fr, 2> expected_result2{ { 3, 16 } };
     EXPECT_EQ(result2, expected_result2);
 }
 
 TYPED_TEST(UnivariateTest, Serialization)
 {
-    UNIVARIATE_TESTS_ALIASES
-
     const size_t LENGTH = 4;
-    std::array<FF, LENGTH> evaluations;
+    std::array<fr, LENGTH> evaluations;
 
     for (size_t i = 0; i < LENGTH; ++i) {
-        evaluations[i] = FF::random_element();
+        evaluations[i] = fr::random_element();
     }
 
     // Instantiate a Univariate from the evaluations
-    auto univariate = Univariate<FF, LENGTH>(evaluations);
+    auto univariate = Univariate<fr, LENGTH>(evaluations);
 
     // Serialize univariate to buffer
     std::vector<uint8_t> buffer = univariate.to_buffer();
 
     // Deserialize
-    auto deserialized_univariate = Univariate<FF, LENGTH>::serialize_from_buffer(&buffer[0]);
+    auto deserialized_univariate = Univariate<fr, LENGTH>::serialize_from_buffer(&buffer[0]);
 
     for (size_t i = 0; i < LENGTH; ++i) {
         EXPECT_EQ(univariate.value_at(i), deserialized_univariate.value_at(i));
@@ -160,17 +140,13 @@ TYPED_TEST(UnivariateTest, Serialization)
 
 TYPED_TEST(UnivariateTest, EvaluationCustomDomain)
 {
-    UNIVARIATE_TESTS_ALIASES
-
     []() {
-        auto poly = Univariate<FF, 3, 1>(std::array<FF, 2>{ 1, 2 });
-        EXPECT_EQ(poly.evaluate(FF(5)), FF(5));
+        auto poly = Univariate<fr, 3, 1>(std::array<fr, 2>{ 1, 2 });
+        EXPECT_EQ(poly.evaluate(fr(5)), fr(5));
     }();
 
     []() {
-        auto poly = Univariate<FF, 37, 32>(std::array<FF, 5>{ 1, 11, 111, 1111, 11111 });
-        EXPECT_EQ(poly.evaluate(FF(2)), FF(294330751));
+        auto poly = Univariate<fr, 37, 32>(std::array<fr, 5>{ 1, 11, 111, 1111, 11111 });
+        EXPECT_EQ(poly.evaluate(fr(2)), fr(294330751));
     }();
 }
-
-} // namespace bb::test_univariate

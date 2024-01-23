@@ -4,12 +4,12 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 
-namespace bb::crypto::ecdsa {
+namespace bb::crypto {
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
-signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
+ecdsa_signature ecdsa_construct_signature(const std::string& message, const ecdsa_key_pair<Fr, G1>& account)
 {
-    signature sig;
+    ecdsa_signature sig;
 
     // use HMAC in PRF mode to derive 32-byte secret `k`
     std::vector<uint8_t> pkey_buffer;
@@ -52,7 +52,7 @@ signature construct_signature(const std::string& message, const key_pair<Fr, G1>
 }
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
-typename G1::affine_element recover_public_key(const std::string& message, const signature& sig)
+typename G1::affine_element ecdsa_recover_public_key(const std::string& message, const ecdsa_signature& sig)
 {
     using serialize::read;
     uint256_t r_uint;
@@ -124,7 +124,9 @@ typename G1::affine_element recover_public_key(const std::string& message, const
 }
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
-bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig)
+bool ecdsa_verify_signature(const std::string& message,
+                            const typename G1::affine_element& public_key,
+                            const ecdsa_signature& sig)
 {
     using serialize::read;
     uint256_t r_uint;
@@ -168,4 +170,4 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     Fr result(Rx);
     return result == r;
 }
-} // namespace bb::crypto::ecdsa
+} // namespace bb::crypto

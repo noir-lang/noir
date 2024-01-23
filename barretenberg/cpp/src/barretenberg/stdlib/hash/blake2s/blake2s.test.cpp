@@ -7,7 +7,7 @@
 using namespace bb;
 using namespace bb::stdlib;
 
-using Builder = bb::UltraCircuitBuilder;
+using Builder = UltraCircuitBuilder;
 
 using field_ct = field_t<Builder>;
 using witness_ct = witness_t<Builder>;
@@ -24,7 +24,7 @@ using public_witness_t = public_witness_t<Builder>;
 //     byte_array_ct input_arr(&builder, input_v);
 //     byte_array_ct output = blake2s(input_arr);
 
-//     std::vector<uint8_t> expected = blake2::blake2s(input_v);
+//     std::vector<uint8_t> expected = crypto::blake2s(input_v);
 
 //     EXPECT_EQ(output.get_value(), expected);
 
@@ -43,7 +43,7 @@ TEST(stdlib_blake2s, test_single_block_plookup)
     byte_array_plookup input_arr(&builder, input_v);
     byte_array_plookup output = blake2s<Builder>(input_arr);
 
-    auto expected = blake2::blake2s(input_v);
+    auto expected = crypto::blake2s(input_v);
 
     EXPECT_EQ(output.get_value(), std::vector<uint8_t>(expected.begin(), expected.end()));
 
@@ -62,7 +62,7 @@ TEST(stdlib_blake2s, test_single_block_plookup)
 //     byte_array_ct input_arr(&builder, input_v);
 //     byte_array_ct output = blake2s(input_arr);
 
-//     std::vector<uint8_t> expected = blake2::blake2s(input_v);
+//     std::vector<uint8_t> expected = crypto::blake2s(input_v);
 
 //     EXPECT_EQ(output.get_value(), expected);
 
@@ -81,7 +81,7 @@ TEST(stdlib_blake2s, test_double_block_plookup)
     byte_array_plookup input_arr(&builder, input_v);
     byte_array_plookup output = blake2s<Builder>(input_arr);
 
-    auto expected = blake2::blake2s(input_v);
+    auto expected = crypto::blake2s(input_v);
 
     EXPECT_EQ(output.get_value(), std::vector<uint8_t>(expected.begin(), expected.end()));
 

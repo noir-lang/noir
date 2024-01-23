@@ -190,7 +190,7 @@ template <typename base_field, typename Fq6Params> class field6 {
         };
     }
 
-    static constexpr field6 random_element(numeric::random::Engine* engine = nullptr)
+    static constexpr field6 random_element(numeric::RNG* engine = nullptr)
     {
         return {
             base_field::random_element(engine),

@@ -72,7 +72,7 @@ acir_format::WitnessVector get_witness(std::string const& witness_path)
     return acir_format::witness_buf_to_witness_data(witness_data);
 }
 
-acir_format::acir_format get_constraint_system(std::string const& bytecode_path)
+acir_format::AcirFormat get_constraint_system(std::string const& bytecode_path)
 {
     auto bytecode = get_bytecode(bytecode_path);
     return acir_format::circuit_buf_to_acir_format(bytecode);

@@ -574,7 +574,7 @@ constexpr bool element<Fq, Fr, T>::operator==(const element& other) const noexce
 }
 
 template <class Fq, class Fr, class T>
-element<Fq, Fr, T> element<Fq, Fr, T>::random_element(numeric::random::Engine* engine) noexcept
+element<Fq, Fr, T> element<Fq, Fr, T>::random_element(numeric::RNG* engine) noexcept
 {
     if constexpr (T::can_hash_to_curve) {
         element result = random_coordinates_on_curve(engine);
@@ -1145,7 +1145,7 @@ void element<Fq, Fr, T>::batch_normalize(element* elements, const size_t num_ele
 
 template <typename Fq, typename Fr, typename T>
 template <typename>
-element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::random::Engine* engine) noexcept
+element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::RNG* engine) noexcept
 {
     bool found_one = false;
     Fq yy;

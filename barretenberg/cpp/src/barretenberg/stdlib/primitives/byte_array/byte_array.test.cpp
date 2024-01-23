@@ -7,7 +7,6 @@
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
-namespace test_stdlib_byte_array {
 using namespace bb;
 using namespace bb::stdlib;
 
@@ -138,5 +137,3 @@ TYPED_TEST(ByteArrayTest, set_bit)
     bool proof_result = builder.check_circuit();
     EXPECT_EQ(proof_result, true);
 }
-
-} // namespace test_stdlib_byte_array

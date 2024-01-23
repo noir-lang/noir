@@ -96,12 +96,12 @@ poly_triple serialize_arithmetic_gate(Circuit::Expression const& arg)
     return pt;
 }
 
-void handle_arithmetic(Circuit::Opcode::AssertZero const& arg, acir_format& af)
+void handle_arithmetic(Circuit::Opcode::AssertZero const& arg, AcirFormat& af)
 {
     af.constraints.push_back(serialize_arithmetic_gate(arg.value));
 }
 
-void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, acir_format& af)
+void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, AcirFormat& af)
 {
     std::visit(
         [&](auto&& arg) {
@@ -289,11 +289,11 @@ void handle_memory_op(Circuit::Opcode::MemoryOp const& mem_op, BlockConstraint& 
     block.trace.push_back(acir_mem_op);
 }
 
-acir_format circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
+AcirFormat circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
 {
     auto circuit = Circuit::Circuit::bincodeDeserialize(buf);
 
-    acir_format af;
+    AcirFormat af;
     // `varnum` is the true number of variables, thus we add one to the index which starts at zero
     af.varnum = circuit.current_witness_index + 1;
     af.public_inputs = join({ map(circuit.public_parameters.value, [](auto e) { return e.value; }),
