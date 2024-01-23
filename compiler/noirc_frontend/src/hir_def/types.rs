@@ -1,5 +1,5 @@
 use std::{
-    borrow::Cow,
+    borrow::{Borrow, Cow},
     cell::RefCell,
     collections::{BTreeSet, HashMap},
     rc::Rc,
@@ -972,7 +972,7 @@ impl Type {
                     TypeBinding::Unbound(id) => {
 
                         // we want to bind var to self_var (the less specific to the more specififc)
-                        bindings.insert(id, (var.clone(), _));
+                        bindings.insert(*id, (var.clone(), ()));
                         Ok(())
                     }
                 }
