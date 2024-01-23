@@ -41,7 +41,7 @@ You should be seeing this in your terminal:
 
 ```
 [main] Starting debugger
-At ~/work/noir-examples/recursion/circuits/main/src/main.nr:1:9
+At ~/noir-examples/recursion/circuits/main/src/main.nr:1:9
   1 -> fn main(x : Field, y : pub Field) {
   2        assert(x != y);
   3    }
@@ -139,7 +139,7 @@ We currently have no vars in context, since we are at the entry point of the pro
 ```
 > vars
 > next
-At ~/work/noir-examples/recursion/circuits/main/src/main.nr:1:20
+At ~/noir-examples/recursion/circuits/main/src/main.nr:1:20
   1 -> fn main(x : Field, y : pub Field) {
   2        assert(x != y);
   3    }
