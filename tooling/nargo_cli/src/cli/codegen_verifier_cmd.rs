@@ -53,7 +53,6 @@ pub(crate) fn run(
             &parsed_files,
             package,
             &args.compile_options,
-            expression_width,
             None,
         );
 
@@ -63,6 +62,8 @@ pub(crate) fn run(
             args.compile_options.deny_warnings,
             args.compile_options.silence_warnings,
         )?;
+
+        let program = nargo::ops::transform_program(program, expression_width);
 
         let smart_contract_string = backend.eth_contract(&program.circuit)?;
 
