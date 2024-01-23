@@ -43,6 +43,9 @@ fn main(x: Field, y: pub Field) {
     let bar = fooStruct { my_struct: s_2, foo: 20 };
     std::println(f"foo1: {foo}, foo2: {bar}");
 
+    let struct_string = if x != 5 { f"{foo}" } else { f"{bar}" };
+    std::println(struct_string);
+    
     let one_tuple = (1, 2, 3);
     let another_tuple = (4, 5, 6);
     std::println(f"one_tuple: {one_tuple}, another_tuple: {another_tuple}");
