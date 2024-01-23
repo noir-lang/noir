@@ -1,5 +1,5 @@
 ---
-title: Creating A Project
+title: Creating a Project
 description:
   Learn how to create and verify your first Noir program using Nargo, a programming language for
   zero-knowledge proofs.
@@ -48,7 +48,7 @@ nargo new hello_world
 > `test`).
 
 A `hello_world` folder would be created. Similar to Rust, the folder houses _src/main.nr_ and
-_Nargo.toml_ that contains the source code and environmental options of your Noir program
+_Nargo.toml_ which contain the source code and environmental options of your Noir program
 respectively.
 
 ### Intro to Noir Syntax
@@ -69,7 +69,7 @@ x : Field, y : pub Field
 
 Program inputs in Noir are private by default (e.g. `x`), but can be labeled public using the
 keyword `pub` (e.g. `y`). To learn more about private and public values, check the
-[Data Types](../noir/concepts/data_types/index.md) section.
+[Data Types](../../noir/concepts/data_types/index.md) section.
 
 The next line of the program specifies its body:
 
@@ -79,7 +79,7 @@ assert(x != y);
 
 The Noir syntax `assert` can be interpreted as something similar to constraints in other zk-contract languages.
 
-For more Noir syntax, check the [Language Concepts](../noir/concepts/comments.md) chapter.
+For more Noir syntax, check the [Language Concepts](../../noir/concepts/comments.md) chapter.
 
 ## Build In/Output Files
 
@@ -96,7 +96,7 @@ _Prover.toml_ houses input values, and _Verifier.toml_ houses public values.
 
 ## Prove Our Noir Program
 
-Now that the project is set up, we can create a proof of correct execution on our Noir program.
+Now that the project is set up, we can create a proof of correct execution of our Noir program.
 
 Fill in input values for execution in the _Prover.toml_ file. For example:
 

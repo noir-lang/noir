@@ -62,7 +62,6 @@ pub(crate) fn run(
             &parsed_files,
             package,
             &args.compile_options,
-            expression_width,
             None,
         );
 
@@ -72,6 +71,8 @@ pub(crate) fn run(
             args.compile_options.deny_warnings,
             args.compile_options.silence_warnings,
         )?;
+
+        let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
         verify_package(backend, &workspace, package, compiled_program, &args.verifier_name)?;
     }
