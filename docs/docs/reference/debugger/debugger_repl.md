@@ -45,31 +45,39 @@ Displays the menu of available commands.
 > help
 Available commands:
 
-  memset index:usize value:String  update a Brillig memory cell with the given
-                                   value
-  registers                        show Brillig registers (valid when executing
-                                   a Brillig block)
-  step                             step to the next ACIR opcode
   opcodes                          display ACIR opcodes
-  delete LOCATION:OpcodeLocation   delete breakpoint at an opcode location
+  into                             step into to the next opcode
   next                             step until a new source location is reached
+  out                              step until a new source location is reached
+                                   and the current stack frame is finished
   break LOCATION:OpcodeLocation    add a breakpoint at an opcode location
+  over                             step until a new source location is reached
+                                   without diving into function calls
   restart                          restart the debugging session
+  delete LOCATION:OpcodeLocation   delete breakpoint at an opcode location
   witness                          show witness map
   witness index:u32                display a single witness from the witness map
   witness index:u32 value:String   update a witness with the given value
-  regset index:usize value:String  update a Brillig register with the given
+  memset index:usize value:String  update a Brillig memory cell with the given
                                    value
-  into                             step into to the next opcode
   continue                         continue execution until the end of the
                                    program
+  vars                             show variable values available at this point
+                                   in execution
+  stacktrace                       display the current stack trace
   memory                           show Brillig memory (valid when executing a
                                    Brillig block)
+  registers                        show Brillig registers (valid when executing
+                                   a Brillig block)
+  regset index:usize value:String  update a Brillig register with the given
+                                   value
+  step                             step to the next ACIR opcode
 
 Other commands:
 
   help  Show this help message
   quit  Quit repl
+
 ```
 
 ### Stepping through programs
@@ -79,8 +87,7 @@ Other commands:
 Step until the next Noir source code location. While other commands, such as [`into`](#into-i) and [`step`](#step-s), allow for finer grained control of the program's execution at the opcode level, `next` is source code centric. For example:
 
 ```
-2    ...
-3    // The features being tested is brillig calls
+3    ...
 4    fn main(x: u32) {
 5        assert(entry_point(x) == 2);
 6        swap_entry_point(x, x + 1);
@@ -92,15 +99,14 @@ Step until the next Noir source code location. While other commands, such as [`i
 
 Using `next` here would cause the debugger to jump to the definition of `deep_entry_point` (if available). 
 
-If you want to step over `deep_entry_point` and go straight to line `8`, use [the `over` command](#over) instead.
+If you want to step over `deep_entry_point` and go straight to line 8, use [the `over` command](#over) instead.
 
 #### `over`
 
 Step until the next source code location, without diving into function calls. For example:
 
 ```
-2    ...
-3    // The features being tested is brillig calls
+3    ...
 4    fn main(x: u32) {
 5        assert(entry_point(x) == 2);
 6        swap_entry_point(x, x + 1);
@@ -110,7 +116,7 @@ Step until the next source code location, without diving into function calls. Fo
 ```
 
 
-Using `over` here would cause the debugger to execute until line `8` (`multiple_values_entry_point(x);`).
+Using `over` here would cause the debugger to execute until line 8 (`multiple_values_entry_point(x);`).
 
 If you want to step into `deep_entry_point` instead, use [the `next` command](#next-n).
 
@@ -119,8 +125,7 @@ If you want to step into `deep_entry_point` instead, use [the `next` command](#n
 Step until the end of the current function call. For example:
 
 ```
-  2    ...
-  3    // The features being tested is brillig calls
+  3    ...
   4    fn main(x: u32) {
   5        assert(entry_point(x) == 2);
   6        swap_entry_point(x, x + 1);
@@ -138,11 +143,11 @@ Step until the end of the current function call. For example:
 
 ```
 
-Running `out` here will resume execution until line `8`.
+Running `out` here will resume execution until line 8.
 
 #### `step` (s)
 
-Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcodes interleaved with Brillig blocks. For example (redacted for brevity):
+Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of a Brillig code block, to be executed by the BrilligVM. For example (redacted for brevity):
 
 ```
 0  BLACKBOX::RANGE [(_0, num_bits: 32)] [ ]
@@ -165,7 +170,7 @@ Use [the `into` command](#into-i) instead if you want to follow Brillig computat
 
 #### `into` (i)
 
-Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcodes interleaved with Brillig blocks. For example (redacted for brevity):
+Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of a Brillig code block, to be executed by the BrilligVM. For example (redacted for brevity):
 
 ```
 0  BLACKBOX::RANGE [(_0, num_bits: 32)] [ ]
@@ -257,15 +262,11 @@ Deletes a breakpoint at an opcode location. Usage is analogous to [the `break` c
 
 Show variable values available at this point in execution.
 
-(TODO-DEBUGGER-DOCUMENT) EXAMPLE OF VARS COMMAND
-```
-```
-
-Please note that the ability to inspect variable values from the debugger depends on compilation to be run in a special debug instrumentation mode. This instrumentation weaves variable tracing code with the original source code. 
+Note: that the ability to inspect variable values from the debugger depends on compilation to be run in a special debug instrumentation mode. This instrumentation weaves variable tracing code with the original source code. 
 
 So variable value inspection comes at the expense of making the resulting ACIR bytecode bigger and harder to understand and optimize.
 
-If you find this compromise unacceptable, you can run the debugger with the flag `--skip-debug-instrumentation`. This will compile your without any additional debug information, so the result ACIR bytecode will be identical to the one produced by standard Noir compilation. If you opt for this, the `vars` command will not be available while debugging.
+If you find this compromise unacceptable, you can run the debugger with the flag `--skip-debug-instrumentation`. This will compile your circuit without any additional debug information, so the resulting ACIR bytecode will be identical to the one produced by standard Noir compilation. However, if you opt for this, the `vars` command will not be available while debugging.
 
 ### Stacktrace
 
@@ -273,7 +274,6 @@ If you find this compromise unacceptable, you can run the debugger with the flag
 
 Displays the current stack trace.
 
-(TODO-DEBUGGER-DOCUMENT) EXAMPLE OF STACKTRACE
 
 ### Witness map
 
@@ -319,7 +319,7 @@ Show Brillig registers. For example:
 2 = 0
 ```
 
-**Note**: this command is only functional while the debugger is executing a Brillig block. 
+Note: this command is only functional while the debugger is executing a Brillig block. 
 
 #### `regset [Register index] [New value]`
 
@@ -366,7 +366,7 @@ At opcode 1.14: Const { destination: RegisterIndex(5), value: Value { inner: 1 }
 
 In the example above: we start with a clean Brillig memory, then step through a `Store` opcode which stores the value of register 3 (1) into the memory address stored in register 0 (0). Thus now `memory` shows memory address 0 contains value 1.
 
-**Note**: this command is only functional while the debugger is executing a Brillig block.
+Note: this command is only functional while the debugger is executing a Brillig block.
 
 #### `memset [Memory address] [New value]`
 
@@ -385,4 +385,4 @@ Update a Brillig memory cell with the given value. For example:
 >
 ```
 
-**Note**: this command is only functional while the debugger is executing a Brillig block.
+Note: this command is only functional while the debugger is executing a Brillig block.
