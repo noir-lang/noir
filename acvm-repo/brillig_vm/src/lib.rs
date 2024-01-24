@@ -238,7 +238,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                         .iter()
                         .zip(input_value_types)
                         .map(|(input, input_type)| {
-                            self.get_register_value_or_memory_values(input.clone(), input_type)
+                            self.get_register_value_or_memory_values(*input, input_type)
                         })
                         .collect::<Vec<_>>();
                     return self.wait_for_foreign_call(function.clone(), resolved_inputs);
