@@ -176,6 +176,7 @@ impl<'interner> TypeChecker<'interner> {
                             if *func_id != FuncId::dummy_id() {
                                 let function_type =
                                     self.interner.function_meta(func_id).typ.clone();
+
                                 self.try_add_mutable_reference_to_object(
                                     &mut method_call,
                                     &function_type,
@@ -430,17 +431,15 @@ impl<'interner> TypeChecker<'interner> {
                         // If that didn't work, then wrap the whole expression in an `&mut`
                         let location = self.interner.id_location(method_call.object);
 
-                        method_call.object =
+                        let new_object =
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
                             }));
-                        self.interner.push_expr_type(&method_call.object, new_type);
-                        self.interner.push_expr_location(
-                            method_call.object,
-                            location.span,
-                            location.file,
-                        );
+                        method_call.object = new_object;
+                        argument_types[0].1 = new_object;
+                        self.interner.push_expr_type(&new_object, new_type);
+                        self.interner.push_expr_location(new_object, location.span, location.file);
                     }
                 }
             // Otherwise if the object type is a mutable reference and the method is not, insert as
@@ -450,6 +449,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.insert_auto_dereferences(method_call.object, actual_type);
                 method_call.object = object;
                 argument_types[0].0 = new_type;
+                argument_types[0].1 = object;
             }
         }
     }
