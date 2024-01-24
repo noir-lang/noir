@@ -1,5 +1,5 @@
 ---
-title: Debugging Noir circuits with the VS Code Debugger
+title: Using the VS Code Debugger
 description:
   Step by step guide on how to debug your Noir circuits with the VS Code Debugger configuration and features.
 keywords:

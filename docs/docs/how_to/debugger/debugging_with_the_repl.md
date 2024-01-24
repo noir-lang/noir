@@ -1,5 +1,5 @@
 ---
-title: Debugging Noir circuits with the REPL Debugger
+title: Using the REPL Debugger
 description:
   Step by step guide on how to debug your Noir circuits with the REPL Debugger. 
 keywords:
