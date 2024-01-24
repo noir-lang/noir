@@ -1120,69 +1120,8 @@ impl<'a> Resolver<'a> {
             StatementKind::Constrain(constrain_stmt) => {
                 let span = constrain_stmt.0.span;
                 let expr_id = self.resolve_expression(constrain_stmt.0);
-                // let call_resolve_msg_expr = constrain_stmt.1.map(|assert_msg_expr| {
-                //     let span = assert_msg_expr.span;
-                //     let call_expr = if is_in_stdlib {
-                //         Expression::call(
-                //             Expression {
-                //                 kind: ExpressionKind::Variable(Path {
-                //                     segments: vec![Ident::from("resolve_assert_message")],
-                //                     kind: PathKind::Crate,
-                //                     span,
-                //                 }),
-                //                 span,
-                //             },
-                //             vec![assert_msg_expr.clone()],
-                //             span,
-                //         )
-                //     } else {
-                //         Expression::call(
-                //             Expression {
-                //                 kind: ExpressionKind::Variable(Path {
-                //                     segments: vec![
-                //                         Ident::from("std"),
-                //                         Ident::from("resolve_assert_message"),
-                //                     ],
-                //                     kind: PathKind::Dep,
-                //                     span: Span::default(),
-                //                 }),
-                //                 span: Span::default(),
-                //             },
-                //             vec![assert_msg_expr.clone()],
-                //             span,
-                //         )
-                //     };
-                //     self.resolve_expression(call_expr)
-                // });
 
-                let assert_msg_call_args = if let Some(assert_msg_expr) = constrain_stmt.1 {
-                    vec![assert_msg_expr.clone()]
-                } else {
-                    let kind = ExpressionKind::string("".to_owned());
-                    let arg = Expression { kind, span: Span::default() };
-                    vec![arg]
-                };
-
-                let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
-                let assert_msg_call_path = if is_in_stdlib {
-                    ExpressionKind::Variable(Path {
-                        segments: vec![Ident::from("resolve_assert_message")],
-                        kind: PathKind::Crate,
-                        span,
-                    })
-                } else {
-                    ExpressionKind::Variable(Path {
-                        segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
-                        kind: PathKind::Dep,
-                        span,
-                    })
-                };
-                let assert_msg_call_expr = Expression::call(
-                    Expression { kind: assert_msg_call_path, span },
-                    assert_msg_call_args,
-                    span,
-                );
-                let assert_msg_call_expr_id = self.resolve_expression(assert_msg_call_expr);
+                let assert_msg_call_expr_id = self.resolve_assert_message(constrain_stmt.1, span);
 
                 HirStatement::Constrain(HirConstrainStatement(
                     expr_id,
@@ -1235,6 +1174,41 @@ impl<'a> Resolver<'a> {
             }
             StatementKind::Error => HirStatement::Error,
         }
+    }
+
+    fn resolve_assert_message(
+        &mut self,
+        assert_message_expr: Option<Expression>,
+        span: Span,
+    ) -> ExprId {
+        let assert_msg_call_args = if let Some(assert_message_expr) = assert_message_expr {
+            vec![assert_message_expr.clone()]
+        } else {
+            let kind = ExpressionKind::string("".to_owned());
+            let arg = Expression { kind, span: Span::default() };
+            vec![arg]
+        };
+
+        let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
+        let assert_msg_call_path = if is_in_stdlib {
+            ExpressionKind::Variable(Path {
+                segments: vec![Ident::from("resolve_assert_message")],
+                kind: PathKind::Crate,
+                span,
+            })
+        } else {
+            ExpressionKind::Variable(Path {
+                segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
+                kind: PathKind::Dep,
+                span,
+            })
+        };
+        let assert_msg_call_expr = Expression::call(
+            Expression { kind: assert_msg_call_path, span },
+            assert_msg_call_args,
+            span,
+        );
+        self.resolve_expression(assert_msg_call_expr)
     }
 
     pub fn intern_stmt(&mut self, stmt: StatementKind) -> StmtId {
