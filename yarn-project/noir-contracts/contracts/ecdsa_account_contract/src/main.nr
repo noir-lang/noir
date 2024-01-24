@@ -45,7 +45,7 @@ contract EcdsaAccount {
     fn constructor(signing_pub_key_x: pub [u8; 32], signing_pub_key_y: pub [u8; 32]) {
         let this = context.this_address();
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
-        storage.public_key.initialize(&mut pub_key_note, Option::none(), true);
+        storage.public_key.initialize(&mut pub_key_note, true);
     }
 
     // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts

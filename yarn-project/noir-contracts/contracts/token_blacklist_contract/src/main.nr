@@ -110,7 +110,7 @@ contract TokenBlacklist {
     #[aztec(private)]
     fn constructor(admin: AztecAddress, slow_updates_contract: AztecAddress) {
         let mut slow_note = FieldNote::new(slow_updates_contract.to_field());
-        storage.slow_update.initialize(&mut slow_note, Option::none(), false);
+        storage.slow_update.initialize(&mut slow_note, false);
         // docs:end:constructor
         let selector = FunctionSelector::from_signature("_initialize((Field),(Field))");
         context.call_public_function(

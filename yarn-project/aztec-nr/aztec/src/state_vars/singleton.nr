@@ -20,32 +20,11 @@ use crate::oracle::{
     notes::check_nullifier_exists,
 };
 
-pub fn compute_singleton_initialization_nullifier(
-    storage_slot: Field,
-    owner: Option<AztecAddress>,
-    context: Option<&mut PrivateContext>
-) -> Field {
-    if owner.is_some() {
-        let secret = if context.is_some() {
-            context.unwrap_unchecked().request_nullifier_secret_key(owner.unwrap_unchecked())
-        } else {
-            get_nullifier_secret_key(owner.unwrap_unchecked())
-        };
-        pedersen_hash(
-            [storage_slot, secret.low, secret.high],
-            GENERATOR_INDEX__INITIALIZATION_NULLIFIER
-        )
-    } else {
-        pedersen_hash([storage_slot], GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
-    }
-}
-
 // docs:start:struct
 struct Singleton<Note, N> {
     context: Option<&mut PrivateContext>,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    compute_initialization_nullifier: fn (Field, Option<AztecAddress>, Option<&mut PrivateContext>) -> Field,
 }
 // docs:end:struct
 
@@ -57,19 +36,29 @@ impl<Note, N> Singleton<Note, N> {
         note_interface: NoteInterface<Note, N>,
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Singleton {
+        Self {
             context: context.private,
             storage_slot,
             note_interface,
-            compute_initialization_nullifier: compute_singleton_initialization_nullifier,
         }
     }
     // docs:end:new
 
+    // The following computation is leaky, in that it doesn't hide the storage slot that has been initialized, nor does it hide the contract address of this contract.
+    // When this initialization nullifier is emitted, an observer could do a dictionary or rainbow attack to learn the preimage of this nullifier to deduce the storage slot and contract address.
+    // For some applications, leaking the details that a particular state variable of a particular contract has been initialized will be unacceptable.
+    // Under such circumstances, such application developers might wish to _not_ use this state variable type.
+    // This is especially dangerous for initial assignment to elements of a `Map<AztecAddress, Singleton>` type (for example), because the storage slot often also identifies an actor. e.g. 
+    // the initial assignment to `my_map.at(msg.sender)` will leak: `msg.sender`, the fact that an element of `my_map` was assigned-to for the first time, and the contract_address.
+    // Note: subsequent nullification of this state variable, via the `replace` method will not be leaky, if the `compute_nullifier()` method of the underlying note is designed to ensure privacy. 
+    // For example, if the `compute_nullifier()` method injects the secret key of a note owner into the computed nullifier's preimage.
+    pub fn compute_initialization_nullifier(self) -> Field {
+        pedersen_hash([self.storage_slot], GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
+    }
+
     // docs:start:is_initialized
-    unconstrained pub fn is_initialized(self, owner: Option<AztecAddress>) -> bool {
-        let compute_initialization_nullifier = self.compute_initialization_nullifier;
-        let nullifier = compute_initialization_nullifier(self.storage_slot, owner, Option::none());
+    unconstrained pub fn is_initialized(self) -> bool {
+        let nullifier = self.compute_initialization_nullifier();
         check_nullifier_exists(nullifier)
     }
     // docs:end:is_initialized
@@ -78,14 +67,12 @@ impl<Note, N> Singleton<Note, N> {
     pub fn initialize(
         self,
         note: &mut Note,
-        owner: Option<AztecAddress>,
         broadcast: bool,
     ) {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
-        let compute_initialization_nullifier = self.compute_initialization_nullifier;
-        let nullifier = compute_initialization_nullifier(self.storage_slot, owner, self.context);
+        let nullifier = self.compute_initialization_nullifier();
         context.push_new_nullifier(nullifier, 0);
 
         create_note(context, self.storage_slot, note, self.note_interface, broadcast);

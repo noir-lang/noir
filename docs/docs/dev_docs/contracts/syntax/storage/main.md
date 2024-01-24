@@ -288,7 +288,11 @@ As part of the initialization of the `Storage` struct, the `Singleton` is create
 
 As mentioned, the Singleton is initialized to create the first note and value.
 
-When this function is called, a nullifier of the storage slot is created, preventing this Singleton from being initialized again. If an `owner` is specified, the nullifier will be hashed with the owner's secret key. It's crucial to provide an owner if the Singleton is associated with an account. Initializing it without an owner may inadvertently reveal important information about the owner's intention.
+When this function is called, a nullifier of the storage slot is created, preventing this Singleton from being initialized again.
+
+:::danger Privacy-Leak
+Beware that because this nullifier is created only from the storage slot without randomness it is "leaky". This means that if the storage slot depends on the an address then it is possible to link the nullifier to the address. For example, if the singleton is part of a `map` with an `AztecAddress` as the key then the nullifier will be linked to the address.
+:::
 
 Unlike public states, which have a default initial value of `0` (or many zeros, in the case of a struct, array or map), a private state (of type `Singleton`, `ImmutableSingleton` or `Set`) does not have a default initial value. The `initialize` method (or `insert`, in the case of a `Set`) must be called.
 
@@ -338,7 +342,11 @@ As part of the initialization of the `Storage` struct, the `Singleton` is create
 
 ### `initialize`
 
-When this function is invoked, it creates a nullifier for the storage slot, ensuring that the ImmutableSingleton cannot be initialized again. If an owner is specified, the nullifier will be hashed with the owner's secret key. It is crucial to provide an owner if the ImmutableSingleton is linked to an account; initializing it without one may inadvertently disclose sensitive information about the owner's intent.
+When this function is invoked, it creates a nullifier for the storage slot, ensuring that the ImmutableSingleton cannot be initialized again. 
+
+:::danger Privacy-Leak
+Beware that because this nullifier is created only from the storage slot without randomness it is "leaky". This means that if the storage slot depends on the an address then it is possible to link the nullifier to the address. For example, if the singleton is part of a `map` with an `AztecAddress` as the key then the nullifier will be linked to the address.
+:::
 
 Set the value of an ImmutableSingleton by calling the `initialize` method:
 

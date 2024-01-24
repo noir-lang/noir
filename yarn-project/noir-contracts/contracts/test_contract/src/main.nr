@@ -193,7 +193,7 @@ contract Test {
     #[aztec(private)]
     fn set_constant(value: Field) {
         let mut note = FieldNote::new(value);
-        storage.example_constant.initialize(&mut note, Option::none(), false);
+        storage.example_constant.initialize(&mut note, false);
     }
 
     unconstrained fn get_constant() -> pub Field {
