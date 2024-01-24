@@ -201,13 +201,14 @@ pub enum HirMethodReference {
 }
 
 impl HirMethodCallExpression {
+    /// Converts a method call into a function call
     pub fn into_function_call(
         mut self,
         method: &HirMethodReference,
         object_type: Type,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirExpression) {
+    ) -> HirExpression {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
@@ -225,9 +226,10 @@ impl HirMethodCallExpression {
                 (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }
         };
-        let expr = HirExpression::Ident(HirIdent { location, id, impl_kind });
-        let func = interner.push_expr(expr);
-        (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
+        let func = HirExpression::Ident(HirIdent { location, id, impl_kind });
+        let func = interner.push_expr(func);
+        interner.push_expr_location(func, location.span, location.file);
+        HirExpression::Call(HirCallExpression { func, arguments, location })
     }
 }
 

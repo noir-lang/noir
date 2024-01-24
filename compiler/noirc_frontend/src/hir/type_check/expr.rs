@@ -170,55 +170,47 @@ impl<'interner> TypeChecker<'interner> {
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        let trait_id = match &method_ref {
-                            HirMethodReference::FuncId(func_id) => {
-                                // Automatically add `&mut` if the method expects a mutable reference and
-                                // the object is not already one.
-                                if *func_id != FuncId::dummy_id() {
-                                    let function_type =
-                                        self.interner.function_meta(func_id).typ.clone();
-                                    self.try_add_mutable_reference_to_object(
-                                        &mut method_call,
-                                        &function_type,
-                                        &mut args,
-                                    );
-                                }
-
-                                let meta = self.interner.function_meta(func_id);
-                                meta.trait_impl.map(|impl_id| {
-                                    self.interner
-                                        .get_trait_implementation(impl_id)
-                                        .borrow()
-                                        .trait_id
-                                })
+                        // Automatically add `&mut` if the method expects a mutable reference and
+                        // the object is not already one.
+                        if let HirMethodReference::FuncId(func_id) = &method_ref {
+                            if *func_id != FuncId::dummy_id() {
+                                let function_type =
+                                    self.interner.function_meta(func_id).typ.clone();
+                                self.try_add_mutable_reference_to_object(
+                                    &mut method_call,
+                                    &function_type,
+                                    &mut args,
+                                );
                             }
-                            HirMethodReference::TraitMethodId(method, _) => Some(method.trait_id),
-                        };
+                        }
 
-                        let (function_id, function_call) = method_call.into_function_call(
+                        let function_call = method_call.into_function_call(
                             &method_ref,
                             object_type.clone(),
                             location,
                             self.interner,
                         );
 
-                        let span = self.interner.expr_span(expr_id);
-                        let ret = self.check_method_call(&function_id, method_ref, args, span);
+                        // let span = self.interner.expr_span(expr_id);
+                        // let ret = self.check_method_call(&function_id, method_ref, args, span);
 
-                        if let Some(trait_id) = trait_id {
-                            // Assume no trait generics were specified
-                            // TODO: Fill in type variables
-                            self.verify_trait_constraint(
-                                &object_type,
-                                trait_id,
-                                &[],
-                                function_id,
-                                span,
-                            );
-                        }
+                        // if let Some(trait_id) = trait_id {
+                        //     // Assume no trait generics were specified
+                        //     // TODO: Fill in type variables
+                        //     self.verify_trait_constraint(
+                        //         &object_type,
+                        //         trait_id,
+                        //         &[],
+                        //         function_id,
+                        //         span,
+                        //     );
+                        // }
 
                         self.interner.replace_expr(expr_id, function_call);
-                        ret
+
+                        // Type check the new call now that it has been changed from a method call
+                        // to a function call. This way we avoid duplicating code.
+                        self.check_expression(expr_id)
                     }
                     None => Type::Error,
                 }
@@ -582,60 +574,6 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Error
             }
         }
-    }
-
-    // We need a special function to type check method calls since the method
-    // is not a Expression::Ident it must be manually instantiated here
-    fn check_method_call(
-        &mut self,
-        function_ident_id: &ExprId,
-        method_ref: HirMethodReference,
-        arguments: Vec<(Type, ExprId, Span)>,
-        span: Span,
-    ) -> Type {
-        let (fn_typ, param_len, generic_bindings) = match method_ref {
-            HirMethodReference::FuncId(func_id) => {
-                if func_id == FuncId::dummy_id() {
-                    return Type::Error;
-                }
-
-                let func_meta = self.interner.function_meta(&func_id);
-                let param_len = func_meta.parameters.len();
-                (func_meta.typ.clone(), param_len, TypeBindings::new())
-            }
-            HirMethodReference::TraitMethodId(method, generics) => {
-                let the_trait = self.interner.get_trait(method.trait_id);
-                let method = &the_trait.methods[method.method_index];
-
-                // These are any bindings from the trait's generics itself,
-                // rather than an impl or method's generics.
-                let generic_bindings = the_trait
-                    .generics
-                    .iter()
-                    .zip(generics)
-                    .map(|(var, arg)| (var.id(), (var.clone(), arg)))
-                    .collect();
-
-                (method.typ.clone(), method.arguments().len(), generic_bindings)
-            }
-        };
-
-        let arg_len = arguments.len();
-
-        if param_len != arg_len {
-            self.errors.push(TypeCheckError::ArityMisMatch {
-                expected: param_len as u16,
-                found: arg_len as u16,
-                span,
-            });
-        }
-
-        let (function_type, instantiation_bindings) =
-            fn_typ.instantiate_with_bindings(generic_bindings, self.interner);
-
-        self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
-        self.interner.push_expr_type(function_ident_id, function_type.clone());
-        self.bind_function_type(function_type.clone(), arguments, span)
     }
 
     fn check_if_expr(&mut self, if_expr: &expr::HirIfExpression, expr_id: &ExprId) -> Type {
