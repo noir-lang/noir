@@ -92,11 +92,7 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
         .parse::<usize>()
         .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
 
-    if width == 0 {
-        Ok(ExpressionWidth::Unbounded)
-    } else {
-        Ok(ExpressionWidth::Bounded { width })
-    }
+    Ok(ExpressionWidth::from(width))
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
