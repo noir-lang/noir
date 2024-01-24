@@ -38,7 +38,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
                 return Err(NargoError::ExecutionError(match call_stack {
                     Some(call_stack) => {
                         // First check whether we have a runtime assertion message that should be returned on an ACVM failure
-                        // If we do not have a runtime assertion message, we should check whether the circuit has any harcoded
+                        // If we do not have a runtime assertion message, we should check whether the circuit has any hardcoded
                         // messages associated with a specific `OpcodeLocation`.
                         // Otherwise return the provided opcode resolution error.
                         if let Some(assert_message) = acvm.get_assert_message() {
