@@ -155,17 +155,6 @@ impl<'interner> TypeChecker<'interner> {
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_ref) => {
-                        let mut args = vec![(
-                            object_type.clone(),
-                            method_call.object,
-                            self.interner.expr_span(&method_call.object),
-                        )];
-
-                        for arg in &method_call.arguments {
-                            let typ = self.check_expression(arg);
-                            args.push((typ, *arg, self.interner.expr_span(arg)));
-                        }
-
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
@@ -180,32 +169,17 @@ impl<'interner> TypeChecker<'interner> {
                                 self.try_add_mutable_reference_to_object(
                                     &mut method_call,
                                     &function_type,
-                                    &mut args,
+                                    &object_type,
                                 );
                             }
                         }
 
                         let function_call = method_call.into_function_call(
                             &method_ref,
-                            object_type.clone(),
+                            object_type,
                             location,
                             self.interner,
                         );
-
-                        // let span = self.interner.expr_span(expr_id);
-                        // let ret = self.check_method_call(&function_id, method_ref, args, span);
-
-                        // if let Some(trait_id) = trait_id {
-                        //     // Assume no trait generics were specified
-                        //     // TODO: Fill in type variables
-                        //     self.verify_trait_constraint(
-                        //         &object_type,
-                        //         trait_id,
-                        //         &[],
-                        //         function_id,
-                        //         span,
-                        //     );
-                        // }
 
                         self.interner.replace_expr(expr_id, function_call);
 
@@ -401,7 +375,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         method_call: &mut HirMethodCallExpression,
         function_type: &Type,
-        argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
+        object_type: &Type,
     ) {
         let expected_object_type = match function_type {
             Type::Function(args, _, _) => args.first(),
@@ -413,7 +387,7 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         if let Some(expected_object_type) = expected_object_type {
-            let actual_type = argument_types[0].0.follow_bindings();
+            let actual_type = object_type.follow_bindings();
 
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
@@ -423,7 +397,6 @@ impl<'interner> TypeChecker<'interner> {
                     }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
-                    argument_types[0].0 = new_type.clone();
 
                     // First try to remove a dereference operator that may have been implicitly
                     // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
@@ -437,7 +410,6 @@ impl<'interner> TypeChecker<'interner> {
                                 rhs: method_call.object,
                             }));
                         method_call.object = new_object;
-                        argument_types[0].1 = new_object;
                         self.interner.push_expr_type(&new_object, new_type);
                         self.interner.push_expr_location(new_object, location.span, location.file);
                     }
@@ -445,11 +417,8 @@ impl<'interner> TypeChecker<'interner> {
             // Otherwise if the object type is a mutable reference and the method is not, insert as
             // many dereferences as needed.
             } else if matches!(actual_type, Type::MutableReference(_)) {
-                let (object, new_type) =
-                    self.insert_auto_dereferences(method_call.object, actual_type);
+                let object = self.insert_auto_dereferences(method_call.object, actual_type).0;
                 method_call.object = object;
-                argument_types[0].0 = new_type;
-                argument_types[0].1 = object;
             }
         }
     }
