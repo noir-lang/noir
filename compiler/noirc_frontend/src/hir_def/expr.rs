@@ -6,6 +6,7 @@ use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, T
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
 use super::stmt::HirPattern;
+use super::traits::TraitConstraint;
 use super::types::{StructType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
@@ -29,7 +30,6 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    TraitMethodReference(TraitMethodId),
     Error,
 }
 
@@ -41,10 +41,45 @@ impl HirExpression {
 }
 
 /// Corresponds to a variable in the source code
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct HirIdent {
     pub location: Location,
     pub id: DefinitionId,
+
+    /// If this HirIdent refers to a trait method, this field stores
+    /// whether the impl for this method is known or not.
+    pub impl_kind: ImplKind,
+}
+
+impl HirIdent {
+    pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
+        Self { id, location, impl_kind: ImplKind::NotATraitMethod }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ImplKind {
+    /// This ident is not a trait method
+    NotATraitMethod,
+
+    /// This ident refers to a trait method and its impl needs to be verified,
+    /// and eventually linked to this id. The boolean indicates whether the impl
+    /// is already assumed to exist - e.g. when resolving a path such as `T::default`
+    /// when there is a corresponding `T: Default` constraint in scope.
+    TraitMethod(TraitMethodId, TraitConstraint, bool),
+}
+
+impl Eq for HirIdent {}
+impl PartialEq for HirIdent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl std::hash::Hash for HirIdent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -162,28 +197,35 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitMethodId(TraitMethodId),
+    TraitMethodId(TraitMethodId, /*trait generics:*/ Vec<Type>),
 }
 
 impl HirMethodCallExpression {
     pub fn into_function_call(
         mut self,
-        method: HirMethodReference,
+        method: &HirMethodReference,
+        object_type: Type,
         location: Location,
         interner: &mut NodeInterner,
     ) -> (ExprId, HirExpression) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
-        let expr = match method {
+        let (id, impl_kind) = match method {
             HirMethodReference::FuncId(func_id) => {
-                let id = interner.function_definition_id(func_id);
-                HirExpression::Ident(HirIdent { location, id })
+                (interner.function_definition_id(*func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitMethodId(method_id) => {
-                HirExpression::TraitMethodReference(method_id)
+            HirMethodReference::TraitMethodId(method_id, generics) => {
+                let id = interner.trait_method_id(*method_id);
+                let constraint = TraitConstraint {
+                    typ: object_type,
+                    trait_id: method_id.trait_id,
+                    trait_generics: generics.clone(),
+                };
+                (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }
         };
+        let expr = HirExpression::Ident(HirIdent { location, id, impl_kind });
         let func = interner.push_expr(expr);
         (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
     }

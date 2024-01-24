@@ -27,7 +27,7 @@ use crate::{
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableId, TypeVariableKind, UnaryOp, Visibility,
+    TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -431,11 +431,6 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
-            HirExpression::TraitMethodReference(method) => {
-                let function_type = self.interner.id_type(expr);
-                self.resolve_trait_method_reference(expr, function_type, method)
-            }
-
             HirExpression::MethodCall(hir_method_call) => {
                 unreachable!("Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}")
             }
@@ -682,6 +677,12 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
+        let typ = self.interner.id_type(expr_id);
+
+        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
+            return self.resolve_trait_method_reference(expr_id, typ, method);
+        }
+
         let definition = self.interner.definition(ident.id);
         match &definition.kind {
             DefinitionKind::Function(func_id) => {
@@ -866,8 +867,12 @@ impl<'interner> Monomorphizer<'interner> {
                 self.interner.get_trait_implementation(impl_id).borrow().methods
                     [method.method_index]
             }
-            node_interner::TraitImplKind::Assumed { object_type } => {
-                match self.interner.lookup_trait_implementation(&object_type, method.trait_id) {
+            node_interner::TraitImplKind::Assumed { object_type, trait_generics } => {
+                match self.interner.lookup_trait_implementation(
+                    &object_type,
+                    method.trait_id,
+                    &trait_generics,
+                ) {
                     Ok(TraitImplKind::Normal(impl_id)) => {
                         self.interner.get_trait_implementation(impl_id).borrow().methods
                             [method.method_index]
@@ -889,14 +894,12 @@ impl<'interner> Monomorphizer<'interner> {
             }
         };
 
-        let func_def = self.lookup_function(func_id, expr_id, &function_type, Some(method));
-        let func_id = match func_def {
+        let func_id = match self.lookup_function(func_id, expr_id, &function_type, Some(method)) {
             Definition::Function(func_id) => func_id,
             _ => unreachable!(),
         };
 
         let the_trait = self.interner.get_trait(method.trait_id);
-
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
             mutable: false,
@@ -1026,11 +1029,16 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+        // Disallow printing slices and mutable references for consistency,
+        // since they cannot be passed from ACIR into Brillig
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
                 unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
             }
+        } else if matches!(typ, HirType::MutableReference(_)) {
+            unreachable!("println does not support mutable references.");
         }
+
         let printable_type: PrintableType = typ.into();
         let abi_as_string = serde_json::to_string(&printable_type)
             .expect("ICE: expected PrintableType to serialize");
@@ -1530,8 +1538,8 @@ impl<'interner> Monomorphizer<'interner> {
             let (generics, impl_method_type) =
                 self.interner.function_meta(&impl_method).typ.unwrap_forall();
 
-            let replace_type_variable = |(id, var): &(TypeVariableId, TypeVariable)| {
-                (*id, (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+            let replace_type_variable = |var: &TypeVariable| {
+                (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
             };
 
             // Replace each NamedGeneric with a TypeVariable containing the same internal type variable

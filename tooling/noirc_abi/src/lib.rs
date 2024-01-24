@@ -512,7 +512,7 @@ fn decode_string_value(field_elements: &[FieldElement]) -> String {
     final_string.to_owned()
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractEvent {
     /// Event name
     name: String,

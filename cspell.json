@@ -172,7 +172,11 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell"
+        "zshell",
+        "nouner",
+        "devcontainer",
+        "boilerplate",
+        "boilerplates"
     ],
     "ignorePaths": [
         "./**/node_modules/**",

@@ -1,15 +1,14 @@
+use super::compile_cmd::report_errors;
+use super::fs::{inputs::read_inputs_from_file, load_hex_data};
 use super::NargoConfig;
-use super::{
-    compile_cmd::compile_bin_package,
-    fs::{inputs::read_inputs_from_file, load_hex_data},
-};
 use crate::{backends::Backend, errors::CliError};
 
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
-use nargo::insert_all_files_for_workspace_into_file_manager;
+use nargo::ops::compile_program;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
 use noirc_driver::{
@@ -53,18 +52,29 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width = backend.get_backend_info()?;
-    for package in &workspace {
-        let program = compile_bin_package(
+    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+    for package in binary_packages {
+        let compilation_result = compile_program(
             &workspace_file_manager,
-            &workspace,
+            &parsed_files,
             package,
             &args.compile_options,
-            expression_width,
+            None,
+        );
+
+        let compiled_program = report_errors(
+            compilation_result,
+            &workspace_file_manager,
+            args.compile_options.deny_warnings,
+            args.compile_options.silence_warnings,
         )?;
 
-        verify_package(backend, &workspace, package, program, &args.verifier_name)?;
+        let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+
+        verify_package(backend, &workspace, package, compiled_program, &args.verifier_name)?;
     }
 
     Ok(())

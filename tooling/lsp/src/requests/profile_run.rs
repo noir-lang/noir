@@ -13,6 +13,7 @@ use noirc_driver::{
 use noirc_errors::{debug_info::OpCodesCount, Location};
 
 use crate::{
+    parse_diff,
     types::{NargoProfileRunParams, NargoProfileRunResult},
     LspState,
 };
@@ -26,7 +27,7 @@ pub(crate) fn on_profile_run_request(
 }
 
 fn on_profile_run_request_inner(
-    state: &LspState,
+    state: &mut LspState,
     params: NargoProfileRunParams,
 ) -> Result<NargoProfileRunResult, ResponseError> {
     let root_path = state.root_path.as_deref().ok_or_else(|| {
@@ -52,43 +53,43 @@ fn on_profile_run_request_inner(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_diff(&workspace_file_manager, state);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(_package) => {
-            let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-                .into_iter()
-                .filter(|package| !package.is_library())
-                .cloned()
-                .partition(|package| package.is_binary());
-
             let expression_width = ExpressionWidth::Bounded { width: 3 };
 
             let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
                 &workspace_file_manager,
+                &parsed_files,
                 &workspace,
-                &binary_packages,
-                &contract_packages,
-                expression_width,
                 &CompileOptions::default(),
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
 
             let mut opcodes_counts: HashMap<Location, OpCodesCount> = HashMap::new();
             let mut file_map: BTreeMap<FileId, DebugFile> = BTreeMap::new();
-            for compiled_program in &compiled_programs {
+            for compiled_program in compiled_programs {
+                let compiled_program =
+                    nargo::ops::transform_program(compiled_program, expression_width);
+
                 let span_opcodes = compiled_program.debug.count_span_opcodes();
                 let debug_artifact: DebugArtifact = compiled_program.clone().into();
                 opcodes_counts.extend(span_opcodes);
                 file_map.extend(debug_artifact.file_map);
             }
 
-            for compiled_contract in &compiled_contracts {
-                let functions = &compiled_contract.functions;
-                let debug_artifact: DebugArtifact = compiled_contract.clone().into();
+            for compiled_contract in compiled_contracts {
+                let compiled_contract =
+                    nargo::ops::transform_contract(compiled_contract, expression_width);
+
+                let function_debug_info: Vec<_> =
+                    compiled_contract.functions.iter().map(|func| &func.debug).cloned().collect();
+                let debug_artifact: DebugArtifact = compiled_contract.into();
                 file_map.extend(debug_artifact.file_map);
-                for contract_function in functions {
-                    let span_opcodes = contract_function.debug.count_span_opcodes();
+                for contract_function_debug in function_debug_info {
+                    let span_opcodes = contract_function_debug.count_span_opcodes();
                     opcodes_counts.extend(span_opcodes);
                 }
             }

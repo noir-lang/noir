@@ -5,7 +5,7 @@ use async_lsp::ResponseError;
 use fm::codespan_files::Error;
 use lsp_types::{
     DeclarationCapability, Location, Position, TextDocumentSyncCapability, TextDocumentSyncKind,
-    Url,
+    TypeDefinitionProviderCapability, Url,
 };
 use nargo_fmt::Config;
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,8 @@ mod tests;
 pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
     goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    profile_run::on_profile_run_request, test_run::on_test_run_request, tests::on_tests_request,
+    goto_definition::on_goto_type_definition_request, profile_run::on_profile_run_request,
+    test_run::on_test_run_request, tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -46,15 +47,25 @@ struct LspInitializationOptions {
     /// By default this will be set to true (enabled).
     #[serde(rename = "enableCodeLens", default = "default_enable_code_lens")]
     enable_code_lens: bool,
+
+    #[serde(rename = "enableParsingCache", default = "default_enable_parsing_cache")]
+    enable_parsing_cache: bool,
 }
 
 fn default_enable_code_lens() -> bool {
     true
 }
 
+fn default_enable_parsing_cache() -> bool {
+    true
+}
+
 impl Default for LspInitializationOptions {
     fn default() -> Self {
-        Self { enable_code_lens: default_enable_code_lens() }
+        Self {
+            enable_code_lens: default_enable_code_lens(),
+            enable_parsing_cache: default_enable_parsing_cache(),
+        }
     }
 }
 
@@ -63,11 +74,11 @@ pub(crate) fn on_initialize(
     params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
-
     let initialization_options: LspInitializationOptions = params
         .initialization_options
         .and_then(|value| serde_json::from_value(value).ok())
         .unwrap_or_default();
+    state.parsing_cache_enabled = initialization_options.enable_parsing_cache;
 
     async move {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
@@ -94,6 +105,7 @@ pub(crate) fn on_initialize(
                 nargo: Some(nargo),
                 definition_provider: Some(lsp_types::OneOf::Left(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
+                type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
             },
             server_info: None,
         })

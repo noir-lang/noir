@@ -26,7 +26,7 @@ pub enum ContractFunctionType {
     Unconstrained,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompiledContract {
     pub noir_version: String,
 
@@ -51,7 +51,7 @@ pub struct CompiledContract {
 /// A contract function unlike a regular Noir program
 /// however can have additional properties.
 /// One of these being a function type.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractFunction {
     pub name: String,
 

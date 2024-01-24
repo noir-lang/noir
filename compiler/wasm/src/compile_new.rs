@@ -1,5 +1,5 @@
 use crate::compile::{
-    file_manager_with_source_map, generate_contract_artifact, generate_program_artifact,
+    file_manager_with_source_map, generate_contract_artifact, generate_program_artifact, parse_all,
     JsCompileResult, PathToFileSourceMap,
 };
 use crate::errors::{CompileError, JsCompileError};
@@ -20,7 +20,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 pub struct CompilerContext {
     // `wasm_bindgen` currently doesn't allow lifetime parameters on structs so we must use a `'static` lifetime.
     // `Context` must then own the `FileManager` to satisfy this lifetime.
-    context: Context<'static>,
+    context: Context<'static, 'static>,
 }
 
 #[wasm_bindgen(js_name = "CrateId")]
@@ -34,7 +34,9 @@ impl CompilerContext {
         console_error_panic_hook::set_once();
 
         let fm = file_manager_with_source_map(source_map);
-        CompilerContext { context: Context::new(fm) }
+        let parsed_files = parse_all(&fm);
+
+        CompilerContext { context: Context::new(fm, parsed_files) }
     }
 
     #[cfg(test)]
@@ -97,7 +99,7 @@ impl CompilerContext {
         let root_crate_id = *self.context.root_crate_id();
 
         let compiled_program =
-            compile_main(&mut self.context, root_crate_id, &compile_options, None, true)
+            compile_main(&mut self.context, root_crate_id, &compile_options, None)
                 .map_err(|errs| {
                     CompileError::with_file_diagnostics(
                         "Failed to compile program",
@@ -107,7 +109,7 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::optimize_program(compiled_program, np_language);
+        let optimized_program = nargo::ops::transform_program(compiled_program, np_language);
 
         let compile_output = generate_program_artifact(optimized_program);
         Ok(JsCompileResult::new(compile_output))
@@ -132,7 +134,7 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, np_language);
+        let optimized_contract = nargo::ops::transform_contract(compiled_contract, np_language);
 
         let compile_output = generate_contract_artifact(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
@@ -231,7 +233,7 @@ mod test {
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;
 
-    use crate::compile::{file_manager_with_source_map, PathToFileSourceMap};
+    use crate::compile::{file_manager_with_source_map, parse_all, PathToFileSourceMap};
 
     use std::path::Path;
 
@@ -241,8 +243,9 @@ mod test {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
+        let parsed_files = parse_all(&fm);
 
-        let mut context = Context::new(fm);
+        let mut context = Context::new(fm, parsed_files);
         prepare_crate(&mut context, Path::new("/main.nr"));
 
         CompilerContext { context }

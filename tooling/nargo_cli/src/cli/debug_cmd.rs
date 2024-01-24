@@ -6,8 +6,9 @@ use clap::Args;
 
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::insert_all_files_for_workspace_into_file_manager;
+use nargo::ops::compile_program;
 use nargo::package::Package;
+use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
@@ -16,7 +17,7 @@ use noirc_driver::{
 };
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::compile_bin_package;
+use super::compile_cmd::report_errors;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::backends::Backend;
@@ -57,6 +58,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
 
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
@@ -65,13 +67,22 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let compiled_program = compile_bin_package(
+    let compilation_result = compile_program(
         &workspace_file_manager,
-        &workspace,
+        &parsed_files,
         package,
         &args.compile_options,
-        expression_width,
+        None,
+    );
+
+    let compiled_program = report_errors(
+        compilation_result,
+        &workspace_file_manager,
+        args.compile_options.deny_warnings,
+        args.compile_options.silence_warnings,
     )?;
+
+    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }

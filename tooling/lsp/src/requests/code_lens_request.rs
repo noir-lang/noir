@@ -64,7 +64,7 @@ fn on_code_lens_request_inner(
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = workspace.members.first().unwrap();
 
-    let (mut context, crate_id) = prepare_source(source_string);
+    let (mut context, crate_id) = prepare_source(source_string, state);
     // We ignore the warnings and errors produced by compilation for producing code lenses
     // because we can still get the test functions even if compilation fails
     let _ = check_crate(&mut context, crate_id, false, false);
@@ -102,7 +102,7 @@ pub(crate) fn collect_lenses_for_package(
         // Ignore diagnostics for any file that wasn't the file we saved
         // TODO: In the future, we could create "related" diagnostics for these files
         if let Some(file_path) = file_path {
-            if fm.path(file_id) != *file_path {
+            if fm.path(file_id).expect("file must exist to contain tests") != *file_path {
                 continue;
             }
         }
@@ -125,6 +125,7 @@ pub(crate) fn collect_lenses_for_package(
 
         lenses.push(test_lens);
     }
+
     if package.is_binary() {
         if let Some(main_func_id) = context.get_main_function(&crate_id) {
             let location = context.function_meta(&main_func_id).name.location;
@@ -133,7 +134,9 @@ pub(crate) fn collect_lenses_for_package(
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
             if let Some(file_path) = file_path {
-                if fm.path(file_id) != *file_path {
+                if fm.path(file_id).expect("file must exist to contain `main` function")
+                    != *file_path
+                {
                     return lenses;
                 }
             }
@@ -192,7 +195,7 @@ pub(crate) fn collect_lenses_for_package(
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
             if let Some(file_path) = file_path {
-                if fm.path(file_id) != *file_path {
+                if fm.path(file_id).expect("file must exist to contain a contract") != *file_path {
                     continue;
                 }
             }

@@ -87,7 +87,7 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let (ast, parsing_errors) = parse_file(&context.file_manager, root_file_id);
+        let (ast, parsing_errors) = context.parsed_file_results(root_file_id);
         let mut ast = ast.into_sorted();
 
         for macro_processor in &macro_processors {
@@ -295,7 +295,7 @@ pub struct Contract {
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
-    let file_source = fm.fetch_file(file_id);
+    let file_source = fm.fetch_file(file_id).expect("File does not exist");
     parse_program(file_source)
 }
 

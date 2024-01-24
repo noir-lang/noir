@@ -96,6 +96,9 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
             _ => unreachable!("ICE - expect return on the last block"),
         }
     }
+    // we save the data bus inside the dfg
+    function_context.builder.current_function.dfg.data_bus =
+        DataBus::get_data_bus(call_data, return_data);
 
     // Main has now been compiled and any other functions referenced within have been added to the
     // function queue as they were found in codegen_ident. This queueing will happen each time a
@@ -106,9 +109,6 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body)?;
     }
-    // we save the data bus inside the dfg
-    function_context.builder.current_function.dfg.data_bus =
-        DataBus::get_data_bus(call_data, return_data);
 
     Ok(function_context.builder.finish())
 }
@@ -187,12 +187,14 @@ impl<'a> FunctionContext<'a> {
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
-                    ast::Type::Array(_, _) => self.codegen_array(elements, typ[0].clone()),
+                    ast::Type::Array(_, _) => {
+                        self.codegen_array_checked(elements, typ[0].clone())?
+                    }
                     ast::Type::Slice(_) => {
                         let slice_length =
                             self.builder.field_constant(array.contents.len() as u128);
-
-                        let slice_contents = self.codegen_array(elements, typ[1].clone());
+                        let slice_contents =
+                            self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
                     _ => unreachable!(
@@ -229,6 +231,18 @@ impl<'a> FunctionContext<'a> {
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
         self.codegen_array(elements, typ)
+    }
+
+    // Codegen an array but make sure that we do not have a nested slice
+    fn codegen_array_checked(
+        &mut self,
+        elements: Vec<Values>,
+        typ: Type,
+    ) -> Result<Values, RuntimeError> {
+        if typ.is_nested_slice() {
+            return Err(RuntimeError::NestedSlice { call_stack: self.builder.get_call_stack() });
+        }
+        Ok(self.codegen_array(elements, typ))
     }
 
     /// Codegen an array by allocating enough space for each element and inserting separate

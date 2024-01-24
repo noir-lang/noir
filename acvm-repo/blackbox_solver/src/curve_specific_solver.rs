@@ -29,6 +29,18 @@ pub trait BlackBoxFunctionSolver {
         low: &FieldElement,
         high: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
+    fn ec_add(
+        &self,
+        input1_x: &FieldElement,
+        input1_y: &FieldElement,
+        input2_x: &FieldElement,
+        input2_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
+    fn ec_double(
+        &self,
+        input_x: &FieldElement,
+        input_x: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError>;
 }
 
 pub struct StubbedBlackBoxSolver;
@@ -72,5 +84,21 @@ impl BlackBoxFunctionSolver for StubbedBlackBoxSolver {
         _high: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::FixedBaseScalarMul))
+    }
+    fn ec_add(
+        &self,
+        _input1_x: &FieldElement,
+        _input1_y: &FieldElement,
+        _input2_x: &FieldElement,
+        _input2_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        Err(Self::fail(BlackBoxFunc::EmbeddedCurveAdd))
+    }
+    fn ec_double(
+        &self,
+        _input_x: &FieldElement,
+        _input_y: &FieldElement,
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+        Err(Self::fail(BlackBoxFunc::EmbeddedCurveDouble))
     }
 }

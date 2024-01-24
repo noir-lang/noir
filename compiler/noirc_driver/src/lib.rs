@@ -45,6 +45,10 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
+    /// Force a full recompilation.
+    #[arg(long = "force")]
+    pub force_compile: bool,
+
     /// Emit debug information for the intermediate SSA IR
     #[arg(long, hide = true)]
     pub show_ssa: bool,
@@ -71,6 +75,10 @@ pub struct CompileOptions {
     /// Disables the builtin macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
+
+    /// Outputs the monomorphized IR to stdout for debugging
+    #[arg(long, hide = true)]
+    pub show_monomorphized: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -206,7 +214,6 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
-    force_compile: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (_, mut warnings) =
         check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
@@ -220,8 +227,9 @@ pub fn compile_main(
         vec![err]
     })?;
 
-    let compiled_program = compile_no_check(context, options, main, cached_program, force_compile)
-        .map_err(FileDiagnostic::from)?;
+    let compiled_program =
+        compile_no_check(context, options, main, cached_program, options.force_compile)
+            .map_err(FileDiagnostic::from)?;
     let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
@@ -387,6 +395,9 @@ pub fn compile_no_check(
 
     let hash = fxhash::hash64(&program);
     let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
+    if options.show_monomorphized {
+        println!("{program}");
+    }
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.

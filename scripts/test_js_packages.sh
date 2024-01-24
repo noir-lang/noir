@@ -17,7 +17,7 @@ fi
 cargo build --release
 export PATH="${PATH}:/usr/src/noir/target/release/"
 
-yarn
+yarn --immutable
 yarn build
 npx playwright install
 npx playwright install-deps

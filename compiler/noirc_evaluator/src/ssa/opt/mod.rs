@@ -5,10 +5,10 @@
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 mod array_use;
 mod assert_constant;
+mod bubble_up_constrains;
 mod constant_folding;
 mod defunctionalize;
 mod die;
-mod fill_internal_slices;
 pub(crate) mod flatten_cfg;
 mod inlining;
 mod mem2reg;
