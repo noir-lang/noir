@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use acvm::ExpressionWidth;
-
 use fm::FileManager;
 use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::CompileError;
@@ -68,7 +66,6 @@ pub(crate) fn run(
         &workspace_file_manager,
         &parsed_files,
         &workspace,
-        expression_width,
         &args.compile_options,
     )?;
 
@@ -81,9 +78,11 @@ pub(crate) fn run(
     // Save build artifacts to disk.
     let only_acir = args.compile_options.only_acir;
     for (package, program) in binary_packages.into_iter().zip(compiled_program) {
+        let program = nargo::ops::transform_program(program, expression_width);
         save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
     }
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
+        let contract = nargo::ops::transform_contract(contract, expression_width);
         save_contract(contract, &package, &circuit_dir);
     }
 
@@ -94,7 +93,6 @@ pub(super) fn compile_workspace(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
-    expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
@@ -114,21 +112,12 @@ pub(super) fn compile_workspace(
                     .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
                     .map(|p| p.into());
 
-            compile_program(
-                file_manager,
-                parsed_files,
-                package,
-                compile_options,
-                expression_width,
-                cached_program,
-            )
+            compile_program(file_manager, parsed_files, package, compile_options, cached_program)
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
-        .map(|package| {
-            compile_contract(file_manager, parsed_files, package, compile_options, expression_width)
-        })
+        .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.

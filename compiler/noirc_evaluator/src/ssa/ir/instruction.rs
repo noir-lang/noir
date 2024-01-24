@@ -1002,7 +1002,7 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
             }

@@ -74,14 +74,8 @@ fn load_and_compile_project(
     let parsed_files = parse_all(&workspace_file_manager);
 
     let compile_options = CompileOptions::default();
-    let compilation_result = compile_program(
-        &workspace_file_manager,
-        &parsed_files,
-        package,
-        &compile_options,
-        expression_width,
-        None,
-    );
+    let compilation_result =
+        compile_program(&workspace_file_manager, &parsed_files, package, &compile_options, None);
 
     let compiled_program = report_errors(
         compilation_result,
@@ -90,6 +84,8 @@ fn load_and_compile_project(
         compile_options.silence_warnings,
     )
     .map_err(|_| LoadError("Failed to compile project"))?;
+
+    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)

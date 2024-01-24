@@ -126,18 +126,18 @@ impl From<CompiledProgram> for DebugArtifact {
     }
 }
 
-impl From<&CompiledContract> for DebugArtifact {
-    fn from(compiled_artifact: &CompiledContract) -> Self {
+impl From<CompiledContract> for DebugArtifact {
+    fn from(compiled_artifact: CompiledContract) -> Self {
         let all_functions_debug: Vec<DebugInfo> = compiled_artifact
             .functions
-            .iter()
-            .map(|contract_function| contract_function.debug.clone())
+            .into_iter()
+            .map(|contract_function| contract_function.debug)
             .collect();
 
         DebugArtifact {
             debug_symbols: all_functions_debug,
-            file_map: compiled_artifact.file_map.clone(),
-            warnings: compiled_artifact.warnings.clone(),
+            file_map: compiled_artifact.file_map,
+            warnings: compiled_artifact.warnings,
         }
     }
 }
