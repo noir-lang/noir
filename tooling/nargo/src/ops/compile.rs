@@ -1,4 +1,3 @@
-use acvm::ExpressionWidth;
 use fm::FileManager;
 use noirc_driver::{
     link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
@@ -21,7 +20,6 @@ pub fn compile_workspace(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
-    expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CompileError> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
@@ -33,22 +31,11 @@ pub fn compile_workspace(
     // Compile all of the packages in parallel.
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
-        .map(|package| {
-            compile_program(
-                file_manager,
-                parsed_files,
-                package,
-                compile_options,
-                expression_width,
-                None,
-            )
-        })
+        .map(|package| compile_program(file_manager, parsed_files, package, compile_options, None))
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
-        .map(|package| {
-            compile_contract(file_manager, parsed_files, package, compile_options, expression_width)
-        })
+        .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -83,7 +70,6 @@ pub fn compile_program(
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
     compile_program_with_debug_state(
@@ -91,7 +77,6 @@ pub fn compile_program(
         parsed_files,
         package,
         compile_options,
-        expression_width,
         cached_program,
         DebugState::default(),
     )
@@ -102,7 +87,6 @@ pub fn compile_program_with_debug_state(
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
     cached_program: Option<CompiledProgram>,
     debug_state: DebugState,
 ) -> CompilationResult<CompiledProgram> {
@@ -110,13 +94,7 @@ pub fn compile_program_with_debug_state(
     link_to_debug_crate(&mut context, crate_id);
     context.debug_state = debug_state;
 
-    let (program, warnings) =
-        noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)?;
-
-    // Apply backend specific optimizations.
-    let optimized_program = crate::ops::optimize_program(program, expression_width);
-
-    Ok((optimized_program, warnings))
+    noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)
 }
 
 pub fn compile_contract(
@@ -124,15 +102,9 @@ pub fn compile_contract(
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
 ) -> CompilationResult<CompiledContract> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    let (contract, warnings) =
-        noirc_driver::compile_contract(&mut context, crate_id, compile_options)?;
-
-    let optimized_contract = crate::ops::optimize_contract(contract, expression_width);
-
-    Ok((optimized_contract, warnings))
+    noirc_driver::compile_contract(&mut context, crate_id, compile_options)
 }
 
 pub(crate) fn report_errors<T>(

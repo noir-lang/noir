@@ -84,7 +84,6 @@ fn load_and_compile_project(
         &parsed_files,
         package,
         &compile_options,
-        expression_width,
         None,
         debug_state,
     );
@@ -96,6 +95,8 @@ fn load_and_compile_project(
         compile_options.silence_warnings,
     )
     .map_err(|_| LoadError("Failed to compile project"))?;
+
+    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)

@@ -8,8 +8,8 @@ keywords:
 sidebar_position: 2 
 ---
 
-This section breaks down our hello world program in section _1.2_. We elaborate on the project
-structure and what the `prove` and `verify` commands did in the previous section.
+This section breaks down our hello world program from the previous section. We elaborate on the project
+structure and what the `prove` and `verify` commands did.
 
 ## Anatomy of a Nargo Project
 
@@ -52,7 +52,7 @@ license = "MIT"
 ecrecover = {tag = "v0.9.0", git = "https://github.com/colinnielsen/ecrecover-noir.git"}
 ```
 
-Nargo.toml for a [workspace](../noir/modules_packages_crates/workspaces.md) will look a bit different. For example:
+Nargo.toml for a [workspace](../../noir/modules_packages_crates/workspaces.md) will look a bit different. For example:
 
 ```toml
 [workspace]
@@ -62,7 +62,7 @@ default-member = "crates/a"
 
 #### Package section
 
-The package section requires a number of fields including:
+The package section defines a number of fields including:
 
 - `name` (**required**) - the name of the package
 - `type` (**required**) - can be "bin", "lib", or "contract" to specify whether its a binary, library or Aztec contract
@@ -75,7 +75,7 @@ The package section requires a number of fields including:
 
 #### Dependencies section
 
-This is where you will specify any dependencies for your project. See the [Dependencies page](../noir/modules_packages_crates/dependencies.md) for more info.
+This is where you will specify any dependencies for your project. See the [Dependencies page](../../noir/modules_packages_crates/dependencies.md) for more info.
 
 `./proofs/` and `./contract/` directories will not be immediately visible until you create a proof or
 verifier contract respectively.
@@ -98,7 +98,7 @@ verifying the proof.
 
 The prover supplies the values for `x` and `y` in the _Prover.toml_ file.
 
-As for the program body, `assert` ensures the satisfaction of the condition (e.g. `x != y`) is
+As for the program body, `assert` ensures that the condition to be satisfied (e.g. `x != y`) is
 constrained by the proof of the execution of said program (i.e. if the condition was not met, the
 verifier would reject the proof as an invalid proof).
 
@@ -116,8 +116,8 @@ y = "2"
 
 When the command `nargo prove` is executed, two processes happen:
 
-1. Noir creates a proof that `x` which holds the value of `1` and `y` which holds the value of `2`
-   is not equal. This not equal constraint is due to the line `assert(x != y)`.
+1. Noir creates a proof that `x`, which holds the value of `1`, and `y`, which holds the value of `2`,
+   is not equal. This inequality constraint is due to the line `assert(x != y)`.
 
 2. Noir creates and stores the proof of this statement in the _proofs_ directory in a file called your-project.proof. So if your project is named "private_voting" (defined in the project Nargo.toml), the proof will be saved at `./proofs/private_voting.proof`. Opening this file will display the proof in hex format.
 
@@ -183,12 +183,12 @@ When the command `nargo verify` is executed, two processes happen:
 
 In production, the prover and the verifier are usually two separate entities. A prover would
 retrieve the necessary inputs, execute the Noir program, generate a proof and pass it to the
-verifier. The verifier would then retrieve the public inputs from usually external sources and
-verifies the validity of the proof against it.
+verifier. The verifier would then retrieve the public inputs, usually from external sources, and
+verify the validity of the proof against it.
 
 Take a private asset transfer as an example:
 
-A user on browser as the prover would retrieve private inputs (e.g. the user's private key) and
+A person using a browser as the prover would retrieve private inputs locally (e.g. the user's private key) and
 public inputs (e.g. the user's encrypted balance on-chain), compute the transfer, generate a proof
 and submit it to the verifier smart contract.
 

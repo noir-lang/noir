@@ -74,19 +74,25 @@ pub(crate) fn run(
         &workspace_file_manager,
         &parsed_files,
         &workspace,
-        expression_width,
         &args.compile_options,
     )?;
+
+    let compiled_programs = vecmap(compiled_programs, |program| {
+        nargo::ops::transform_program(program, expression_width)
+    });
+    let compiled_contracts = vecmap(compiled_contracts, |contract| {
+        nargo::ops::transform_contract(contract, expression_width)
+    });
 
     if args.profile_info {
         for compiled_program in &compiled_programs {
             let span_opcodes = compiled_program.debug.count_span_opcodes();
-            let debug_artifact: DebugArtifact = compiled_program.clone().into();
+            let debug_artifact = DebugArtifact::from(compiled_program.clone());
             print_span_opcodes(span_opcodes, &debug_artifact);
         }
 
         for compiled_contract in &compiled_contracts {
-            let debug_artifact: DebugArtifact = compiled_contract.clone().into();
+            let debug_artifact = DebugArtifact::from(compiled_contract.clone());
             let functions = &compiled_contract.functions;
             for contract_function in functions {
                 let span_opcodes = contract_function.debug.count_span_opcodes();

@@ -564,6 +564,7 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let index_register = self.convert_ssa_register_value(*index, dfg);
+                self.validate_array_index(array_variable, index_register);
                 self.retrieve_variable_from_array(
                     array_pointer,
                     index_register,
@@ -582,6 +583,7 @@ impl<'block> BrilligBlock<'block> {
                     result_ids[0],
                     dfg,
                 );
+                self.validate_array_index(source_variable, index_register);
 
                 self.convert_ssa_array_set(
                     source_variable,
@@ -688,6 +690,37 @@ impl<'block> BrilligBlock<'block> {
         // puts the returns into the returned_registers and restores saved_registers
         self.brillig_context
             .post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
+    }
+
+    fn validate_array_index(
+        &mut self,
+        array_variable: BrilligVariable,
+        index_register: RegisterIndex,
+    ) {
+        let (size_as_register, should_deallocate_size) = match array_variable {
+            BrilligVariable::BrilligArray(BrilligArray { size, .. }) => {
+                (self.brillig_context.make_constant(size.into()), true)
+            }
+            BrilligVariable::BrilligVector(BrilligVector { size, .. }) => (size, false),
+            _ => unreachable!("ICE: validate array index on non-array"),
+        };
+
+        let condition = self.brillig_context.allocate_register();
+
+        self.brillig_context.memory_op(
+            index_register,
+            size_as_register,
+            condition,
+            BinaryIntOp::LessThan,
+        );
+
+        self.brillig_context
+            .constrain_instruction(condition, Some("Array index out of bounds".to_owned()));
+
+        if should_deallocate_size {
+            self.brillig_context.deallocate_register(size_as_register);
+        }
+        self.brillig_context.deallocate_register(condition);
     }
 
     pub(crate) fn retrieve_variable_from_array(
