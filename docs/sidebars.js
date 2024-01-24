@@ -326,7 +326,16 @@ const sidebars = {
             },
             "dev_docs/contracts/syntax/events",
             "dev_docs/contracts/syntax/functions",
+            {
+              label: "Proving Historical Blockchain Data",
+              type: "category",
+              items: [
+                "dev_docs/contracts/syntax/historical_access/how_to_prove_history",
+                "dev_docs/contracts/syntax/historical_access/history_lib_reference",
+            ],
+            },
             "dev_docs/contracts/syntax/slow_updates_tree",
+            
             "dev_docs/contracts/syntax/context",
             "dev_docs/contracts/syntax/globals",
           ],
