@@ -10,37 +10,34 @@ sidebar_position: 2
 There are currently two ways of debugging Noir programs:
 
 1. From VS Code, via the [vscode-noir](https://github.com/noir-lang/vscode-noir) extension. You can install it via the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir).
-2. By using the REPL debugger, which ships with Nargo.
+2. Via the REPL debugger, which ships with Nargo.
 
-In order to use either version of the debugger, you will need to install recent enough versions of Noir, Nargo and vscode-noir:
+In order to use either version of the debugger, you will need to install recent enough versions of Noir, [Nargo](../../getting_started/installation) and vscode-noir:
 
-(TODO-DEBUGGER-DOCS: update to correct version number at the time of removing the feature flag)
 - Noir 0.xx 
 - Nargo 0.xx
 - vscode-noir 0.xx
 
-> **Note:** At the moment, the debugger supports debugging binary projects, but not contracts.
+:::info
+At the moment, the debugger supports debugging binary projects, but not contracts.
+:::
 
+## VS Code debugger quickstart
 
-## Debugging with VS Code
+Once you installed Nargo and the vscode-noir extension, you can start debugging your Noir programs by simply opening a `.nr` file, clicking the debugger pane, and clicking _Run and debug_. Alternatively you can just use the `F5` keyboard shortcut.
 
-Once you installed Nargo and the [vscode-noir](https://github.com/noir-lang/vscode-noir) extension, you can start debugging your Noir programs by simply opening a `.nr` file, clicking the debugger pane, and clicking `Run and debug`. Alternatively you can just use the `F5` keyboard shortcut.
+You should be seeing something like this:
 
-You should be now seeing something like this:
+![Screencast of VS Code Noir Debugger](@site/static/img/debugger/debugger-intro.gif)
+)
 
-(TODO-DEBUGGER-DOCS: replace gif)
-
-![Screen Recording 2023-12-18 at 14 14 28](https://github.com/manastech/noir/assets/651693/36b4becb-953a-4158-9c5a-7a185673f54f)
-
-We'll cover the VS Code debugger more in depth in (TODO-DEBUGGER-DOCS: guide) and (TODO-DEBUGGER-DOCS: reference) 
+We cover the VS Code Noir debugger more in depth in [its how-to guide](../../how_to/debugger/debugging_with_vs_code.md) and [its reference](../../reference/debugger/debugger_vscode.md).
 
 ## REPL debugger quickstart
 
-In order to use the REPL debugger, you will need to install a new enough version of Nargo. The debugger ships with Nargo since version 0.22 (TODO-DEBUGGER-DOCS: update to correct version number at the time of removing the feature flag).
-
 Let's debug a simple circuit:
 
-```
+```rust
 fn main(x : Field, y : pub Field) {
     assert(x != y);
 }
@@ -54,7 +51,6 @@ You should be seeing something similar to this in your terminal:
 
 ```
 [main] Starting debugger
-At opcode 0: EXPR [ (-1, _1) (1, _2) (-1, _3) 0 ]
 At ~/noir-examples/recursion/circuits/main/src/main.nr:2:12
   1    fn main(x : Field, y : pub Field) {
   2 ->     assert(x != y);
@@ -63,7 +59,7 @@ At ~/noir-examples/recursion/circuits/main/src/main.nr:2:12
 ```
 
 
-That's it! The debugger displays the current opcode and the corresponding Noir code location associated to it, and it is now waiting for us to drive it. You can explore the available commands to drive the debugger with `help`, like here:
+That's it! The debugger displays the current Noir code location, and it is now waiting for us to drive it. You can explore the available commands to drive the debugger with `help`, like here:
 
 ```
 At ~/noir-examples/recursion/circuits/main/src/main.nr:2:12
@@ -101,4 +97,4 @@ Other commands:
 ```
 
 
-We'll cover each command in depth in (TODO-DEBUGGER-DOCS: link to REPL guide) and (TODO-DEBUGGER-DOCS: link to REPL REFERENCE). 
+We'll cover each command in depth in [the REPL debugger how-to](../../how_to/debugger/debugging_with_the_repl.md) and [its reference](../../reference/debugger/debugger_repl.md).
