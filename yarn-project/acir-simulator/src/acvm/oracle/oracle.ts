@@ -232,8 +232,8 @@ export class Oracle {
   }
 
   async getL1ToL2Message([msgKey]: ACVMField[]): Promise<ACVMField[]> {
-    const { root, ...message } = await this.typedOracle.getL1ToL2Message(fromACVMField(msgKey));
-    return toAcvmL1ToL2MessageLoadOracleInputs(message, root);
+    const { ...message } = await this.typedOracle.getL1ToL2Message(fromACVMField(msgKey));
+    return toAcvmL1ToL2MessageLoadOracleInputs(message);
   }
 
   async getPortalContractAddress([aztecAddress]: ACVMField[]): Promise<ACVMField> {

@@ -48,7 +48,7 @@ export interface NoteData {
 }
 
 /**
- * The partial data for L1 to L2 Messages provided by other data sources.
+ * The data for L1 to L2 Messages provided by other data sources.
  */
 export interface MessageLoadOracleInputs {
   /**
@@ -64,16 +64,6 @@ export interface MessageLoadOracleInputs {
    * The index of the message commitment in the merkle tree.
    */
   index: bigint;
-}
-
-/**
- * The data required by Aztec.nr to validate L1 to L2 Messages.
- */
-export interface L1ToL2MessageOracleReturnData extends MessageLoadOracleInputs {
-  /**
-   * The current root of the l1 to l2 message tree.
-   */
-  root: Fr;
 }
 
 /**
@@ -167,7 +157,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  getL1ToL2Message(_msgKey: Fr): Promise<L1ToL2MessageOracleReturnData> {
+  getL1ToL2Message(_msgKey: Fr): Promise<MessageLoadOracleInputs> {
     throw new Error('Not available.');
   }
 

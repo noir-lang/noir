@@ -161,7 +161,7 @@ describe('e2e_cross_chain_messaging', () => {
           secretForL2MessageConsumption,
         )
         .simulate(),
-    ).rejects.toThrowError("Cannot satisfy constraint 'l1_to_l2_message_data.message.content == content");
+    ).rejects.toThrowError("Invalid Content 'l1_to_l2_message_data.message.content == content'");
 
     // send the right one -
     const consumptionTx = l2Bridge
@@ -234,8 +234,6 @@ describe('e2e_cross_chain_messaging', () => {
         .withWallet(user2Wallet)
         .methods.claim_public(ownerAddress, bridgeAmount, ethAccount, messageKey, secretForL2MessageConsumption)
         .simulate(),
-    ).rejects.toThrowError(
-      "Failed to solve brillig function, reason: explicit trap hit in brillig 'l1_to_l2_message_data.message.content == content'",
-    );
+    ).rejects.toThrowError("Invalid Content 'l1_to_l2_message_data.message.content == content'");
   }, 120_000);
 });

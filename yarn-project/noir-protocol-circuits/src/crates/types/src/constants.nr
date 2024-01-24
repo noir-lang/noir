@@ -86,7 +86,7 @@ global ARGS_HASH_CHUNK_COUNT: u32 = 16;
 // Move these constants to a noir file once the issue bellow is resolved:
 // https://github.com/noir-lang/noir/issues/1734
 global L1_TO_L2_MESSAGE_LENGTH: Field = 8;
-global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: Field = 26;
+global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: Field = 25;
 global MAX_NOTE_FIELDS_LENGTH: Field = 20;
 // GET_NOTE_ORACLE_RETURN_LENGT = MAX_NOTE_FIELDS_LENGTH + 1 + 2
 // The plus 1 is 1 extra field for nonce.

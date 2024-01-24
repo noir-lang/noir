@@ -199,18 +199,13 @@ export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVM
 /**
  * Converts the result of loading messages to ACVM fields.
  * @param messageLoadOracleInputs - The result of loading messages to convert.
- * @param l1ToL2MessageTreeRoot - The L1 to L2 message tree root
  * @returns The Message Oracle Fields.
  */
-export function toAcvmL1ToL2MessageLoadOracleInputs(
-  messageLoadOracleInputs: MessageLoadOracleInputs,
-  l1ToL2MessageTreeRoot: Fr,
-): ACVMField[] {
+export function toAcvmL1ToL2MessageLoadOracleInputs(messageLoadOracleInputs: MessageLoadOracleInputs): ACVMField[] {
   return [
     ...messageLoadOracleInputs.message.map(f => toACVMField(f)),
     toACVMField(messageLoadOracleInputs.index),
     ...messageLoadOracleInputs.siblingPath.map(f => toACVMField(f)),
-    toACVMField(l1ToL2MessageTreeRoot),
   ];
 }
 

@@ -102,9 +102,7 @@ export class PublicExecutionContext extends TypedOracle {
    * @returns The l1 to l2 message data
    */
   public async getL1ToL2Message(msgKey: Fr) {
-    // l1 to l2 messages in public contexts TODO: https://github.com/AztecProtocol/aztec-packages/issues/616
-    const message = await this.commitmentsDb.getL1ToL2Message(msgKey);
-    return { ...message, root: this.blockHeader.l1ToL2MessageTreeRoot };
+    return await this.commitmentsDb.getL1ToL2Message(msgKey);
   }
 
   /**

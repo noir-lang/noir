@@ -8,12 +8,11 @@ use crate::utils::arr_copy_slice;
 struct L1ToL2MessageGetterData {
     message: L1ToL2Message,
     sibling_path: [Field; L1_TO_L2_MSG_TREE_HEIGHT],
-    leaf_index: Field,
-    root: Field,
+    leaf_index: Field
 }
 
 pub fn l1_to_l2_message_getter_len() -> Field {
-    L1_TO_L2_MESSAGE_LENGTH + 1 + L1_TO_L2_MSG_TREE_HEIGHT + 1
+    L1_TO_L2_MESSAGE_LENGTH + 1 + L1_TO_L2_MSG_TREE_HEIGHT
 }
 
 pub fn make_l1_to_l2_message_getter_data<N>(
@@ -32,7 +31,6 @@ pub fn make_l1_to_l2_message_getter_data<N>(
             fields,
             [0; L1_TO_L2_MSG_TREE_HEIGHT],
             L1_TO_L2_MESSAGE_LENGTH + 1
-        ),
-        root: fields[start + L1_TO_L2_MESSAGE_LENGTH + L1_TO_L2_MSG_TREE_HEIGHT + 1]
+        )
     }
 }

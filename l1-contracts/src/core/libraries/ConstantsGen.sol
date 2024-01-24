@@ -62,7 +62,7 @@ library Constants {
   uint256 internal constant ARGS_HASH_CHUNK_LENGTH = 32;
   uint256 internal constant ARGS_HASH_CHUNK_COUNT = 16;
   uint256 internal constant L1_TO_L2_MESSAGE_LENGTH = 8;
-  uint256 internal constant L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 26;
+  uint256 internal constant L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 25;
   uint256 internal constant MAX_NOTE_FIELDS_LENGTH = 20;
   uint256 internal constant GET_NOTE_ORACLE_RETURN_LENGTH = 23;
   uint256 internal constant MAX_NOTES_PER_PAGE = 10;

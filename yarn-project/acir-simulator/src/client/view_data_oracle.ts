@@ -240,8 +240,7 @@ export class ViewDataOracle extends TypedOracle {
    * @returns The l1 to l2 message data
    */
   public async getL1ToL2Message(msgKey: Fr) {
-    const message = await this.db.getL1ToL2Message(msgKey);
-    return { ...message, root: this.blockHeader.l1ToL2MessageTreeRoot };
+    return await this.db.getL1ToL2Message(msgKey);
   }
 
   /**
