@@ -67,12 +67,14 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
     using Relations = GoblinUltra::Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
+    static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
 
     // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
     // random polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation
     // length = 3
     static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = MAX_PARTIAL_RELATION_LENGTH + 1;
-    static constexpr size_t NUM_RELATIONS = std::tuple_size<Relations>::value;
+    static constexpr size_t BATCHED_RELATION_TOTAL_LENGTH = MAX_TOTAL_RELATION_LENGTH + 1;
+    static constexpr size_t NUM_RELATIONS = std::tuple_size_v<Relations>;
 
     // For instances of this flavour, used in folding, we need a unique sumcheck batching challenge for each
     // subrelation. This is because using powers of alpha would increase the degree of Protogalaxy polynomial $G$ (the
@@ -104,6 +106,12 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
      */
     class VerificationKey : public VerificationKey_<GoblinUltra::PrecomputedEntities<Commitment>> {
       public:
+        VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
+        {
+            this->circuit_size = circuit_size;
+            this->log_circuit_size = numeric::get_msb(circuit_size);
+            this->num_public_inputs = num_public_inputs;
+        };
         /**
          * @brief Construct a new Verification Key with stdlib types from a provided native verification
          * key
@@ -112,9 +120,10 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
          * @param native_key Native verification key from which to extract the precomputed commitments
          */
         VerificationKey(CircuitBuilder* builder, const std::shared_ptr<NativeVerificationKey>& native_key)
-            : VerificationKey_<GoblinUltra::PrecomputedEntities<Commitment>>(native_key->circuit_size,
-                                                                             native_key->num_public_inputs)
         {
+            this->circuit_size = native_key->circuit_size;
+            this->log_circuit_size = numeric::get_msb(this->circuit_size);
+            this->num_public_inputs = native_key->num_public_inputs;
             this->q_m = Commitment::from_witness(builder, native_key->q_m);
             this->q_l = Commitment::from_witness(builder, native_key->q_l);
             this->q_r = Commitment::from_witness(builder, native_key->q_r);
@@ -147,6 +156,11 @@ template <typename BuilderType> class GoblinUltraRecursive_ {
             this->databus_id = Commitment::from_witness(builder, native_key->databus_id);
         };
     };
+
+    /**
+     * @brief A container for the witness commitments.
+     */
+    using WitnessCommitments = GoblinUltra::WitnessEntities<Commitment>;
 
     using CommitmentLabels = GoblinUltra::CommitmentLabels;
     // Reuse the VerifierCommitments from GoblinUltra

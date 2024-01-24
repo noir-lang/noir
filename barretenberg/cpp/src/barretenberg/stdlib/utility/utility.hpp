@@ -117,6 +117,10 @@ template <typename Builder> class StdlibTypesUtility {
         using type = uint32_t;
     };
 
+    template <size_t LENGTH> struct NativeType<bool, LENGTH> {
+        using type = bool;
+    };
+
     template <size_t LENGTH> struct NativeType<field_ct, LENGTH> {
         using type = FF;
     };

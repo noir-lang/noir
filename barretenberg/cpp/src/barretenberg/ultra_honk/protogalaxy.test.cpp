@@ -47,7 +47,7 @@ std::shared_ptr<Instance> fold_and_verify(const std::vector<std::shared_ptr<Inst
                                           UltraComposer& composer,
                                           bool expected_result)
 {
-    auto folding_prover = composer.create_folding_prover(instances, composer.commitment_key);
+    auto folding_prover = composer.create_folding_prover(instances);
     auto folding_verifier = composer.create_folding_verifier();
 
     auto proof = folding_prover.fold_instances();
@@ -76,7 +76,7 @@ void check_accumulator_target_sum_manual(std::shared_ptr<Instance>& accumulator,
 }
 void decide_and_verify(std::shared_ptr<Instance>& accumulator, UltraComposer& composer, bool expected_result)
 {
-    auto decider_prover = composer.create_decider_prover(accumulator, composer.commitment_key);
+    auto decider_prover = composer.create_decider_prover(accumulator);
     auto decider_verifier = composer.create_decider_verifier(accumulator);
     auto decision = decider_prover.construct_proof();
     auto verified = decider_verifier.verify_proof(decision);

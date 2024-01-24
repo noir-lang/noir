@@ -112,6 +112,13 @@ template <class Params_> struct alignas(32) field {
         *this = field(value);
     }
 
+    constexpr explicit operator bool() const
+    {
+        field out = from_montgomery_form();
+        ASSERT(out.data[0] == 0 || out.data[0] == 1);
+        return static_cast<bool>(out.data[0]);
+    }
+
     constexpr explicit operator uint32_t() const
     {
         field out = from_montgomery_form();

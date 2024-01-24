@@ -17,6 +17,8 @@ template <typename CircuitBuilder> struct bn254 {
     using ScalarFieldNative = curve::BN254::ScalarField;
     using BaseFieldNative = curve::BN254::BaseField;
     using GroupNative = curve::BN254::Group;
+    using ElementNative = GroupNative::element;
+    using AffineElementNative = GroupNative::affine_element;
 
     // Stdlib types corresponding to those defined in the native description of the curve.
     // Note: its useful to have these type names match the native analog exactly so that components that digest a Curve
