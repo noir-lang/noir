@@ -1,5 +1,6 @@
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::brillig_vm::brillig::ForeignCallResult;
 use acvm::brillig_vm::{brillig::Value, Registers};
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
@@ -225,7 +226,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         match foreign_call_result {
             Ok(foreign_call_result) => {
                 if let Some(mut solver) = self.brillig_solver.take() {
-                    let foreign_call_result = foreign_call_result.get_brillig_output().expect("Debugger Error: Should only be attempting to execute foreign calls resolving back to Brillig");
+                    let foreign_call_result = foreign_call_result.get_brillig_output().unwrap_or(ForeignCallResult::default());
                     solver.resolve_pending_foreign_call(foreign_call_result);
                     self.brillig_solver = Some(solver);
                 } else {
