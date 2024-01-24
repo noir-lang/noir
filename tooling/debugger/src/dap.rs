@@ -601,6 +601,9 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         let mut variables: Vec<_> = self
             .context
             .get_variables()
+            .last()
+            .expect("no stack frame available")
+            .2
             .iter()
             .map(|(name, value, _var_type)| Variable {
                 name: String::from(*name),
