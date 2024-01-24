@@ -12,22 +12,21 @@ keywords:
 sidebar_position: 1
 ---
 
-## Pre-requisites
+#### Pre-requisites
 
 In order to use the REPL debugger, first you need to install recent enough versions of Nargo and vscode-noir. 
 
 The first versions of each that ship with support for the Noir Debugger are:
 
-TODO-DEBUGGER SET THESE VERSIONS ONCE WE KNOW THEM
--Nargo: x
--Noir: y
--vscode-noir: z
+- Nargo: > x
+- Noir: > y
+- vscode-noir: > z
 
 ## Debugging a simple circuit
 
 Let's debug a simple circuit:
 
-```
+```rust
 fn main(x : Field, y : pub Field) {
     assert(x != y);
 }
@@ -173,6 +172,4 @@ Finished execution
 
 Upon quitting the debugger after a solved circuit, the resulting circuit witness gets saved, equivalent to what would happen if we had run the same circuit with `nargo execute`.
 
-## Reference
-
-With this guide we intend to give an overview of the most common features of the REPL debugger. For a comprehensive reference, check out [the REPL debugger reference page](../../reference/debugger_repl).
+We just went through the basics of debugging using Noir REPL debugger. For a comprehensive reference, check out [the reference page](../../reference/debugger/debugger_repl.md).
