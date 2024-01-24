@@ -457,6 +457,59 @@ impl DebugShow {
                     result
                 );
             }
+            BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_ADD {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntNeg { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_NEG {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntMul { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_MUL {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_DIV {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_FROM_LE_BYTES {} {} -> {}",
+                    inputs,
+                    modulus,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntToLeBytes { input, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_TO_LE_BYTES {} -> {}",
+                    input,
+                    output
+                );
+            }
         }
     }
 

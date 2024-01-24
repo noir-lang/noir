@@ -434,8 +434,13 @@ fn simplify_black_box_func(
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None
         }
-
-        BlackBoxFunc::RecursiveAggregation => SimplifyResult::None,
+        BlackBoxFunc::BigIntAdd
+        | BlackBoxFunc::BigIntNeg
+        | BlackBoxFunc::BigIntMul
+        | BlackBoxFunc::BigIntDiv
+        | BlackBoxFunc::RecursiveAggregation
+        | BlackBoxFunc::BigIntFromLeBytes
+        | BlackBoxFunc::BigIntToLeBytes => SimplifyResult::None,
 
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")

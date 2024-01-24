@@ -120,6 +120,35 @@ pub enum BlackBoxFuncCall {
         /// key provided to the circuit matches the key produced by the circuit creator
         key_hash: FunctionInput,
     },
+    BigIntAdd {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntNeg {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntMul {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntDiv {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntFromLeBytes {
+        inputs: Vec<FunctionInput>,
+        modulus: Vec<u8>,
+        output: u32,
+    },
+    BigIntToLeBytes {
+        input: u32,
+        outputs: Vec<Witness>,
+    },
 }
 
 impl BlackBoxFuncCall {
@@ -143,6 +172,12 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::Keccak256VariableLength { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } => BlackBoxFunc::RecursiveAggregation,
+            BlackBoxFuncCall::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
+            BlackBoxFuncCall::BigIntNeg { .. } => BlackBoxFunc::BigIntNeg,
+            BlackBoxFuncCall::BigIntMul { .. } => BlackBoxFunc::BigIntMul,
+            BlackBoxFuncCall::BigIntDiv { .. } => BlackBoxFunc::BigIntDiv,
+            BlackBoxFuncCall::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
+            &BlackBoxFuncCall::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
         }
     }
 
@@ -158,10 +193,16 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
             | BlackBoxFuncCall::Keccakf1600 { inputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
-            | BlackBoxFuncCall::PedersenHash { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::PedersenHash { inputs, .. }
+            | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
+            BlackBoxFuncCall::BigIntAdd { .. }
+            | BlackBoxFuncCall::BigIntNeg { .. }
+            | BlackBoxFuncCall::BigIntMul { .. }
+            | BlackBoxFuncCall::BigIntDiv { .. }
+            | BlackBoxFuncCall::BigIntToLeBytes { .. } => Vec::new(),
             BlackBoxFuncCall::FixedBaseScalarMul { low, high, .. } => vec![*low, *high],
             BlackBoxFuncCall::EmbeddedCurveAdd {
                 input1_x, input1_y, input2_x, input2_y, ..
@@ -249,7 +290,8 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Blake2s { outputs, .. }
             | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
-            | BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
+            | BlackBoxFuncCall::Keccakf1600 { outputs, .. }
+            | BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
@@ -260,10 +302,16 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::PedersenCommitment { outputs, .. }
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. }
             | BlackBoxFuncCall::EmbeddedCurveDouble { outputs, .. } => vec![outputs.0, outputs.1],
-            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => {
+            BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::RecursiveAggregation { .. }
+            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
+            | BlackBoxFuncCall::BigIntAdd { .. }
+            | BlackBoxFuncCall::BigIntNeg { .. }
+            | BlackBoxFuncCall::BigIntMul { .. }
+            | BlackBoxFuncCall::BigIntDiv { .. } => {
                 vec![]
             }
-            BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
+            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
         }
     }
 }
