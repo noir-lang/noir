@@ -1,7 +1,4 @@
-use acvm::{
-    acir::{brillig::BlackBoxOp, BlackBoxFunc},
-    brillig_vm::brillig::HeapValueType,
-};
+use acvm::acir::{brillig::BlackBoxOp, BlackBoxFunc};
 
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVariable, BrilligVector},
@@ -24,8 +21,8 @@ pub(crate) fn convert_black_box_call(
             {
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::Sha256 {
-                    message: message_vector.to_heap_vector(vec![HeapValueType::Simple]),
-                    output: result_array.to_heap_array(vec![HeapValueType::Simple]),
+                    message: message_vector.to_heap_vector(),
+                    output: result_array.to_heap_array(),
                 });
             } else {
                 unreachable!("ICE: SHA256 expects one array argument and one array result")
@@ -37,8 +34,8 @@ pub(crate) fn convert_black_box_call(
             {
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::Blake2s {
-                    message: message_vector.to_heap_vector(vec![HeapValueType::Simple]),
-                    output: result_array.to_heap_array(vec![HeapValueType::Simple]),
+                    message: message_vector.to_heap_vector(),
+                    output: result_array.to_heap_array(),
                 });
             } else {
                 unreachable!("ICE: Blake2s expects one array argument and one array result")
@@ -54,8 +51,8 @@ pub(crate) fn convert_black_box_call(
                 message_vector.size = *array_size;
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Keccak256 {
-                    message: message_vector.to_heap_vector(vec![HeapValueType::Simple]),
-                    output: result_array.to_heap_array(vec![HeapValueType::Simple]),
+                    message: message_vector.to_heap_vector(),
+                    output: result_array.to_heap_array(),
                 });
             } else {
                 unreachable!("ICE: Keccak256 expects message, message size and result array")
@@ -70,10 +67,10 @@ pub(crate) fn convert_black_box_call(
                 let message_hash_vector =
                     convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256k1 {
-                    hashed_msg: message_hash_vector.to_heap_vector(vec![HeapValueType::Simple]),
-                    public_key_x: public_key_x.to_heap_array(vec![HeapValueType::Simple]),
-                    public_key_y: public_key_y.to_heap_array(vec![HeapValueType::Simple]),
-                    signature: signature.to_heap_array(vec![HeapValueType::Simple]),
+                    hashed_msg: message_hash_vector.to_heap_vector(),
+                    public_key_x: public_key_x.to_heap_array(),
+                    public_key_y: public_key_y.to_heap_array(),
+                    signature: signature.to_heap_array(),
                     result: *result_register,
                 });
             } else {
@@ -91,10 +88,10 @@ pub(crate) fn convert_black_box_call(
                 let message_hash_vector =
                     convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::EcdsaSecp256r1 {
-                    hashed_msg: message_hash_vector.to_heap_vector(vec![HeapValueType::Simple]),
-                    public_key_x: public_key_x.to_heap_array(vec![HeapValueType::Simple]),
-                    public_key_y: public_key_y.to_heap_array(vec![HeapValueType::Simple]),
-                    signature: signature.to_heap_array(vec![HeapValueType::Simple]),
+                    hashed_msg: message_hash_vector.to_heap_vector(),
+                    public_key_x: public_key_x.to_heap_array(),
+                    public_key_y: public_key_y.to_heap_array(),
+                    signature: signature.to_heap_array(),
                     result: *result_register,
                 });
             } else {
@@ -112,9 +109,9 @@ pub(crate) fn convert_black_box_call(
             {
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::PedersenCommitment {
-                    inputs: message_vector.to_heap_vector(vec![HeapValueType::Simple]),
+                    inputs: message_vector.to_heap_vector(),
                     domain_separator: *domain_separator,
-                    output: result_array.to_heap_array(vec![HeapValueType::Simple]),
+                    output: result_array.to_heap_array(),
                 });
             } else {
                 unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
@@ -128,7 +125,7 @@ pub(crate) fn convert_black_box_call(
             {
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::PedersenHash {
-                    inputs: message_vector.to_heap_vector(vec![HeapValueType::Simple]),
+                    inputs: message_vector.to_heap_vector(),
                     domain_separator: *domain_separator,
                     output: *result,
                 });
@@ -147,8 +144,8 @@ pub(crate) fn convert_black_box_call(
                 brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
                     public_key_x: *public_key_x,
                     public_key_y: *public_key_y,
-                    message: message_hash.to_heap_vector(vec![HeapValueType::Simple]),
-                    signature: signature.to_heap_vector(vec![HeapValueType::Simple]),
+                    message: message_hash.to_heap_vector(),
+                    signature: signature.to_heap_vector(),
                     result: *result_register,
                 });
             } else {
@@ -164,7 +161,7 @@ pub(crate) fn convert_black_box_call(
                 brillig_context.black_box_op_instruction(BlackBoxOp::FixedBaseScalarMul {
                     low: *low,
                     high: *high,
-                    result: result_array.to_heap_array(vec![HeapValueType::Simple]),
+                    result: result_array.to_heap_array(),
                 });
             } else {
                 unreachable!(

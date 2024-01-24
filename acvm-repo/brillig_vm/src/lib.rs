@@ -216,7 +216,16 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                     self.fail("return opcode hit, but callstack already empty".to_string())
                 }
             }
-            Opcode::ForeignCall { function, destinations, inputs } => {
+            Opcode::ForeignCall {
+                function,
+                destinations,
+                destination_value_types,
+                inputs,
+                input_value_types,
+            } => {
+                assert!(inputs.len() == input_value_types.len());
+                assert!(destinations.len() == destination_value_types.len());
+
                 if self.foreign_call_counter >= self.foreign_call_results.len() {
                     // When this opcode is called, it is possible that the results of a foreign call are
                     // not yet known (not enough entries in `foreign_call_results`).
@@ -227,7 +236,10 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                     // but has the necessary results to proceed with execution.
                     let resolved_inputs = inputs
                         .iter()
-                        .map(|input| self.get_register_value_or_memory_values(input.clone()))
+                        .zip(input_value_types)
+                        .map(|(input, input_type)| {
+                            self.get_register_value_or_memory_values(input.clone(), input_type)
+                        })
                         .collect::<Vec<_>>();
                     return self.wait_for_foreign_call(function.clone(), resolved_inputs);
                 }
@@ -235,21 +247,26 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 let values = &self.foreign_call_results[self.foreign_call_counter].values;
 
                 let mut invalid_foreign_call_result = false;
-                for (destination, output) in destinations.iter().zip(values) {
+                for ((destination, value_type), output) in
+                    destinations.iter().zip(destination_value_types).zip(values)
+                {
                     match destination {
-                        RegisterOrMemory::RegisterIndex(value_index) => match output {
-                            ForeignCallParam::Single(value) => {
-                                self.registers.set(*value_index, *value);
+                        RegisterOrMemory::RegisterIndex(value_index) => {
+                            assert!(*value_type == HeapValueType::Simple);
+                            match output {
+                                ForeignCallParam::Single(value) => {
+                                    self.registers.set(*value_index, *value);
+                                }
+                                _ => unreachable!(
+                                    "Function result size does not match brillig bytecode (expected 1 result)"
+                                ),
                             }
-                            _ => unreachable!(
-                                "Function result size does not match brillig bytecode (expected 1 result)"
-                            ),
-                        },
-                        RegisterOrMemory::HeapArray(HeapArray {
-                            pointer: pointer_index,
-                            size,
-                            value_types,
-                        }) => {
+                        }
+                        RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_index, size }) => {
+                            let HeapValueType::Array { value_types, size: type_size } = value_type else {
+                                unreachable!("Expected array heap type");
+                            };
+                            assert!(size == type_size);
                             if HeapValueType::all_simple(value_types) {
                                 match output {
                                     ForeignCallParam::Array(values) => {
@@ -258,7 +275,8 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                                             break;
                                         }
                                         // Convert the destination pointer to a usize
-                                        let destination = self.registers.get(*pointer_index).to_usize();
+                                        let destination =
+                                            self.registers.get(*pointer_index).to_usize();
                                         // Write to our destination memory
                                         self.memory.write_slice(destination, values);
                                     }
@@ -270,17 +288,21 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                                 unimplemented!("deflattening heap arrays from foreign calls");
                             }
                         }
-                        RegisterOrMemory::HeapVector(HeapVector { pointer: pointer_index,
-                                                                  size: size_index,
-                                                                  value_types,
+                        RegisterOrMemory::HeapVector(HeapVector {
+                            pointer: pointer_index,
+                            size: size_index,
                         }) => {
+                            let HeapValueType::Vector { value_types } = value_type else {
+                                unreachable!("Expected vector heap type");
+                            };
                             if HeapValueType::all_simple(value_types) {
                                 match output {
                                     ForeignCallParam::Array(values) => {
                                         // Set our size in the size register
                                         self.registers.set(*size_index, Value::from(values.len()));
                                         // Convert the destination pointer to a usize
-                                        let destination = self.registers.get(*pointer_index).to_usize();
+                                        let destination =
+                                            self.registers.get(*pointer_index).to_usize();
                                         // Write to our destination memory
                                         self.memory.write_slice(destination, values);
                                     }
@@ -373,25 +395,34 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.status.clone()
     }
 
-    fn get_register_value_or_memory_values(&self, input: RegisterOrMemory) -> ForeignCallParam {
+    fn get_register_value_or_memory_values(
+        &self,
+        input: RegisterOrMemory,
+        value_type: &HeapValueType,
+    ) -> ForeignCallParam {
         match input {
-            RegisterOrMemory::RegisterIndex(value_index) => self.registers.get(value_index).into(),
-            RegisterOrMemory::HeapArray(HeapArray {
-                pointer: pointer_index,
-                size,
-                value_types,
-            }) => {
+            RegisterOrMemory::RegisterIndex(value_index) => {
+                assert!(*value_type == HeapValueType::Simple);
+                self.registers.get(value_index).into()
+            }
+            RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_index, size }) => {
+                let HeapValueType::Array { value_types, size: type_size } = value_type else {
+                    unreachable!("expected array heap value type");
+                };
+                assert!(*type_size == size);
                 let ptr = self.registers.get(pointer_index).to_usize();
-                self.read_slice_of_values_from_memory(ptr, size, &value_types).into()
+                self.read_slice_of_values_from_memory(ptr, size, value_types).into()
             }
             RegisterOrMemory::HeapVector(HeapVector {
                 pointer: pointer_index,
                 size: size_index,
-                value_types,
             }) => {
+                let HeapValueType::Vector { value_types } = value_type else {
+                    unreachable!("expected vector heap value type");
+                };
                 let ptr = self.registers.get(pointer_index).to_usize();
                 let size = self.registers.get(size_index).to_usize();
-                self.read_slice_of_values_from_memory(ptr, size, &value_types).into()
+                self.read_slice_of_values_from_memory(ptr, size, value_types).into()
             }
         }
     }
@@ -1004,7 +1035,9 @@ mod tests {
             Opcode::ForeignCall {
                 function: "double".into(),
                 destinations: vec![RegisterOrMemory::RegisterIndex(r_result)],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![RegisterOrMemory::RegisterIndex(r_input)],
+                input_value_types: vec![HeapValueType::Simple],
             },
         ];
 
@@ -1061,13 +1094,19 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_output,
                     size: initial_matrix.len(),
-                    value_types: vec![HeapValueType::Simple],
                 })],
+                destination_value_types: vec![HeapValueType::Array {
+                    size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_input,
                     size: initial_matrix.len(),
-                    value_types: vec![HeapValueType::Simple],
                 })],
+                input_value_types: vec![HeapValueType::Array {
+                    value_types: vec![HeapValueType::Simple],
+                    size: initial_matrix.len(),
+                }],
             },
         ];
 
@@ -1136,13 +1175,17 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapVector(HeapVector {
                     pointer: r_output_pointer,
                     size: r_output_size,
-                    value_types: vec![HeapValueType::Simple],
                 })],
+                destination_value_types: vec![HeapValueType::Vector {
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![RegisterOrMemory::HeapVector(HeapVector {
                     pointer: r_input_pointer,
                     size: r_input_size,
-                    value_types: vec![HeapValueType::Simple],
                 })],
+                input_value_types: vec![HeapValueType::Vector {
+                    value_types: vec![HeapValueType::Simple],
+                }],
             },
         ];
 
@@ -1200,13 +1243,19 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_output,
                     size: initial_matrix.len(),
-                    value_types: vec![HeapValueType::Simple],
                 })],
+                destination_value_types: vec![HeapValueType::Array {
+                    size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_input,
                     size: initial_matrix.len(),
-                    value_types: vec![HeapValueType::Simple],
                 })],
+                input_value_types: vec![HeapValueType::Array {
+                    size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
             },
         ];
 
@@ -1280,19 +1329,30 @@ mod tests {
                 destinations: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_output,
                     size: matrix_a.len(),
-                    value_types: vec![HeapValueType::Simple],
                 })],
+                destination_value_types: vec![HeapValueType::Array {
+                    size: matrix_a.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![
                     RegisterOrMemory::HeapArray(HeapArray {
                         pointer: r_input_a,
                         size: matrix_a.len(),
-                        value_types: vec![HeapValueType::Simple],
                     }),
                     RegisterOrMemory::HeapArray(HeapArray {
                         pointer: r_input_b,
                         size: matrix_b.len(),
-                        value_types: vec![HeapValueType::Simple],
                     }),
+                ],
+                input_value_types: vec![
+                    HeapValueType::Array {
+                        size: matrix_a.len(),
+                        value_types: vec![HeapValueType::Simple],
+                    },
+                    HeapValueType::Array {
+                        size: matrix_b.len(),
+                        value_types: vec![HeapValueType::Simple],
+                    },
                 ],
             },
         ];
@@ -1383,11 +1443,15 @@ mod tests {
             Opcode::ForeignCall {
                 function: "flat_sum".into(),
                 destinations: vec![RegisterOrMemory::RegisterIndex(r_output)],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![RegisterOrMemory::HeapArray(HeapArray {
                     pointer: r_input,
                     size: outer_array.len(),
-                    value_types: input_array_value_types,
                 })],
+                input_value_types: vec![HeapValueType::Array {
+                    value_types: input_array_value_types,
+                    size: outer_array.len(),
+                }],
             },
         ];
 

@@ -183,7 +183,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
 
 #[cfg(test)]
 mod test {
-    use acir::brillig::{BlackBoxOp, HeapValueType};
+    use acir::brillig::BlackBoxOp;
 
     use crate::{
         black_box::{evaluate_black_box, to_u8_vec, to_value_vec},
@@ -209,16 +209,8 @@ mod test {
         };
 
         let op = BlackBoxOp::Sha256 {
-            message: HeapVector {
-                pointer: 0.into(),
-                size: 1.into(),
-                value_types: vec![HeapValueType::Simple],
-            },
-            output: HeapArray {
-                pointer: 2.into(),
-                size: 32,
-                value_types: vec![HeapValueType::Simple],
-            },
+            message: HeapVector { pointer: 0.into(), size: 1.into() },
+            output: HeapArray { pointer: 2.into(), size: 32 },
         };
 
         evaluate_black_box(&op, &DummyBlackBoxSolver, &mut registers, &mut memory).unwrap();

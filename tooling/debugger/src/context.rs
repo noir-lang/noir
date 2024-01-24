@@ -442,7 +442,7 @@ mod tests {
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
-            BinaryFieldOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory,
+            BinaryFieldOp, HeapValueType, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory,
         },
     };
     use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor};
@@ -468,7 +468,9 @@ mod tests {
                 BrilligOpcode::ForeignCall {
                     function: "clear_mock".into(),
                     destinations: vec![],
+                    destination_value_types: vec![],
                     inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
+                    input_value_types: vec![HeapValueType::Simple],
                 },
                 BrilligOpcode::Stop,
             ],

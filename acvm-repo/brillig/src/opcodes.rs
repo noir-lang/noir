@@ -45,7 +45,6 @@ impl HeapValueType {
 pub struct HeapArray {
     pub pointer: RegisterIndex,
     pub size: usize,
-    pub value_types: Vec<HeapValueType>,
 }
 
 /// A register-sized vector passed starting from a Brillig register memory location and with a register-held size
@@ -53,7 +52,6 @@ pub struct HeapArray {
 pub struct HeapVector {
     pub pointer: RegisterIndex,
     pub size: RegisterIndex,
-    pub value_types: Vec<HeapValueType>,
 }
 
 /// Lays out various ways an external foreign call's input and output data may be interpreted inside Brillig.
@@ -134,8 +132,13 @@ pub enum BrilligOpcode {
         function: String,
         /// Destination registers (may be single values or memory pointers).
         destinations: Vec<RegisterOrMemory>,
+        /// Destination value types
+        destination_value_types: Vec<HeapValueType>,
         /// Input registers (may be single values or memory pointers).
         inputs: Vec<RegisterOrMemory>,
+        /// Input value types (for heap allocated structures indicates how to
+        /// retrieve the elements)
+        input_value_types: Vec<HeapValueType>,
     },
     Mov {
         destination: RegisterIndex,
