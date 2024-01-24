@@ -200,6 +200,12 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             registers.set(*output, hash.into());
             Ok(())
         }
+        BlackBoxOp::BigIntAdd { .. } => todo!(),
+        BlackBoxOp::BigIntNeg { .. } => todo!(),
+        BlackBoxOp::BigIntMul { .. } => todo!(),
+        BlackBoxOp::BigIntDiv { .. } => todo!(),
+        BlackBoxOp::BigIntFromLeBytes { .. } => todo!(),
+        BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
     }
 }
 
@@ -218,6 +224,12 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
         BlackBoxOp::EmbeddedCurveDouble { .. } => BlackBoxFunc::EmbeddedCurveDouble,
+        BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
+        BlackBoxOp::BigIntNeg { .. } => BlackBoxFunc::BigIntNeg,
+        BlackBoxOp::BigIntMul { .. } => BlackBoxFunc::BigIntMul,
+        BlackBoxOp::BigIntDiv { .. } => BlackBoxFunc::BigIntDiv,
+        BlackBoxOp::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
+        BlackBoxOp::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
     }
 }
 

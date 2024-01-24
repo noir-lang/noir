@@ -107,6 +107,8 @@ TEST_F(ECDSASecp256k1, TestECDSAConstraintSucceed)
         .ec_add_constraints = {},
         .ec_double_constraints = {},
         .recursion_constraints = {},
+        .bigint_from_le_bytes_constraints = {},
+        .bigint_operations = {},
         .constraints = {},
         .block_constraints = {},
     };
@@ -151,6 +153,8 @@ TEST_F(ECDSASecp256k1, TestECDSACompilesForVerifier)
         .ec_add_constraints = {},
         .ec_double_constraints = {},
         .recursion_constraints = {},
+        .bigint_from_le_bytes_constraints = {},
+        .bigint_operations = {},
         .constraints = {},
         .block_constraints = {},
     };
@@ -190,6 +194,8 @@ TEST_F(ECDSASecp256k1, TestECDSAConstraintFail)
         .ec_add_constraints = {},
         .ec_double_constraints = {},
         .recursion_constraints = {},
+        .bigint_from_le_bytes_constraints = {},
+        .bigint_operations = {},
         .constraints = {},
         .block_constraints = {},
     };

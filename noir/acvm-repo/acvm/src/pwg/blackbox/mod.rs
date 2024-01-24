@@ -185,5 +185,11 @@ pub(crate) fn solve(
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
+        BlackBoxFuncCall::BigIntAdd { .. } => todo!(),
+        BlackBoxFuncCall::BigIntNeg { .. } => todo!(),
+        BlackBoxFuncCall::BigIntMul { .. } => todo!(),
+        BlackBoxFuncCall::BigIntDiv { .. } => todo!(),
+        BlackBoxFuncCall::BigIntFromLeBytes { .. } => todo!(),
+        BlackBoxFuncCall::BigIntToLeBytes { .. } => todo!(),
     }
 }

@@ -2,6 +2,7 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/container.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/dsl/acir_format/bigint_constraint.hpp"
 #include "barretenberg/dsl/acir_format/blake2s_constraint.hpp"
 #include "barretenberg/dsl/acir_format/blake3_constraint.hpp"
 #include "barretenberg/dsl/acir_format/block_constraint.hpp"
@@ -240,6 +241,40 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, Aci
                     .key_hash = arg.key_hash.witness.value,
                 };
                 af.recursion_constraints.push_back(c);
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntFromLeBytes>) {
+                af.bigint_from_le_bytes_constraints.push_back(BigIntFromLeBytes{
+                    .inputs = map(arg.inputs, [](auto& e) { return e.witness.value; }),
+                    .modulus = map(arg.modulus, [](auto& e) -> uint32_t { return e; }),
+                    .result = arg.output,
+                });
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntAdd>) {
+                af.bigint_operations.push_back(BigIntOperation{
+                    .lhs = arg.lhs,
+                    .rhs = arg.rhs,
+                    .result = arg.output,
+                    .opcode = BigIntOperationType::Add,
+                });
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntNeg>) {
+                af.bigint_operations.push_back(BigIntOperation{
+                    .lhs = arg.lhs,
+                    .rhs = arg.rhs,
+                    .result = arg.output,
+                    .opcode = BigIntOperationType::Neg,
+                });
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntMul>) {
+                af.bigint_operations.push_back(BigIntOperation{
+                    .lhs = arg.lhs,
+                    .rhs = arg.rhs,
+                    .result = arg.output,
+                    .opcode = BigIntOperationType::Mul,
+                });
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntDiv>) {
+                af.bigint_operations.push_back(BigIntOperation{
+                    .lhs = arg.lhs,
+                    .rhs = arg.rhs,
+                    .result = arg.output,
+                    .opcode = BigIntOperationType::Div,
+                });
             }
         },
         arg.value.value);

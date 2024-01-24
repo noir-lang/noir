@@ -128,6 +128,8 @@ TEST_F(UltraPlonkRAM, TestBlockConstraint)
         .ec_add_constraints = {},
         .ec_double_constraints = {},
         .recursion_constraints = {},
+        .bigint_from_le_bytes_constraints = {},
+        .bigint_operations = {},
         .constraints = {},
         .block_constraints = { block },
     };
