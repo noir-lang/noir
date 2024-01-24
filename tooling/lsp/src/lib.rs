@@ -242,7 +242,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
             root_dir: PathBuf::from(parent_folder),
             members: vec![assumed_package],
             selected_package_index: Some(0),
-            is_assumed: false,
+            is_assumed: true,
         };
         Ok(workspace)
     }
