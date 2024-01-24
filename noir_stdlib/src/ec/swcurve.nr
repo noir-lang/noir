@@ -38,7 +38,7 @@ mod affine {
         
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
-            curvegroup::Point::from(self)
+            self.into()
         }
         
         // Additive identity
@@ -75,7 +75,6 @@ mod affine {
         }
     }
 
-
     impl Curve {
         // Curve constructor
         pub fn new(a: Field, b: Field, gen: Point) -> Curve {
@@ -92,7 +91,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Curve {
-            curvegroup::Curve::from(self)
+            self.into()
         }
 
         // Membership check
@@ -103,7 +102,7 @@ mod affine {
         
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
         pub fn add(self, p1: Point, p2: Point) -> Point {
-            self.mixed_add(p1, p2.into_group()).into_affine()
+            self.mixed_add(p1, p2.into()).into()
         }
 
         // Mixed point addition, i.e. first argument in affine, second in CurveGroup coordinates.
@@ -124,7 +123,7 @@ mod affine {
                     if s1 != s2 {
                         curvegroup::Point::zero()
                     } else {
-                        self.into_group().double(p2)
+                        curvegroup::Curve::from(self).double(p2)
                     }
                 } else
                 {
@@ -142,12 +141,12 @@ mod affine {
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
-            self.into_group().bit_mul(bits, p.into_group()).into_affine()
+            self.into_group().bit_mul(bits, p.into()).into()
         }
         
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
-            self.into_group().mul(n, p.into_group()).into_affine()
+            self.into_group().mul(n, p.into()).into()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
@@ -189,7 +188,7 @@ mod affine {
         fn from(input: curvegroup::Curve) -> Curve {
             let curvegroup::Curve {a, b, gen} = input;
 
-            Curve {a, b, gen: Point::from(gen)}
+            Curve {a, b, gen: gen.into()}
         }
     }
 }
@@ -230,7 +229,7 @@ mod curvegroup {
         
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
-            affine::Point::from(self)
+            self.into()
         }
 
         // Additive identity
@@ -282,7 +281,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Curve {
-            affine::Curve::from(self)
+            self.into()
         }
 
         // Membership check
@@ -401,7 +400,7 @@ mod curvegroup {
         fn from(input: affine::Curve) -> Curve {
             let affine::Curve {a, b, gen} = input;
 
-            Curve {a, b, gen: Point::from(gen)}
+            Curve {a, b, gen: gen.into()}
         }
     }
 }

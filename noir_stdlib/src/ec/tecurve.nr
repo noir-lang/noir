@@ -1,4 +1,3 @@
-
 mod affine {
     // Affine coordinate representation of Twisted Edwards curves
     // Points are represented by two-dimensional Cartesian coordinates.
@@ -40,7 +39,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
-            curvegroup::Point::from(self)
+            self.into()
         }
 
         // Additive identity
@@ -56,15 +55,7 @@ mod affine {
 
         // Map into prime-order subgroup of equivalent Montgomery curve
         fn into_montcurve(self) -> MPoint {
-            if self.is_zero() {
-                MPoint::zero()
-            } else {
-                let Self {x, y} = self;
-                let x0 = (1+y)/(1-y);
-                let y0 = (1+y)/(x*(1-y));
-
-                MPoint::new(x0,y0)
-            }
+            self.into()
         }
     }
 
@@ -101,7 +92,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Curve {
-            curvegroup::Curve::from(self)
+            self.into()
         }
 
         // Membership check
@@ -112,7 +103,7 @@ mod affine {
         
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
         pub fn add(self, p1: Point, p2: Point) -> Point {
-            self.mixed_add(p1, p2.into_group()).into_affine()
+            self.mixed_add(p1, p2.into()).into()
         }
 
         // Mixed point addition, i.e. first argument in affine, second in CurveGroup coordinates.
@@ -139,12 +130,12 @@ mod affine {
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
-            self.into_group().bit_mul(bits, p.into_group()).into_affine()
+            self.into_group().bit_mul(bits, p.into()).into()
         }
         
         // Scalar multiplication (p + ... + p n times)
         fn mul(self, n: Field, p: Point) -> Point {
-            self.into_group().mul(n, p.into_group()).into_affine()
+            self.into_group().mul(n, p.into()).into()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
@@ -165,11 +156,7 @@ mod affine {
 
         // Conversion to equivalent Montgomery curve
         pub fn into_montcurve(self) -> MCurve {
-            let j = 2*(self.a + self.d)/(self.a - self.d);
-            let k = 4/(self.a - self.d);
-            let gen_montcurve = self.gen.into_montcurve();
-            
-            MCurve::new(j, k, gen_montcurve)
+            self.into()
         }
 
         // Conversion to equivalent Short Weierstraß curve
@@ -202,7 +189,7 @@ mod affine {
         fn from(input: curvegroup::Curve) -> Curve {
             let curvegroup::Curve {a, d, gen} = input;
 
-            Curve {a, d, gen: Point::from(gen)}
+            Curve {a, d, gen: gen.into()}
         }
     }
 }
@@ -248,7 +235,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
-            affine::Point::from(self)
+            self.into()
         }
 
         // Additive identity
@@ -302,9 +289,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Curve {
-            let Curve{a, d, gen} = self;
-
-            affine::Curve {a, d, gen: gen.into_affine()}
+            self.into()
         }
 
         // Membership check
@@ -403,7 +388,7 @@ mod curvegroup {
 
         // Conversion to equivalent Montgomery curve
         fn into_montcurve(self) -> MCurve {
-            self.into_affine().into_montcurve().into_group()
+            self.into_affine().into_montcurve().into()
         }
 
         // Conversion to equivalent Short Weierstraß curve
@@ -436,7 +421,7 @@ mod curvegroup {
         fn from(input: affine::Curve) -> Curve {
             let affine::Curve {a, d, gen} = input;
 
-            Curve {a, d, gen: Point::from(gen)}
+            Curve {a, d, gen: gen.into()}
         }
     }
 }

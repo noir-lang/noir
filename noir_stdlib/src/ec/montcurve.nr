@@ -42,7 +42,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
-            curvegroup::Point::from(self)
+            self.into()
         }
 
         // Additive identity
@@ -86,6 +86,20 @@ mod affine {
         }
     }
 
+    impl From<TEPoint> for Point {
+        fn from(input: TEPoint) -> Point {
+            if input.is_zero() {
+                Point::zero()
+            } else {
+                let TEPoint {x, y} = input;
+                let x0 = (1+y)/(1-y);
+                let y0 = (1+y)/(x*(1-y));
+
+                Point::new(x0,y0)
+            }
+        }
+    }
+
     impl Curve {
         // Curve constructor
         pub fn new(j: Field, k: Field, gen: Point) -> Self {
@@ -103,7 +117,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Curve {
-            curvegroup::Curve::from(self)
+            self.into()
         }
 
         // Membership check
@@ -221,7 +235,17 @@ mod affine {
 
     impl From<curvegroup::Curve> for Curve {
         fn from(input: curvegroup::Curve) -> Curve {
-            Curve::new(input.j, input.k, Point::from(input.gen))
+            Curve::new(input.j, input.k, input.gen.into())
+        }
+    }
+
+    impl From<TECurve> for Curve {
+        fn from(input: TECurve) -> Curve {
+            let j = 2*(input.a + input.d)/(input.a - input.d);
+            let k = 4/(input.a - input.d);
+            let gen_montcurve = input.gen.into();
+            
+            Curve::new(j, k, gen_montcurve)
         }
     }
 }
@@ -264,7 +288,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         fn into_affine(self) -> affine::Point {
-            affine::Point::from(self)
+            self.into()
         }
 
         // Additive identity
@@ -281,7 +305,7 @@ mod curvegroup {
 
         // Map into equivalent Twisted Edwards curve
         fn into_tecurve(self) -> TEPoint {
-            self.into_affine().into_tecurve().into_group()
+            self.into_affine().into_tecurve().into()
         }
     }
 
@@ -319,7 +343,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         fn into_affine(self) -> affine::Curve {
-            affine::Curve::from(self)
+            self.into()
         }
 
         // Membership check
@@ -332,7 +356,7 @@ mod curvegroup {
 
         // Point addition
         pub fn add(self, p1: Point, p2: Point) -> Point {
-            self.into_affine().add(p1.into_affine(), p2.into_affine()).into_group()
+            self.into_affine().add(p1.into(), p2.into()).into()
         }
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
@@ -381,28 +405,28 @@ mod curvegroup {
 
         // Point mapping into equivalent Short Weierstraß curve
         pub fn map_into_swcurve(self, p: Point) -> SWPoint {
-            self.into_affine().map_into_swcurve(p.into_affine()).into_group()
+            self.into_affine().map_into_swcurve(p.into()).into()
         }
 
         // Point mapping from equivalent Short Weierstraß curve
         fn map_from_swcurve(self, p: SWPoint) -> Point {
-            self.into_affine().map_from_swcurve(p.into_affine()).into_group()
+            self.into_affine().map_from_swcurve(p.into()).into()
         }
 
         // Elligator 2 map-to-curve method
         fn elligator2_map(self, u: Field) -> Point {
-            self.into_affine().elligator2_map(u).into_group()
+            self.into_affine().elligator2_map(u).into()
         }
         
         // SWU map-to-curve method (via rational map)
         fn swu_map(self, z: Field, u: Field) -> Point {
-            self.into_affine().swu_map(z,u).into_group()
+            self.into_affine().swu_map(z,u).into()
         }
     }
 
     impl From<affine::Curve> for Curve {
         fn from(input: affine::Curve) -> Curve {
-            Curve::new(input.j, input.k, Point::from(input.gen))
+            Curve::new(input.j, input.k, input.gen.into())
         }
     }
 }
