@@ -176,6 +176,16 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.memory.write(ptr, value);
     }
 
+    /// Returns the VM's current call stack, including the actual program
+    /// counter in the last position of the returned vector.
+    pub fn get_call_stack(&self) -> Vec<usize> {
+        self.call_stack
+            .iter()
+            .map(|v| v.to_usize())
+            .chain(std::iter::once(self.program_counter))
+            .collect()
+    }
+
     /// Process a single opcode and modify the program counter.
     pub fn process_opcode(&mut self) -> VMStatus {
         let opcode = &self.bytecode[self.program_counter];

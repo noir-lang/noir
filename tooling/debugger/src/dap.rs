@@ -132,7 +132,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             // source location to show when first starting the debugger, but
             // maybe the default behavior should be to start executing until the
             // first breakpoint set.
-            _ = self.context.next();
+            _ = self.context.next_into();
         }
 
         self.server.send_event(Event::Initialized)?;
@@ -316,7 +316,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     fn handle_next(&mut self, req: Request) -> Result<(), ServerError> {
-        let result = self.context.next();
+        let result = self.context.next_into();
         eprintln!("INFO: stepped by statement with result {result:?}");
         self.server.respond(req.ack()?)?;
         self.handle_execution_result(result)

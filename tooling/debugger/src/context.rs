@@ -78,6 +78,21 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
+    pub(super) fn get_call_stack(&self) -> Vec<OpcodeLocation> {
+        let ip = self.acvm.instruction_pointer();
+        if ip >= self.get_opcodes().len() {
+            vec![]
+        } else if let Some(ref solver) = self.brillig_solver {
+            solver
+                .get_call_stack()
+                .iter()
+                .map(|pc| OpcodeLocation::Brillig { acir_index: ip, brillig_index: *pc })
+                .collect()
+        } else {
+            vec![OpcodeLocation::Acir(ip)]
+        }
+    }
+
     pub(super) fn is_source_location_in_debug_module(&self, location: &Location) -> bool {
         self.debug_artifact
             .file_map
@@ -121,6 +136,21 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     .collect()
             })
             .unwrap_or(vec![])
+    }
+
+    /// Returns the current call stack with expanded source locations. In
+    /// general, the matching between opcode location and source location is 1
+    /// to 1, but due to the compiler inlining functions a single opcode
+    /// location may expand to multiple source locations.
+    pub(super) fn get_source_call_stack(&self) -> Vec<(OpcodeLocation, Location)> {
+        self.get_call_stack()
+            .iter()
+            .flat_map(|opcode_location| {
+                self.get_source_location_for_opcode_location(opcode_location)
+                    .into_iter()
+                    .map(|source_location| (*opcode_location, source_location))
+            })
+            .collect()
     }
 
     fn get_opcodes_sizes(&self) -> Vec<usize> {
@@ -362,7 +392,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn next(&mut self) -> DebugCommandResult {
+    /// Steps debugging execution until the next source location
+    pub(super) fn next_into(&mut self) -> DebugCommandResult {
         let start_location = self.get_current_source_location();
         loop {
             let result = self.step_into_opcode();
@@ -371,6 +402,38 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             }
             let new_location = self.get_current_source_location();
             if new_location.is_some() && new_location != start_location {
+                return DebugCommandResult::Ok;
+            }
+        }
+    }
+
+    /// Steps debugging execution until the next source location at the same (or
+    /// less) call stack depth (eg. don't dive into function calls)
+    pub(super) fn next_over(&mut self) -> DebugCommandResult {
+        let start_call_stack = self.get_source_call_stack();
+        loop {
+            let result = self.next_into();
+            if !matches!(result, DebugCommandResult::Ok) {
+                return result;
+            }
+            let new_call_stack = self.get_source_call_stack();
+            if new_call_stack.len() <= start_call_stack.len() {
+                return DebugCommandResult::Ok;
+            }
+        }
+    }
+
+    /// Steps debugging execution until the next source location with a smaller
+    /// call stack depth (eg. returning from the current function)
+    pub(super) fn next_out(&mut self) -> DebugCommandResult {
+        let start_call_stack = self.get_source_call_stack();
+        loop {
+            let result = self.next_into();
+            if !matches!(result, DebugCommandResult::Ok) {
+                return result;
+            }
+            let new_call_stack = self.get_source_call_stack();
+            if new_call_stack.len() < start_call_stack.len() {
                 return DebugCommandResult::Ok;
             }
         }

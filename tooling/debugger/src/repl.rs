@@ -199,7 +199,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
 
     fn next(&mut self) {
         if self.validate_in_progress() {
-            let result = self.context.next();
+            let result = self.context.next_into();
             self.handle_debug_command_result(result);
         }
     }
