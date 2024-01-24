@@ -14,7 +14,7 @@ sidebar_position: 1
 
 ## Pre-requisites
 
-In order to use the REPL debugger, first you need to install recent enough versions of Noir, Nargo and vscode-noir. 
+In order to use the REPL debugger, first you need to install recent enough versions of Nargo and vscode-noir. 
 
 The first versions of each that ship with support for the Noir Debugger are:
 
