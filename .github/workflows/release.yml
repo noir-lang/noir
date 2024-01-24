@@ -82,7 +82,7 @@ jobs:
       - name: Query new noir version
         id: noir-version
         run: |
-          NOIR_VERSION=$(grep '^version =' ./Cargo.toml | sed -E 's/version = "([^"]+)"/\1/')
+          NOIR_VERSION=$(grep '^version =' ./Cargo.toml | sed -E 's/version = "([^"]+)"/v\1/')
           echo "semver=$NOIR_VERSION" >> $GITHUB_OUTPUT
 
       - name: Cut a new version
