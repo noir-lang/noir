@@ -83,6 +83,38 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
+    fn show_stack_frame(&self, index: usize, location: &OpcodeLocation) {
+        let opcodes = self.context.get_opcodes();
+        match location {
+            OpcodeLocation::Acir(ip) => {
+                println!("Frame #{index}, opcode {}: {}", ip, opcodes[*ip])
+            }
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                let Opcode::Brillig(ref brillig) = opcodes[*acir_index] else {
+                    unreachable!("Brillig location does not contain a Brillig block");
+                };
+                println!(
+                    "Frame #{index}, opcode {}.{}: {:?}",
+                    acir_index, brillig_index, brillig.bytecode[*brillig_index]
+                );
+            }
+        }
+        let locations = self.context.get_source_location_for_opcode_location(location);
+        print_source_code_location(self.debug_artifact, &locations);
+    }
+
+    pub fn show_current_call_stack(&self) {
+        let call_stack = self.context.get_call_stack();
+        if call_stack.is_empty() {
+            println!("Finished execution. Call stack empty.");
+            return;
+        }
+
+        for (i, frame_location) in call_stack.iter().enumerate() {
+            self.show_stack_frame(i, frame_location);
+        }
+    }
+
     fn display_opcodes(&self) {
         let opcodes = self.context.get_opcodes();
         let current_opcode_location = self.context.get_current_opcode_location();
@@ -197,9 +229,23 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
-    fn next(&mut self) {
+    fn next_into(&mut self) {
         if self.validate_in_progress() {
             let result = self.context.next_into();
+            self.handle_debug_command_result(result);
+        }
+    }
+
+    fn next_over(&mut self) {
+        if self.validate_in_progress() {
+            let result = self.context.next_over();
+            self.handle_debug_command_result(result);
+        }
+    }
+
+    fn next_out(&mut self) {
+        if self.validate_in_progress() {
+            let result = self.context.next_out();
             self.handle_debug_command_result(result);
         }
     }
@@ -375,10 +421,30 @@ pub fn run<B: BlackBoxFunctionSolver>(
             command! {
                 "step until a new source location is reached",
                 () => || {
-                    ref_context.borrow_mut().next();
+                    ref_context.borrow_mut().next_into();
                     Ok(CommandStatus::Done)
                 }
             },
+        )
+        .add(
+            "over",
+            command! {
+                "step until a new source location is reached without diving into function calls",
+                () => || {
+                    ref_context.borrow_mut().next_over();
+                    Ok(CommandStatus::Done)
+                }
+            }
+        )
+        .add(
+            "out",
+            command! {
+                "step until a new source location is reached and the current stack frame is finished",
+                () => || {
+                    ref_context.borrow_mut().next_out();
+                    Ok(CommandStatus::Done)
+                }
+            }
         )
         .add(
             "continue",
@@ -496,6 +562,16 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "update a Brillig memory cell with the given value",
                 (index: usize, value: String) => |index, value| {
                     ref_context.borrow_mut().write_brillig_memory(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "stacktrace",
+            command! {
+                "display the current stack trace",
+                () => || {
+                    ref_context.borrow().show_current_call_stack();
                     Ok(CommandStatus::Done)
                 }
             },
