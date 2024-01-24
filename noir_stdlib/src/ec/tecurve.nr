@@ -1,3 +1,4 @@
+
 mod affine {
     // Affine coordinate representation of Twisted Edwards curves
     // Points are represented by two-dimensional Cartesian coordinates.
@@ -10,6 +11,7 @@ mod affine {
     use crate::ec::swcurve::affine::Curve as SWCurve;
     use crate::ec::swcurve::affine::Point as SWPoint;
     use crate::cmp::Eq;
+    use crate::from::From;
 
     // Curve specification
     struct Curve { // Twisted Edwards curve
@@ -38,9 +40,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
-            let Self {x, y} = self;
-
-            curvegroup::Point::new(x, y, x*y, 1)
+            curvegroup::Point::from(self)
         }
 
         // Additive identity
@@ -77,6 +77,14 @@ mod affine {
         }
     }
 
+    impl From<curvegroup::Point> for Point {
+        fn from(input: curvegroup::Point) -> Point {
+            let curvegroup::Point  {x, y, t: _t, z} =  input;
+
+            Point::new(x/z, y/z)
+        }
+    }
+
     impl Curve {
         // Curve constructor
         pub fn new(a: Field, d: Field, gen: Point) -> Curve {
@@ -93,11 +101,9 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Curve {
-            let Curve{a, d, gen} = self;
-
-            curvegroup::Curve {a, d, gen: gen.into_group()}
+            curvegroup::Curve::from(self)
         }
-        
+
         // Membership check
         pub fn contains(self, p: Point) -> bool {
             let Point {x, y} = p;
@@ -191,6 +197,14 @@ mod affine {
             self.into_montcurve().swu_map(z,u).into_tecurve()
         }
     }
+
+    impl From<curvegroup::Curve> for Curve {
+        fn from(input: curvegroup::Curve) -> Curve {
+            let curvegroup::Curve {a, d, gen} = input;
+
+            Curve {a, d, gen: Point::from(gen)}
+        }
+    }
 }
 mod curvegroup {
     // CurveGroup coordinate representation of Twisted Edwards curves
@@ -202,6 +216,7 @@ mod curvegroup {
     use crate::ec::swcurve::curvegroup::Curve as SWCurve;
     use crate::ec::swcurve::curvegroup::Point as SWPoint;
     use crate::cmp::Eq;
+    use crate::from::From;
 
     // Curve specification
     struct Curve { // Twisted Edwards curve
@@ -233,9 +248,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
-            let Self {x, y, t: _t, z} = self;
-
-            affine::Point::new(x/z, y/z)
+            affine::Point::from(self)
         }
 
         // Additive identity
@@ -253,6 +266,14 @@ mod curvegroup {
         // Map into prime-order subgroup of equivalent Montgomery curve
         fn into_montcurve(self) -> MPoint {
             self.into_affine().into_montcurve().into_group()
+        }
+    }
+
+    impl From<affine::Point> for Point {
+        fn from(input: affine::Point) -> Point {
+            let affine::Point {x, y} = input;
+
+            Point::new(x, y, x*y, 1)
         }
     }
 
@@ -408,6 +429,14 @@ mod curvegroup {
         // Simplified SWU map-to-curve method (via rational map)
         fn swu_map(self, z: Field, u: Field) -> Point {
             self.into_montcurve().swu_map(z,u).into_tecurve()
+        }
+    }
+
+    impl From<affine::Curve> for Curve {
+        fn from(input: affine::Curve) -> Curve {
+            let affine::Curve {a, d, gen} = input;
+
+            Curve {a, d, gen: Point::from(gen)}
         }
     }
 }

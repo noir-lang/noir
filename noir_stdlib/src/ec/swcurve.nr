@@ -8,6 +8,7 @@ mod affine {
     use crate::ec::is_square;
     use crate::ec::sqrt;
     use crate::cmp::Eq;
+    use crate::from::From;
 
     // Curve specification
     struct Curve { // Short Weierstraß curve
@@ -37,13 +38,7 @@ mod affine {
         
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
-            let Self {x, y, infty} = self;
-
-            if infty {
-                curvegroup::Point::zero()
-            } else {
-                curvegroup::Point::new(x, y, 1)
-            }
+            curvegroup::Point::from(self)
         }
         
         // Additive identity
@@ -68,6 +63,19 @@ mod affine {
         }
     }
 
+    impl From<curvegroup::Point> for Point {
+        fn from(input: curvegroup::Point) -> Point {
+            let curvegroup::Point {x, y, z} = input;
+
+            if z == 0 {
+                Point::zero()
+            } else {
+                Point::new(x/(z*z), y/(z*z*z))
+            }
+        }
+    }
+
+
     impl Curve {
         // Curve constructor
         pub fn new(a: Field, b: Field, gen: Point) -> Curve {
@@ -84,9 +92,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Curve {
-            let Curve{a, b, gen} = self;
-            
-            curvegroup::Curve {a, b, gen: gen.into_group()}
+            curvegroup::Curve::from(self)
         }
 
         // Membership check
@@ -178,6 +184,14 @@ mod affine {
             Point::new(x, if u.sgn0() != y.sgn0() {0-y} else {y})
         }
     }
+
+    impl From<curvegroup::Curve> for Curve {
+        fn from(input: curvegroup::Curve) -> Curve {
+            let curvegroup::Curve {a, b, gen} = input;
+
+            Curve {a, b, gen: Point::from(gen)}
+        }
+    }
 }
 
 mod curvegroup {
@@ -186,6 +200,7 @@ mod curvegroup {
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
     use crate::ec::swcurve::affine;
     use crate::cmp::Eq;
+    use crate::from::From;
 
     // Curve specification
     struct Curve { // Short Weierstraß curve
@@ -215,20 +230,13 @@ mod curvegroup {
         
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
-            let Self {x, y, z} = self;
-
-            if z == 0 {
-                affine::Point::zero()
-            } else {
-                affine::Point::new(x/(z*z), y/(z*z*z))
-            }
+            affine::Point::from(self)
         }
 
         // Additive identity
         pub fn zero() -> Self {
             Self {x: 0, y: 0, z: 0}
         }
-        
         
         // Negation
         fn negate(self) -> Self {
@@ -243,6 +251,18 @@ mod curvegroup {
             let Self {x: x2, y: y2, z: z2} = p;
 
             ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2*z2 == x2*z1*z1) & (y1*z2*z2*z2 == y2*z1*z1*z1))
+        }
+    }
+
+    impl From<affine::Point> for Point {
+        fn from(input: affine::Point) -> Point {
+            let affine::Point {x, y, infty} = input;
+
+            if infty {
+                Point::zero()
+            } else {
+                Point::new(x, y, 1)
+            }
         }
     }
 
@@ -262,9 +282,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Curve {
-            let Curve{a, b, gen} = self;
-
-            affine::Curve {a, b, gen: gen.into_affine()}
+            affine::Curve::from(self)
         }
 
         // Membership check
@@ -376,6 +394,14 @@ mod curvegroup {
         // Simplified SWU map-to-curve method
         fn swu_map(self, z: Field, u: Field) -> Point {
             self.into_affine().swu_map(z,u).into_group()
+        }
+    }
+
+    impl From<affine::Curve> for Curve {
+        fn from(input: affine::Curve) -> Curve {
+            let affine::Curve {a, b, gen} = input;
+
+            Curve {a, b, gen: Point::from(gen)}
         }
     }
 }

@@ -13,6 +13,7 @@ mod affine {
     use crate::ec::sqrt;
     use crate::ec::ZETA;
     use crate::cmp::Eq;
+    use crate::from::From;
 
     // Curve specification
     struct Curve { // Montgomery Curve configuration (ky^2 = x^3 + j*x^2 + x)
@@ -41,12 +42,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
-            if self.is_zero() {
-                curvegroup::Point::zero()
-            } else {
-                let (x,y) = (self.x, self.y);
-                curvegroup::Point::new(x,y,1)
-            }
+            curvegroup::Point::from(self)
         }
 
         // Additive identity
@@ -79,6 +75,17 @@ mod affine {
         }
     }
 
+    impl From<curvegroup::Point> for Point {
+        fn from(input: curvegroup::Point) -> Point {
+             if input.is_zero() {
+                Point::zero()
+            } else {
+                let (x,y,z) = (input.x, input.y, input.z);
+                Point::new(x/z, y/z)
+            }
+        }
+    }
+
     impl Curve {
         // Curve constructor
         pub fn new(j: Field, k: Field, gen: Point) -> Self {
@@ -96,7 +103,7 @@ mod affine {
 
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Curve {
-            curvegroup::Curve::new(self.j, self.k, self.gen.into_group())
+            curvegroup::Curve::from(self)
         }
 
         // Membership check
@@ -211,6 +218,12 @@ mod affine {
             self.map_from_swcurve(self.into_swcurve().swu_map(z,u))
         }
     }
+
+    impl From<curvegroup::Curve> for Curve {
+        fn from(input: curvegroup::Curve) -> Curve {
+            Curve::new(input.j, input.k, Point::from(input.gen))
+        }
+    }
 }
 mod curvegroup {
     // Affine representation of Montgomery curves
@@ -223,6 +236,7 @@ mod curvegroup {
     use crate::ec::tecurve::curvegroup::Curve as TECurve;
     use crate::ec::tecurve::curvegroup::Point as TEPoint;
     use crate::cmp::Eq;
+    use crate::from::From;
 
     struct Curve { // Montgomery Curve configuration (ky^2 z = x*(x^2 + j*x*z + z*z))
         j: Field,
@@ -250,12 +264,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         fn into_affine(self) -> affine::Point {
-            if self.is_zero() {
-                affine::Point::zero()
-            } else {
-                let (x,y,z) = (self.x, self.y, self.z);
-                affine::Point::new(x/z, y/z)
-            }
+            affine::Point::from(self)
         }
 
         // Additive identity
@@ -282,6 +291,17 @@ mod curvegroup {
         }
     }
 
+    impl From<affine::Point> for Point {
+        fn from(input: affine::Point) -> Point {
+            if input.is_zero() {
+                Point::zero()
+            } else {
+                let (x,y) = (input.x, input.y);
+                Point::new(x,y,1)
+            }
+        }
+    }
+
     impl Curve {
         // Curve constructor
         pub fn new(j: Field, k: Field, gen: Point) -> Self {
@@ -299,7 +319,7 @@ mod curvegroup {
 
         // Conversion to affine coordinates
         fn into_affine(self) -> affine::Curve {
-            affine::Curve::new(self.j, self.k, self.gen.into_affine())
+            affine::Curve::from(self)
         }
 
         // Membership check
@@ -377,6 +397,12 @@ mod curvegroup {
         // SWU map-to-curve method (via rational map)
         fn swu_map(self, z: Field, u: Field) -> Point {
             self.into_affine().swu_map(z,u).into_group()
+        }
+    }
+
+    impl From<affine::Curve> for Curve {
+        fn from(input: affine::Curve) -> Curve {
+            Curve::new(input.j, input.k, Point::from(input.gen))
         }
     }
 }
