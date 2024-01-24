@@ -42,8 +42,10 @@ For both the public and private flow, we use the same mechanism to determine the
 After the transaction is completed on L2, the portal must call the outbox to successfully transfer funds to the user on L1. Like with deposits, things can be complex here. For example, what happens if the transaction was done on L2 to burn tokens but can’t be withdrawn to L1? Then the funds are lost forever! How do we prevent this?
 
 Paste this in your `TokenPortal.sol`:
-
-#include_code token_portal_withdraw /l1-contracts/test/portals/TokenPortal.sol solidity
+```solidity
+#include_code token_portal_withdraw /l1-contracts/test/portals/TokenPortal.sol raw
+}
+```
 
 Here we reconstruct the L2 to L1 message and check that this message exists on the outbox. If so, we consume it and transfer the funds to the recipient. As part of the reconstruction, the content hash looks similar to what we did in our bridge contract on aztec where we pass the amount and recipient to the the hash. This way a malicious actor can’t change the recipient parameter to the address and withdraw funds to themselves.
 
@@ -53,13 +55,17 @@ We call this pattern _designed caller_ which enables a new paradigm **where we c
 
 Before we can compile and use the contract, we need to add two additional functions.
 
-We need a function that let's us read the token value.
+We need a function that lets us read the token value. Paste this into `main.nr`:
 
 #include_code read_token /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
-And the `compute_note_hash_and_nullifier` required on every contract.
+And the `compute_note_hash_and_nullifier` required on every contract:
 
-#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+```rust
+#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
+}
+```
+
 
 ## Compile code
 
@@ -75,14 +81,14 @@ npx hardhat compile
 And compile your Aztec.nr contracts like this:
 
 ```bash
-cd aztec-contracts/token-bridge
+cd aztec-contracts/token_bridge
 aztec-nargo compile
 ```
 
 And generate the TypeScript interface for the contract and add it to the test dir:
 
 ```bash
-aztec-cli codegen target -o ../../../src/test/fixtures --ts
+aztec-cli codegen target -o ../../src/test/fixtures --ts
 ```
 
 This will create a TS interface in our `src/test` folder!

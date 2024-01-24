@@ -8,7 +8,20 @@ In this step, we will write our token portal contract on L1.
 
 In `l1-contracts/contracts` in your file called `TokenPortal.sol` paste this:
 
-#include_code init /l1-contracts/test/portals/TokenPortal.sol solidity
+```solidity
+pragma solidity >=0.8.18;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+// Messaging
+import {IRegistry} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IRegistry.sol";
+import {IInbox} from "@aztec/l1-contracts/src/core/interfaces/messagebridge/IInbox.sol";
+import {DataStructures} from "@aztec/l1-contracts/src/core/libraries/DataStructures.sol";
+import {Hash} from "@aztec/l1-contracts/src/core/libraries/Hash.sol";
+
+#include_code init /l1-contracts/test/portals/TokenPortal.sol raw
+```
 
 This imports relevant files including the interfaces used by the Aztec rollup. And initializes the contract with the following parameters:
 

@@ -1,4 +1,3 @@
-// docs:start:init
 pragma solidity >=0.8.18;
 
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
@@ -12,6 +11,7 @@ import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 import {Hash} from "../../src/core/libraries/Hash.sol";
 // docs:end:content_hash_sol_import
 
+// docs:start:init
 contract TokenPortal {
   using SafeERC20 for IERC20;
 

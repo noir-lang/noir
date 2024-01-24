@@ -62,7 +62,8 @@ type = "contract"
 
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="aztec-packages-v0.16.9", directory="yarn-project/noir-contracts/contracts/token_portal_content_hash_lib" }
+token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-contracts/contracts/token_portal_content_hash_lib" }
+protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
 ```
 
 We will also be writing some helper functions that should exist elsewhere so we don't overcomplicated our contract. In `src` create two more files - one called `util.nr` and one called `token_interface` - so your dir structure should now look like this:
@@ -74,6 +75,7 @@ aztec-contracts
     ├── src
       ├── main.nr
       ├── token_interface.nr
+      ├── util.nr
 ```
 
 # Create a JS hardhat project
@@ -99,7 +101,7 @@ touch TokenPortal.sol
 Now add dependencies that are required. These include interfaces to Aztec Inbox, Outbox and Registry smart contracts, OpenZeppelin contracts, and NomicFoundation.
 
 ```bash
-yarn add @aztec/foundation @aztec/l1-contracts @openzeppelin/contracts && yarn add --dev @nomicfoundation/hardhat-network-helpers @nomicfoundation/hardhat-chai-matchers @nomiclabs/hardhat-ethers @nomiclabs/hardhat-etherscan @types/chai @types/mocha @typechain/ethers-v5 @typechain/hardhat chai hardhat-gas-reporter solidity-coverage ts-node typechain typescript
+yarn add @aztec/foundation @aztec/l1-contracts @openzeppelin/contracts && yarn add --dev @nomicfoundation/hardhat-network-helpers @nomicfoundation/hardhat-chai-matchers @nomiclabs/hardhat-ethers @nomiclabs/hardhat-etherscan @types/chai @types/mocha @typechain/ethers-v5 @typechain/hardhat chai@4.0.0 hardhat-gas-reporter solidity-coverage ts-node typechain typescript
 
 ```
 
@@ -129,7 +131,7 @@ Inside the `packages` directory, run
 
 ```bash
 mkdir src && cd src && yarn init -yp
-yarn add @aztec/aztec.js @aztec/accounts @aztec/noir-contracts @aztec/circuit-types @aztec/foundation @aztec/l1-artifacts viem "@types/node@^20.8.2"
+yarn add typescript @aztec/aztec.js @aztec/accounts @aztec/noir-contracts @aztec/types @aztec/foundation @aztec/l1-artifacts viem@1.21.4 "@types/node@^20.8.2"
 yarn add -D jest @jest/globals ts-jest
 ```
 
@@ -144,7 +146,7 @@ In `package.json`, add:
 }
 ```
 
-Your `package.json` should look something like this:
+Your `package.json` should look something like this (do not copy and paste):
 
 ```json
 {
@@ -154,18 +156,11 @@ Your `package.json` should look something like this:
   "license": "MIT",
   "private": true,
   "type": "module",
-  "dependencies": {
-    "@aztec/aztec.js": "^0.8.7",
-    "@aztec/foundation": "^0.8.7",
-    "@aztec/noir-contracts": "^0.8.7",
-    "@aztec/circuit-types": "^0.8.7",
-    "@types/node": "^20.8.2",
-    "ethers": "^5.7"
+  "dependencies": {    
+    "dep": "version",
   },
   "devDependencies": {
-    "@jest/globals": "^29.7.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.1"
+    "dep": "version",
   },
   "scripts": {
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest)"
@@ -227,12 +222,6 @@ Then create a jest config file: `jest.config.json`
 }
 ```
 
-You will also need to install some dependencies:
-
-```bash
-yarn add --dev typescript @types/jest ts-jest
-```
-
 Finally, we will create a test file. Run this in the `src` directory.:
 
 ```bash
@@ -249,6 +238,7 @@ src
     └── cross_chain_messaging.test.ts
 ├── jest.config.json
 ├── package.json
+├── tsconfig.json
 ```
 
 In the next step, we’ll start writing our L1 smart contract with some logic to deposit tokens to Aztec from L1.
