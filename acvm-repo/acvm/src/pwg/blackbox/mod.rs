@@ -18,6 +18,7 @@ mod range;
 mod signature;
 
 use fixed_base_scalar_mul::fixed_base_scalar_mul;
+use fixed_base_scalar_mul::{embedded_curve_add, embedded_curve_double};
 // Hash functions should eventually be exposed for external consumers.
 use hash::solve_generic_256_hash_opcode;
 use logic::{and, xor};
@@ -177,11 +178,19 @@ pub(crate) fn solve(
         BlackBoxFuncCall::FixedBaseScalarMul { low, high, outputs } => {
             fixed_base_scalar_mul(backend, initial_witness, *low, *high, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { .. } => {
-            todo!();
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, outputs } => {
+            embedded_curve_add(
+                backend,
+                initial_witness,
+                *input1_x,
+                *input1_y,
+                *input2_x,
+                *input2_y,
+                *outputs,
+            )
         }
-        BlackBoxFuncCall::EmbeddedCurveDouble { .. } => {
-            todo!();
+        BlackBoxFuncCall::EmbeddedCurveDouble { input_x, input_y, outputs } => {
+            embedded_curve_double(backend, initial_witness, *input_x, *input_y, *outputs)
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
