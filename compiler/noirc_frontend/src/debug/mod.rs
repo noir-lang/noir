@@ -86,8 +86,8 @@ impl DebugInstrumenter {
         let fn_id = self.insert_var(func_name);
         let enter_fn = Self::call_fn(
             "enter",
-            vec![uint_expr(fn_id.0 as u128, func_name_span)],
-            func_name_span,
+            vec![uint_expr(fn_id.0 as u128, func.span)],
+            func.span,
         );
 
         let set_fn_params = func
