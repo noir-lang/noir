@@ -164,7 +164,6 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attributes()
-        .map(Option::Some)
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
@@ -264,7 +263,6 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .or(just(Semicolon).to(Vec::new()));
 
     attributes()
-        .map(Option::Some)
         .then_ignore(keyword(Struct))
         .then(ident())
         .then(generics())
@@ -464,20 +462,14 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
 }
 
 fn validate_attributes(
-    attributes: Option<Vec<Attribute>>,
+    attributes: Vec<Attribute>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Attributes {
-    if attributes.is_none() {
-        return Attributes::empty();
-    }
-
-    let attrs = attributes.unwrap();
-
     let mut primary = None;
     let mut secondary = Vec::new();
 
-    for attribute in attrs {
+    for attribute in attributes {
         match attribute {
             Attribute::Function(attr) => {
                 if primary.is_some() {
@@ -496,14 +488,13 @@ fn validate_attributes(
 }
 
 fn validate_struct_attributes(
-    attributes: Option<Vec<Attribute>>,
+    attributes: Vec<Attribute>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Vec<SecondaryAttribute> {
-    let attrs = attributes.unwrap_or_default();
     let mut struct_attributes = vec![];
 
-    for attribute in attrs {
+    for attribute in attributes {
         match attribute {
             Attribute::Function(..) => {
                 emit(ParserError::with_reason(
