@@ -69,7 +69,10 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = backend.get_backend_info()?;
+    let expression_width = args
+        .compile_options
+        .expression_width
+        .unwrap_or_else(|| backend.get_backend_info_or_default());
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let compilation_result = compile_program(
