@@ -54,6 +54,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
     
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: false
+          save-if: false
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
