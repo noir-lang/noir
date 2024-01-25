@@ -18,8 +18,10 @@ use crate::{
     StatementKind, TypeImpl, UseTree,
 };
 
+use chumsky::container::Seq;
+use chumsky::extra::Err;
+use chumsky::input::{BoxedStream, SpannedInput};
 use chumsky::prelude::*;
-use chumsky::primitive::Container;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
@@ -40,10 +42,15 @@ pub(crate) enum TopLevelStatement {
     Error,
 }
 
+pub(crate) type ChumskyInput = SpannedInput<Token, Span, BoxedStream<'static, (Token, Span)>>;
+
 // Helper trait that gives us simpler type signatures for return types:
 // e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
-pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {}
-impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
+pub trait NoirParser<T>:
+    Parser<'static, ChumskyInput, T, Err<ParserError>> + Sized + Clone
+{
+}
+impl<P, T> NoirParser<T> for P where P: Parser<'static, ChumskyInput, T, Err<ParserError>> + Clone {}
 
 // ExprParser just serves as a type alias for NoirParser<Expression> + Clone
 trait ExprParser: NoirParser<Expression> {}
@@ -55,19 +62,18 @@ where
     T: Recoverable,
 {
     use Token::*;
-    parser.delimited_by(just(LeftParen), just(RightParen)).recover_with(nested_delimiters(
-        LeftParen,
-        RightParen,
-        [(LeftBracket, RightBracket)],
-        Recoverable::error,
-    ))
+    parser.delimited_by(just(LeftParen), just(RightParen))
+    // TODO chumsky 1.0 is not processing correctly recovered ast nodes
+    // .recover_with(via_parser(
+    //     nested_delimiters(LeftParen, RightParen, [(LeftBracket, RightBracket)], Recoverable::error),
+    // ))
 }
 
 fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
 where
     P: NoirParser<T>,
 {
-    parser.map_with_span(|value, span| (value, span))
+    parser.map_with(|value, extra| (value, extra.span()))
 }
 
 // Parse with the first parser, then continue by
@@ -86,8 +92,7 @@ where
     F: Fn(T1, T2, Span) -> T1 + Clone,
 {
     spanned(first_parser)
-        .then(spanned(to_be_repeated).repeated())
-        .foldl(move |(a, a_span), (b, b_span)| {
+        .foldl(spanned(to_be_repeated).repeated(), move |(a, a_span), (b, b_span)| {
             let span = a_span.merge(b_span);
             (f(a, b, span), span)
         })
@@ -97,7 +102,7 @@ where
 /// Sequence the two parsers.
 /// Fails if the first parser fails, otherwise forces
 /// the second parser to succeed while logging any errors.
-fn then_commit<'a, P1, P2, T1, T2: 'a>(
+fn then_commit<'a, P1, P2, T1: 'a, T2: 'a>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<(T1, T2)> + 'a
@@ -107,7 +112,7 @@ where
     T2: Clone + Recoverable,
 {
     let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
+        .map_with(|option, extra| option.unwrap_or_else(|| Recoverable::error(extra.span())));
 
     first_parser.then(second_parser)
 }
@@ -135,7 +140,7 @@ where
     T2: Recoverable,
 {
     let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
+        .map_with(|option, extra| option.unwrap_or_else(|| Recoverable::error(extra.span())));
 
     first_parser.ignore_then(second_parser)
 }
@@ -153,7 +158,10 @@ where
         Token::Keyword(Keyword::Let),
         Token::Keyword(Keyword::Constrain),
     ];
-    force(parser.recover_with(chumsky::prelude::skip_then_retry_until(terminators)))
+    force(parser.recover_with(chumsky::recovery::skip_then_retry_until(
+        any().ignored(),
+        one_of(terminators).ignored(),
+    )))
 }
 
 /// General recovery strategy: try to skip to the target token, failing if we encounter the
@@ -163,14 +171,14 @@ where
 fn try_skip_until<T, C1, C2>(targets: C1, too_far: C2) -> impl NoirParser<T>
 where
     T: Recoverable + Clone,
-    C1: Container<Token> + Clone,
-    C2: Container<Token> + Clone,
+    C1: Seq<'static, Token> + Clone,
+    C2: Seq<'static, Token> + Clone,
 {
     chumsky::prelude::none_of(targets)
         .repeated()
         .ignore_then(one_of(too_far.clone()).rewind())
         .try_map(move |peek, span| {
-            if too_far.get_iter().any(|t| t == peek) {
+            if too_far.contains(&peek) {
                 // This error will never be shown to the user
                 Err(ParserError::empty(Token::EOF, span))
             } else {
@@ -205,7 +213,7 @@ fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
 
 /// Force the given parser to succeed, logging any errors it had
 fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T>> + 'a {
-    parser.map(Some).recover_via(empty().map(|_| None))
+    parser.map(Some).recover_with(via_parser(empty().map(|_| None)))
 }
 
 #[derive(Clone, Default)]
