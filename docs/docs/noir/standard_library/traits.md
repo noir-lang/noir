@@ -56,11 +56,8 @@ types such as arrays are filled with default values of their element type.
 
 ### `std::cmp::Eq`
 
-```rust
-trait Eq {
-    fn eq(self, other: Self) -> bool;
-}
-```
+#include_code eq-trait noir_stdlib/src/cmp.nr rust
+
 Returns `true` if `self` is equal to `other`. Implementing this trait on a type
 allows the type to be used with `==` and `!=`.
 
@@ -97,13 +94,9 @@ impl<A, B, C, D, E> Eq for (A, B, C, D, E)
     where A: Eq, B: Eq, C: Eq, D: Eq, E: Eq { .. }
 ```
 
-### `std::cmp::Cmp`
+### `std::cmp::Ord`
 
-```rust
-trait Cmp {
-    fn cmp(self, other: Self) -> Ordering;
-}
-```
+#include_code ord-trait noir_stdlib/src/cmp.nr rust
 
 `a.cmp(b)` compares two values returning `Ordering::less()` if `a < b`,
 `Ordering::equal()` if `a == b`, or `Ordering::greater()` if `a > b`.
@@ -151,23 +144,10 @@ These traits abstract over addition, subtraction, multiplication, and division r
 Implementing these traits for a given type will also allow that type to be used with the corresponding operator
 for that trait (`+` for Add, etc) in addition to the normal method names.
 
-```rust
-trait Add {
-    fn add(self, other: Self) -> Self;
-}
-
-trait Sub {
-    fn sub(self, other: Self) -> Self;
-}
-
-trait Mul {
-    fn mul(self, other: Self) -> Self;
-}
-
-trait Div {
-    fn div(self, other: Self) -> Self;
-}
-```
+#include_code add-trait noir_stdlib/src/ops.nr rust
+#include_code sub-trait noir_stdlib/src/ops.nr rust
+#include_code mul-trait noir_stdlib/src/ops.nr rust
+#include_code div-trait noir_stdlib/src/ops.nr rust
 
 The implementations block below is given for the `Add` trait, but the same types that implement
 `Add` also implement `Sub`, `Mul`, and `Div`.
@@ -189,11 +169,7 @@ impl Add for u64 { .. }
 
 ### `std::ops::Rem`
 
-```rust
-trait Rem {
-    fn rem(self, other: Self) -> Self;
-}
-```
+#include_code rem-trait noir_stdlib/src/ops.nr rust
 
 `Rem::rem(a, b)` is the remainder function returning the result of what is
 left after dividing `a` and `b`. Implementing `Rem` allows the `%` operator
@@ -216,19 +192,9 @@ impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
 
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 
-```rust
-trait BitOr {
-    fn bitor(self, other: Self) -> Self;
-}
-
-trait BitAnd {
-    fn bitand(self, other: Self) -> Self;
-}
-
-trait BitXor {
-    fn bitxor(self, other: Self) -> Self;
-}
-```
+#include_code bitor-trait noir_stdlib/src/ops.nr rust
+#include_code bitand-trait noir_stdlib/src/ops.nr rust
+#include_code bitxor-trait noir_stdlib/src/ops.nr rust
 
 Traits for the bitwise operations `|`, `&`, and `^`.
 
@@ -255,15 +221,8 @@ impl BitOr for i64 { fn bitor(self, other: i64) -> i64 { self | other } }
 
 ### `std::ops::{ Shl, Shr }`
 
-```rust
-trait Shl {
-    fn shl(self, other: Self) -> Self;
-}
-
-trait Shr {
-    fn shr(self, other: Self) -> Self;
-}
-```
+#include_code shl-trait noir_stdlib/src/ops.nr rust
+#include_code shr-trait noir_stdlib/src/ops.nr rust
 
 Traits for a bit shift left and bit shift right.
 

@@ -3,8 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "docusaurus start",
-    "build": "yarn version::stables && docusaurus build",
+    "preprocess": "yarn node ./scripts/preprocess/index.js",
+    "start": "yarn preprocess && docusaurus start",
+    "build": "yarn preprocess && yarn version::stables && docusaurus build",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build"
   },
