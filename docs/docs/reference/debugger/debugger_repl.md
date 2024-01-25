@@ -31,7 +31,9 @@ Runs the Noir REPL debugger. If a `WITNESS_NAME` is provided the debugger writes
 
 None of these options are required.
 
-**Note**: since the debugger starts by compiling the target package, all Noir compiler options are also available. Check out the [compiler reference](../nargo_commands.md#nargo-compile) to learn more about the compiler options.
+:::note
+Since the debugger starts by compiling the target package, all Noir compiler options are also available. Check out the [compiler reference](../nargo_commands.md#nargo-compile) to learn more about the compiler options.
+:::
 
 ## REPL commands
 
@@ -260,11 +262,14 @@ Deletes a breakpoint at an opcode location. Usage is analogous to [the `break` c
 
 Show variable values available at this point in execution.
 
-Note: that the ability to inspect variable values from the debugger depends on compilation to be run in a special debug instrumentation mode. This instrumentation weaves variable tracing code with the original source code. 
+:::note
+The ability to inspect variable values from the debugger depends on compilation to be run in a special debug instrumentation mode. This instrumentation weaves variable tracing code with the original source code. 
 
 So variable value inspection comes at the expense of making the resulting ACIR bytecode bigger and harder to understand and optimize.
 
 If you find this compromise unacceptable, you can run the debugger with the flag `--skip-debug-instrumentation`. This will compile your circuit without any additional debug information, so the resulting ACIR bytecode will be identical to the one produced by standard Noir compilation. However, if you opt for this, the `vars` command will not be available while debugging.
+:::
+
 
 ### Stacktrace
 
@@ -317,7 +322,9 @@ Show Brillig registers. For example:
 2 = 0
 ```
 
-Note: this command is only functional while the debugger is executing a unconstrained code.
+:::note
+This command is only functional while the debugger is executing a unconstrained code.
+:::
 
 #### `regset [Register index] [New value]`
 
@@ -364,7 +371,9 @@ At opcode 1.14: Const { destination: RegisterIndex(5), value: Value { inner: 1 }
 
 In the example above: we start with clean Brillig memory, then step through a `Store` opcode which stores the value of register 3 (1) into the memory address stored in register 0 (0). Thus now `memory` shows memory address 0 contains value 1.
 
-Note: this command is only functional while the debugger is executing unconstrained code.
+:::note
+This command is only functional while the debugger is executing unconstrained code.
+:::
 
 #### `memset [Memory address] [New value]`
 
@@ -383,4 +392,6 @@ Update a Brillig memory cell with the given value. For example:
 >
 ```
 
-Note: this command is only functional while the debugger is executing unconstrained code.
+:::note
+This command is only functional while the debugger is executing unconstrained code.
+:::

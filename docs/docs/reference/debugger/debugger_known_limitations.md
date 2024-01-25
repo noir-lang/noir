@@ -53,5 +53,7 @@ In order to make the state of local variables observable, the debugger compiles 
                                     
 If you are interested in debugging/inspecting compiled ACIR without these synthetic changes, you can invoke the REPL debugger with the `--skip-instrumentation` flag or launch the VS Code debugger with the `skipConfiguration` property set to true in its launch configuration. You can find more details about those in the [Debugger REPL reference](debugger_repl.md) and the [VS Code Debugger reference](debugger_vscode.md).
 
-Note that skipping debugger instrumentation means you won't be able to inspect values of local variables.
+:::note
+Skipping debugger instrumentation means you won't be able to inspect values of local variables.
+:::
 

@@ -54,7 +54,9 @@ _Boolean, optional._
 
 Skips variables debugging instrumentation of code, making debugging less convenient but the resulting binary smaller and closer to production. Defaults to `false`.
 
-Note: skipping instrumentation causes the debugger to be unable to inspect local variables.
+:::note
+Skipping instrumentation causes the debugger to be unable to inspect local variables.
+:::
 
 ## `nargo dap [OPTIONS]`
 
