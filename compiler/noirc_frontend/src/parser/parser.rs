@@ -262,15 +262,12 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         ))
         .or(just(Semicolon).to(Vec::new()));
 
-    attributes()
-        .then_ignore(keyword(Struct))
-        .then(ident())
-        .then(generics())
-        .then(fields)
-        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
+    attributes().then_ignore(keyword(Struct)).then(ident()).then(generics()).then(fields).validate(
+        |(((raw_attributes, name), generics), fields), span, emit| {
             let attributes = validate_struct_attributes(raw_attributes, span, emit);
             TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
-        })
+        },
+    )
 }
 
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
