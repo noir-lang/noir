@@ -229,6 +229,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     fn build_stack_trace(&self) -> Vec<StackFrame> {
+        let stack_frames = self.context.get_variables();
+
         self.context
             .get_source_call_stack()
             .iter()
@@ -238,9 +240,15 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     self.debug_artifact.location_line_number(*source_location).unwrap();
                 let column_number =
                     self.debug_artifact.location_column_number(*source_location).unwrap();
+
+                let name = match stack_frames.get(index) {
+                    Some(frame) => format!("{} {}", frame.0, index),
+                    None => format!("frame #{index}"),
+                };
+
                 StackFrame {
                     id: index as i64,
-                    name: format!("frame #{index}"),
+                    name,
                     source: Some(Source {
                         path: self.debug_artifact.file_map[&source_location.file]
                             .path
