@@ -114,7 +114,6 @@
     "**/.yalc": true,
     "**/node_modules": true,
     "**/.pnp.*": true,
-    "circuits/cpp/barretenberg/**": true,
     "**/msgpack-c/**": true
   },
   "[terraform]": {
@@ -141,12 +140,6 @@
   //
   "clangd.path": "clangd-15",
   //
-  // CMake
-  //
-  // Location of base CMakeLists file
-  "cmake.sourceDirectory": "${workspaceFolder}/circuits/cpp/",
-  "cmake.buildDirectory": "${workspaceFolder}/circuits/cpp/build",
-  //
   // C/C++ (should be disabled)
   //
   // Make sure all C++ IntelliSense features are disabled
@@ -160,15 +153,5 @@
   "C_Cpp.default.enableConfigurationSquiggles": false,
   "C_Cpp.formatting": "disabled",
   "C_Cpp.vcpkg.enabled": false,
-  "C_Cpp.default.includePath": ["cpp/barretenberg/cpp/src"],
-  //
-  // TestMate C++
-  //
-  // Ensures tests are run from the `build` directory
-  // which ensures SRS can be read
-  "testMate.cpp.test.workingDirectory": "${workspaceFolder}/circuits/cpp/build",
-  // Filter all binaries that are not tests
-  "testMate.cpp.test.executables": "${workspaceFolder}/circuits/cpp/build/bin/*{test,Test,TEST}*"
-  // End C++/Circuits settings
-  ///////////////////////////////////////
+  "C_Cpp.default.includePath": ["barretenberg/cpp/src"],
 }

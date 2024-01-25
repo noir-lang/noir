@@ -1,3 +1,0 @@
-^circuits/.*\.(cpp|cc|cxx|c\+\+|h|hpp|hxx|h\+\+|c|h|inl|inc|ipp|tpp|cmake)$
-^circuits/.*CMakeLists\.txt$
-^circuits/.*Dockerfile.*$

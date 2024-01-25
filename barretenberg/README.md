@@ -242,7 +242,7 @@ A default configuration for VS Code is provided by the file [`barretenberg.code-
 
 ### Integration tests with Aztec in Monorepo
 
-CI will automatically run integration tests against Aztec. The tests in `circuits/cpp` folder use the embedded barretenberg, and can be used to integration test it.
+CI will automatically run integration tests against Aztec. It is located in the `barretenberg` folder.
 
 ### Integration tests with Aztec in Barretenberg Standalone Repo
 

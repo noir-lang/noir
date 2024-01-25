@@ -1,9 +1,0 @@
-# aztec3::circuits::abis
-
-Contains all ABIs for use by:
-
-- Test app circuits
-- Kernel circuits
-- Rollup circuits
-
-All ABIs are generalized by an `NCT` template parameter (meaning `NativeOrCircuitTypes`). `NCT` can be either `aztec3::utils::types::NativeTypes` or `aztec3::utils::types::CircuitTypes<Builder>` for some `Builder`. The idea being, there's a single implementation of every struct/class for native and circuit types. NativeType structs can be switched to CircuitType with the `to_circuit_type()` method.

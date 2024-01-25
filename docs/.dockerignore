@@ -10,9 +10,6 @@
 build/
 Debug/
 Release/
-circuits/cpp/build/
-circuits/cpp/build-wasm/
-circuits/cpp/build-coverage/
 barretenberg/
 
 # Ignore Node.js build artifacts

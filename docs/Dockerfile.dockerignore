@@ -7,7 +7,6 @@ docs/node_modules
 !l1-contracts/src
 !l1-contracts/test
 !barretenberg/cpp/src/barretenberg
-!circuits/cpp/src
 !.release-please-manifest.json
 !boxes
 

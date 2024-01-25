@@ -14,41 +14,5 @@
       "localRoot": "${workspaceFolder}",
       "sourceMaps": true
     },
-    ///////////////////////////////////////
-    // C++/Circuits targets
-    ///////////////////////////////////////
-    {
-      "name": "(lldb) Launch native - Circuits C++",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${command:cmake.launchTargetPath}",
-      "args": [ "--gtest_filter=*" ],
-      "cwd": "${workspaceFolder}/circuits/cpp/build",
-      "internalConsoleOptions": "openOnSessionStart",
-      "console": "internalConsole"
-    },
-    {
-      "name": "(lldb) Launch in WASM - Circuits C++",
-      "type": "lldb",
-      "request": "launch",
-      "program": "~/.wasmtime/bin/wasmtime",
-      "args": [
-        "-g", // tell wasmtime to generate debug info
-        "--disable-cache", // necessary or wasmtime throws a error:
-            // thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: ()', crates/jit/src/debug.rs:147:58
-            // in: wasmtime_jit::debug::create_gdbjit_image
-        "--dir", // give wasmtime the parent dir as a sandbox
-          "..",  // needs this to find srs
-        "${command:cmake.launchTargetPath}", // the test exe
-        "--",
-          "--gtest_filter=*", // filter tests
-          "--gtest_color=1" // color gtest output (off by default in wasm)
-      ],
-      "cwd": "${workspaceFolder}/circuits/cpp/build-wasm",
-      "internalConsoleOptions": "openOnSessionStart",
-      "console": "internalConsole"
-    },
-    // End C++/Circuits targets
-    ///////////////////////////////////////
   ]
 }

@@ -1,6 +1,0 @@
-#include "call_context.hpp"
-#include "call_stack_item.hpp"
-#include "contract_storage_read.hpp"
-#include "contract_storage_update_request.hpp"
-#include "function_data.hpp"
-#include "private_circuit_public_inputs.hpp"

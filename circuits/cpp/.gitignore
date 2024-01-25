@@ -1,7 +1,0 @@
-.cache/
-build*/
-src/wasi-sdk-*
-CMakeUserPresets.json
-
-# ctest log output dir
-**/Testing/*
