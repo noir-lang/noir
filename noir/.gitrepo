@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/noir-lang/noir
 	branch = aztec-packages
-	commit = 9debf5c0d16caac658e851dc024e92f7dd72adcb
-	parent = ccb7bff8e16ea9c8bc4bd48754db59857137507e
+	commit = af203d606b41c5fa8efaa915f75c9238639c9b21
+	parent = 75f26c4f2a9cf185891234eab6ec4f213d31fc50
 	method = merge
 	cmdver = 0.4.6
