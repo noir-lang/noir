@@ -29,6 +29,12 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
         filepath,
         isUpdated,
       });
+    } else {
+      contentUpdates.push({
+        content: fs.readFileSync(filepath, 'utf-8'),
+        filepath,
+        isUpdated: false,
+      });
     }
   }
 
