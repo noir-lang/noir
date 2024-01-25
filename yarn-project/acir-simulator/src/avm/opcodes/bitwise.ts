@@ -11,7 +11,7 @@ export class And extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -32,7 +32,7 @@ export class Or extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -53,7 +53,7 @@ export class Xor extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -74,7 +74,7 @@ export class Not extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     Instruction.checkTags(machineState, this.inTag, this.aOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -94,7 +94,7 @@ export class Shl extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -115,7 +115,7 @@ export class Shr extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);

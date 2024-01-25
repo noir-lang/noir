@@ -14,7 +14,7 @@ export type JournalData = {
   /** - */
   newNullifiers: Fr[];
   /** contract address -\> key -\> value */
-  storageWrites: Map<Fr, Map<Fr, Fr>>;
+  storageWrites: Map<bigint, Map<bigint, Fr>>;
 };
 
 /**
@@ -32,7 +32,7 @@ export class AvmJournal {
   // Reading state - must be tracked for vm execution
   // contract address -> key -> value
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3999)
-  private storageReads: Map<Fr, Map<Fr, Fr>> = new Map();
+  private storageReads: Map<bigint, Map<bigint, Fr>> = new Map();
 
   // New written state
   private newCommitments: Fr[] = [];
@@ -43,7 +43,7 @@ export class AvmJournal {
   private newLogs: Fr[][] = [];
 
   // contract address -> key -> value
-  private storageWrites: Map<Fr, Map<Fr, Fr>> = new Map();
+  private storageWrites: Map<bigint, Map<bigint, Fr>> = new Map();
 
   private parentJournal: AvmJournal | undefined;
 
@@ -76,12 +76,12 @@ export class AvmJournal {
    * @param value -
    */
   public writeStorage(contractAddress: Fr, key: Fr, value: Fr) {
-    let contractMap = this.storageWrites.get(contractAddress);
+    let contractMap = this.storageWrites.get(contractAddress.toBigInt());
     if (!contractMap) {
       contractMap = new Map();
-      this.storageWrites.set(contractAddress, contractMap);
+      this.storageWrites.set(contractAddress.toBigInt(), contractMap);
     }
-    contractMap.set(key, value);
+    contractMap.set(key.toBigInt(), value);
   }
 
   /**
@@ -93,7 +93,7 @@ export class AvmJournal {
    * @returns current value
    */
   public readStorage(contractAddress: Fr, key: Fr): Promise<Fr> {
-    const cachedValue = this.storageWrites.get(contractAddress)?.get(key);
+    const cachedValue = this.storageWrites.get(contractAddress.toBigInt())?.get(key.toBigInt());
     if (cachedValue) {
       return Promise.resolve(cachedValue);
     }
@@ -168,7 +168,7 @@ export class AvmJournal {
  * @param hostMap - The map to be merged into
  * @param childMap - The map to be merged from
  */
-function mergeContractMaps(hostMap: Map<Fr, Map<Fr, Fr>>, childMap: Map<Fr, Map<Fr, Fr>>) {
+function mergeContractMaps(hostMap: Map<bigint, Map<bigint, Fr>>, childMap: Map<bigint, Map<bigint, Fr>>) {
   for (const [key, value] of childMap) {
     const map1Value = hostMap.get(key);
     if (!map1Value) {
@@ -184,7 +184,7 @@ function mergeContractMaps(hostMap: Map<Fr, Map<Fr, Fr>>, childMap: Map<Fr, Map<
  * @param hostMap - The map to be merge into
  * @param childMap - The map to be merged from
  */
-function mergeStorageMaps(hostMap: Map<Fr, Fr>, childMap: Map<Fr, Fr>) {
+function mergeStorageMaps(hostMap: Map<bigint, Fr>, childMap: Map<bigint, Fr>) {
   for (const [key, value] of childMap) {
     hostMap.set(key, value);
   }

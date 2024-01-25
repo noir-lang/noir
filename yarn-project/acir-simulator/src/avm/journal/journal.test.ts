@@ -29,7 +29,7 @@ describe('journal', () => {
       journal.writeStorage(contractAddress, key, value);
 
       const journalUpdates: JournalData = journal.flush();
-      expect(journalUpdates.storageWrites.get(contractAddress)?.get(key)).toEqual(value);
+      expect(journalUpdates.storageWrites.get(contractAddress.toBigInt())?.get(key.toBigInt())).toEqual(value);
     });
 
     it('When reading from storage, should check the parent first', async () => {

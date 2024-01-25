@@ -29,7 +29,7 @@ export class AvmInterpreter {
    *               - reverted execution will return false
    *               - any other panic will throw
    */
-  run(): AvmMessageCallResult {
+  async run(): Promise<AvmMessageCallResult> {
     assert(this.instructions.length > 0);
 
     try {
@@ -37,7 +37,7 @@ export class AvmInterpreter {
         const instruction = this.instructions[this.machineState.pc];
         assert(!!instruction); // This should never happen
 
-        instruction.execute(this.machineState, this.journal);
+        await instruction.execute(this.machineState, this.journal);
 
         if (this.machineState.pc >= this.instructions.length) {
           throw new InvalidProgramCounterError(this.machineState.pc, /*max=*/ this.instructions.length);

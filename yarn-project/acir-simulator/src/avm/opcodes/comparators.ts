@@ -11,7 +11,7 @@ export class Eq extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     const a = machineState.memory.get(this.aOffset);
     const b = machineState.memory.get(this.bOffset);
 
@@ -30,7 +30,7 @@ export class Lt extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     const a = machineState.memory.get(this.aOffset);
     const b = machineState.memory.get(this.bOffset);
 
@@ -49,7 +49,7 @@ export class Lte extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     const a = machineState.memory.get(this.aOffset);
     const b = machineState.memory.get(this.bOffset);
 

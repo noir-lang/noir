@@ -18,7 +18,7 @@ describe('interpreter', () => {
     journal = mock<AvmJournal>();
   });
 
-  it('Should execute a series of instructions', () => {
+  it('Should execute a series of instructions', async () => {
     const calldata: Fr[] = [new Fr(1), new Fr(2)];
 
     const instructions: Instruction[] = [
@@ -27,26 +27,26 @@ describe('interpreter', () => {
       new Return(/*returnOffset=*/ 2, /*copySize=*/ 1),
     ];
 
-    const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
-    const interpreter = new AvmInterpreter(context, journal, instructions);
-    const avmReturnData = interpreter.run();
+    const machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
+    const interpreter = new AvmInterpreter(machineState, journal, instructions);
+    const avmReturnData = await interpreter.run();
 
     expect(avmReturnData.reverted).toBe(false);
     expect(avmReturnData.revertReason).toBeUndefined();
     expect(avmReturnData.output).toEqual([new Fr(3)]);
   });
 
-  it('Should revert with an invalid jump', () => {
+  it('Should revert with an invalid jump', async () => {
     const calldata: Fr[] = [];
 
     const invalidJumpDestination = 22;
 
     const instructions: Instruction[] = [new Jump(invalidJumpDestination)];
 
-    const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
-    const interpreter = new AvmInterpreter(context, journal, instructions);
+    const machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
+    const interpreter = new AvmInterpreter(machineState, journal, instructions);
 
-    const avmReturnData = interpreter.run();
+    const avmReturnData = await interpreter.run();
 
     expect(avmReturnData.reverted).toBe(true);
     expect(avmReturnData.revertReason).toBeInstanceOf(InvalidProgramCounterError);

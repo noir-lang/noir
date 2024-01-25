@@ -20,17 +20,17 @@ describe('Control Flow Opcodes', () => {
     machineState = new AvmMachineState(initExecutionEnvironment());
   });
 
-  it('Should implement JUMP', () => {
+  it('Should implement JUMP', async () => {
     const jumpLocation = 22;
 
     expect(machineState.pc).toBe(0);
 
     const instruction = new Jump(jumpLocation);
-    instruction.execute(machineState, journal);
+    await instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation);
   });
 
-  it('Should implement JUMPI - truthy', () => {
+  it('Should implement JUMPI - truthy', async () => {
     const jumpLocation = 22;
     const jumpLocation1 = 69;
 
@@ -40,16 +40,16 @@ describe('Control Flow Opcodes', () => {
     machineState.memory.set(1, new Uint16(2n));
 
     const instruction = new JumpI(jumpLocation, 0);
-    instruction.execute(machineState, journal);
+    await instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation);
 
     // Truthy can be greater than 1
     const instruction1 = new JumpI(jumpLocation1, 1);
-    instruction1.execute(machineState, journal);
+    await instruction1.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation1);
   });
 
-  it('Should implement JUMPI - falsy', () => {
+  it('Should implement JUMPI - falsy', async () => {
     const jumpLocation = 22;
 
     expect(machineState.pc).toBe(0);
@@ -57,11 +57,11 @@ describe('Control Flow Opcodes', () => {
     machineState.memory.set(0, new Uint16(0n));
 
     const instruction = new JumpI(jumpLocation, 0);
-    instruction.execute(machineState, journal);
+    await instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(1);
   });
 
-  it('Should implement Internal Call and Return', () => {
+  it('Should implement Internal Call and Return', async () => {
     const jumpLocation = 22;
 
     expect(machineState.pc).toBe(0);
@@ -69,14 +69,14 @@ describe('Control Flow Opcodes', () => {
     const instruction = new InternalCall(jumpLocation);
     const returnInstruction = new InternalReturn();
 
-    instruction.execute(machineState, journal);
+    await instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation);
 
-    returnInstruction.execute(machineState, journal);
+    await returnInstruction.execute(machineState, journal);
     expect(machineState.pc).toBe(1);
   });
 
-  it('Should chain series of control flow instructions', () => {
+  it('Should chain series of control flow instructions', async () => {
     const jumpLocation0 = 22;
     const jumpLocation1 = 69;
     const jumpLocation2 = 1337;
@@ -106,17 +106,17 @@ describe('Control Flow Opcodes', () => {
     ];
 
     for (let i = 0; i < instructions.length; i++) {
-      instructions[i].execute(machineState, journal);
+      await instructions[i].execute(machineState, journal);
       expect(machineState.pc).toBe(expectedPcs[i]);
     }
   });
 
-  it('Should error if Internal Return is called without a corresponding Internal Call', () => {
-    const returnInstruction = new InternalReturn();
-    expect(() => returnInstruction.execute(machineState, journal)).toThrow(InstructionExecutionError);
+  it('Should error if Internal Return is called without a corresponding Internal Call', async () => {
+    const returnInstruction = () => new InternalReturn().execute(machineState, journal);
+    await expect(returnInstruction()).rejects.toThrow(InstructionExecutionError);
   });
 
-  it('Should increment PC on All other Instructions', () => {
+  it('Should increment PC on All other Instructions', async () => {
     const instructions = [
       new Add(0, 1, 2),
       new Sub(0, 1, 2),
@@ -144,7 +144,7 @@ describe('Control Flow Opcodes', () => {
       innerMachineState.memory.set(1, new Uint16(8n));
       innerMachineState.memory.set(2, new Uint16(12n));
       expect(machineState.pc).toBe(0);
-      instruction.execute(innerMachineState, journal);
+      await instruction.execute(innerMachineState, journal);
       expect(innerMachineState.pc).toBe(1);
     }
   });

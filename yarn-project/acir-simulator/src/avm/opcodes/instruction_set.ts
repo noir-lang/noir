@@ -1,6 +1,7 @@
 import { Add, Div, Mul, Sub } from './arithmetic.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 import { InternalCall, InternalReturn, Jump, JumpI, Return } from './control_flow.js';
+// import { Call } from './external_calls.js';
 import { Instruction } from './instruction.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 import { Opcode } from './opcodes.js';
@@ -87,7 +88,7 @@ export const INSTRUCTION_SET: Map<Opcode, InstructionConstructorAndMembers> = ne
     //[Opcode.EMITUNENCRYPTEDLOG, Emitunencryptedlog],
 
     //// Control Flow - Contract Calls
-    //[Opcode.CALL, Call],
+    // [Opcode.CALL, Call],
     //[Opcode.STATICCALL, Staticcall],
     [Opcode.RETURN, Return],
     //[Opcode.REVERT, Revert],

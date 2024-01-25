@@ -11,7 +11,7 @@ import { encodeToBytecode } from './opcodes/encode_to_bytecode.js';
 import { Opcode } from './opcodes/opcodes.js';
 
 describe('avm', () => {
-  it('Should execute bytecode', () => {
+  it('Should execute bytecode', async () => {
     const calldata: Fr[] = [new Fr(1), new Fr(2)];
     const journal = mock<AvmJournal>();
 
@@ -31,7 +31,7 @@ describe('avm', () => {
     // Execute instructions
     const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
     const interpreter = new AvmInterpreter(context, journal, instructions);
-    const avmReturnData = interpreter.run();
+    const avmReturnData = await interpreter.run();
 
     expect(avmReturnData.reverted).toBe(false);
 

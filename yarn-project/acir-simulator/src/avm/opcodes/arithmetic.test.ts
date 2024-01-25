@@ -10,34 +10,34 @@ describe('Arithmetic Instructions', () => {
   let machineState: AvmMachineState;
   let journal: MockProxy<AvmJournal>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     machineState = new AvmMachineState(initExecutionEnvironment());
     journal = mock<AvmJournal>();
   });
 
   describe('Add', () => {
-    it('Should add correctly over field elements', () => {
+    it('Should add correctly over field elements', async () => {
       const a = new Field(1n);
       const b = new Field(2n);
 
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      new Add(0, 1, 2).execute(machineState, journal);
+      await new Add(0, 1, 2).execute(machineState, journal);
 
       const expected = new Field(3n);
       const actual = machineState.memory.get(2);
       expect(actual).toEqual(expected);
     });
 
-    it('Should wrap around on addition', () => {
+    it('Should wrap around on addition', async () => {
       const a = new Field(1n);
       const b = new Field(Field.MODULUS - 1n);
 
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      new Add(0, 1, 2).execute(machineState, journal);
+      await new Add(0, 1, 2).execute(machineState, journal);
 
       const expected = new Field(0n);
       const actual = machineState.memory.get(2);
@@ -46,14 +46,14 @@ describe('Arithmetic Instructions', () => {
   });
 
   describe('Sub', () => {
-    it('Should subtract correctly over field elements', () => {
+    it('Should subtract correctly over field elements', async () => {
       const a = new Field(1n);
       const b = new Field(2n);
 
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      new Sub(0, 1, 2).execute(machineState, journal);
+      await new Sub(0, 1, 2).execute(machineState, journal);
 
       const expected = new Field(Field.MODULUS - 1n);
       const actual = machineState.memory.get(2);
@@ -62,28 +62,28 @@ describe('Arithmetic Instructions', () => {
   });
 
   describe('Mul', () => {
-    it('Should multiply correctly over field elements', () => {
+    it('Should multiply correctly over field elements', async () => {
       const a = new Field(2n);
       const b = new Field(3n);
 
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      new Mul(0, 1, 2).execute(machineState, journal);
+      await new Mul(0, 1, 2).execute(machineState, journal);
 
       const expected = new Field(6n);
       const actual = machineState.memory.get(2);
       expect(actual).toEqual(expected);
     });
 
-    it('Should wrap around on multiplication', () => {
+    it('Should wrap around on multiplication', async () => {
       const a = new Field(2n);
       const b = new Field(Field.MODULUS / 2n - 1n);
 
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      new Mul(0, 1, 2).execute(machineState, journal);
+      await new Mul(0, 1, 2).execute(machineState, journal);
 
       const expected = new Field(Field.MODULUS - 3n);
       const actual = machineState.memory.get(2);
@@ -92,14 +92,14 @@ describe('Arithmetic Instructions', () => {
   });
 
   describe('Div', () => {
-    it('Should perform field division', () => {
+    it('Should perform field division', async () => {
       const a = new Field(2n);
       const b = new Field(3n);
 
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      new Div(0, 1, 2).execute(machineState, journal);
+      await new Div(0, 1, 2).execute(machineState, journal);
 
       // Note
       const actual = machineState.memory.get(2);

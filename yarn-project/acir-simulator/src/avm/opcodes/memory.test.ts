@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { mock } from 'jest-mock-extended';
+import { MockProxy, mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
@@ -10,16 +10,16 @@ import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Memory instructions', () => {
   let machineState: AvmMachineState;
-  let journal = mock<AvmJournal>();
+  let journal: MockProxy<AvmJournal>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     machineState = new AvmMachineState(initExecutionEnvironment());
     journal = mock<AvmJournal>();
   });
 
   describe('SET', () => {
-    it('should correctly set value and tag (uninitialized)', () => {
-      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT16).execute(machineState, journal);
+    it('should correctly set value and tag (uninitialized)', async () => {
+      await new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT16).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       const tag = machineState.memory.getTag(1);
@@ -28,10 +28,10 @@ describe('Memory instructions', () => {
       expect(tag).toEqual(TypeTag.UINT16);
     });
 
-    it('should correctly set value and tag (overwriting)', () => {
+    it('should correctly set value and tag (overwriting)', async () => {
       machineState.memory.set(1, new Field(27));
 
-      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT32).execute(machineState, journal);
+      await new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT32).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       const tag = machineState.memory.getTag(1);
@@ -150,10 +150,10 @@ describe('Memory instructions', () => {
       expect(tags).toEqual([TypeTag.UINT8, TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64, TypeTag.UINT128]);
     });
 
-    it('Should cast between field elements', () => {
+    it('Should cast between field elements', async () => {
       machineState.memory.set(0, new Field(12345678n));
 
-      new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 1, TypeTag.FIELD).execute(machineState, journal);
+      await new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 1, TypeTag.FIELD).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       expect(actual).toEqual(new Field(12345678n));
@@ -163,9 +163,9 @@ describe('Memory instructions', () => {
   });
 
   describe('MOV', () => {
-    it('Should move integrals on different memory cells', () => {
+    it('Should move integrals on different memory cells', async () => {
       machineState.memory.set(1, new Uint16(27));
-      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, journal);
+      await new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, journal);
 
       const actual = machineState.memory.get(2);
       const tag = machineState.memory.getTag(2);
@@ -174,9 +174,9 @@ describe('Memory instructions', () => {
       expect(tag).toEqual(TypeTag.UINT16);
     });
 
-    it('Should move field elements on different memory cells', () => {
+    it('Should move field elements on different memory cells', async () => {
       machineState.memory.set(1, new Field(27));
-      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, journal);
+      await new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, journal);
 
       const actual = machineState.memory.get(2);
       const tag = machineState.memory.getTag(2);
@@ -187,12 +187,15 @@ describe('Memory instructions', () => {
   });
 
   describe('CMOV', () => {
-    it('Should move A if COND is true, on different memory cells (integral condition)', () => {
+    it('Should move A if COND is true, on different memory cells (integral condition)', async () => {
       machineState.memory.set(0, new Uint32(123)); // A
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Uint8(2)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
+      await new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(
+        machineState,
+        journal,
+      );
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -200,12 +203,15 @@ describe('Memory instructions', () => {
       expect(tag).toEqual(TypeTag.UINT32);
     });
 
-    it('Should move B if COND is false, on different memory cells (integral condition)', () => {
+    it('Should move B if COND is false, on different memory cells (integral condition)', async () => {
       machineState.memory.set(0, new Uint32(123)); // A
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Uint8(0)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
+      await new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(
+        machineState,
+        journal,
+      );
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -213,12 +219,15 @@ describe('Memory instructions', () => {
       expect(tag).toEqual(TypeTag.UINT16);
     });
 
-    it('Should move A if COND is true, on different memory cells (field condition)', () => {
+    it('Should move A if COND is true, on different memory cells (field condition)', async () => {
       machineState.memory.set(0, new Uint32(123)); // A
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Field(1)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
+      await new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(
+        machineState,
+        journal,
+      );
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -226,12 +235,15 @@ describe('Memory instructions', () => {
       expect(tag).toEqual(TypeTag.UINT32);
     });
 
-    it('Should move B if COND is false, on different memory cells (integral condition)', () => {
+    it('Should move B if COND is false, on different memory cells (integral condition)', async () => {
       machineState.memory.set(0, new Uint32(123)); // A
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Field(0)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
+      await new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(
+        machineState,
+        journal,
+      );
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -241,34 +253,34 @@ describe('Memory instructions', () => {
   });
 
   describe('CALLDATACOPY', () => {
-    it('Writes nothing if size is 0', () => {
+    it('Writes nothing if size is 0', async () => {
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
       machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(machineState, journal);
+      await new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(machineState, journal);
 
       const actual = machineState.memory.get(0);
       expect(actual).toEqual(new Uint16(12));
     });
 
-    it('Copies all calldata', () => {
+    it('Copies all calldata', async () => {
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
       machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 3, /*dstOffset=*/ 0).execute(machineState, journal);
+      await new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 3, /*dstOffset=*/ 0).execute(machineState, journal);
 
       const actual = machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 3);
       expect(actual).toEqual([new Field(1), new Field(2), new Field(3)]);
     });
 
-    it('Copies slice of calldata', () => {
+    it('Copies slice of calldata', async () => {
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
       machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      new CalldataCopy(/*cdOffset=*/ 1, /*copySize=*/ 2, /*dstOffset=*/ 0).execute(machineState, journal);
+      await new CalldataCopy(/*cdOffset=*/ 1, /*copySize=*/ 2, /*dstOffset=*/ 0).execute(machineState, journal);
 
       const actual = machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 2);
       expect(actual).toEqual([new Field(2), new Field(3)]);

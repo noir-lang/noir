@@ -1,6 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 
 import { AvmMachineState } from '../avm_machine_state.js';
+import { AvmInterpreterError } from '../interpreter/interpreter.js';
 import { AvmJournal } from '../journal/journal.js';
 import { Instruction } from './instruction.js';
 
@@ -13,7 +14,11 @@ export class SStore extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, journal: AvmJournal): void {
+  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
+    if (machineState.executionEnvironment.isStaticCall) {
+      throw new StaticCallStorageAlterError();
+    }
+
     const slot = machineState.memory.get(this.slotOffset);
     const data = machineState.memory.get(this.dataOffset);
 
@@ -44,5 +49,15 @@ export class SLoad extends Instruction {
     machineState.memory.set(this.destOffset, await data);
 
     this.incrementPc(machineState);
+  }
+}
+
+/**
+ * Error is thrown when a static call attempts to alter storage
+ */
+export class StaticCallStorageAlterError extends AvmInterpreterError {
+  constructor() {
+    super('Static calls cannot alter storage');
+    this.name = 'StaticCallStorageAlterError';
   }
 }
