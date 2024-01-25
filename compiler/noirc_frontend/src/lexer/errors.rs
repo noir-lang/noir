@@ -1,6 +1,5 @@
 use crate::parser::ParserError;
 use crate::parser::ParserErrorReason;
-use crate::token::SpannedToken;
 
 use super::token::Token;
 use noirc_errors::CustomDiagnostic as Diagnostic;
