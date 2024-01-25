@@ -73,7 +73,7 @@ pub enum DefCollectorErrorKind {
         "Either the type or the trait must be from the same crate as the trait implementation"
     )]
     TraitImplOrphaned { span: Span },
-    #[error("Usage of the `#[foreign]` or `#[builtin] function attributes are not allowed outside of the Noir standard library")]
+    #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { span: Span },
     #[error("macro error : {0:?}")]
     MacroError(MacroError),
@@ -250,7 +250,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             ),
             DefCollectorErrorKind::LowLevelFunctionOutsideOfStdlib { span } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
-                "Usage of the `#[foreign]` or `#[builtin] function attributes are not allowed outside of the Noir standard library".into(),
+                "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 span,
             ),
             DefCollectorErrorKind::MacroError(macro_error) => {
