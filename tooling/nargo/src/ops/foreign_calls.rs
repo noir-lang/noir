@@ -82,8 +82,8 @@ impl MockedCall {
 }
 
 impl MockedCall {
-    fn matches(&self, name: &str, params: &Vec<ForeignCallParam>) -> bool {
-        self.name == name && (self.params.is_none() || self.params.as_ref() == Some(params))
+    fn matches(&self, name: &str, params: &[ForeignCallParam]) -> bool {
+        self.name == name && (self.params.is_none() || self.params.as_deref() == Some(params))
     }
 }
 
