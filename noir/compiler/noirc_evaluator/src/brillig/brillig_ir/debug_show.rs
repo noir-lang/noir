@@ -413,15 +413,6 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::EmbeddedCurveDouble { input1_x, input1_y, result } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  EMBEDDED_CURVE_DOUBLE ({} {}) -> {}",
-                    input1_x,
-                    input1_y,
-                    result
-                );
-            }
             BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
                 debug_println!(
                     self.enable_debug_trace,

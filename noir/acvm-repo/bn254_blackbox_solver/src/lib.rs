@@ -97,12 +97,4 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         embedded_curve_add(*input1_x, *input1_y, *input2_x, *input2_y)
     }
-
-    fn ec_double(
-        &self,
-        input_x: &FieldElement,
-        input_y: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        embedded_curve_add(*input_x, *input_y, *input_x, *input_y)
-    }
 }

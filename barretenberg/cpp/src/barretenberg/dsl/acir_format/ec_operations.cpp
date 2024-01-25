@@ -46,37 +46,4 @@ template void create_ec_add_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCir
                                                                   const EcAdd& input,
                                                                   bool has_valid_witness_assignments);
 
-template <typename Builder>
-void create_ec_double_constraint(Builder& builder, const EcDouble& input, bool has_valid_witness_assignments)
-{
-    using cycle_group_ct = bb::stdlib::cycle_group<Builder>;
-    using field_ct = bb::stdlib::field_t<Builder>;
-    // Input to cycle_group point
-    auto x = field_ct::from_witness_index(&builder, input.input_x);
-    auto y = field_ct::from_witness_index(&builder, input.input_y);
-
-    if (!has_valid_witness_assignments) {
-        auto g1 = grumpkin::g1::affine_one;
-        // We need to have correct values representing point on the curve
-        builder.variables[input.input_x] = g1.x;
-        builder.variables[input.input_y] = g1.y;
-    }
-    cycle_group_ct input_point(x, y, false);
-
-    // Doubling
-    cycle_group_ct result = input_point.dbl();
-
-    auto x_normalized = result.x.normalize();
-    auto y_normalized = result.y.normalize();
-    builder.assert_equal(x_normalized.witness_index, input.result_x);
-    builder.assert_equal(y_normalized.witness_index, input.result_y);
-}
-
-template void create_ec_double_constraint<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
-                                                               const EcDouble& input,
-                                                               bool has_valid_witness_assignments);
-template void create_ec_double_constraint<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder& builder,
-                                                                     const EcDouble& input,
-                                                                     bool has_valid_witness_assignments);
-
 } // namespace acir_format

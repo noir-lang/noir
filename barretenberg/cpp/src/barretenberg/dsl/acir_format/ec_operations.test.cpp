@@ -40,58 +40,12 @@ size_t generate_ec_add_constraint(EcAdd& ec_add_constraint, WitnessVector& witne
     return witness_values.size();
 }
 
-size_t generate_ec_double_constraint(EcDouble& ec_double_constraint, WitnessVector& witness_values)
-{
-
-    using cycle_group_ct = bb::stdlib::cycle_group<Builder>;
-    auto g1 = grumpkin::g1::affine_one;
-    cycle_group_ct input_point(g1);
-    // Doubling
-    cycle_group_ct result = input_point.dbl();
-    // add: x,y,x2,y2
-    uint32_t result_x_witness_index = static_cast<uint32_t>(witness_values.size());
-
-    witness_values.push_back(result.x.get_value());
-    uint32_t result_y_witness_index = static_cast<uint32_t>(witness_values.size());
-    witness_values.push_back(result.y.get_value());
-    ec_double_constraint = EcDouble{
-        .input_x = 1,
-        .input_y = 2,
-        .result_x = result_x_witness_index,
-        .result_y = result_y_witness_index,
-    };
-    return witness_values.size();
-}
-
 TEST_F(EcOperations, TestECOperations)
 {
     EcAdd ec_add_constraint;
-    EcDouble ec_double_constraint;
 
     WitnessVector witness_values;
-    generate_ec_add_constraint(ec_add_constraint, witness_values);
-    size_t num_variables = generate_ec_double_constraint(ec_double_constraint, witness_values);
-
-    poly_triple constrain_5_is_7{
-        .a = 5,
-        .b = 7,
-        .c = 0,
-        .q_m = 0,
-        .q_l = 1,
-        .q_r = -1,
-        .q_o = 0,
-        .q_c = 0,
-    };
-    poly_triple constrain_6_is_8{
-        .a = 6,
-        .b = 8,
-        .c = 0,
-        .q_m = 0,
-        .q_l = 1,
-        .q_r = -1,
-        .q_o = 0,
-        .q_c = 0,
-    };
+    size_t num_variables = generate_ec_add_constraint(ec_add_constraint, witness_values);
 
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables + 1),
@@ -111,11 +65,10 @@ TEST_F(EcOperations, TestECOperations)
         .pedersen_hash_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
         .ec_add_constraints = { ec_add_constraint },
-        .ec_double_constraints = { ec_double_constraint },
         .recursion_constraints = {},
         .bigint_from_le_bytes_constraints = {},
         .bigint_operations = {},
-        .constraints = { constrain_5_is_7, constrain_6_is_8 },
+        .constraints = {},
         .block_constraints = {},
     };
 

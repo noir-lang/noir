@@ -215,23 +215,6 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
-        BlackBoxFunc::EmbeddedCurveDouble => {
-            if let (
-                [BrilligVariable::Simple(input1_x), BrilligVariable::Simple(input1_y)],
-                [BrilligVariable::BrilligArray(result_array)],
-            ) = (function_arguments, function_results)
-            {
-                brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveDouble {
-                    input1_x: *input1_x,
-                    input1_y: *input1_y,
-                    result: result_array.to_heap_array(),
-                });
-            } else {
-                unreachable!(
-                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
-                )
-            }
-        }
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
         }

@@ -64,7 +64,6 @@ TEST_F(BigIntTests, TestBigIntConstraintDummy)
         .pedersen_hash_constraints = {},
         .fixed_base_scalar_mul_constraints = {},
         .ec_add_constraints = {},
-        .ec_double_constraints = {},
         .recursion_constraints = {},
         .bigint_from_le_bytes_constraints = { from_le_bytes_constraint },
         .bigint_operations = { add_constraint, neg_constraint, mul_constraint, div_constraint },

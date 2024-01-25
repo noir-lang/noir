@@ -24,16 +24,6 @@ pub(super) fn fixed_base_scalar_mul(
     Ok(())
 }
 
-pub(super) fn embedded_curve_double(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
-    input_x: FunctionInput,
-    input_y: FunctionInput,
-    outputs: (Witness, Witness),
-) -> Result<(), OpcodeResolutionError> {
-    embedded_curve_add(backend, initial_witness, input_x, input_y, input_x, input_y, outputs)
-}
-
 pub(super) fn embedded_curve_add(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,

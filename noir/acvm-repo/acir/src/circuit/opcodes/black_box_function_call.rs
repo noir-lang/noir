@@ -86,11 +86,6 @@ pub enum BlackBoxFuncCall {
         input2_y: FunctionInput,
         outputs: (Witness, Witness),
     },
-    EmbeddedCurveDouble {
-        input_x: FunctionInput,
-        input_y: FunctionInput,
-        outputs: (Witness, Witness),
-    },
     Keccak256 {
         inputs: Vec<FunctionInput>,
         outputs: Vec<Witness>,
@@ -167,7 +162,6 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
             BlackBoxFuncCall::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
             BlackBoxFuncCall::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
-            BlackBoxFuncCall::EmbeddedCurveDouble { .. } => BlackBoxFunc::EmbeddedCurveDouble,
             BlackBoxFuncCall::Keccak256 { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccak256VariableLength { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
@@ -207,9 +201,6 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::EmbeddedCurveAdd {
                 input1_x, input1_y, input2_x, input2_y, ..
             } => vec![*input1_x, *input1_y, *input2_x, *input2_y],
-            BlackBoxFuncCall::EmbeddedCurveDouble { input_x, input_y, .. } => {
-                vec![*input_x, *input_y]
-            }
             BlackBoxFuncCall::RANGE { input } => vec![*input],
             BlackBoxFuncCall::SchnorrVerify {
                 public_key_x,
@@ -300,8 +291,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveDouble { outputs, .. } => vec![outputs.0, outputs.1],
+            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => vec![outputs.0, outputs.1],
             BlackBoxFuncCall::RANGE { .. }
             | BlackBoxFuncCall::RecursiveAggregation { .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { .. }

@@ -84,11 +84,6 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
         create_ec_add_constraint(builder, constraint, has_valid_witness_assignments);
     }
 
-    // Add ec double
-    for (const auto& constraint : constraint_system.ec_double_constraints) {
-        create_ec_double_constraint(builder, constraint, has_valid_witness_assignments);
-    }
-
     // Add block constraints
     for (const auto& constraint : constraint_system.block_constraints) {
         create_block_constraints(builder, constraint, has_valid_witness_assignments);

@@ -214,13 +214,6 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result_x = arg.outputs[0].value,
                     .result_y = arg.outputs[1].value,
                 });
-            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::EmbeddedCurveDouble>) {
-                af.ec_double_constraints.push_back(EcDouble{
-                    .input_x = arg.input_x.witness.value,
-                    .input_y = arg.input_y.witness.value,
-                    .result_x = arg.outputs[0].value,
-                    .result_y = arg.outputs[1].value,
-                });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::Keccak256>) {
                 af.keccak_constraints.push_back(KeccakConstraint{
                     .inputs = map(arg.inputs,
