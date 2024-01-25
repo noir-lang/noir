@@ -59,6 +59,8 @@ pub enum BlackBoxFunc {
     BigIntFromLeBytes,
     /// BigInt to le bytes
     BigIntToLeBytes,
+    /// Permutation function of Poseidon2
+    Poseidon2Permutation,
 }
 
 impl std::fmt::Display for BlackBoxFunc {
@@ -92,6 +94,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::BigIntDiv => "bigint_div",
             BlackBoxFunc::BigIntFromLeBytes => "bigint_from_le_bytes",
             BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
+            BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
         }
     }
 
@@ -119,6 +122,7 @@ impl BlackBoxFunc {
             "bigint_div" => Some(BlackBoxFunc::BigIntDiv),
             "bigint_from_le_bytes" => Some(BlackBoxFunc::BigIntFromLeBytes),
             "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
+            "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
             _ => None,
         }
     }

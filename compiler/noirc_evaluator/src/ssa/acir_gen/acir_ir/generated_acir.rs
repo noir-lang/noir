@@ -276,6 +276,11 @@ impl GeneratedAcir {
                 input: constant_inputs[0].to_u128() as u32,
                 outputs,
             },
+            BlackBoxFunc::Poseidon2Permutation => BlackBoxFuncCall::Poseidon2Permutation {
+                inputs: inputs[0].clone(),
+                outputs,
+                len: constant_inputs[0].to_u128() as u32,
+            },
         };
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -609,6 +614,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::PedersenHash => None,
 
         BlackBoxFunc::Keccakf1600 => Some(25),
+        // The permutation takes a fixed number of inputs, but the inputs length depends on the proving system implementation.
+        BlackBoxFunc::Poseidon2Permutation => None,
 
         // Can only apply a range constraint to one
         // witness at a time.
@@ -657,6 +664,8 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::Blake3 => Some(32),
 
         BlackBoxFunc::Keccakf1600 => Some(25),
+        // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.
+        BlackBoxFunc::Poseidon2Permutation => None,
 
         // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),

@@ -501,6 +501,15 @@ impl DebugShow {
                     output
                 );
             }
+            BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  POSEIDON2_PERMUTATION {} {} -> {}",
+                    message,
+                    len,
+                    output
+                );
+            }
         }
     }
 

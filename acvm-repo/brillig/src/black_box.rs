@@ -109,4 +109,9 @@ pub enum BlackBoxOp {
         input: RegisterIndex,
         output: HeapVector,
     },
+    Poseidon2Permutation {
+        message: HeapVector,
+        output: HeapArray,
+        len: RegisterIndex,
+    },
 }
