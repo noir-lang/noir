@@ -1,8 +1,10 @@
-import { AvmMachineState } from '../avm_machine_state.js';
-import { AvmStateManager } from '../avm_state_manager.js';
-import { Instruction } from './instruction.js';
+import { Fr } from '@aztec/foundation/fields';
 
-/** - */
+import { AvmMachineState } from '../avm_machine_state.js';
+import { IntegralValue } from '../avm_memory_types.js';
+import { AvmStateManager } from '../avm_state_manager.js';
+import { Instruction, InstructionExecutionError } from './instruction.js';
+
 export class Return extends Instruction {
   static type: string = 'RETURN';
   static numberOfOperands = 2;
@@ -12,14 +14,16 @@ export class Return extends Instruction {
   }
 
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
-    const returnData = machineState.readMemoryChunk(this.returnOffset, this.returnOffset + this.copySize);
+    const returnData = machineState.memory
+      .getSlice(this.returnOffset, this.copySize)
+      .map(fvt => new Fr(fvt.toBigInt()));
+
     machineState.setReturnData(returnData);
 
     this.halt(machineState);
   }
 }
 
-/** -*/
 export class Jump extends Instruction {
   static type: string = 'JUMP';
   static numberOfOperands = 1;
@@ -33,7 +37,6 @@ export class Jump extends Instruction {
   }
 }
 
-/** -*/
 export class JumpI extends Instruction {
   static type: string = 'JUMPI';
   static numberOfOperands = 1;
@@ -43,8 +46,9 @@ export class JumpI extends Instruction {
   }
 
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
-    const condition = machineState.readMemory(this.condOffset);
+    const condition = machineState.memory.getAs<IntegralValue>(this.condOffset);
 
+    // TODO: reconsider this casting
     if (condition.toBigInt() == 0n) {
       this.incrementPc(machineState);
     } else {
@@ -53,7 +57,6 @@ export class JumpI extends Instruction {
   }
 }
 
-/** -*/
 export class InternalCall extends Instruction {
   static type: string = 'INTERNALCALL';
   static numberOfOperands = 1;
@@ -68,7 +71,6 @@ export class InternalCall extends Instruction {
   }
 }
 
-/** -*/
 export class InternalReturn extends Instruction {
   static type: string = 'INTERNALRETURN';
   static numberOfOperands = 0;
@@ -80,17 +82,8 @@ export class InternalReturn extends Instruction {
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
     const jumpOffset = machineState.internalCallStack.pop();
     if (jumpOffset === undefined) {
-      throw new InternalCallStackEmptyError();
+      throw new InstructionExecutionError('Internal call empty!');
     }
     machineState.pc = jumpOffset;
-  }
-}
-
-/**
- * Thrown if the internal call stack is popped when it is empty
- */
-export class InternalCallStackEmptyError extends Error {
-  constructor() {
-    super('Internal call stack is empty');
   }
 }

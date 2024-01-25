@@ -3,6 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
+import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
 import { AvmStateManager } from '../avm_state_manager.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
@@ -15,166 +16,261 @@ describe('Memory instructions', () => {
     stateManager = mock<AvmStateManager>();
   });
 
-  it('Should SET memory correctly', () => {
-    const value = 123456n;
+  describe('SET', () => {
+    it('should correctly set value and tag (uninitialized)', () => {
+      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT16).execute(machineState, stateManager);
 
-    new Set(value, 1).execute(machineState, stateManager);
+      const actual = machineState.memory.get(1);
+      const tag = machineState.memory.getTag(1);
 
-    const expected = new Fr(value);
-    const actual = machineState.readMemory(1);
-    expect(actual).toEqual(expected);
+      expect(actual).toEqual(new Uint16(1234n));
+      expect(tag).toEqual(TypeTag.UINT16);
+    });
+
+    it('should correctly set value and tag (overwriting)', () => {
+      machineState.memory.set(1, new Field(27));
+
+      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT32).execute(machineState, stateManager);
+
+      const actual = machineState.memory.get(1);
+      const tag = machineState.memory.getTag(1);
+
+      expect(actual).toEqual(new Uint32(1234n));
+      expect(tag).toEqual(TypeTag.UINT32);
+    });
   });
 
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3987): tags are not implemented yet - this will behave as a mov
   describe('CAST', () => {
-    it('Should work correctly on different memory cells', () => {
-      const value = new Fr(123456n);
+    it('Should upcast between integral types', () => {
+      machineState.memory.set(0, new Uint8(20n));
+      machineState.memory.set(1, new Uint16(65000n));
+      machineState.memory.set(2, new Uint32(1n << 30n));
+      machineState.memory.set(3, new Uint64(1n << 50n));
+      machineState.memory.set(4, new Uint128(1n << 100n));
 
-      machineState.writeMemory(0, value);
+      [
+        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.UINT16),
+        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.UINT32),
+        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT64),
+        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT128),
+        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT128),
+      ].forEach(i => i.execute(machineState, stateManager));
 
-      new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 1).execute(machineState, stateManager);
-
-      const actual = machineState.readMemory(1);
-      expect(actual).toEqual(value);
+      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
+      expect(actual).toEqual([
+        new Uint16(20n),
+        new Uint32(65000n),
+        new Uint64(1n << 30n),
+        new Uint128(1n << 50n),
+        new Uint128(1n << 100n),
+      ]);
+      const tags = machineState.memory.getSliceTags(/*offset=*/ 10, /*size=*/ 5);
+      expect(tags).toEqual([TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64, TypeTag.UINT128, TypeTag.UINT128]);
     });
 
-    it('Should work correctly on same memory cell', () => {
-      const value = new Fr(123456n);
+    it('Should downcast (truncating) between integral types', () => {
+      machineState.memory.set(0, new Uint8(20n));
+      machineState.memory.set(1, new Uint16(65000n));
+      machineState.memory.set(2, new Uint32((1n << 30n) - 1n));
+      machineState.memory.set(3, new Uint64((1n << 50n) - 1n));
+      machineState.memory.set(4, new Uint128((1n << 100n) - 1n));
 
-      machineState.writeMemory(0, value);
+      [
+        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.UINT8),
+        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.UINT8),
+        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT16),
+        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT32),
+        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT64),
+      ].forEach(i => i.execute(machineState, stateManager));
 
-      new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 0).execute(machineState, stateManager);
+      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
+      expect(actual).toEqual([
+        new Uint8(20n),
+        new Uint8(232),
+        new Uint16((1n << 16n) - 1n),
+        new Uint32((1n << 32n) - 1n),
+        new Uint64((1n << 64n) - 1n),
+      ]);
+      const tags = machineState.memory.getSliceTags(/*offset=*/ 10, /*size=*/ 5);
+      expect(tags).toEqual([TypeTag.UINT8, TypeTag.UINT8, TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64]);
+    });
 
-      const actual = machineState.readMemory(0);
-      expect(actual).toEqual(value);
+    it('Should upcast from integral types to field', () => {
+      machineState.memory.set(0, new Uint8(20n));
+      machineState.memory.set(1, new Uint16(65000n));
+      machineState.memory.set(2, new Uint32(1n << 30n));
+      machineState.memory.set(3, new Uint64(1n << 50n));
+      machineState.memory.set(4, new Uint128(1n << 100n));
+
+      [
+        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.FIELD),
+        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.FIELD),
+        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.FIELD),
+        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.FIELD),
+        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.FIELD),
+      ].forEach(i => i.execute(machineState, stateManager));
+
+      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
+      expect(actual).toEqual([
+        new Field(20n),
+        new Field(65000n),
+        new Field(1n << 30n),
+        new Field(1n << 50n),
+        new Field(1n << 100n),
+      ]);
+      const tags = machineState.memory.getSliceTags(/*offset=*/ 10, /*size=*/ 5);
+      expect(tags).toEqual([TypeTag.FIELD, TypeTag.FIELD, TypeTag.FIELD, TypeTag.FIELD, TypeTag.FIELD]);
+    });
+
+    it('Should downcast (truncating) from field to integral types', () => {
+      machineState.memory.set(0, new Field((1n << 200n) - 1n));
+      machineState.memory.set(1, new Field((1n << 200n) - 1n));
+      machineState.memory.set(2, new Field((1n << 200n) - 1n));
+      machineState.memory.set(3, new Field((1n << 200n) - 1n));
+      machineState.memory.set(4, new Field((1n << 200n) - 1n));
+
+      [
+        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.UINT8),
+        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.UINT16),
+        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT32),
+        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT64),
+        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT128),
+      ].forEach(i => i.execute(machineState, stateManager));
+
+      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
+      expect(actual).toEqual([
+        new Uint8((1n << 8n) - 1n),
+        new Uint16((1n << 16n) - 1n),
+        new Uint32((1n << 32n) - 1n),
+        new Uint64((1n << 64n) - 1n),
+        new Uint128((1n << 128n) - 1n),
+      ]);
+      const tags = machineState.memory.getSliceTags(/*offset=*/ 10, /*size=*/ 5);
+      expect(tags).toEqual([TypeTag.UINT8, TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64, TypeTag.UINT128]);
+    });
+
+    it('Should cast between field elements', () => {
+      machineState.memory.set(0, new Field(12345678n));
+
+      new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 1, TypeTag.FIELD).execute(machineState, stateManager);
+
+      const actual = machineState.memory.get(1);
+      expect(actual).toEqual(new Field(12345678n));
+      const tags = machineState.memory.getTag(1);
+      expect(tags).toEqual(TypeTag.FIELD);
     });
   });
 
   describe('MOV', () => {
-    it('Should work correctly on different memory cells', () => {
-      const value = new Fr(123456n);
+    it('Should move integrals on different memory cells', () => {
+      machineState.memory.set(1, new Uint16(27));
+      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, stateManager);
 
-      machineState.writeMemory(0, value);
+      const actual = machineState.memory.get(2);
+      const tag = machineState.memory.getTag(2);
 
-      new Mov(/*aOffset=*/ 0, /*dstOffset=*/ 1).execute(machineState, stateManager);
-
-      const actual = machineState.readMemory(1);
-      expect(actual).toEqual(value);
+      expect(actual).toEqual(new Uint16(27n));
+      expect(tag).toEqual(TypeTag.UINT16);
     });
 
-    it('Should work correctly on same memory cell', () => {
-      const value = new Fr(123456n);
+    it('Should move field elements on different memory cells', () => {
+      machineState.memory.set(1, new Field(27));
+      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, stateManager);
 
-      machineState.writeMemory(0, value);
+      const actual = machineState.memory.get(2);
+      const tag = machineState.memory.getTag(2);
 
-      new Mov(/*aOffset=*/ 0, /*dstOffset=*/ 0).execute(machineState, stateManager);
-
-      const actual = machineState.readMemory(0);
-      expect(actual).toEqual(value);
-    });
-  });
-
-  describe('MOV', () => {
-    it('Should move A if COND is true, on different memory cells', () => {
-      const valueA = new Fr(123456n);
-      const valueB = new Fr(80n);
-      const valueCondition = new Fr(22n);
-
-      machineState.writeMemory(0, valueA);
-      machineState.writeMemory(1, valueB);
-      machineState.writeMemory(2, valueCondition);
-
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
-
-      const actual = machineState.readMemory(3);
-      expect(actual).toEqual(valueA);
-    });
-
-    it('Should move B if COND is false, on different memory cells', () => {
-      const valueA = new Fr(123456n);
-      const valueB = new Fr(80n);
-      const valueCondition = new Fr(0n);
-
-      machineState.writeMemory(0, valueA);
-      machineState.writeMemory(1, valueB);
-      machineState.writeMemory(2, valueCondition);
-
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
-
-      const actual = machineState.readMemory(3);
-      expect(actual).toEqual(valueB);
-    });
-
-    it('Should move A if COND is true, on overlapping memory cells', () => {
-      const valueA = new Fr(123456n);
-      const valueB = new Fr(80n);
-      const valueCondition = new Fr(22n);
-
-      machineState.writeMemory(0, valueA);
-      machineState.writeMemory(1, valueB);
-      machineState.writeMemory(2, valueCondition);
-
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 2).execute(machineState, stateManager);
-
-      const actual = machineState.readMemory(2);
-      expect(actual).toEqual(valueA);
-    });
-
-    it('Should move B if COND is false, on overlapping memory cells', () => {
-      const valueA = new Fr(123456n);
-      const valueB = new Fr(80n);
-      const valueCondition = new Fr(0n);
-
-      machineState.writeMemory(0, valueA);
-      machineState.writeMemory(1, valueB);
-      machineState.writeMemory(2, valueCondition);
-
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 2).execute(machineState, stateManager);
-
-      const actual = machineState.readMemory(2);
-      expect(actual).toEqual(valueB);
+      expect(actual).toEqual(new Field(27n));
+      expect(tag).toEqual(TypeTag.FIELD);
     });
   });
 
-  describe('CALLDATA', () => {
+  describe('CMOV', () => {
+    it('Should move A if COND is true, on different memory cells (integral condition)', () => {
+      machineState.memory.set(0, new Uint32(123)); // A
+      machineState.memory.set(1, new Uint16(456)); // B
+      machineState.memory.set(2, new Uint8(2)); // Condition
+
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+
+      const actual = machineState.memory.get(3);
+      const tag = machineState.memory.getTag(3);
+      expect(actual).toEqual(new Uint32(123));
+      expect(tag).toEqual(TypeTag.UINT32);
+    });
+
+    it('Should move B if COND is false, on different memory cells (integral condition)', () => {
+      machineState.memory.set(0, new Uint32(123)); // A
+      machineState.memory.set(1, new Uint16(456)); // B
+      machineState.memory.set(2, new Uint8(0)); // Condition
+
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+
+      const actual = machineState.memory.get(3);
+      const tag = machineState.memory.getTag(3);
+      expect(actual).toEqual(new Uint16(456));
+      expect(tag).toEqual(TypeTag.UINT16);
+    });
+
+    it('Should move A if COND is true, on different memory cells (field condition)', () => {
+      machineState.memory.set(0, new Uint32(123)); // A
+      machineState.memory.set(1, new Uint16(456)); // B
+      machineState.memory.set(2, new Field(1)); // Condition
+
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+
+      const actual = machineState.memory.get(3);
+      const tag = machineState.memory.getTag(3);
+      expect(actual).toEqual(new Uint32(123));
+      expect(tag).toEqual(TypeTag.UINT32);
+    });
+
+    it('Should move B if COND is false, on different memory cells (integral condition)', () => {
+      machineState.memory.set(0, new Uint32(123)); // A
+      machineState.memory.set(1, new Uint16(456)); // B
+      machineState.memory.set(2, new Field(0)); // Condition
+
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+
+      const actual = machineState.memory.get(3);
+      const tag = machineState.memory.getTag(3);
+      expect(actual).toEqual(new Uint16(456));
+      expect(tag).toEqual(TypeTag.UINT16);
+    });
+  });
+
+  describe('CALLDATACOPY', () => {
     it('Writes nothing if size is 0', () => {
-      const previousValue = new Fr(123456n);
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
-
       machineState = new AvmMachineState(calldata);
-      machineState.writeMemory(0, previousValue);
+      machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      new CalldataCopy(/*cdOffset=*/ 2, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(machineState, stateManager);
+      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(machineState, stateManager);
 
-      const actual = machineState.readMemory(0);
-      expect(actual).toEqual(previousValue);
+      const actual = machineState.memory.get(0);
+      expect(actual).toEqual(new Uint16(12));
     });
 
     it('Copies all calldata', () => {
-      const previousValue = new Fr(123456n);
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
-
       machineState = new AvmMachineState(calldata);
-      machineState.writeMemory(0, previousValue);
+      machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
       new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 3, /*dstOffset=*/ 0).execute(machineState, stateManager);
 
-      const actual = machineState.readMemoryChunk(/*offset=*/ 0, /*size=*/ 3);
-      expect(actual).toEqual(calldata);
+      const actual = machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 3);
+      expect(actual).toEqual([new Field(1), new Field(2), new Field(3)]);
     });
 
     it('Copies slice of calldata', () => {
-      const previousValue = new Fr(123456n);
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
-
       machineState = new AvmMachineState(calldata);
-      machineState.writeMemory(0, previousValue);
+      machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
       new CalldataCopy(/*cdOffset=*/ 1, /*copySize=*/ 2, /*dstOffset=*/ 0).execute(machineState, stateManager);
 
-      const expected = calldata.slice(1);
-      const actual = machineState.readMemoryChunk(/*offset=*/ 0, /*size=*/ 2);
-      expect(actual).toEqual(expected);
+      const actual = machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 2);
+      expect(actual).toEqual([new Field(2), new Field(3)]);
     });
 
     // TODO: check bad cases (i.e., out of bounds)

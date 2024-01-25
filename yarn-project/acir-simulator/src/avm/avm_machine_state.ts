@@ -1,5 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 
+import { TaggedMemory } from './avm_memory_types.js';
+
 /**
  * Store's data for an Avm execution frame
  */
@@ -8,9 +10,8 @@ export class AvmMachineState {
   public readonly calldata: Fr[];
   private returnData: Fr[];
 
-  // TODO: implement tagged memory
   /** - */
-  public memory: Fr[];
+  public readonly memory: TaggedMemory;
 
   /**
    * When an internal_call is invoked, the internal call stack is added to with the current pc + 1
@@ -35,7 +36,7 @@ export class AvmMachineState {
   constructor(calldata: Fr[]) {
     this.calldata = calldata;
     this.returnData = [];
-    this.memory = [];
+    this.memory = new TaggedMemory();
     this.internalCallStack = [];
 
     this.pc = 0;
@@ -56,38 +57,5 @@ export class AvmMachineState {
   /** - */
   public getReturnData(): Fr[] {
     return this.returnData;
-  }
-
-  /** -
-   * @param offset -
-   */
-  public readMemory(offset: number): Fr {
-    // TODO: check offset is within bounds
-    return this.memory[offset] ?? Fr.ZERO;
-  }
-
-  /** -
-   * @param offset -
-   * @param size -
-   */
-  public readMemoryChunk(offset: number, size: number): Fr[] {
-    // TODO: bounds -> initialise to 0
-    return this.memory.slice(offset, offset + size);
-  }
-
-  /** -
-   * @param offset -
-   * @param value -
-   */
-  public writeMemory(offset: number, value: Fr): void {
-    this.memory[offset] = value;
-  }
-
-  /** -
-   * @param offset -
-   * @param values -
-   */
-  public writeMemoryChunk(offset: number, values: Fr[]): void {
-    this.memory.splice(offset, values.length, ...values);
   }
 }

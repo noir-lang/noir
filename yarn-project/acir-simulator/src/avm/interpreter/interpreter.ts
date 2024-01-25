@@ -71,8 +71,8 @@ export class AvmInterpreter {
  * Avm-specific errors should derive from this
  */
 export abstract class AvmInterpreterError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, ...rest: any[]) {
+    super(message, ...rest);
     this.name = 'AvmInterpreterError';
   }
 }

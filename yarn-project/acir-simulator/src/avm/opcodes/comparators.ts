@@ -1,10 +1,8 @@
-import { Fr } from '@aztec/foundation/fields';
-
 import { AvmMachineState } from '../avm_machine_state.js';
+import { Field } from '../avm_memory_types.js';
 import { AvmStateManager } from '../avm_state_manager.js';
 import { Instruction } from './instruction.js';
 
-/** -*/
 export class Eq extends Instruction {
   static type: string = 'EQ';
   static numberOfOperands = 3;
@@ -14,16 +12,16 @@ export class Eq extends Instruction {
   }
 
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
-    const a: Fr = machineState.readMemory(this.aOffset);
-    const b: Fr = machineState.readMemory(this.bOffset);
+    const a = machineState.memory.get(this.aOffset);
+    const b = machineState.memory.get(this.bOffset);
 
-    const dest = new Fr(a.toBigInt() == b.toBigInt());
-    machineState.writeMemory(this.destOffset, dest);
+    const dest = new Field(a.toBigInt() == b.toBigInt() ? 1 : 0);
+    machineState.memory.set(this.destOffset, dest);
 
     this.incrementPc(machineState);
   }
 }
-/** -*/
+
 export class Lt extends Instruction {
   static type: string = 'Lt';
   static numberOfOperands = 3;
@@ -33,17 +31,16 @@ export class Lt extends Instruction {
   }
 
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
-    const a: Fr = machineState.readMemory(this.aOffset);
-    const b: Fr = machineState.readMemory(this.bOffset);
+    const a = machineState.memory.get(this.aOffset);
+    const b = machineState.memory.get(this.bOffset);
 
-    const dest = new Fr(a.toBigInt() < b.toBigInt());
-    machineState.writeMemory(this.destOffset, dest);
+    const dest = new Field(a.toBigInt() < b.toBigInt() ? 1 : 0);
+    machineState.memory.set(this.destOffset, dest);
 
     this.incrementPc(machineState);
   }
 }
 
-/** -*/
 export class Lte extends Instruction {
   static type: string = 'LTE';
   static numberOfOperands = 3;
@@ -53,11 +50,11 @@ export class Lte extends Instruction {
   }
 
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
-    const a: Fr = machineState.readMemory(this.aOffset);
-    const b: Fr = machineState.readMemory(this.bOffset);
+    const a = machineState.memory.get(this.aOffset);
+    const b = machineState.memory.get(this.bOffset);
 
-    const dest = new Fr(a.toBigInt() < b.toBigInt());
-    machineState.writeMemory(this.destOffset, dest);
+    const dest = new Field(a.toBigInt() < b.toBigInt() ? 1 : 0);
+    machineState.memory.set(this.destOffset, dest);
 
     this.incrementPc(machineState);
   }

@@ -1,13 +1,13 @@
-import { Fr } from '@aztec/foundation/fields';
-
 import { mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
+import { TypeTag, Uint16 } from '../avm_memory_types.js';
 import { AvmStateManager } from '../avm_state_manager.js';
 import { Add, Mul, Sub } from './arithmetic.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 import { Eq, Lt, Lte } from './comparators.js';
-import { InternalCall, InternalCallStackEmptyError, InternalReturn, Jump, JumpI } from './control_flow.js';
+import { InternalCall, InternalReturn, Jump, JumpI } from './control_flow.js';
+import { InstructionExecutionError } from './instruction.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Control Flow Opcodes', () => {
@@ -35,8 +35,8 @@ describe('Control Flow Opcodes', () => {
 
     expect(machineState.pc).toBe(0);
 
-    machineState.writeMemory(0, new Fr(1n));
-    machineState.writeMemory(1, new Fr(2n));
+    machineState.memory.set(0, new Uint16(1n));
+    machineState.memory.set(1, new Uint16(2n));
 
     const instruction = new JumpI(jumpLocation, 0);
     instruction.execute(machineState, stateManager);
@@ -53,7 +53,7 @@ describe('Control Flow Opcodes', () => {
 
     expect(machineState.pc).toBe(0);
 
-    machineState.writeMemory(0, new Fr(0n));
+    machineState.memory.set(0, new Uint16(0n));
 
     const instruction = new JumpI(jumpLocation, 0);
     instruction.execute(machineState, stateManager);
@@ -112,7 +112,7 @@ describe('Control Flow Opcodes', () => {
 
   it('Should error if Internal Return is called without a corresponding Internal Call', () => {
     const returnInstruction = new InternalReturn();
-    expect(() => returnInstruction.execute(machineState, stateManager)).toThrow(InternalCallStackEmptyError);
+    expect(() => returnInstruction.execute(machineState, stateManager)).toThrow(InstructionExecutionError);
   });
 
   it('Should increment PC on All other Instructions', () => {
@@ -123,22 +123,25 @@ describe('Control Flow Opcodes', () => {
       new Lt(0, 1, 2),
       new Lte(0, 1, 2),
       new Eq(0, 1, 2),
-      new Xor(0, 1, 2),
-      new And(0, 1, 2),
-      new Or(0, 1, 2),
-      new Shl(0, 1, 2),
-      new Shr(0, 1, 2),
-      new Not(0, 2),
+      new Xor(0, 1, 2, TypeTag.UINT16),
+      new And(0, 1, 2, TypeTag.UINT16),
+      new Or(0, 1, 2, TypeTag.UINT16),
+      new Shl(0, 1, 2, TypeTag.UINT16),
+      new Shr(0, 1, 2, TypeTag.UINT16),
+      new Not(0, 2, TypeTag.UINT16),
       new CalldataCopy(0, 1, 2),
-      new Set(0n, 1),
+      new Set(0n, 1, TypeTag.UINT16),
       new Mov(0, 1),
       new CMov(0, 1, 2, 3),
-      new Cast(0, 1),
+      new Cast(0, 1, TypeTag.UINT16),
     ];
 
     for (const instruction of instructions) {
       // Use a fresh machine state each run
       const innerMachineState = new AvmMachineState([]);
+      innerMachineState.memory.set(0, new Uint16(4n));
+      innerMachineState.memory.set(1, new Uint16(8n));
+      innerMachineState.memory.set(2, new Uint16(12n));
       expect(machineState.pc).toBe(0);
       instruction.execute(innerMachineState, stateManager);
       expect(innerMachineState.pc).toBe(1);
