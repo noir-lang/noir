@@ -42,7 +42,7 @@ jobs:
             result/noirc_abi_wasm/web
 
   build-noir_wasm:
-    needs: [build-noirc-abi]
+    needs: [build-noirc-abi_wasm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
