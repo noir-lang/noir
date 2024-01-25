@@ -12,7 +12,7 @@ function unwrapOptions<T>(options: NoirOption<T>[]): T[] {
   return options.filter((option: any) => option._is_some).map((option: any) => option._value);
 }
 
-describe('e2e_singleton', () => {
+describe('e2e_note_getter', () => {
   let wallet: Wallet;
 
   let teardown: () => Promise<void>;
@@ -27,8 +27,7 @@ describe('e2e_singleton', () => {
 
   afterAll(() => teardown());
 
-  // Singleton tests:
-  it('a test that inserts note and checks if ', async () => {
+  it('inserts notes from 0-9, then makes multiple queries specifying the total suite of comparators', async () => {
     const numbers = [...Array(10).keys()];
     await Promise.all(numbers.map(number => contract.methods.insert_note(number).send().wait()));
     await contract.methods.insert_note(5).send().wait();
