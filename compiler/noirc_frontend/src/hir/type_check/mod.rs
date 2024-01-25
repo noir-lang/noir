@@ -242,7 +242,7 @@ mod test {
 
     use fm::FileId;
     use iter_extended::vecmap;
-    use noirc_errors::{Location, Span, SrcId};
+    use noirc_errors::{Location, Span};
 
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};

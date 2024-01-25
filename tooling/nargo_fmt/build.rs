@@ -58,7 +58,7 @@ fn format_{test_name}() {{
     let expected_output = r#"{output_source}"#;
 
 
-    let (parsed_module, _errors) = noirc_frontend::parse_program(&input);
+    let (parsed_module, _errors) = noirc_frontend::parse_program(Default::default(), &input);
 
     let config = nargo_fmt::Config::of("{config}").unwrap();
     let fmt_text = nargo_fmt::format(&input, parsed_module, &config);
