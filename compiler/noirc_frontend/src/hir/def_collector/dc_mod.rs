@@ -209,6 +209,7 @@ impl<'a> ModCollector<'a> {
         let mut errors = vec![];
 
         let module = ModuleId { krate, local_id: self.module_id };
+        let in_stdlib = *context.stdlib_crate_id() == krate;
 
         for function in functions {
             // check if optional field attribute is compatible with native field
@@ -216,6 +217,15 @@ impl<'a> ModCollector<'a> {
                 if !FieldOptions::is_native_field(&field) {
                     continue;
                 }
+            }
+
+            let is_foreign_function =
+                function.attributes().function.as_ref().map_or(false, |func| func.is_foreign());
+            if !in_stdlib && is_foreign_function {
+                let error = DefCollectorErrorKind::LowLevelFunctionOutsideOfStdlib {
+                    span: function.span(),
+                };
+                errors.push((error.into(), self.file_id));
             }
 
             let name = function.name_ident().clone();
