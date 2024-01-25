@@ -84,7 +84,8 @@ function readFile(filePath, tag) {
     try {
       const root = path.resolve(__dirname, '../../../');
       const relPath = path.relative(root, filePath);
-      return childProcess.execSync(`git show ${tag}:${relPath}`).toString();
+      const taggedPath = `${tag}:${relPath}`;
+      return childProcess.execSync('git show', taggedPath).toString();
     } catch (err) {
       console.error(`Error reading file ${filePath} from version ${tag}. Falling back to current content.`);
     }
@@ -274,7 +275,7 @@ async function preprocessIncludeCode(markdownContent, filePath, rootDir) {
       const extracted = extractCodeSnippet(absCodeFilePath, identifier, filePath);
       const [codeSnippet, startLine, endLine, tag] = extracted;
 
-      const relativeCodeFilePath = path.resolve(rootDir, codeFilePath);
+      const relativeCodeFilePath = path.resolve(rootDir, codeFilePath).slice(1);
 
       let urlText = `${relativeCodeFilePath}#L${startLine}-L${endLine}`;
       if (tag && tag !== 'master') urlText += ` (${tag})`;
