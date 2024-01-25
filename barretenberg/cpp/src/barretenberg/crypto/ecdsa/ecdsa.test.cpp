@@ -1,5 +1,6 @@
 #include "ecdsa.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/common/utils.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
@@ -89,23 +90,10 @@ TEST(ecdsa, recover_public_key_secp256r1_sha256)
     EXPECT_EQ(recovered_public_key, account.public_key);
 }
 
-std::vector<uint8_t> HexToBytes(const std::string& hex)
-{
-    std::vector<uint8_t> bytes;
-
-    for (unsigned int i = 0; i < hex.length(); i += 2) {
-        std::string byteString = hex.substr(i, 2);
-        uint8_t byte = (uint8_t)strtol(byteString.c_str(), NULL, 16);
-        bytes.push_back(byte);
-    }
-
-    return bytes;
-}
-
 TEST(ecdsa, check_overflowing_r_and_s_are_rejected)
 {
 
-    std::vector<uint8_t> message_vec = HexToBytes("41414141");
+    std::vector<uint8_t> message_vec = utils::hex_to_bytes("41414141");
 
     std::string message(message_vec.begin(), message_vec.end());
     crypto::ecdsa_signature signature;
@@ -181,10 +169,10 @@ TEST(ecdsa, verify_signature_secp256r1_sha256_NIST_1)
     };
 
     crypto::ecdsa_signature sig{ r, s, 27 };
-    std::vector<uint8_t> message_vec =
-        HexToBytes("5905238877c77421f73e43ee3da6f2d9e2ccad5fc942dcec0cbd25482935faaf416983fe165b1a045ee2bcd2e6dca3bdf46"
-                   "c4310a7461f9a37960ca672d3feb5473e253605fb1ddfd28065b53cb5858a8ad28175bf9bd386a5e471ea7a65c17cc934a9"
-                   "d791e91491eb3754d03799790fe2d308d16146d5c9b0d0debd97d79ce8");
+    std::vector<uint8_t> message_vec = utils::hex_to_bytes(
+        "5905238877c77421f73e43ee3da6f2d9e2ccad5fc942dcec0cbd25482935faaf416983fe165b1a045ee2bcd2e6dca3bdf46"
+        "c4310a7461f9a37960ca672d3feb5473e253605fb1ddfd28065b53cb5858a8ad28175bf9bd386a5e471ea7a65c17cc934a9"
+        "d791e91491eb3754d03799790fe2d308d16146d5c9b0d0debd97d79ce8");
     std::string message(message_vec.begin(), message_vec.end());
 
     bool result = crypto::ecdsa_verify_signature<Sha256Hasher, secp256r1::fq, secp256r1::fr, secp256r1::g1>(

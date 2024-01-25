@@ -1,5 +1,5 @@
 /**
- * All AVM opcodes.
+ * All AVM opcodes. (Keep in sync with cpp counterpart code AvmMini_opcode.hpp).
  * Source: https://yp-aztec.netlify.app/docs/public-vm/instruction-set
  */
 export enum Opcode {

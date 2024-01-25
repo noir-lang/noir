@@ -1,7 +1,7 @@
 #include "AvmMini_common.test.hpp"
-
-using namespace tests_avm;
+namespace tests_avm {
 using namespace avm_trace;
+
 class AvmMiniMemoryTests : public ::testing::Test {
   public:
     AvmMiniTraceBuilder trace_builder;
@@ -32,7 +32,7 @@ class AvmMiniMemoryTests : public ::testing::Test {
 // The proof must pass and we check that the AVM error is raised.
 TEST_F(AvmMiniMemoryTests, mismatchedTag)
 {
-    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 98, 12 });
+    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 98, 12 });
 
     trace_builder.add(0, 1, 4, AvmMemoryTag::U8);
     trace_builder.halt();
@@ -79,7 +79,7 @@ TEST_F(AvmMiniMemoryTests, mismatchedTag)
 // in the memory trace
 TEST_F(AvmMiniMemoryTests, mLastAccessViolation)
 {
-    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
+    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
 
     //                           Memory layout:     [4,9,0,0,0,0,....]
     trace_builder.sub(1, 0, 2, AvmMemoryTag::U8); // [4,9,5,0,0,0.....]
@@ -109,7 +109,7 @@ TEST_F(AvmMiniMemoryTests, mLastAccessViolation)
 // written into memory
 TEST_F(AvmMiniMemoryTests, readWriteConsistencyValViolation)
 {
-    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
+    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
     trace_builder.mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
@@ -139,7 +139,7 @@ TEST_F(AvmMiniMemoryTests, readWriteConsistencyValViolation)
 // written into memory
 TEST_F(AvmMiniMemoryTests, readWriteConsistencyTagViolation)
 {
-    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
+    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
     trace_builder.mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
@@ -180,7 +180,7 @@ TEST_F(AvmMiniMemoryTests, readUninitializedMemoryViolation)
 // must raise a VM error.
 TEST_F(AvmMiniMemoryTests, mismatchedTagErrorViolation)
 {
-    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 98, 12 });
+    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 98, 12 });
 
     trace_builder.sub(0, 1, 4, AvmMemoryTag::U8);
     trace_builder.halt();
@@ -214,7 +214,7 @@ TEST_F(AvmMiniMemoryTests, mismatchedTagErrorViolation)
 // must not set a VM error.
 TEST_F(AvmMiniMemoryTests, consistentTagNoErrorViolation)
 {
-    trace_builder.call_data_copy(0, 2, 0, std::vector<FF>{ 84, 7 });
+    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 84, 7 });
 
     trace_builder.div(0, 1, 4, AvmMemoryTag::FF);
     trace_builder.halt();
@@ -236,3 +236,4 @@ TEST_F(AvmMiniMemoryTests, consistentTagNoErrorViolation)
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MEM_IN_TAG_CONSISTENCY_1");
 }
+} // namespace tests_avm

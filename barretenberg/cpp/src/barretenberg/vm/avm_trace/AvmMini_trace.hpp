@@ -4,6 +4,7 @@
 
 #include "AvmMini_alu_trace.hpp"
 #include "AvmMini_common.hpp"
+#include "AvmMini_instructions.hpp"
 #include "AvmMini_mem_trace.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 
@@ -55,10 +56,10 @@ class AvmMiniTraceBuilder {
 
     // CALLDATACOPY opcode with direct memory access, i.e.,
     // M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
-    void call_data_copy(uint32_t cd_offset,
-                        uint32_t copy_size,
-                        uint32_t dst_offset,
-                        std::vector<FF> const& call_data_mem);
+    void calldata_copy(uint32_t cd_offset,
+                       uint32_t copy_size,
+                       uint32_t dst_offset,
+                       std::vector<FF> const& call_data_mem);
 
     // RETURN opcode with direct memory access, i.e.,
     // return(M[ret_offset:ret_offset+ret_size])
