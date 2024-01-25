@@ -26,15 +26,15 @@ impl std::ops::Add<u32> for Position {
     }
 }
 
-impl Into<u32> for Position {
-    fn into(self) -> u32 {
-        self.0
+impl From<Position> for u32 {
+    fn from(val: Position) -> Self {
+        val.0
     }
 }
 
-impl Into<Span> for Position {
-    fn into(self) -> Span {
-        Span::single_char(self.0, self.1)
+impl From<Position> for Span {
+    fn from(val: Position) -> Self {
+        Span::single_char(val.0, val.1)
     }
 }
 
@@ -92,9 +92,9 @@ impl From<usize> for SrcId {
     }
 }
 
-impl Into<usize> for SrcId {
-    fn into(self) -> usize {
-        self.0
+impl From<SrcId> for usize {
+    fn from(val: SrcId) -> Self {
+        val.0
     }
 }
 
