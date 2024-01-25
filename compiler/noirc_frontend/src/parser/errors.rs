@@ -117,7 +117,7 @@ impl std::fmt::Display for ParserError {
             let vowel = "aeiou".contains(first.chars().next().unwrap());
             write!(
                 f,
-                "Expected a{} {} but found {}.",
+                "Expected a{} {} but found {}",
                 if vowel { "n" } else { "" },
                 first,
                 self.found
