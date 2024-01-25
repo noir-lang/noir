@@ -1,4 +1,5 @@
-import { BlockHeader } from '@aztec/circuits.js';
+import { AztecAddress, BlockHeader } from '@aztec/circuits.js';
+import { Fr } from '@aztec/foundation/fields';
 
 import { AvmJournal, HostStorage } from './journal/index.js';
 
@@ -41,5 +42,24 @@ export class AvmStateManager {
   public static forkStateManager(parent: AvmStateManager): AvmStateManager {
     const journal = AvmJournal.branchParent(parent.journal);
     return new AvmStateManager(parent.blockHeader, journal);
+  }
+
+  /**
+   * Passes storage call to the journal
+   * @param contractAddress -
+   * @param slot -
+   * @param value -
+   */
+  public store(contractAddress: AztecAddress, slot: Fr, value: Fr): void {
+    this.journal.writeStorage(contractAddress, slot, value);
+  }
+
+  /**
+   * Passes storage read from the journal
+   * @param contractAddress -
+   * @param slot -
+   */
+  public read(contractAddress: AztecAddress, slot: Fr): Promise<Fr> {
+    return this.journal.readStorage(contractAddress, slot);
   }
 }

@@ -87,7 +87,7 @@ export class CalldataCopy extends Instruction {
   }
 
   execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
-    const transformedData = machineState.calldata
+    const transformedData = machineState.executionEnvironment.calldata
       .slice(this.cdOffset, this.cdOffset + this.copySize)
       .map(f => new Field(f));
     machineState.memory.setSlice(this.dstOffset, transformedData);

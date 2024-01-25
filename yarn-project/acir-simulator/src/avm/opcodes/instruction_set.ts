@@ -1,10 +1,11 @@
 import { Add, Div, Mul, Sub } from './arithmetic.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
-//import { Eq, Lt, Lte } from './comparators.js';
 import { InternalCall, InternalReturn, Jump, JumpI, Return } from './control_flow.js';
 import { Instruction } from './instruction.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 import { Opcode } from './opcodes.js';
+//import { Eq, Lt, Lte } from './comparators.js';
+import { SLoad, SStore } from './storage.js';
 
 /** - */
 type InstructionConstructor = new (...args: any[]) => Instruction;
@@ -75,8 +76,8 @@ export const INSTRUCTION_SET: Map<Opcode, InstructionConstructorAndMembers> = ne
 
     //// World State
     //[Opcode.BLOCKHEADERBYNUMBER, Blockheaderbynumber],
-    //[Opcode.SLOAD, Sload], // Public Storage
-    //[Opcode.SSTORE, Sstore], // Public Storage
+    [Opcode.SLOAD, SLoad], // Public Storage
+    [Opcode.SSTORE, SStore], // Public Storage
     //[Opcode.READL1TOL2MSG, Readl1tol2msg], // Messages
     //[Opcode.SENDL2TOL1MSG, Sendl2tol1msg], // Messages
     //[Opcode.EMITNOTEHASH, Emitnotehash], // Notes & Nullifiers

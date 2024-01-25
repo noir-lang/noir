@@ -1,13 +1,18 @@
 import { Fr } from '@aztec/foundation/fields';
 
+import { AvmExecutionEnvironment } from './avm_execution_environment.js';
 import { TaggedMemory } from './avm_memory_types.js';
 
 /**
  * Store's data for an Avm execution frame
  */
 export class AvmMachineState {
-  /** - */
-  public readonly calldata: Fr[];
+  /**
+   * Execution environment contains hard coded information that is received from the kernel
+   * Items like, the block header and global variables fall within this category
+   */
+  public readonly executionEnvironment: AvmExecutionEnvironment;
+
   private returnData: Fr[];
 
   /** - */
@@ -31,10 +36,9 @@ export class AvmMachineState {
 
   /**
    * Create a new avm context
-   * @param calldata -
+   * @param executionEnvironment - Machine context that is passed to the avm
    */
-  constructor(calldata: Fr[]) {
-    this.calldata = calldata;
+  constructor(executionEnvironment: AvmExecutionEnvironment) {
     this.returnData = [];
     this.memory = new TaggedMemory();
     this.internalCallStack = [];
@@ -43,6 +47,8 @@ export class AvmMachineState {
     this.callStack = [];
 
     this.halted = false;
+
+    this.executionEnvironment = executionEnvironment;
   }
 
   /**

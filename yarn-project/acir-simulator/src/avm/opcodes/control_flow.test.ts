@@ -1,8 +1,9 @@
-import { mock } from 'jest-mock-extended';
+import { MockProxy, mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { TypeTag, Uint16 } from '../avm_memory_types.js';
 import { AvmStateManager } from '../avm_state_manager.js';
+import { initExecutionEnvironment } from '../fixtures/index.js';
 import { Add, Mul, Sub } from './arithmetic.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 import { Eq, Lt, Lte } from './comparators.js';
@@ -11,12 +12,12 @@ import { InstructionExecutionError } from './instruction.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Control Flow Opcodes', () => {
-  let stateManager = mock<AvmStateManager>();
+  let stateManager: MockProxy<AvmStateManager>;
   let machineState: AvmMachineState;
 
   beforeEach(() => {
     stateManager = mock<AvmStateManager>();
-    machineState = new AvmMachineState([]);
+    machineState = new AvmMachineState(initExecutionEnvironment());
   });
 
   it('Should implement JUMP', () => {
@@ -138,7 +139,7 @@ describe('Control Flow Opcodes', () => {
 
     for (const instruction of instructions) {
       // Use a fresh machine state each run
-      const innerMachineState = new AvmMachineState([]);
+      const innerMachineState = new AvmMachineState(initExecutionEnvironment());
       innerMachineState.memory.set(0, new Uint16(4n));
       innerMachineState.memory.set(1, new Uint16(8n));
       innerMachineState.memory.set(2, new Uint16(12n));

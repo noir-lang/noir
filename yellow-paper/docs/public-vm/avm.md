@@ -70,7 +70,7 @@ ExecutionEnvironment {
     storageAddress: AztecAddress,
     origin: AztecAddress,
     sender: AztecAddress,
-    portal: AztecAddress,
+    portal: EthAddress,
     feePerL1Gas: field,
     feePerL2Gas: field,
     feePerDaGas: field,

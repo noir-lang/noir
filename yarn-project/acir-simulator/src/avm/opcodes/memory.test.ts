@@ -5,6 +5,7 @@ import { mock } from 'jest-mock-extended';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
 import { AvmStateManager } from '../avm_state_manager.js';
+import { initExecutionEnvironment } from '../fixtures/index.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Memory instructions', () => {
@@ -12,7 +13,7 @@ describe('Memory instructions', () => {
   let stateManager = mock<AvmStateManager>();
 
   beforeEach(() => {
-    machineState = new AvmMachineState([]);
+    machineState = new AvmMachineState(initExecutionEnvironment());
     stateManager = mock<AvmStateManager>();
   });
 
@@ -242,7 +243,7 @@ describe('Memory instructions', () => {
   describe('CALLDATACOPY', () => {
     it('Writes nothing if size is 0', () => {
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
-      machineState = new AvmMachineState(calldata);
+      machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
       new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(machineState, stateManager);
@@ -253,7 +254,7 @@ describe('Memory instructions', () => {
 
     it('Copies all calldata', () => {
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
-      machineState = new AvmMachineState(calldata);
+      machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
       new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 3, /*dstOffset=*/ 0).execute(machineState, stateManager);
@@ -264,7 +265,7 @@ describe('Memory instructions', () => {
 
     it('Copies slice of calldata', () => {
       const calldata = [new Fr(1n), new Fr(2n), new Fr(3n)];
-      machineState = new AvmMachineState(calldata);
+      machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
       new CalldataCopy(/*cdOffset=*/ 1, /*copySize=*/ 2, /*dstOffset=*/ 0).execute(machineState, stateManager);

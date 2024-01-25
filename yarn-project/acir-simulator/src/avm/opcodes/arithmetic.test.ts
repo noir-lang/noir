@@ -1,16 +1,17 @@
-import { mock } from 'jest-mock-extended';
+import { MockProxy, mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field } from '../avm_memory_types.js';
 import { AvmStateManager } from '../avm_state_manager.js';
+import { initExecutionEnvironment } from '../fixtures/index.js';
 import { Add, Div, Mul, Sub } from './arithmetic.js';
 
 describe('Arithmetic Instructions', () => {
   let machineState: AvmMachineState;
-  let stateManager = mock<AvmStateManager>();
+  let stateManager: MockProxy<AvmStateManager>;
 
   beforeEach(() => {
-    machineState = new AvmMachineState([]);
+    machineState = new AvmMachineState(initExecutionEnvironment());
     stateManager = mock<AvmStateManager>();
   });
 

@@ -1,9 +1,10 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { mock } from 'jest-mock-extended';
+import { MockProxy, mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { AvmStateManager } from '../avm_state_manager.js';
+import { initExecutionEnvironment } from '../fixtures/index.js';
 import { Add } from '../opcodes/arithmetic.js';
 import { Jump, Return } from '../opcodes/control_flow.js';
 import { Instruction } from '../opcodes/instruction.js';
@@ -11,9 +12,14 @@ import { CalldataCopy } from '../opcodes/memory.js';
 import { AvmInterpreter, InvalidProgramCounterError } from './interpreter.js';
 
 describe('interpreter', () => {
+  let stateManager: MockProxy<AvmStateManager>;
+
+  beforeEach(() => {
+    stateManager = mock<AvmStateManager>();
+  });
+
   it('Should execute a series of instructions', () => {
     const calldata: Fr[] = [new Fr(1), new Fr(2)];
-    const stateManager = mock<AvmStateManager>();
 
     const instructions: Instruction[] = [
       new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 2, /*destOffset=*/ 0),
@@ -21,7 +27,7 @@ describe('interpreter', () => {
       new Return(/*returnOffset=*/ 2, /*copySize=*/ 1),
     ];
 
-    const context = new AvmMachineState(calldata);
+    const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
     const interpreter = new AvmInterpreter(context, stateManager, instructions);
     const avmReturnData = interpreter.run();
 
@@ -32,13 +38,12 @@ describe('interpreter', () => {
 
   it('Should revert with an invalid jump', () => {
     const calldata: Fr[] = [];
-    const stateManager = mock<AvmStateManager>();
 
     const invalidJumpDestination = 22;
 
     const instructions: Instruction[] = [new Jump(invalidJumpDestination)];
 
-    const context = new AvmMachineState(calldata);
+    const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
     const interpreter = new AvmInterpreter(context, stateManager, instructions);
 
     const avmReturnData = interpreter.run();

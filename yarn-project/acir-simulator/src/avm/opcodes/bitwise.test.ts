@@ -3,6 +3,7 @@ import { mock } from 'jest-mock-extended';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { TypeTag, Uint16, Uint32 } from '../avm_memory_types.js';
 import { AvmStateManager } from '../avm_state_manager.js';
+import { initExecutionEnvironment } from '../fixtures/index.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 
 describe('Bitwise instructions', () => {
@@ -10,7 +11,7 @@ describe('Bitwise instructions', () => {
   let stateManager = mock<AvmStateManager>();
 
   beforeEach(() => {
-    machineState = new AvmMachineState([]);
+    machineState = new AvmMachineState(initExecutionEnvironment());
     stateManager = mock<AvmStateManager>();
   });
 
