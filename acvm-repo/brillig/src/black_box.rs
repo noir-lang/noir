@@ -80,13 +80,6 @@ pub enum BlackBoxOp {
         input2_y: RegisterIndex,
         result: HeapArray,
     },
-    /// Performs point doubling over the embedded curve.
-    EmbeddedCurveDouble {
-        input1_x: RegisterIndex,
-        input1_y: RegisterIndex,
-        result: HeapArray,
-    },
-
     BigIntAdd {
         lhs: RegisterIndex,
         rhs: RegisterIndex,
