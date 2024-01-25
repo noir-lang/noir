@@ -151,7 +151,7 @@ impl<'interner> TypeChecker<'interner> {
                 self.bind_function_type(function, args, span)
             }
             HirExpression::MethodCall(mut method_call) => {
-                let object_type = self.check_expression(&method_call.object).follow_bindings();
+                let mut object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_ref) => {
@@ -169,11 +169,12 @@ impl<'interner> TypeChecker<'interner> {
                                 self.try_add_mutable_reference_to_object(
                                     &mut method_call,
                                     &function_type,
-                                    &object_type,
+                                    &mut object_type,
                                 );
                             }
                         }
 
+                        // TODO: update object_type here?
                         let function_call = method_call.into_function_call(
                             &method_ref,
                             object_type,
@@ -375,7 +376,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         method_call: &mut HirMethodCallExpression,
         function_type: &Type,
-        object_type: &Type,
+        object_type: &mut Type,
     ) {
         let expected_object_type = match function_type {
             Type::Function(args, _, _) => args.first(),
@@ -397,11 +398,14 @@ impl<'interner> TypeChecker<'interner> {
                     }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
+                    *object_type = new_type.clone();
 
                     // First try to remove a dereference operator that may have been implicitly
                     // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
-                    if self.try_remove_implicit_dereference(method_call.object).is_none() {
-                        // If that didn't work, then wrap the whole expression in an `&mut`
+                    let new_object = self.try_remove_implicit_dereference(method_call.object);
+
+                    // If that didn't work, then wrap the whole expression in an `&mut`
+                    method_call.object = new_object.unwrap_or_else(|| {
                         let location = self.interner.id_location(method_call.object);
 
                         let new_object =
@@ -409,15 +413,17 @@ impl<'interner> TypeChecker<'interner> {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
                             }));
-                        method_call.object = new_object;
                         self.interner.push_expr_type(&new_object, new_type);
                         self.interner.push_expr_location(new_object, location.span, location.file);
-                    }
+                        new_object
+                    });
                 }
             // Otherwise if the object type is a mutable reference and the method is not, insert as
             // many dereferences as needed.
             } else if matches!(actual_type, Type::MutableReference(_)) {
-                let object = self.insert_auto_dereferences(method_call.object, actual_type).0;
+                let (object, new_type) =
+                    self.insert_auto_dereferences(method_call.object, actual_type);
+                *object_type = new_type;
                 method_call.object = object;
             }
         }
@@ -446,29 +452,22 @@ impl<'interner> TypeChecker<'interner> {
     /// Given a method object: `(*foo).bar` of a method call `(*foo).bar.baz()`, remove the
     /// implicitly added dereference operator if one is found.
     ///
-    /// Returns Some(()) if a dereference was removed and None otherwise.
-    fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<()> {
+    /// Returns Some(new_expr_id) if a dereference was removed and None otherwise.
+    fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<ExprId> {
         match self.interner.expression(&object) {
-            HirExpression::MemberAccess(access) => {
-                self.try_remove_implicit_dereference(access.lhs)?;
+            HirExpression::MemberAccess(mut access) => {
+                let new_lhs = self.try_remove_implicit_dereference(access.lhs)?;
+                access.lhs = new_lhs;
+                access.is_offset = true;
 
-                // Since we removed a dereference, instead of returning the field directly,
-                // we expect to be returning a reference to the field, so update the type accordingly.
-                let current_type = self.interner.id_type(object);
-                let reference_type = Type::MutableReference(Box::new(current_type));
-                self.interner.push_expr_type(&object, reference_type);
-                Some(())
+                // `object` will have a different type now, which will be filled in
+                // later when type checking the method call as a function call.
+                self.interner.replace_expr(&object, HirExpression::MemberAccess(access));
+                Some(object)
             }
             HirExpression::Prefix(prefix) => match prefix.operator {
-                UnaryOp::Dereference { implicitly_added: true } => {
-                    // Found a dereference we can remove. Now just replace it with its rhs to remove it.
-                    let rhs = self.interner.expression(&prefix.rhs);
-                    self.interner.replace_expr(&object, rhs);
-
-                    let rhs_type = self.interner.id_type(prefix.rhs);
-                    self.interner.push_expr_type(&object, rhs_type);
-                    Some(())
-                }
+                // Found a dereference we can remove. Now just replace it with its rhs to remove it.
+                UnaryOp::Dereference { implicitly_added: true } => Some(prefix.rhs),
                 _ => None,
             },
             _ => None,
@@ -643,6 +642,9 @@ impl<'interner> TypeChecker<'interner> {
             this.interner.push_expr_location(*access_lhs, span, old_location.file);
         };
 
+        // If this access is just a field offset, we want to avoid dereferencing
+        let dereference_lhs = (!access.is_offset).then_some(dereference_lhs);
+
         match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
@@ -667,12 +669,16 @@ impl<'interner> TypeChecker<'interner> {
     /// expression. The second parameter of this function represents the lhs_type (which should
     /// always be a Type::MutableReference if `dereference_lhs` is called) and the third
     /// represents the element type.
+    ///
+    /// If `dereference_lhs` is None, this will assume we're taking the offset of a struct field
+    /// rather than dereferencing it. So the result of `foo.bar` with a `foo : &mut Foo` will
+    /// be a `&mut Bar` rather than just a `Bar`.
     pub(super) fn check_field_access(
         &mut self,
         lhs_type: &Type,
         field_name: &str,
         span: Span,
-        mut dereference_lhs: impl FnMut(&mut Self, Type, Type),
+        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
@@ -702,8 +708,19 @@ impl<'interner> TypeChecker<'interner> {
             // If the lhs is a mutable reference we automatically transform
             // lhs.field into (*lhs).field
             Type::MutableReference(element) => {
-                dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
-                return self.check_field_access(element, field_name, span, dereference_lhs);
+                if let Some(mut dereference_lhs) = dereference_lhs {
+                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                    return self.check_field_access(
+                        element,
+                        field_name,
+                        span,
+                        Some(dereference_lhs),
+                    );
+                } else {
+                    let (element, index) =
+                        self.check_field_access(element, field_name, span, dereference_lhs)?;
+                    return Some((Type::MutableReference(Box::new(element)), index));
+                }
             }
             _ => (),
         }

@@ -152,6 +152,12 @@ pub struct HirMemberAccess {
     // This field is not an IdentId since the rhs of a field
     // access has no corresponding definition
     pub rhs: Ident,
+
+    /// True if we should return an offset of the field rather than the field itself.
+    /// For most cases this is false, corresponding to `foo.bar` in source code.
+    /// This is true when calling methods or when we have an lvalue we want to preserve such
+    /// that if `foo : &mut Foo` has a field `bar : Bar`, we can return an `&mut Bar`.
+    pub is_offset: bool,
 }
 
 #[derive(Debug, Clone)]
