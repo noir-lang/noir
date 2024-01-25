@@ -1651,13 +1651,11 @@ impl From<&Type> for PrintableType {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(args, _, env) => {
-                PrintableType::Function {
-                    name: "?".to_string(),
-                    arguments: args.iter().map(|arg| ("?".to_string(), arg.into())).collect(),
-                    env: Box::new(env.as_ref().into()),
-                }
-            }
+            Type::Function(args, _, env) => PrintableType::Function {
+                name: "?".to_string(),
+                arguments: args.iter().map(|arg| ("?".to_string(), arg.into())).collect(),
+                env: Box::new(env.as_ref().into()),
+            },
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }

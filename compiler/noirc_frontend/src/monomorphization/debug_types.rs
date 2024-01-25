@@ -88,7 +88,11 @@ impl DebugTypeTracker {
         self.insert_var_printable(source_var_id, ptype)
     }
 
-    pub fn insert_var_printable(&mut self, source_var_id: SourceVarId, ptype: PrintableType) -> DebugVarId {
+    pub fn insert_var_printable(
+        &mut self,
+        source_var_id: SourceVarId,
+        ptype: PrintableType,
+    ) -> DebugVarId {
         if !self.source_variables.contains_key(&source_var_id) {
             unreachable!("cannot find source debug variable {source_var_id:?}");
         }

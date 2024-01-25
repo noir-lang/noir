@@ -84,7 +84,11 @@ impl DebugInstrumenter {
         self.scope.push(HashMap::default());
         let func_name_span = func.name.span();
         let fn_id = self.insert_var(func_name);
-        let enter_fn = Self::call_fn("enter", vec![uint_expr(fn_id.0 as u128, func_name_span)], func_name_span);
+        let enter_fn = Self::call_fn(
+            "enter",
+            vec![uint_expr(fn_id.0 as u128, func_name_span)],
+            func_name_span,
+        );
 
         let set_fn_params = func
             .parameters
@@ -103,16 +107,17 @@ impl DebugInstrumenter {
         self.walk_scope(&mut func.body.0, func.span, Some(fn_id));
 
         // prepend fn params:
-        func.body.0 = vec![
-            vec![enter_fn],
-            set_fn_params,
-            func.body.0.clone(),
-        ].concat();
+        func.body.0 = vec![vec![enter_fn], set_fn_params, func.body.0.clone()].concat();
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span, opt_fn_id: Option<SourceVarId>) {
+    fn walk_scope(
+        &mut self,
+        statements: &mut Vec<ast::Statement>,
+        span: Span,
+        opt_fn_id: Option<SourceVarId>,
+    ) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
         // extract and save the return value from the scope if there is one
@@ -664,6 +669,6 @@ fn is_instrumentation_method(fname: &str) -> bool {
         | "__debug_dereference_assign"
         | "__debug_fn_enter"
         | "__debug_fn_exit" => true,
-        _ => fname.starts_with("__debug_member_assign_")
+        _ => fname.starts_with("__debug_member_assign_"),
     }
 }

@@ -1,10 +1,10 @@
+use crate::context::DebugContext;
 use acvm::BlackBoxFunctionSolver;
 use codespan_reporting::files::Files;
 use nargo::artifacts::debug::DebugArtifact;
 use noirc_errors::Location;
 use owo_colors::OwoColorize;
 use std::ops::Range;
-use crate::context::DebugContext;
 
 #[derive(Debug, PartialEq)]
 enum PrintedLine<'a> {
@@ -40,7 +40,9 @@ pub(crate) fn print_source_code_location<'a, B: BlackBoxFunctionSolver>(
     let locations = locations.iter();
 
     for loc in locations {
-        if context.is_source_location_in_debug_module(loc) { continue }
+        if context.is_source_location_in_debug_module(loc) {
+            continue;
+        }
         print_location_path(debug_artifact, *loc);
 
         let lines = render_location(debug_artifact, loc);

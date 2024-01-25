@@ -181,7 +181,7 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         (PrintableValue::Field(_), PrintableType::Function { name, arguments, .. }) => {
             output.push_str(&format!(
                 "<<fn {name}({:?})>>",
-                arguments.iter().map(|(var_name,_)| { var_name })
+                arguments.iter().map(|(var_name, _)| { var_name })
             ));
         }
         (_, PrintableType::MutableReference { .. }) => {

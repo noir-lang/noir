@@ -183,10 +183,14 @@ impl<'interner> Monomorphizer<'interner> {
         let fn_name = self.interner.definition(fn_meta.name.id).name.clone();
         let ptype = PrintableType::Function {
             name: fn_name.clone(),
-            arguments: fn_meta.parameters.iter().map(|(arg_pattern, arg_type, _arg_vis)| {
-                let arg_str = self.pattern_to_string(arg_pattern);
-                (arg_str, arg_type.follow_bindings().into())
-            }).collect(),
+            arguments: fn_meta
+                .parameters
+                .iter()
+                .map(|(arg_pattern, arg_type, _arg_vis)| {
+                    let arg_str = self.pattern_to_string(arg_pattern);
+                    (arg_str, arg_type.follow_bindings().into())
+                })
+                .collect(),
             env: Box::new(PrintableType::Tuple { types: vec![] }),
         };
         let fn_id = self.debug_type_tracker.insert_var_printable(source_var_id, ptype);

@@ -14,31 +14,38 @@ pub struct DebugVars {
 }
 
 impl DebugVars {
-    pub fn get_variables(&self) -> Vec<(&str, Vec<&str>, Vec<(&str, &PrintableValue, &PrintableType)>)> {
-        self.frames.iter().map(|(fn_id, frame)| {
-            let fn_type_id = &self.variables.get(fn_id)
-                .expect("failed to find type for fn_id={fn_id:?}")
-                .debug_type_id;
-            let fn_type = self.types.get(fn_type_id)
-                .expect(&format!("failed to get function type for fn_type_id={fn_type_id:?}"));
-            let PrintableType::Function { name, arguments, .. } = fn_type
+    pub fn get_variables(
+        &self,
+    ) -> Vec<(&str, Vec<&str>, Vec<(&str, &PrintableValue, &PrintableType)>)> {
+        self.frames
+            .iter()
+            .map(|(fn_id, frame)| {
+                let fn_type_id = &self
+                    .variables
+                    .get(fn_id)
+                    .expect("failed to find type for fn_id={fn_id:?}")
+                    .debug_type_id;
+                let fn_type = self
+                    .types
+                    .get(fn_type_id)
+                    .expect(&format!("failed to get function type for fn_type_id={fn_type_id:?}"));
+                let PrintableType::Function { name, arguments, .. } = fn_type
                 else { panic!("unexpected function type {fn_type:?}") };
-            let params: Vec<&str> = arguments.iter().map(|(var_name,_)| var_name.as_str()).collect();
-            let vars: Vec<(&str, &PrintableValue, &PrintableType)> = frame.iter()
-                .filter_map(|var_id| { self.lookup_var(*var_id) })
-                .collect();
-            (name.as_str(), params, vars)
-        }).collect()
+                let params: Vec<&str> =
+                    arguments.iter().map(|(var_name, _)| var_name.as_str()).collect();
+                let vars: Vec<(&str, &PrintableValue, &PrintableType)> =
+                    frame.iter().filter_map(|var_id| self.lookup_var(*var_id)).collect();
+                (name.as_str(), params, vars)
+            })
+            .collect()
     }
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableValue, &PrintableType)> {
-        self.variables
-            .get(&var_id)
-            .and_then(|debug_var| {
-                let Some(value) = self.values.get(&var_id) else { return None; };
-                let Some(ptype) = self.types.get(&debug_var.debug_type_id) else { return None; };
-                Some((debug_var.name.as_str(), value, ptype))
-            })
+        self.variables.get(&var_id).and_then(|debug_var| {
+            let Some(value) = self.values.get(&var_id) else { return None; };
+            let Some(ptype) = self.types.get(&debug_var.debug_type_id) else { return None; };
+            Some((debug_var.name.as_str(), value, ptype))
+        })
     }
 
     pub fn insert_variables(&mut self, vars: &DebugVariables) {
