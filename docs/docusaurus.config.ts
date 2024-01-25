@@ -26,6 +26,7 @@ export default {
       '@docusaurus/preset-classic',
       {
         docs: {
+          path: "processed-docs",
           sidebarPath: './sidebars.js',
           routeBasePath: '/docs',
           remarkPlugins: [math],

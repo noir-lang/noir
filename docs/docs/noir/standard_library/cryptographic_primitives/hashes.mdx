@@ -58,16 +58,10 @@ fn pedersen_hash(_input : [Field]) -> Field
 
 example:
 
-```rust
-fn main() {
-    let x = [163, 117, 178, 149]; // some random bytes
-    let hash = std::hash::pedersen_hash(x);
-}
-```
+#include_code pedersen-hash test_programs/execution_success/pedersen_hash/src/main.nr rust
 
 <BlackBoxInfo />
 
-<BlackBoxInfo />
 
 ## pedersen_commitment
 
@@ -79,12 +73,7 @@ fn pedersen_commitment(_input : [Field]) -> [Field; 2]
 
 example:
 
-```rust
-fn main() {
-    let x = [163, 117, 178, 149]; // some random bytes
-    let commitment = std::hash::pedersen_commitment(x);
-}
-```
+#include_code pedersen-commitment test_programs/execution_success/pedersen_commitment/src/main.nr rust
 
 <BlackBoxInfo />
 
@@ -100,13 +89,7 @@ fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32]
 
 example:
 
-```rust
-fn main() {
-    let x = [163, 117, 178, 149]; // some random bytes
-    let message_size = 4;
-    let hash = std::hash::keccak256(x, message_size);
-}
-```
+#include_code keccak256 test_programs/execution_success/keccak256/src/main.nr rust
 
 <BlackBoxInfo />
 
@@ -122,13 +105,7 @@ fn hash_1(input: [Field; 1]) -> Field
 
 example:
 
-```rust
-fn main()
-{
-  let hash_2 = std::hash::poseidon::bn254::hash_2([1, 2]);
-  assert(hash2 == 0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a);
-}
-```
+#include_code poseidon test_programs/execution_success/poseidon_bn254_hash/src/main.nr rust
 
 ## mimc_bn254 and mimc
 

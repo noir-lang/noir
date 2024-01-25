@@ -1,12 +1,11 @@
+use super::compile_cmd::report_errors;
+use super::fs::{inputs::read_inputs_from_file, load_hex_data};
 use super::NargoConfig;
-use super::{
-    compile_cmd::compile_bin_package,
-    fs::{inputs::read_inputs_from_file, load_hex_data},
-};
 use crate::{backends::Backend, errors::CliError};
 
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
+use nargo::ops::compile_program;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -55,17 +54,30 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = backend.get_backend_info()?;
-    for package in &workspace {
-        let program = compile_bin_package(
+    let expression_width = args
+        .compile_options
+        .expression_width
+        .unwrap_or_else(|| backend.get_backend_info_or_default());
+    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+    for package in binary_packages {
+        let compilation_result = compile_program(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
-            expression_width,
+            None,
+        );
+
+        let compiled_program = report_errors(
+            compilation_result,
+            &workspace_file_manager,
+            args.compile_options.deny_warnings,
+            args.compile_options.silence_warnings,
         )?;
 
-        verify_package(backend, &workspace, package, program, &args.verifier_name)?;
+        let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+
+        verify_package(backend, &workspace, package, compiled_program, &args.verifier_name)?;
     }
 
     Ok(())

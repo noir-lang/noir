@@ -449,7 +449,7 @@ impl<'a> Resolver<'a> {
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         use UnresolvedTypeData::*;
 
-        match typ.typ {
+        let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
@@ -510,7 +510,18 @@ impl<'a> Resolver<'a> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
+        };
+
+        if let Type::Struct(_, _) = resolved_type {
+            if let Some(unresolved_span) = typ.span {
+                // Record the location of the type reference
+                self.interner.push_type_ref_location(
+                    resolved_type.clone(),
+                    Location::new(unresolved_span, self.file),
+                );
+            }
         }
+        resolved_type
     }
 
     fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
@@ -714,6 +725,7 @@ impl<'a> Resolver<'a> {
         if resolved_type.is_nested_slice() {
             self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
         }
+
         resolved_type
     }
 
@@ -1734,7 +1746,8 @@ impl<'a> Resolver<'a> {
 
     // This resolves a static trait method T::trait_method by iterating over the where clause
     //
-    // Returns the trait method, object type, and the trait generics.
+    // Returns the trait method, trait constraint, and whether the impl is assumed from a where
+    // clause. This is always true since this helper searches where clauses for a generic constraint.
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_method_by_named_generic(
         &mut self,
@@ -1777,7 +1790,7 @@ impl<'a> Resolver<'a> {
 
     // Try to resolve the given trait method path.
     //
-    // Returns the trait method, object type, and the trait generics.
+    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_generic_path(
         &mut self,

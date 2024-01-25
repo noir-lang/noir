@@ -83,22 +83,44 @@ pub(crate) fn run(
     };
 
     let blackbox_solver = Bn254BlackBoxSolver::new();
-    for package in &workspace {
-        // By unwrapping here with `?`, we stop the test runner upon a package failing
-        // TODO: We should run the whole suite even if there are failures in a package
-        run_tests(
-            &workspace_file_manager,
-            &parsed_files,
-            &blackbox_solver,
-            package,
-            pattern,
-            args.show_output,
-            args.oracle_resolver.as_deref(),
-            &args.compile_options,
-        )?;
+
+    let test_reports: Vec<Vec<(String, TestStatus)>> = workspace
+        .into_iter()
+        .map(|package| {
+            run_tests(
+                &workspace_file_manager,
+                &parsed_files,
+                &blackbox_solver,
+                package,
+                pattern,
+                args.show_output,
+                args.oracle_resolver.as_deref(),
+                &args.compile_options,
+            )
+        })
+        .collect::<Result<_, _>>()?;
+    let test_report: Vec<(String, TestStatus)> = test_reports.into_iter().flatten().collect();
+
+    if test_report.is_empty() {
+        match &pattern {
+            FunctionNameMatch::Exact(pattern) => {
+                return Err(CliError::Generic(
+                    format!("Found 0 tests matching input '{pattern}'.",),
+                ))
+            }
+            FunctionNameMatch::Contains(pattern) => {
+                return Err(CliError::Generic(format!("Found 0 tests containing '{pattern}'.",)))
+            }
+            // If we are running all tests in a crate, having none is not an error
+            FunctionNameMatch::Anything => {}
+        };
     }
 
-    Ok(())
+    if test_report.iter().any(|(_, status)| !matches!(status, TestStatus::Fail { .. })) {
+        Ok(())
+    } else {
+        Err(CliError::Generic(String::new()))
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -111,7 +133,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     compile_options: &CompileOptions,
-) -> Result<(), CliError> {
+) -> Result<Vec<(String, TestStatus)>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(
         &mut context,
@@ -123,45 +145,29 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, fn_name);
     let count_all = test_functions.len();
-    if count_all == 0 {
-        match &fn_name {
-            FunctionNameMatch::Exact(pattern) => {
-                return Err(CliError::Generic(format!(
-                    "[{}] Found 0 tests matching input '{pattern}'.",
-                    package.name
-                )))
-            }
-            FunctionNameMatch::Contains(pattern) => {
-                return Err(CliError::Generic(format!(
-                    "[{}] Found 0 tests containing '{pattern}'.",
-                    package.name
-                )))
-            }
-            // If we are running all tests in a crate, having none is not an error
-            FunctionNameMatch::Anything => {}
-        };
-    }
 
     let plural = if count_all == 1 { "" } else { "s" };
     println!("[{}] Running {count_all} test function{plural}", package.name);
-    let mut count_failed = 0;
 
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
+    let mut test_report: Vec<(String, TestStatus)> = Vec::new();
     for (test_name, test_function) in test_functions {
         write!(writer, "[{}] Testing {test_name}... ", package.name)
             .expect("Failed to write to stderr");
         writer.flush().expect("Failed to flush writer");
 
-        match run_test(
+        let test_status = run_test(
             blackbox_solver,
             &context,
             test_function,
             show_output,
             foreign_call_resolver_url,
             compile_options,
-        ) {
+        );
+
+        match &test_status {
             TestStatus::Pass { .. } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
@@ -176,35 +182,36 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         context.file_manager.as_file_map(),
-                        &[diag],
+                        &[diag.clone()],
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
                     );
                 }
-                count_failed += 1;
             }
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
                     context.file_manager.as_file_map(),
-                    &[err],
+                    &[err.clone()],
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
-                count_failed += 1;
             }
         }
+
+        test_report.push((test_name, test_status));
+
         writer.reset().expect("Failed to reset writer");
     }
 
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
+    let count_failed =
+        test_report.iter().filter(|(_, status)| !matches!(status, TestStatus::Pass)).count();
     if count_failed == 0 {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
         write!(writer, "{count_all} test{plural} passed").expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
         writeln!(writer).expect("Failed to write to stderr");
-
-        Ok(())
     } else {
         let count_passed = count_all - count_failed;
         let plural_failed = if count_failed == 1 { "" } else { "s" };
@@ -219,11 +226,10 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         }
 
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
-        write!(writer, "{count_failed} test{plural_failed} failed")
+        writeln!(writer, "{count_failed} test{plural_failed} failed")
             .expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
-
-        // Writes final newline.
-        Err(CliError::Generic(String::new()))
     }
+
+    Ok(test_report)
 }

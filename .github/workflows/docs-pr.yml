@@ -40,7 +40,7 @@ jobs:
         script: |
           const labels = context.payload.pull_request.labels.map(label => label.name);
           if (!labels.includes('documentation')) {
-            github.issues.addLabels({
+            github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
@@ -54,6 +54,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
     
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: false
+          save-if: false
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 

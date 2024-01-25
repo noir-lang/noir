@@ -146,6 +146,9 @@ pub struct NodeInterner {
     /// A list of all type aliases that are referenced in the program.
     /// Searched by LSP to resolve [Location]s of [TypeAliasType]s
     pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
+
+    /// Stores the [Location] of a [Type] reference
+    pub(crate) type_ref_locations: Vec<(Type, Location)>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -455,6 +458,7 @@ impl Default for NodeInterner {
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
+            type_ref_locations: Vec::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -605,6 +609,11 @@ impl NodeInterner {
     /// Store the type for an interned Identifier
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.id_to_type.insert(definition_id.into(), typ);
+    }
+
+    /// Store [Location] of [Type] reference
+    pub fn push_type_ref_location(&mut self, typ: Type, location: Location) {
+        self.type_ref_locations.push((typ, location));
     }
 
     pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
@@ -1186,7 +1195,6 @@ impl NodeInterner {
     }
 
     /// Adds a trait implementation to the list of known implementations.
-    #[tracing::instrument(skip(self))]
     pub fn add_trait_implementation(
         &mut self,
         object_type: Type,

@@ -5,8 +5,8 @@ use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
+            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
@@ -46,50 +46,7 @@ impl<'interner> TypeChecker<'interner> {
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
-            HirExpression::Ident(ident) => {
-                // An identifiers type may be forall-quantified in the case of generic functions.
-                // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
-                // We must instantiate identifiers at every call site to replace this T with a new type
-                // variable to handle generic functions.
-                let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-
-                // This instantiate's a trait's generics as well which need to be set
-                // when the constraint below is later solved for when the function is
-                // finished. How to link the two?
-                let (typ, bindings) = t.instantiate(self.interner);
-
-                // Push any trait constraints required by this definition to the context
-                // to be checked later when the type of this variable is further constrained.
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    if let DefinitionKind::Function(function) = definition.kind {
-                        let function = self.interner.function_meta(&function);
-
-                        for mut constraint in function.trait_constraints.clone() {
-                            constraint.apply_bindings(&bindings);
-                            self.trait_constraints.push((constraint, *expr_id));
-                        }
-                    }
-                }
-
-                if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
-                    constraint.apply_bindings(&bindings);
-                    if assumed {
-                        let trait_impl = TraitImplKind::Assumed {
-                            object_type: constraint.typ,
-                            trait_generics: constraint.trait_generics,
-                        };
-                        self.interner.select_impl_for_expression(*expr_id, trait_impl);
-                    } else {
-                        // Currently only one impl can be selected per expr_id, so this
-                        // constraint needs to be pushed after any other constraints so
-                        // that monomorphization can resolve this trait method to the correct impl.
-                        self.trait_constraints.push((constraint, *expr_id));
-                    }
-                }
-
-                self.interner.store_instantiation_bindings(*expr_id, bindings);
-                typ
-            }
+            HirExpression::Ident(ident) => self.check_ident(ident, expr_id),
             HirExpression::Literal(literal) => {
                 match literal {
                     HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
@@ -338,6 +295,67 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         self.interner.push_expr_type(expr_id, typ.clone());
+        typ
+    }
+
+    /// Returns the type of the given identifier
+    fn check_ident(&mut self, ident: HirIdent, expr_id: &ExprId) -> Type {
+        let mut bindings = TypeBindings::new();
+
+        // Add type bindings from any constraints that were used.
+        // We need to do this first since otherwise instantiating the type below
+        // will replace each trait generic with a fresh type variable, rather than
+        // the type used in the trait constraint (if it exists). See #4088.
+        if let ImplKind::TraitMethod(_, constraint, _) = &ident.impl_kind {
+            let the_trait = self.interner.get_trait(constraint.trait_id);
+            assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
+
+            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
+                bindings.insert(param.id(), (param.clone(), arg.clone()));
+            }
+        }
+
+        // An identifiers type may be forall-quantified in the case of generic functions.
+        // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
+        // We must instantiate identifiers at every call site to replace this T with a new type
+        // variable to handle generic functions.
+        let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+
+        // This instantiates a trait's generics as well which need to be set
+        // when the constraint below is later solved for when the function is
+        // finished. How to link the two?
+        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
+
+        // Push any trait constraints required by this definition to the context
+        // to be checked later when the type of this variable is further constrained.
+        if let Some(definition) = self.interner.try_definition(ident.id) {
+            if let DefinitionKind::Function(function) = definition.kind {
+                let function = self.interner.function_meta(&function);
+
+                for mut constraint in function.trait_constraints.clone() {
+                    constraint.apply_bindings(&bindings);
+                    self.trait_constraints.push((constraint, *expr_id));
+                }
+            }
+        }
+
+        if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
+            constraint.apply_bindings(&bindings);
+            if assumed {
+                let trait_impl = TraitImplKind::Assumed {
+                    object_type: constraint.typ,
+                    trait_generics: constraint.trait_generics,
+                };
+                self.interner.select_impl_for_expression(*expr_id, trait_impl);
+            } else {
+                // Currently only one impl can be selected per expr_id, so this
+                // constraint needs to be pushed after any other constraints so
+                // that monomorphization can resolve this trait method to the correct impl.
+                self.trait_constraints.push((constraint, *expr_id));
+            }
+        }
+
+        self.interner.store_instantiation_bindings(*expr_id, bindings);
         typ
     }
 
@@ -1010,9 +1028,9 @@ impl<'interner> TypeChecker<'interner> {
 
     fn bind_function_type_impl(
         &mut self,
-        fn_params: &Vec<Type>,
+        fn_params: &[Type],
         fn_ret: &Type,
-        callsite_args: &Vec<(Type, ExprId, Span)>,
+        callsite_args: &[(Type, ExprId, Span)],
         span: Span,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {
