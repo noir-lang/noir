@@ -53,9 +53,9 @@ impl FileId {
     }
 }
 
-impl Into<usize> for FileId {
-    fn into(self) -> usize {
-        self.0
+impl From<FileId> for usize {
+    fn from(file_id: FileId) -> Self {
+        file_id.0
     }
 }
 
