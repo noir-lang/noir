@@ -188,6 +188,7 @@ const sidebars = {
         },
         "concepts/advanced/public_vm",
         "concepts/advanced/contract_creation",
+        "concepts/advanced/private_execution_environment",
         "concepts/advanced/sequencer_selection",
         "concepts/advanced/acir_simulator",
       ],
@@ -294,7 +295,11 @@ const sidebars = {
         type: "doc",
         id: "dev_docs/cli/main",
       },
-      items: ["dev_docs/cli/cli-commands", "dev_docs/cli/sandbox-reference"],
+      items: [
+        "dev_docs/cli/cli-commands",
+        "dev_docs/cli/sandbox-reference",
+        "dev_docs/cli/run_more_than_one_pxe_sandbox"
+      ],
     },
     {
       label: "Aztec.nr Contracts",
@@ -326,6 +331,7 @@ const sidebars = {
             },
             "dev_docs/contracts/syntax/events",
             "dev_docs/contracts/syntax/functions",
+            "dev_docs/contracts/syntax/oracles",
             {
               label: "Proving Historical Blockchain Data",
               type: "category",
@@ -430,7 +436,6 @@ const sidebars = {
       },
       items: ["dev_docs/testing/cheat_codes"],
     },
-
     {
       label: "Wallets",
       type: "category",

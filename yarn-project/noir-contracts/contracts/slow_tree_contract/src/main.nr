@@ -31,7 +31,9 @@ contract SlowTree {
         SlowMap, Leaf, SlowUpdateProof, compute_merkle_root, deserialize_slow_update_proof
     };
 
+    // docs:start:import_pop_capsule
     use crate::capsule::pop_capsule;
+    // docs:end:import_pop_capsule
     use crate::types::{MembershipProof, deserialize_membership_proof};
 
     // docs:start:constants_and_storage
@@ -84,7 +86,9 @@ contract SlowTree {
     // docs:start:read_at_private
     #[aztec(private)]
     fn read_at(index: Field) -> Field {
+        // docs:start:pop_capsule
         let fields = pop_capsule();
+        // docs:end:pop_capsule
         let p: MembershipProof<TREE_HEIGHT, MEMBERSHIP_SIZE> = deserialize_membership_proof(fields);
         assert(index == p.index, "Index does not match expected");
 
