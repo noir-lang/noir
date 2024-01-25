@@ -18,7 +18,8 @@ struct EcAdd {
     friend bool operator==(EcAdd const& lhs, EcAdd const& rhs) = default;
 };
 
-template <typename Builder> void create_ec_add_constraint(Builder& builder, const EcAdd& input);
+template <typename Builder>
+void create_ec_add_constraint(Builder& builder, const EcAdd& input, bool has_valid_witness_assignments);
 
 struct EcDouble {
     uint32_t input_x;
@@ -31,5 +32,6 @@ struct EcDouble {
     friend bool operator==(EcDouble const& lhs, EcDouble const& rhs) = default;
 };
 
-template <typename Builder> void create_ec_double_constraint(Builder& builder, const EcDouble& input);
+template <typename Builder>
+void create_ec_double_constraint(Builder& builder, const EcDouble& input, bool has_valid_witness_assignments);
 } // namespace acir_format
