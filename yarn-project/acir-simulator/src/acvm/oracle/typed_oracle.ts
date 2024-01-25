@@ -137,6 +137,7 @@ export abstract class TypedOracle {
     _numSelects: number,
     _selectBy: number[],
     _selectValues: Fr[],
+    _selectComparators: number[],
     _sortBy: number[],
     _sortOrder: number[],
     _limit: number,

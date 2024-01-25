@@ -13,7 +13,7 @@ pub fn create_account_card_getter_options(
     account: AztecAddress,
     offset: u32
 ) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
-    NoteGetterOptions::new().select(2, account.to_field()).sort(0, SortOrder.DESC).set_offset(offset)
+    NoteGetterOptions::new().select(2, account.to_field(), Option::none()).sort(0, SortOrder.DESC).set_offset(offset)
 }
 // docs:end:state_vars-NoteGetterOptionsSelectSortOffset
 
@@ -23,7 +23,7 @@ pub fn create_exact_card_getter_options(
     secret: Field,
     account: AztecAddress
 ) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
-    NoteGetterOptions::new().select(0, points as Field).select(1, secret).select(2, account.to_field())
+    NoteGetterOptions::new().select(0, points as Field, Option::none()).select(1, secret, Option::none()).select(2, account.to_field(), Option::none())
 }
 // docs:end:state_vars-NoteGetterOptionsMultiSelects
 
@@ -46,12 +46,12 @@ pub fn filter_min_points(
 
 // docs:start:state_vars-NoteGetterOptionsFilter
 pub fn create_account_cards_with_min_points_getter_options(account: AztecAddress, min_points: u8) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, u8> {
-    NoteGetterOptions::with_filter(filter_min_points, min_points).select(2, account.to_field()).sort(0, SortOrder.ASC)
+    NoteGetterOptions::with_filter(filter_min_points, min_points).select(2, account.to_field(), Option::none()).sort(0, SortOrder.ASC)
 }
 // docs:end:state_vars-NoteGetterOptionsFilter
 
 // docs:start:state_vars-NoteGetterOptionsPickOne
 pub fn create_largest_account_card_getter_options(account: AztecAddress) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
-    NoteGetterOptions::new().select(2, account.to_field()).sort(0, SortOrder.DESC).set_limit(1)
+    NoteGetterOptions::new().select(2, account.to_field(), Option::none()).sort(0, SortOrder.DESC).set_limit(1)
 }
 // docs:end:state_vars-NoteGetterOptionsPickOne

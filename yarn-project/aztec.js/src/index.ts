@@ -106,6 +106,7 @@ export {
   emptyFunctionCall,
   merkleTreeIds,
   mockTx,
+  Comparator,
 } from '@aztec/circuit-types';
 
 export { NodeInfo } from '@aztec/types/interfaces';

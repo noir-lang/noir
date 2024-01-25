@@ -109,7 +109,7 @@ contract InclusionProofs {
         // docs:start:get_note_from_pxe
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
-        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
+        let options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
         let notes = private_values.get_notes(options);
         let maybe_note = notes[0];
         // docs:end:get_note_from_pxe
@@ -142,7 +142,7 @@ contract InclusionProofs {
     ) {
         // 2) Get the note from PXE
         let private_values = storage.private_values.at(owner);
-        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
+        let options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
         let notes = private_values.get_notes(options);
         let maybe_note = notes[0];
 
@@ -171,7 +171,7 @@ contract InclusionProofs {
     ) {
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
-        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
+        let options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
         let notes = private_values.get_notes(options);
         let note = notes[0].unwrap();
 
@@ -185,7 +185,7 @@ contract InclusionProofs {
     #[aztec(private)]
     fn nullify_note(owner: AztecAddress) {
         let private_values = storage.private_values.at(owner);
-        let options = NoteGetterOptions::new().select(1, owner.to_field()).set_limit(1);
+        let options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
         let notes = private_values.get_notes(options);
         let note = notes[0].unwrap();
 

@@ -2,14 +2,33 @@ use dep::std::option::Option;
 use crate::types::vec::BoundedVec;
 use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
 
+struct ComparatorEnum {
+    EQ: u3,
+    NEQ: u3,
+    LT: u3,
+    LTE: u3,
+    GT: u3,
+    GTE: u3,
+}
+
+global Comparator = ComparatorEnum {
+    EQ: 1,
+    NEQ: 2,
+    LT: 3,
+    LTE: 4,
+    GT: 5,
+    GTE: 6,
+};
+
 struct Select {
     field_index: u8,
     value: Field,
+    comparator: u3,
 }
 
 impl Select {
-    pub fn new(field_index: u8, value: Field) -> Self {
-        Select { field_index, value }
+    pub fn new(field_index: u8, value: Field, comparator: u3) -> Self {
+        Select { field_index, value, comparator }
     }
 }
 
@@ -86,9 +105,11 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
     }
 
     // This method adds a `Select` criterion to the options.
-    // It takes a field_index indicating which field to select and a value representing the specific value to match in that field.
-    pub fn select(&mut self, field_index: u8, value: Field) -> Self {
-        self.selects.push(Option::some(Select::new(field_index, value)));
+    // It takes a field_index indicating which field to select, 
+    // a value representing the specific value to match in that field, and 
+    // a comparator (For possible values of comparators, please see the Comparator enum above)
+    pub fn select(&mut self, field_index: u8, value: Field, comparator: Option<u3>) -> Self {
+        self.selects.push(Option::some(Select::new(field_index, value, comparator.unwrap_or(Comparator.EQ))));
         *self
     }
 

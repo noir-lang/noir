@@ -185,6 +185,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param numSelects - The number of valid selects in selectBy and selectValues.
    * @param selectBy - An array of indices of the fields to selects.
    * @param selectValues - The values to match.
+   * @param selectComparators - The comparators to match by.
    * @param sortBy - An array of indices of the fields to sort.
    * @param sortOrder - The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
    * @param limit - The number of notes to retrieve per query.
@@ -196,6 +197,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     numSelects: number,
     selectBy: number[],
     selectValues: Fr[],
+    selectComparators: number[],
     sortBy: number[],
     sortOrder: number[],
     limit: number,
@@ -209,7 +211,9 @@ export class ClientExecutionContext extends ViewDataOracle {
     const dbNotesFiltered = dbNotes.filter(n => !pendingNullifiers.has((n.siloedNullifier as Fr).value));
 
     const notes = pickNotes<NoteData>([...dbNotesFiltered, ...pendingNotes], {
-      selects: selectBy.slice(0, numSelects).map((index, i) => ({ index, value: selectValues[i] })),
+      selects: selectBy
+        .slice(0, numSelects)
+        .map((index, i) => ({ index, value: selectValues[i], comparator: selectComparators[i] })),
       sorts: sortBy.map((index, i) => ({ index, order: sortOrder[i] })),
       limit,
       offset,

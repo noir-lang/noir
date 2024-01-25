@@ -104,6 +104,10 @@ abstract class BaseField {
     return this.toBuffer().equals(rhs.toBuffer());
   }
 
+  lt(rhs: BaseField): boolean {
+    return this.toBigInt() < rhs.toBigInt();
+  }
+
   isZero(): boolean {
     return this.toBuffer().equals(ZERO_BUFFER);
   }

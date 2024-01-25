@@ -1,6 +1,6 @@
 use dep::std::option::Option;
 use dep::protocol_types::constants::MAX_NOTES_PER_PAGE;
-use crate::note::note_getter_options::{Select, Sort};
+use crate::note::note_getter_options::{Select, Sort, Comparator};
 use crate::types::vec::BoundedVec;
 
 // docs:start:NoteViewerOptions
@@ -21,9 +21,13 @@ impl<Note, N> NoteViewerOptions<Note, N> {
             offset: 0,
         }
     }
-
-    pub fn select(&mut self, field_index: u8, value: Field) -> Self {
-        self.selects.push(Option::some(Select::new(field_index, value)));
+       
+    // This method adds a `Select` criterion to the options.
+    // It takes a field_index indicating which field to select, 
+    // a value representing the specific value to match in that field, and 
+    // a comparator (For possible values of comparators, please see the Comparator enum from note_getter_options)
+    pub fn select(&mut self, field_index: u8, value: Field, comparator: Option<u3>) -> Self {
+        self.selects.push(Option::some(Select::new(field_index, value, comparator.unwrap_or(Comparator.EQ))));
         *self
     }
 

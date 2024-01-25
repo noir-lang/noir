@@ -1,4 +1,4 @@
-import { Note } from '@aztec/circuit-types';
+import { Comparator, Note } from '@aztec/circuit-types';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -13,6 +13,10 @@ export interface Select {
    * Required value of the field.
    */
   value: Fr;
+  /**
+   * The comparator to use
+   */
+  comparator: Comparator;
 }
 
 /**
@@ -75,7 +79,20 @@ interface ContainsNote {
 }
 
 const selectNotes = <T extends ContainsNote>(noteDatas: T[], selects: Select[]): T[] =>
-  noteDatas.filter(noteData => selects.every(({ index, value }) => noteData.note.items[index]?.equals(value)));
+  noteDatas.filter(noteData =>
+    selects.every(({ index, value, comparator }) => {
+      const comparatorSelector = {
+        [Comparator.EQ]: () => noteData.note.items[index].equals(value),
+        [Comparator.NEQ]: () => !noteData.note.items[index].equals(value),
+        [Comparator.LT]: () => noteData.note.items[index].lt(value),
+        [Comparator.LTE]: () => noteData.note.items[index].lt(value) || noteData.note.items[index].equals(value),
+        [Comparator.GT]: () => !noteData.note.items[index].lt(value) && !noteData.note.items[index].equals(value),
+        [Comparator.GTE]: () => !noteData.note.items[index].lt(value),
+      };
+
+      return comparatorSelector[comparator]();
+    }),
+  );
 
 const sortNotes = (a: Fr[], b: Fr[], sorts: Sort[], level = 0): number => {
   if (sorts[level] === undefined) {

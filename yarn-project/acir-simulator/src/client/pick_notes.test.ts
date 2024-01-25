@@ -1,4 +1,4 @@
-import { Note } from '@aztec/circuit-types';
+import { Comparator, Note } from '@aztec/circuit-types';
 import { Fr } from '@aztec/foundation/fields';
 
 import { SortOrder, pickNotes } from './pick_notes.js';
@@ -141,7 +141,7 @@ describe('getNotes', () => {
     ];
 
     {
-      const options = { selects: [{ index: 0, value: new Fr(2n) }] };
+      const options = { selects: [{ index: 0, value: new Fr(2n), comparator: Comparator.EQ }] };
       const result = pickNotes(notes, options);
       expectNotes(result, [
         [2n, 1n, 3n],
@@ -153,8 +153,8 @@ describe('getNotes', () => {
     {
       const options = {
         selects: [
-          { index: 0, value: new Fr(2n) },
-          { index: 2, value: new Fr(3n) },
+          { index: 0, value: new Fr(2n), comparator: Comparator.EQ },
+          { index: 2, value: new Fr(3n), comparator: Comparator.EQ },
         ],
       };
       const result = pickNotes(notes, options);
@@ -167,8 +167,8 @@ describe('getNotes', () => {
     {
       const options = {
         selects: [
-          { index: 1, value: new Fr(2n) },
-          { index: 2, value: new Fr(3n) },
+          { index: 1, value: new Fr(2n), comparator: Comparator.EQ },
+          { index: 2, value: new Fr(3n), comparator: Comparator.EQ },
         ],
       };
       const result = pickNotes(notes, options);
@@ -176,7 +176,7 @@ describe('getNotes', () => {
     }
 
     {
-      const options = { selects: [{ index: 1, value: new Fr(5n) }] };
+      const options = { selects: [{ index: 1, value: new Fr(5n), comparator: Comparator.EQ }] };
       const result = pickNotes(notes, options);
       expectNotes(result, []);
     }
@@ -184,8 +184,8 @@ describe('getNotes', () => {
     {
       const options = {
         selects: [
-          { index: 0, value: new Fr(2n) },
-          { index: 1, value: new Fr(5n) },
+          { index: 0, value: new Fr(2n), comparator: Comparator.EQ },
+          { index: 1, value: new Fr(5n), comparator: Comparator.EQ },
         ],
       };
       const result = pickNotes(notes, options);
@@ -203,13 +203,114 @@ describe('getNotes', () => {
       createNote([6n, 5n, 8n]),
     ];
 
-    const options = { selects: [{ index: 2, value: new Fr(8n) }], sorts: [{ index: 1, order: SortOrder.ASC }] };
+    const options = {
+      selects: [{ index: 2, value: new Fr(8n), comparator: Comparator.EQ }],
+      sorts: [{ index: 1, order: SortOrder.ASC }],
+    };
     const result = pickNotes(notes, options);
     expectNotes(result, [
       [0n, 0n, 8n],
       [4n, 5n, 8n],
       [6n, 5n, 8n],
       [7n, 6n, 8n],
+    ]);
+  });
+
+  it('should get sorted matching notes with GTE and LTE', () => {
+    const notes = [
+      createNote([2n, 1n, 3n]),
+      createNote([4n, 5n, 8n]),
+      createNote([7n, 6n, 8n]),
+      createNote([6n, 5n, 2n]),
+      createNote([0n, 0n, 8n]),
+      createNote([6n, 5n, 8n]),
+    ];
+
+    const options = {
+      selects: [
+        {
+          index: 2,
+          value: new Fr(7n),
+          comparator: Comparator.GTE,
+        },
+        {
+          index: 2,
+          value: new Fr(8n),
+          comparator: Comparator.LTE,
+        },
+      ],
+      sorts: [
+        {
+          index: 1,
+          order: SortOrder.ASC,
+        },
+      ],
+    };
+    const result = pickNotes(notes, options);
+    expectNotes(result, [
+      [0n, 0n, 8n],
+      [4n, 5n, 8n],
+      [6n, 5n, 8n],
+      [7n, 6n, 8n],
+    ]);
+  });
+
+  it('should get sorted matching notes with GTE and LTE', () => {
+    const notes = [
+      createNote([2n, 1n, 1n]),
+      createNote([4n, 5n, 2n]),
+      createNote([7n, 6n, 3n]),
+      createNote([6n, 5n, 4n]),
+      createNote([0n, 0n, 5n]),
+      createNote([6n, 5n, 6n]),
+    ];
+
+    const options1 = {
+      selects: [
+        {
+          index: 2,
+          value: new Fr(3n),
+          comparator: Comparator.GT,
+        },
+      ],
+      sorts: [
+        {
+          index: 1,
+          order: SortOrder.ASC,
+        },
+      ],
+    };
+
+    const result1 = pickNotes(notes, options1);
+
+    expectNotes(result1, [
+      [0n, 0n, 5n],
+      [6n, 5n, 4n],
+      [6n, 5n, 6n],
+    ]);
+
+    const options2 = {
+      selects: [
+        {
+          index: 2,
+          value: new Fr(4n),
+          comparator: Comparator.LT,
+        },
+      ],
+      sorts: [
+        {
+          index: 1,
+          order: SortOrder.ASC,
+        },
+      ],
+    };
+
+    const result2 = pickNotes(notes, options2);
+
+    expectNotes(result2, [
+      [2n, 1n, 1n],
+      [4n, 5n, 2n],
+      [7n, 6n, 3n],
     ]);
   });
 });

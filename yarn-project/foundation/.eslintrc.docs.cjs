@@ -40,10 +40,7 @@ const JSDOC_RULES_LEVEL = 'error';
 module.exports = {
   ...base,
   plugins: [...base.plugins, 'jsdoc'],
-  overrides: [
-    ...base.overrides,
-    { files: '*.test.ts', rules: { 'jsdoc/require-jsdoc': 'off' } },
-  ],
+  overrides: [...base.overrides, { files: '*.test.ts', rules: { 'jsdoc/require-jsdoc': 'off' } }],
   rules: {
     ...base.rules,
     'tsdoc/syntax': JSDOC_RULES_LEVEL,
@@ -65,5 +62,5 @@ module.exports = {
     'jsdoc/require-property-description': [JSDOC_RULES_LEVEL, { contexts }],
     'jsdoc/require-property-name': [JSDOC_RULES_LEVEL, { contexts }],
     'jsdoc/require-returns': 'off',
-  }
+  },
 };
