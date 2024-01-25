@@ -75,10 +75,8 @@ Available commands:
   vars                             show variable values available at this point
                                    in execution
   stacktrace                       display the current stack trace
-  memory                           show Brillig memory (valid when executing a
-                                   Brillig block)
-  registers                        show Brillig registers (valid when executing
-                                   a Brillig block)
+  memory                           show Brillig memory (valid when executing unconstrained code)
+  registers                        show Brillig registers (valid when executing unconstrained code)
   regset index:usize value:String  update a Brillig register with the given
                                    value
   step                             step to the next ACIR opcode
@@ -90,7 +88,7 @@ Other commands:
 
 ```
 
-The command menu is for the most part self-explanatory. Some commands operate only at Brillig level, such as `memory`, `memset`, `registers`, `regset`. If you try to use them while execution is paused at an ACIR opcode, the debugger will simply inform you that you are not executing Brillig code:
+Some commands operate only for unconstrained functions, such as `memory`, `memset`, `registers`, `regset`. If you try to use them while execution is paused at an ACIR opcode, the debugger will simply inform you that you are not executing unconstrained code:
 
 ```
 > registers

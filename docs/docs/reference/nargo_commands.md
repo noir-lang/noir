@@ -254,8 +254,8 @@ Automatically formats your Noir source code based on the default formatting sett
 
 ## `nargo debug [OPTIONS] [WITNESS_NAME]`
 
-Runs the Noir REPL debugger. For the complete reference, see [Debugger REPL Reference](../reference/Debugger/debugger_repl.md).
+Runs the Noir REPL debugger. For the complete reference, see [Debugger REPL Reference](../reference/debugger/debugger_repl.md).
 
 ## `nargo dap`
 
-Runs the Noir Debugger Adapter Protocol Server. For the complete reference, see [Debugger VS Code Reference](../reference/Debugger/debugger_vscode.md).
+Runs the Noir Debugger Adapter Protocol Server. For the complete reference, see [Debugger VS Code Reference](../reference/debugger/debugger_vscode.md).

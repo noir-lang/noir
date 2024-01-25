@@ -65,10 +65,8 @@ Available commands:
   vars                             show variable values available at this point
                                    in execution
   stacktrace                       display the current stack trace
-  memory                           show Brillig memory (valid when executing a
-                                   Brillig block)
-  registers                        show Brillig registers (valid when executing
-                                   a Brillig block)
+  memory                           show Brillig memory (valid when executing unconstrained code)
+  registers                        show Brillig registers (valid when executing unconstrained code)
   regset index:usize value:String  update a Brillig register with the given
                                    value
   step                             step to the next ACIR opcode
@@ -147,7 +145,7 @@ Running `out` here will resume execution until line 8.
 
 #### `step` (s)
 
-Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of a Brillig code block, to be executed by the BrilligVM. For example (redacted for brevity):
+Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of an unconstrained code block, to be executed by the BrilligVM. For example (redacted for brevity):
 
 ```
 0  BLACKBOX::RANGE [(_0, num_bits: 32)] [ ]
@@ -162,15 +160,15 @@ Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcod
 2    EXPR [ (1, _1) -2 ]
 ```
 
-The `->` here shows the debugger paused at an ACIR opcode: `BRILLIG`, at index 1, which denotes a Brillig block is about to start.
+The `->` here shows the debugger paused at an ACIR opcode: `BRILLIG`, at index 1, which denotes a unconstrained code block is about to start.
 
-Using the `step` command at this point would result in the debugger stopping at ACIR opcode 2, `EXPR`, skipping internal Brillig computation steps.
+Using the `step` command at this point would result in the debugger stopping at ACIR opcode 2, `EXPR`, skipping unconstrained computation steps.
 
-Use [the `into` command](#into-i) instead if you want to follow Brillig computation step by step.
+Use [the `into` command](#into-i) instead if you want to follow unconstrained computation step by step.
 
 #### `into` (i)
 
-Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of a Brillig code block, to be executed by the BrilligVM. For example (redacted for brevity):
+Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of an unconstrained code block, to be executed by the BrilligVM. For example (redacted for brevity):
 
 ```
 0  BLACKBOX::RANGE [(_0, num_bits: 32)] [ ]
@@ -185,9 +183,9 @@ Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcode
 2    EXPR [ (1, _1) -2 ]
 ``` 
 
-The `->` here shows the debugger paused at an ACIR opcode: `BRILLIG`, at index 1, which denotes a Brillig block is about to start.
+The `->` here shows the debugger paused at an ACIR opcode: `BRILLIG`, at index 1, which denotes an unconstrained code block is about to start.
 
-Using the `into` command at this point would result in the debugger stopping at opcode 1.0, `Mov ...`, allowing the debugger user to follow Brillig computation step by step.
+Using the `into` command at this point would result in the debugger stopping at opcode 1.0, `Mov ...`, allowing the debugger user to follow unconstrained computation step by step.
 
 Use [the `step` command](#step-s) instead if you want to skip to the next ACIR code directly.
 
@@ -319,7 +317,7 @@ Show Brillig registers. For example:
 2 = 0
 ```
 
-Note: this command is only functional while the debugger is executing a Brillig block. 
+Note: this command is only functional while the debugger is executing a unconstrained code.
 
 #### `regset [Register index] [New value]`
 
@@ -364,9 +362,9 @@ At opcode 1.14: Const { destination: RegisterIndex(5), value: Value { inner: 1 }
 >
 ```
 
-In the example above: we start with a clean Brillig memory, then step through a `Store` opcode which stores the value of register 3 (1) into the memory address stored in register 0 (0). Thus now `memory` shows memory address 0 contains value 1.
+In the example above: we start with clean Brillig memory, then step through a `Store` opcode which stores the value of register 3 (1) into the memory address stored in register 0 (0). Thus now `memory` shows memory address 0 contains value 1.
 
-Note: this command is only functional while the debugger is executing a Brillig block.
+Note: this command is only functional while the debugger is executing unconstrained code.
 
 #### `memset [Memory address] [New value]`
 
@@ -385,4 +383,4 @@ Update a Brillig memory cell with the given value. For example:
 >
 ```
 
-Note: this command is only functional while the debugger is executing a Brillig block.
+Note: this command is only functional while the debugger is executing unconstrained code.

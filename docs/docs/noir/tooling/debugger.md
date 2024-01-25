@@ -70,14 +70,12 @@ At ~/noir-examples/recursion/circuits/main/src/main.nr:2:12
 Available commands:
 
   break LOCATION:OpcodeLocation    add a breakpoint at an opcode location
-  memory                           show Brillig memory (valid when executing a
-                                   Brillig block)
+  memory                           show Brillig memory (valid when executing unconstrained code)
   into                             step into to the next opcode
   next                             step until a new source location is reached
   delete LOCATION:OpcodeLocation   delete breakpoint at an opcode location
   step                             step to the next ACIR opcode
-  registers                        show Brillig registers (valid when executing
-                                   a Brillig block)
+  registers                        show Brillig registers (valid when executing unconstrained code)
   regset index:usize value:String  update a Brillig register with the given
                                    value
   restart                          restart the debugging session
