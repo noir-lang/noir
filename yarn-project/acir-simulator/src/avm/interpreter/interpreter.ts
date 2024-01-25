@@ -4,7 +4,7 @@ import { strict as assert } from 'assert';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { AvmMessageCallResult } from '../avm_message_call_result.js';
-import { AvmStateManager } from '../avm_state_manager.js';
+import { AvmJournal } from '../journal/index.js';
 import { Instruction } from '../opcodes/index.js';
 
 /**
@@ -15,11 +15,11 @@ import { Instruction } from '../opcodes/index.js';
 export class AvmInterpreter {
   private instructions: Instruction[] = [];
   private machineState: AvmMachineState;
-  private stateManager: AvmStateManager;
+  private journal: AvmJournal;
 
-  constructor(machineState: AvmMachineState, stateManager: AvmStateManager, instructions: Instruction[]) {
+  constructor(machineState: AvmMachineState, stateManager: AvmJournal, instructions: Instruction[]) {
     this.machineState = machineState;
-    this.stateManager = stateManager;
+    this.journal = stateManager;
     this.instructions = instructions;
   }
 
@@ -37,7 +37,7 @@ export class AvmInterpreter {
         const instruction = this.instructions[this.machineState.pc];
         assert(!!instruction); // This should never happen
 
-        instruction.execute(this.machineState, this.stateManager);
+        instruction.execute(this.machineState, this.journal);
 
         if (this.machineState.pc >= this.instructions.length) {
           throw new InvalidProgramCounterError(this.machineState.pc, /*max=*/ this.instructions.length);

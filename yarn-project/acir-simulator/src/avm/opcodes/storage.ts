@@ -1,7 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 
 import { AvmMachineState } from '../avm_machine_state.js';
-import { AvmStateManager } from '../avm_state_manager.js';
+import { AvmJournal } from '../journal/journal.js';
 import { Instruction } from './instruction.js';
 
 /** - */
@@ -13,11 +13,11 @@ export class SStore extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, journal: AvmJournal): void {
     const slot = machineState.memory.get(this.slotOffset);
     const data = machineState.memory.get(this.dataOffset);
 
-    stateManager.store(
+    journal.writeStorage(
       machineState.executionEnvironment.storageAddress,
       new Fr(slot.toBigInt()),
       new Fr(data.toBigInt()),
@@ -36,10 +36,10 @@ export class SLoad extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, stateManager: AvmStateManager): Promise<void> {
+  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
     const slot = machineState.memory.get(this.slotOffset);
 
-    const data = stateManager.read(machineState.executionEnvironment.storageAddress, new Fr(slot.toBigInt()));
+    const data = journal.readStorage(machineState.executionEnvironment.storageAddress, new Fr(slot.toBigInt()));
 
     machineState.memory.set(this.destOffset, await data);
 

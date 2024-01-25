@@ -4,22 +4,22 @@ import { mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
-import { AvmStateManager } from '../avm_state_manager.js';
 import { initExecutionEnvironment } from '../fixtures/index.js';
+import { AvmJournal } from '../journal/journal.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Memory instructions', () => {
   let machineState: AvmMachineState;
-  let stateManager = mock<AvmStateManager>();
+  let journal = mock<AvmJournal>();
 
   beforeEach(() => {
     machineState = new AvmMachineState(initExecutionEnvironment());
-    stateManager = mock<AvmStateManager>();
+    journal = mock<AvmJournal>();
   });
 
   describe('SET', () => {
     it('should correctly set value and tag (uninitialized)', () => {
-      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT16).execute(machineState, stateManager);
+      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT16).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       const tag = machineState.memory.getTag(1);
@@ -31,7 +31,7 @@ describe('Memory instructions', () => {
     it('should correctly set value and tag (overwriting)', () => {
       machineState.memory.set(1, new Field(27));
 
-      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT32).execute(machineState, stateManager);
+      new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT32).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       const tag = machineState.memory.getTag(1);
@@ -55,7 +55,7 @@ describe('Memory instructions', () => {
         new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT64),
         new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT128),
         new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT128),
-      ].forEach(i => i.execute(machineState, stateManager));
+      ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([
@@ -82,7 +82,7 @@ describe('Memory instructions', () => {
         new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT16),
         new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT32),
         new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT64),
-      ].forEach(i => i.execute(machineState, stateManager));
+      ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([
@@ -109,7 +109,7 @@ describe('Memory instructions', () => {
         new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.FIELD),
         new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.FIELD),
         new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.FIELD),
-      ].forEach(i => i.execute(machineState, stateManager));
+      ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([
@@ -136,7 +136,7 @@ describe('Memory instructions', () => {
         new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT32),
         new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT64),
         new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT128),
-      ].forEach(i => i.execute(machineState, stateManager));
+      ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([
@@ -153,7 +153,7 @@ describe('Memory instructions', () => {
     it('Should cast between field elements', () => {
       machineState.memory.set(0, new Field(12345678n));
 
-      new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 1, TypeTag.FIELD).execute(machineState, stateManager);
+      new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 1, TypeTag.FIELD).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       expect(actual).toEqual(new Field(12345678n));
@@ -165,7 +165,7 @@ describe('Memory instructions', () => {
   describe('MOV', () => {
     it('Should move integrals on different memory cells', () => {
       machineState.memory.set(1, new Uint16(27));
-      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, stateManager);
+      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, journal);
 
       const actual = machineState.memory.get(2);
       const tag = machineState.memory.getTag(2);
@@ -176,7 +176,7 @@ describe('Memory instructions', () => {
 
     it('Should move field elements on different memory cells', () => {
       machineState.memory.set(1, new Field(27));
-      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, stateManager);
+      new Mov(/*offsetA=*/ 1, /*offsetA=*/ 2).execute(machineState, journal);
 
       const actual = machineState.memory.get(2);
       const tag = machineState.memory.getTag(2);
@@ -192,7 +192,7 @@ describe('Memory instructions', () => {
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Uint8(2)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -205,7 +205,7 @@ describe('Memory instructions', () => {
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Uint8(0)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -218,7 +218,7 @@ describe('Memory instructions', () => {
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Field(1)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -231,7 +231,7 @@ describe('Memory instructions', () => {
       machineState.memory.set(1, new Uint16(456)); // B
       machineState.memory.set(2, new Field(0)); // Condition
 
-      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, stateManager);
+      new CMov(/*aOffset=*/ 0, /*bOffset=*/ 1, /*condOffset=*/ 2, /*dstOffset=*/ 3).execute(machineState, journal);
 
       const actual = machineState.memory.get(3);
       const tag = machineState.memory.getTag(3);
@@ -246,7 +246,7 @@ describe('Memory instructions', () => {
       machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(machineState, stateManager);
+      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(machineState, journal);
 
       const actual = machineState.memory.get(0);
       expect(actual).toEqual(new Uint16(12));
@@ -257,7 +257,7 @@ describe('Memory instructions', () => {
       machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 3, /*dstOffset=*/ 0).execute(machineState, stateManager);
+      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 3, /*dstOffset=*/ 0).execute(machineState, journal);
 
       const actual = machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 3);
       expect(actual).toEqual([new Field(1), new Field(2), new Field(3)]);
@@ -268,7 +268,7 @@ describe('Memory instructions', () => {
       machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
       machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      new CalldataCopy(/*cdOffset=*/ 1, /*copySize=*/ 2, /*dstOffset=*/ 0).execute(machineState, stateManager);
+      new CalldataCopy(/*cdOffset=*/ 1, /*copySize=*/ 2, /*dstOffset=*/ 0).execute(machineState, journal);
 
       const actual = machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 2);
       expect(actual).toEqual([new Field(2), new Field(3)]);

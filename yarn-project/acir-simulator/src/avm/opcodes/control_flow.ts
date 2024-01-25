@@ -2,7 +2,7 @@ import { Fr } from '@aztec/foundation/fields';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { IntegralValue } from '../avm_memory_types.js';
-import { AvmStateManager } from '../avm_state_manager.js';
+import { AvmJournal } from '../journal/journal.js';
 import { Instruction, InstructionExecutionError } from './instruction.js';
 
 export class Return extends Instruction {
@@ -13,7 +13,7 @@ export class Return extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     const returnData = machineState.memory
       .getSlice(this.returnOffset, this.copySize)
       .map(fvt => new Fr(fvt.toBigInt()));
@@ -32,7 +32,7 @@ export class Jump extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     machineState.pc = this.jumpOffset;
   }
 }
@@ -45,7 +45,7 @@ export class JumpI extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     const condition = machineState.memory.getAs<IntegralValue>(this.condOffset);
 
     // TODO: reconsider this casting
@@ -65,7 +65,7 @@ export class InternalCall extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     machineState.internalCallStack.push(machineState.pc + 1);
     machineState.pc = this.jumpOffset;
   }
@@ -79,7 +79,7 @@ export class InternalReturn extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     const jumpOffset = machineState.internalCallStack.pop();
     if (jumpOffset === undefined) {
       throw new InstructionExecutionError('Internal call empty!');

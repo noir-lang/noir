@@ -3,8 +3,8 @@ import { Fr } from '@aztec/foundation/fields';
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
-import { AvmStateManager } from '../avm_state_manager.js';
 import { initExecutionEnvironment } from '../fixtures/index.js';
+import { AvmJournal } from '../journal/journal.js';
 import { Add } from '../opcodes/arithmetic.js';
 import { Jump, Return } from '../opcodes/control_flow.js';
 import { Instruction } from '../opcodes/instruction.js';
@@ -12,10 +12,10 @@ import { CalldataCopy } from '../opcodes/memory.js';
 import { AvmInterpreter, InvalidProgramCounterError } from './interpreter.js';
 
 describe('interpreter', () => {
-  let stateManager: MockProxy<AvmStateManager>;
+  let journal: MockProxy<AvmJournal>;
 
   beforeEach(() => {
-    stateManager = mock<AvmStateManager>();
+    journal = mock<AvmJournal>();
   });
 
   it('Should execute a series of instructions', () => {
@@ -28,7 +28,7 @@ describe('interpreter', () => {
     ];
 
     const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
-    const interpreter = new AvmInterpreter(context, stateManager, instructions);
+    const interpreter = new AvmInterpreter(context, journal, instructions);
     const avmReturnData = interpreter.run();
 
     expect(avmReturnData.reverted).toBe(false);
@@ -44,7 +44,7 @@ describe('interpreter', () => {
     const instructions: Instruction[] = [new Jump(invalidJumpDestination)];
 
     const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
-    const interpreter = new AvmInterpreter(context, stateManager, instructions);
+    const interpreter = new AvmInterpreter(context, journal, instructions);
 
     const avmReturnData = interpreter.run();
 

@@ -1,6 +1,6 @@
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field } from '../avm_memory_types.js';
-import { AvmStateManager } from '../avm_state_manager.js';
+import { AvmJournal } from '../journal/index.js';
 import { Instruction } from './instruction.js';
 
 export class Eq extends Instruction {
@@ -11,7 +11,7 @@ export class Eq extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     const a = machineState.memory.get(this.aOffset);
     const b = machineState.memory.get(this.bOffset);
 
@@ -30,7 +30,7 @@ export class Lt extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     const a = machineState.memory.get(this.aOffset);
     const b = machineState.memory.get(this.bOffset);
 
@@ -49,7 +49,7 @@ export class Lte extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     const a = machineState.memory.get(this.aOffset);
     const b = machineState.memory.get(this.bOffset);
 

@@ -1,6 +1,6 @@
 import { AvmMachineState } from '../avm_machine_state.js';
 import { IntegralValue, TypeTag } from '../avm_memory_types.js';
-import { AvmStateManager } from '../avm_state_manager.js';
+import { AvmJournal } from '../journal/index.js';
 import { Instruction } from './instruction.js';
 
 export class And extends Instruction {
@@ -11,7 +11,7 @@ export class And extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -32,7 +32,7 @@ export class Or extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -53,7 +53,7 @@ export class Xor extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -74,7 +74,7 @@ export class Not extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     Instruction.checkTags(machineState, this.inTag, this.aOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -94,7 +94,7 @@ export class Shl extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
@@ -115,7 +115,7 @@ export class Shr extends Instruction {
     super();
   }
 
-  execute(machineState: AvmMachineState, _stateManager: AvmStateManager): void {
+  execute(machineState: AvmMachineState, _journal: AvmJournal): void {
     Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
 
     const a = machineState.memory.getAs<IntegralValue>(this.aOffset);

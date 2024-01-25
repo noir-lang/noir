@@ -3,9 +3,9 @@ import { Fr } from '@aztec/foundation/fields';
 import { mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from './avm_machine_state.js';
-import { AvmStateManager } from './avm_state_manager.js';
 import { initExecutionEnvironment } from './fixtures/index.js';
 import { AvmInterpreter } from './interpreter/interpreter.js';
+import { AvmJournal } from './journal/journal.js';
 import { decodeBytecode } from './opcodes/decode_bytecode.js';
 import { encodeToBytecode } from './opcodes/encode_to_bytecode.js';
 import { Opcode } from './opcodes/opcodes.js';
@@ -13,7 +13,7 @@ import { Opcode } from './opcodes/opcodes.js';
 describe('avm', () => {
   it('Should execute bytecode', () => {
     const calldata: Fr[] = [new Fr(1), new Fr(2)];
-    const stateManager = mock<AvmStateManager>();
+    const journal = mock<AvmJournal>();
 
     // Construct bytecode
     const calldataCopyArgs = [0, 2, 0];
@@ -30,7 +30,7 @@ describe('avm', () => {
 
     // Execute instructions
     const context = new AvmMachineState(initExecutionEnvironment({ calldata }));
-    const interpreter = new AvmInterpreter(context, stateManager, instructions);
+    const interpreter = new AvmInterpreter(context, journal, instructions);
     const avmReturnData = interpreter.run();
 
     expect(avmReturnData.reverted).toBe(false);

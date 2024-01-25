@@ -2,8 +2,8 @@ import { MockProxy, mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
 import { TypeTag, Uint16 } from '../avm_memory_types.js';
-import { AvmStateManager } from '../avm_state_manager.js';
 import { initExecutionEnvironment } from '../fixtures/index.js';
+import { AvmJournal } from '../journal/journal.js';
 import { Add, Mul, Sub } from './arithmetic.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';
 import { Eq, Lt, Lte } from './comparators.js';
@@ -12,11 +12,11 @@ import { InstructionExecutionError } from './instruction.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Control Flow Opcodes', () => {
-  let stateManager: MockProxy<AvmStateManager>;
+  let journal: MockProxy<AvmJournal>;
   let machineState: AvmMachineState;
 
   beforeEach(() => {
-    stateManager = mock<AvmStateManager>();
+    journal = mock<AvmJournal>();
     machineState = new AvmMachineState(initExecutionEnvironment());
   });
 
@@ -26,7 +26,7 @@ describe('Control Flow Opcodes', () => {
     expect(machineState.pc).toBe(0);
 
     const instruction = new Jump(jumpLocation);
-    instruction.execute(machineState, stateManager);
+    instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation);
   });
 
@@ -40,12 +40,12 @@ describe('Control Flow Opcodes', () => {
     machineState.memory.set(1, new Uint16(2n));
 
     const instruction = new JumpI(jumpLocation, 0);
-    instruction.execute(machineState, stateManager);
+    instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation);
 
     // Truthy can be greater than 1
     const instruction1 = new JumpI(jumpLocation1, 1);
-    instruction1.execute(machineState, stateManager);
+    instruction1.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation1);
   });
 
@@ -57,7 +57,7 @@ describe('Control Flow Opcodes', () => {
     machineState.memory.set(0, new Uint16(0n));
 
     const instruction = new JumpI(jumpLocation, 0);
-    instruction.execute(machineState, stateManager);
+    instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(1);
   });
 
@@ -69,10 +69,10 @@ describe('Control Flow Opcodes', () => {
     const instruction = new InternalCall(jumpLocation);
     const returnInstruction = new InternalReturn();
 
-    instruction.execute(machineState, stateManager);
+    instruction.execute(machineState, journal);
     expect(machineState.pc).toBe(jumpLocation);
 
-    returnInstruction.execute(machineState, stateManager);
+    returnInstruction.execute(machineState, journal);
     expect(machineState.pc).toBe(1);
   });
 
@@ -106,14 +106,14 @@ describe('Control Flow Opcodes', () => {
     ];
 
     for (let i = 0; i < instructions.length; i++) {
-      instructions[i].execute(machineState, stateManager);
+      instructions[i].execute(machineState, journal);
       expect(machineState.pc).toBe(expectedPcs[i]);
     }
   });
 
   it('Should error if Internal Return is called without a corresponding Internal Call', () => {
     const returnInstruction = new InternalReturn();
-    expect(() => returnInstruction.execute(machineState, stateManager)).toThrow(InstructionExecutionError);
+    expect(() => returnInstruction.execute(machineState, journal)).toThrow(InstructionExecutionError);
   });
 
   it('Should increment PC on All other Instructions', () => {
@@ -144,7 +144,7 @@ describe('Control Flow Opcodes', () => {
       innerMachineState.memory.set(1, new Uint16(8n));
       innerMachineState.memory.set(2, new Uint16(12n));
       expect(machineState.pc).toBe(0);
-      instruction.execute(innerMachineState, stateManager);
+      instruction.execute(innerMachineState, journal);
       expect(innerMachineState.pc).toBe(1);
     }
   });

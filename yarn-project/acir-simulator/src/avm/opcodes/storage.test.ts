@@ -4,17 +4,17 @@ import { Fr } from '@aztec/foundation/fields';
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { AvmMachineState } from '../avm_machine_state.js';
-import { AvmStateManager } from '../avm_state_manager.js';
 import { initExecutionEnvironment } from '../fixtures/index.js';
+import { AvmJournal } from '../journal/journal.js';
 import { SLoad, SStore } from './storage.js';
 
 describe('Storage Instructions', () => {
-  let stateManager: MockProxy<AvmStateManager>;
+  let journal: MockProxy<AvmJournal>;
   let machineState: AvmMachineState;
   const address = AztecAddress.random();
 
   beforeEach(() => {
-    stateManager = mock<AvmStateManager>();
+    journal = mock<AvmJournal>();
 
     const executionEnvironment = initExecutionEnvironment({ address, storageAddress: address });
     machineState = new AvmMachineState(executionEnvironment);
@@ -27,15 +27,15 @@ describe('Storage Instructions', () => {
     machineState.memory.set(0, a);
     machineState.memory.set(1, b);
 
-    new SStore(0, 1).execute(machineState, stateManager);
+    new SStore(0, 1).execute(machineState, journal);
 
-    expect(stateManager.store).toBeCalledWith(address, a, b);
+    expect(journal.writeStorage).toBeCalledWith(address, a, b);
   });
 
   it('Sload should Read into storage', async () => {
     // Mock response
     const expectedResult = new Fr(1n);
-    stateManager.read.mockReturnValueOnce(Promise.resolve(expectedResult));
+    journal.readStorage.mockReturnValueOnce(Promise.resolve(expectedResult));
 
     const a = new Fr(1n);
     const b = new Fr(2n);
@@ -43,9 +43,9 @@ describe('Storage Instructions', () => {
     machineState.memory.set(0, a);
     machineState.memory.set(1, b);
 
-    await new SLoad(0, 1).execute(machineState, stateManager);
+    await new SLoad(0, 1).execute(machineState, journal);
 
-    expect(stateManager.read).toBeCalledWith(address, a);
+    expect(journal.readStorage).toBeCalledWith(address, a);
 
     const actual = machineState.memory.get(1);
     expect(actual).toEqual(expectedResult);
