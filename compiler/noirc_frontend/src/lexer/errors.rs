@@ -64,7 +64,7 @@ impl LexerErrorKind {
 
                 (
                     "An unexpected character was found".to_string(),
-                    format!("Lexer: expected {expected}, but found {found}"),
+                    format!("Expected {expected}, but found {found}"),
                     *span,
                 )
             },
