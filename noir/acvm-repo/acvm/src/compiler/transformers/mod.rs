@@ -122,6 +122,10 @@ pub(super) fn transform_internal(
                     | acir::circuit::opcodes::BlackBoxFuncCall::Blake3 { outputs, .. }
                     | acir::circuit::opcodes::BlackBoxFuncCall::BigIntToLeBytes {
                         outputs, ..
+                    }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation {
+                        outputs,
+                        ..
                     } => {
                         for witness in outputs {
                             transformer.mark_solvable(*witness);

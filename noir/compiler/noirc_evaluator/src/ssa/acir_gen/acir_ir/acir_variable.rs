@@ -1173,6 +1173,31 @@ impl AcirContext {
 
                 (vec![domain_constant], Vec::new())
             }
+            BlackBoxFunc::Poseidon2Permutation => {
+                // The last argument is the state length, which must be a constant
+                let state_len = match inputs.pop() {
+                    Some(state_len) => state_len.into_var()?,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "poseidon_2_permutation call".to_string(),
+                            arg: "length".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                let state_len = match self.vars[&state_len].as_constant() {
+                    Some(state_len) => state_len,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "length".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                (vec![state_len], Vec::new())
+            }
             BlackBoxFunc::BigIntAdd
             | BlackBoxFunc::BigIntNeg
             | BlackBoxFunc::BigIntMul
@@ -1261,7 +1286,6 @@ impl AcirContext {
 
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
-
         // Call Black box with `FunctionInput`
         let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
         let outputs = self.acir_ir.call_black_box(
