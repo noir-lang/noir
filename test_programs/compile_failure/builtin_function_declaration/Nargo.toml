@@ -1,5 +1,5 @@
 [package]
-name = "low_level_function_declaration"
+name = "builtin_function_declaration"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.23.0"

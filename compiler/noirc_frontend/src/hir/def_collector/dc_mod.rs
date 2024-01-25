@@ -219,9 +219,9 @@ impl<'a> ModCollector<'a> {
                 }
             }
 
-            let is_foreign_function =
-                function.attributes().function.as_ref().map_or(false, |func| func.is_foreign());
-            if !in_stdlib && is_foreign_function {
+            let is_low_level_function =
+                function.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+            if !in_stdlib && is_low_level_function {
                 let error = DefCollectorErrorKind::LowLevelFunctionOutsideOfStdlib {
                     span: function.span(),
                 };
