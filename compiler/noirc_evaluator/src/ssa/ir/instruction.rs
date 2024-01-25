@@ -87,6 +87,9 @@ impl Intrinsic {
         match self {
             Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint => true,
 
+            // These apply a constraint that the input must fit into a specified number of limbs.
+            Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
+
             Intrinsic::Sort
             | Intrinsic::ArrayLen
             | Intrinsic::SlicePushBack
@@ -96,8 +99,6 @@ impl Intrinsic {
             | Intrinsic::SliceInsert
             | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
-            | Intrinsic::ToBits(_)
-            | Intrinsic::ToRadix(_)
             | Intrinsic::FromField
             | Intrinsic::AsField => false,
 
