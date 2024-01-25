@@ -249,3 +249,15 @@ CI will automatically run integration tests against Aztec. The tests in `circuit
 CI will automatically run integration tests against Aztec's circuits which live [here](https://github.com/AztecProtocol/aztec-packages/tree/master/circuits). To change which Aztec branch or commit for CI to test against, modify [`.aztec-packages-commit`](./cpp/.aztec-packages-commit).
 
 When working on a PR, you may want to point this file to a different Aztec branch or commit, but then it should probably be pointed back to master before merging.
+
+### Testing locally in docker
+
+A common issue that arises is that our CI system has a different compiler version e.g. namely for GCC. If you need to mimic the CI operating system locally you can use bootstrap_docker.sh or run dockerfiles directly. However, there is a more efficient workflow for iterative development:
+
+```
+cd barretenberg/cpp
+./scripts/docker_interactive.sh
+mv build build-native # your native build folders are mounted, but will not work! have to clear them
+cmake --preset gcc ;  cmake --build build
+```
+This will allow you to rebuild as efficiently as if you were running native code, and not have to see a full compile cycle.
