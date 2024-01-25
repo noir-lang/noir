@@ -687,9 +687,8 @@ impl<'f> Context<'f> {
                 {
                     Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
                         let field = arguments[0];
-                        arguments.remove(0);
-
                         let argument_type = self.inserter.function.dfg.type_of_value(field);
+
                         let casted_condition = self.insert_instruction(
                             Instruction::Cast(condition, argument_type),
                             call_stack.clone(),
@@ -699,7 +698,7 @@ impl<'f> Context<'f> {
                             call_stack.clone(),
                         );
 
-                        arguments.insert(0, field);
+                        arguments[0] = field;
 
                         Instruction::Call { func, arguments }
                     }
