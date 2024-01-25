@@ -51,6 +51,7 @@
     "viem": "^1.2.5"
   },
   "devDependencies": {
+    "@aztec/noir-contracts": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "@types/lodash.omit": "^4.5.7",

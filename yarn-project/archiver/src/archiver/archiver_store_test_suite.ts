@@ -12,6 +12,12 @@ import {
 import '@aztec/circuit-types/jest';
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
+import {
+  ContractClassWithId,
+  ContractInstanceWithAddress,
+  SerializableContractClass,
+  SerializableContractInstance,
+} from '@aztec/types/contracts';
 
 import { ArchiverDataStore } from './archiver_store.js';
 
@@ -317,6 +323,42 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         await store.cancelPendingL1ToL2Messages([message.entryKey!], 2n);
 
         await expect(store.getPendingL1ToL2MessageKeys(2)).resolves.toEqual([message.entryKey!]);
+      });
+    });
+
+    describe('contractInstances', () => {
+      let contractInstance: ContractInstanceWithAddress;
+      const blockNum = 10;
+
+      beforeEach(async () => {
+        contractInstance = { ...SerializableContractInstance.random(), address: AztecAddress.random() };
+        await store.addContractInstances([contractInstance], blockNum);
+      });
+
+      it('returns previously stored contract instances', async () => {
+        await expect(store.getContractInstance(contractInstance.address)).resolves.toMatchObject(contractInstance);
+      });
+
+      it('returns undefined if contract instance is not found', async () => {
+        await expect(store.getContractInstance(AztecAddress.random())).resolves.toBeUndefined();
+      });
+    });
+
+    describe('contractClasses', () => {
+      let contractClass: ContractClassWithId;
+      const blockNum = 10;
+
+      beforeEach(async () => {
+        contractClass = { ...SerializableContractClass.random(), id: Fr.random() };
+        await store.addContractClasses([contractClass], blockNum);
+      });
+
+      it('returns previously stored contract class', async () => {
+        await expect(store.getContractClass(contractClass.id)).resolves.toMatchObject(contractClass);
+      });
+
+      it('returns undefined if contract class is not found', async () => {
+        await expect(store.getContractClass(Fr.random())).resolves.toBeUndefined();
       });
     });
 

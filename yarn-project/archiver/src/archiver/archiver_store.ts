@@ -12,6 +12,7 @@ import {
 } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 /**
  * Represents the latest L1 block processed by the archiver for various objects in L2.
@@ -167,4 +168,32 @@ export interface ArchiverDataStore {
    * Gets the last L1 block number processed by the archiver
    */
   getL1BlockNumber(): Promise<ArchiverL1SynchPoint>;
+
+  /**
+   * Add new contract classes from an L2 block to the store's list.
+   * @param data - List of contract classes to be added.
+   * @param blockNumber - Number of the L2 block the contracts were registered in.
+   * @returns True if the operation is successful.
+   */
+  addContractClasses(data: ContractClassWithId[], blockNumber: number): Promise<boolean>;
+
+  /**
+   * Returns a contract class given its id, or undefined if not exists.
+   * @param id - Id of the contract class.
+   */
+  getContractClass(id: Fr): Promise<ContractClassWithId | undefined>;
+
+  /**
+   * Add new contract instances from an L2 block to the store's list.
+   * @param data - List of contract instances to be added.
+   * @param blockNumber - Number of the L2 block the instances were deployed in.
+   * @returns True if the operation is successful.
+   */
+  addContractInstances(data: ContractInstanceWithAddress[], blockNumber: number): Promise<boolean>;
+
+  /**
+   * Returns a contract instance given its address, or undefined if not exists.
+   * @param address - Address of the contract.
+   */
+  getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
 }

@@ -5,10 +5,16 @@ import { pedersenHash } from '@aztec/foundation/crypto';
  */
 export class MerkleTreeCalculator {
   private zeroHashes: Buffer[];
+  private hasher: (left: Buffer, right: Buffer) => Buffer;
 
-  constructor(private height: number, zeroLeaf = Buffer.alloc(32)) {
+  constructor(
+    private height: number,
+    zeroLeaf = Buffer.alloc(32),
+    hasher = (left: Buffer, right: Buffer) => pedersenHash([left, right]),
+  ) {
+    this.hasher = hasher;
     this.zeroHashes = Array.from({ length: height }).reduce(
-      (acc: Buffer[], _, i) => [...acc, pedersenHash([acc[i], acc[i]])],
+      (acc: Buffer[], _, i) => [...acc, this.hasher(acc[i], acc[i])],
       [zeroLeaf],
     );
   }
@@ -26,7 +32,7 @@ export class MerkleTreeCalculator {
       for (let j = 0; j < leaves.length / 2; ++j) {
         const l = leaves[j * 2];
         const r = leaves[j * 2 + 1] || this.zeroHashes[i];
-        newLeaves[j] = pedersenHash([l, r]);
+        newLeaves[j] = this.hasher(l, r);
       }
       result = result.concat(new Array(numLeaves - leaves.length).fill(this.zeroHashes[i]), newLeaves);
       leaves = newLeaves;
@@ -47,7 +53,7 @@ export class MerkleTreeCalculator {
       for (; j < leaves.length / 2; ++j) {
         const l = leaves[j * 2];
         const r = leaves[j * 2 + 1] || this.zeroHashes[i];
-        leaves[j] = pedersenHash([l, r]);
+        leaves[j] = this.hasher(l, r);
       }
       leaves = leaves.slice(0, j);
     }

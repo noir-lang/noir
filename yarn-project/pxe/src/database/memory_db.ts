@@ -1,8 +1,10 @@
 import { MerkleTreeId, NoteFilter } from '@aztec/circuit-types';
 import { BlockHeader, CompleteAddress, PublicKey } from '@aztec/circuits.js';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { DeferredNoteDao } from './deferred_note_dao.js';
@@ -28,8 +30,31 @@ export class MemoryDB extends MemoryContractDatabase implements PxeDatabase {
   // We are using a stack to keep track of the capsules that are passed to the contract.
   private capsuleStack: Fr[][] = [];
 
+  private contractArtifacts = new Map<string, ContractArtifact>();
+  private contractInstances = new Map<string, ContractInstanceWithAddress>();
+
   constructor(logSuffix?: string) {
     super(createDebugLogger(logSuffix ? 'aztec:memory_db_' + logSuffix : 'aztec:memory_db'));
+  }
+
+  public addContractArtifact(id: Fr, contract: ContractArtifact): Promise<void> {
+    this.contractArtifacts.set(id.toString(), contract);
+    return Promise.resolve();
+  }
+
+  public getContractArtifact(id: Fr): Promise<ContractArtifact | undefined> {
+    const contract = this.contractArtifacts.get(id.toString());
+    return Promise.resolve(contract);
+  }
+
+  public addContractInstance(contract: ContractInstanceWithAddress): Promise<void> {
+    this.contractInstances.set(contract.address.toString(), contract);
+    return Promise.resolve();
+  }
+
+  public getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
+    const contract = this.contractInstances.get(address.toString());
+    return Promise.resolve(contract);
   }
 
   /**

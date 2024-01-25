@@ -15,7 +15,7 @@ import {
   LogType,
   TxHash,
 } from '@aztec/circuit-types';
-import { FunctionSelector, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { FunctionSelector, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, getContractClassId } from '@aztec/circuits.js';
 import { createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
@@ -23,6 +23,12 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
+import {
+  ContractClass,
+  ContractClassWithId,
+  ContractInstance,
+  ContractInstanceWithAddress,
+} from '@aztec/types/contracts';
 
 import omit from 'lodash.omit';
 import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
@@ -268,6 +274,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
         this.log(`Retrieved extended contract data for l2 block number: ${l2BlockNum}`);
         if (l2BlockNum <= lastKnownL2BlockNum) {
           await this.store.addExtendedContractData(contracts, l2BlockNum);
+          await this.storeContractDataAsClassesAndInstances(contracts, l2BlockNum);
         }
       }),
     );
@@ -291,6 +298,24 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
           block.getL1BlockNumber(),
         );
       }),
+    );
+  }
+
+  /**
+   * Stores extended contract data as classes and instances.
+   * Temporary solution until we source this data from the contract class registerer and instance deployer.
+   * @param contracts - The extended contract data to be stored.
+   * @param l2BlockNum - The L2 block number to which the contract data corresponds.
+   */
+  async storeContractDataAsClassesAndInstances(contracts: ExtendedContractData[], l2BlockNum: number) {
+    const classesAndInstances = contracts.map(extendedContractDataToContractClassAndInstance);
+    await this.store.addContractClasses(
+      classesAndInstances.map(([c, _]) => c),
+      l2BlockNum,
+    );
+    await this.store.addContractInstances(
+      classesAndInstances.map(([_, i]) => i),
+      l2BlockNum,
     );
   }
 
@@ -439,4 +464,35 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message> {
     return this.store.getConfirmedL1ToL2Message(messageKey);
   }
+}
+
+/** Converts ExtendedContractData into contract classes and instances. */
+function extendedContractDataToContractClassAndInstance(
+  data: ExtendedContractData,
+): [ContractClassWithId, ContractInstanceWithAddress] {
+  const contractClass: ContractClass = {
+    version: 1,
+    artifactHash: Fr.ZERO,
+    publicFunctions: data.publicFunctions.map(f => ({
+      selector: f.selector,
+      bytecode: f.bytecode,
+      isInternal: f.isInternal,
+    })),
+    privateFunctions: [],
+    packedBytecode: data.bytecode,
+  };
+  const contractClassId = getContractClassId(contractClass);
+  const contractInstance: ContractInstance = {
+    version: 1,
+    salt: Fr.ZERO,
+    contractClassId,
+    initializationHash: Fr.ZERO,
+    portalContractAddress: data.contractData.portalContractAddress,
+    publicKeysHash: data.partialAddress,
+  };
+  const address = data.contractData.contractAddress;
+  return [
+    { ...contractClass, id: contractClassId },
+    { ...contractInstance, address },
+  ];
 }

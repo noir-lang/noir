@@ -1,7 +1,10 @@
 import { ContractDao, MerkleTreeId, NoteFilter, PublicKey } from '@aztec/circuit-types';
 import { AztecAddress, BlockHeader, CompleteAddress } from '@aztec/circuits.js';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecArray, AztecKVStore, AztecMap, AztecMultiMap, AztecSingleton } from '@aztec/kv-store';
+import { contractArtifactFromBuffer, contractArtifactToBuffer } from '@aztec/types/abi';
+import { ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
 import { DeferredNoteDao } from './deferred_note_dao.js';
 import { NoteDao } from './note_dao.js';
@@ -36,6 +39,8 @@ export class KVPxeDatabase implements PxeDatabase {
   #deferredNotes: AztecArray<Buffer>;
   #deferredNotesByContract: AztecMultiMap<string, number>;
   #syncedBlockPerPublicKey: AztecMap<string, number>;
+  #contractArtifacts: AztecMap<string, Buffer>;
+  #contractInstances: AztecMap<string, Buffer>;
   #db: AztecKVStore;
 
   constructor(db: AztecKVStore) {
@@ -47,6 +52,8 @@ export class KVPxeDatabase implements PxeDatabase {
     this.#authWitnesses = db.createMap('auth_witnesses');
     this.#capsules = db.createArray('capsules');
     this.#contracts = db.createMap('contracts');
+    this.#contractArtifacts = db.createMap('contract_artifacts');
+    this.#contractInstances = db.createMap('contracts_instances');
 
     this.#synchronizedBlock = db.createSingleton('block_header');
     this.#syncedBlockPerPublicKey = db.createMap('synced_block_per_public_key');
@@ -61,6 +68,28 @@ export class KVPxeDatabase implements PxeDatabase {
 
     this.#deferredNotes = db.createArray('deferred_notes');
     this.#deferredNotesByContract = db.createMultiMap('deferred_notes_by_contract');
+  }
+
+  public async addContractArtifact(id: Fr, contract: ContractArtifact): Promise<void> {
+    await this.#contractArtifacts.set(id.toString(), contractArtifactToBuffer(contract));
+  }
+
+  getContractArtifact(id: Fr): Promise<ContractArtifact | undefined> {
+    const contract = this.#contractArtifacts.get(id.toString());
+    // TODO(@spalladino): AztecMap lies and returns Uint8Arrays instead of Buffers, hence the extra Buffer.from.
+    return Promise.resolve(contract && contractArtifactFromBuffer(Buffer.from(contract)));
+  }
+
+  async addContractInstance(contract: ContractInstanceWithAddress): Promise<void> {
+    await this.#contractInstances.set(
+      contract.address.toString(),
+      new SerializableContractInstance(contract).toBuffer(),
+    );
+  }
+
+  getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
+    const contract = this.#contractInstances.get(address.toString());
+    return Promise.resolve(contract && SerializableContractInstance.fromBuffer(contract).withAddress(address));
   }
 
   async addAuthWitness(messageHash: Fr, witness: Fr[]): Promise<void> {

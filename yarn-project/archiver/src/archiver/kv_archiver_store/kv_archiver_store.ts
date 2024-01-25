@@ -14,9 +14,12 @@ import { Fr } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore } from '@aztec/kv-store';
+import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { ArchiverDataStore, ArchiverL1SynchPoint } from '../archiver_store.js';
 import { BlockStore } from './block_store.js';
+import { ContractClassStore } from './contract_class_store.js';
+import { ContractInstanceStore } from './contract_instance_store.js';
 import { ContractStore } from './contract_store.js';
 import { LogStore } from './log_store.js';
 import { MessageStore } from './message_store.js';
@@ -29,6 +32,8 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   #logStore: LogStore;
   #contractStore: ContractStore;
   #messageStore: MessageStore;
+  #contractClassStore: ContractClassStore;
+  #contractInstanceStore: ContractInstanceStore;
 
   #log = createDebugLogger('aztec:archiver:lmdb');
 
@@ -37,6 +42,24 @@ export class KVArchiverDataStore implements ArchiverDataStore {
     this.#logStore = new LogStore(db, this.#blockStore, logsMaxPageSize);
     this.#contractStore = new ContractStore(db, this.#blockStore);
     this.#messageStore = new MessageStore(db);
+    this.#contractClassStore = new ContractClassStore(db);
+    this.#contractInstanceStore = new ContractInstanceStore(db);
+  }
+
+  getContractClass(id: Fr): Promise<ContractClassWithId | undefined> {
+    return Promise.resolve(this.#contractClassStore.getContractClass(id));
+  }
+
+  getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
+    return Promise.resolve(this.#contractInstanceStore.getContractInstance(address));
+  }
+
+  async addContractClasses(data: ContractClassWithId[], _blockNumber: number): Promise<boolean> {
+    return (await Promise.all(data.map(c => this.#contractClassStore.addContractClass(c)))).every(Boolean);
+  }
+
+  async addContractInstances(data: ContractInstanceWithAddress[], _blockNumber: number): Promise<boolean> {
+    return (await Promise.all(data.map(c => this.#contractInstanceStore.addContractInstance(c)))).every(Boolean);
   }
 
   /**

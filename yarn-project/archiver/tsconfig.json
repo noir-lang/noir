@@ -23,6 +23,9 @@
     },
     {
       "path": "../l1-artifacts"
+    },
+    {
+      "path": "../types"
     }
   ],
   "include": ["src"]

@@ -1,6 +1,8 @@
 import { fromHex, toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { BufferReader } from '@aztec/foundation/serialize';
 
+import { randomBytes } from 'crypto';
+
 import { keccak } from '../crypto/keccak/index.js';
 import { Fr } from '../fields/index.js';
 import { type ABIParameter } from './abi.js';
@@ -15,7 +17,7 @@ abstract class Selector {
 
   constructor(/** Value of the selector */ public value: number) {
     if (value > 2 ** (Selector.SIZE * 8) - 1) {
-      throw new Error(`selector must fit in ${Selector.SIZE} bytes.`);
+      throw new Error(`Selector must fit in ${Selector.SIZE} bytes (got value ${value}).`);
     }
   }
 
@@ -153,6 +155,13 @@ export class FunctionSelector extends Selector {
     // If using the debug logger here it kill the typing in the `server_world_state_synchronizer` and jest tests.
     // console.log(`selector for ${signature} is ${selector}`);
     return selector;
+  }
+
+  /**
+   * Creates a random instance.
+   */
+  static random() {
+    return FunctionSelector.fromBuffer(randomBytes(Selector.SIZE));
   }
 }
 

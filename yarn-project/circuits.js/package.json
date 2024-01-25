@@ -41,6 +41,7 @@
   "dependencies": {
     "@aztec/bb.js": "portal:../../barretenberg/ts",
     "@aztec/foundation": "workspace:^",
+    "@aztec/types": "workspace:^",
     "eslint": "^8.35.0",
     "lodash.chunk": "^4.2.0",
     "tslib": "^2.4.0"

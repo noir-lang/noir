@@ -232,7 +232,7 @@ export class EthAddress {
    */
   static fromBuffer(buffer: Buffer | BufferReader): EthAddress {
     const reader = BufferReader.asReader(buffer);
-    return new EthAddress(reader.readBuffer());
+    return new EthAddress(reader.readBytes(32));
   }
 
   /**

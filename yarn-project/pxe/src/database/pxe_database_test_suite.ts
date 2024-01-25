@@ -1,6 +1,8 @@
 import { INITIAL_L2_BLOCK_NUM, MerkleTreeId, NoteFilter, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, BlockHeader, CompleteAddress } from '@aztec/circuits.js';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { BenchmarkingContractArtifact } from '@aztec/noir-contracts/Benchmarking';
+import { SerializableContractInstance } from '@aztec/types/contracts';
 
 import { NoteDao } from './note_dao.js';
 import { randomNoteDao } from './note_dao.test.js';
@@ -214,6 +216,22 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
 
       it("returns undefined if it doesn't have an address", async () => {
         expect(await database.getCompleteAddress(CompleteAddress.random().address)).toBeUndefined();
+      });
+    });
+
+    describe('contracts', () => {
+      it('stores a contract artifact', async () => {
+        const artifact = BenchmarkingContractArtifact;
+        const id = Fr.random();
+        await database.addContractArtifact(id, artifact);
+        await expect(database.getContractArtifact(id)).resolves.toEqual(artifact);
+      });
+
+      it('stores a contract instance', async () => {
+        const address = AztecAddress.random();
+        const instance = SerializableContractInstance.random().withAddress(address);
+        await database.addContractInstance(instance);
+        await expect(database.getContractInstance(address)).resolves.toEqual(instance);
       });
     });
   });

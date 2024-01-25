@@ -3,7 +3,6 @@ import { AztecAddress } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore, AztecMap, Range } from '@aztec/kv-store';
 
-/* eslint-disable */
 type BlockIndexValue = [blockNumber: number, index: number];
 
 type BlockContext = {
@@ -12,7 +11,6 @@ type BlockContext = {
   block: Buffer;
   blockHash: Buffer;
 };
-/* eslint-enable */
 
 /**
  * LMDB implementation of the ArchiverDataStore interface.

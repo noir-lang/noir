@@ -125,7 +125,7 @@ export class ExtendedContractData {
     /** The base contract data: aztec & portal addresses. */
     public contractData: ContractData,
     /** Artifacts of public functions. */
-    private publicFunctions: EncodedContractFunction[],
+    public readonly publicFunctions: EncodedContractFunction[],
     /** Partial addresses of the contract. */
     public readonly partialAddress: PartialAddress,
     /** Public key of the contract. */
