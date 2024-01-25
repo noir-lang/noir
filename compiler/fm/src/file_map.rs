@@ -53,6 +53,12 @@ impl FileId {
     }
 }
 
+impl Into<usize> for FileId {
+    fn into(self) -> usize {
+        self.0
+    }
+}
+
 pub struct File<'input>(&'input SimpleFile<PathString, String>);
 
 impl<'input> File<'input> {

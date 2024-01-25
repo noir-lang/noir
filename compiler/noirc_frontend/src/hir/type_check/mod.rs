@@ -242,7 +242,7 @@ mod test {
 
     use fm::FileId;
     use iter_extended::vecmap;
-    use noirc_errors::{Location, Span};
+    use noirc_errors::{Location, Span, SrcId};
 
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
@@ -304,10 +304,10 @@ mod test {
         let trait_method_id = TraitMethodId { trait_id, method_index: 0 };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id, trait_method_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
-        interner.push_expr_location(expr_id, Span::single_char(0), file);
+        interner.push_expr_location(expr_id, Span::single_char(0, file), file);
 
-        interner.push_expr_location(x_expr_id, Span::single_char(0), file);
-        interner.push_expr_location(y_expr_id, Span::single_char(0), file);
+        interner.push_expr_location(x_expr_id, Span::single_char(0, file), file);
+        interner.push_expr_location(y_expr_id, Span::single_char(0, file), file);
 
         // Create let statement
         let let_stmt = HirLetStatement {
@@ -317,7 +317,7 @@ mod test {
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
-        interner.push_expr_location(expr_id, Span::single_char(0), file);
+        interner.push_expr_location(expr_id, Span::single_char(0, file), file);
 
         // Create function to enclose the let statement
         let func = HirFunction::unchecked_from_expr(expr_id);
@@ -479,7 +479,7 @@ mod test {
         expected_number_errors: usize,
         func_namespace: Vec<String>,
     ) {
-        let (program, errors) = parse_program(src);
+        let (program, errors) = parse_program(Default::default(), src);
         let mut interner = NodeInterner::default();
         interner.populate_dummy_operator_traits();
 

@@ -6,7 +6,37 @@ use std::{
     ops::Range,
 };
 
-pub type Position = u32;
+#[derive(Copy, Clone, Default)]
+pub struct Position(u32, SrcId);
+
+impl Position {
+    pub fn new(pos: u32, src_id: SrcId) -> Position {
+        Position(pos, src_id)
+    }
+
+    pub fn src_id(&self) -> SrcId {
+        self.1
+    }
+}
+impl std::ops::Add<u32> for Position {
+    type Output = Position;
+
+    fn add(self, rhs: u32) -> Position {
+        Position(self.0 + rhs, self.1)
+    }
+}
+
+impl Into<u32> for Position {
+    fn into(self) -> u32 {
+        self.0
+    }
+}
+
+impl Into<Span> for Position {
+    fn into(self) -> Span {
+        Span::single_char(self.0, self.1)
+    }
+}
 
 #[derive(PartialOrd, Eq, Ord, Debug, Clone)]
 pub struct Spanned<T> {
@@ -52,26 +82,48 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
 }
 
 #[derive(
+    Copy, Clone, Serialize, Eq, PartialEq, Ord, PartialOrd, Debug, Deserialize, Hash, Default,
+)]
+pub struct SrcId(usize);
+
+impl From<usize> for SrcId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl Into<usize> for SrcId {
+    fn into(self) -> usize {
+        self.0
+    }
+}
+
+#[derive(
     PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default, Deserialize, Serialize,
 )]
-pub struct Span(ByteSpan);
+pub struct Span(ByteSpan, SrcId);
 
 impl Span {
-    pub fn inclusive(start: u32, end: u32) -> Span {
-        Span(ByteSpan::from(start..end + 1))
+    pub fn inclusive(start: Position, end: Position) -> Span {
+        Span(ByteSpan::from(start.0..end.0 + 1), start.1)
     }
 
-    pub fn single_char(start: u32) -> Span {
-        Span::inclusive(start, start)
+    pub fn inclusive_within(start: u32, end: u32, src_id: impl Into<usize>) -> Span {
+        Span(ByteSpan::from(start..end + 1), src_id.into().into())
     }
 
-    pub fn empty(position: u32) -> Span {
-        Span::from(position..position)
+    pub fn single_char(start: u32, src_id: impl Into<usize>) -> Span {
+        let start_position = Position::new(start, src_id.into().into());
+        Span::inclusive(start_position, start_position)
+    }
+
+    pub fn empty(position: u32, src_id: SrcId) -> Span {
+        Span::from_range(position..position, src_id)
     }
 
     #[must_use]
     pub fn merge(self, other: Span) -> Span {
-        Span(self.0.merge(other.0))
+        Span(self.0.merge(other.0), self.1)
     }
 
     pub fn to_byte_span(self) -> ByteSpan {
@@ -95,6 +147,10 @@ impl Span {
         let other_distance = other.end() - other.start();
         self_distance < other_distance
     }
+
+    fn from_range(Range { start, end }: Range<u32>, src_id: SrcId) -> Self {
+        Self(ByteSpan::new(start, end), src_id)
+    }
 }
 
 impl From<Span> for Range<usize> {
@@ -105,20 +161,22 @@ impl From<Span> for Range<usize> {
 
 impl From<Range<u32>> for Span {
     fn from(Range { start, end }: Range<u32>) -> Self {
-        Self(ByteSpan::new(start, end))
+        Self(ByteSpan::new(start, end), SrcId::default())
     }
 }
 
 impl chumsky::Span for Span {
-    type Context = ();
+    type Context = SrcId;
 
     type Offset = u32;
 
-    fn new(_context: Self::Context, range: Range<Self::Offset>) -> Self {
-        Span(ByteSpan::from(range))
+    fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
+        Span(ByteSpan::from(range), context)
     }
 
-    fn context(&self) -> Self::Context {}
+    fn context(&self) -> Self::Context {
+        self.1
+    }
 
     fn start(&self) -> Self::Offset {
         self.start()
@@ -141,7 +199,8 @@ impl Location {
     }
 
     pub fn dummy() -> Self {
-        Self { span: Span::single_char(0), file: FileId::dummy() }
+        let file = FileId::dummy();
+        Self { span: Span::single_char(0, file), file }
     }
 
     pub fn contains(&self, other: &Location) -> bool {

@@ -222,7 +222,7 @@ mod tests {
         //      consts::x5_2_config(),
         //      state)
         // ```
-        let loc = Location::new(Span::inclusive(63, 116), file_id);
+        let loc = Location::new(Span::inclusive_within(63, 116, file_id), file_id);
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols

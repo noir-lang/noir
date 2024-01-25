@@ -66,7 +66,7 @@ fn on_goto_definition_inner(
 
     let search_for_location = noirc_errors::Location {
         file: file_id,
-        span: noirc_errors::Span::single_char(byte_index as u32),
+        span: noirc_errors::Span::single_char(byte_index as u32, file_id),
     };
 
     let goto_declaration_response =

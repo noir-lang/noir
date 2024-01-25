@@ -47,7 +47,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Span, Spanned, SrcId};
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -55,8 +55,8 @@ use noirc_errors::{Span, Spanned};
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
-pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
-    let (tokens, lexing_errors) = Lexer::lex(source_program);
+pub fn parse_program(src_id: SrcId, source_program: &str) -> (ParsedModule, Vec<ParserError>) {
+    let (tokens, lexing_errors) = Lexer::lex(src_id, source_program);
     let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
@@ -1208,7 +1208,9 @@ where
         .then_ignore(just(Token::RightBracket))
         .or_not()
         .map_with_span(|t, span| {
-            t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
+            t.unwrap_or_else(|| {
+                UnresolvedTypeData::Unit.with_span(Span::empty(span.end(), span.context()))
+            })
         });
 
     keyword(Keyword::Fn)
@@ -1724,7 +1726,8 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        let (tokens, lexer_errors) = Lexer::lex(program);
+        let src_id = SrcId::default();
+        let (tokens, lexer_errors) = Lexer::lex(src_id, program);
         if !lexer_errors.is_empty() {
             return Err(vecmap(lexer_errors, Into::into));
         }
@@ -1738,7 +1741,8 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        let (tokens, lexer_errors) = Lexer::lex(program);
+        let src_id = SrcId::default();
+        let (tokens, lexer_errors) = Lexer::lex(src_id, program);
         let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
 
         let mut errors = vecmap(lexer_errors, Into::into);

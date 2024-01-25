@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use noirc_errors::{Position, Span, Spanned};
+use noirc_errors::{Position, Span, Spanned, SrcId};
 use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::lexer::errors::LexerErrorKind;
@@ -803,7 +803,7 @@ impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
     fn from(tokens: Tokens) -> Self {
         let end_of_input = match tokens.0.last() {
             Some(spanned_token) => spanned_token.to_span(),
-            None => Span::single_char(0),
+            None => Span::single_char(0, SrcId::default()),
         };
 
         fn get_span(token: SpannedToken) -> (Token, Span) {

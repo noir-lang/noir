@@ -126,7 +126,7 @@ fn on_formatting_inner(
     let path = params.text_document.uri.to_string();
 
     if let Some(source) = state.input_files.get(&path) {
-        let (module, errors) = noirc_frontend::parse_program(source);
+        let (module, errors) = noirc_frontend::parse_program(Default::default(), source);
         if !errors.is_empty() {
             return Ok(None);
         }

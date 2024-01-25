@@ -9,7 +9,7 @@
 //! An Error of the latter is an error in the implementation of the compiler
 use acvm::{acir::native_types::Expression, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Position};
 use thiserror::Error;
 
 use crate::ssa::ir::{dfg::CallStack, types::NumericType};
@@ -154,7 +154,8 @@ impl RuntimeError {
                     "Internal Consistency Evaluators Errors: \n
                     This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     cause.to_string(),
-                    noirc_errors::Span::inclusive(0, 0)
+                    // TODO: We don't know where this error occurred?? 
+                    Position::default().into()
                 )
             }
             _ => {

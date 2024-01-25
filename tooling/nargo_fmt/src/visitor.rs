@@ -84,7 +84,7 @@ impl<'me> FmtVisitor<'me> {
     }
 
     fn push_str(&mut self, s: &str) {
-        let comments = Lexer::new(s).skip_comments(false).flatten().flat_map(|token| {
+        let comments = Lexer::single_source(s).skip_comments(false).flatten().flat_map(|token| {
             if let Token::LineComment(content, _) | Token::BlockComment(content, _) =
                 token.into_token()
             {
@@ -180,7 +180,10 @@ impl<'me> FmtVisitor<'me> {
 
     pub(crate) fn format_comment_in_block(&mut self, slice: &str) -> (String, u32) {
         let mut result = String::new();
-        let comments = Lexer::new(slice).skip_comments(false).skip_whitespaces(false).flatten();
+        let comments = Lexer::new(Default::default(), slice)
+            .skip_comments(false)
+            .skip_whitespaces(false)
+            .flatten();
 
         let indent = self.indent.to_string();
         for comment in comments {

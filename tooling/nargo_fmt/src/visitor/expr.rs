@@ -157,7 +157,7 @@ impl FmtVisitor<'_> {
     pub(crate) fn close_block(&mut self, span: Span) {
         let slice = self.slice(span);
 
-        for spanned in Lexer::new(slice).skip_comments(false).flatten() {
+        for spanned in Lexer::single_source(slice).skip_comments(false).flatten() {
             match spanned.token() {
                 Token::LineComment(_, _) | Token::BlockComment(_, _) => {
                     let token_span = spanned.to_span();

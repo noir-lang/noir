@@ -56,7 +56,7 @@ mod test {
         context.def_interner.populate_dummy_operator_traits();
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-        let (program, parser_errors) = parse_program(src);
+        let (program, parser_errors) = parse_program(root_file_id.as_usize().into(), src);
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
         remove_experimental_warnings(&mut errors);
 
