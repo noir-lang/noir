@@ -39,7 +39,7 @@ impl Memory {
     }
 
     /// Returns the values of the memory
-    pub fn values(&self) -> &Vec<Value> {
+    pub fn values(&self) -> &[Value] {
         &self.inner
     }
 }
