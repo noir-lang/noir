@@ -63,6 +63,6 @@ describe('Storage Instructions', () => {
     expect(journal.readStorage).toBeCalledWith(address, new Fr(a.toBigInt()));
 
     const actual = machineState.memory.get(1);
-    expect(actual).toEqual(expectedResult);
+    expect(actual).toEqual(new Field(expectedResult));
   });
 });

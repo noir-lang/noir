@@ -40,7 +40,7 @@ describe('External Calls', () => {
       const addr = new Fr(123456n);
 
       const argsOffset = 2;
-      const args = [new Fr(1n), new Fr(2n), new Fr(3n)];
+      const args = [new Field(1n), new Field(2n), new Field(3n)];
       const argsSize = args.length;
 
       const retOffset = 8;
@@ -48,8 +48,8 @@ describe('External Calls', () => {
 
       const successOffset = 7;
 
-      machineState.memory.set(0, gas);
-      machineState.memory.set(1, addr);
+      machineState.memory.set(0, new Field(gas));
+      machineState.memory.set(1, new Field(addr));
       machineState.memory.setSlice(2, args);
 
       const otherContextInstructions: [Opcode, any[]][] = [
@@ -72,10 +72,10 @@ describe('External Calls', () => {
       await instruction.execute(machineState, journal);
 
       const successValue = machineState.memory.get(successOffset);
-      expect(successValue).toEqual(new Fr(1n));
+      expect(successValue).toEqual(new Field(1n));
 
       const retValue = machineState.memory.getSlice(retOffset, retSize);
-      expect(retValue).toEqual([new Fr(1n), new Fr(2n)]);
+      expect(retValue).toEqual([new Field(1n), new Field(2n)]);
 
       // Check that the storage call has been merged into the parent journal
       const { storageWrites } = journal.flush();
@@ -126,7 +126,7 @@ describe('External Calls', () => {
 
       // No revert has occurred, but the nested execution has failed
       const successValue = machineState.memory.get(successOffset);
-      expect(successValue).toEqual(new Fr(0n));
+      expect(successValue).toEqual(new Field(0n));
     });
   });
 });
