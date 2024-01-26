@@ -10,7 +10,7 @@ use noirc_frontend::macros_api::{
     Statement, StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType,
     UnresolvedTypeData, Visibility,
 };
-use noirc_frontend::macros_api::{CrateId, FileId};
+use noirc_frontend::macros_api::{CrateId, SrcId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
 
@@ -22,7 +22,7 @@ impl MacroProcessor for AztecMacro {
         ast: SortedModule,
         crate_id: &CrateId,
         context: &HirContext,
-    ) -> Result<SortedModule, (MacroError, FileId)> {
+    ) -> Result<SortedModule, (MacroError, SrcId)> {
         transform(ast, crate_id, context)
     }
 
@@ -217,7 +217,7 @@ fn transform(
     mut ast: SortedModule,
     crate_id: &CrateId,
     context: &HirContext,
-) -> Result<SortedModule, (MacroError, FileId)> {
+) -> Result<SortedModule, (MacroError, SrcId)> {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
 
     // Covers all functions in the ast
@@ -260,7 +260,7 @@ fn include_relevant_imports(ast: &mut SortedModule) {
 fn check_for_aztec_dependency(
     crate_id: &CrateId,
     context: &HirContext,
-) -> Result<(), (MacroError, FileId)> {
+) -> Result<(), (MacroError, SrcId)> {
     let crate_graph = &context.crate_graph[crate_id];
     let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
     if has_aztec_dependency {
@@ -325,7 +325,7 @@ fn transform_module(
     module: &mut SortedModule,
     crate_id: &CrateId,
     context: &HirContext,
-) -> Result<bool, (AztecMacroError, FileId)> {
+) -> Result<bool, (AztecMacroError, SrcId)> {
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct

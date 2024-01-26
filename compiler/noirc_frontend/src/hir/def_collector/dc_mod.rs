@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::Path, vec};
 
 use acvm::acir::acir_field::FieldOptions;
-use fm::{FileId, FileManager, FILE_EXTENSION};
-use noirc_errors::Location;
+use fm::{FileManager, FILE_EXTENSION};
+use noirc_errors::{Location, SrcId};
 
 use crate::{
     graph::CrateId,
@@ -27,7 +27,7 @@ use crate::hir::Context;
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
     pub(crate) def_collector: &'a mut DefCollector,
-    pub(crate) file_id: FileId,
+    pub(crate) file_id: SrcId,
     pub(crate) module_id: LocalModuleId,
 }
 
@@ -37,13 +37,13 @@ struct ModCollector<'a> {
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: SortedModule,
-    file_id: FileId,
+    file_id: SrcId,
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
-) -> Vec<(CompilationError, FileId)> {
+) -> Vec<(CompilationError, SrcId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
-    let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    let mut errors: Vec<(CompilationError, SrcId)> = vec![];
 
     // First resolve the module declarations
     for decl in ast.module_decls {
@@ -84,7 +84,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         globals: Vec<LetStatement>,
-    ) -> Vec<(CompilationError, fm::FileId)> {
+    ) -> Vec<(CompilationError, SrcId)> {
         let mut errors = vec![];
         for global in globals {
             let name = global.pattern.name_ident().clone();
@@ -203,7 +203,7 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         functions: Vec<NoirFunction>,
         krate: CrateId,
-    ) -> Vec<(CompilationError, FileId)> {
+    ) -> Vec<(CompilationError, SrcId)> {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
         let mut errors = vec![];
@@ -259,7 +259,7 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         types: Vec<NoirStruct>,
         krate: CrateId,
-    ) -> Vec<(CompilationError, FileId)> {
+    ) -> Vec<(CompilationError, SrcId)> {
         let mut definition_errors = vec![];
         for struct_definition in types {
             let name = struct_definition.name.clone();
@@ -306,8 +306,8 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         type_aliases: Vec<NoirTypeAlias>,
-    ) -> Vec<(CompilationError, FileId)> {
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    ) -> Vec<(CompilationError, SrcId)> {
+        let mut errors: Vec<(CompilationError, SrcId)> = vec![];
         for type_alias in type_aliases {
             let name = type_alias.name.clone();
 
@@ -345,8 +345,8 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         traits: Vec<NoirTrait>,
         krate: CrateId,
-    ) -> Vec<(CompilationError, FileId)> {
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    ) -> Vec<(CompilationError, SrcId)> {
+        let mut errors: Vec<(CompilationError, SrcId)> = vec![];
         for trait_definition in traits {
             let name = trait_definition.name.clone();
 
@@ -490,9 +490,9 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         crate_id: CrateId,
         submodules: Vec<SortedSubModule>,
-        file_id: FileId,
-    ) -> Vec<(CompilationError, FileId)> {
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+        file_id: SrcId,
+    ) -> Vec<(CompilationError, SrcId)> {
+        let mut errors: Vec<(CompilationError, SrcId)> = vec![];
         for submodule in submodules {
             match self.push_child_module(&submodule.name, file_id, true, submodule.is_contract) {
                 Ok(child) => {
@@ -521,8 +521,8 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         mod_name: &Ident,
         crate_id: CrateId,
-    ) -> Vec<(CompilationError, FileId)> {
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    ) -> Vec<(CompilationError, SrcId)> {
+        let mut errors: Vec<(CompilationError, SrcId)> = vec![];
         let child_file_id =
             match find_module(&context.file_manager, self.file_id, &mod_name.0.contents) {
                 Ok(child_file_id) => child_file_id,
@@ -586,7 +586,7 @@ impl<'a> ModCollector<'a> {
     fn push_child_module(
         &mut self,
         mod_name: &Ident,
-        file_id: FileId,
+        file_id: SrcId,
         add_to_parent_scope: bool,
         is_contract: bool,
     ) -> Result<LocalModuleId, DefCollectorErrorKind> {
@@ -629,11 +629,7 @@ impl<'a> ModCollector<'a> {
     }
 }
 
-fn find_module(
-    file_manager: &FileManager,
-    anchor: FileId,
-    mod_name: &str,
-) -> Result<FileId, String> {
+fn find_module(file_manager: &FileManager, anchor: SrcId, mod_name: &str) -> Result<SrcId, String> {
     let anchor_path = file_manager
         .path(anchor)
         .expect("File must exist in file manager in order for us to be resolving its imports.")

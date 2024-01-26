@@ -1,6 +1,6 @@
 use acvm::FieldElement;
-use fm::FileId;
-use noirc_errors::Location;
+
+use noirc_errors::{Location, SrcId};
 
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
@@ -89,7 +89,7 @@ pub struct HirBinaryOp {
 }
 
 impl HirBinaryOp {
-    pub fn new(op: BinaryOp, file: FileId) -> Self {
+    pub fn new(op: BinaryOp, file: SrcId) -> Self {
         let kind = op.contents;
         let location = Location::new(op.span(), file);
         HirBinaryOp { location, kind }

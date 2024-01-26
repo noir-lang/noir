@@ -5,10 +5,10 @@
 
 use acvm::ExpressionWidth;
 use clap::Args;
-use fm::{FileId, FileManager};
+use fm::FileManager;
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
-use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic, FileDiagnostic, SrcId};
 use noirc_evaluator::create_circuit;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::graph::{CrateId, CrateName};
@@ -237,7 +237,7 @@ pub fn compile_main(
         let err = CustomDiagnostic::from_message(
             "cannot compile crate into a program as it does not contain a `main` function",
         )
-        .in_file(FileId::default());
+        .in_file(SrcId::default());
         vec![err]
     })?;
 
@@ -275,13 +275,13 @@ pub fn compile_contract(
 
     if contracts.len() > 1 {
         let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
-            .in_file(FileId::default());
+            .in_file(SrcId::default());
         return Err(vec![err]);
     } else if contracts.is_empty() {
         let err = CustomDiagnostic::from_message(
             "cannot compile crate into a contract as it does not contain any contracts",
         )
-        .in_file(FileId::default());
+        .in_file(SrcId::default());
         return Err(vec![err]);
     };
 

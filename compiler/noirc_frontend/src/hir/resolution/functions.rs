@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::{Span, SrcId};
 
 use crate::{
     graph::CrateId,
@@ -25,8 +24,8 @@ pub(crate) fn resolve_function_set(
     self_type: Option<Type>,
     trait_impl_id: Option<TraitImplId>,
     impl_generics: Vec<(Rc<String>, TypeVariable, Span)>,
-    errors: &mut Vec<(CompilationError, FileId)>,
-) -> Vec<(FileId, FuncId)> {
+    errors: &mut Vec<(CompilationError, SrcId)>,
+) -> Vec<(SrcId, FuncId)> {
     let file_id = unresolved_functions.file_id;
 
     let where_clause_errors =
@@ -65,8 +64,8 @@ pub(crate) fn resolve_free_functions(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
     self_type: Option<Type>,
-    errors: &mut Vec<(CompilationError, FileId)>,
-) -> Vec<(FileId, FuncId)> {
+    errors: &mut Vec<(CompilationError, SrcId)>,
+) -> Vec<(SrcId, FuncId)> {
     collected_functions
         .into_iter()
         .flat_map(|unresolved_functions| {

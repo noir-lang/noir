@@ -1,5 +1,5 @@
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, SrcId};
 use thiserror::Error;
 
 use crate::{parser::ParserError, Ident, Type};
@@ -87,7 +87,7 @@ pub enum ResolverError {
 }
 
 impl ResolverError {
-    pub fn into_file_diagnostic(self, file: fm::FileId) -> FileDiagnostic {
+    pub fn into_file_diagnostic(self, file: SrcId) -> FileDiagnostic {
         Diagnostic::from(self).in_file(file)
     }
 }

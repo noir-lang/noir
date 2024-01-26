@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::Circuit;
-use fm::FileId;
 
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::{debug_info::DebugInfo, SrcId};
 use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +24,6 @@ pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: noirc_abi::Abi,
     pub debug: DebugInfo,
-    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub file_map: BTreeMap<SrcId, DebugFile>,
     pub warnings: Vec<SsaReport>,
 }

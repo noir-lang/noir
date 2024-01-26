@@ -5,10 +5,11 @@
 
 mod file_map;
 
-pub use file_map::{File, FileId, FileMap, PathString};
+pub use file_map::{File, FileMap, PathString};
 
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
+use noirc_errors::SrcId;
 
 use std::{
     collections::HashMap,
@@ -20,8 +21,8 @@ pub const FILE_EXTENSION: &str = "nr";
 pub struct FileManager {
     root: PathBuf,
     file_map: FileMap,
-    id_to_path: HashMap<FileId, PathBuf>,
-    path_to_id: HashMap<PathBuf, FileId>,
+    id_to_path: HashMap<SrcId, PathBuf>,
+    path_to_id: HashMap<PathBuf, SrcId>,
 }
 
 impl std::fmt::Debug for FileManager {
@@ -52,7 +53,7 @@ impl FileManager {
     /// Adds a source file to the [`FileManager`].
     ///
     /// The `file_name` is expected to be relative to the [`FileManager`]'s root directory.
-    pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<FileId> {
+    pub fn add_file_with_source(&mut self, file_name: &Path, source: String) -> Option<SrcId> {
         let file_name = self.root.join(file_name);
         self.add_file_with_source_canonical_path(&file_name, source)
     }
@@ -64,7 +65,7 @@ impl FileManager {
         &mut self,
         file_name: &Path,
         source: String,
-    ) -> Option<FileId> {
+    ) -> Option<SrcId> {
         let file_name = file_name.normalize();
         // Check that the file name already exists in the file map, if it is, we return it.
         if let Some(file_id) = self.path_to_id.get(&file_name) {
@@ -78,7 +79,7 @@ impl FileManager {
         Some(file_id)
     }
 
-    fn register_path(&mut self, file_id: FileId, path: PathBuf) {
+    fn register_path(&mut self, file_id: SrcId, path: PathBuf) {
         let old_value = self.id_to_path.insert(file_id, path.clone());
         assert!(
             old_value.is_none(),
@@ -88,19 +89,19 @@ impl FileManager {
         assert!(old_value.is_none(), "ice: the same path was inserted into the file manager twice");
     }
 
-    pub fn fetch_file(&self, file_id: FileId) -> Option<&str> {
+    pub fn fetch_file(&self, file_id: SrcId) -> Option<&str> {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
         self.file_map.get_file(file_id).map(|file| file.source())
     }
 
-    pub fn path(&self, file_id: FileId) -> Option<&Path> {
+    pub fn path(&self, file_id: SrcId) -> Option<&Path> {
         // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
         self.id_to_path.get(&file_id).map(|path| path.as_path())
     }
 
     // TODO: This should accept a &Path instead of a PathBuf
-    pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
+    pub fn name_to_id(&self, file_name: PathBuf) -> Option<SrcId> {
         self.file_map.get_file_id(&PathString::from_path(file_name))
     }
 }

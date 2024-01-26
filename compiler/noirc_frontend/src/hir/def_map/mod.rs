@@ -6,8 +6,8 @@ use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::{parse_program, ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use arena::{Arena, Index};
-use fm::{FileId, FileManager};
-use noirc_errors::Location;
+use fm::FileManager;
+use noirc_errors::{Location, SrcId};
 use std::collections::BTreeMap;
 mod module_def;
 pub use module_def::*;
@@ -74,13 +74,13 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         macro_processors: Vec<&dyn MacroProcessor>,
-    ) -> Vec<(CompilationError, FileId)> {
+    ) -> Vec<(CompilationError, SrcId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+        let mut errors: Vec<(CompilationError, SrcId)> = vec![];
         if context.def_map(&crate_id).is_some() {
             return errors;
         }
@@ -148,7 +148,7 @@ impl CrateDefMap {
         root_module.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
-    pub fn file_id(&self, module_id: LocalModuleId) -> FileId {
+    pub fn file_id(&self, module_id: LocalModuleId) -> SrcId {
         self.modules[module_id.0].location.file
     }
 
@@ -294,9 +294,9 @@ pub struct Contract {
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
-    let file_source = fm.fetch_file(file_id).expect("File does not exist");
-    parse_program(file_id.as_usize().into(), file_source)
+pub fn parse_file(fm: &FileManager, src_id: SrcId) -> (ParsedModule, Vec<ParserError>) {
+    let file_source = fm.fetch_file(src_id).expect("File does not exist");
+    parse_program(src_id, file_source)
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {
@@ -327,7 +327,7 @@ impl TestFunction {
         self.id
     }
 
-    pub fn file_id(&self) -> FileId {
+    pub fn file_id(&self) -> SrcId {
         self.location.file
     }
 

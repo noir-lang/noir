@@ -6,6 +6,7 @@ use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
 use acvm::BlackBoxFunctionSolver;
 use codespan_reporting::files::{Files, SimpleFile};
+use noirc_errors::SrcId;
 
 use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
@@ -27,7 +28,6 @@ use dap::types::{
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::ops::DefaultForeignCallExecutor;
 
-use fm::FileId;
 use noirc_driver::CompiledProgram;
 
 pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
@@ -35,10 +35,10 @@ pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
     running: bool,
-    source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
+    source_to_opcodes: BTreeMap<SrcId, Vec<(usize, OpcodeLocation)>>,
     next_breakpoint_id: i64,
     instruction_breakpoints: Vec<(OpcodeLocation, i64)>,
-    source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, i64)>>,
+    source_breakpoints: BTreeMap<SrcId, Vec<(OpcodeLocation, i64)>>,
 }
 
 // BTreeMap<FileId, Vec<(usize, OpcodeLocation)>
@@ -75,7 +75,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     /// numbers and opcode locations corresponding to those line numbers
     fn build_source_to_opcode_debug_mappings(
         debug_artifact: &'a DebugArtifact,
-    ) -> BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> {
+    ) -> BTreeMap<SrcId, Vec<(usize, OpcodeLocation)>> {
         if debug_artifact.debug_symbols.is_empty() {
             return BTreeMap::new();
         }
@@ -91,7 +91,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             })
             .collect();
 
-        let mut result: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> = BTreeMap::new();
+        let mut result: BTreeMap<SrcId, Vec<(usize, OpcodeLocation)>> = BTreeMap::new();
         locations.iter().for_each(|(opcode_location, source_locations)| {
             if source_locations.is_empty() {
                 return;
@@ -451,7 +451,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         Ok(())
     }
 
-    fn find_file_id(&self, source_path: &str) -> Option<FileId> {
+    fn find_file_id(&self, source_path: &str) -> Option<SrcId> {
         let file_map = &self.debug_artifact.file_map;
         let found = file_map.iter().find(|(_, debug_file)| match debug_file.path.to_str() {
             Some(debug_file_path) => debug_file_path == source_path,
@@ -471,7 +471,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     // Case 3 is not supported yet, and 4 is not correctly handled.
     fn find_opcode_for_source_location(
         &self,
-        file_id: &FileId,
+        file_id: &SrcId,
         line: i64,
     ) -> Option<OpcodeLocation> {
         let line = line as usize;

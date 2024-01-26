@@ -10,14 +10,13 @@ use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSele
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_errors::{debug_info::OpCodesCount, Location};
+use noirc_errors::{debug_info::OpCodesCount, Location, SrcId};
 
 use crate::{
     parse_diff,
     types::{NargoProfileRunParams, NargoProfileRunResult},
     LspState,
 };
-use fm::FileId;
 
 pub(crate) fn on_profile_run_request(
     state: &mut LspState,
@@ -69,7 +68,7 @@ fn on_profile_run_request_inner(
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
 
             let mut opcodes_counts: HashMap<Location, OpCodesCount> = HashMap::new();
-            let mut file_map: BTreeMap<FileId, DebugFile> = BTreeMap::new();
+            let mut file_map: BTreeMap<SrcId, DebugFile> = BTreeMap::new();
             for compiled_program in compiled_programs {
                 let compiled_program =
                     nargo::ops::transform_program(compiled_program, expression_width);

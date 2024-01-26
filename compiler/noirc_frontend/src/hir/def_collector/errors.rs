@@ -5,6 +5,7 @@ use crate::Path;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
 use noirc_errors::Span;
+use noirc_errors::SrcId;
 use thiserror::Error;
 
 use std::fmt;
@@ -86,7 +87,7 @@ pub struct MacroError {
 }
 
 impl DefCollectorErrorKind {
-    pub fn into_file_diagnostic(self, file: fm::FileId) -> FileDiagnostic {
+    pub fn into_file_diagnostic(self, file: SrcId) -> FileDiagnostic {
         Diagnostic::from(self).in_file(file)
     }
 }

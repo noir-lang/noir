@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use fm::FileId;
 use iter_extended::vecmap;
+use noirc_errors::SrcId;
 
 use crate::{
     graph::CrateId,
@@ -22,8 +22,8 @@ pub(crate) fn resolve_structs(
     context: &mut Context,
     structs: BTreeMap<StructId, UnresolvedStruct>,
     crate_id: CrateId,
-) -> Vec<(CompilationError, FileId)> {
-    let mut errors: Vec<(CompilationError, FileId)> = vec![];
+) -> Vec<(CompilationError, SrcId)> {
+    let mut errors: Vec<(CompilationError, SrcId)> = vec![];
     // This is necessary to avoid cloning the entire struct map
     // when adding checks after each struct field is resolved.
     let struct_ids = structs.keys().copied().collect::<Vec<_>>();

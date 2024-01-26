@@ -20,6 +20,7 @@ mod type_aliases;
 pub(crate) use functions::resolve_free_functions;
 pub(crate) use globals::resolve_globals;
 pub(crate) use impls::{collect_impls, resolve_impls};
+use noirc_errors::SrcId;
 pub(crate) use structs::resolve_structs;
 pub(crate) use traits::{
     collect_trait_impls, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
@@ -34,12 +35,12 @@ use crate::{
     },
     Shared, StructType, Type,
 };
-use fm::FileId;
+
 use iter_extended::vecmap;
 use resolver::Resolver;
 use std::collections::BTreeMap;
 
-fn take_errors(file_id: FileId, resolver: Resolver<'_>) -> Vec<(CompilationError, FileId)> {
+fn take_errors(file_id: SrcId, resolver: Resolver<'_>) -> Vec<(CompilationError, SrcId)> {
     vecmap(resolver.take_errors(), |e| (e.into(), file_id))
 }
 

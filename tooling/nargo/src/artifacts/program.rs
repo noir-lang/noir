@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::Circuit;
-use fm::FileId;
+
 use noirc_abi::Abi;
 use noirc_driver::CompiledProgram;
 use noirc_driver::DebugFile;
 use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::SrcId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,7 +34,7 @@ pub struct ProgramArtifact {
     pub debug_symbols: DebugInfo,
 
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
-    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub file_map: BTreeMap<SrcId, DebugFile>,
 }
 
 impl From<CompiledProgram> for ProgramArtifact {

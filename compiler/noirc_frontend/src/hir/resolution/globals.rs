@@ -8,12 +8,13 @@ use crate::{
     },
     node_interner::StmtId,
 };
-use fm::FileId;
+
 use iter_extended::vecmap;
+use noirc_errors::SrcId;
 
 pub(crate) struct ResolvedGlobals {
-    pub(crate) globals: Vec<(FileId, StmtId)>,
-    pub(crate) errors: Vec<(CompilationError, FileId)>,
+    pub(crate) globals: Vec<(SrcId, StmtId)>,
+    pub(crate) errors: Vec<(CompilationError, SrcId)>,
 }
 
 impl ResolvedGlobals {
@@ -28,7 +29,7 @@ pub(crate) fn resolve_globals(
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
 ) -> ResolvedGlobals {
-    let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    let mut errors: Vec<(CompilationError, SrcId)> = vec![];
     let globals = vecmap(globals, |global| {
         let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
         let path_resolver = StandardPathResolver::new(module_id);

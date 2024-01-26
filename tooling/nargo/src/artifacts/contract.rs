@@ -4,10 +4,8 @@ use noirc_driver::{CompiledContract, ContractFunction, ContractFunctionType};
 use serde::{Deserialize, Serialize};
 
 use noirc_driver::DebugFile;
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::{debug_info::DebugInfo, SrcId};
 use std::collections::BTreeMap;
-
-use fm::FileId;
 
 #[derive(Serialize, Deserialize)]
 pub struct ContractArtifact {
@@ -20,7 +18,7 @@ pub struct ContractArtifact {
     /// All the events defined inside the contract scope.
     pub events: Vec<ContractEvent>,
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
-    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub file_map: BTreeMap<SrcId, DebugFile>,
 }
 
 impl From<CompiledContract> for ContractArtifact {

@@ -1,8 +1,7 @@
 use std::path::Path;
 
-use fm::FileId;
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, CompileOptions, ErrorsAndWarnings};
-use noirc_errors::CustomDiagnostic;
+use noirc_errors::{CustomDiagnostic, SrcId};
 use noirc_frontend::hir::{def_map::parse_file, Context};
 
 #[test]
@@ -34,7 +33,7 @@ contract Bar {}";
     assert_eq!(
         errors,
         vec![CustomDiagnostic::from_message("Packages are limited to a single contract")
-            .in_file(FileId::default())],
+            .in_file(SrcId::default())],
         "stdlib is producing warnings"
     );
 

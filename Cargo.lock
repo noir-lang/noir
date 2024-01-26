@@ -1687,7 +1687,7 @@ version = "0.23.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
- "serde",
+ "noirc_errors",
  "tempfile",
 ]
 
@@ -2946,7 +2946,6 @@ dependencies = [
  "codespan",
  "codespan-reporting",
  "flate2",
- "fm",
  "serde",
  "serde_json",
  "serde_with",

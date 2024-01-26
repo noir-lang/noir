@@ -40,8 +40,8 @@ pub mod tests;
 pub mod macros_api {
 
     pub use acvm::FieldElement;
-    pub use fm::FileId;
     pub use noirc_errors::Span;
+    pub use noirc_errors::SrcId;
 
     pub use crate::graph::CrateId;
     pub use crate::hir::def_collector::errors::MacroError;
@@ -72,7 +72,7 @@ pub mod macros_api {
             ast: SortedModule,
             crate_id: &CrateId,
             context: &HirContext,
-        ) -> Result<SortedModule, (MacroError, FileId)>;
+        ) -> Result<SortedModule, (MacroError, SrcId)>;
         /// Function to manipulate the AST after type checking has been completed.
         /// The AST after type checking has been done is called the HIR.
         fn process_typed_ast(&self, crate_id: &CrateId, context: &mut HirContext);

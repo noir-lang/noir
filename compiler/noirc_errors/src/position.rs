@@ -1,5 +1,5 @@
 use codespan::Span as ByteSpan;
-use fm::FileId;
+
 use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
@@ -84,7 +84,7 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
 #[derive(
     Copy, Clone, Serialize, Eq, PartialEq, Ord, PartialOrd, Debug, Deserialize, Hash, Default,
 )]
-pub struct SrcId(usize);
+pub struct SrcId(pub usize);
 
 impl From<usize> for SrcId {
     fn from(value: usize) -> Self {
@@ -190,16 +190,16 @@ impl chumsky::Span for Span {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Location {
     pub span: Span,
-    pub file: FileId,
+    pub file: SrcId,
 }
 
 impl Location {
-    pub fn new(span: Span, file: FileId) -> Self {
+    pub fn new(span: Span, file: SrcId) -> Self {
         Self { span, file }
     }
 
     pub fn dummy() -> Self {
-        let file = FileId::dummy();
+        let file = SrcId::default();
         Self { span: Span::single_char(0, file), file }
     }
 

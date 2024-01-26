@@ -1,6 +1,6 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
-use noirc_errors::{debug_info::DebugInfo, Location};
+use noirc_errors::{debug_info::DebugInfo, Location, SrcId};
 use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -8,14 +8,14 @@ use std::{
     ops::Range,
 };
 
-use fm::{FileId, FileManager, PathString};
+use fm::{FileManager, PathString};
 
 /// A Debug Artifact stores, for a given program, the debug info for every function
 /// along with a map of file Id to the source code so locations in debug info can be mapped to source code they point to.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DebugArtifact {
     pub debug_symbols: Vec<DebugInfo>,
-    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub file_map: BTreeMap<SrcId, DebugFile>,
     pub warnings: Vec<SsaReport>,
 }
 
@@ -23,7 +23,7 @@ impl DebugArtifact {
     pub fn new(debug_symbols: Vec<DebugInfo>, file_manager: &FileManager) -> Self {
         let mut file_map = BTreeMap::new();
 
-        let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
+        let files_with_debug_symbols: BTreeSet<SrcId> = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
                 function_symbols
@@ -143,7 +143,7 @@ impl From<CompiledContract> for DebugArtifact {
 }
 
 impl<'a> Files<'a> for DebugArtifact {
-    type FileId = FileId;
+    type FileId = SrcId;
     type Name = PathString;
     type Source = &'a str;
 

@@ -5,8 +5,8 @@ use crate::{
     node_interner::{FuncId, TraitId, TraitMethodId},
     Generics, Ident, NoirFunction, Type, TypeBindings, TypeVariable, TypeVariableId,
 };
-use fm::FileId;
-use noirc_errors::{Location, Span};
+
+use noirc_errors::{Location, Span, SrcId};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitFunction {
@@ -71,7 +71,7 @@ pub struct TraitImpl {
     pub typ: Type,
     pub trait_id: TraitId,
     pub trait_generics: Vec<Type>,
-    pub file: FileId,
+    pub file: SrcId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
     /// The where clause, if present, contains each trait requirement which must

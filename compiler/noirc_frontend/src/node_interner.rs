@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 use arena::{Arena, Index};
-use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{Location, Span, Spanned, SrcId};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
@@ -481,7 +480,7 @@ impl NodeInterner {
     }
 
     /// Stores the span for an interned expression.
-    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
+    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: SrcId) {
         self.id_to_location.insert(expr_id.into(), Location::new(span, file));
     }
 
@@ -526,7 +525,7 @@ impl NodeInterner {
         typ: &UnresolvedStruct,
         krate: CrateId,
         local_id: LocalModuleId,
-        file_id: FileId,
+        file_id: SrcId,
     ) -> StructId {
         let struct_id = StructId(ModuleId { krate, local_id });
         let name = typ.struct_def.name.clone();
@@ -1203,7 +1202,7 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: Generics,
         trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), (Span, FileId)> {
+    ) -> Result<(), (Span, SrcId)> {
         assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
 
         self.trait_implementations.push(trait_impl.clone());

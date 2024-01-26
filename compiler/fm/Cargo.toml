@@ -8,8 +8,8 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+noirc_errors.workspace = true
 codespan-reporting.workspace = true
-serde.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

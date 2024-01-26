@@ -1,3 +1,5 @@
+use noirc_errors::SrcId;
+
 use super::{path_resolver::StandardPathResolver, resolver::Resolver};
 use crate::{
     graph::CrateId,
@@ -8,15 +10,15 @@ use crate::{
     },
     node_interner::TypeAliasId,
 };
-use fm::FileId;
+
 use std::collections::BTreeMap;
 
 pub(crate) fn resolve_type_aliases(
     context: &mut Context,
     type_aliases: BTreeMap<TypeAliasId, UnresolvedTypeAlias>,
     crate_id: CrateId,
-) -> Vec<(CompilationError, FileId)> {
-    let mut errors: Vec<(CompilationError, FileId)> = vec![];
+) -> Vec<(CompilationError, SrcId)> {
+    let mut errors: Vec<(CompilationError, SrcId)> = vec![];
     for (type_id, unresolved_typ) in type_aliases {
         let path_resolver = StandardPathResolver::new(ModuleId {
             local_id: unresolved_typ.module_id,

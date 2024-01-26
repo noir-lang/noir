@@ -240,9 +240,8 @@ mod test {
     use std::collections::{BTreeMap, HashMap};
     use std::vec;
 
-    use fm::FileId;
     use iter_extended::vecmap;
-    use noirc_errors::{Location, Span};
+    use noirc_errors::{Location, Span, SrcId};
 
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
@@ -272,7 +271,7 @@ mod test {
         interner.populate_dummy_operator_traits();
 
         // Safety: The FileId in a location isn't used for tests
-        let file = FileId::default();
+        let file = SrcId::default();
         let location = Location::new(Span::default(), file);
 
         // Add a simple let Statement into the interner
@@ -503,7 +502,7 @@ mod test {
         }
 
         let mut def_maps = BTreeMap::new();
-        let file = FileId::default();
+        let file = SrcId::default();
 
         let mut modules = arena::Arena::new();
         let location = Location::new(Default::default(), file);

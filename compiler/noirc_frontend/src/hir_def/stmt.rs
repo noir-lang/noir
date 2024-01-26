@@ -1,8 +1,8 @@
 use super::expr::HirIdent;
 use crate::node_interner::ExprId;
 use crate::{Ident, Type};
-use fm::FileId;
-use noirc_errors::Span;
+
+use noirc_errors::{Span, SrcId};
 
 /// A HirStatement is the result of performing name resolution on
 /// the Statement AST node. Unlike the AST node, any nested nodes
@@ -55,7 +55,7 @@ pub struct HirAssignStatement {
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<String>);
+pub struct HirConstrainStatement(pub ExprId, pub SrcId, pub Option<String>);
 
 #[derive(Debug, Clone, Hash)]
 pub enum HirPattern {

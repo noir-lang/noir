@@ -1,5 +1,5 @@
-use fm::{FileId, FileManager};
-use noirc_errors::debug_info::DebugInfo;
+use fm::FileManager;
+use noirc_errors::{debug_info::DebugInfo, SrcId};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -17,8 +17,8 @@ pub struct DebugFile {
 pub(crate) fn filter_relevant_files(
     debug_symbols: &[DebugInfo],
     file_manager: &FileManager,
-) -> BTreeMap<FileId, DebugFile> {
-    let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
+) -> BTreeMap<SrcId, DebugFile> {
+    let files_with_debug_symbols: BTreeSet<SrcId> = debug_symbols
         .iter()
         .flat_map(|function_symbols| {
             function_symbols

@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::Circuit;
-use fm::FileId;
+
 use noirc_abi::{Abi, ContractEvent};
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::{debug_info::DebugInfo, SrcId};
 use noirc_evaluator::errors::SsaReport;
 
 use super::debug::DebugFile;
@@ -41,7 +41,7 @@ pub struct CompiledContract {
     /// by any contract function during execution.
     pub events: Vec<ContractEvent>,
 
-    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub file_map: BTreeMap<SrcId, DebugFile>,
     pub warnings: Vec<SsaReport>,
 }
 

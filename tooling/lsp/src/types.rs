@@ -1,9 +1,8 @@
-use fm::FileId;
 use lsp_types::{
     DeclarationCapability, DefinitionOptions, OneOf, TypeDefinitionProviderCapability,
 };
 use noirc_driver::DebugFile;
-use noirc_errors::{debug_info::OpCodesCount, Location};
+use noirc_errors::{debug_info::OpCodesCount, Location, SrcId};
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -226,7 +225,7 @@ pub(crate) struct NargoProfileRunParams {
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct NargoProfileRunResult {
-    pub(crate) file_map: BTreeMap<FileId, DebugFile>,
+    pub(crate) file_map: BTreeMap<SrcId, DebugFile>,
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) opcodes_counts: HashMap<Location, OpCodesCount>,
 }

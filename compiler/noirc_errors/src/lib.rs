@@ -11,7 +11,7 @@ pub use reporter::{CustomDiagnostic, DiagnosticKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileDiagnostic {
-    pub file_id: fm::FileId,
+    pub file_id: SrcId,
     pub diagnostic: CustomDiagnostic,
 
     /// An optional call stack to display the full runtime call stack
@@ -20,7 +20,7 @@ pub struct FileDiagnostic {
 }
 
 impl FileDiagnostic {
-    pub fn new(file_id: fm::FileId, diagnostic: CustomDiagnostic) -> FileDiagnostic {
+    pub fn new(file_id: SrcId, diagnostic: CustomDiagnostic) -> FileDiagnostic {
         FileDiagnostic { file_id, diagnostic, call_stack: Vec::new() }
     }
 

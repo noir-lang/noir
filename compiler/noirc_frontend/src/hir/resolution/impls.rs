@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fm::FileId;
+use noirc_errors::SrcId;
 
 use crate::{
     graph::CrateId,
@@ -27,10 +27,10 @@ pub(crate) fn collect_impls(
     context: &mut Context,
     crate_id: CrateId,
     collected_impls: &ImplMap,
-) -> Vec<(CompilationError, FileId)> {
+) -> Vec<(CompilationError, SrcId)> {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
-    let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    let mut errors: Vec<(CompilationError, SrcId)> = vec![];
 
     for ((unresolved_type, module_id), methods) in collected_impls {
         let path_resolver =
@@ -87,8 +87,8 @@ pub(crate) fn resolve_impls(
     crate_id: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_impls: ImplMap,
-    errors: &mut Vec<(CompilationError, FileId)>,
-) -> Vec<(FileId, FuncId)> {
+    errors: &mut Vec<(CompilationError, SrcId)>,
+) -> Vec<(SrcId, FuncId)> {
     let mut file_method_ids = Vec::new();
 
     for ((unresolved_type, module_id), methods) in collected_impls {

@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, SrcId};
 
 use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
 use crate::hir_def::stmt::{
@@ -215,7 +215,7 @@ impl<'interner> TypeChecker<'interner> {
                             // We must create a temporary value first to move out of object_ref before
                             // we eventually reassign to it.
                             let id = DefinitionId::dummy_id();
-                            let location = Location::new(span, fm::FileId::dummy());
+                            let location = Location::new(span, SrcId::default());
                             let ident = HirIdent::non_trait_method(id, location);
                             let tmp_value = HirLValue::Ident(ident, Type::Error);
 

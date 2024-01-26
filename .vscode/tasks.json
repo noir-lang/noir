@@ -1,0 +1,20 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "test",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"args": [
+				"--workspace",
+				"--locked",
+				"--release"
+			
+			],
+			"group": "build",
+			"label": "cargo test --workspace --locked --release"
+		}
+	]
+}

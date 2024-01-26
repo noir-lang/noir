@@ -1,4 +1,4 @@
-use crate::{FileDiagnostic, Location, Span};
+use crate::{FileDiagnostic, Location, Span, SrcId};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
@@ -60,7 +60,7 @@ impl CustomDiagnostic {
         }
     }
 
-    pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {
+    pub fn in_file(self, file_id: SrcId) -> FileDiagnostic {
         FileDiagnostic::new(file_id, self)
     }
 
@@ -112,7 +112,7 @@ impl CustomLabel {
 /// Writes the given diagnostics to stderr and returns the count
 /// of diagnostics that were errors.
 pub fn report_all<'files>(
-    files: &'files impl Files<'files, FileId = fm::FileId>,
+    files: &'files impl Files<'files, FileId = SrcId>,
     diagnostics: &[FileDiagnostic],
     deny_warnings: bool,
     silence_warnings: bool,
@@ -133,7 +133,7 @@ pub fn report_all<'files>(
 impl FileDiagnostic {
     pub fn report<'files>(
         &self,
-        files: &'files impl Files<'files, FileId = fm::FileId>,
+        files: &'files impl Files<'files, FileId = SrcId>,
         deny_warnings: bool,
     ) -> bool {
         report(files, &self.diagnostic, Some(self.file_id), &self.call_stack, deny_warnings)
@@ -142,9 +142,9 @@ impl FileDiagnostic {
 
 /// Report the given diagnostic, and return true if it was an error
 pub fn report<'files>(
-    files: &'files impl Files<'files, FileId = fm::FileId>,
+    files: &'files impl Files<'files, FileId = SrcId>,
     custom_diagnostic: &CustomDiagnostic,
-    file: Option<fm::FileId>,
+    file: Option<SrcId>,
     call_stack: &[Location],
     deny_warnings: bool,
 ) -> bool {
@@ -160,10 +160,10 @@ pub fn report<'files>(
 
 fn convert_diagnostic(
     cd: &CustomDiagnostic,
-    file: Option<fm::FileId>,
+    file: Option<SrcId>,
     stack_trace: String,
     deny_warnings: bool,
-) -> Diagnostic<fm::FileId> {
+) -> Diagnostic<SrcId> {
     let diagnostic = match (cd.kind, deny_warnings) {
         (DiagnosticKind::Warning, false) => Diagnostic::warning(),
         _ => Diagnostic::error(),
@@ -189,7 +189,7 @@ fn convert_diagnostic(
 }
 
 fn stack_trace<'files>(
-    files: &'files impl Files<'files, FileId = fm::FileId>,
+    files: &'files impl Files<'files, FileId = SrcId>,
     call_stack: &[Location],
 ) -> String {
     if call_stack.is_empty() {

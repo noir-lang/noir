@@ -43,9 +43,9 @@ use crate::{
     TypeVariableKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
     UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
-use fm::FileId;
+
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{Location, Span, Spanned, SrcId};
 
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
@@ -84,7 +84,7 @@ pub struct Resolver<'a> {
     trait_bounds: Vec<UnresolvedTraitConstraint>,
     pub interner: &'a mut NodeInterner,
     errors: Vec<ResolverError>,
-    file: FileId,
+    file: SrcId,
 
     /// Set to the current type if we're resolving an impl
     self_type: Option<Type>,
@@ -131,7 +131,7 @@ impl<'a> Resolver<'a> {
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
-        file: FileId,
+        file: SrcId,
     ) -> Resolver<'a> {
         let module_id = path_resolver.module_id();
         let in_contract = module_id.module(def_maps).is_contract;

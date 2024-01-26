@@ -23,9 +23,9 @@ use crate::{
     NoirTypeAlias, Path, PathKind, Type, TypeBindings, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType,
 };
-use fm::FileId;
+
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Span};
+use noirc_errors::{CustomDiagnostic, Span, SrcId};
 use std::collections::{BTreeMap, HashMap};
 
 use std::vec;
@@ -33,7 +33,7 @@ use std::vec;
 /// Stores all of the unresolved functions in a particular file/mod
 #[derive(Clone)]
 pub struct UnresolvedFunctions {
-    pub file_id: FileId,
+    pub file_id: SrcId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
     pub trait_id: Option<TraitId>,
 }
@@ -71,14 +71,14 @@ impl UnresolvedFunctions {
 }
 
 pub struct UnresolvedStruct {
-    pub file_id: FileId,
+    pub file_id: SrcId,
     pub module_id: LocalModuleId,
     pub struct_def: NoirStruct,
 }
 
 #[derive(Clone)]
 pub struct UnresolvedTrait {
-    pub file_id: FileId,
+    pub file_id: SrcId,
     pub module_id: LocalModuleId,
     pub crate_id: CrateId,
     pub trait_def: NoirTrait,
@@ -87,7 +87,7 @@ pub struct UnresolvedTrait {
 }
 
 pub struct UnresolvedTraitImpl {
-    pub file_id: FileId,
+    pub file_id: SrcId,
     pub module_id: LocalModuleId,
     pub trait_id: Option<TraitId>,
     pub trait_generics: Vec<UnresolvedType>,
@@ -100,14 +100,14 @@ pub struct UnresolvedTraitImpl {
 
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
-    pub file_id: FileId,
+    pub file_id: SrcId,
     pub module_id: LocalModuleId,
     pub type_alias_def: NoirTypeAlias,
 }
 
 #[derive(Clone)]
 pub struct UnresolvedGlobal {
-    pub file_id: FileId,
+    pub file_id: SrcId,
     pub module_id: LocalModuleId,
     pub stmt_id: StmtId,
     pub stmt_def: LetStatement,
@@ -200,10 +200,10 @@ impl DefCollector {
         mut def_map: CrateDefMap,
         context: &mut Context,
         ast: SortedModule,
-        root_file_id: FileId,
+        root_file_id: SrcId,
         macro_processors: Vec<&dyn MacroProcessor>,
-    ) -> Vec<(CompilationError, FileId)> {
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    ) -> Vec<(CompilationError, SrcId)> {
+        let mut errors: Vec<(CompilationError, SrcId)> = vec![];
         let crate_id = def_map.krate;
 
         // Recursively resolve the dependencies
@@ -426,8 +426,8 @@ fn filter_literal_globals(
 
 fn type_check_globals(
     interner: &mut NodeInterner,
-    global_ids: Vec<(FileId, StmtId)>,
-) -> Vec<(CompilationError, fm::FileId)> {
+    global_ids: Vec<(SrcId, StmtId)>,
+) -> Vec<(CompilationError, SrcId)> {
     global_ids
         .iter()
         .flat_map(|(file_id, stmt_id)| {
@@ -442,8 +442,8 @@ fn type_check_globals(
 
 fn type_check_functions(
     interner: &mut NodeInterner,
-    file_func_ids: Vec<(FileId, FuncId)>,
-) -> Vec<(CompilationError, fm::FileId)> {
+    file_func_ids: Vec<(SrcId, FuncId)>,
+) -> Vec<(CompilationError, SrcId)> {
     file_func_ids
         .iter()
         .flat_map(|(file, func)| {
@@ -460,15 +460,15 @@ fn type_check_functions(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn check_methods_signatures(
     resolver: &mut Resolver,
-    impl_methods: &[(FileId, FuncId)],
+    impl_methods: &[(SrcId, FuncId)],
     trait_id: TraitId,
     trait_name_span: Span,
     // These are the generics on the trait itself from the impl.
     // E.g. in `impl Foo<A, B> for Bar<B, C>`, this is `vec![A, B]`.
     trait_generics: Vec<UnresolvedType>,
     trait_impl_generic_count: usize,
-    file_id: FileId,
-    errors: &mut Vec<(CompilationError, FileId)>,
+    file_id: SrcId,
+    errors: &mut Vec<(CompilationError, SrcId)>,
 ) {
     let self_type = resolver.get_self_type().expect("trait impl must have a Self type").clone();
     let trait_generics = vecmap(trait_generics, |typ| resolver.resolve_type(typ));

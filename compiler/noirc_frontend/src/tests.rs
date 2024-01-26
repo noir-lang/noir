@@ -7,10 +7,8 @@ mod test {
     use core::panic;
     use std::collections::BTreeMap;
 
-    use fm::FileId;
-
     use iter_extended::vecmap;
-    use noirc_errors::Location;
+    use noirc_errors::{Location, SrcId};
 
     use crate::hir::def_collector::dc_crate::CompilationError;
     use crate::hir::def_collector::errors::{DefCollectorErrorKind, DuplicateType};
@@ -34,11 +32,11 @@ mod test {
     use arena::Arena;
     use fm::FileManager;
 
-    pub(crate) fn has_parser_error(errors: &[(CompilationError, FileId)]) -> bool {
+    pub(crate) fn has_parser_error(errors: &[(CompilationError, SrcId)]) -> bool {
         errors.iter().any(|(e, _f)| matches!(e, CompilationError::ParseError(_)))
     }
 
-    pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
+    pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, SrcId)>) {
         errors.retain(|(error, _)| match error {
             CompilationError::ParseError(error) => {
                 !matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(..)))
@@ -47,16 +45,20 @@ mod test {
         });
     }
 
+    fn dummy_file_id() -> SrcId {
+        SrcId(0)
+    }
+
     pub(crate) fn get_program(
         src: &str,
-    ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+    ) -> (ParsedModule, Context, Vec<(CompilationError, SrcId)>) {
         let root = std::path::Path::new("/");
         let fm = FileManager::new(root);
         let mut context = Context::new(fm, Default::default());
         context.def_interner.populate_dummy_operator_traits();
-        let root_file_id = FileId::dummy();
+        let root_file_id = dummy_file_id();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-        let (program, parser_errors) = parse_program(root_file_id.as_usize().into(), src);
+        let (program, parser_errors) = parse_program(root_file_id, src);
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
         remove_experimental_warnings(&mut errors);
 
@@ -85,7 +87,7 @@ mod test {
         (program, context, errors)
     }
 
-    pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
+    pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, SrcId)> {
         get_program(src).2
     }
 

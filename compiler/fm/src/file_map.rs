@@ -1,5 +1,5 @@
 use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
-use serde::{Deserialize, Serialize};
+use noirc_errors::SrcId;
 use std::collections::HashMap;
 use std::{ops::Range, path::PathBuf};
 
@@ -33,30 +33,7 @@ impl From<&PathBuf> for PathString {
 #[derive(Debug, Clone)]
 pub struct FileMap {
     files: SimpleFiles<PathString, String>,
-    name_to_id: HashMap<PathString, FileId>,
-}
-
-// XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
-#[derive(
-    Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize, PartialOrd, Ord,
-)]
-pub struct FileId(usize);
-
-impl FileId {
-    //XXX: find a way to remove the need for this. Errors do not need to attach their FileIds immediately!
-    pub fn as_usize(&self) -> usize {
-        self.0
-    }
-
-    pub fn dummy() -> FileId {
-        FileId(0)
-    }
-}
-
-impl From<FileId> for usize {
-    fn from(file_id: FileId) -> Self {
-        file_id.0
-    }
+    name_to_id: HashMap<PathString, SrcId>,
 }
 
 pub struct File<'input>(&'input SimpleFile<PathString, String>);
@@ -68,21 +45,21 @@ impl<'input> File<'input> {
 }
 
 impl FileMap {
-    pub fn add_file(&mut self, file_name: PathString, code: String) -> FileId {
-        let file_id = FileId(self.files.add(file_name.clone(), code));
+    pub fn add_file(&mut self, file_name: PathString, code: String) -> SrcId {
+        let file_id = SrcId(self.files.add(file_name.clone(), code));
         self.name_to_id.insert(file_name, file_id);
         file_id
     }
 
-    pub fn get_file(&self, file_id: FileId) -> Option<File> {
+    pub fn get_file(&self, file_id: SrcId) -> Option<File> {
         self.files.get(file_id.0).map(File).ok()
     }
 
-    pub fn get_file_id(&self, file_name: &PathString) -> Option<FileId> {
+    pub fn get_file_id(&self, file_name: &PathString) -> Option<SrcId> {
         self.name_to_id.get(file_name).cloned()
     }
 
-    pub fn all_file_ids(&self) -> impl Iterator<Item = &FileId> {
+    pub fn all_file_ids(&self) -> impl Iterator<Item = &SrcId> {
         self.name_to_id.values()
     }
 }
@@ -93,23 +70,23 @@ impl Default for FileMap {
 }
 
 impl<'a> Files<'a> for FileMap {
-    type FileId = FileId;
+    type FileId = SrcId;
     type Name = PathString;
     type Source = &'a str;
 
     fn name(&self, file_id: Self::FileId) -> Result<Self::Name, Error> {
-        Ok(self.files.get(file_id.as_usize())?.name().clone())
+        Ok(self.files.get(file_id.into())?.name().clone())
     }
 
     fn source(&'a self, file_id: Self::FileId) -> Result<Self::Source, Error> {
-        Ok(self.files.get(file_id.as_usize())?.source().as_ref())
+        Ok(self.files.get(file_id.into())?.source().as_ref())
     }
 
     fn line_index(&self, file_id: Self::FileId, byte_index: usize) -> Result<usize, Error> {
-        self.files.get(file_id.as_usize())?.line_index((), byte_index)
+        self.files.get(file_id.into())?.line_index((), byte_index)
     }
 
     fn line_range(&self, file_id: Self::FileId, line_index: usize) -> Result<Range<usize>, Error> {
-        self.files.get(file_id.as_usize())?.line_range((), line_index)
+        self.files.get(file_id.into())?.line_range((), line_index)
     }
 }

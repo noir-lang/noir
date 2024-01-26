@@ -6,7 +6,7 @@
 
 use std::{fmt::Display, str::FromStr};
 
-use fm::FileId;
+use noirc_errors::SrcId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smol_str::SmolStr;
@@ -110,7 +110,7 @@ pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
-    pub root_file_id: FileId,
+    pub root_file_id: SrcId,
     pub dependencies: Vec<Dependency>,
 }
 
@@ -143,7 +143,7 @@ impl CrateGraph {
             .expect("ICE: The stdlib should exist in the CrateGraph")
     }
 
-    pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
+    pub fn add_crate_root(&mut self, file_id: SrcId) -> CrateId {
         for (crate_id, crate_data) in self.arena.iter() {
             if crate_id.is_root() {
                 panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
@@ -161,7 +161,7 @@ impl CrateGraph {
         crate_id
     }
 
-    pub fn add_crate(&mut self, file_id: FileId) -> CrateId {
+    pub fn add_crate(&mut self, file_id: SrcId) -> CrateId {
         let mut crates_with_file_id = self
             .arena
             .iter()
@@ -194,7 +194,7 @@ impl CrateGraph {
         }
     }
 
-    pub fn add_stdlib(&mut self, file_id: FileId) -> CrateId {
+    pub fn add_stdlib(&mut self, file_id: SrcId) -> CrateId {
         for (crate_id, crate_data) in self.arena.iter() {
             if crate_id.is_stdlib() {
                 panic!("ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead");
@@ -309,9 +309,9 @@ pub struct CyclicDependenciesError {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{CrateGraph, FileId};
+    use super::{CrateGraph, SrcId};
 
-    fn dummy_file_ids(n: usize) -> Vec<FileId> {
+    fn dummy_file_ids(n: usize) -> Vec<SrcId> {
         use fm::{FileMap, FILE_EXTENSION};
         let mut fm = FileMap::default();
 
