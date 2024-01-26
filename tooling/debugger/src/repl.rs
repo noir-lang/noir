@@ -77,7 +77,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                     }
                 }
                 let locations = self.context.get_source_location_for_opcode_location(&location);
-                print_source_code_location(&self.context, self.debug_artifact, &locations);
+                print_source_code_location(self.debug_artifact, &locations);
             }
         }
     }
@@ -102,7 +102,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             }
         }
         let locations = self.context.get_source_location_for_opcode_location(location);
-        print_source_code_location(&self.context, self.debug_artifact, &locations);
+        print_source_code_location(self.debug_artifact, &locations);
     }
 
     pub fn show_current_call_stack(&self) {

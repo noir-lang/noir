@@ -1,5 +1,3 @@
-use crate::context::DebugContext;
-use acvm::BlackBoxFunctionSolver;
 use codespan_reporting::files::Files;
 use nargo::artifacts::debug::DebugArtifact;
 use noirc_errors::Location;
@@ -32,17 +30,10 @@ struct LocationPrintContext {
 // Given a DebugArtifact and an OpcodeLocation, prints all the source code
 // locations the OpcodeLocation maps to, with some surrounding context and
 // visual aids to highlight the location itself.
-pub(crate) fn print_source_code_location<'a, B: BlackBoxFunctionSolver>(
-    context: &DebugContext<'a, B>,
-    debug_artifact: &DebugArtifact,
-    locations: &[Location],
-) {
+pub(super) fn print_source_code_location(debug_artifact: &DebugArtifact, locations: &[Location]) {
     let locations = locations.iter();
 
     for loc in locations {
-        if context.is_source_location_in_debug_module(loc) {
-            continue;
-        }
         print_location_path(debug_artifact, *loc);
 
         let lines = render_location(debug_artifact, loc);
