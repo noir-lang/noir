@@ -6,7 +6,7 @@ pub(crate) use program::Ssa;
 
 use context::SharedContext;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
+use noirc_errors::Span;
 use noirc_frontend::{
     monomorphization::ast::{self, Expression, Program},
     Visibility,
@@ -379,7 +379,7 @@ impl<'a> FunctionContext<'a> {
         array: super::ir::value::ValueId,
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
-        location: Location,
+        location: Span,
         length: Option<super::ir::value::ValueId>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
@@ -612,7 +612,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         function: ValueId,
         arguments: &[ValueId],
-        location: Location,
+        location: Span,
     ) {
         if let Some(intrinsic) =
             self.builder.set_location(location).get_intrinsic_from_value(function)
@@ -664,7 +664,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_constrain(
         &mut self,
         expr: &Expression,
-        location: Location,
+        location: Span,
         assert_message: Option<String>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;

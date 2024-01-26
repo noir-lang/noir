@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use noirc_errors::Location;
+use noirc_errors::Span;
 
 use crate::{
     node_interner::{FuncId, StmtId, StructId, TraitId, TypeAliasId},
@@ -23,14 +23,14 @@ pub struct ModuleData {
     /// Contains only the definitions directly defined in the current module
     definitions: ItemScope,
 
-    pub location: Location,
+    pub location: Span,
 
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 }
 
 impl ModuleData {
-    pub fn new(parent: Option<LocalModuleId>, location: Location, is_contract: bool) -> ModuleData {
+    pub fn new(parent: Option<LocalModuleId>, location: Span, is_contract: bool) -> ModuleData {
         ModuleData {
             parent,
             children: HashMap::new(),

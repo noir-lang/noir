@@ -1,4 +1,4 @@
-use crate::{FileDiagnostic, Location, Span, SrcId};
+use crate::{FileDiagnostic, Span, SrcId};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
@@ -145,7 +145,7 @@ pub fn report<'files>(
     files: &'files impl Files<'files, FileId = SrcId>,
     custom_diagnostic: &CustomDiagnostic,
     file: Option<SrcId>,
-    call_stack: &[Location],
+    call_stack: &[Span],
     deny_warnings: bool,
 ) -> bool {
     let writer = StandardStream::stderr(ColorChoice::Always);
@@ -190,7 +190,7 @@ fn convert_diagnostic(
 
 fn stack_trace<'files>(
     files: &'files impl Files<'files, FileId = SrcId>,
-    call_stack: &[Location],
+    call_stack: &[Span],
 ) -> String {
     if call_stack.is_empty() {
         return String::new();
@@ -199,10 +199,10 @@ fn stack_trace<'files>(
     let mut result = "Call stack:\n".to_string();
 
     for (i, call_item) in call_stack.iter().enumerate() {
-        let path = files.name(call_item.file).expect("should get file path");
-        let source = files.source(call_item.file).expect("should get file source");
+        let path = files.name(call_item.src_id()).expect("should get file path");
+        let source = files.source(call_item.src_id()).expect("should get file source");
 
-        let (line, column) = location(source.as_ref(), call_item.span.start());
+        let (line, column) = location(source.as_ref(), call_item.start());
         result += &format!("{}. {}:{}:{}\n", i + 1, path, line, column);
     }
 

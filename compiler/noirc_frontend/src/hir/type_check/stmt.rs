@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, SrcId};
+use noirc_errors::Span;
 
 use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
 use crate::hir_def::stmt::{
@@ -164,7 +164,7 @@ impl<'interner> TypeChecker<'interner> {
     fn get_lvalue_name_and_span(&self, lvalue: &HirLValue) -> (String, Span) {
         match lvalue {
             HirLValue::Ident(name, _) => {
-                let span = name.location.span;
+                let span = name.span;
 
                 if let Some(definition) = self.interner.try_definition(name.id) {
                     (definition.name.clone(), span)
@@ -215,8 +215,8 @@ impl<'interner> TypeChecker<'interner> {
                             // We must create a temporary value first to move out of object_ref before
                             // we eventually reassign to it.
                             let id = DefinitionId::dummy_id();
-                            let location = Location::new(span, SrcId::default());
-                            let ident = HirIdent::non_trait_method(id, location);
+                            let span = span;
+                            let ident = HirIdent::non_trait_method(id, span);
                             let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                             let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));

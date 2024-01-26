@@ -10,7 +10,7 @@ use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSele
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_errors::{debug_info::OpCodesCount, Location, SrcId};
+use noirc_errors::{debug_info::OpCodesCount, Span, SrcId};
 
 use crate::{
     parse_diff,
@@ -67,7 +67,7 @@ fn on_profile_run_request_inner(
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
 
-            let mut opcodes_counts: HashMap<Location, OpCodesCount> = HashMap::new();
+            let mut opcodes_counts: HashMap<Span, OpCodesCount> = HashMap::new();
             let mut file_map: BTreeMap<SrcId, DebugFile> = BTreeMap::new();
             for compiled_program in compiled_programs {
                 let compiled_program =

@@ -527,7 +527,7 @@ pub(crate) fn check_methods_signatures(
                     expected_generic_count: trait_method_generic_count,
                     origin: format!("{}::{}", trait_name, func_name),
                     location: "this method",
-                    span: impl_method.location.span,
+                    span: impl_method.span,
                 };
                 errors.push((error.into(), *file_id));
             }
@@ -551,7 +551,7 @@ pub(crate) fn check_methods_signatures(
                         expected_num_parameters: trait_method.arguments().len(),
                         trait_name: resolver.interner.get_trait(trait_id).name.to_string(),
                         method_name: func_name.to_string(),
-                        span: impl_method.location.span,
+                        span: impl_method.span,
                     };
                     errors.push((error.into(), *file_id));
                 }

@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Span;
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
@@ -44,7 +44,7 @@ impl Parameters {
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
         let mut spans = vecmap(&self.0, |param| match &param.0 {
-            HirPattern::Identifier(ident) => ident.location.span,
+            HirPattern::Identifier(ident) => ident.span,
             HirPattern::Mutable(_, span) => *span,
             HirPattern::Tuple(_, span) => *span,
             HirPattern::Struct(_, _, span) => *span,
@@ -108,7 +108,7 @@ pub struct FuncMeta {
     /// or a Type::Forall for generic functions.
     pub typ: Type,
 
-    pub location: Location,
+    pub span: Span,
 
     // This flag is needed for the attribute check pass
     pub has_body: bool,

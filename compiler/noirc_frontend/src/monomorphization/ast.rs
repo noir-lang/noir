@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::Span;
 
 use crate::{
     hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness, Visibility,
@@ -31,7 +31,7 @@ pub enum Expression {
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
     Let(Let),
-    Constrain(Box<Expression>, Location, Option<String>),
+    Constrain(Box<Expression>, Span, Option<String>),
     Assign(Assign),
     Semi(Box<Expression>),
 }
@@ -59,7 +59,7 @@ pub struct FuncId(pub u32);
 
 #[derive(Debug, Clone, Hash)]
 pub struct Ident {
-    pub location: Option<Location>,
+    pub location: Option<Span>,
     pub definition: Definition,
     pub mutable: bool,
     pub name: String,
@@ -76,14 +76,14 @@ pub struct For {
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
 
-    pub start_range_location: Location,
-    pub end_range_location: Location,
+    pub start_range_location: Span,
+    pub end_range_location: Span,
 }
 
 #[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Integer(FieldElement, Type, Location),
+    Integer(FieldElement, Type, Span),
     Bool(bool),
     Str(String),
     FmtStr(String, u64, Box<Expression>),
@@ -94,7 +94,7 @@ pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
     pub result_type: Type,
-    pub location: Location,
+    pub location: Span,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -104,7 +104,7 @@ pub struct Binary {
     pub lhs: Box<Expression>,
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
-    pub location: Location,
+    pub location: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -125,7 +125,7 @@ pub struct If {
 pub struct Cast {
     pub lhs: Box<Expression>,
     pub r#type: Type,
-    pub location: Location,
+    pub location: Span,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -139,7 +139,7 @@ pub struct Call {
     pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
     pub return_type: Type,
-    pub location: Location,
+    pub location: Span,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -147,7 +147,7 @@ pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
     pub element_type: Type,
-    pub location: Location,
+    pub location: Span,
 }
 
 /// Rather than a Pattern containing possibly several variables, Let now
@@ -187,7 +187,7 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone, Hash)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
+    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Span },
     MemberAccess { object: Box<LValue>, field_index: usize },
     Dereference { reference: Box<LValue>, element_type: Type },
 }
@@ -244,7 +244,7 @@ pub struct Program {
     /// Note: this has no impact on monomorphization, and is simply attached here for ease of
     /// forwarding to the next phase.
     pub return_distinctness: Distinctness,
-    pub return_location: Option<Location>,
+    pub return_location: Option<Span>,
     pub return_visibility: Visibility,
 }
 
@@ -253,7 +253,7 @@ impl Program {
         functions: Vec<Function>,
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
-        return_location: Option<Location>,
+        return_location: Option<Span>,
         return_visibility: Visibility,
     ) -> Program {
         Program {

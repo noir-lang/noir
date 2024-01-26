@@ -1,6 +1,6 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
-use noirc_errors::{debug_info::DebugInfo, Location, SrcId};
+use noirc_errors::{debug_info::DebugInfo, Span, SrcId};
 use noirc_evaluator::errors::SsaReport;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -29,7 +29,7 @@ impl DebugArtifact {
                 function_symbols
                     .locations
                     .values()
-                    .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                    .flat_map(|call_stack| call_stack.iter().map(|span| span.src_id()))
             })
             .collect();
 
@@ -47,44 +47,44 @@ impl DebugArtifact {
     }
 
     /// Given a location, returns its file's source code
-    pub fn location_source_code(&self, location: Location) -> Result<&str, Error> {
-        self.source(location.file)
+    pub fn location_source_code(&self, span: Span) -> Result<&str, Error> {
+        self.source(span.src_id())
     }
 
     /// Given a location, returns the index of the line it starts at
-    pub fn location_line_index(&self, location: Location) -> Result<usize, Error> {
-        let location_start = location.span.start() as usize;
-        self.line_index(location.file, location_start)
+    pub fn location_line_index(&self, span: Span) -> Result<usize, Error> {
+        let location_start = span.start() as usize;
+        self.line_index(span.src_id(), location_start)
     }
 
     /// Given a location, returns the index of the line it ends at
-    pub fn location_end_line_index(&self, location: Location) -> Result<usize, Error> {
-        let location_end = location.span.end() as usize;
-        self.line_index(location.file, location_end)
+    pub fn location_end_line_index(&self, span: Span) -> Result<usize, Error> {
+        let location_end = span.end() as usize;
+        self.line_index(span.src_id(), location_end)
     }
 
     /// Given a location, returns the line number it starts at
-    pub fn location_line_number(&self, location: Location) -> Result<usize, Error> {
-        let location_start = location.span.start() as usize;
-        let line_index = self.line_index(location.file, location_start)?;
-        self.line_number(location.file, line_index)
+    pub fn location_line_number(&self, span: Span) -> Result<usize, Error> {
+        let location_start = span.start() as usize;
+        let line_index = self.line_index(span.src_id(), location_start)?;
+        self.line_number(span.src_id(), line_index)
     }
 
     /// Given a location, returns the column number it starts at
-    pub fn location_column_number(&self, location: Location) -> Result<usize, Error> {
-        let location_start = location.span.start() as usize;
-        let line_index = self.line_index(location.file, location_start)?;
-        self.column_number(location.file, line_index, location_start)
+    pub fn location_column_number(&self, span: Span) -> Result<usize, Error> {
+        let location_start = span.start() as usize;
+        let line_index = self.line_index(span.src_id(), location_start)?;
+        self.column_number(span.src_id(), line_index, location_start)
     }
 
     /// Given a location, returns a Span relative to its line's
     /// position in the file. This is useful when processing a file's
     /// contents on a per-line-basis.
-    pub fn location_in_line(&self, location: Location) -> Result<Range<usize>, Error> {
-        let location_start = location.span.start() as usize;
-        let location_end = location.span.end() as usize;
-        let line_index = self.line_index(location.file, location_start)?;
-        let line_span = self.line_range(location.file, line_index)?;
+    pub fn location_in_line(&self, span: Span) -> Result<Range<usize>, Error> {
+        let location_start = span.start() as usize;
+        let location_end = span.end() as usize;
+        let line_index = self.line_index(span.src_id(), location_start)?;
+        let line_span = self.line_range(span.src_id(), line_index)?;
 
         let line_length = line_span.end - (line_span.start + 1);
         let start_in_line = location_start - line_span.start;
@@ -100,19 +100,19 @@ impl DebugArtifact {
     /// Given a location, returns a Span relative to its last line's
     /// position in the file. This is useful when processing a file's
     /// contents on a per-line-basis.
-    pub fn location_in_end_line(&self, location: Location) -> Result<Range<usize>, Error> {
+    pub fn location_in_end_line(&self, location: Span) -> Result<Range<usize>, Error> {
         let end_line_index = self.location_end_line_index(location)?;
-        let line_span = self.line_range(location.file, end_line_index)?;
-        let location_end = location.span.end() as usize;
+        let line_span = self.line_range(location.src_id(), end_line_index)?;
+        let location_end = location.end() as usize;
         let end_in_line = location_end - line_span.start;
         Ok(Range { start: 0, end: end_in_line })
     }
 
     /// Given a location, returns the last line index
     /// of its file
-    pub fn last_line_index(&self, location: Location) -> Result<usize, Error> {
-        let source = self.source(location.file)?;
-        self.line_index(location.file, source.len())
+    pub fn last_line_index(&self, location: Span) -> Result<usize, Error> {
+        let source = self.source(location.src_id())?;
+        self.line_index(location.src_id(), source.len())
     }
 }
 
@@ -175,7 +175,7 @@ mod tests {
     use crate::artifacts::debug::DebugArtifact;
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::{debug_info::DebugInfo, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;
@@ -222,11 +222,11 @@ mod tests {
         //      consts::x5_2_config(),
         //      state)
         // ```
-        let loc = Location::new(Span::inclusive_within(63, 116, file_id), file_id);
+        let loc = Span::inclusive_within(63, 116, file_id);
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
+        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Span>>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
 
         let debug_symbols = vec![DebugInfo::new(opcode_locations)];

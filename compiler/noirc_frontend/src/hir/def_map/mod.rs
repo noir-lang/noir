@@ -7,7 +7,7 @@ use crate::parser::{parse_program, ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use arena::{Arena, Index};
 use fm::FileManager;
-use noirc_errors::{Location, SrcId};
+use noirc_errors::{Span, SrcId};
 use std::collections::BTreeMap;
 mod module_def;
 pub use module_def::*;
@@ -104,7 +104,7 @@ impl CrateDefMap {
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
-        let location = Location::new(Default::default(), root_file_id);
+        let location = Span::empty(0, root_file_id);
         let root = modules.insert(ModuleData::new(None, location, false));
 
         let def_map = CrateDefMap {
@@ -149,7 +149,7 @@ impl CrateDefMap {
     }
 
     pub fn file_id(&self, module_id: LocalModuleId) -> SrcId {
-        self.modules[module_id.0].location.file
+        self.modules[module_id.0].location.src_id()
     }
 
     /// Go through all modules in this crate, and find all functions in
@@ -164,7 +164,7 @@ impl CrateDefMap {
                     let attributes = interner.function_attributes(&func_id);
                     match &attributes.function {
                         Some(FunctionAttribute::Test(scope)) => {
-                            let location = interner.function_meta(&func_id).name.location;
+                            let location = interner.function_meta(&func_id).name.span;
                             Some(TestFunction::new(func_id, scope.clone(), location))
                         }
                         _ => None,
@@ -288,7 +288,7 @@ pub struct ContractFunctionMeta {
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
-    pub location: Location,
+    pub location: Span,
     pub functions: Vec<ContractFunctionMeta>,
     pub events: Vec<StructId>,
 }
@@ -314,11 +314,11 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
 pub struct TestFunction {
     id: FuncId,
     scope: TestScope,
-    location: Location,
+    location: Span,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope, location: Location) -> Self {
+    fn new(id: FuncId, scope: TestScope, location: Span) -> Self {
         TestFunction { id, scope, location }
     }
 
@@ -328,7 +328,7 @@ impl TestFunction {
     }
 
     pub fn file_id(&self) -> SrcId {
-        self.location.file
+        self.location.src_id()
     }
 
     /// Returns true if the test function has been specified to fail

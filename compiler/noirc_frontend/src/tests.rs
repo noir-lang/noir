@@ -8,7 +8,7 @@ mod test {
     use std::collections::BTreeMap;
 
     use iter_extended::vecmap;
-    use noirc_errors::{Location, SrcId};
+    use noirc_errors::{Span, SrcId};
 
     use crate::hir::def_collector::dc_crate::CompilationError;
     use crate::hir::def_collector::errors::{DefCollectorErrorKind, DuplicateType};
@@ -65,7 +65,7 @@ mod test {
         if !has_parser_error(&errors) {
             // Allocate a default Module for the root, giving it a ModuleId
             let mut modules: Arena<ModuleData> = Arena::default();
-            let location = Location::new(Default::default(), root_file_id);
+            let location = Span::empty(0, root_file_id);
             let root = modules.insert(ModuleData::new(None, location, false));
 
             let def_map = CrateDefMap {

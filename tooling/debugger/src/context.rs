@@ -7,7 +7,7 @@ use acvm::pwg::{
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use nargo::artifacts::debug::DebugArtifact;
-use nargo::errors::{ExecutionError, Location};
+use nargo::errors::{ExecutionError, Span};
 use nargo::ops::ForeignCallExecutor;
 use nargo::NargoError;
 
@@ -81,7 +81,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     /// `get_current_opcode_location()` returns `None`) or if the opcode is not
     /// mapped to a specific source location in the debug artifact (which can
     /// happen for certain opcodes inserted synthetically by the compiler)
-    pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
+    pub(super) fn get_current_source_location(&self) -> Option<Vec<Span>> {
         self.get_current_opcode_location()
             .as_ref()
             .and_then(|location| self.debug_artifact.debug_symbols[0].opcode_location(location))

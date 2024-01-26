@@ -6,7 +6,7 @@
 pub mod debug_info;
 mod position;
 pub mod reporter;
-pub use position::{Location, Position, Span, Spanned, SrcId};
+pub use position::{Position, Span, Spanned, SrcId};
 pub use reporter::{CustomDiagnostic, DiagnosticKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,7 +16,7 @@ pub struct FileDiagnostic {
 
     /// An optional call stack to display the full runtime call stack
     /// leading up to a runtime error. If this is empty it will not be displayed.
-    pub call_stack: Vec<Location>,
+    pub call_stack: Vec<Span>,
 }
 
 impl FileDiagnostic {
@@ -24,7 +24,7 @@ impl FileDiagnostic {
         FileDiagnostic { file_id, diagnostic, call_stack: Vec::new() }
     }
 
-    pub fn with_call_stack(mut self, call_stack: Vec<Location>) -> Self {
+    pub fn with_call_stack(mut self, call_stack: Vec<Span>) -> Self {
         self.call_stack = call_stack;
         self
     }

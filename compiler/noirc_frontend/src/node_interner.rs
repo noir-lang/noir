@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use arena::{Arena, Index};
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, Spanned, SrcId};
+use noirc_errors::{Span, Spanned, SrcId};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
@@ -51,7 +51,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     // Map each `Index` to it's own location
-    pub(crate) id_to_location: HashMap<Index, Location>,
+    pub(crate) id_to_location: HashMap<Index, Span>,
 
     // Maps each DefinitionId to a DefinitionInfo.
     definitions: Vec<DefinitionInfo>,
@@ -144,10 +144,10 @@ pub struct NodeInterner {
 
     /// A list of all type aliases that are referenced in the program.
     /// Searched by LSP to resolve [Location]s of [TypeAliasType]s
-    pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
+    pub(crate) type_alias_ref: Vec<(TypeAliasId, Span)>,
 
     /// Stores the [Location] of a [Type] reference
-    pub(crate) type_ref_locations: Vec<(Type, Location)>,
+    pub(crate) type_ref_locations: Vec<(Type, Span)>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -380,7 +380,7 @@ pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
     pub kind: DefinitionKind,
-    pub location: Location,
+    pub location: Span,
 }
 
 impl DefinitionInfo {
@@ -480,8 +480,8 @@ impl NodeInterner {
     }
 
     /// Stores the span for an interned expression.
-    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: SrcId) {
-        self.id_to_location.insert(expr_id.into(), Location::new(span, file));
+    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span) {
+        self.id_to_location.insert(expr_id.into(), span);
     }
 
     /// Interns a HIR Function.
@@ -501,7 +501,7 @@ impl NodeInterner {
             id: type_id,
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
-            location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
+            span: unresolved_trait.trait_def.span,
             generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
                 // Temporary type variable ids before the trait is resolved to its actual ids.
                 // This lets us record how many arguments the type expects so that other types
@@ -525,7 +525,6 @@ impl NodeInterner {
         typ: &UnresolvedStruct,
         krate: CrateId,
         local_id: LocalModuleId,
-        file_id: SrcId,
     ) -> StructId {
         let struct_id = StructId(ModuleId { krate, local_id });
         let name = typ.struct_def.name.clone();
@@ -540,8 +539,8 @@ impl NodeInterner {
             TypeVariable::unbound(TypeVariableId(0))
         });
 
-        let location = Location::new(typ.struct_def.span, file_id);
-        let new_struct = StructType::new(struct_id, name, location, no_fields, generics);
+        let struct_def_span = typ.struct_def.span;
+        let new_struct = StructType::new(struct_id, name, struct_def_span, no_fields, generics);
         self.structs.insert(struct_id, Shared::new(new_struct));
         self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
         struct_id
@@ -553,7 +552,7 @@ impl NodeInterner {
         self.type_aliases.push(TypeAliasType::new(
             type_id,
             typ.type_alias_def.name.clone(),
-            Location::new(typ.type_alias_def.span, typ.file_id),
+            typ.type_alias_def.span,
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
         ));
@@ -563,8 +562,8 @@ impl NodeInterner {
 
     /// Adds [TypeLiasId] and [Location] to the type_alias_ref vector
     /// So that we can later resolve [Location]s type aliases from the LSP requests
-    pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
-        self.type_alias_ref.push((type_id, location));
+    pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, span: Span) {
+        self.type_alias_ref.push((type_id, span));
     }
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
@@ -611,7 +610,7 @@ impl NodeInterner {
     }
 
     /// Store [Location] of [Type] reference
-    pub fn push_type_ref_location(&mut self, typ: Type, location: Location) {
+    pub fn push_type_ref_location(&mut self, typ: Type, location: Span) {
         self.type_ref_locations.push((typ, location));
     }
 
@@ -677,7 +676,7 @@ impl NodeInterner {
         name: String,
         mutable: bool,
         definition: DefinitionKind,
-        location: Location,
+        location: Span,
     ) -> DefinitionId {
         let id = DefinitionId(self.definitions.len());
         if let DefinitionKind::Function(func_id) = definition {
@@ -695,8 +694,8 @@ impl NodeInterner {
         let mut modifiers = FunctionModifiers::new();
         modifiers.name = name;
         let module = ModuleId::dummy_id();
-        let location = Location::dummy();
-        self.push_function_definition(id, modifiers, module, location);
+        let func_def_span = Span::default();
+        self.push_function_definition(id, modifiers, module, func_def_span);
         id
     }
 
@@ -705,7 +704,7 @@ impl NodeInterner {
         id: FuncId,
         function: &FunctionDefinition,
         module: ModuleId,
-        location: Location,
+        location: Span,
     ) -> DefinitionId {
         use ContractFunctionType::*;
 
@@ -727,7 +726,7 @@ impl NodeInterner {
         func: FuncId,
         modifiers: FunctionModifiers,
         module: ModuleId,
-        location: Location,
+        location: Span,
     ) -> DefinitionId {
         let name = modifiers.name.clone();
         self.function_modifiers.insert(func, modifiers);
@@ -779,7 +778,7 @@ impl NodeInterner {
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
         let name = self.function_name(func_id).to_owned();
-        let span = self.function_meta(func_id).name.location.span;
+        let span = self.function_meta(func_id).name.span;
         crate::Ident(Spanned::from(span, name))
     }
 
@@ -865,10 +864,10 @@ impl NodeInterner {
     }
 
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
-        self.id_location(expr_id).span
+        self.id_location(expr_id)
     }
 
-    pub fn expr_location(&self, expr_id: &ExprId) -> Location {
+    pub fn expr_location(&self, expr_id: &ExprId) -> Span {
         self.id_location(expr_id)
     }
 
@@ -923,7 +922,7 @@ impl NodeInterner {
     }
 
     /// Returns the span of an item stored in the Interner
-    pub fn id_location(&self, index: impl Into<Index>) -> Location {
+    pub fn id_location(&self, index: impl Into<Index>) -> Span {
         self.id_to_location.get(&index.into()).copied().unwrap()
     }
 

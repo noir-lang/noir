@@ -3,7 +3,7 @@ use std::sync::{Mutex, RwLock};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::Span;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::{BinaryOpKind, Signedness};
@@ -305,7 +305,7 @@ impl<'a> FunctionContext<'a> {
         lhs: ValueId,
         rhs: ValueId,
         operator: BinaryOpKind,
-        location: Location,
+        location: Span,
     ) -> ValueId {
         let result_type = self.builder.current_function.dfg.type_of_value(result);
         match result_type {
@@ -415,7 +415,7 @@ impl<'a> FunctionContext<'a> {
         result: ValueId,
         rhs: ValueId,
         bit_size: u32,
-        location: Location,
+        location: Span,
         is_signed: bool,
     ) -> ValueId {
         let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
@@ -470,7 +470,7 @@ impl<'a> FunctionContext<'a> {
         rhs: ValueId,
         operator: BinaryOpKind,
         bit_size: u32,
-        location: Location,
+        location: Span,
     ) {
         let is_sub = operator == BinaryOpKind::Subtract;
         let half_width = self.builder.numeric_constant(
@@ -546,7 +546,7 @@ impl<'a> FunctionContext<'a> {
         mut lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         mut rhs: ValueId,
-        location: Location,
+        location: Span,
     ) -> Values {
         let result_type = self.builder.type_of_value(lhs);
         let mut result = match operator {
@@ -625,7 +625,7 @@ impl<'a> FunctionContext<'a> {
         lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         rhs: ValueId,
-        location: Location,
+        location: Span,
     ) -> Values {
         let lhs_type = self.builder.type_of_value(lhs);
         let rhs_type = self.builder.type_of_value(rhs);
@@ -696,7 +696,7 @@ impl<'a> FunctionContext<'a> {
         function: ValueId,
         arguments: Vec<ValueId>,
         result_type: &ast::Type,
-        location: Location,
+        location: Span,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
         let results =
@@ -720,7 +720,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         mut value: ValueId,
         typ: Type,
-        location: Location,
+        location: Span,
     ) -> ValueId {
         self.builder.set_location(location);
 
@@ -883,7 +883,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
-        location: &Location,
+        location: &Span,
     ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
         let index = self.codegen_non_tuple_expression(index)?;
@@ -985,7 +985,7 @@ impl<'a> FunctionContext<'a> {
         new_value: Values,
         mut array: ValueId,
         index: ValueId,
-        location: Location,
+        location: Span,
     ) -> ValueId {
         let element_size = self.builder.field_constant(self.element_size(array));
 
@@ -1182,8 +1182,8 @@ impl SharedContext {
 #[derive(Debug)]
 pub(super) enum LValue {
     Ident,
-    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
-    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue>, location: Location },
+    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Span },
+    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue>, location: Span },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
     Dereference { reference: Values },
 }

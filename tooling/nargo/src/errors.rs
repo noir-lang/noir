@@ -6,7 +6,7 @@ use noirc_errors::{
     debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
 };
 
-pub use noirc_errors::Location;
+pub use noirc_errors::Span;
 
 use noirc_frontend::graph::CrateName;
 use noirc_printable_type::ForeignCallError;
@@ -82,10 +82,7 @@ pub enum ExecutionError {
 }
 
 /// Extracts the opcode locations from a nargo error.
-fn extract_locations_from_error(
-    error: &ExecutionError,
-    debug: &DebugInfo,
-) -> Option<Vec<Location>> {
+fn extract_locations_from_error(error: &ExecutionError, debug: &DebugInfo) -> Option<Vec<Span>> {
     let mut opcode_locations = match error {
         ExecutionError::SolvingError(OpcodeResolutionError::BrilligFunctionFailed {
             call_stack,
@@ -151,8 +148,8 @@ pub fn try_to_diagnose_runtime_error(
     };
 
     Some(
-        CustomDiagnostic::simple_error(message, String::new(), location.span)
-            .in_file(location.file)
+        CustomDiagnostic::simple_error(message, String::new(), location.clone())
+            .in_file(location.src_id())
             .with_call_stack(source_locations),
     )
 }

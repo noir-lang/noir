@@ -52,9 +52,8 @@ pub(crate) fn resolve_structs(
             for field in fields.iter() {
                 if field.1.is_nested_slice() {
                     errors.push((
-                        ResolverError::NestedSlices { span: struct_type.borrow().location.span }
-                            .into(),
-                        struct_type.borrow().location.file,
+                        ResolverError::NestedSlices { span: struct_type.borrow().span }.into(),
+                        struct_type.borrow().span.src_id(),
                     ));
                 }
             }

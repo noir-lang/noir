@@ -101,15 +101,18 @@ impl From<SrcId> for usize {
 #[derive(
     PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default, Deserialize, Serialize,
 )]
-pub struct Span(ByteSpan, SrcId);
+pub struct Span {
+    byte_span: ByteSpan,
+    src_id: SrcId,
+}
 
 impl Span {
     pub fn inclusive(start: Position, end: Position) -> Span {
-        Span(ByteSpan::from(start.0..end.0 + 1), start.1)
+        Span { byte_span: ByteSpan::from(start.0..end.0 + 1), src_id: start.1 }
     }
 
     pub fn inclusive_within(start: u32, end: u32, src_id: impl Into<usize>) -> Span {
-        Span(ByteSpan::from(start..end + 1), src_id.into().into())
+        Span { byte_span: ByteSpan::from(start..end + 1), src_id: src_id.into().into() }
     }
 
     pub fn single_char(start: u32, src_id: impl Into<usize>) -> Span {
@@ -123,23 +126,23 @@ impl Span {
 
     #[must_use]
     pub fn merge(self, other: Span) -> Span {
-        Span(self.0.merge(other.0), self.1)
+        Span { byte_span: self.byte_span.merge(other.byte_span), src_id: self.src_id }
     }
 
     pub fn to_byte_span(self) -> ByteSpan {
-        self.0
+        self.byte_span
     }
 
     pub fn start(&self) -> u32 {
-        self.0.start().into()
+        self.byte_span.start().into()
     }
 
     pub fn end(&self) -> u32 {
-        self.0.end().into()
+        self.byte_span.end().into()
     }
 
     pub fn contains(&self, other: &Span) -> bool {
-        self.start() <= other.start() && self.end() >= other.end()
+        self.src_id == other.src_id && self.start() <= other.start() && self.end() >= other.end()
     }
 
     pub fn is_smaller(&self, other: &Span) -> bool {
@@ -149,19 +152,23 @@ impl Span {
     }
 
     fn from_range(Range { start, end }: Range<u32>, src_id: SrcId) -> Self {
-        Self(ByteSpan::new(start, end), src_id)
+        Self { byte_span: ByteSpan::new(start, end), src_id: src_id }
+    }
+
+    pub fn src_id(&self) -> SrcId {
+        self.src_id
     }
 }
 
 impl From<Span> for Range<usize> {
     fn from(span: Span) -> Self {
-        span.0.into()
+        span.byte_span.into()
     }
 }
 
 impl From<Range<u32>> for Span {
     fn from(Range { start, end }: Range<u32>) -> Self {
-        Self(ByteSpan::new(start, end), SrcId::default())
+        Self { byte_span: ByteSpan::new(start, end), src_id: SrcId::default() }
     }
 }
 
@@ -171,11 +178,11 @@ impl chumsky::Span for Span {
     type Offset = u32;
 
     fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
-        Span(ByteSpan::from(range), context)
+        Span { byte_span: ByteSpan::from(range), src_id: context }
     }
 
     fn context(&self) -> Self::Context {
-        self.1
+        self.src_id
     }
 
     fn start(&self) -> Self::Offset {
@@ -187,23 +194,23 @@ impl chumsky::Span for Span {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Location {
-    pub span: Span,
-    pub file: SrcId,
-}
+// #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+// pub struct Span {
+//     pub span: Span,
+//     pub file: SrcId,
+// }
 
-impl Location {
-    pub fn new(span: Span, file: SrcId) -> Self {
-        Self { span, file }
-    }
+// impl Span {
+//     pub fn new(span: Span, file: SrcId) -> Self {
+//         Self { span, file }
+//     }
 
-    pub fn dummy() -> Self {
-        let file = SrcId::default();
-        Self { span: Span::single_char(0, file), file }
-    }
+//     pub fn dummy() -> Self {
+//         let file = SrcId::default();
+//         Self { span: Span::single_char(0, file), file }
+//     }
 
-    pub fn contains(&self, other: &Location) -> bool {
-        self.file == other.file && self.span.contains(&other.span)
-    }
-}
+//     pub fn contains(&self, other: &Span) -> bool {
+//         self.file == other.file && self.span.contains(&other.span)
+//     }
+// }

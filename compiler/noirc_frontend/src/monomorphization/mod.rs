@@ -10,7 +10,7 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
-use noirc_errors::Location;
+use noirc_errors::Span;
 use noirc_printable_type::PrintableType;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
@@ -76,7 +76,7 @@ struct Monomorphizer<'interner> {
 
     is_range_loop: bool,
 
-    return_location: Option<Location>,
+    return_location: Option<Span>,
 }
 
 type HirType = crate::Type;
@@ -673,7 +673,7 @@ impl<'interner> Monomorphizer<'interner> {
         let definition = self.lookup_local(ident.id)?;
         let typ = self.convert_type(&self.interner.id_type(ident.id));
 
-        Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
+        Some(ast::Ident { location: Some(ident.span), mutable, definition, name, typ })
     }
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
@@ -687,7 +687,7 @@ impl<'interner> Monomorphizer<'interner> {
         match &definition.kind {
             DefinitionKind::Function(func_id) => {
                 let mutable = definition.mutable;
-                let location = Some(ident.location);
+                let location = Some(ident.span);
                 let name = definition.name.clone();
                 let typ = self.interner.id_type(expr_id);
                 let definition = self.lookup_function(*func_id, expr_id, &typ, None);
@@ -920,7 +920,7 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = self.interner.id_type(id);
         let return_type = self.convert_type(&return_type);
 
-        let location = call.location;
+        let location = call.span;
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
@@ -1099,7 +1099,7 @@ impl<'interner> Monomorphizer<'interner> {
         &self,
         bytes: Vec<u8>,
         arr_elem_bits: u32,
-        location: Location,
+        location: Span,
     ) -> ast::Expression {
         use ast::*;
         let int_type = Type::Integer(crate::Signedness::Unsigned, arr_elem_bits);
@@ -1351,7 +1351,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn zeroed_value_of_type(
         &mut self,
         typ: &ast::Type,
-        location: noirc_errors::Location,
+        location: noirc_errors::Span,
     ) -> ast::Expression {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
@@ -1421,7 +1421,7 @@ impl<'interner> Monomorphizer<'interner> {
         parameter_types: &[ast::Type],
         ret_type: &ast::Type,
         env_type: &ast::Type,
-        location: noirc_errors::Location,
+        location: noirc_errors::Span,
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
@@ -1464,7 +1464,7 @@ impl<'interner> Monomorphizer<'interner> {
         operator: HirBinaryOp,
         rhs: ast::Expression,
         ret: Type,
-        location: Location,
+        location: Span,
     ) -> ast::Expression {
         let arguments = vec![lhs, rhs];
         let func = Box::new(func);

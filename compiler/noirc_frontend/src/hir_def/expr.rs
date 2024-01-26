@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 
-use noirc_errors::{Location, SrcId};
+use noirc_errors::Span;
 
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
@@ -43,7 +43,7 @@ impl HirExpression {
 /// Corresponds to a variable in the source code
 #[derive(Debug, Clone)]
 pub struct HirIdent {
-    pub location: Location,
+    pub span: Span,
     pub id: DefinitionId,
 
     /// If this HirIdent refers to a trait method, this field stores
@@ -52,8 +52,8 @@ pub struct HirIdent {
 }
 
 impl HirIdent {
-    pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
-        Self { id, location, impl_kind: ImplKind::NotATraitMethod }
+    pub fn non_trait_method(id: DefinitionId, span: Span) -> Self {
+        Self { id, span, impl_kind: ImplKind::NotATraitMethod }
     }
 }
 
@@ -85,14 +85,14 @@ impl std::hash::Hash for HirIdent {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HirBinaryOp {
     pub kind: BinaryOpKind,
-    pub location: Location,
+    pub span: Span,
 }
 
 impl HirBinaryOp {
-    pub fn new(op: BinaryOp, file: SrcId) -> Self {
+    pub fn new(op: BinaryOp) -> Self {
         let kind = op.contents;
-        let location = Location::new(op.span(), file);
-        HirBinaryOp { location, kind }
+        let op_span = op.span();
+        HirBinaryOp { span: op_span, kind }
     }
 
     pub fn is_bitwise(&self) -> bool {
@@ -172,7 +172,7 @@ pub struct HirCastExpression {
 pub struct HirCallExpression {
     pub func: ExprId,
     pub arguments: Vec<ExprId>,
-    pub location: Location,
+    pub span: Span,
 }
 
 /// These nodes are temporary, they're
@@ -184,7 +184,7 @@ pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
     pub arguments: Vec<ExprId>,
-    pub location: Location,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -205,7 +205,7 @@ impl HirMethodCallExpression {
         mut self,
         method: &HirMethodReference,
         object_type: Type,
-        location: Location,
+        location: Span,
         interner: &mut NodeInterner,
     ) -> (ExprId, HirExpression) {
         let mut arguments = vec![self.object];
@@ -225,9 +225,9 @@ impl HirMethodCallExpression {
                 (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }
         };
-        let expr = HirExpression::Ident(HirIdent { location, id, impl_kind });
+        let expr = HirExpression::Ident(HirIdent { span: location, id, impl_kind });
         let func = interner.push_expr(expr);
-        (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
+        (func, HirExpression::Call(HirCallExpression { func, arguments, span: location }))
     }
 }
 

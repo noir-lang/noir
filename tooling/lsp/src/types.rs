@@ -2,7 +2,7 @@ use lsp_types::{
     DeclarationCapability, DefinitionOptions, OneOf, TypeDefinitionProviderCapability,
 };
 use noirc_driver::DebugFile;
-use noirc_errors::{debug_info::OpCodesCount, Location, SrcId};
+use noirc_errors::{debug_info::OpCodesCount, Span, SrcId};
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -227,7 +227,7 @@ pub(crate) struct NargoProfileRunParams {
 pub(crate) struct NargoProfileRunResult {
     pub(crate) file_map: BTreeMap<SrcId, DebugFile>,
     #[serde_as(as = "Vec<(_, _)>")]
-    pub(crate) opcodes_counts: HashMap<Location, OpCodesCount>,
+    pub(crate) opcodes_counts: HashMap<Span, OpCodesCount>,
 }
 
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;

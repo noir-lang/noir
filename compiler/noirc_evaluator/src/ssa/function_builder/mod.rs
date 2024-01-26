@@ -3,7 +3,7 @@ pub(crate) mod data_bus;
 use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
-use noirc_errors::Location;
+use noirc_errors::Span;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -177,7 +177,7 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
-    pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
+    pub(crate) fn set_location(&mut self, location: Span) -> &mut FunctionBuilder {
         self.call_stack = im::Vector::unit(location);
         self
     }

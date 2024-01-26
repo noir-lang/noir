@@ -15,7 +15,7 @@ use std::io::Read;
 use std::io::Write;
 use std::mem;
 
-use crate::Location;
+use crate::Span;
 use serde::{
     de::Error as DeserializationError, ser::Error as SerializationError, Deserialize, Serialize,
 };
@@ -27,7 +27,7 @@ pub struct DebugInfo {
     /// Serde does not support mapping keys being enums for json, so we indicate
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
-    pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+    pub locations: BTreeMap<OpcodeLocation, Vec<Span>>,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -39,7 +39,7 @@ pub struct OpCodesCount {
 }
 
 impl DebugInfo {
-    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
+    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Span>>) -> Self {
         DebugInfo { locations }
     }
 
@@ -59,12 +59,12 @@ impl DebugInfo {
         }
     }
 
-    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
+    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Span>> {
         self.locations.get(loc).cloned()
     }
 
-    pub fn count_span_opcodes(&self) -> HashMap<Location, OpCodesCount> {
-        let mut accumulator: HashMap<Location, Vec<&OpcodeLocation>> = HashMap::new();
+    pub fn count_span_opcodes(&self) -> HashMap<Span, OpCodesCount> {
+        let mut accumulator: HashMap<Span, Vec<&OpcodeLocation>> = HashMap::new();
 
         for (opcode_location, locations) in self.locations.iter() {
             for location in locations.iter() {

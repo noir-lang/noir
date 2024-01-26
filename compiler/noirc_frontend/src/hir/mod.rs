@@ -11,7 +11,7 @@ use crate::parser::ParserError;
 use crate::ParsedModule;
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
-use noirc_errors::{Location, SrcId};
+use noirc_errors::{Span, SrcId};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 
@@ -33,7 +33,7 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
-    pub visited_files: BTreeMap<SrcId, Location>,
+    pub visited_files: BTreeMap<SrcId, Span>,
 
     // A map of all parsed files.
     // Same as the file manager, we take ownership of the parsed files in the WASM context.

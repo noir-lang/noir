@@ -45,7 +45,7 @@ use crate::{
 };
 
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, Spanned, SrcId};
+use noirc_errors::{Span, Spanned, SrcId};
 
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
@@ -255,7 +255,7 @@ impl<'a> Resolver<'a> {
             if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
                 let name = &definition_info.name;
                 if name != ERROR_IDENT && !definition_info.is_global() {
-                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    let ident = Ident(Spanned::from(unused_var.span, name.to_owned()));
                     self.push_err(ResolverError::UnusedVariable { ident });
                 }
             }
@@ -301,10 +301,10 @@ impl<'a> Resolver<'a> {
             return self.add_global_variable_decl(name, definition);
         }
 
-        let location = Location::new(name.span(), self.file);
+        let name_span = name.span();
         let id =
-            self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
-        let ident = HirIdent::non_trait_method(id, location);
+            self.interner.push_definition(name.0.contents.clone(), mutable, definition, name_span);
+        let ident = HirIdent::non_trait_method(id, name_span);
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
 
@@ -315,8 +315,8 @@ impl<'a> Resolver<'a> {
             if let Some(old_value) = old_value {
                 self.push_err(ResolverError::DuplicateDefinition {
                     name: name.0.contents,
-                    first_span: old_value.ident.location.span,
-                    second_span: location.span,
+                    first_span: old_value.ident.span,
+                    second_span: name_span,
                 });
             }
         }
@@ -346,10 +346,14 @@ impl<'a> Resolver<'a> {
             let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
             (hir_let_stmt.ident(), resolver_meta)
         } else {
-            let location = Location::new(name.span(), self.file);
-            let id =
-                self.interner.push_definition(name.0.contents.clone(), false, definition, location);
-            let ident = HirIdent::non_trait_method(id, location);
+            let name_span = name.span();
+            let id = self.interner.push_definition(
+                name.0.contents.clone(),
+                false,
+                definition,
+                name_span,
+            );
+            let ident = HirIdent::non_trait_method(id, name_span);
             let resolver_meta =
                 ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
             (ident, resolver_meta)
@@ -359,7 +363,7 @@ impl<'a> Resolver<'a> {
         if let Some(old_global_value) = old_global_value {
             self.push_err(ResolverError::DuplicateDefinition {
                 name: name.0.contents.clone(),
-                first_span: old_global_value.ident.location.span,
+                first_span: old_global_value.ident.span,
                 second_span: name.span(),
             });
         }
@@ -377,8 +381,8 @@ impl<'a> Resolver<'a> {
         self.find_variable(name).unwrap_or_else(|error| {
             self.push_err(error);
             let id = DefinitionId::dummy_id();
-            let location = Location::new(name.span(), self.file);
-            (HirIdent::non_trait_method(id, location), 0)
+            let name_span = name.span();
+            (HirIdent::non_trait_method(id, name_span), 0)
         })
     }
 
@@ -387,11 +391,11 @@ impl<'a> Resolver<'a> {
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
 
-        let location = Location::new(name.span(), self.file);
+        let name_span = name.span();
         if let Some((variable_found, scope)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
-            Ok((HirIdent::non_trait_method(id, location), scope))
+            Ok((HirIdent::non_trait_method(id, name_span), scope))
         } else {
             Err(ResolverError::VariableNotDeclared {
                 name: name.0.contents.clone(),
@@ -408,7 +412,7 @@ impl<'a> Resolver<'a> {
             }
             FunctionKind::Normal => {
                 let expr_id = self.intern_block(func.def.body);
-                self.interner.push_expr_location(expr_id, func.def.span, self.file);
+                self.interner.push_expr_location(expr_id, func.def.span);
                 HirFunction::unchecked_from_expr(expr_id)
             }
         };
@@ -515,10 +519,7 @@ impl<'a> Resolver<'a> {
         if let Type::Struct(_, _) = resolved_type {
             if let Some(unresolved_span) = typ.span {
                 // Record the location of the type reference
-                self.interner.push_type_ref_location(
-                    resolved_type.clone(),
-                    Location::new(unresolved_span, self.file),
-                );
+                self.interner.push_type_ref_location(resolved_type.clone(), unresolved_span);
             }
         }
         resolved_type
@@ -555,7 +556,7 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        let span = path.span();
+        let path_span = path.span();
         let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
 
         if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
@@ -563,7 +564,7 @@ impl<'a> Resolver<'a> {
             let type_alias_string = type_alias_type.to_string();
             let id = type_alias_type.id;
 
-            self.verify_generics_count(expected_generic_count, &mut args, span, || {
+            self.verify_generics_count(expected_generic_count, &mut args, path_span, || {
                 type_alias_string
             });
 
@@ -571,7 +572,7 @@ impl<'a> Resolver<'a> {
 
             // Collecting Type Alias references [Location]s to be used by LSP in order
             // to resolve the definition of the type alias
-            self.interner.add_type_alias_ref(id, Location::new(span, self.file));
+            self.interner.add_type_alias_ref(id, path_span);
 
             // Because there is no ordering to when type aliases (and other globals) are resolved,
             // it is possible for one to refer to an Error type and issue no error if it is set
@@ -587,7 +588,7 @@ impl<'a> Resolver<'a> {
             Some(struct_type) => {
                 let expected_generic_count = struct_type.borrow().generics.len();
 
-                self.verify_generics_count(expected_generic_count, &mut args, span, || {
+                self.verify_generics_count(expected_generic_count, &mut args, path_span, || {
                     struct_type.borrow().to_string()
                 });
 
@@ -699,23 +700,23 @@ impl<'a> Resolver<'a> {
     }
 
     fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(path.span(), self.file);
+        let path_span = path.span();
 
         let error = match path.as_ident().map(|ident| self.find_variable(ident)) {
             Some(Ok(found)) => return found,
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
-                Ok(id) => return (HirIdent::non_trait_method(id, location), 0),
+                Ok(id) => return (HirIdent::non_trait_method(id, path_span), 0),
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
-                Ok(id) => return (HirIdent::non_trait_method(id, location), 0),
+                Ok(id) => return (HirIdent::non_trait_method(id, path_span), 0),
                 Err(error) => error,
             },
         };
         self.push_err(error);
         let id = DefinitionId::dummy_id();
-        (HirIdent::non_trait_method(id, location), 0)
+        (HirIdent::non_trait_method(id, path_span), 0)
     }
 
     /// Translates an UnresolvedType to a Type
@@ -861,9 +862,9 @@ impl<'a> Resolver<'a> {
     /// Prerequisite: self.add_generics() has already been called with the given
     /// function's generics, including any generics from the impl, if any.
     fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
-        let location = Location::new(func.name_ident().span(), self.file);
+        let name_ident_span = func.name_ident().span();
         let id = self.interner.function_definition_id(func_id);
-        let name_ident = HirIdent::non_trait_method(id, location);
+        let name_ident = HirIdent::non_trait_method(id, name_ident_span);
 
         let attributes = func.attributes().clone();
 
@@ -937,7 +938,7 @@ impl<'a> Resolver<'a> {
         FuncMeta {
             name: name_ident,
             kind: func.kind,
-            location,
+            span: name_ident_span,
             typ,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
@@ -1317,7 +1318,7 @@ impl<'a> Resolver<'a> {
                 if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
                 {
                     HirExpression::Ident(HirIdent {
-                        location: Location::new(expr.span, self.file),
+                        span: expr.span,
                         id: self.interner.trait_method_id(method),
                         impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
                     })
@@ -1334,10 +1335,9 @@ impl<'a> Resolver<'a> {
                                 if self.interner.function_visibility(id)
                                     != FunctionVisibility::Public
                                 {
-                                    let span = hir_ident.location.span;
                                     self.check_can_reference_function(
                                         id,
-                                        span,
+                                        hir_ident.span,
                                         self.interner.function_visibility(id),
                                     );
                                 }
@@ -1382,7 +1382,7 @@ impl<'a> Resolver<'a> {
 
                 HirExpression::Infix(HirInfixExpression {
                     lhs,
-                    operator: HirBinaryOp::new(infix.operator, self.file),
+                    operator: HirBinaryOp::new(infix.operator),
                     trait_method_id: trait_id,
                     rhs,
                 })
@@ -1392,19 +1392,19 @@ impl<'a> Resolver<'a> {
                 let func = self.resolve_expression(*call_expr.func);
 
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-                let location = Location::new(expr.span, self.file);
-                HirExpression::Call(HirCallExpression { func, arguments, location })
+
+                HirExpression::Call(HirCallExpression { func, arguments, span: expr.span })
             }
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-                let location = Location::new(expr.span, self.file);
+
                 HirExpression::MethodCall(HirMethodCallExpression {
                     arguments,
                     method,
                     object,
-                    location,
+                    span: expr.span,
                 })
             }
             ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
@@ -1487,7 +1487,7 @@ impl<'a> Resolver<'a> {
         // If these lines are ever changed, make sure to change the early return
         // in the ExpressionKind::Variable case as well
         let expr_id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(expr_id, expr.span, self.file);
+        self.interner.push_expr_location(expr_id, expr.span);
         expr_id
     }
 
@@ -1862,7 +1862,7 @@ impl<'a> Resolver<'a> {
                 old_value.num_times_used += 1;
                 let ident = HirExpression::Ident(old_value.ident.clone());
                 let expr_id = self.interner.push_expr(ident);
-                self.interner.push_expr_location(expr_id, call_expr_span, self.file);
+                self.interner.push_expr_location(expr_id, call_expr_span);
                 fmt_str_idents.push(expr_id);
             } else if ident_name.parse::<usize>().is_ok() {
                 self.errors.push(ResolverError::NumericConstantInFormatString {

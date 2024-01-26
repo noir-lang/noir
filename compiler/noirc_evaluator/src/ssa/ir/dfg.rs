@@ -16,7 +16,7 @@ use super::{
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::Span;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -84,7 +84,7 @@ pub(crate) struct DataFlowGraph {
     pub(crate) data_bus: DataBus,
 }
 
-pub(crate) type CallStack = im::Vector<Location>;
+pub(crate) type CallStack = im::Vector<Span>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
@@ -462,7 +462,7 @@ impl DataFlowGraph {
         self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
-    pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Location) {
+    pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Span) {
         self.locations.entry(instruction).or_default().push_back(location);
     }
 

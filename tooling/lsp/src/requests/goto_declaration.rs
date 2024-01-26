@@ -64,15 +64,12 @@ fn on_goto_definition_inner(
                 )
             })?;
 
-    let search_for_location = noirc_errors::Location {
-        file: file_id,
-        span: noirc_errors::Span::single_char(byte_index as u32, file_id),
-    };
+    let search_for_location = noirc_errors::Span::single_char(byte_index as u32, file_id);
 
     let goto_declaration_response =
         interner.get_declaration_location_from(search_for_location).and_then(|found_location| {
-            let file_id = found_location.file;
-            let definition_position = to_lsp_location(files, file_id, found_location.span)?;
+            let file_id = found_location.src_id();
+            let definition_position = to_lsp_location(files, file_id, found_location)?;
             let response: GotoDeclarationResponse =
                 GotoDeclarationResponse::from(definition_position).to_owned();
             Some(response)

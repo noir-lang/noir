@@ -1,7 +1,7 @@
 use acvm::acir::circuit::OpcodeLocation;
 use codespan_reporting::files::Files;
 use nargo::artifacts::debug::DebugArtifact;
-use noirc_errors::Location;
+use noirc_errors::Span;
 use owo_colors::OwoColorize;
 use std::ops::Range;
 
@@ -57,11 +57,11 @@ pub(crate) fn print_source_code_location(
     }
 }
 
-fn print_location_path(debug_artifact: &DebugArtifact, loc: Location) {
+fn print_location_path(debug_artifact: &DebugArtifact, loc: Span) {
     let line_number = debug_artifact.location_line_number(loc).unwrap();
     let column_number = debug_artifact.location_column_number(loc).unwrap();
 
-    println!("At {}:{line_number}:{column_number}", debug_artifact.name(loc.file).unwrap());
+    println!("At {}:{line_number}:{column_number}", debug_artifact.name(loc.src_id()).unwrap());
 }
 
 fn print_ellipsis(line_number: usize) {
@@ -185,7 +185,7 @@ fn render_line(
 // Note that locations may span multiple lines, so this function deals with that too.
 fn render_location<'a>(
     debug_artifact: &'a DebugArtifact,
-    loc: &'a Location,
+    loc: &'a Span,
 ) -> impl Iterator<Item = PrintedLine<'a>> {
     let loc = *loc;
 
@@ -232,7 +232,7 @@ mod tests {
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
     use nargo::artifacts::debug::DebugArtifact;
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::{debug_info::DebugInfo, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;
@@ -269,11 +269,11 @@ mod tests {
         //      consts::x5_2_config(),
         //      state)
         // ```
-        let loc = Location::new(Span::inclusive_within(63, 116, file_id), file_id);
+        let loc = Span::inclusive_within(63, 116, file_id);
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
+        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Span>>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
 
         let debug_symbols = vec![DebugInfo::new(opcode_locations)];

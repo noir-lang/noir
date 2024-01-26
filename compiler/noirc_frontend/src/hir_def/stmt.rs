@@ -91,7 +91,7 @@ impl HirPattern {
 
     pub fn span(&self) -> Span {
         match self {
-            HirPattern::Identifier(ident) => ident.location.span,
+            HirPattern::Identifier(ident) => ident.span,
             HirPattern::Mutable(_, span)
             | HirPattern::Tuple(_, span)
             | HirPattern::Struct(_, _, span) => *span,

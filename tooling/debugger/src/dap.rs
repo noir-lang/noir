@@ -97,8 +97,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                 return;
             }
             let source_location = source_locations[0];
-            let span = source_location.span;
-            let file_id = source_location.file;
+            let span = source_location;
+            let file_id = source_location.src_id();
             let Ok(line_index) = &simple_files[&file_id].line_index((), span.start() as usize) else {
                 return;
             };
@@ -230,7 +230,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         id: index as i64,
                         name: format!("frame #{index}"),
                         source: Some(Source {
-                            path: self.debug_artifact.file_map[&location.file]
+                            path: self.debug_artifact.file_map[&location.src_id()]
                                 .path
                                 .to_str()
                                 .map(String::from),

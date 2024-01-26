@@ -53,7 +53,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let parameters = meta.parameters.clone();
     let expected_return_type = meta.return_type.clone();
     let expected_trait_constraints = meta.trait_constraints.clone();
-    let name_span = meta.name.location.span;
+    let name_span = meta.name.span;
 
     let mut errors = Vec::new();
 
@@ -241,7 +241,7 @@ mod test {
     use std::vec;
 
     use iter_extended::vecmap;
-    use noirc_errors::{Location, Span, SrcId};
+    use noirc_errors::{Span, SrcId};
 
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
@@ -272,7 +272,7 @@ mod test {
 
         // Safety: The FileId in a location isn't used for tests
         let file = SrcId::default();
-        let location = Location::new(Span::default(), file);
+        let location = Span::empty(0, file);
 
         // Add a simple let Statement into the interner
         // let z = x + y;
@@ -298,15 +298,15 @@ mod test {
         let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone()));
 
         // Create Infix
-        let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
+        let operator = HirBinaryOp { span: location, kind: BinaryOpKind::Add };
         let trait_id = TraitId(ModuleId::dummy_id());
         let trait_method_id = TraitMethodId { trait_id, method_index: 0 };
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id, trait_method_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
-        interner.push_expr_location(expr_id, Span::single_char(0, file), file);
+        interner.push_expr_location(expr_id, Span::single_char(0, file));
 
-        interner.push_expr_location(x_expr_id, Span::single_char(0, file), file);
-        interner.push_expr_location(y_expr_id, Span::single_char(0, file), file);
+        interner.push_expr_location(x_expr_id, Span::single_char(0, file));
+        interner.push_expr_location(y_expr_id, Span::single_char(0, file));
 
         // Create let statement
         let let_stmt = HirLetStatement {
@@ -316,7 +316,7 @@ mod test {
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
-        interner.push_expr_location(expr_id, Span::single_char(0, file), file);
+        interner.push_expr_location(expr_id, Span::single_char(0, file));
 
         // Create function to enclose the let statement
         let func = HirFunction::unchecked_from_expr(expr_id);
@@ -330,7 +330,7 @@ mod test {
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
-            location,
+            span: location,
             typ: Type::Function(
                 vec![Type::FieldElement, Type::FieldElement],
                 Box::new(Type::Unit),
@@ -505,7 +505,7 @@ mod test {
         let file = SrcId::default();
 
         let mut modules = arena::Arena::new();
-        let location = Location::new(Default::default(), file);
+        let location = Span::empty(0, file);
         modules.insert(ModuleData::new(None, location, false));
 
         def_maps.insert(

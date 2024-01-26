@@ -1,5 +1,5 @@
 use arena::Index;
-use noirc_errors::Location;
+use noirc_errors::Span;
 
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::types::Type;
@@ -12,15 +12,15 @@ impl NodeInterner {
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
     /// of each items [Span]
-    pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
-        let mut location_candidate: Option<(&Index, &Location)> = None;
+    pub fn find_location_index(&self, location: Span) -> Option<impl Into<Index>> {
+        let mut location_candidate: Option<(&Index, &Span)> = None;
 
         // Note: we can modify this in the future to not do a linear
         // scan by storing a separate map of the spans or by sorting the locations.
         for (index, interned_location) in self.id_to_location.iter() {
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
-                    if interned_location.span.is_smaller(&current_location.1.span) {
+                    if interned_location.is_smaller(&current_location.1) {
                         location_candidate = Some((index, interned_location));
                     }
                 } else {
@@ -35,9 +35,9 @@ impl NodeInterner {
     /// Returns [None] when definition is not found.
     pub fn get_definition_location_from(
         &self,
-        location: Location,
+        location: Span,
         return_type_location_instead: bool,
-    ) -> Option<Location> {
+    ) -> Option<Span> {
         self.find_location_index(location)
             .and_then(|index| self.resolve_location(index, return_type_location_instead))
             .or_else(|| self.try_resolve_trait_impl_location(location))
@@ -46,7 +46,7 @@ impl NodeInterner {
             .or_else(|| self.try_resolve_type_alias(location))
     }
 
-    pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {
+    pub fn get_declaration_location_from(&self, location: Span) -> Option<Span> {
         self.try_resolve_trait_method_declaration(location).or_else(|| {
             self.find_location_index(location)
                 .and_then(|index| self.resolve_location(index, false))
@@ -63,7 +63,7 @@ impl NodeInterner {
         &self,
         index: impl Into<Index>,
         return_type_location_instead: bool,
-    ) -> Option<Location> {
+    ) -> Option<Span> {
         if return_type_location_instead {
             return self.get_type_location_from_index(index);
         }
@@ -81,9 +81,9 @@ impl NodeInterner {
         }
     }
 
-    fn get_type_location_from_index(&self, index: impl Into<Index>) -> Option<Location> {
+    fn get_type_location_from_index(&self, index: impl Into<Index>) -> Option<Span> {
         match self.id_type(index.into()) {
-            Type::Struct(struct_type, _) => Some(struct_type.borrow().location),
+            Type::Struct(struct_type, _) => Some(struct_type.borrow().span),
             _ => None,
         }
     }
@@ -95,14 +95,12 @@ impl NodeInterner {
         &self,
         expression: &HirExpression,
         return_type_location_instead: bool,
-    ) -> Option<Location> {
+    ) -> Option<Span> {
         match expression {
             HirExpression::Ident(ident) => {
                 let definition_info = self.definition(ident.id);
                 match definition_info.kind {
-                    DefinitionKind::Function(func_id) => {
-                        Some(self.function_meta(&func_id).location)
-                    }
+                    DefinitionKind::Function(func_id) => Some(self.function_meta(&func_id).span),
                     DefinitionKind::Local(_local_id) => Some(definition_info.location),
                     DefinitionKind::Global(_global_id) => Some(definition_info.location),
                     _ => None,
@@ -110,7 +108,7 @@ impl NodeInterner {
             }
             HirExpression::Constructor(expr) => {
                 let struct_type = &expr.r#type.borrow();
-                Some(struct_type.location)
+                Some(struct_type.span)
             }
             HirExpression::MemberAccess(expr_member_access) => {
                 self.resolve_struct_member_access(expr_member_access)
@@ -131,7 +129,7 @@ impl NodeInterner {
     fn resolve_struct_member_access(
         &self,
         expr_member_access: &crate::hir_def::expr::HirMemberAccess,
-    ) -> Option<Location> {
+    ) -> Option<Span> {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
@@ -143,9 +141,10 @@ impl NodeInterner {
         let struct_type = lhs_self_struct.borrow();
         let field_names = struct_type.field_names();
 
-        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
-            Location::new(found_field_name.span(), struct_type.location.file)
-        })
+        field_names
+            .iter()
+            .find(|field_name| field_name.0 == expr_rhs.0)
+            .map(|found_field_name| found_field_name.span())
     }
 
     /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
@@ -153,16 +152,16 @@ impl NodeInterner {
     ///
     /// Example:
     /// impl Foo for Bar { ... } -> trait Foo { ... }
-    fn try_resolve_trait_impl_location(&self, location: Location) -> Option<Location> {
+    fn try_resolve_trait_impl_location(&self, span: Span) -> Option<Span> {
         self.trait_implementations
             .iter()
             .find(|shared_trait_impl| {
                 let trait_impl = shared_trait_impl.borrow();
-                trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
+                trait_impl.ident.span().contains(&span)
             })
             .and_then(|shared_trait_impl| {
                 let trait_impl = shared_trait_impl.borrow();
-                self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
+                self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.span)
             })
     }
 
@@ -183,35 +182,34 @@ impl NodeInterner {
     /// }
     /// ```
     ///
-    fn try_resolve_trait_method_declaration(&self, location: Location) -> Option<Location> {
-        self.func_meta
-            .iter()
-            .find(|(_, func_meta)| func_meta.location.contains(&location))
-            .and_then(|(func_id, _func_meta)| {
+    fn try_resolve_trait_method_declaration(&self, location: Span) -> Option<Span> {
+        self.func_meta.iter().find(|(_, func_meta)| func_meta.span.contains(&location)).and_then(
+            |(func_id, _func_meta)| {
                 let (_, trait_id) = self.get_function_trait(func_id)?;
 
                 let mut methods = self.traits.get(&trait_id)?.methods.iter();
                 let method =
                     methods.find(|method| method.name.0.contents == self.function_name(func_id));
-                method.map(|method| method.location)
-            })
+                method.map(|method| method.span)
+            },
+        )
     }
 
     /// Attempts to resolve [Location] of [Type] based on [Location] of reference in code
-    pub(crate) fn try_resolve_type_ref(&self, location: Location) -> Option<Location> {
+    pub(crate) fn try_resolve_type_ref(&self, location: Span) -> Option<Span> {
         self.type_ref_locations
             .iter()
             .find(|(_typ, type_ref_location)| type_ref_location.contains(&location))
             .and_then(|(typ, _)| match typ {
-                Type::Struct(struct_typ, _) => Some(struct_typ.borrow().location),
+                Type::Struct(struct_typ, _) => Some(struct_typ.borrow().span),
                 _ => None,
             })
     }
 
-    fn try_resolve_type_alias(&self, location: Location) -> Option<Location> {
+    fn try_resolve_type_alias(&self, span: Span) -> Option<Span> {
         self.type_alias_ref
             .iter()
-            .find(|(_, named_type_location)| named_type_location.span.contains(&location.span))
-            .map(|(type_alias_id, _found_location)| self.get_type_alias(*type_alias_id).location)
+            .find(|(_, named_type_location)| named_type_location.contains(&span))
+            .map(|(type_alias_id, _found_location)| self.get_type_alias(*type_alias_id).span)
     }
 }

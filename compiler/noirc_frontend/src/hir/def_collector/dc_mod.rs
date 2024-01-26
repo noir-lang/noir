@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path, vec};
 
 use acvm::acir::acir_field::FieldOptions;
 use fm::{FileManager, FILE_EXTENSION};
-use noirc_errors::{Location, SrcId};
+use noirc_errors::SrcId;
 
 use crate::{
     graph::CrateId,
@@ -128,8 +128,8 @@ impl<'a> ModCollector<'a> {
 
             for method in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
-                let location = Location::new(method.span(), self.file_id);
-                context.def_interner.push_function(func_id, &method.def, module_id, location);
+                let method_span = method.span();
+                context.def_interner.push_function(func_id, &method.def, module_id, method_span);
                 unresolved_functions.push_fn(self.module_id, func_id, method);
             }
 
@@ -155,8 +155,13 @@ impl<'a> ModCollector<'a> {
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
                 noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
-                let location = Location::new(noir_function.def.span, self.file_id);
-                context.def_interner.push_function(*func_id, &noir_function.def, module, location);
+                let noir_funtion_span = noir_function.def.span;
+                context.def_interner.push_function(
+                    *func_id,
+                    &noir_function.def,
+                    module,
+                    noir_funtion_span,
+                );
             }
 
             let unresolved_trait_impl = UnresolvedTraitImpl {
@@ -189,8 +194,13 @@ impl<'a> ModCollector<'a> {
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 let func_id = context.def_interner.push_empty_fn();
-                let location = Location::new(impl_method.span(), self.file_id);
-                context.def_interner.push_function(func_id, &impl_method.def, module, location);
+                let impl_method_span = impl_method.span();
+                context.def_interner.push_function(
+                    func_id,
+                    &impl_method.def,
+                    module,
+                    impl_method_span,
+                );
                 unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
             }
         }
@@ -223,8 +233,8 @@ impl<'a> ModCollector<'a> {
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
-            let location = Location::new(function.span(), self.file_id);
-            context.def_interner.push_function(func_id, &function.def, module, location);
+            let function_span = function.span();
+            context.def_interner.push_function(func_id, &function.def, module, function_span);
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
@@ -271,10 +281,8 @@ impl<'a> ModCollector<'a> {
             };
 
             // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => {
-                    context.def_interner.new_struct(&unresolved, krate, local_id, self.file_id)
-                }
+            let id = match self.push_child_module(&name, false, false) {
+                Ok(local_id) => context.def_interner.new_struct(&unresolved, krate, local_id),
                 Err(error) => {
                     definition_errors.push((error.into(), self.file_id));
                     continue;
@@ -351,7 +359,7 @@ impl<'a> ModCollector<'a> {
             let name = trait_definition.name.clone();
 
             // Create the corresponding module for the trait namespace
-            let trait_id = match self.push_child_module(&name, self.file_id, false, false) {
+            let trait_id = match self.push_child_module(&name, false, false) {
                 Ok(local_id) => TraitId(ModuleId { krate, local_id }),
                 Err(error) => {
                     errors.push((error.into(), self.file_id));
@@ -403,10 +411,10 @@ impl<'a> ModCollector<'a> {
                             is_internal: None,
                         };
 
-                        let location = Location::new(name.span(), self.file_id);
+                        let name_span = name.span();
                         context
                             .def_interner
-                            .push_function_definition(func_id, modifiers, trait_id.0, location);
+                            .push_function_definition(func_id, modifiers, trait_id.0, name_span);
 
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
                             .declare_function(name.clone(), func_id)
@@ -494,7 +502,7 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, SrcId)> {
         let mut errors: Vec<(CompilationError, SrcId)> = vec![];
         for submodule in submodules {
-            match self.push_child_module(&submodule.name, file_id, true, submodule.is_contract) {
+            match self.push_child_module(&submodule.name, true, submodule.is_contract) {
                 Ok(child) => {
                     errors.extend(collect_defs(
                         self.def_collector,
@@ -535,24 +543,24 @@ impl<'a> ModCollector<'a> {
                 }
             };
 
-        let location = Location { file: self.file_id, span: mod_name.span() };
+        let span = mod_name.span();
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
                 mod_name: mod_name.clone(),
-                span: location.span,
+                span,
             };
-            errors.push((error.into(), location.file));
+            errors.push((error.into(), span.src_id()));
 
             let error = DefCollectorErrorKind::ModuleOriginallyDefined {
                 mod_name: mod_name.clone(),
-                span: old_location.span,
+                span: old_location.clone(),
             };
-            errors.push((error.into(), old_location.file));
+            errors.push((error.into(), old_location.src_id()));
             return errors;
         }
 
-        context.visited_files.insert(child_file_id, location);
+        context.visited_files.insert(child_file_id, span);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
         let (ast, parsing_errors) = context.parsed_file_results(child_file_id);
@@ -563,7 +571,7 @@ impl<'a> ModCollector<'a> {
         );
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(mod_name, child_file_id, true, false) {
+        match self.push_child_module(mod_name, true, false) {
             Ok(child_mod_id) => {
                 errors.extend(collect_defs(
                     self.def_collector,
@@ -586,13 +594,12 @@ impl<'a> ModCollector<'a> {
     fn push_child_module(
         &mut self,
         mod_name: &Ident,
-        file_id: SrcId,
         add_to_parent_scope: bool,
         is_contract: bool,
     ) -> Result<LocalModuleId, DefCollectorErrorKind> {
         let parent = Some(self.module_id);
-        let location = Location::new(mod_name.span(), file_id);
-        let new_module = ModuleData::new(parent, location, is_contract);
+        let mod_name_span = mod_name.span();
+        let new_module = ModuleData::new(parent, mod_name_span, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;

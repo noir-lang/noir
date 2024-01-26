@@ -96,8 +96,8 @@ pub(crate) fn collect_lenses_for_package(
     let tests =
         context.get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
     for (func_name, test_function) in tests {
-        let location = context.function_meta(&test_function.get_id()).name.location;
-        let file_id = location.file;
+        let location = context.function_meta(&test_function.get_id()).name.span;
+        let file_id = location.src_id();
 
         // Ignore diagnostics for any file that wasn't the file we saved
         // TODO: In the future, we could create "related" diagnostics for these files
@@ -107,7 +107,7 @@ pub(crate) fn collect_lenses_for_package(
             }
         }
 
-        let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+        let range = byte_span_to_range(files, file_id, location.into()).unwrap_or_default();
 
         let test_command = Command {
             title: with_arrow(TEST_CODELENS_TITLE),
@@ -128,8 +128,8 @@ pub(crate) fn collect_lenses_for_package(
 
     if package.is_binary() {
         if let Some(main_func_id) = context.get_main_function(&crate_id) {
-            let location = context.function_meta(&main_func_id).name.location;
-            let file_id = location.file;
+            let location = context.function_meta(&main_func_id).name.span;
+            let file_id = location.src_id();
 
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
@@ -141,8 +141,7 @@ pub(crate) fn collect_lenses_for_package(
                 }
             }
 
-            let range =
-                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+            let range = byte_span_to_range(files, file_id, location.into()).unwrap_or_default();
 
             let compile_command = Command {
                 title: with_arrow(COMPILE_CODELENS_TITLE),
@@ -190,7 +189,7 @@ pub(crate) fn collect_lenses_for_package(
         // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
         for contract in context.get_all_contracts(&crate_id) {
             let location = contract.location;
-            let file_id = location.file;
+            let file_id = location.src_id();
 
             // Ignore diagnostics for any file that wasn't the file we saved
             // TODO: In the future, we could create "related" diagnostics for these files
@@ -200,8 +199,7 @@ pub(crate) fn collect_lenses_for_package(
                 }
             }
 
-            let range =
-                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+            let range = byte_span_to_range(files, file_id, location.into()).unwrap_or_default();
 
             let compile_command = Command {
                 title: with_arrow(COMPILE_CODELENS_TITLE),

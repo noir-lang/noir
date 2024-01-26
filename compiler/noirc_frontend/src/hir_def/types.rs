@@ -10,7 +10,7 @@ use crate::{
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Span;
 use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, Ident, Signedness};
@@ -204,7 +204,7 @@ pub struct StructType {
     fields: Vec<(Ident, Type)>,
 
     pub generics: Generics,
-    pub location: Location,
+    pub span: Span,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source program.
@@ -227,11 +227,11 @@ impl StructType {
         id: StructId,
         name: Ident,
 
-        location: Location,
+        location: Span,
         fields: Vec<(Ident, Type)>,
         generics: Generics,
     ) -> StructType {
-        StructType { id, fields, name, location, generics }
+        StructType { id, fields, name, span: location, generics }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -314,7 +314,7 @@ pub struct TypeAliasType {
     pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
-    pub location: Location,
+    pub span: Span,
 }
 
 impl std::hash::Hash for TypeAliasType {
@@ -346,11 +346,11 @@ impl TypeAliasType {
     pub fn new(
         id: TypeAliasId,
         name: Ident,
-        location: Location,
+        span: Span,
         typ: Type,
         generics: Generics,
     ) -> TypeAliasType {
-        TypeAliasType { id, typ, name, location, generics }
+        TypeAliasType { id, typ, name, span, generics }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
@@ -1562,16 +1562,17 @@ fn convert_array_expression_to_slice(
         .expect("Expected 'as_slice' method to be present in Noir's stdlib");
 
     let as_slice_id = interner.function_definition_id(as_slice_method);
-    let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location));
+    let expr_location_span = interner.expr_location(&expression);
+    let as_slice =
+        HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, expr_location_span));
     let func = interner.push_expr(as_slice);
 
     let arguments = vec![expression];
-    let call = HirExpression::Call(HirCallExpression { func, arguments, location });
+    let call = HirExpression::Call(HirCallExpression { func, arguments, span: expr_location_span });
     let call = interner.push_expr(call);
 
-    interner.push_expr_location(call, location.span, location.file);
-    interner.push_expr_location(func, location.span, location.file);
+    interner.push_expr_location(call, expr_location_span);
+    interner.push_expr_location(func, expr_location_span);
 
     interner.push_expr_type(&call, target_type.clone());
     interner.push_expr_type(

@@ -18,7 +18,7 @@ use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
     fn check_if_deprecated(&mut self, expr: &ExprId) {
-        if let HirExpression::Ident(expr::HirIdent { location, id, impl_kind: _ }) =
+        if let HirExpression::Ident(expr::HirIdent { span, id, impl_kind: _ }) =
             self.interner.expression(expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -29,7 +29,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.errors.push(TypeCheckError::CallDeprecated {
                         name: self.interner.definition_name(id).to_string(),
                         note,
-                        span: location.span,
+                        span: span,
                     });
                 }
             }
@@ -64,14 +64,14 @@ impl<'interner> TypeChecker<'interner> {
 
                         // Check if the array is homogeneous
                         for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                            let location = self.interner.expr_location(&arr[index]);
+                            let expr_span = self.interner.expr_location(&arr[index]);
 
                             elem_type.unify(&first_elem_type, &mut self.errors, || {
                                 TypeCheckError::NonHomogeneousArray {
-                                    first_span: self.interner.expr_location(&arr[0]).span,
+                                    first_span: self.interner.expr_location(&arr[0]),
                                     first_type: first_elem_type.to_string(),
                                     first_index: index,
-                                    second_span: location.span,
+                                    second_span: expr_span,
                                     second_type: elem_type.to_string(),
                                     second_index: index + 1,
                                 }
@@ -168,7 +168,7 @@ impl<'interner> TypeChecker<'interner> {
 
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
-                        let location = method_call.location;
+                        let location = method_call.span;
 
                         let trait_id = match &method_ref {
                             HirMethodReference::FuncId(func_id) => {
@@ -436,7 +436,7 @@ impl<'interner> TypeChecker<'interner> {
                     // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
                     if self.try_remove_implicit_dereference(method_call.object).is_none() {
                         // If that didn't work, then wrap the whole expression in an `&mut`
-                        let location = self.interner.id_location(method_call.object);
+                        let method_call_span = self.interner.id_location(method_call.object);
 
                         method_call.object =
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
@@ -444,11 +444,7 @@ impl<'interner> TypeChecker<'interner> {
                                 rhs: method_call.object,
                             }));
                         self.interner.push_expr_type(&method_call.object, new_type);
-                        self.interner.push_expr_location(
-                            method_call.object,
-                            location.span,
-                            location.file,
-                        );
+                        self.interner.push_expr_location(method_call.object, method_call_span);
                     }
                 }
             // Otherwise if the object type is a mutable reference and the method is not, insert as
@@ -473,7 +469,7 @@ impl<'interner> TypeChecker<'interner> {
                 rhs: object,
             }));
             self.interner.push_expr_type(&object, element.as_ref().clone());
-            self.interner.push_expr_location(object, location.span, location.file);
+            self.interner.push_expr_location(object, location);
 
             // Recursively dereference to allow for converting &mut &mut T to T
             self.insert_auto_dereferences(object, *element)
@@ -720,7 +716,7 @@ impl<'interner> TypeChecker<'interner> {
 
     fn check_member_access(&mut self, mut access: expr::HirMemberAccess, expr_id: ExprId) -> Type {
         let lhs_type = self.check_expression(&access.lhs).follow_bindings();
-        let span = self.interner.expr_span(&expr_id);
+        let expr_span = self.interner.expr_span(&expr_id);
         let access_lhs = &mut access.lhs;
 
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
@@ -732,11 +728,11 @@ impl<'interner> TypeChecker<'interner> {
             this.interner.push_expr_type(&old_lhs, lhs_type);
             this.interner.push_expr_type(access_lhs, element);
 
-            let old_location = this.interner.id_location(old_lhs);
-            this.interner.push_expr_location(*access_lhs, span, old_location.file);
+            this.interner.push_expr_location(*access_lhs, expr_span);
         };
 
-        match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {
+        match self.check_field_access(&lhs_type, &access.rhs.0.contents, expr_span, dereference_lhs)
+        {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
                 // We must update `access` in case we added any dereferences to it
@@ -903,7 +899,7 @@ impl<'interner> TypeChecker<'interner> {
                     expected: lhs_type.clone(),
                     actual: rhs_type.clone(),
                     source: Source::ArrayLen,
-                    span: op.location.span,
+                    span: op.span,
                 });
 
                 self.comparator_operand_type_rules(x_type, y_type, op, span)
@@ -913,7 +909,7 @@ impl<'interner> TypeChecker<'interner> {
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
                     expected: *x_size.clone(),
                     actual: *y_size.clone(),
-                    span: op.location.span,
+                    span: op.span,
                     source: Source::StringLen,
                 });
 
@@ -923,7 +919,7 @@ impl<'interner> TypeChecker<'interner> {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
-                    span: op.location.span,
+                    span: op.span,
                     source: Source::Binary,
                 });
                 Ok((Bool, true))
@@ -1192,7 +1188,7 @@ impl<'interner> TypeChecker<'interner> {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
-                    span: op.location.span,
+                    span: op.span,
                     source: Source::Binary,
                 });
                 Ok((lhs.clone(), true))
