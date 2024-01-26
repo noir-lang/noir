@@ -155,6 +155,21 @@ pub enum BlackBoxFuncCall {
         /// It is the length of inputs and outputs vectors
         len: u32,
     },
+    /// Applies the SHA-256 compression function to the input message
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - input message block
+    /// * `hash_values` - state from the previous compression
+    /// * `outputs` - result of the input compressed into 256 bits
+    Sha256Compression {
+        /// 512 bits of the input message, represented by 16 u32s
+        inputs: Vec<FunctionInput>,
+        /// Vector of 8 u32s used to compress the input
+        hash_values: Vec<FunctionInput>,
+        /// Output of the compression, represented by 8 u32s
+        outputs: Vec<Witness>,
+    },
 }
 
 impl BlackBoxFuncCall {
@@ -184,6 +199,7 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
             BlackBoxFuncCall::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
             BlackBoxFuncCall::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
+            BlackBoxFuncCall::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
         }
     }
 
@@ -201,7 +217,8 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
             | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. }
+            | BlackBoxFuncCall::Sha256Compression { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
@@ -296,7 +313,8 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
             | BlackBoxFuncCall::Keccakf1600 { outputs, .. }
             | BlackBoxFuncCall::Keccak256VariableLength { outputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. }
+            | BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }

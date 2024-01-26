@@ -265,6 +265,16 @@ struct BlackBoxFuncCall {
         static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
     };
 
+    struct Sha256Compression {
+        std::vector<Circuit::FunctionInput> inputs;
+        std::vector<Circuit::FunctionInput> hash_values;
+        std::vector<Circuit::Witness> outputs;
+
+        friend bool operator==(const Sha256Compression&, const Sha256Compression&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
+    };
+
     std::variant<AND,
                  XOR,
                  RANGE,
@@ -288,7 +298,8 @@ struct BlackBoxFuncCall {
                  BigIntDiv,
                  BigIntFromLeBytes,
                  BigIntToLeBytes,
-                 Poseidon2Permutation>
+                 Poseidon2Permutation,
+                 Sha256Compression>
         value;
 
     friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
@@ -685,6 +696,16 @@ struct BlackBoxOp {
         static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
     };
 
+    struct Sha256Compression {
+        Circuit::HeapVector input;
+        Circuit::HeapVector hash_values;
+        Circuit::HeapArray output;
+
+        friend bool operator==(const Sha256Compression&, const Sha256Compression&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
+    };
+
     std::variant<Sha256,
                  Blake2s,
                  Blake3,
@@ -703,7 +724,8 @@ struct BlackBoxOp {
                  BigIntDiv,
                  BigIntFromLeBytes,
                  BigIntToLeBytes,
-                 Poseidon2Permutation>
+                 Poseidon2Permutation,
+                 Sha256Compression>
         value;
 
     friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
@@ -3350,6 +3372,64 @@ Circuit::BlackBoxFuncCall::Poseidon2Permutation serde::Deserializable<
 
 namespace Circuit {
 
+inline bool operator==(const BlackBoxFuncCall::Sha256Compression& lhs, const BlackBoxFuncCall::Sha256Compression& rhs)
+{
+    if (!(lhs.inputs == rhs.inputs)) {
+        return false;
+    }
+    if (!(lhs.hash_values == rhs.hash_values)) {
+        return false;
+    }
+    if (!(lhs.outputs == rhs.outputs)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> BlackBoxFuncCall::Sha256Compression::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BlackBoxFuncCall::Sha256Compression>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BlackBoxFuncCall::Sha256Compression BlackBoxFuncCall::Sha256Compression::bincodeDeserialize(
+    std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BlackBoxFuncCall::Sha256Compression>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxFuncCall::Sha256Compression>::serialize(
+    const Circuit::BlackBoxFuncCall::Sha256Compression& obj, Serializer& serializer)
+{
+    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
+    serde::Serializable<decltype(obj.hash_values)>::serialize(obj.hash_values, serializer);
+    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxFuncCall::Sha256Compression serde::Deserializable<
+    Circuit::BlackBoxFuncCall::Sha256Compression>::deserialize(Deserializer& deserializer)
+{
+    Circuit::BlackBoxFuncCall::Sha256Compression obj;
+    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
+    obj.hash_values = serde::Deserializable<decltype(obj.hash_values)>::deserialize(deserializer);
+    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
 inline bool operator==(const BlackBoxOp& lhs, const BlackBoxOp& rhs)
 {
     if (!(lhs.value == rhs.value)) {
@@ -4485,6 +4565,63 @@ Circuit::BlackBoxOp::Poseidon2Permutation serde::Deserializable<Circuit::BlackBo
     obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     obj.len = serde::Deserializable<decltype(obj.len)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+inline bool operator==(const BlackBoxOp::Sha256Compression& lhs, const BlackBoxOp::Sha256Compression& rhs)
+{
+    if (!(lhs.input == rhs.input)) {
+        return false;
+    }
+    if (!(lhs.hash_values == rhs.hash_values)) {
+        return false;
+    }
+    if (!(lhs.output == rhs.output)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> BlackBoxOp::Sha256Compression::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BlackBoxOp::Sha256Compression>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BlackBoxOp::Sha256Compression BlackBoxOp::Sha256Compression::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BlackBoxOp::Sha256Compression>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BlackBoxOp::Sha256Compression>::serialize(
+    const Circuit::BlackBoxOp::Sha256Compression& obj, Serializer& serializer)
+{
+    serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
+    serde::Serializable<decltype(obj.hash_values)>::serialize(obj.hash_values, serializer);
+    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BlackBoxOp::Sha256Compression serde::Deserializable<Circuit::BlackBoxOp::Sha256Compression>::deserialize(
+    Deserializer& deserializer)
+{
+    Circuit::BlackBoxOp::Sha256Compression obj;
+    obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
+    obj.hash_values = serde::Deserializable<decltype(obj.hash_values)>::deserialize(deserializer);
+    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
 

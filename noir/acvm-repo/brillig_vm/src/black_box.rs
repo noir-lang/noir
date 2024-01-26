@@ -200,6 +200,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::BigIntFromLeBytes { .. } => todo!(),
         BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
         BlackBoxOp::Poseidon2Permutation { .. } => todo!(),
+        BlackBoxOp::Sha256Compression { .. } => todo!(),
     }
 }
 
@@ -224,6 +225,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
         BlackBoxOp::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
         BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
+        BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
     }
 }
 

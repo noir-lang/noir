@@ -510,6 +510,15 @@ impl DebugShow {
                     output
                 );
             }
+            BlackBoxOp::Sha256Compression { input, hash_values, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  SHA256COMPRESSION {} {} -> {}",
+                    input,
+                    hash_values,
+                    output
+                );
+            }
         }
     }
 
