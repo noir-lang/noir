@@ -2,13 +2,13 @@ mod poseidon;
 mod mimc;
 
 #[foreign(sha256)]
-pub fn sha256<N>(_input: [u8; N]) -> [u8; 32] {}
+pub fn sha256<N>(input: [u8; N]) -> [u8; 32] {}
 
 #[foreign(blake2s)]
-pub fn blake2s<N>(_input: [u8; N]) -> [u8; 32] {}
+pub fn blake2s<N>(input: [u8; N]) -> [u8; 32] {}
 
 #[foreign(blake3)]
-pub fn blake3<N>(_input: [u8; N]) -> [u8; 32] {}
+pub fn blake3<N>(input: [u8; N]) -> [u8; 32] {}
 
 struct PedersenPoint {
    x : Field,
@@ -20,7 +20,7 @@ pub fn pedersen_commitment<N>(input: [Field; N]) -> PedersenPoint {
 }
 
 #[foreign(pedersen_commitment)]
-pub fn __pedersen_commitment_with_separator<N>(_input: [Field; N], _separator: u32) -> [Field; 2] {}
+pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> PedersenPoint {
     let values = __pedersen_commitment_with_separator(input, separator);
@@ -32,13 +32,13 @@ pub fn pedersen_hash<N>(input: [Field; N]) -> Field {
 }
 
 #[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator<N>(_input: [Field; N], _separator: u32) -> Field {}
+pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {}
 
-pub fn hash_to_field<N>(_input: [Field; N]) -> Field {
+pub fn hash_to_field<N>(input: [Field; N]) -> Field {
     let mut inputs_as_bytes = [];
 
     for i in 0..N {
-        let input_bytes = _input[i].to_le_bytes(32);
+        let input_bytes = input[i].to_le_bytes(32);
         for i in 0..32 {
             inputs_as_bytes = inputs_as_bytes.push_back(input_bytes[i]);
         }
@@ -49,5 +49,5 @@ pub fn hash_to_field<N>(_input: [Field; N]) -> Field {
 }
 
 #[foreign(keccak256)]
-pub fn keccak256<N>(_input: [u8; N], _message_size: u32) -> [u8; 32] {}
+pub fn keccak256<N>(input: [u8; N], message_size: u32) -> [u8; 32] {}
 
