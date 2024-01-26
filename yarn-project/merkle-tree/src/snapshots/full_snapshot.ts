@@ -21,6 +21,6 @@ export class FullTreeSnapshotBuilder
   implements TreeSnapshotBuilder<TreeSnapshot>
 {
   protected openSnapshot(root: Buffer, numLeaves: bigint): TreeSnapshot {
-    return new BaseFullTreeSnapshot(this.db, root, numLeaves, this.tree);
+    return new BaseFullTreeSnapshot(this.nodes, root, numLeaves, this.tree);
   }
 }

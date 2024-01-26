@@ -14,17 +14,14 @@ import {
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { Pedersen, SparseTree, newTree } from '@aztec/merkle-tree';
 import { SlowTreeContract, TokenBlacklistContract, TokenContract } from '@aztec/noir-contracts';
 
 import { jest } from '@jest/globals';
-import levelup from 'levelup';
-import { type MemDown, default as memdown } from 'memdown';
 
 import { setup } from './fixtures/utils.js';
 import { TokenSimulator } from './simulators/token_simulator.js';
-
-export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 const TIMEOUT = 90_000;
 
@@ -48,7 +45,7 @@ describe('e2e_blacklist_token_contract', () => {
   const getMembershipProof = async (index: bigint, includeUncommitted: boolean) => {
     return {
       index,
-      value: Fr.fromBuffer((await slowUpdateTreeSimulator.getLeafValue(index, includeUncommitted))!),
+      value: Fr.fromBuffer(slowUpdateTreeSimulator.getLeafValue(index, includeUncommitted)!),
       // eslint-disable-next-line camelcase
       sibling_path: (await slowUpdateTreeSimulator.getSiblingPath(index, includeUncommitted)).toFieldArray(),
     };
@@ -107,7 +104,7 @@ describe('e2e_blacklist_token_contract', () => {
     slowTree = await SlowTreeContract.deploy(wallets[0]).send().deployed();
 
     const depth = 254;
-    slowUpdateTreeSimulator = await newTree(SparseTree, levelup(createMemDown()), new Pedersen(), 'test', depth);
+    slowUpdateTreeSimulator = await newTree(SparseTree, await AztecLmdbStore.openTmp(), new Pedersen(), 'test', depth);
 
     const deployTx = TokenBlacklistContract.deploy(wallets[0], accounts[0], slowTree.address).send({});
     const receipt = await deployTx.wait();

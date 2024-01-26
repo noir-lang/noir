@@ -28,10 +28,10 @@ export class BlockStore {
   #log = createDebugLogger('aztec:archiver:block_store');
 
   constructor(private db: AztecKVStore) {
-    this.#blocks = db.createMap('archiver_blocks');
+    this.#blocks = db.openMap('archiver_blocks');
 
-    this.#txIndex = db.createMap('archiver_tx_index');
-    this.#contractIndex = db.createMap('archiver_contract_index');
+    this.#txIndex = db.openMap('archiver_tx_index');
+    this.#contractIndex = db.openMap('archiver_contract_index');
   }
 
   /**

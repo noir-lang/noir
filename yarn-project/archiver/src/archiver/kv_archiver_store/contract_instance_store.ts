@@ -9,7 +9,7 @@ export class ContractInstanceStore {
   #contractInstances: AztecMap<string, Buffer>;
 
   constructor(db: AztecKVStore) {
-    this.#contractInstances = db.createMap('archiver_contract_instances');
+    this.#contractInstances = db.openMap('archiver_contract_instances');
   }
 
   addContractInstance(contractInstance: ContractInstanceWithAddress): Promise<boolean> {

@@ -12,10 +12,12 @@ export class StandardIndexedTreeWithAppend extends StandardIndexedTree {
    * @returns Empty promise.
    * @remarks This method is inefficient and is here mostly for testing. Use batchInsert instead.
    */
-  public async appendLeaves(leaves: Buffer[]): Promise<void> {
+  public appendLeaves(leaves: Buffer[]): Promise<void> {
     for (const leaf of leaves) {
-      await this.appendLeaf(leaf);
+      this.appendLeaf(leaf);
     }
+
+    return Promise.resolve();
   }
 
   private appendEmptyLeaf() {
@@ -31,7 +33,7 @@ export class StandardIndexedTreeWithAppend extends StandardIndexedTree {
    * @param leaf - The leaf to append.
    * @returns Empty promise.
    */
-  private async appendLeaf(leaf: Buffer): Promise<void> {
+  private appendLeaf(leaf: Buffer): void {
     const newLeaf = this.leafFactory.fromBuffer(leaf);
 
     // Special case when appending zero
@@ -40,13 +42,13 @@ export class StandardIndexedTreeWithAppend extends StandardIndexedTree {
       return;
     }
 
-    const lowLeafIndex = await this.findIndexOfPreviousKey(newLeaf.getKey(), true);
+    const lowLeafIndex = this.findIndexOfPreviousKey(newLeaf.getKey(), true);
     if (lowLeafIndex === undefined) {
       throw new Error(`Previous leaf not found!`);
     }
 
     const isUpdate = lowLeafIndex.alreadyPresent;
-    const lowLeafPreimage = (await this.getLatestLeafPreimageCopy(lowLeafIndex.index, true))!;
+    const lowLeafPreimage = this.getLatestLeafPreimageCopy(lowLeafIndex.index, true)!;
     const currentSize = this.getNumLeaves(true);
 
     if (isUpdate) {
@@ -57,7 +59,7 @@ export class StandardIndexedTreeWithAppend extends StandardIndexedTree {
         lowLeafPreimage.getNextIndex(),
       );
 
-      await this.updateLeaf(newLowLeafPreimage, BigInt(lowLeafIndex.index));
+      this.updateLeaf(newLowLeafPreimage, BigInt(lowLeafIndex.index));
       this.appendEmptyLeaf();
     } else {
       const newLeafPreimage = this.leafPreimageFactory.fromLeaf(
@@ -72,8 +74,8 @@ export class StandardIndexedTreeWithAppend extends StandardIndexedTree {
         newLeaf.getKey(),
         BigInt(currentSize),
       );
-      await this.updateLeaf(newLowLeafPreimage, BigInt(lowLeafIndex.index));
-      await this.updateLeaf(newLeafPreimage, currentSize);
+      this.updateLeaf(newLowLeafPreimage, BigInt(lowLeafIndex.index));
+      this.updateLeaf(newLeafPreimage, currentSize);
     }
   }
 }

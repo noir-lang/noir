@@ -28,6 +28,7 @@ import {
 } from '@aztec/circuits.js/factories';
 import { createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   EmptyRollupProver,
@@ -44,8 +45,6 @@ import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'fs';
-import { default as levelup } from 'levelup';
-import memdown from 'memdown';
 import {
   Address,
   Chain,
@@ -133,7 +132,7 @@ describe('L1Publisher integration', () => {
       publicClient,
     });
 
-    builderDb = await MerkleTrees.new(levelup((memdown as any)())).then(t => t.asLatest());
+    builderDb = await MerkleTrees.new(await AztecLmdbStore.openTmp()).then(t => t.asLatest());
     const vks = getVerificationKeys();
     const simulator = new RealRollupCircuitSimulator();
     const prover = new EmptyRollupProver();

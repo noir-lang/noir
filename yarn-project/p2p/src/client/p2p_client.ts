@@ -134,7 +134,7 @@ export class P2PClient implements P2P {
   ) {
     const { p2pBlockCheckIntervalMS: checkInterval, l2QueueSize } = getP2PConfigEnvVars();
     this.blockDownloader = new L2BlockDownloader(l2BlockSource, l2QueueSize, checkInterval);
-    this.synchedBlockNumber = store.createSingleton('p2p_pool_last_l2_block');
+    this.synchedBlockNumber = store.openSingleton('p2p_pool_last_l2_block');
   }
 
   /**

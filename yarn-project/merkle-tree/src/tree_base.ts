@@ -1,9 +1,8 @@
 import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { AztecKVStore, AztecMap, AztecSingleton } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
 import { SiblingPath } from '@aztec/types/membership';
-
-import { LevelUp, LevelUpChain } from 'levelup';
 
 import { HasherWithStats } from './hasher_with_stats.js';
 import { MerkleTree } from './interfaces/merkle_tree.js';
@@ -17,7 +16,7 @@ const encodeMeta = (root: Buffer, depth: number, size: bigint) => {
   data.writeUInt32LE(depth, 32);
   return Buffer.concat([data, toBufferLE(size, 32)]);
 };
-export const decodeMeta = (meta: Buffer) => {
+const decodeMeta = (meta: Buffer) => {
   const root = meta.subarray(0, 32);
   const depth = meta.readUInt32LE(32);
   const size = toBigIntLE(meta.subarray(36));
@@ -26,6 +25,18 @@ export const decodeMeta = (meta: Buffer) => {
     depth,
     size,
   };
+};
+
+const openTreeMetaSingleton = (store: AztecKVStore, treeName: string): AztecSingleton<Buffer> =>
+  store.openSingleton(`merkle_tree_${treeName}_meta`);
+
+export const getTreeMeta = (store: AztecKVStore, treeName: string) => {
+  const singleton = openTreeMetaSingleton(store, treeName);
+  const val = singleton.get();
+  if (!val) {
+    throw new Error();
+  }
+  return decodeMeta(val);
 };
 
 export const INITIAL_LEAF = Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex');
@@ -40,11 +51,13 @@ export abstract class TreeBase implements MerkleTree {
   private zeroHashes: Buffer[] = [];
   private cache: { [key: string]: Buffer } = {};
   protected log: DebugLogger;
-
   protected hasher: HasherWithStats;
 
+  private nodes: AztecMap<string, Buffer>;
+  private meta: AztecSingleton<Buffer>;
+
   public constructor(
-    protected db: LevelUp,
+    protected store: AztecKVStore,
     hasher: Hasher,
     private name: string,
     private depth: number,
@@ -56,6 +69,8 @@ export abstract class TreeBase implements MerkleTree {
     }
 
     this.hasher = new HasherWithStats(hasher);
+    this.nodes = store.openMap('merkle_tree_' + name);
+    this.meta = openTreeMetaSingleton(store, name);
 
     // Compute the zero values at each layer.
     let current = INITIAL_LEAF;
@@ -111,34 +126,36 @@ export abstract class TreeBase implements MerkleTree {
    * @returns A sibling path for the element at the given index.
    * Note: The sibling path is an array of sibling hashes, with the lowest hash (leaf hash) first, and the highest hash last.
    */
-  public async getSiblingPath<N extends number>(index: bigint, includeUncommitted: boolean): Promise<SiblingPath<N>> {
+  public getSiblingPath<N extends number>(index: bigint, includeUncommitted: boolean): Promise<SiblingPath<N>> {
     const path: Buffer[] = [];
     let level = this.depth;
     while (level > 0) {
       const isRight = index & 0x01n;
-      const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, includeUncommitted);
+      const sibling = this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, includeUncommitted);
       path.push(sibling);
       level -= 1;
       index >>= 1n;
     }
-    return new SiblingPath<N>(this.depth as N, path);
+    return Promise.resolve(new SiblingPath<N>(this.depth as N, path));
   }
 
   /**
    * Commits the changes to the database.
    * @returns Empty promise.
    */
-  public async commit(): Promise<void> {
-    const batch = this.db.batch();
-    const keys = Object.getOwnPropertyNames(this.cache);
-    for (const key of keys) {
-      batch.put(key, this.cache[key]);
-    }
-    this.size = this.getNumLeaves(true);
-    this.root = this.getRoot(true);
-    await this.writeMeta(batch);
-    await batch.write();
-    this.clearCache();
+  public commit(): Promise<void> {
+    return this.store.transaction(() => {
+      const keys = Object.getOwnPropertyNames(this.cache);
+      for (const key of keys) {
+        void this.nodes.set(key, this.cache[key]);
+      }
+      this.size = this.getNumLeaves(true);
+      this.root = this.getRoot(true);
+
+      this.clearCache();
+
+      void this.writeMeta();
+    });
   }
 
   /**
@@ -156,11 +173,11 @@ export abstract class TreeBase implements MerkleTree {
    * @param includeUncommitted - Indicates whether to include uncommitted changes.
    * @returns Leaf value at the given index or undefined.
    */
-  public getLeafValue(index: bigint, includeUncommitted: boolean): Promise<Buffer | undefined> {
+  public getLeafValue(index: bigint, includeUncommitted: boolean): Buffer | undefined {
     return this.getLatestValueAtIndex(this.depth, index, includeUncommitted);
   }
 
-  public getNode(level: number, index: bigint): Promise<Buffer | undefined> {
+  public getNode(level: number, index: bigint): Buffer | undefined {
     if (level < 0 || level > this.depth) {
       throw Error('Invalid level: ' + level);
     }
@@ -193,14 +210,14 @@ export abstract class TreeBase implements MerkleTree {
    * @param leaf - Leaf to add to cache.
    * @param index - Index of the leaf (used to derive the cache key).
    */
-  protected async addLeafToCacheAndHashToRoot(leaf: Buffer, index: bigint) {
+  protected addLeafToCacheAndHashToRoot(leaf: Buffer, index: bigint) {
     const key = indexToKeyHash(this.name, this.depth, index);
     let current = leaf;
     this.cache[key] = current;
     let level = this.depth;
     while (level > 0) {
       const isRight = index & 0x01n;
-      const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, true);
+      const sibling = this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, true);
       const lhs = isRight ? sibling : current;
       const rhs = isRight ? current : sibling;
       current = this.hasher.hash(lhs, rhs);
@@ -219,12 +236,12 @@ export abstract class TreeBase implements MerkleTree {
    * @returns The latest value at the given index.
    * Note: If the value is not in the cache, it will be fetched from the database.
    */
-  private async getLatestValueAtIndex(level: number, index: bigint, includeUncommitted: boolean): Promise<Buffer> {
+  private getLatestValueAtIndex(level: number, index: bigint, includeUncommitted: boolean): Buffer {
     const key = indexToKeyHash(this.name, level, index);
     if (includeUncommitted && this.cache[key] !== undefined) {
       return this.cache[key];
     }
-    const committed = await this.dbGet(key);
+    const committed = this.dbGet(key);
     if (committed !== undefined) {
       return committed;
     }
@@ -236,8 +253,8 @@ export abstract class TreeBase implements MerkleTree {
    * @param key - The key to by which to get the value.
    * @returns A value from the db based on the key.
    */
-  private async dbGet(key: string): Promise<Buffer | undefined> {
-    return await this.db.get(key).catch(() => {});
+  private dbGet(key: string): Buffer | undefined {
+    return this.nodes.get(key);
   }
 
   /**
@@ -255,13 +272,9 @@ export abstract class TreeBase implements MerkleTree {
    * Writes meta data to the provided batch.
    * @param batch - The batch to which to write the meta data.
    */
-  protected async writeMeta(batch?: LevelUpChain<string, Buffer>) {
+  protected writeMeta() {
     const data = encodeMeta(this.getRoot(true), this.depth, this.getNumLeaves(true));
-    if (batch) {
-      batch.put(this.name, data);
-    } else {
-      await this.db.put(this.name, data);
-    }
+    return this.meta.set(data);
   }
 
   /**
@@ -279,7 +292,7 @@ export abstract class TreeBase implements MerkleTree {
    *          `getLatestValueAtIndex` will return a value from cache (because at least one of the 2 children was
    *          touched in previous iteration).
    */
-  protected async appendLeaves(leaves: Buffer[]): Promise<void> {
+  protected appendLeaves(leaves: Buffer[]): void {
     const numLeaves = this.getNumLeaves(true);
     if (numLeaves + BigInt(leaves.length) - 1n > this.maxIndex) {
       throw Error(`Can't append beyond max index. Max index: ${this.maxIndex}`);
@@ -300,8 +313,8 @@ export abstract class TreeBase implements MerkleTree {
       lastIndex >>= 1n;
       // 3.Iterate over all the affected nodes at this level and update them
       for (let index = firstIndex; index <= lastIndex; index++) {
-        const lhs = await this.getLatestValueAtIndex(level, index * 2n, true);
-        const rhs = await this.getLatestValueAtIndex(level, index * 2n + 1n, true);
+        const lhs = this.getLatestValueAtIndex(level, index * 2n, true);
+        const rhs = this.getLatestValueAtIndex(level, index * 2n + 1n, true);
         const cacheKey = indexToKeyHash(this.name, level - 1, index);
         this.cache[cacheKey] = this.hasher.hash(lhs, rhs);
       }
@@ -317,5 +330,5 @@ export abstract class TreeBase implements MerkleTree {
    * @param includeUncommitted - Indicates whether to include uncommitted data.
    * @returns The index of the first leaf found with a given value (undefined if not found).
    */
-  abstract findLeafIndex(value: Buffer, includeUncommitted: boolean): Promise<bigint | undefined>;
+  abstract findLeafIndex(value: Buffer, includeUncommitted: boolean): bigint | undefined;
 }

@@ -185,13 +185,13 @@ export function describeSnapshotBuilderTestSuite<T extends TreeBase, S extends T
         await modifyTree(tree);
         await tree.commit();
         const snapshot = await snapshotBuilder.snapshot(1);
-        const historicalLeafValue = await tree.getLeafValue(0n, false);
-        expect(await snapshot.getLeafValue(0n)).toEqual(historicalLeafValue);
+        const historicalLeafValue = tree.getLeafValue(0n, false);
+        expect(snapshot.getLeafValue(0n)).toEqual(historicalLeafValue);
 
         await modifyTree(tree);
         await tree.commit();
 
-        await expect(snapshot.getLeafValue(0n)).resolves.toEqual(historicalLeafValue);
+        expect(snapshot.getLeafValue(0n)).toEqual(historicalLeafValue);
       });
     });
 
@@ -202,16 +202,16 @@ export function describeSnapshotBuilderTestSuite<T extends TreeBase, S extends T
         const snapshot = await snapshotBuilder.snapshot(1);
 
         const initialLastLeafIndex = tree.getNumLeaves(false) - 1n;
-        let lastLeaf = await tree.getLeafValue(initialLastLeafIndex, false);
-        expect(await snapshot.findLeafIndex(lastLeaf!)).toBe(initialLastLeafIndex);
+        let lastLeaf = tree.getLeafValue(initialLastLeafIndex, false);
+        expect(snapshot.findLeafIndex(lastLeaf!)).toBe(initialLastLeafIndex);
 
         await modifyTree(tree);
         await tree.commit();
 
         const newLastLeafIndex = tree.getNumLeaves(false) - 1n;
-        lastLeaf = await tree.getLeafValue(newLastLeafIndex, false);
+        lastLeaf = tree.getLeafValue(newLastLeafIndex, false);
 
-        expect(await snapshot.findLeafIndex(lastLeaf!)).toBe(undefined);
+        expect(snapshot.findLeafIndex(lastLeaf!)).toBe(undefined);
       });
     });
   });

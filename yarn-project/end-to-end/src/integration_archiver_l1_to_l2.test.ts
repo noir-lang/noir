@@ -43,7 +43,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     config.archiverPollingIntervalMS = 100;
     archiver = await Archiver.createAndSync(
       { ...config, l1Contracts: deployL1ContractsValues.l1ContractAddresses },
-      new KVArchiverDataStore(await AztecLmdbStore.create(deployL1ContractsValues.l1ContractAddresses.rollupAddress)),
+      new KVArchiverDataStore(await AztecLmdbStore.open(deployL1ContractsValues.l1ContractAddresses.rollupAddress)),
     );
 
     const walletClient = deployL1ContractsValues.walletClient;

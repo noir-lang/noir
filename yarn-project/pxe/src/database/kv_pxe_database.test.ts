@@ -1,4 +1,3 @@
-import { EthAddress } from '@aztec/circuits.js';
 import { AztecLmdbStore } from '@aztec/kv-store';
 
 import { KVPxeDatabase } from './kv_pxe_database.js';
@@ -8,7 +7,7 @@ describe('KVPxeDatabase', () => {
   let database: KVPxeDatabase;
 
   beforeEach(async () => {
-    database = new KVPxeDatabase(await AztecLmdbStore.create(EthAddress.random()));
+    database = new KVPxeDatabase(await AztecLmdbStore.openTmp());
   });
 
   describePxeDatabase(() => database);

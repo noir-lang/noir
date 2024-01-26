@@ -49,10 +49,10 @@ import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { times } from '@aztec/foundation/collection';
 import { to2Fields } from '@aztec/foundation/serialize';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';
-import { default as levelup } from 'levelup';
 import { type MemDown, default as memdown } from 'memdown';
 
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
@@ -96,8 +96,8 @@ describe('sequencer/solo_block_builder', () => {
     blockNumber = 3;
     globalVariables = new GlobalVariables(chainId, version, new Fr(blockNumber), Fr.ZERO);
 
-    builderDb = await MerkleTrees.new(levelup(createMemDown())).then(t => t.asLatest());
-    expectsDb = await MerkleTrees.new(levelup(createMemDown())).then(t => t.asLatest());
+    builderDb = await MerkleTrees.new(await AztecLmdbStore.openTmp()).then(t => t.asLatest());
+    expectsDb = await MerkleTrees.new(await AztecLmdbStore.openTmp()).then(t => t.asLatest());
     vks = getVerificationKeys();
     simulator = mock<RollupSimulator>();
     prover = mock<RollupProver>();

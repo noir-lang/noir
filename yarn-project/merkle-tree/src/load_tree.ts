@@ -1,8 +1,7 @@
+import { AztecKVStore } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
 
-import { LevelUp } from 'levelup';
-
-import { TreeBase, decodeMeta } from './tree_base.js';
+import { TreeBase, getTreeMeta } from './tree_base.js';
 
 /**
  * Creates a new tree and sets its root, depth and size based on the meta data which are associated with the name.
@@ -12,15 +11,13 @@ import { TreeBase, decodeMeta } from './tree_base.js';
  * @param name - Name of the tree.
  * @returns The newly created tree.
  */
-export async function loadTree<T extends TreeBase>(
-  c: new (db: LevelUp, hasher: Hasher, name: string, depth: number, size: bigint, root: Buffer) => T,
-  db: LevelUp,
+export function loadTree<T extends TreeBase>(
+  c: new (store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint, root: Buffer) => T,
+  store: AztecKVStore,
   hasher: Hasher,
   name: string,
 ): Promise<T> {
-  const meta: Buffer = await db.get(name);
-  const { root, depth, size } = decodeMeta(meta);
-
-  const tree = new c(db, hasher, name, depth, size, root);
-  return tree;
+  const { root, depth, size } = getTreeMeta(store, name);
+  const tree = new c(store, hasher, name, depth, size, root);
+  return Promise.resolve(tree);
 }

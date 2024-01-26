@@ -39,7 +39,7 @@ import { computeGlobalsHash, computePublicDataTreeLeafSlot } from '@aztec/circui
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
 import { AztecKVTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import {
   GlobalVariableBuilder,
@@ -56,10 +56,7 @@ import {
   getConfigEnvVars as getWorldStateConfig,
 } from '@aztec/world-state';
 
-import { LevelUp } from 'levelup';
-
 import { AztecNodeConfig } from './config.js';
-import { openDb } from './db.js';
 
 /**
  * The aztec node.
@@ -78,7 +75,7 @@ export class AztecNodeService implements AztecNode {
     protected readonly chainId: number,
     protected readonly version: number,
     protected readonly globalVariableBuilder: GlobalVariableBuilder,
-    protected readonly merkleTreesDb: LevelUp,
+    protected readonly merkleTreesDb: AztecKVStore,
     private log = createDebugLogger('aztec:node'),
   ) {
     const message =
@@ -106,8 +103,7 @@ export class AztecNodeService implements AztecNode {
     }
 
     const log = createDebugLogger('aztec:node');
-    const store = await AztecLmdbStore.create(config.l1Contracts.rollupAddress, config.dataDirectory);
-    const [_, worldStateDb] = await openDb(config, log);
+    const store = await AztecLmdbStore.open(config.l1Contracts.rollupAddress, config.dataDirectory);
 
     // first create and sync the archiver
     const archiverStore = new KVArchiverDataStore(store, config.maxLogs);
@@ -121,14 +117,9 @@ export class AztecNodeService implements AztecNode {
     const p2pClient = await createP2PClient(store, config, new AztecKVTxPool(store), archiver);
 
     // now create the merkle trees and the world state synchronizer
-    const merkleTrees = await MerkleTrees.new(worldStateDb);
+    const merkleTrees = await MerkleTrees.new(store);
     const worldStateConfig: WorldStateConfig = getWorldStateConfig();
-    const worldStateSynchronizer = await ServerWorldStateSynchronizer.new(
-      worldStateDb,
-      merkleTrees,
-      archiver,
-      worldStateConfig,
-    );
+    const worldStateSynchronizer = new ServerWorldStateSynchronizer(store, merkleTrees, archiver, worldStateConfig);
 
     // start both and wait for them to sync from the block source
     await Promise.all([p2pClient.start(), worldStateSynchronizer.start()]);
@@ -151,7 +142,7 @@ export class AztecNodeService implements AztecNode {
       ethereumChain.chainInfo.id,
       config.version,
       getGlobalVariableBuilder(config),
-      worldStateDb,
+      store,
       log,
     );
   }
@@ -285,8 +276,6 @@ export class AztecNodeService implements AztecNode {
     await this.p2pClient.stop();
     await this.worldStateSynchronizer.stop();
     await this.blockSource.stop();
-    this.log('Closing Merkle Trees');
-    await this.merkleTreesDb.close();
     this.log.info(`Stopped`);
   }
 

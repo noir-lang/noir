@@ -33,10 +33,9 @@
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/kv-store": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/types": "workspace:^",
-    "levelup": "^5.1.1",
-    "memdown": "^6.1.1",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

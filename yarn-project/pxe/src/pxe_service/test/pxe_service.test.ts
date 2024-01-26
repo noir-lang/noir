@@ -14,7 +14,7 @@ import { PXEService } from '../pxe_service.js';
 import { pxeTestSuite } from './pxe_test_suite.js';
 
 async function createPXEService(): Promise<PXE> {
-  const kvStore = await AztecLmdbStore.create(EthAddress.random());
+  const kvStore = await AztecLmdbStore.openTmp();
   const keyStore = new TestKeyStore(new Grumpkin(), kvStore);
   const node = mock<AztecNode>();
   const db = new KVPxeDatabase(kvStore);
@@ -46,7 +46,7 @@ describe('PXEService', () => {
   let config: PXEServiceConfig;
 
   beforeEach(async () => {
-    const kvStore = await AztecLmdbStore.create(EthAddress.random());
+    const kvStore = await AztecLmdbStore.openTmp();
     keyStore = new TestKeyStore(new Grumpkin(), kvStore);
     node = mock<AztecNode>();
     db = new KVPxeDatabase(kvStore);

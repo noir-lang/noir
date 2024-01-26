@@ -21,7 +21,7 @@ export class TestKeyStore implements KeyStore {
   #keys: AztecMap<string, Buffer>;
 
   constructor(private curve: Grumpkin, database: AztecKVStore) {
-    this.#keys = database.createMap('key_store');
+    this.#keys = database.openMap('key_store');
   }
 
   public async addAccount(privKey: GrumpkinPrivateKey): Promise<PublicKey> {

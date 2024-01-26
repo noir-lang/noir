@@ -37,6 +37,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { FieldsOf } from '@aztec/foundation/types';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
   ChildContractArtifact,
@@ -50,8 +51,6 @@ import {
 
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
-import { default as levelup } from 'levelup';
-import { type MemDown, default as memdown } from 'memdown';
 import { getFunctionSelector } from 'viem';
 
 import { KeyPair } from '../acvm/index.js';
@@ -61,8 +60,6 @@ import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
 
 jest.setTimeout(60_000);
-
-const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 describe('Private Execution test suite', () => {
   let oracle: MockProxy<DBOracle>;
@@ -136,7 +133,7 @@ describe('Private Execution test suite', () => {
       throw new Error(`Unknown tree ${name}`);
     }
     if (!trees[name]) {
-      const db = levelup(createMemDown());
+      const db = await AztecLmdbStore.openTmp();
       const pedersen = new Pedersen();
       trees[name] = await newTree(StandardTree, db, pedersen, name, treeHeights[name]);
     }

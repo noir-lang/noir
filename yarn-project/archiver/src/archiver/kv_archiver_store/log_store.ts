@@ -23,8 +23,8 @@ export class LogStore {
   #log = createDebugLogger('aztec:archiver:log_store');
 
   constructor(private db: AztecKVStore, private blockStore: BlockStore, logsMaxPageSize: number = 1000) {
-    this.#encryptedLogs = db.createMap('archiver_encrypted_logs');
-    this.#unencryptedLogs = db.createMap('archiver_unencrypted_logs');
+    this.#encryptedLogs = db.openMap('archiver_encrypted_logs');
+    this.#unencryptedLogs = db.openMap('archiver_unencrypted_logs');
 
     this.#logsMaxPageSize = logsMaxPageSize;
   }

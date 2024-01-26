@@ -24,7 +24,7 @@ export class AztecKVTxPool implements TxPool {
    * @param log - A logger.
    */
   constructor(store: AztecKVStore, log = createDebugLogger('aztec:tx_pool')) {
-    this.#txs = store.createMap('txs');
+    this.#txs = store.openMap('txs');
     this.#store = store;
     this.#log = log;
   }

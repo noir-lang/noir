@@ -27,10 +27,10 @@ export class MessageStore {
   #log = createDebugLogger('aztec:archiver:message_store');
 
   constructor(private db: AztecKVStore) {
-    this.#messages = db.createMap('archiver_l1_to_l2_messages');
-    this.#pendingMessagesByFee = db.createCounter('archiver_messages_by_fee');
-    this.#lastL1BlockAddingMessages = db.createSingleton('archiver_last_l1_block_adding_messages');
-    this.#lastL1BlockCancellingMessages = db.createSingleton('archiver_last_l1_block_cancelling_messages');
+    this.#messages = db.openMap('archiver_l1_to_l2_messages');
+    this.#pendingMessagesByFee = db.openCounter('archiver_messages_by_fee');
+    this.#lastL1BlockAddingMessages = db.openSingleton('archiver_last_l1_block_adding_messages');
+    this.#lastL1BlockCancellingMessages = db.openSingleton('archiver_last_l1_block_cancelling_messages');
   }
 
   /**

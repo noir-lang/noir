@@ -21,6 +21,7 @@ import { Committable } from '@aztec/foundation/committable';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { AztecKVStore, AztecSingleton } from '@aztec/kv-store';
 import {
   AppendOnlyTree,
   BatchInsertionResult,
@@ -34,8 +35,6 @@ import {
 } from '@aztec/merkle-tree';
 import { Hasher } from '@aztec/types/interfaces';
 import { SiblingPath } from '@aztec/types/membership';
-
-import { default as levelup } from 'levelup';
 
 import { INITIAL_NULLIFIER_TREE_SIZE, INITIAL_PUBLIC_DATA_TREE_SIZE, MerkleTreeDb } from './merkle_tree_db.js';
 import {
@@ -63,8 +62,8 @@ const LAST_GLOBAL_VARS_HASH = 'lastGlobalVarsHash';
  * The nullifier tree is an indexed tree.
  */
 class NullifierTree extends StandardIndexedTree {
-  constructor(db: levelup.LevelUp, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
-    super(db, hasher, name, depth, size, NullifierLeafPreimage, NullifierLeaf, root);
+  constructor(store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
+    super(store, hasher, name, depth, size, NullifierLeafPreimage, NullifierLeaf, root);
   }
 }
 
@@ -72,8 +71,8 @@ class NullifierTree extends StandardIndexedTree {
  * The public data tree is an indexed tree.
  */
 class PublicDataTree extends StandardIndexedTree {
-  constructor(db: levelup.LevelUp, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
-    super(db, hasher, name, depth, size, PublicDataTreeLeafPreimage, PublicDataTreeLeaf, root);
+  constructor(store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
+    super(store, hasher, name, depth, size, PublicDataTreeLeafPreimage, PublicDataTreeLeaf, root);
   }
 }
 
@@ -85,8 +84,11 @@ export class MerkleTrees implements MerkleTreeDb {
   private latestGlobalVariablesHash: Committable<Fr>;
   private jobQueue = new SerialQueue();
 
-  constructor(private db: levelup.LevelUp, private log = createDebugLogger('aztec:merkle_trees')) {
+  #globalVariablesHash: AztecSingleton<Buffer>;
+
+  constructor(private store: AztecKVStore, private log = createDebugLogger('aztec:merkle_trees')) {
     this.latestGlobalVariablesHash = new Committable(Fr.ZERO);
+    this.#globalVariablesHash = store.openSingleton(LAST_GLOBAL_VARS_HASH);
   }
 
   /**
@@ -100,14 +102,14 @@ export class MerkleTrees implements MerkleTreeDb {
     const hasher = new Pedersen();
     const contractTree: AppendOnlyTree = await initializeTree(
       StandardTree,
-      this.db,
+      this.store,
       hasher,
       `${MerkleTreeId[MerkleTreeId.CONTRACT_TREE]}`,
       CONTRACT_TREE_HEIGHT,
     );
     const nullifierTree = await initializeTree(
       NullifierTree,
-      this.db,
+      this.store,
       hasher,
       `${MerkleTreeId[MerkleTreeId.NULLIFIER_TREE]}`,
       NULLIFIER_TREE_HEIGHT,
@@ -115,14 +117,14 @@ export class MerkleTrees implements MerkleTreeDb {
     );
     const noteHashTree: AppendOnlyTree = await initializeTree(
       StandardTree,
-      this.db,
+      this.store,
       hasher,
       `${MerkleTreeId[MerkleTreeId.NOTE_HASH_TREE]}`,
       NOTE_HASH_TREE_HEIGHT,
     );
     const publicDataTree = await initializeTree(
       PublicDataTree,
-      this.db,
+      this.store,
       hasher,
       `${MerkleTreeId[MerkleTreeId.PUBLIC_DATA_TREE]}`,
       PUBLIC_DATA_TREE_HEIGHT,
@@ -130,14 +132,14 @@ export class MerkleTrees implements MerkleTreeDb {
     );
     const l1Tol2MessageTree: AppendOnlyTree = await initializeTree(
       StandardTree,
-      this.db,
+      this.store,
       hasher,
       `${MerkleTreeId[MerkleTreeId.L1_TO_L2_MESSAGE_TREE]}`,
       L1_TO_L2_MSG_TREE_HEIGHT,
     );
     const archive: AppendOnlyTree = await initializeTree(
       StandardTree,
-      this.db,
+      this.store,
       hasher,
       `${MerkleTreeId[MerkleTreeId.ARCHIVE]}`,
       ARCHIVE_HEIGHT,
@@ -161,15 +163,14 @@ export class MerkleTrees implements MerkleTreeDb {
 
   /**
    * Method to asynchronously create and initialize a MerkleTrees instance.
-   * @param db - The db instance to use for data persistance.
+   * @param store - The db instance to use for data persistance.
    * @returns - A fully initialized MerkleTrees instance.
    */
-  public static async new(db: levelup.LevelUp) {
-    const merkleTrees = new MerkleTrees(db);
-    const globalVariablesHash: Buffer | undefined = await db.get(LAST_GLOBAL_VARS_HASH).catch(() => undefined);
-    await merkleTrees.init(
-      globalVariablesHash ? { globalVariablesHash: Fr.fromBuffer(globalVariablesHash) } : undefined,
-    );
+  public static async new(store: AztecKVStore) {
+    const merkleTrees = new MerkleTrees(store);
+    const globalVariablesHash = store.openSingleton<Buffer>(LAST_GLOBAL_VARS_HASH);
+    const val = globalVariablesHash.get();
+    await merkleTrees.init(val ? { globalVariablesHash: Fr.fromBuffer(val) } : undefined);
     return merkleTrees;
   }
 
@@ -280,7 +281,7 @@ export class MerkleTrees implements MerkleTreeDb {
     index: bigint,
     includeUncommitted: boolean,
   ): Promise<Buffer | undefined> {
-    return await this.synchronize(() => this.trees[treeId].getLeafValue(index, includeUncommitted));
+    return await this.synchronize(() => Promise.resolve(this.trees[treeId].getLeafValue(index, includeUncommitted)));
   }
 
   /**
@@ -348,7 +349,9 @@ export class MerkleTrees implements MerkleTreeDb {
       }
     | undefined
   > {
-    return await this.synchronize(() => this._getIndexedTree(treeId).findIndexOfPreviousKey(value, includeUncommitted));
+    return await this.synchronize(() =>
+      Promise.resolve(this._getIndexedTree(treeId).findIndexOfPreviousKey(value, includeUncommitted)),
+    );
   }
 
   /**
@@ -364,7 +367,7 @@ export class MerkleTrees implements MerkleTreeDb {
     includeUncommitted: boolean,
   ): Promise<IndexedTreeLeafPreimage | undefined> {
     return await this.synchronize(() =>
-      this._getIndexedTree(treeId).getLatestLeafPreimageCopy(index, includeUncommitted),
+      Promise.resolve(this._getIndexedTree(treeId).getLatestLeafPreimageCopy(index, includeUncommitted)),
     );
   }
 
@@ -380,9 +383,9 @@ export class MerkleTrees implements MerkleTreeDb {
     value: Buffer,
     includeUncommitted: boolean,
   ): Promise<bigint | undefined> {
-    return await this.synchronize(async () => {
+    return await this.synchronize(() => {
       const tree = this.trees[treeId];
-      return await tree.findLeafIndex(value, includeUncommitted);
+      return Promise.resolve(tree.findLeafIndex(value, includeUncommitted));
     });
   }
 
@@ -523,7 +526,7 @@ export class MerkleTrees implements MerkleTreeDb {
       await tree.commit();
     }
     this.latestGlobalVariablesHash.commit();
-    await this.db.put(LAST_GLOBAL_VARS_HASH, this.latestGlobalVariablesHash.get().toBuffer());
+    await this.#globalVariablesHash.set(this.latestGlobalVariablesHash.get().toBuffer());
   }
 
   /**

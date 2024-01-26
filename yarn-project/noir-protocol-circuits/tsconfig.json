@@ -22,6 +22,9 @@
       "path": "../circuit-types"
     },
     {
+      "path": "../kv-store"
+    },
+    {
       "path": "../merkle-tree"
     }
   ],

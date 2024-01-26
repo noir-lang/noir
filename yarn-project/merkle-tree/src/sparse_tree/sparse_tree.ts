@@ -7,24 +7,23 @@ import { INITIAL_LEAF, TreeBase } from '../tree_base.js';
  * A Merkle tree implementation that uses a LevelDB database to store the tree.
  */
 export class SparseTree extends TreeBase implements UpdateOnlyTree {
-  #snapshotBuilder = new FullTreeSnapshotBuilder(this.db, this);
-
+  #snapshotBuilder = new FullTreeSnapshotBuilder(this.store, this);
   /**
    * Updates a leaf in the tree.
    * @param leaf - New contents of the leaf.
    * @param index - Index of the leaf to be updated.
    */
-  public async updateLeaf(leaf: Buffer, index: bigint): Promise<void> {
+  public updateLeaf(leaf: Buffer, index: bigint): Promise<void> {
     if (index > this.maxIndex) {
       throw Error(`Index out of bounds. Index ${index}, max index: ${this.maxIndex}.`);
     }
 
     const insertingZeroElement = leaf.equals(INITIAL_LEAF);
-    const originallyZeroElement = (await this.getLeafValue(index, true))?.equals(INITIAL_LEAF);
+    const originallyZeroElement = this.getLeafValue(index, true)?.equals(INITIAL_LEAF);
     if (insertingZeroElement && originallyZeroElement) {
-      return;
+      return Promise.resolve();
     }
-    await this.addLeafToCacheAndHashToRoot(leaf, index);
+    this.addLeafToCacheAndHashToRoot(leaf, index);
     if (insertingZeroElement) {
       // Deleting element (originally non-zero and new value is zero)
       this.cachedSize = (this.cachedSize ?? this.size) - 1n;
@@ -32,6 +31,8 @@ export class SparseTree extends TreeBase implements UpdateOnlyTree {
       // Inserting new element (originally zero and new value is non-zero)
       this.cachedSize = (this.cachedSize ?? this.size) + 1n;
     }
+
+    return Promise.resolve();
   }
 
   public snapshot(block: number): Promise<TreeSnapshot> {
@@ -42,7 +43,7 @@ export class SparseTree extends TreeBase implements UpdateOnlyTree {
     return this.#snapshotBuilder.getSnapshot(block);
   }
 
-  public findLeafIndex(_value: Buffer, _includeUncommitted: boolean): Promise<bigint | undefined> {
+  public findLeafIndex(_value: Buffer, _includeUncommitted: boolean): bigint | undefined {
     throw new Error('Finding leaf index is not supported for sparse trees');
   }
 }

@@ -9,7 +9,7 @@ export class ContractClassStore {
   #contractClasses: AztecMap<string, Buffer>;
 
   constructor(db: AztecKVStore) {
-    this.#contractClasses = db.createMap('archiver_contract_classes');
+    this.#contractClasses = db.openMap('archiver_contract_classes');
   }
 
   addContractClass(contractClass: ContractClassWithId): Promise<boolean> {

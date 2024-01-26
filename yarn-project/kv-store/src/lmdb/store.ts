@@ -39,7 +39,7 @@ export class AztecLmdbStore implements AztecKVStore {
       dupSort: true,
     });
 
-    this.#rollupAddress = this.createSingleton('rollupAddress');
+    this.#rollupAddress = this.openSingleton('rollupAddress');
   }
 
   /**
@@ -55,7 +55,7 @@ export class AztecLmdbStore implements AztecKVStore {
    * @param log - A logger to use. Optional
    * @returns The store
    */
-  static async create(
+  static async open(
     rollupAddress: EthAddress,
     path?: string,
     log = createDebugLogger('aztec:kv-store:lmdb'),
@@ -72,12 +72,16 @@ export class AztecLmdbStore implements AztecKVStore {
     return db;
   }
 
+  static openTmp(): Promise<AztecLmdbStore> {
+    return AztecLmdbStore.open(EthAddress.random());
+  }
+
   /**
    * Creates a new AztecMap in the store.
    * @param name - Name of the map
    * @returns A new AztecMap
    */
-  createMap<K extends string | number, V>(name: string): AztecMap<K, V> {
+  openMap<K extends string | number, V>(name: string): AztecMap<K, V> {
     return new LmdbAztecMap(this.#data, name);
   }
 
@@ -86,11 +90,11 @@ export class AztecLmdbStore implements AztecKVStore {
    * @param name - Name of the map
    * @returns A new AztecMultiMap
    */
-  createMultiMap<K extends string | number, V>(name: string): AztecMultiMap<K, V> {
+  openMultiMap<K extends string | number, V>(name: string): AztecMultiMap<K, V> {
     return new LmdbAztecMap(this.#multiMapData, name);
   }
 
-  createCounter<K extends string | number | Array<string | number>>(name: string): AztecCounter<K> {
+  openCounter<K extends string | number | Array<string | number>>(name: string): AztecCounter<K> {
     return new LmdbAztecCounter(this.#data, name);
   }
 
@@ -99,7 +103,7 @@ export class AztecLmdbStore implements AztecKVStore {
    * @param name - Name of the array
    * @returns A new AztecArray
    */
-  createArray<T>(name: string): AztecArray<T> {
+  openArray<T>(name: string): AztecArray<T> {
     return new LmdbAztecArray(this.#data, name);
   }
 
@@ -108,7 +112,7 @@ export class AztecLmdbStore implements AztecKVStore {
    * @param name - Name of the singleton
    * @returns A new AztecSingleton
    */
-  createSingleton<T>(name: string): AztecSingleton<T> {
+  openSingleton<T>(name: string): AztecSingleton<T> {
     return new LmdbAztecSingleton(this.#data, name);
   }
 

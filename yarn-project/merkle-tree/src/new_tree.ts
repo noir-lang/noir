@@ -1,6 +1,5 @@
+import { AztecKVStore } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
-
-import { LevelUp } from 'levelup';
 
 import { TreeBase } from './tree_base.js';
 
@@ -15,14 +14,14 @@ import { TreeBase } from './tree_base.js';
  * @returns The newly created tree.
  */
 export async function newTree<T extends TreeBase>(
-  c: new (db: LevelUp, hasher: Hasher, name: string, depth: number, size: bigint) => T,
-  db: LevelUp,
+  c: new (store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint) => T,
+  store: AztecKVStore,
   hasher: Hasher,
   name: string,
   depth: number,
   prefilledSize = 1,
 ): Promise<T> {
-  const tree = new c(db, hasher, name, depth, 0n);
+  const tree = new c(store, hasher, name, depth, 0n);
   await tree.init(prefilledSize);
   return tree;
 }

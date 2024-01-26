@@ -16,10 +16,8 @@ import {
   computeFunctionTreeRoot,
 } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
+import { AztecLmdbStore } from '@aztec/kv-store';
 import { Pedersen, StandardTree } from '@aztec/merkle-tree';
-
-import { default as levelup } from 'levelup';
-import memdown from 'memdown';
 
 describe('Data generation for noir tests', () => {
   const defaultContract = {
@@ -73,7 +71,7 @@ describe('Data generation for noir tests', () => {
       return contractLeaf.toBuffer();
     });
 
-    const db = levelup((memdown as any)());
+    const db = await AztecLmdbStore.openTmp();
     const tree = new StandardTree(
       db,
       new Pedersen(),
@@ -94,7 +92,7 @@ describe('Data generation for noir tests', () => {
     const indexes = new Array(128).fill(null).map((_, i) => BigInt(i));
     const leaves = indexes.map(i => new Fr(i + 1n).toBuffer());
 
-    const db = levelup((memdown as any)());
+    const db = await AztecLmdbStore.openTmp();
 
     const noteHashTree = new StandardTree(
       db,

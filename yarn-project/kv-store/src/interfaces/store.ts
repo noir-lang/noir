@@ -11,34 +11,34 @@ export interface AztecKVStore {
    * @param name - The name of the map
    * @returns The map
    */
-  createMap<K extends string | number, V>(name: string): AztecMap<K, V>;
+  openMap<K extends string | number, V>(name: string): AztecMap<K, V>;
 
   /**
    * Creates a new multi-map.
    * @param name - The name of the multi-map
    * @returns The multi-map
    */
-  createMultiMap<K extends string | number, V>(name: string): AztecMultiMap<K, V>;
+  openMultiMap<K extends string | number, V>(name: string): AztecMultiMap<K, V>;
 
   /**
    * Creates a new array.
    * @param name - The name of the array
    * @returns The array
    */
-  createArray<T>(name: string): AztecArray<T>;
+  openArray<T>(name: string): AztecArray<T>;
 
   /**
    * Creates a new singleton.
    * @param name - The name of the singleton
    * @returns The singleton
    */
-  createSingleton<T>(name: string): AztecSingleton<T>;
+  openSingleton<T>(name: string): AztecSingleton<T>;
 
   /**
    * Creates a new count map.
    * @param name - name of the counter
    */
-  createCounter<K extends Key>(name: string): AztecCounter<K>;
+  openCounter<K extends Key>(name: string): AztecCounter<K>;
 
   /**
    * Starts a transaction. All calls to read/write data while in a transaction are queued and executed atomically.

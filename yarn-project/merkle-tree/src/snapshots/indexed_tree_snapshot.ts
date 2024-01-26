@@ -1,33 +1,32 @@
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { AztecKVStore, AztecMap } from '@aztec/kv-store';
 
-import { LevelUp, LevelUpChain } from 'levelup';
-
-import { IndexedTree } from '../interfaces/indexed_tree.js';
-import { PreimageFactory } from '../standard_indexed_tree/standard_indexed_tree.js';
+import { IndexedTree, PreimageFactory } from '../interfaces/indexed_tree.js';
 import { TreeBase } from '../tree_base.js';
 import { BaseFullTreeSnapshot, BaseFullTreeSnapshotBuilder } from './base_full_snapshot.js';
 import { IndexedTreeSnapshot, TreeSnapshotBuilder } from './snapshot_builder.js';
 
-const snapshotLeafValue = (node: Buffer, index: bigint) =>
-  Buffer.concat([Buffer.from('snapshot:leaf:'), node, Buffer.from(':' + index)]);
+const snapshotLeafValue = (node: Buffer, index: bigint) => 'snapshot:leaf:' + node.toString('hex') + ':' + index;
 
 /** a */
 export class IndexedTreeSnapshotBuilder
   extends BaseFullTreeSnapshotBuilder<IndexedTree & TreeBase, IndexedTreeSnapshot>
   implements TreeSnapshotBuilder<IndexedTreeSnapshot>
 {
-  constructor(db: LevelUp, tree: IndexedTree & TreeBase, private leafPreimageBuilder: PreimageFactory) {
-    super(db, tree);
+  leaves: AztecMap<string, Buffer>;
+  constructor(store: AztecKVStore, tree: IndexedTree & TreeBase, private leafPreimageBuilder: PreimageFactory) {
+    super(store, tree);
+    this.leaves = store.openMap('indexed_tree_snapshot:' + tree.getName());
   }
 
   protected openSnapshot(root: Buffer, numLeaves: bigint): IndexedTreeSnapshot {
-    return new IndexedTreeSnapshotImpl(this.db, root, numLeaves, this.tree, this.leafPreimageBuilder);
+    return new IndexedTreeSnapshotImpl(this.nodes, this.leaves, root, numLeaves, this.tree, this.leafPreimageBuilder);
   }
 
-  protected async handleLeaf(index: bigint, node: Buffer, batch: LevelUpChain) {
-    const leafPreimage = await this.tree.getLatestLeafPreimageCopy(index, false);
+  protected handleLeaf(index: bigint, node: Buffer) {
+    const leafPreimage = this.tree.getLatestLeafPreimageCopy(index, false);
     if (leafPreimage) {
-      batch.put(snapshotLeafValue(node, index), leafPreimage.toBuffer());
+      void this.leaves.set(snapshotLeafValue(node, index), leafPreimage.toBuffer());
     }
   }
 }
@@ -35,7 +34,8 @@ export class IndexedTreeSnapshotBuilder
 /** A snapshot of an indexed tree at a particular point in time */
 class IndexedTreeSnapshotImpl extends BaseFullTreeSnapshot implements IndexedTreeSnapshot {
   constructor(
-    db: LevelUp,
+    db: AztecMap<string, [Buffer, Buffer]>,
+    private leaves: AztecMap<string, Buffer>,
     historicRoot: Buffer,
     numLeaves: bigint,
     tree: IndexedTree & TreeBase,
@@ -44,14 +44,14 @@ class IndexedTreeSnapshotImpl extends BaseFullTreeSnapshot implements IndexedTre
     super(db, historicRoot, numLeaves, tree);
   }
 
-  async getLeafValue(index: bigint): Promise<Buffer | undefined> {
-    const leafPreimage = await this.getLatestLeafPreimageCopy(index);
+  getLeafValue(index: bigint): Buffer | undefined {
+    const leafPreimage = this.getLatestLeafPreimageCopy(index);
     return leafPreimage?.toBuffer();
   }
 
-  async getLatestLeafPreimageCopy(index: bigint): Promise<IndexedTreeLeafPreimage | undefined> {
-    const leafNode = await super.getLeafValue(index);
-    const leafValue = await this.db.get(snapshotLeafValue(leafNode!, index)).catch(() => undefined);
+  getLatestLeafPreimageCopy(index: bigint): IndexedTreeLeafPreimage | undefined {
+    const leafNode = super.getLeafValue(index);
+    const leafValue = this.leaves.get(snapshotLeafValue(leafNode!, index));
     if (leafValue) {
       return this.leafPreimageBuilder.fromBuffer(leafValue);
     } else {
@@ -59,7 +59,7 @@ class IndexedTreeSnapshotImpl extends BaseFullTreeSnapshot implements IndexedTre
     }
   }
 
-  async findIndexOfPreviousKey(newValue: bigint): Promise<{
+  findIndexOfPreviousKey(newValue: bigint): {
     /**
      * The index of the found leaf.
      */
@@ -68,13 +68,13 @@ class IndexedTreeSnapshotImpl extends BaseFullTreeSnapshot implements IndexedTre
      * A flag indicating if the corresponding leaf's value is equal to `newValue`.
      */
     alreadyPresent: boolean;
-  }> {
+  } {
     const numLeaves = this.getNumLeaves();
     const diff: bigint[] = [];
 
     for (let i = 0; i < numLeaves; i++) {
       // this is very inefficient
-      const storedLeaf = await this.getLatestLeafPreimageCopy(BigInt(i))!;
+      const storedLeaf = this.getLatestLeafPreimageCopy(BigInt(i))!;
 
       // The stored leaf can be undefined if it addresses an empty leaf
       // If the leaf is empty we do the same as if the leaf was larger
@@ -99,8 +99,8 @@ class IndexedTreeSnapshotImpl extends BaseFullTreeSnapshot implements IndexedTre
     return { index: BigInt(minIndex), alreadyPresent: false };
   }
 
-  async findLeafIndex(value: Buffer): Promise<bigint | undefined> {
-    const index = await this.tree.findLeafIndex(value, false);
+  findLeafIndex(value: Buffer): bigint | undefined {
+    const index = this.tree.findLeafIndex(value, false);
     if (index !== undefined && index < this.getNumLeaves()) {
       return index;
     }

@@ -16,6 +16,9 @@
       "path": "../foundation"
     },
     {
+      "path": "../kv-store"
+    },
+    {
       "path": "../merkle-tree"
     },
     {

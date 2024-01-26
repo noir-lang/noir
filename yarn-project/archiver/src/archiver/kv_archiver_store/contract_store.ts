@@ -14,7 +14,7 @@ export class ContractStore {
   #log = createDebugLogger('aztec:archiver:contract_store');
 
   constructor(private db: AztecKVStore, blockStore: BlockStore) {
-    this.#extendedContractData = db.createMap('archiver_extended_contract_data');
+    this.#extendedContractData = db.openMap('archiver_extended_contract_data');
     this.#blockStore = blockStore;
   }
 

@@ -1,23 +1,21 @@
 import { randomBytes } from '@aztec/foundation/crypto';
+import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
-
-import { default as levelup } from 'levelup';
 
 import { loadTree } from '../load_tree.js';
 import { newTree } from '../new_tree.js';
 import { standardBasedTreeTestSuite } from '../test/standard_based_test_suite.js';
 import { treeTestSuite } from '../test/test_suite.js';
-import { createMemDown } from '../test/utils/create_mem_down.js';
 import { PedersenWithCounter } from '../test/utils/pedersen_with_counter.js';
 import { INITIAL_LEAF } from '../tree_base.js';
 import { StandardTree } from './standard_tree.js';
 
-const createDb = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string, depth: number) => {
-  return await newTree(StandardTree, levelUp, hasher, name, depth);
+const createDb = async (store: AztecKVStore, hasher: Hasher, name: string, depth: number) => {
+  return await newTree(StandardTree, store, hasher, name, depth);
 };
 
-const createFromName = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string) => {
-  return await loadTree(StandardTree, levelUp, hasher, name);
+const createFromName = async (store: AztecKVStore, hasher: Hasher, name: string) => {
+  return await loadTree(StandardTree, store, hasher, name);
 };
 
 treeTestSuite('StandardTree', createDb, createFromName);
@@ -35,7 +33,7 @@ describe('StandardTree_batchAppend', () => {
   });
 
   it('correctly computes root when batch appending and calls hash function expected num times', async () => {
-    const db = levelup(createMemDown());
+    const db = await AztecLmdbStore.openTmp();
     const tree = await createDb(db, pedersen, 'test', 3);
     const leaves = Array.from({ length: 5 }, _ => randomBytes(32));
 
@@ -71,18 +69,18 @@ describe('StandardTree_batchAppend', () => {
   });
 
   it('should be able to find indexes of leaves', async () => {
-    const db = levelup(createMemDown());
+    const db = await AztecLmdbStore.openTmp();
     const tree = await createDb(db, pedersen, 'test', 3);
     const values = [Buffer.alloc(32, 1), Buffer.alloc(32, 2)];
 
     await tree.appendLeaves([values[0]]);
 
-    expect(await tree.findLeafIndex(values[0], true)).toBeDefined();
-    expect(await tree.findLeafIndex(values[0], false)).toBe(undefined);
-    expect(await tree.findLeafIndex(values[1], true)).toBe(undefined);
+    expect(tree.findLeafIndex(values[0], true)).toBeDefined();
+    expect(tree.findLeafIndex(values[0], false)).toBe(undefined);
+    expect(tree.findLeafIndex(values[1], true)).toBe(undefined);
 
     await tree.commit();
 
-    expect(await tree.findLeafIndex(values[0], false)).toBeDefined();
+    expect(tree.findLeafIndex(values[0], false)).toBeDefined();
   });
 });

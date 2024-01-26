@@ -39,6 +39,7 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
+    "@aztec/kv-store": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@jest/globals": "^29.5.0",

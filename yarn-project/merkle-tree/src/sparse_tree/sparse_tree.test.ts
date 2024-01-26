@@ -1,9 +1,9 @@
 import { createDebugLogger } from '@aztec/foundation/log';
+import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
 import { SiblingPath } from '@aztec/types/membership';
 
 import { randomBytes } from 'crypto';
-import { default as levelup } from 'levelup';
 
 import { INITIAL_LEAF, newTree } from '../index.js';
 import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
@@ -11,22 +11,16 @@ import { loadTree } from '../load_tree.js';
 import { Pedersen } from '../pedersen.js';
 import { standardBasedTreeTestSuite } from '../test/standard_based_test_suite.js';
 import { treeTestSuite } from '../test/test_suite.js';
-import { createMemDown } from '../test/utils/create_mem_down.js';
 import { SparseTree } from './sparse_tree.js';
 
 const log = createDebugLogger('aztec:sparse_tree_test');
 
-const createDb = async (
-  levelUp: levelup.LevelUp,
-  hasher: Hasher,
-  name: string,
-  depth: number,
-): Promise<UpdateOnlyTree> => {
-  return await newTree(SparseTree, levelUp, hasher, name, depth);
+const createDb = async (db: AztecKVStore, hasher: Hasher, name: string, depth: number): Promise<UpdateOnlyTree> => {
+  return await newTree(SparseTree, db, hasher, name, depth);
 };
 
-const createFromName = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string): Promise<UpdateOnlyTree> => {
-  return await loadTree(SparseTree, levelUp, hasher, name);
+const createFromName = async (db: AztecKVStore, hasher: Hasher, name: string): Promise<UpdateOnlyTree> => {
+  return await loadTree(SparseTree, db, hasher, name);
 };
 
 const TEST_TREE_DEPTH = 3;
@@ -42,19 +36,19 @@ describe('SparseTreeSpecific', () => {
   });
 
   it('throws when index is bigger than (2^DEPTH - 1) ', async () => {
-    const db = levelup(createMemDown());
+    const db = await AztecLmdbStore.openTmp();
     const depth = 32;
     const tree = await createDb(db, pedersen, 'test', depth);
 
     const index = 2n ** BigInt(depth);
-    await expect(tree.updateLeaf(Buffer.alloc(32), index)).rejects.toThrow();
+    expect(() => tree.updateLeaf(Buffer.alloc(32), index)).toThrow();
   });
 
   it('updating non-empty leaf does not change tree size', async () => {
     const depth = 32;
     const maxIndex = 2 ** depth - 1;
 
-    const db = levelup(createMemDown());
+    const db = await AztecLmdbStore.openTmp();
     const tree = await createDb(db, pedersen, 'test', depth);
 
     const randomIndex = BigInt(Math.floor(Math.random() * maxIndex));
@@ -73,7 +67,7 @@ describe('SparseTreeSpecific', () => {
     const depth = 254;
     const maxIndex = 2 ** depth - 1;
 
-    const db = levelup(createMemDown());
+    const db = await AztecLmdbStore.openTmp();
     const tree = await createDb(db, pedersen, 'test', depth);
 
     const randomIndex = BigInt(Math.floor(Math.random() * maxIndex));
@@ -89,7 +83,7 @@ describe('SparseTreeSpecific', () => {
   });
 
   it('should have correct root and sibling path after in a "non-append-only" way', async () => {
-    const db = levelup(createMemDown());
+    const db = await AztecLmdbStore.openTmp();
     const tree = await createDb(db, pedersen, 'test', 3);
 
     const level2ZeroHash = pedersen.hash(INITIAL_LEAF, INITIAL_LEAF);
@@ -162,7 +156,7 @@ describe('SparseTreeSpecific', () => {
     const depth = 254;
     const maxIndex = 2 ** depth - 1;
 
-    const db = levelup(createMemDown());
+    const db = await AztecLmdbStore.openTmp();
     const tree = await createDb(db, pedersen, 'test', depth);
 
     const leaves = Array.from({ length: 1000 }).map(() => randomBytes(32));

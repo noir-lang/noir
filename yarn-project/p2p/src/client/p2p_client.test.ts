@@ -1,5 +1,4 @@
 import { L2BlockSource, mockTx } from '@aztec/circuit-types';
-import { EthAddress } from '@aztec/circuits.js';
 import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
 
 import { expect, jest } from '@jest/globals';
@@ -42,7 +41,7 @@ describe('In-Memory P2P Client', () => {
 
     blockSource = new MockBlockSource();
 
-    kvStore = await AztecLmdbStore.create(EthAddress.random());
+    kvStore = await AztecLmdbStore.openTmp();
     client = new P2PClient(kvStore, blockSource, txPool, p2pService);
   });
 

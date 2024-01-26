@@ -46,28 +46,29 @@ export class KVPxeDatabase implements PxeDatabase {
   constructor(db: AztecKVStore) {
     this.#db = db;
 
-    this.#addresses = db.createArray('addresses');
-    this.#addressIndex = db.createMap('address_index');
+    this.#addresses = db.openArray('addresses');
+    this.#addressIndex = db.openMap('address_index');
 
-    this.#authWitnesses = db.createMap('auth_witnesses');
-    this.#capsules = db.createArray('capsules');
-    this.#contracts = db.createMap('contracts');
-    this.#contractArtifacts = db.createMap('contract_artifacts');
-    this.#contractInstances = db.createMap('contracts_instances');
+    this.#authWitnesses = db.openMap('auth_witnesses');
+    this.#capsules = db.openArray('capsules');
+    this.#contracts = db.openMap('contracts');
 
-    this.#synchronizedBlock = db.createSingleton('block_header');
-    this.#syncedBlockPerPublicKey = db.createMap('synced_block_per_public_key');
+    this.#contractArtifacts = db.openMap('contract_artifacts');
+    this.#contractInstances = db.openMap('contracts_instances');
 
-    this.#notes = db.createArray('notes');
-    this.#nullifiedNotes = db.createMap('nullified_notes');
+    this.#synchronizedBlock = db.openSingleton('block_header');
+    this.#syncedBlockPerPublicKey = db.openMap('synced_block_per_public_key');
 
-    this.#notesByContract = db.createMultiMap('notes_by_contract');
-    this.#notesByStorageSlot = db.createMultiMap('notes_by_storage_slot');
-    this.#notesByTxHash = db.createMultiMap('notes_by_tx_hash');
-    this.#notesByOwner = db.createMultiMap('notes_by_owner');
+    this.#notes = db.openArray('notes');
+    this.#nullifiedNotes = db.openMap('nullified_notes');
 
-    this.#deferredNotes = db.createArray('deferred_notes');
-    this.#deferredNotesByContract = db.createMultiMap('deferred_notes_by_contract');
+    this.#notesByContract = db.openMultiMap('notes_by_contract');
+    this.#notesByStorageSlot = db.openMultiMap('notes_by_storage_slot');
+    this.#notesByTxHash = db.openMultiMap('notes_by_tx_hash');
+    this.#notesByOwner = db.openMultiMap('notes_by_owner');
+
+    this.#deferredNotes = db.openArray('deferred_notes');
+    this.#deferredNotesByContract = db.openMultiMap('deferred_notes_by_contract');
   }
 
   public async addContractArtifact(id: Fr, contract: ContractArtifact): Promise<void> {
