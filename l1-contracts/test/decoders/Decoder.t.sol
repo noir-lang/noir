@@ -8,7 +8,7 @@ import {Hash} from "../../src/core/libraries/Hash.sol";
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 
 import {DecoderHelper} from "./helpers/DecoderHelper.sol";
-import {HeaderDecoderHelper} from "./helpers/HeaderDecoderHelper.sol";
+import {HeaderLibHelper} from "./helpers/HeaderLibHelper.sol";
 import {MessagesDecoderHelper} from "./helpers/MessagesDecoderHelper.sol";
 import {TxsDecoderHelper} from "./helpers/TxsDecoderHelper.sol";
 import {HeaderLib} from "../../src/core/libraries/HeaderLib.sol";
@@ -27,13 +27,13 @@ import {AvailabilityOracle} from "../../src/core/availability_oracle/Availabilit
  */
 contract DecoderTest is DecoderBase {
   DecoderHelper internal helper;
-  HeaderDecoderHelper internal headerHelper;
+  HeaderLibHelper internal headerHelper;
   MessagesDecoderHelper internal messagesHelper;
   TxsDecoderHelper internal txsHelper;
 
   function setUp() public virtual {
     helper = new DecoderHelper();
-    headerHelper = new HeaderDecoderHelper();
+    headerHelper = new HeaderLibHelper();
     messagesHelper = new MessagesDecoderHelper();
     txsHelper = new TxsDecoderHelper();
   }

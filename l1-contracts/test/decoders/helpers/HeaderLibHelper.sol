@@ -4,7 +4,7 @@ pragma solidity >=0.8.18;
 
 import {HeaderLib} from "../../../src/core/libraries/HeaderLib.sol";
 
-contract HeaderDecoderHelper {
+contract HeaderLibHelper {
   // A wrapper used such that we get "calldata" and not memory
   function decode(bytes calldata _header) public pure returns (HeaderLib.Header memory) {
     return HeaderLib.decode(_header);
