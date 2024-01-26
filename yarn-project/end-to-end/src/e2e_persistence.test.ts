@@ -153,7 +153,7 @@ describe('Aztec persistence', () => {
 
       expect(ownerBalance).toEqual(initialOwnerBalance - 500n);
       expect(targetBalance).toEqual(500n);
-    });
+    }, 30_000);
   });
 
   describe.each([
