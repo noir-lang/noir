@@ -10,31 +10,43 @@ pub struct DebugVars {
     variables: HashMap<DebugVarId, DebugVariable>,
     types: HashMap<DebugTypeId, PrintableType>,
     values: HashMap<DebugVarId, PrintableValue>,
-    frames: Vec<(DebugVarId, HashSet<DebugVarId>)>,
+    frames: Vec<(DebugVarId, HashSet<DebugVarId, PrintableValue>)>,
 }
 
 impl DebugVars {
     pub fn get_variables(
         &self,
     ) -> Vec<(&str, Vec<&str>, Vec<(&str, &PrintableValue, &PrintableType)>)> {
+        println!("get_variables");
+        println!("id_to_name: {:#?}", self.id_to_name);
+        println!("frames: {:#?}", self.frames);
+        println!("id_to_type: {:#?}", self.id_to_type);
+        println!("types: {:#?}", self.types);
+
         self.frames
             .iter()
             .map(|(fn_id, frame)| {
-                let fn_type_id = &self
-                    .variables
-                    .get(fn_id)
-                    .expect("failed to find type for fn_id={fn_id:?}")
-                    .debug_type_id;
                 let fn_type = self
                     .types
                     .get(fn_type_id)
                     .expect(&format!("failed to get function type for fn_type_id={fn_type_id:?}"));
                 let PrintableType::Function { name, arguments, .. } = fn_type
                 else { panic!("unexpected function type {fn_type:?}") };
+
                 let params: Vec<&str> =
                     arguments.iter().map(|(var_name, _)| var_name.as_str()).collect();
                 let vars: Vec<(&str, &PrintableValue, &PrintableType)> =
-                    frame.iter().filter_map(|var_id| self.lookup_var(*var_id)).collect();
+                    frame.iter().filter_map(|(var_id, var_value)| {
+                        self.lookup_var(*var_id).map(|(name, typ)| {
+                            (name, var_value, typ)
+                        })
+                    })
+                    .collect();
+
+                // println!("name: {:#?}", name);
+                // println!("params: {:#?}", params);
+                // println!("vars: {:#?}", vars);
+
                 (name.as_str(), params, vars)
             })
             .collect()
@@ -57,17 +69,21 @@ impl DebugVars {
     }
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[Value]) {
-        self.frames.last_mut().expect("unexpected empty stack frames").1.insert(var_id);
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
         let ptype = self.types.get(type_id).unwrap();
         self.values.insert(var_id, decode_value(&mut values.iter().map(|v| v.to_field()), ptype));
+        self.frames.last_mut()
+            .expect("unexpected empty stack frames").1
+            .insert(var_id, decode_value(&mut values.iter().map(|v| v.to_field()), ptype));
     }
 
     pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[Value]) {
-        let mut cursor: &mut PrintableValue = self
-            .values
+        let mut current_frame = &mut self
+            .frames.last_mut()
+            .expect("unexpected empty stack frames").1;
+        let mut cursor: &mut PrintableValue = current_frame
             .get_mut(&var_id)
-            .unwrap_or_else(|| panic!("value unavailable for var_id {var_id:?}"));
+            .unwrap_or_else(|| panic!("value unavailable for var_id {var_id}"));
         let cursor_type_id = &self
             .variables
             .get(&var_id)
@@ -119,7 +135,10 @@ impl DebugVars {
             };
         }
         *cursor = decode_value(&mut values.iter().map(|v| v.to_field()), cursor_type);
-        self.frames.last_mut().expect("unexpected empty stack frames").1.insert(var_id);
+
+        //TODO: I think this is not necessary because current_frame and
+        // cursor are already mutably borrowed
+        //current_frame.insert(var_id, *cursor);
     }
 
     pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[Value]) {
