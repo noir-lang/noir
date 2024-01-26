@@ -14,9 +14,7 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 
 Given an array of bytes, returns the resulting sha256 hash.
 
-```rust
-fn sha256(_input : [u8]) -> [u8; 32]
-```
+#include_code sha256 noir_stdlib/src/hash.nr rust
 
 example:
 
@@ -33,9 +31,7 @@ fn main() {
 
 Given an array of bytes, returns an array with the Blake2 hash
 
-```rust
-fn blake2s(_input : [u8]) -> [u8; 32]
-```
+#include_code blake2s noir_stdlib/src/hash.nr rust
 
 example:
 
@@ -48,13 +44,28 @@ fn main() {
 
 <BlackBoxInfo />
 
+## blake3
+
+Given an array of bytes, returns an array with the Blake3 hash
+
+#include_code blake3 noir_stdlib/src/hash.nr rust
+
+example:
+
+```rust
+fn main() {
+    let x = [163, 117, 178, 149]; // some random bytes
+    let hash = std::hash::blake3(x);
+}
+```
+
+<BlackBoxInfo />
+
 ## pedersen_hash
 
 Given an array of Fields, returns the Pedersen hash.
 
-```rust
-fn pedersen_hash(_input : [Field]) -> Field
-```
+#include_code pedersen_hash noir_stdlib/src/hash.nr rust
 
 example:
 
@@ -67,9 +78,7 @@ example:
 
 Given an array of Fields, returns the Pedersen commitment.
 
-```rust
-fn pedersen_commitment(_input : [Field]) -> [Field; 2]
-```
+#include_code pedersen_commitment noir_stdlib/src/hash.nr rust
 
 example:
 
@@ -83,9 +92,7 @@ Given an array of bytes (`u8`), returns the resulting keccak hash as an array of
 (`[u8; 32]`). Specify a message_size to hash only the first `message_size` bytes
 of the input.
 
-```rust
-fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32]
-```
+#include_code keccak256 noir_stdlib/src/hash.nr rust
 
 example:
 
