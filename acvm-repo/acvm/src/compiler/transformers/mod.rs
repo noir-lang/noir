@@ -126,6 +126,9 @@ pub(super) fn transform_internal(
                     | acir::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation {
                         outputs,
                         ..
+                    }
+                    | acir::circuit::opcodes::BlackBoxFuncCall::Sha256Compression {
+                        outputs, ..
                     } => {
                         for witness in outputs {
                             transformer.mark_solvable(*witness);

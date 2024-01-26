@@ -61,6 +61,8 @@ pub enum BlackBoxFunc {
     BigIntToLeBytes,
     /// Permutation function of Poseidon2
     Poseidon2Permutation,
+    /// SHA256 compression function
+    Sha256Compression,
 }
 
 impl std::fmt::Display for BlackBoxFunc {
@@ -95,6 +97,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::BigIntFromLeBytes => "bigint_from_le_bytes",
             BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
             BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
+            BlackBoxFunc::Sha256Compression => "sha256_compression",
         }
     }
 
@@ -123,9 +126,11 @@ impl BlackBoxFunc {
             "bigint_from_le_bytes" => Some(BlackBoxFunc::BigIntFromLeBytes),
             "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
             "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
+            "sha256_compression" => Some(BlackBoxFunc::Sha256Compression),
             _ => None,
         }
     }
+
     pub fn is_valid_black_box_func_name(op_name: &str) -> bool {
         BlackBoxFunc::lookup(op_name).is_some()
     }

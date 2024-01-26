@@ -114,4 +114,9 @@ pub enum BlackBoxOp {
         output: HeapArray,
         len: RegisterIndex,
     },
+    Sha256Compression {
+        input: HeapVector,
+        hash_values: HeapVector,
+        output: HeapArray,
+    },
 }

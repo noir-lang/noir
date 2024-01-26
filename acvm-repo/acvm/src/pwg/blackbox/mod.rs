@@ -197,5 +197,6 @@ pub(crate) fn solve(
         BlackBoxFuncCall::BigIntFromLeBytes { .. } => todo!(),
         BlackBoxFuncCall::BigIntToLeBytes { .. } => todo!(),
         BlackBoxFuncCall::Poseidon2Permutation { .. } => todo!(),
+        BlackBoxFuncCall::Sha256Compression { .. } => todo!(),
     }
 }
