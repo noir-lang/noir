@@ -1,5 +1,5 @@
 ---
-title: Private <--> Public execution
+title: Private - Public execution
 ---
 
 import Image from "@theme/IdealImage";

@@ -166,9 +166,11 @@ contract DocsExample {
         storage.legendary_card.view_note()
     }
 
+    // docs:start:singleton_is_initialized
     unconstrained fn is_legendary_initialized() -> pub bool {
         storage.legendary_card.is_initialized()
     }
+    // docs:end:singleton_is_initialized
 
     unconstrained fn get_imm_card() -> pub CardNote {
         storage.imm_singleton.view_note()
