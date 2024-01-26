@@ -2,6 +2,7 @@ use crate::{
     abis::{
         call_context::CallContext,
         block_header::BlockHeader,
+        nullifier_key_validation_request::NullifierKeyValidationRequest,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
     contrakt::deployment_data::ContractDeploymentData,
@@ -12,6 +13,7 @@ use crate::{
 };
 use crate::constants::{
         MAX_READ_REQUESTS_PER_CALL,
+        MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
         MAX_NEW_COMMITMENTS_PER_CALL,
         MAX_NEW_NULLIFIERS_PER_CALL,
         MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
@@ -32,6 +34,7 @@ struct PrivateCircuitPublicInputs {
     return_values: [Field; RETURN_VALUES_LENGTH],
 
     read_requests: [SideEffect; MAX_READ_REQUESTS_PER_CALL],
+    nullifier_key_validation_requests: [NullifierKeyValidationRequest; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL],
 
     new_commitments: [SideEffect; MAX_NEW_COMMITMENTS_PER_CALL],
     new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_CALL],

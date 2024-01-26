@@ -143,9 +143,10 @@ export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): AC
     toACVMField(publicInputs.argsHash),
 
     ...publicInputs.returnValues.map(toACVMField),
-    ...publicInputs.readRequests.flatMap(x => x.toFieldArray()).map(toACVMField),
-    ...publicInputs.newCommitments.flatMap(x => x.toFieldArray()).map(toACVMField),
-    ...publicInputs.newNullifiers.flatMap(x => x.toFieldArray()).map(toACVMField),
+    ...publicInputs.readRequests.flatMap(x => x.toFields()).map(toACVMField),
+    ...publicInputs.nullifierKeyValidationRequests.flatMap(x => x.toFields()).map(toACVMField),
+    ...publicInputs.newCommitments.flatMap(x => x.toFields()).map(toACVMField),
+    ...publicInputs.newNullifiers.flatMap(x => x.toFields()).map(toACVMField),
     ...publicInputs.privateCallStackHashes.map(toACVMField),
     ...publicInputs.publicCallStackHashes.map(toACVMField),
     ...publicInputs.newL2ToL1Msgs.map(toACVMField),

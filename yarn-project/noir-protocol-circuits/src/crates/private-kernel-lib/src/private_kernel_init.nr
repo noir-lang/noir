@@ -124,10 +124,13 @@ mod tests {
         abis::{
             complete_address::CompleteAddress,
             kernel_circuit_public_inputs::KernelCircuitPublicInputs,
+            nullifier_key_validation_request::NullifierKeyValidationRequest,
             private_kernel::private_call_data::PrivateCallData,
             side_effect::{SideEffect, SideEffectLinkedToNoteHash},
         },
         address::AztecAddress,
+        grumpkin_point::GrumpkinPoint,
+        grumpkin_private_key::GrumpkinPrivateKey,
         hash::{
             compute_constructor_hash,
             compute_logs_hash,
@@ -618,5 +621,24 @@ mod tests {
 
         // non-transient read requests are NOT forwarded
         assert_eq(array_length(public_inputs.end.read_requests), MAX_READ_REQUESTS_PER_CALL);
+    }
+
+    #[test]
+    fn propagate_nullifier_key_validation_requests() {
+        let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
+
+        let request = NullifierKeyValidationRequest { public_key: GrumpkinPoint { x: 1, y: 2 }, secret_key: GrumpkinPrivateKey { high: 3, low: 4 } };
+        builder.private_call.public_inputs.nullifier_key_validation_requests.push(request);
+
+        let public_inputs = builder.execute();
+
+        assert_eq(array_length(public_inputs.end.nullifier_key_validation_requests), 1);
+
+        let request_context = public_inputs.end.nullifier_key_validation_requests[0];
+        assert_eq(request_context.public_key, request.public_key);
+        assert_eq(request_context.secret_key, request.secret_key);
+        assert_eq(
+            request_context.contract_address, builder.private_call.public_inputs.call_context.storage_contract_address
+        );
     }
 }

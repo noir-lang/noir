@@ -1,4 +1,4 @@
-import { BufferReader } from '../serialize/buffer_reader.js';
+import { BufferReader, FieldReader } from '../serialize/index.js';
 import { Fr } from './fields.js';
 
 /**
@@ -64,6 +64,11 @@ export class Point {
    */
   toFields() {
     return [this.x, this.y];
+  }
+
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return new this(reader.readField(), reader.readField());
   }
 
   /**

@@ -7,6 +7,7 @@ use dep::types::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder,
         membership_witness::ReadRequestMembershipWitness,
         new_contract_data::NewContractData,
+        nullifier_key_validation_request::NullifierKeyValidationRequestContext,
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
         private_kernel::private_call_data::PrivateCallData,
         previous_kernel_data::PreviousKernelData,
@@ -20,7 +21,9 @@ use dep::types::{
         MAX_NEW_COMMITMENTS_PER_CALL,
         MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
         MAX_READ_REQUESTS_PER_CALL,
+        MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
     },
+    grumpkin_private_key::GrumpkinPrivateKey,
     hash::{
         compute_constructor_hash,
         compute_l2_to_l1_hash,
@@ -28,6 +31,7 @@ use dep::types::{
         compute_new_contract_address_hash,
         contract_tree_root_from_siblings,
         function_tree_root_from_siblings,
+        pedersen_hash,
         read_request_root_from_siblings,
         silo_commitment,
         silo_nullifier,
@@ -41,7 +45,7 @@ use dep::types::{
         },
         bounded_vec::BoundedVec,
     },
-    traits::is_empty_array,
+    traits::{is_empty, is_empty_array},
 };
 
 pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
@@ -51,6 +55,7 @@ pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
 
     validate_array(app_public_inputs.return_values);
     validate_array(app_public_inputs.read_requests);
+    validate_array(app_public_inputs.nullifier_key_validation_requests);
     validate_array(app_public_inputs.new_commitments);
     validate_array(app_public_inputs.new_nullifiers);
     validate_array(app_public_inputs.private_call_stack_hashes);
@@ -106,6 +111,7 @@ pub fn initialize_end_values(
     let start = previous_kernel.public_inputs.end;
 
     public_inputs.end.read_requests = array_to_bounded_vec(start.read_requests);
+    public_inputs.end.nullifier_key_validation_requests = array_to_bounded_vec(start.nullifier_key_validation_requests);
 
     public_inputs.end.new_commitments = array_to_bounded_vec(start.new_commitments);
     public_inputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
@@ -173,6 +179,8 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
     let read_requests = private_call_public_inputs.read_requests;
     let read_request_membership_witnesses = private_call.read_request_membership_witnesses;
 
+    let nullifier_key_validation_requests = private_call_public_inputs.nullifier_key_validation_requests;
+
     let new_commitments = private_call_public_inputs.new_commitments;
     let new_nullifiers = private_call_public_inputs.new_nullifiers;
 
@@ -191,6 +199,14 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
         }
     }
     public_inputs.end.read_requests.push_vec(siloed_read_requests);
+
+    // Nullifier key validation requests.
+    for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL {
+        let request = nullifier_key_validation_requests[i];
+        if !is_empty(request) {
+            public_inputs.end.nullifier_key_validation_requests.push(request.to_context(storage_contract_address));
+        }
+    }
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
     //
@@ -407,4 +423,29 @@ pub fn validate_call_against_request(private_call: PrivateCallData, request: Cal
             call_context.storage_contract_address.eq(call_stack_item.contract_address), "call stack storage address does not match expected contract address"
         );
     }
+}
+
+fn field_to_grumpkin_private_key(val: Field) -> GrumpkinPrivateKey {
+    let bytes = val.to_be_bytes(32);
+    let mut v = 1;
+    let mut high = 0;
+    let mut low = 0;
+
+    for i in 0..16 {
+        high = high + (bytes[15 - i] as Field) * v;
+        low = low + (bytes[16 + 15 - i] as Field) * v;
+        v = v * 256;
+    }
+
+    GrumpkinPrivateKey { high, low }
+}
+
+pub fn compute_siloed_nullifier_secret_key(secret_key: GrumpkinPrivateKey, contract_address: AztecAddress) -> GrumpkinPrivateKey {
+    // TODO: Temporary hack. Should replace it with a secure way to derive the secret key.
+    // Match the way keys are derived in circuits.js/src/keys/index.ts
+    let hash = pedersen_hash(
+        [secret_key.high, secret_key.low, contract_address.to_field()],
+        0
+    );
+    field_to_grumpkin_private_key(hash)
 }

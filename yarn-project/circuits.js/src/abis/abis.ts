@@ -533,15 +533,15 @@ function computePrivateInputsHash(input: PrivateCircuitPublicInputs) {
     input.argsHash.toBuffer(),
     ...input.returnValues.map(fr => fr.toBuffer()),
     ...input.readRequests
-      .map(se => se.toFieldArray())
+      .map(rr => rr.toFields())
       .flat()
       .map(fr => fr.toBuffer()),
     ...input.newCommitments
-      .map(se => se.toFieldArray())
+      .map(n => n.toFields())
       .flat()
       .map(fr => fr.toBuffer()),
     ...input.newNullifiers
-      .map(selinked => selinked.toFieldArray())
+      .map(n => n.toFields())
       .flat()
       .map(fr => fr.toBuffer()),
     ...input.privateCallStackHashes.map(fr => fr.toBuffer()),

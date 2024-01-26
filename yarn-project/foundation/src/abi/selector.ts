@@ -1,5 +1,5 @@
 import { fromHex, toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader } from '@aztec/foundation/serialize';
 
 import { randomBytes } from 'crypto';
 
@@ -104,6 +104,11 @@ export class FunctionSelector extends Selector {
    */
   static fromField(fr: Fr) {
     return new FunctionSelector(Number(fr.toBigInt()));
+  }
+
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return FunctionSelector.fromField(reader.readField());
   }
 
   /**

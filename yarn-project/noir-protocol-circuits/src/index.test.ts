@@ -19,6 +19,8 @@ import {
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
+  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
@@ -30,6 +32,8 @@ import {
   MAX_READ_REQUESTS_PER_TX,
   MembershipWitness,
   NewContractData,
+  NullifierKeyValidationRequest,
+  NullifierKeyValidationRequestContext,
   OptionallyRevealedData,
   Point,
   PreviousKernelData,
@@ -55,7 +59,7 @@ import {
 } from '@aztec/circuits.js';
 import { computeCompleteAddress, computeFunctionLeaf, computeTxHash } from '@aztec/circuits.js/abis';
 import { makeTuple } from '@aztec/foundation/array';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 
@@ -131,6 +135,7 @@ describe('Private kernel', () => {
       argsHash,
       makeTuple(RETURN_VALUES_LENGTH, () => Fr.ZERO),
       makeTuple(MAX_READ_REQUESTS_PER_CALL, () => SideEffect.empty()),
+      makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, () => NullifierKeyValidationRequest.empty()),
       newCommitments,
       newNullifiers,
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, () => Fr.ZERO),
@@ -224,6 +229,7 @@ describe('Private kernel', () => {
     const combinedAccumulatedData = new CombinedAccumulatedData(
       AggregationObject.makeFake(),
       makeTuple(MAX_READ_REQUESTS_PER_TX, () => SideEffect.empty()),
+      makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, () => NullifierKeyValidationRequestContext.empty()),
       newCommitments,
       newNullifiers,
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, () => CallRequest.empty()),
@@ -276,6 +282,7 @@ describe('Private kernel', () => {
       sortedNewNullifiers,
       sortedNewNullifiersIndexes,
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => Fr.ZERO),
+      makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, () => GrumpkinScalar.ZERO),
     );
 
     const kernelOutputs = await executeOrdering(kernelInputs);

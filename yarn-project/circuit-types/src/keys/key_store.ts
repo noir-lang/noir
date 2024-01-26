@@ -46,6 +46,15 @@ export interface KeyStore {
   getNullifierSecretKey(pubKey: PublicKey): Promise<GrumpkinPrivateKey>;
 
   /**
+   * Retrieves the nullifier secret key of the specified nullifier public key.
+   * Throws an error if the provided public key is not associated with any of the registered accounts.
+   *
+   * @param nullifierPubKey - The nullifier public key.
+   * @returns A Promise that resolves to the nullifier secret key.
+   */
+  getNullifierSecretKeyFromPublicKey(nullifierPubKey: PublicKey): Promise<GrumpkinPrivateKey>;
+
+  /**
    * Retrieves the nullifier public key of the account associated with the specified AztecAddress.
    * Throws an error if the provided public key is not found in the list of registered accounts.
    * @param pubKey - The public key of the account for which the nullifier public key is requested.

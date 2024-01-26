@@ -1,10 +1,13 @@
 use crate::common;
-use dep::std::unsafe;
-use dep::std::option::Option;
-use dep::std::cmp::Eq;
+use dep::std::{
+    cmp::Eq,
+    option::Option,
+    unsafe,
+};
 use dep::types::{
     abis::{
         call_request::CallRequest,
+        nullifier_key_validation_request::NullifierKeyValidationRequestContext,
         previous_kernel_data::PreviousKernelData,
         kernel_circuit_public_inputs::{
             KernelCircuitPublicInputsBuilder, 
@@ -16,7 +19,9 @@ use dep::types::{
         MAX_NEW_COMMITMENTS_PER_TX,
         MAX_NEW_NULLIFIERS_PER_TX,
         MAX_READ_REQUESTS_PER_TX,
+        MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     },
+    grumpkin_private_key::GrumpkinPrivateKey,
     hash::{
         compute_commitment_nonce,
         compute_unique_siloed_commitment,
@@ -36,12 +41,31 @@ struct PrivateKernelInputsOrdering {
     sorted_new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_new_nullifiers_indexes: [u32; MAX_NEW_NULLIFIERS_PER_TX],
     nullifier_commitment_hints: [Field; MAX_NEW_NULLIFIERS_PER_TX],
+    master_nullifier_secret_keys: [GrumpkinPrivateKey; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 }
 
 impl PrivateKernelInputsOrdering {
     fn validate_inputs(self) {
         assert_eq(array_length(self.previous_kernel.public_inputs.end.private_call_stack), 0, 
             "Private call stack must be empty when executing the ordering circuit");
+    }
+
+    fn validate_nullifier_keys(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
+        let requests = self.previous_kernel.public_inputs.end.nullifier_key_validation_requests;
+        for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX {
+            let request = requests[i];
+            if !is_empty(request) {
+                let master_secret_key = self.master_nullifier_secret_keys[i];
+                let computed_public_key = master_secret_key.derive_public_key();
+                assert(computed_public_key.eq(request.public_key), "Cannot derive nullifier public key from the master key.");
+
+                let computed_secret_key = common::compute_siloed_nullifier_secret_key(master_secret_key, request.contract_address);
+                assert(computed_secret_key.eq(request.secret_key), "Cannot derive siloed secret key from the master key.");
+            }
+        }
+
+        // Empty out nullifier key validation requests after verifying them.
+        public_inputs.end.nullifier_key_validation_requests = BoundedVec::new(NullifierKeyValidationRequestContext::empty());
     }
 
     fn match_reads_to_commitments(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
@@ -181,6 +205,8 @@ impl PrivateKernelInputsOrdering {
         // Do this before any functions can modify the inputs.
         common::initialize_end_values(self.previous_kernel, &mut public_inputs);
 
+        self.validate_nullifier_keys(&mut public_inputs);
+
         self.sort_arrays(&mut public_inputs);
 
         self.match_reads_to_commitments(&mut public_inputs);
@@ -312,6 +338,7 @@ mod tests {
                 sorted_new_nullifiers,
                 sorted_new_nullifiers_indexes,
                 nullifier_commitment_hints: sorted_nullifier_commitment_hints,
+                master_nullifier_secret_keys: dep::std::unsafe::zeroed(),
             };
             kernel.native_private_kernel_circuit_ordering()
         }

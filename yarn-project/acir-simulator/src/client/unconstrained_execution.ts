@@ -5,7 +5,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { extractReturnWitness } from '../acvm/deserialize.js';
-import { ACVMField, Oracle, acvm, extractCallStack, fromACVMField, toACVMWitness } from '../acvm/index.js';
+import { Oracle, acvm, extractCallStack, toACVMWitness } from '../acvm/index.js';
 import { ExecutionError } from '../common/errors.js';
 import { AcirSimulator } from '../index.js';
 import { ViewDataOracle } from './view_data_oracle.js';
@@ -43,6 +43,5 @@ export async function executeUnconstrainedFunction(
     );
   });
 
-  const returnValues: ACVMField[] = extractReturnWitness(acir, partialWitness);
-  return decodeReturnValues(artifact, returnValues.map(fromACVMField));
+  return decodeReturnValues(artifact, extractReturnWitness(acir, partialWitness));
 }

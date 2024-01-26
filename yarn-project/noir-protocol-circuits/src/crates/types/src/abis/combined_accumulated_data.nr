@@ -2,6 +2,7 @@ use crate::{
     abis::{
         call_request::CallRequest,
         new_contract_data::NewContractData,
+        nullifier_key_validation_request::NullifierKeyValidationRequestContext,
         optionally_revealed_data::OptionallyRevealedData,
         public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
@@ -12,6 +13,7 @@ use crate::{
 };
 use crate::constants::{
     MAX_READ_REQUESTS_PER_TX,
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     MAX_NEW_COMMITMENTS_PER_TX,
     MAX_NEW_NULLIFIERS_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
@@ -28,6 +30,7 @@ struct CombinedAccumulatedData {
     aggregation_object: AggregationObject,
 
     read_requests: [SideEffect; MAX_READ_REQUESTS_PER_TX],
+    nullifier_key_validation_requests: [NullifierKeyValidationRequestContext; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 
     new_commitments: [SideEffect; MAX_NEW_COMMITMENTS_PER_TX],
     new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
@@ -79,6 +82,7 @@ struct CombinedAccumulatedDataBuilder {
     aggregation_object: AggregationObject,
 
     read_requests: BoundedVec<SideEffect,MAX_READ_REQUESTS_PER_TX>,
+    nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequestContext, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
 
     new_commitments: BoundedVec<SideEffect, MAX_NEW_COMMITMENTS_PER_TX>,
     new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_TX>,
@@ -110,6 +114,7 @@ impl CombinedAccumulatedDataBuilder {
             aggregation_object: self.aggregation_object,
 
             read_requests: self.read_requests.storage,
+            nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
 
             new_commitments: self.new_commitments.storage,
             new_nullifiers: self.new_nullifiers.storage,
@@ -136,6 +141,7 @@ impl CombinedAccumulatedDataBuilder {
 
     pub fn to_final(self) -> FinalAccumulatedData {
         assert_eq(self.read_requests.len, 0, "Final accumulated data: read requests not empty");
+        assert_eq(self.nullifier_key_validation_requests.len, 0, "Final accumulated data: nullifier key validation requests not empty");
         assert_eq(self.public_data_update_requests.len, 0, "Final accumulated data: public data update requests not empty");
         assert_eq(self.public_data_reads.len, 0, "Final accumulated data: public data reads not empty");
 

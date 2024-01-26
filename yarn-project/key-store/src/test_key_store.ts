@@ -51,6 +51,20 @@ export class TestKeyStore implements KeyStore {
     return computeNullifierSecretKey(privateKey);
   }
 
+  public async getNullifierSecretKeyFromPublicKey(nullifierPubKey: PublicKey) {
+    const accounts = await this.getAccounts();
+    for (let i = 0; i < accounts.length; ++i) {
+      const accountPublicKey = accounts[i];
+      const privateKey = await this.getAccountPrivateKey(accountPublicKey);
+      const secretKey = computeNullifierSecretKey(privateKey);
+      const publicKey = derivePublicKey(secretKey);
+      if (publicKey.equals(nullifierPubKey)) {
+        return secretKey;
+      }
+    }
+    throw new Error('Unknown nullifier public key.');
+  }
+
   public async getNullifierPublicKey(pubKey: PublicKey) {
     const secretKey = await this.getNullifierSecretKey(pubKey);
     return derivePublicKey(secretKey);

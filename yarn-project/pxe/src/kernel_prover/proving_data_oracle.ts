@@ -3,8 +3,10 @@ import {
   FUNCTION_TREE_HEIGHT,
   Fr,
   FunctionSelector,
+  GrumpkinPrivateKey,
   MembershipWitness,
   NOTE_HASH_TREE_HEIGHT,
+  Point,
   VK_TREE_HEIGHT,
   VerificationKey,
 } from '@aztec/circuits.js';
@@ -66,4 +68,12 @@ export interface ProvingDataOracle {
    * @returns the root of the note hash tree.
    */
   getNoteHashTreeRoot(): Promise<Fr>;
+
+  /**
+   * Get the master secret key of the nullifier public key.
+   *
+   * @param nullifierPublicKey - The nullifier public key.
+   * @returns the master nullifier secret key.
+   */
+  getMasterNullifierSecretKey(nullifierPublicKey: Point): Promise<GrumpkinPrivateKey>;
 }

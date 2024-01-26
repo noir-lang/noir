@@ -7,6 +7,7 @@ import {
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
@@ -22,6 +23,7 @@ import {
   EthAddress,
   Fr,
   FunctionData,
+  NullifierKeyValidationRequestContext,
   SideEffect,
   SideEffectLinkedToNoteHash,
 } from '../index.js';
@@ -300,6 +302,13 @@ export class CombinedAccumulatedData {
      */
     public readRequests: Tuple<SideEffect, typeof MAX_READ_REQUESTS_PER_TX>,
     /**
+     * All the nullifier key validation requests made in this transaction.
+     */
+    public nullifierKeyValidationRequests: Tuple<
+      NullifierKeyValidationRequestContext,
+      typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
+    >,
+    /**
      * The new commitments made in this transaction.
      */
     public newCommitments: Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_TX>,
@@ -359,6 +368,7 @@ export class CombinedAccumulatedData {
     return serializeToBuffer(
       this.aggregationObject,
       this.readRequests,
+      this.nullifierKeyValidationRequests,
       this.newCommitments,
       this.newNullifiers,
       this.privateCallStack,
@@ -389,6 +399,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       reader.readObject(AggregationObject),
       reader.readArray(MAX_READ_REQUESTS_PER_TX, SideEffect),
+      reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext),
       reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -409,6 +420,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       finalData.aggregationObject,
       makeTuple(MAX_READ_REQUESTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext.empty),
       finalData.newCommitments,
       finalData.newNullifiers,
       finalData.privateCallStack,
@@ -438,6 +450,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       AggregationObject.makeFake(),
       makeTuple(MAX_READ_REQUESTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext.empty),
       makeTuple(MAX_NEW_COMMITMENTS_PER_TX, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),

@@ -1,8 +1,16 @@
+use dep::std::cmp::Eq;
+
 global GRUMPKIN_POINT_SERIALIZED_LEN: Field = 2;
 
 struct GrumpkinPoint {
     x: Field,
     y: Field,
+}
+
+impl Eq for GrumpkinPoint {
+    fn eq(self, point: GrumpkinPoint) -> bool {
+        (point.x == self.x) & (point.y == self.y)
+    }
 }
 
 impl GrumpkinPoint {
@@ -15,6 +23,10 @@ impl GrumpkinPoint {
             x: 0,
             y: 0,
         }
+    }
+
+    pub fn is_zero(self) -> bool {
+        (self.x == 0) & (self.y == 0)
     }
 
     fn serialize(self) -> [Field; GRUMPKIN_POINT_SERIALIZED_LEN] {

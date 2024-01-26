@@ -8,6 +8,7 @@ import {
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
+  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
@@ -16,6 +17,7 @@ import {
 } from '../constants.gen.js';
 import { CallContext } from './call_context.js';
 import { BlockHeader, SideEffect, SideEffectLinkedToNoteHash } from './index.js';
+import { NullifierKeyValidationRequest } from './nullifier_key_validation_request.js';
 import { ContractDeploymentData } from './tx_context.js';
 
 /**
@@ -40,6 +42,13 @@ export class PrivateCircuitPublicInputs {
      * Read requests created by the corresponding function call.
      */
     public readRequests: Tuple<SideEffect, typeof MAX_READ_REQUESTS_PER_CALL>,
+    /**
+     * Nullifier key validation requests created by the corresponding function call.
+     */
+    public nullifierKeyValidationRequests: Tuple<
+      NullifierKeyValidationRequest,
+      typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
+    >,
     /**
      * New commitments created by the corresponding function call.
      */
@@ -123,6 +132,7 @@ export class PrivateCircuitPublicInputs {
       reader.readObject(Fr),
       reader.readArray(RETURN_VALUES_LENGTH, Fr),
       reader.readArray(MAX_READ_REQUESTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
       reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, Fr),
@@ -150,6 +160,7 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       makeTuple(RETURN_VALUES_LENGTH, Fr.zero),
       makeTuple(MAX_READ_REQUESTS_PER_CALL, SideEffect.empty),
+      makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest.empty),
       makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, Fr.zero),
@@ -168,22 +179,23 @@ export class PrivateCircuitPublicInputs {
   }
 
   isEmpty() {
-    const isFrArrayEmpty = (arr: Fr[]) => isArrayEmpty(arr, item => item.isZero());
-    const isSideEffectArrayEmpty = (arr: SideEffect[]) => isArrayEmpty(arr, item => item.isEmpty());
-    const isSideEffectLinkedArrayEmpty = (arr: SideEffectLinkedToNoteHash[]) =>
-      isArrayEmpty(arr, item => item.isEmpty());
+    // eslint-disable-next-line jsdoc/require-jsdoc
+    const isEmptyArray = (arr: { isEmpty: (...args: any[]) => boolean }[]) => isArrayEmpty(arr, item => item.isEmpty());
+    // eslint-disable-next-line jsdoc/require-jsdoc
+    const isZeroArray = (arr: { isZero: (...args: any[]) => boolean }[]) => isArrayEmpty(arr, item => item.isZero());
     return (
       this.callContext.isEmpty() &&
       this.argsHash.isZero() &&
-      isFrArrayEmpty(this.returnValues) &&
-      isSideEffectArrayEmpty(this.readRequests) &&
-      isSideEffectArrayEmpty(this.newCommitments) &&
-      isSideEffectLinkedArrayEmpty(this.newNullifiers) &&
-      isFrArrayEmpty(this.privateCallStackHashes) &&
-      isFrArrayEmpty(this.publicCallStackHashes) &&
-      isFrArrayEmpty(this.newL2ToL1Msgs) &&
-      isFrArrayEmpty(this.encryptedLogsHash) &&
-      isFrArrayEmpty(this.unencryptedLogsHash) &&
+      isZeroArray(this.returnValues) &&
+      isEmptyArray(this.readRequests) &&
+      isEmptyArray(this.nullifierKeyValidationRequests) &&
+      isEmptyArray(this.newCommitments) &&
+      isEmptyArray(this.newNullifiers) &&
+      isZeroArray(this.privateCallStackHashes) &&
+      isZeroArray(this.publicCallStackHashes) &&
+      isZeroArray(this.newL2ToL1Msgs) &&
+      isZeroArray(this.encryptedLogsHash) &&
+      isZeroArray(this.unencryptedLogsHash) &&
       this.encryptedLogPreimagesLength.isZero() &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.blockHeader.isEmpty() &&
@@ -204,6 +216,7 @@ export class PrivateCircuitPublicInputs {
       fields.argsHash,
       fields.returnValues,
       fields.readRequests,
+      fields.nullifierKeyValidationRequests,
       fields.newCommitments,
       fields.newNullifiers,
       fields.privateCallStackHashes,

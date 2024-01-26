@@ -7,11 +7,13 @@ import {
   FUNCTION_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
+import { GrumpkinPrivateKey } from '../../types/grumpkin_private_key.js';
 import { CallRequest } from '../call_request.js';
 import { PrivateCallStackItem } from '../call_stack_item.js';
 import { MembershipWitness } from '../membership_witness.js';
@@ -215,6 +217,10 @@ export class PrivateKernelInputsOrdering {
      * Contains hints for the transient nullifiers to localize corresponding commitments.
      */
     public nullifierCommitmentHints: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    /**
+     * The master nullifier secret keys for the nullifier key validation requests.
+     */
+    public masterNullifierSecretKeys: Tuple<GrumpkinPrivateKey, typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
   ) {}
 
   /**
@@ -230,6 +236,7 @@ export class PrivateKernelInputsOrdering {
       this.sortedNewNullifiers,
       this.sortedNewNullifiersIndexes,
       this.nullifierCommitmentHints,
+      this.masterNullifierSecretKeys,
     );
   }
 }

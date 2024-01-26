@@ -16,8 +16,9 @@ export function derivePublicKey(secretKey: GrumpkinPrivateKey) {
 /**
  * Derives a new secret key from a secret key and an index.
  */
-function _deriveSecretKey(secretKey: GrumpkinPrivateKey, index: Fr): GrumpkinPrivateKey {
+function deriveSecretKey(secretKey: GrumpkinPrivateKey, index: Fr): GrumpkinPrivateKey {
   // TODO: Temporary hack. Should replace it with a secure way to derive the secret key.
+  // Match the way keys are derived in noir-protocol-circuits/src/crates/private_kernel_lib/src/common.nr
   const hash = pedersenHash([secretKey.high, secretKey.low, index].map(v => v.toBuffer()));
   return new GrumpkinScalar(hash);
 }
@@ -26,9 +27,7 @@ function _deriveSecretKey(secretKey: GrumpkinPrivateKey, index: Fr): GrumpkinPri
  * Computes the nullifier secret key from seed secret key.
  */
 export function computeNullifierSecretKey(seedSecretKey: GrumpkinPrivateKey): GrumpkinPrivateKey {
-  // TODO
-  // return deriveSecretKey(seedSecretKey, new Fr(1));
-  return seedSecretKey;
+  return deriveSecretKey(seedSecretKey, new Fr(1));
 }
 
 /**
@@ -36,9 +35,7 @@ export function computeNullifierSecretKey(seedSecretKey: GrumpkinPrivateKey): Gr
  */
 export function computeSiloedNullifierSecretKey(
   nullifierSecretKey: GrumpkinPrivateKey,
-  _contractAddress: AztecAddress,
+  contractAddress: AztecAddress,
 ): GrumpkinPrivateKey {
-  // TODO
-  // return deriveSecretKey(nullifierSecretKey, contractAddress);
-  return nullifierSecretKey;
+  return deriveSecretKey(nullifierSecretKey, contractAddress);
 }
