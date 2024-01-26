@@ -199,7 +199,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     self.debug_artifact.location_column_number(*source_location).unwrap();
 
                 let name = match stack_frames.get(index) {
-                    Some(frame) => format!("{} {}", frame.0, index),
+                    Some(frame) => format!("{} {}", frame.function_name, index),
                     None => format!("frame #{index}"),
                 };
 
@@ -538,19 +538,20 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     fn build_local_variables(&self) -> Vec<Variable> {
-        let all_frames = self.context.get_variables();
-        let Some(current_frame) = all_frames.last() else {
+        let Some(current_stack_frame) = self.context.current_stack_frame() else {
             return vec![];
         };
-        let mut variables: Vec<_> = current_frame
-            .2
+
+        let mut variables = current_stack_frame
+            .variables
             .iter()
             .map(|(name, value, _var_type)| Variable {
                 name: String::from(*name),
                 value: format!("{:?}", *value),
                 ..Variable::default()
             })
-            .collect();
+            .collect::<Vec<Variable>>();
+
         variables.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
         variables
     }

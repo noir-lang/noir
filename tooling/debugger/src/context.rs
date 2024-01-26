@@ -10,11 +10,10 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
-use nargo::artifacts::debug::DebugArtifact;
+use nargo::artifacts::debug::{DebugArtifact, StackFrame};
 use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
 use noirc_driver::DebugFile;
-use noirc_printable_type::{PrintableType, PrintableValue};
 
 use std::collections::BTreeMap;
 use std::collections::{hash_set::Iter, HashSet};
@@ -509,10 +508,12 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_variables(
-        &self,
-    ) -> Vec<(&str, Vec<&str>, Vec<(&str, &PrintableValue, &PrintableType)>)> {
+    pub(super) fn get_variables(&self) -> Vec<StackFrame> {
         return self.foreign_call_executor.get_variables();
+    }
+
+    pub(super) fn current_stack_frame(&self) -> Option<StackFrame> {
+        return self.foreign_call_executor.current_stack_frame();
     }
 
     fn breakpoint_reached(&self) -> bool {

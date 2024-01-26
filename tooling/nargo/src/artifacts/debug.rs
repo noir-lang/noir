@@ -8,7 +8,7 @@ use std::{
     ops::Range,
 };
 
-pub use super::debug_vars::DebugVars;
+pub use super::debug_vars::{DebugVars, StackFrame};
 use fm::{FileId, FileManager, PathString};
 
 /// A Debug Artifact stores, for a given program, the debug info for every function

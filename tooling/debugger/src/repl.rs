@@ -337,9 +337,9 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     pub fn show_vars(&self) {
-        for (fname, params, vars) in self.context.get_variables() {
-            println!("{fname}({})", params.join(", "));
-            for (var_name, value, var_type) in vars.iter() {
+        for frame in self.context.get_variables() {
+            println!("{}({})", frame.function_name, frame.function_params.join(", "));
+            for (var_name, value, var_type) in frame.variables.iter() {
                 let printable_value =
                     PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
                 println!("  {var_name}:{var_type:?} = {}", printable_value);

@@ -82,7 +82,6 @@ impl DebugInstrumenter {
             return;
         }
         self.scope.push(HashMap::default());
-        let func_name_span = func.name.span();
         let fn_id = self.insert_var(func_name);
         let enter_fn =
             Self::call_fn("enter", vec![uint_expr(fn_id.0 as u128, func.span)], func.span);
