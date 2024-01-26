@@ -1,6 +1,8 @@
+// docs:start:default-trait
 trait Default {
     fn default() -> Self;
 }
+// docs:end:default-trait
 
 impl Default for Field { fn default() -> Field { 0 } }
 

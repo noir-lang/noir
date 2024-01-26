@@ -8,11 +8,7 @@ keywords: [traits, trait, interface, protocol, default, add, eq]
 
 ### `std::default::Default`
 
-```rust
-trait Default {
-    fn default() -> Self;
-}
-```
+#include_code default-trait noir_stdlib/src/default.nr rust
 
 Constructs a default value of a type.
 
