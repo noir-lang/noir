@@ -82,38 +82,6 @@ library HeaderLib {
   }
 
   /**
-   * @notice Decodes the header
-   * @param _header - The header calldata
-   * @return The decoded header
-   */
-  function decode(bytes calldata _header) internal pure returns (Header memory) {
-    require(_header.length == 376, "Invalid header length");
-
-    Header memory header;
-
-    header.globalVariables.chainId = uint256(bytes32(_header[:0x20]));
-    header.globalVariables.version = uint256(bytes32(_header[0x20:0x40]));
-    header.globalVariables.blockNumber = uint256(bytes32(_header[0x40:0x60]));
-    header.globalVariables.timestamp = uint256(bytes32(_header[0x60:0x80]));
-    header.stateReference.l1ToL2MessageTree =
-      AppendOnlyTreeSnapshot(bytes32(_header[0x80:0xa0]), uint32(bytes4(_header[0xa0:0xa4])));
-    header.stateReference.partialStateReference.noteHashTree =
-      AppendOnlyTreeSnapshot(bytes32(_header[0xa4:0xc4]), uint32(bytes4(_header[0xc4:0xc8])));
-    header.stateReference.partialStateReference.nullifierTree =
-      AppendOnlyTreeSnapshot(bytes32(_header[0xc8:0xe8]), uint32(bytes4(_header[0xe8:0xec])));
-    header.stateReference.partialStateReference.contractTree =
-      AppendOnlyTreeSnapshot(bytes32(_header[0xec:0x10c]), uint32(bytes4(_header[0x10c:0x110])));
-    header.stateReference.partialStateReference.publicDataTree =
-      AppendOnlyTreeSnapshot(bytes32(_header[0x110:0x130]), uint32(bytes4(_header[0x130:0x134])));
-    header.lastArchive =
-      AppendOnlyTreeSnapshot(bytes32(_header[0x134:0x154]), uint32(bytes4(_header[0x154:0x158])));
-
-    header.bodyHash = bytes32(_header[0x158:0x178]);
-
-    return header;
-  }
-
-  /**
    * @notice Validates the header
    * @param _header - The decoded header
    * @param _version - The expected version
@@ -150,5 +118,39 @@ library HeaderLib {
     if (_archive != bytes32(0) && _archive != _header.lastArchive.root) {
       revert Errors.Rollup__InvalidArchive(_archive, _header.lastArchive.root);
     }
+  }
+
+  /**
+   * @notice Decodes the header
+   * @param _header - The header calldata
+   * @return The decoded header
+   */
+  function decode(bytes calldata _header) internal pure returns (Header memory) {
+    if (_header.length != 376) {
+      revert Errors.HeaderLib__InvalidHeaderSize(376, _header.length);
+    }
+
+    Header memory header;
+
+    header.globalVariables.chainId = uint256(bytes32(_header[:0x20]));
+    header.globalVariables.version = uint256(bytes32(_header[0x20:0x40]));
+    header.globalVariables.blockNumber = uint256(bytes32(_header[0x40:0x60]));
+    header.globalVariables.timestamp = uint256(bytes32(_header[0x60:0x80]));
+    header.stateReference.l1ToL2MessageTree =
+      AppendOnlyTreeSnapshot(bytes32(_header[0x80:0xa0]), uint32(bytes4(_header[0xa0:0xa4])));
+    header.stateReference.partialStateReference.noteHashTree =
+      AppendOnlyTreeSnapshot(bytes32(_header[0xa4:0xc4]), uint32(bytes4(_header[0xc4:0xc8])));
+    header.stateReference.partialStateReference.nullifierTree =
+      AppendOnlyTreeSnapshot(bytes32(_header[0xc8:0xe8]), uint32(bytes4(_header[0xe8:0xec])));
+    header.stateReference.partialStateReference.contractTree =
+      AppendOnlyTreeSnapshot(bytes32(_header[0xec:0x10c]), uint32(bytes4(_header[0x10c:0x110])));
+    header.stateReference.partialStateReference.publicDataTree =
+      AppendOnlyTreeSnapshot(bytes32(_header[0x110:0x130]), uint32(bytes4(_header[0x130:0x134])));
+    header.lastArchive =
+      AppendOnlyTreeSnapshot(bytes32(_header[0x134:0x154]), uint32(bytes4(_header[0x154:0x158])));
+
+    header.bodyHash = bytes32(_header[0x158:0x178]);
+
+    return header;
   }
 }

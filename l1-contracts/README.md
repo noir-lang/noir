@@ -66,10 +66,25 @@ For now, this include bytecode for contract deployment, but over time this will 
 
 We use an extended version of solhint (https://github.com/LHerskind/solhint) to include custom rules. These custom rules relate to how errors should be named, using custom errors instead of reverts etc, see `.solhint.json` for more specifics about the rules.
 
-The linter is the only node module we need which is the reason behind not going full yarn-project on it. It is not part of the docker image, but can be run once in a while to make sure we are on track.
+The linter is the only node module we need which is the reason behind not going full yarn-project on it.
 
 To run the linter, simply run:
 
 ```bash
 yarn lint
 ```
+
+---
+
+# Slither
+
+We use slither as an automatic way to find blunders and common vulnerabilities in our contracts. It is not part of the docker image due to its slowness, but it can be run using the following command to generate a markdown file with the results:
+```bash
+yarn slither
+```
+
+When this command is run in CI, it will fail if the markdown file generated in docker don't match the one in the repository. 
+
+We assume that you already have slither installed. You can install it with `pip3 install slither-analyzer`. It is kept out of the bootstrap script as it is not a requirement for people who just want to run tests or are uninterested in the contracts.
+
+> We are not running the `naming-convention` detector because we have our own rules for naming which is enforced by the linter.
