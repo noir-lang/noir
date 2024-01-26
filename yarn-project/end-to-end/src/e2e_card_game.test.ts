@@ -28,9 +28,7 @@ const cardToField = (card: Card): bigint => {
 };
 
 interface PlayerGameEntry {
-  address: {
-    inner: bigint;
-  };
+  address: AztecAddress;
   deck_strength: bigint;
   points: bigint;
 }
@@ -183,16 +181,12 @@ describe('e2e_card_game', () => {
       expect((await contract.methods.view_game(GAME_ID).view({ from: firstPlayer })) as Game).toMatchObject({
         players: [
           {
-            address: {
-              inner: firstPlayer.toBigInt(),
-            },
+            address: firstPlayer,
             deck_strength: expect.anything(),
             points: 0n,
           },
           {
-            address: {
-              inner: 0n,
-            },
+            address: AztecAddress.ZERO,
             deck_strength: 0n,
             points: 0n,
           },
@@ -227,16 +221,12 @@ describe('e2e_card_game', () => {
       expect((await contract.methods.view_game(GAME_ID).view({ from: firstPlayer })) as Game).toMatchObject({
         players: expect.arrayContaining([
           {
-            address: {
-              inner: firstPlayer.toBigInt(),
-            },
+            address: firstPlayer,
             deck_strength: expect.anything(),
             points: 0n,
           },
           {
-            address: {
-              inner: secondPlayer.toBigInt(),
-            },
+            address: secondPlayer,
             deck_strength: expect.anything(),
             points: 0n,
           },
@@ -281,16 +271,16 @@ describe('e2e_card_game', () => {
 
     async function playGame(playerDecks: { address: AztecAddress; deck: Card[] }[], id = GAME_ID) {
       const initialGameState = (await contract.methods.view_game(id).view({ from: firstPlayer })) as Game;
-      const players = initialGameState.players.map(player => player.address.inner);
+      const players = initialGameState.players.map(player => player.address);
       const cards = players.map(
-        player => playerDecks.find(playerDeckEntry => playerDeckEntry.address.toBigInt() === player)!.deck,
+        player => playerDecks.find(playerDeckEntry => playerDeckEntry.address.equals(player))!.deck,
       );
 
       for (let roundIndex = 0; roundIndex < cards.length; roundIndex++) {
         for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
           const player = players[playerIndex];
           const card = cards[playerIndex][roundIndex];
-          await contractFor(AztecAddress.fromBigInt(player)).methods.play_card(id, card).send().wait();
+          await contractFor(player).methods.play_card(id, card).send().wait();
         }
       }
 
@@ -315,8 +305,8 @@ describe('e2e_card_game', () => {
       ]);
 
       const sortedByPoints = game.players.sort((a, b) => Number(b.points - a.points));
-      const winner = AztecAddress.fromBigInt(sortedByPoints[0].address.inner);
-      const loser = AztecAddress.fromBigInt(sortedByPoints[1].address.inner);
+      const winner = sortedByPoints[0].address;
+      const loser = sortedByPoints[1].address;
 
       await expect(
         contractFor(loser).methods.claim_cards(GAME_ID, game.rounds_cards.map(cardToField)).send().wait(),

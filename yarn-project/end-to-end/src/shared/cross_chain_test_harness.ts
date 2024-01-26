@@ -104,8 +104,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
     throw new Error(`Token admin is not ${owner}`);
   }
 
-  // TODO(#3641) - Fix deserialization and compare AztecAddress directly
-  if ((await bridge.methods.token().view()).inner !== token.address.toBigInt()) {
+  if (!(await bridge.methods.token().view()).equals(token.address)) {
     throw new Error(`Bridge token is not ${token.address}`);
   }
 

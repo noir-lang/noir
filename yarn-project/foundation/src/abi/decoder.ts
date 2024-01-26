@@ -1,10 +1,12 @@
+import { AztecAddress } from '../aztec-address/index.js';
 import { Fr } from '../fields/index.js';
 import { ABIParameter, type ABIType, ABIVariable, FunctionArtifact } from './abi.js';
+import { isAztecAddressStruct } from './utils.js';
 
 /**
  * The type of our decoded ABI.
  */
-export type DecodedReturn = bigint | boolean | DecodedReturn[] | { [key: string]: DecodedReturn };
+export type DecodedReturn = bigint | boolean | AztecAddress | DecodedReturn[] | { [key: string]: DecodedReturn };
 
 /**
  * Decodes return values from a function call.
@@ -38,6 +40,10 @@ class ReturnValuesDecoder {
       }
       case 'struct': {
         const struct: { [key: string]: DecodedReturn } = {};
+        if (isAztecAddressStruct(abiType)) {
+          return new AztecAddress(this.getNextField().toBuffer());
+        }
+
         for (const field of abiType.fields) {
           struct[field.name] = this.decodeReturn(field.type);
         }
