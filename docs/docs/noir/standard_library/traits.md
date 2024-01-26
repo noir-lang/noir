@@ -74,7 +74,7 @@ As a general rule of thumb, `From` may be implemented in the [situations where i
 - The conversion is *obvious*: it's the only reasonable conversion between the two types. If there's ambiguity on how to convert between them such that. For instance rather than implementing `U128: From<[u8; 16]>`, the methods `U128::from_le_bytes` and `U128::from_be_bytes` are used as otherwise the endianness of the array would not be ambiguous, resulting in two potential values of `U128` from the same byte array.
 
 One additional recommendation specific to Noir is:
-- The conversion is *efficient*: it's relatively cheap to convert between the two types. Due to being a ZK DSL, it's more important to avoid unnecessary computation compared to Rust. If the implementation of `From` would encourage users to perform unnecessary conversions then this can result in additional proving time, it may be preferable to expose functionality such that this conversion may be avoided.
+- The conversion is *efficient*: it's relatively cheap to convert between the two types. Due to being a ZK DSL, it's more important to avoid unnecessary computation compared to Rust. If the implementation of `From` would encourage users to perform unnecessary conversion, resulting in additional proving time, then it may be preferable to expose functionality such that this conversion may be avoided.
 
 ### `std::convert::Into`
 
