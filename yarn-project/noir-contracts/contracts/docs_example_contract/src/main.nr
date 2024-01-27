@@ -96,23 +96,22 @@ contract DocsExample {
     }
 
     #[aztec(private)]
-    fn insert_note(amount: u8) {
-        let mut note = CardNote::new(amount, 1, context.msg_sender());
+    fn insert_notes(amounts: [u8; 10]) {
+        for i in 0..amounts.len() {
+            let mut note = CardNote::new(amounts[i], 1, context.msg_sender());
+            storage.test.insert(&mut note, true);
+        }
+    }
+
+    #[aztec(private)]
+    fn insert_note(amount: u8, randomness: Field) {
+        let mut note = CardNote::new(amount, randomness, context.msg_sender());
         storage.test.insert(&mut note, true);
     }
 
     unconstrained fn read_note(amount: Field, comparator: u3) -> pub [Option<CardNote>; 10] {
         let options = NoteViewerOptions::new().select(0, amount, Option::some(comparator));
         let notes = storage.test.view_notes(options);
-
-        for i in 0..notes.len() {
-            if notes[i].is_some() {
-                debug_log_format(
-                    "NOTES THAT MATCH: {0}",
-                    [notes[i].unwrap_unchecked().points as Field]
-                );
-            }
-        }
 
         notes
     }

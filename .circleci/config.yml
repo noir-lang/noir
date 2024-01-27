@@ -521,6 +521,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_2_pxes.test.ts
 
+  e2e-note-getter:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_note_getter.test.ts
+
   e2e-multiple-accounts-1-enc-key:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1221,6 +1232,7 @@ workflows:
             - cli
           <<: *defaults
       - e2e-2-pxes: *e2e_test
+      - e2e-note-getter: *e2e_test
       - e2e-deploy-contract: *e2e_test
       - e2e-lending-contract: *e2e_test
       - e2e-token-contract: *e2e_test
@@ -1260,6 +1272,7 @@ workflows:
           requires:
             - mainnet-fork
             - e2e-2-pxes
+            - e2e-note-getter
             - e2e-deploy-contract
             - e2e-lending-contract
             - e2e-token-contract
