@@ -6,7 +6,7 @@ use crate::context::{
 use crate::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
-    utils::compute_inner_note_hash,
+    utils::compute_note_hash_for_read_or_nullify,
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 
@@ -22,7 +22,8 @@ pub fn create_note<Note, N>(
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, is_transient: true };
     let set_header = note_interface.set_header;
     set_header(note, header);
-    let inner_note_hash = compute_inner_note_hash(note_interface, *note);
+    // As `is_transient` is true, this will compute the inner note hsah
+    let inner_note_hash = compute_note_hash_for_read_or_nullify(note_interface, *note);
 
     let serialize = note_interface.serialize;
     let serialized_note = serialize(*note);
@@ -47,7 +48,7 @@ pub fn create_note_hash_from_public<Note, N>(
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, is_transient: true };
     let set_header = note_interface.set_header;
     set_header(note, header);
-    let inner_note_hash = compute_inner_note_hash(note_interface, *note);
+    let inner_note_hash = compute_note_hash_for_read_or_nullify(note_interface, *note);
 
     context.push_new_note_hash(inner_note_hash);
 }
@@ -72,7 +73,7 @@ pub fn destroy_note<Note, N>(
     // just siloes and forwards the nullifier to its output.
     if (header.is_transient) {
         // TODO(1718): Can we reuse the note commitment computed in `compute_nullifier`?
-        nullified_commitment = compute_inner_note_hash(note_interface, note);
+        nullified_commitment = compute_note_hash_for_read_or_nullify(note_interface, note);
     }
     assert(notify_nullified_note(nullifier, nullified_commitment) == 0);
 

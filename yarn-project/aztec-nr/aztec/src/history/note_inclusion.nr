@@ -3,7 +3,7 @@ use dep::std::merkle::compute_merkle_root;
 use crate::{
     context::PrivateContext,
     note::{
-        utils::compute_unique_siloed_note_hash,
+        utils::compute_note_hash_for_read_or_nullify,
         note_header::NoteHeader,
         note_interface::NoteInterface,
     },
@@ -35,7 +35,7 @@ pub fn prove_note_inclusion<Note, N>(
     block_number: u32, // The block at which we'll prove that the note exists
     context: PrivateContext
 ) {
-    let note_commitment = compute_unique_siloed_note_hash(note_interface, note_with_header);
+    let note_commitment = compute_note_hash_for_read_or_nullify(note_interface, note_with_header);
 
     prove_note_commitment_inclusion(note_commitment, block_number, context);
 }

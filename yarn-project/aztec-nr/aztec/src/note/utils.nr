@@ -1,18 +1,38 @@
-use dep::protocol_types::{
-    constants::GENERATOR_INDEX__OUTER_NULLIFIER,
-    hash::pedersen_hash,
-};
 use crate::{
     context::PrivateContext,
     note::{
-        note_hash::{compute_inner_hash, compute_siloed_hash, compute_unique_hash},
         note_header::NoteHeader,
         note_interface::NoteInterface,
     },
     utils::arr_copy_slice,
 };
 
-pub fn compute_inner_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note: Note) -> Field {
+use dep::protocol_types::{
+    address::AztecAddress,
+    constants::{
+        GENERATOR_INDEX__OUTER_NULLIFIER,
+        GENERATOR_INDEX__UNIQUE_COMMITMENT,
+        GENERATOR_INDEX__SILOED_COMMITMENT,
+    },
+    hash::pedersen_hash,
+};
+
+fn compute_inner_hash(storage_slot: Field, note_hash: Field) -> Field {
+    // TODO(#1205) Do we need a generator index here?
+    pedersen_hash([storage_slot, note_hash], 0)
+}
+
+fn compute_siloed_hash(contract_address: AztecAddress, inner_note_hash: Field) -> Field {
+    let inputs = [contract_address.to_field(), inner_note_hash];
+    pedersen_hash(inputs, GENERATOR_INDEX__SILOED_COMMITMENT)
+}
+
+fn compute_unique_hash(nonce: Field, siloed_note_hash: Field) -> Field {
+    let inputs = [nonce, siloed_note_hash];
+    pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_COMMITMENT)
+}
+
+fn compute_inner_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note: Note) -> Field {
     let get_header = note_interface.get_header;
     let header = get_header(note);
 
@@ -22,7 +42,7 @@ pub fn compute_inner_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, 
     compute_inner_hash(header.storage_slot, note_hash)
 }
 
-pub fn compute_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
+fn compute_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
     let get_header = note_interface.get_header;
     let header = get_header(note_with_header);
 
@@ -31,7 +51,7 @@ pub fn compute_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>,
     compute_siloed_hash(header.contract_address, inner_note_hash)
 }
 
-pub fn compute_unique_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
+fn compute_unique_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
     let get_header = note_interface.get_header;
     let header = get_header(note_with_header);
 
