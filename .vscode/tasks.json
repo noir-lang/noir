@@ -11,10 +11,24 @@
 				"--workspace",
 				"--locked",
 				"--release"
-			
 			],
 			"group": "build",
 			"label": "cargo test --workspace --locked --release"
+		},
+		{
+			"type": "cargo",
+			"command": "build",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"args": [
+				"--fix",
+			],
+			"group": {
+				"kind": "build",
+				
+			},
+			"label": "cargo clippy --fix"
 		}
 	]
 }

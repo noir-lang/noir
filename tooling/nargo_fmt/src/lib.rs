@@ -24,10 +24,41 @@ mod rewrite;
 mod utils;
 mod visitor;
 
+use std::ops::Range;
+
+use codespan::Span as ByteSpan;
+pub use config::Config;
+use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::ParsedModule;
 use visitor::FmtVisitor;
 
-pub use config::Config;
+/// A wrapper around `ByteSpan` which does not contain any context
+/// Formatting ever concerns itself with gingle source files, without
+/// trying to understand the context of the span.
+#[derive(Copy, Clone)]
+pub(crate) struct ContextlessSpan(ByteSpan);
+
+impl ContextlessSpan {
+    pub(crate) fn start(&self) -> u32 {
+        self.0.start().into()
+    }
+
+    pub(crate) fn end(&self) -> u32 {
+        self.0.end().into()
+    }
+}
+
+impl From<Range<u32>> for ContextlessSpan {
+    fn from(range: Range<u32>) -> Self {
+        Self(ByteSpan::from(range))
+    }
+}
+
+impl From<Span> for ContextlessSpan {
+    fn from(span: Span) -> Self {
+        Self(ByteSpan::from(span.start()..span.end()))
+    }
+}
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut fmt = FmtVisitor::new(source, config);

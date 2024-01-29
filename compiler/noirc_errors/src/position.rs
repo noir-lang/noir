@@ -166,12 +166,6 @@ impl From<Span> for Range<usize> {
     }
 }
 
-impl From<Range<u32>> for Span {
-    fn from(Range { start, end }: Range<u32>) -> Self {
-        Self { byte_span: ByteSpan::new(start, end), src_id: SrcId::default() }
-    }
-}
-
 impl chumsky::Span for Span {
     type Context = SrcId;
 
@@ -193,24 +187,3 @@ impl chumsky::Span for Span {
         self.end()
     }
 }
-
-// #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-// pub struct Span {
-//     pub span: Span,
-//     pub file: SrcId,
-// }
-
-// impl Span {
-//     pub fn new(span: Span, file: SrcId) -> Self {
-//         Self { span, file }
-//     }
-
-//     pub fn dummy() -> Self {
-//         let file = SrcId::default();
-//         Self { span: Span::single_char(0, file), file }
-//     }
-
-//     pub fn contains(&self, other: &Span) -> bool {
-//         self.file == other.file && self.span.contains(&other.span)
-//     }
-// }

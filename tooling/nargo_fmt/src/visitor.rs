@@ -2,11 +2,12 @@ pub(crate) mod expr;
 mod item;
 mod stmt;
 
-use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
+use noirc_frontend::{lexer::Lexer, token::Token};
 
 use crate::{
     config::Config,
     utils::{self, FindToken},
+    ContextlessSpan as Span,
 };
 
 pub(crate) struct FmtVisitor<'me> {

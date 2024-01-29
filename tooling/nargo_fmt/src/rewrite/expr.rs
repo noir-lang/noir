@@ -22,7 +22,7 @@ pub(crate) fn rewrite(
     match kind {
         ExpressionKind::Block(block) => {
             let mut visitor = visitor.fork();
-            visitor.visit_block(block, span);
+            visitor.visit_block(block, span.into());
             visitor.finish()
         }
         ExpressionKind::Prefix(prefix) => {
@@ -105,7 +105,7 @@ pub(crate) fn rewrite(
             shape,
             exprs.len() == 1,
             exprs,
-            span,
+            span.into(),
             true,
             NewlineMode::Normal,
         ),

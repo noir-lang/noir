@@ -30,7 +30,7 @@ impl super::FmtVisitor<'_> {
 
                     let expr_str = rewrite::sub_expr(self, self.shape(), let_stmt.expression);
 
-                    self.push_rewrite(format!("{let_str} {expr_str};"), span);
+                    self.push_rewrite(format!("{let_str} {expr_str};"), span.into());
                 }
                 StatementKind::Constrain(ConstrainStatement(expr, message, kind)) => {
                     let mut nested_shape = self.shape();
@@ -63,7 +63,7 @@ impl super::FmtVisitor<'_> {
                         ConstrainKind::Constrain => {
                             let expr = rewrite::sub_expr(self, self.shape(), expr);
                             let constrain = format!("constrain {expr};");
-                            self.push_rewrite(constrain, span);
+                            self.push_rewrite(constrain, span.into());
                             return;
                         }
                     };
@@ -78,7 +78,7 @@ impl super::FmtVisitor<'_> {
                     );
                     let constrain = format!("{callee}{args};");
 
-                    self.push_rewrite(constrain, span);
+                    self.push_rewrite(constrain, span.into());
                 }
                 StatementKind::For(for_stmt) => {
                     let identifier = self.slice(for_stmt.identifier.span());
@@ -93,10 +93,10 @@ impl super::FmtVisitor<'_> {
                     let block = rewrite::sub_expr(self, self.shape(), for_stmt.block);
 
                     let result = format!("for {identifier} in {range} {block}");
-                    self.push_rewrite(result, span);
+                    self.push_rewrite(result, span.into());
                 }
                 StatementKind::Assign(_) => {
-                    self.push_rewrite(self.slice(span).to_string(), span);
+                    self.push_rewrite(self.slice(span).to_string(), span.into());
                 }
                 StatementKind::Error => unreachable!(),
             }

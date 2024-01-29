@@ -1,20 +1,20 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span, lexer::Lexer, token::Token, BlockExpression,
-    ConstructorExpression, Expression, ExpressionKind, IfExpression, Statement, StatementKind,
+    lexer::Lexer, token::Token, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
+    IfExpression, Statement, StatementKind,
 };
 
 use super::{ExpressionType, FmtVisitor, Shape};
 use crate::{
     rewrite,
     utils::{self, first_line_width, Expr, FindToken, Item},
-    Config,
+    Config, ContextlessSpan as Span,
 };
 
 impl FmtVisitor<'_> {
     pub(crate) fn visit_expr(&mut self, expr: Expression, expr_type: ExpressionType) {
         let span = expr.span;
         let rewrite = rewrite::expr(self, expr, expr_type, self.shape());
-        self.push_rewrite(rewrite, span);
+        self.push_rewrite(rewrite, span.into());
         self.last_position = span.end();
     }
 
@@ -148,7 +148,7 @@ impl FmtVisitor<'_> {
         } else {
             self.push_str("{");
             self.indent.block_indent(self.config);
-            self.close_block(block_span);
+            self.close_block(block_span.clone());
         };
 
         self.last_position = block_span.end();

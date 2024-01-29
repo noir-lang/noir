@@ -1,5 +1,4 @@
 use noirc_frontend::{
-    hir::resolution::errors::Span,
     parser::{Item, ItemKind},
     token::{Keyword, Token},
     Distinctness, NoirFunction, ParsedModule, Visibility,
@@ -9,6 +8,7 @@ use crate::{
     rewrite,
     utils::{last_line_contains_single_line_comment, last_line_used_width, FindToken},
     visitor::expr::{format_seq, NewlineMode},
+    ContextlessSpan as Span,
 };
 
 use super::{
@@ -35,8 +35,9 @@ impl super::FmtVisitor<'_> {
         let params_end = self.span_after(last_span, Token::RightParen).start();
 
         let params_span = params_open..params_end;
-        let return_type_span = func.return_type().span;
-        let return_type = self.format_return_type(return_type_span, &func, func_span, params_end);
+        let return_type_span = func.return_type().span.map(|s| s.into());
+        let return_type =
+            self.format_return_type(return_type_span, &func, func_span.into(), params_end);
         let parameters = func.def.parameters;
 
         if !func.def.generics.is_empty() {
@@ -160,7 +161,7 @@ impl super::FmtVisitor<'_> {
                     self.push_str(&fn_before_block);
                     self.push_str(if force_brace_newline { "\n" } else { " " });
 
-                    self.visit_block(func.def.body, func.def.span);
+                    self.visit_block(func.def.body, func.def.span.into());
                 }
                 ItemKind::Submodules(module) => {
                     self.format_missing_indent(span.start(), true);
@@ -199,7 +200,7 @@ impl super::FmtVisitor<'_> {
                 | ItemKind::TypeAlias(_)
                 | ItemKind::Global(_)
                 | ItemKind::ModuleDecl(_) => {
-                    self.push_rewrite(self.slice(span).to_string(), span);
+                    self.push_rewrite(self.slice(span).to_string(), span.into());
                     self.last_position = span.end();
                 }
             }

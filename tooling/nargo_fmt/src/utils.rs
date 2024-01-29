@@ -1,6 +1,6 @@
-use crate::rewrite;
 use crate::visitor::{FmtVisitor, Shape};
-use noirc_frontend::hir::resolution::errors::Span;
+use crate::{rewrite, ContextlessSpan as Span};
+
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
 use noirc_frontend::{Expression, Ident, Param, Visibility};
@@ -127,14 +127,14 @@ impl FindToken for str {
     fn find_token(&self, token: Token) -> Option<Span> {
         Lexer::single_source(self)
             .flatten()
-            .find_map(|it| (it.token() == &token).then(|| it.to_span()))
+            .find_map(|it| (it.token() == &token).then(|| it.to_span().into()))
     }
 
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<Span> {
         Lexer::single_source(self)
             .skip_comments(false)
             .flatten()
-            .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span()))
+            .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().into()))
     }
 }
 
@@ -219,7 +219,7 @@ pub(crate) trait Item {
 
 impl Item for Expression {
     fn span(&self) -> Span {
-        self.span
+        self.span.into()
     }
 
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
@@ -249,7 +249,7 @@ impl Item for (Ident, Expression) {
 
 impl Item for Param {
     fn span(&self) -> Span {
-        self.span
+        self.span.into()
     }
 
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
@@ -267,7 +267,7 @@ impl Item for Param {
 
 impl Item for Ident {
     fn span(&self) -> Span {
-        self.span()
+        self.span().into()
     }
 
     fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
