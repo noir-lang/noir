@@ -4584,10 +4584,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/root@workspace:."
   dependencies:
+    "@types/deep-equal-in-any-order": ^1.0.3
     "@typescript-eslint/eslint-plugin": ^6.7.3
     "@typescript-eslint/parser": ^6.7.3
     chai: ^4.3.7
     cspell: ^8.3.2
+    deep-equal-in-any-order: ^2.0.6
     eslint: ^8.50.0
     eslint-plugin-prettier: ^5.0.0
     mocha: ^10.2.0
@@ -5828,6 +5830,13 @@ __metadata:
   dependencies:
     "@types/ms": "*"
   checksum: 47876a852de8240bfdaf7481357af2b88cb660d30c72e73789abf00c499d6bc7cd5e52f41c915d1b9cd8ec9fef5b05688d7b7aef17f7f272c2d04679508d1053
+  languageName: node
+  linkType: hard
+
+"@types/deep-equal-in-any-order@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "@types/deep-equal-in-any-order@npm:1.0.3"
+  checksum: 73416806db63631abab946fe48932e7cdd515840d061a23cfe71eaf195d298db459f300f7ccf383ec161fef723c05c29f637cce35effbcf685869e637116b9b6
   languageName: node
   linkType: hard
 
@@ -10015,6 +10024,16 @@ __metadata:
   dependencies:
     type-detect: ^4.0.0
   checksum: 7f6d30cb41c713973dc07eaadded848b2ab0b835e518a88b91bea72f34e08c4c71d167a722a6f302d3a6108f05afd8e6d7650689a84d5d29ec7fe6220420397f
+  languageName: node
+  linkType: hard
+
+"deep-equal-in-any-order@npm:^2.0.6":
+  version: 2.0.6
+  resolution: "deep-equal-in-any-order@npm:2.0.6"
+  dependencies:
+    lodash.mapvalues: ^4.6.0
+    sort-any: ^2.0.0
+  checksum: c975530c2455a15c835306bf388e9c5f7a79b6a45ff0c9c9c5c3ba089c36613ffa7b5b63031ec666e5209f7c7b035155039575d6b7c9876b9cfb7b410af3de2f
   languageName: node
   linkType: hard
 
@@ -14737,6 +14756,13 @@ __metadata:
   version: 4.5.0
   resolution: "lodash.isequal@npm:4.5.0"
   checksum: da27515dc5230eb1140ba65ff8de3613649620e8656b19a6270afe4866b7bd461d9ba2ac8a48dcc57f7adac4ee80e1de9f965d89d4d81a0ad52bb3eec2609644
+  languageName: node
+  linkType: hard
+
+"lodash.mapvalues@npm:^4.6.0":
+  version: 4.6.0
+  resolution: "lodash.mapvalues@npm:4.6.0"
+  checksum: 0ff1b252fda318fc36e47c296984925e98fbb0fc5a2ecc4ef458f3c739a9476d47e40c95ac653e8314d132aa59c746d4276527b99d6e271940555c6e12d2babd
   languageName: node
   linkType: hard
 
@@ -19734,6 +19760,15 @@ __metadata:
   bin:
     solcjs: solcjs
   checksum: 2d8eb16c6d8f648213c94dc8d977cffe5099cba7d41c82d92d769ef71ae8320a985065ce3d6c306440a85f8e8d2b27fb30bdd3ac38f69e5c1fa0ab8a3fb2f217
+  languageName: node
+  linkType: hard
+
+"sort-any@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "sort-any@npm:2.0.0"
+  dependencies:
+    lodash: ^4.17.21
+  checksum: d2dc6cc4f56298ce50b13ce6aafd8bf16010a8f8d0ae75345e8424118ac2cc017a8ffea0eedd136dd67751c09e7b0edb09c959d052ed7ed02afcfbab63c68277
   languageName: node
   linkType: hard
 
