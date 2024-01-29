@@ -250,9 +250,16 @@ impl DefCollector {
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
-        inject_prelude(crate_id, context, crate_root, &mut def_collector.collected_imports);
+        inject_prelude(
+            root_file_id,
+            crate_id,
+            context,
+            crate_root,
+            &mut def_collector.collected_imports,
+        );
         for submodule in submodules {
             inject_prelude(
+                root_file_id,
                 crate_id,
                 context,
                 LocalModuleId(submodule),
@@ -372,6 +379,7 @@ impl DefCollector {
 }
 
 fn inject_prelude(
+    src_id: SrcId,
     crate_id: CrateId,
     context: &Context,
     crate_root: LocalModuleId,
@@ -379,11 +387,14 @@ fn inject_prelude(
 ) {
     let segments: Vec<_> = "std::prelude"
         .split("::")
-        .map(|segment| crate::Ident::new(segment.into(), Span::default()))
+        .map(|segment| crate::Ident::new(segment.into(), Span::single_char(0, src_id)))
         .collect();
 
-    let path =
-        Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
+    let path = Path {
+        segments: segments.clone(),
+        kind: crate::PathKind::Dep,
+        span: Span::single_char(0, src_id),
+    };
 
     if !crate_id.is_stdlib() {
         if let Ok(module_def) = path_resolver::resolve_path(
@@ -396,13 +407,17 @@ fn inject_prelude(
 
             for path in prelude {
                 let mut segments = segments.clone();
-                segments.push(Ident::new(path.to_string(), Span::default()));
+                segments.push(Ident::new(path.to_string(), Span::single_char(0, src_id)));
 
                 collected_imports.insert(
                     0,
                     ImportDirective {
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        path: Path {
+                            segments,
+                            kind: PathKind::Dep,
+                            span: Span::single_char(0, src_id),
+                        },
                         alias: None,
                         is_prelude: true,
                     },

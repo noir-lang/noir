@@ -690,11 +690,13 @@ impl NodeInterner {
     /// Push a function with the default modifiers and [`ModuleId`] for testing
     #[cfg(test)]
     pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
+        // Safety, we're not concerned with location in file
+        let src_id = SrcId::default();
         let id = self.push_fn(HirFunction::empty());
         let mut modifiers = FunctionModifiers::new();
         modifiers.name = name;
         let module = ModuleId::dummy_id();
-        let func_def_span = Span::default();
+        let func_def_span = Span::single_char(0, src_id); // dummy span
         self.push_function_definition(id, modifiers, module, func_def_span);
         id
     }

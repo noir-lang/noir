@@ -1,4 +1,4 @@
-use noirc_errors::{CustomDiagnostic, Span};
+use noirc_errors::CustomDiagnostic;
 
 use crate::graph::CrateId;
 use std::collections::BTreeMap;
@@ -209,7 +209,7 @@ fn resolve_external_dep(
     let path = Path {
         segments: path_without_crate_name.to_vec(),
         kind: PathKind::Plain,
-        span: Span::default(),
+        span: directive.path.span,
     };
     let dep_directive = ImportDirective {
         module_id: dep_module.local_id,
