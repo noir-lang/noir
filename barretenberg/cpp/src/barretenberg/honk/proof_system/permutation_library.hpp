@@ -1,6 +1,5 @@
 #pragma once
 #include "barretenberg/common/ref_vector.hpp"
-#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include <typeinfo>
 
