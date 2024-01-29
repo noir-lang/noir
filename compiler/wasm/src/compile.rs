@@ -190,7 +190,8 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_contract = nargo::ops::optimize_contract(compiled_contract, expression_width);
+        let optimized_contract =
+            nargo::ops::transform_contract(compiled_contract, expression_width);
 
         let compile_output = generate_contract_artifact(optimized_contract);
         Ok(JsCompileResult::new(compile_output))
@@ -205,7 +206,7 @@ pub fn compile(
             })?
             .0;
 
-        let optimized_program = nargo::ops::optimize_program(compiled_program, expression_width);
+        let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
 
         let compile_output = generate_program_artifact(optimized_program);
         Ok(JsCompileResult::new(compile_output))

@@ -3,6 +3,8 @@
 
 # Production
 /build
+processed-docs
+processed-docs-cache
 
 # Generated files
 .docusaurus

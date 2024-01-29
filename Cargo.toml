@@ -52,7 +52,6 @@ repository = "https://github.com/noir-lang/noir/"
 acir_field = { version = "0.39.0", path = "acvm-repo/acir_field", default-features = false }
 acir = { version = "0.39.0", path = "acvm-repo/acir", default-features = false }
 acvm = { version = "0.39.0", path = "acvm-repo/acvm" }
-stdlib = { version = "0.37.1", package = "acvm_stdlib", path = "acvm-repo/stdlib", default-features = false }
 brillig = { version = "0.39.0", path = "acvm-repo/brillig", default-features = false }
 brillig_vm = { version = "0.39.0", path = "acvm-repo/brillig_vm", default-features = false }
 acvm_blackbox_solver = { version = "0.39.0", path = "acvm-repo/blackbox_solver", default-features = false }
