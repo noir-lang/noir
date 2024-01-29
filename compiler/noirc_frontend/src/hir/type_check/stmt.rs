@@ -206,24 +206,22 @@ impl<'interner> TypeChecker<'interner> {
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
 
-                let (object_type, field_index) = self
-                    .check_field_access(
-                        &lhs_type,
-                        &field_name.0.contents,
-                        span,
-                        move |_, _, element_type| {
-                            // We must create a temporary value first to move out of object_ref before
-                            // we eventually reassign to it.
-                            let id = DefinitionId::dummy_id();
-                            let location = Location::new(span, fm::FileId::dummy());
-                            let ident = HirIdent::non_trait_method(id, location);
-                            let tmp_value = HirLValue::Ident(ident, Type::Error);
+                let dereference_lhs = move |_: &mut Self, _, element_type| {
+                    // We must create a temporary value first to move out of object_ref before
+                    // we eventually reassign to it.
+                    let id = DefinitionId::dummy_id();
+                    let location = Location::new(span, fm::FileId::dummy());
+                    let ident = HirIdent::non_trait_method(id, location);
+                    let tmp_value = HirLValue::Ident(ident, Type::Error);
 
-                            let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                            *object_ref = Box::new(HirLValue::Dereference { lvalue, element_type });
-                            *mutable_ref = true;
-                        },
-                    )
+                    let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
+                    *object_ref = Box::new(HirLValue::Dereference { lvalue, element_type });
+                    *mutable_ref = true;
+                };
+
+                let name = &field_name.0.contents;
+                let (object_type, field_index) = self
+                    .check_field_access(&lhs_type, name, span, Some(dereference_lhs))
                     .unwrap_or((Type::Error, 0));
 
                 let field_index = Some(field_index);
@@ -325,6 +323,7 @@ impl<'interner> TypeChecker<'interner> {
             // Now check if LHS is the same type as the RHS
             // Importantly, we do not coerce any types implicitly
             let expr_span = self.interner.expr_span(&rhs_expr);
+
             self.unify_with_coercions(&expr_type, &annotated_type, rhs_expr, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: annotated_type.to_string(),
@@ -335,10 +334,8 @@ impl<'interner> TypeChecker<'interner> {
             if annotated_type.is_unsigned() {
                 self.lint_overflowing_uint(&rhs_expr, &annotated_type);
             }
-            annotated_type
-        } else {
-            expr_type
         }
+        expr_type
     }
 
     /// Check if an assignment is overflowing with respect to `annotated_type`

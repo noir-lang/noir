@@ -16,6 +16,7 @@ mod ec;
 mod unsafe;
 mod collections;
 mod compat;
+mod convert;
 mod option;
 mod string;
 mod test;

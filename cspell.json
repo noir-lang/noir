@@ -20,6 +20,8 @@
         "bindgen",
         "bitand",
         "blackbox",
+        "boilerplate",
+        "boilerplates",
         "bridgekeeper",
         "brillig",
         "bytecount",
@@ -56,6 +58,7 @@
         "defunctionalized",
         "deque",
         "desugared",
+        "devcontainer",
         "direnv",
         "eddsa",
         "Elligator",
@@ -96,6 +99,7 @@
         "keccak",
         "keccakf",
         "krate",
+        "losslessly",
         "lvalue",
         "Maddiaa",
         "mathbb",
@@ -121,6 +125,7 @@
         "noirup",
         "nomicfoundation",
         "noncanonical",
+        "nouner",
         "pedersen",
         "peekable",
         "plonkc",
@@ -172,9 +177,7 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell",
-        "nouner",
-        "devcontainer"
+        "zshell"
     ],
     "ignorePaths": [
         "./**/node_modules/**",

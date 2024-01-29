@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use acvm::ExpressionWidth;
-
 use fm::FileManager;
 use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::CompileError;
@@ -63,12 +61,14 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = backend.get_backend_info_or_default();
+    let expression_width = args
+        .compile_options
+        .expression_width
+        .unwrap_or_else(|| backend.get_backend_info_or_default());
     let (compiled_program, compiled_contracts) = compile_workspace(
         &workspace_file_manager,
         &parsed_files,
         &workspace,
-        expression_width,
         &args.compile_options,
     )?;
 
@@ -81,9 +81,11 @@ pub(crate) fn run(
     // Save build artifacts to disk.
     let only_acir = args.compile_options.only_acir;
     for (package, program) in binary_packages.into_iter().zip(compiled_program) {
+        let program = nargo::ops::transform_program(program, expression_width);
         save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
     }
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
+        let contract = nargo::ops::transform_contract(contract, expression_width);
         save_contract(contract, &package, &circuit_dir);
     }
 
@@ -94,7 +96,6 @@ pub(super) fn compile_workspace(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
-    expression_width: ExpressionWidth,
     compile_options: &CompileOptions,
 ) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
@@ -114,21 +115,12 @@ pub(super) fn compile_workspace(
                     .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
                     .map(|p| p.into());
 
-            compile_program(
-                file_manager,
-                parsed_files,
-                package,
-                compile_options,
-                expression_width,
-                cached_program,
-            )
+            compile_program(file_manager, parsed_files, package, compile_options, cached_program)
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
-        .map(|package| {
-            compile_contract(file_manager, parsed_files, package, compile_options, expression_width)
-        })
+        .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
         .collect();
 
     // Report any warnings/errors which were encountered during compilation.
@@ -156,36 +148,6 @@ pub(super) fn compile_workspace(
         .collect::<Result<_, _>>()?;
 
     Ok((compiled_programs, compiled_contracts))
-}
-
-pub(crate) fn compile_bin_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    package: &Package,
-    compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
-) -> Result<CompiledProgram, CliError> {
-    if package.is_library() {
-        return Err(CompileError::LibraryCrate(package.name.clone()).into());
-    }
-
-    let compilation_result = compile_program(
-        file_manager,
-        parsed_files,
-        package,
-        compile_options,
-        expression_width,
-        None,
-    );
-
-    let program = report_errors(
-        compilation_result,
-        file_manager,
-        compile_options.deny_warnings,
-        compile_options.silence_warnings,
-    )?;
-
-    Ok(program)
 }
 
 pub(super) fn save_program(
