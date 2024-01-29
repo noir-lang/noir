@@ -105,6 +105,7 @@ pub struct Span {
 
 impl Span {
     pub fn inclusive(start: Position, end: Position) -> Span {
+        assert_eq!(start.1, end.1);
         Span { byte_span: ByteSpan::from(start.0..end.0 + 1), src_id: start.1 }
     }
 
@@ -123,6 +124,7 @@ impl Span {
 
     #[must_use]
     pub fn merge(self, other: Span) -> Span {
+        assert_eq!(self.src_id, other.src_id);
         Span { byte_span: self.byte_span.merge(other.byte_span), src_id: self.src_id }
     }
 
@@ -143,6 +145,7 @@ impl Span {
     }
 
     pub fn is_smaller(&self, other: &Span) -> bool {
+        assert_eq!(self.src_id, other.src_id);
         let self_distance = self.end() - self.start();
         let other_distance = other.end() - other.start();
         self_distance < other_distance
