@@ -228,8 +228,8 @@ export class TaggedMemory {
 
   public getAs<T>(offset: number): T {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
-    const e = this._mem[offset];
-    return <T>e;
+    const word = this._mem[offset];
+    return word as T;
   }
 
   public getSlice(offset: number, size: number): MemoryValue[] {
@@ -282,6 +282,7 @@ export class TaggedMemory {
 
   // Truncates the value to fit the type.
   public static integralFromTag(v: bigint, tag: TypeTag): IntegralValue {
+    v = BigInt(v); // FIXME: not sure why this cast is needed, but this errors otherwise
     switch (tag) {
       case TypeTag.UINT8:
         return new Uint8(v & ((1n << 8n) - 1n));

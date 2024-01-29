@@ -54,7 +54,7 @@ describe('External Calls', () => {
 
       const otherContextInstructions: [Opcode, any[]][] = [
         // Place [1,2,3] into memory
-        [Opcode.CALLDATACOPY, [/*value=*/ 0, /*copySize=*/ argsSize, /*destOffset=*/ 0]],
+        [Opcode.CALLDATACOPY, [/*value=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0]],
         // Store 1 into slot 1
         [Opcode.SSTORE, [/*slotOffset=*/ 0, /*dataOffset=*/ 0]],
         // Return [1,2] from memory
@@ -110,7 +110,7 @@ describe('External Calls', () => {
 
       const otherContextInstructions: [Opcode, any[]][] = [
         // Place [1,2,3] into memory
-        [Opcode.CALLDATACOPY, [/*value=*/ 0, /*copySize=*/ argsSize, /*destOffset=*/ 0]],
+        [Opcode.CALLDATACOPY, [/*value=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0]],
         [Opcode.SSTORE, [/*slotOffset*/ 1, /*dataOffset=*/ 0]],
       ];
 

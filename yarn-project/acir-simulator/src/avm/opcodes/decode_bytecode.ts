@@ -17,17 +17,18 @@ export function decodeBytecode(bytecode: Buffer): Instruction[] {
     const opcodeByte = bytecode[bytePtr];
     bytePtr += AVM_OPCODE_BYTE_LENGTH;
     if (!(opcodeByte in Opcode)) {
-      throw new Error(`Opcode ${opcodeByte} not implemented`);
+      throw new Error(`Opcode 0x${opcodeByte.toString(16)} not implemented`);
     }
     const opcode = opcodeByte as Opcode;
 
     const instructionType = INSTRUCTION_SET.get(opcode);
     if (instructionType === undefined) {
-      throw new Error(`Opcode ${opcode} not implemented`);
+      throw new Error(`Opcode 0x${opcode.toString(16)} not implemented`);
     }
     const numberOfOperands = instructionType.numberOfOperands;
     const operands: number[] = [];
     for (let i = 0; i < numberOfOperands; i++) {
+      // TODO: support constants which might not be u32s
       const operand = bytecode.readUInt32BE(bytePtr);
       bytePtr += AVM_OPERAND_BYTE_LENGTH;
       operands.push(operand);

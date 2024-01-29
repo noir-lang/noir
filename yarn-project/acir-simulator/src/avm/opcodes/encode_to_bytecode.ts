@@ -11,12 +11,14 @@ import { Opcode } from './opcodes.js';
 export function encodeToBytecode(opcode: Opcode, args: number[]): Buffer {
   const instructionType = INSTRUCTION_SET.get(opcode);
   if (instructionType === undefined) {
-    throw new Error(`Opcode ${opcode} not implemented`);
+    throw new Error(`Opcode 0x${opcode.toString(16)} not implemented`);
   }
 
   const numberOfOperands = instructionType.numberOfOperands;
   if (args.length !== numberOfOperands) {
-    throw new Error(`Opcode ${opcode} expects ${numberOfOperands} arguments, but ${args.length} were provided`);
+    throw new Error(
+      `Opcode 0x${opcode.toString(16)} expects ${numberOfOperands} arguments, but ${args.length} were provided`,
+    );
   }
 
   const bytecode = Buffer.alloc(AVM_OPCODE_BYTE_LENGTH + numberOfOperands * AVM_OPERAND_BYTE_LENGTH);

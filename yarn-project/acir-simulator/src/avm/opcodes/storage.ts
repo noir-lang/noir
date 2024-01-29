@@ -38,7 +38,7 @@ export class SLoad extends Instruction {
   static type: string = 'SLOAD';
   static numberOfOperands = 2;
 
-  constructor(private slotOffset: number, private destOffset: number) {
+  constructor(private slotOffset: number, private dstOffset: number) {
     super();
   }
 
@@ -50,7 +50,7 @@ export class SLoad extends Instruction {
       new Fr(slot.toBigInt()),
     );
 
-    machineState.memory.set(this.destOffset, new Field(data));
+    machineState.memory.set(this.dstOffset, new Field(data));
 
     this.incrementPc(machineState);
   }

@@ -6,7 +6,7 @@ export class Add extends Instruction {
   static type: string = 'ADD';
   static numberOfOperands = 3;
 
-  constructor(private aOffset: number, private bOffset: number, private destOffset: number) {
+  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
     super();
   }
 
@@ -15,7 +15,7 @@ export class Add extends Instruction {
     const b = machineState.memory.get(this.bOffset);
 
     const dest = a.add(b);
-    machineState.memory.set(this.destOffset, dest);
+    machineState.memory.set(this.dstOffset, dest);
 
     this.incrementPc(machineState);
   }
@@ -25,7 +25,7 @@ export class Sub extends Instruction {
   static type: string = 'SUB';
   static numberOfOperands = 3;
 
-  constructor(private aOffset: number, private bOffset: number, private destOffset: number) {
+  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
     super();
   }
 
@@ -34,7 +34,7 @@ export class Sub extends Instruction {
     const b = machineState.memory.get(this.bOffset);
 
     const dest = a.sub(b);
-    machineState.memory.set(this.destOffset, dest);
+    machineState.memory.set(this.dstOffset, dest);
 
     this.incrementPc(machineState);
   }
@@ -44,7 +44,7 @@ export class Mul extends Instruction {
   static type: string = 'MUL';
   static numberOfOperands = 3;
 
-  constructor(private aOffset: number, private bOffset: number, private destOffset: number) {
+  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
     super();
   }
 
@@ -53,7 +53,7 @@ export class Mul extends Instruction {
     const b = machineState.memory.get(this.bOffset);
 
     const dest = a.mul(b);
-    machineState.memory.set(this.destOffset, dest);
+    machineState.memory.set(this.dstOffset, dest);
 
     this.incrementPc(machineState);
   }
@@ -64,7 +64,7 @@ export class Div extends Instruction {
   static type: string = 'DIV';
   static numberOfOperands = 3;
 
-  constructor(private aOffset: number, private bOffset: number, private destOffset: number) {
+  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
     super();
   }
 
@@ -73,7 +73,7 @@ export class Div extends Instruction {
     const b = machineState.memory.get(this.bOffset);
 
     const dest = a.div(b);
-    machineState.memory.set(this.destOffset, dest);
+    machineState.memory.set(this.dstOffset, dest);
 
     this.incrementPc(machineState);
   }

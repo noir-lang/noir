@@ -16,7 +16,7 @@ export class Return extends Instruction {
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
     const returnData = machineState.memory
       .getSlice(this.returnOffset, this.copySize)
-      .map(fvt => new Fr(fvt.toBigInt()));
+      .map(word => new Fr(word.toBigInt()));
 
     machineState.setReturnData(returnData);
 

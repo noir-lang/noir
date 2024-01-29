@@ -22,8 +22,8 @@ describe('interpreter', () => {
     const calldata: Fr[] = [new Fr(1), new Fr(2)];
 
     const instructions: Instruction[] = [
-      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 2, /*destOffset=*/ 0),
-      new Add(/*aOffset=*/ 0, /*bOffset=*/ 1, /*destOffset=*/ 2),
+      new CalldataCopy(/*cdOffset=*/ 0, /*copySize=*/ 2, /*dstOffset=*/ 0),
+      new Add(/*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 2),
       new Return(/*returnOffset=*/ 2, /*copySize=*/ 1),
     ];
 

@@ -19,7 +19,7 @@ describe('Memory instructions', () => {
 
   describe('SET', () => {
     it('should correctly set value and tag (uninitialized)', async () => {
-      await new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT16).execute(machineState, journal);
+      await new Set(TypeTag.UINT16, /*value=*/ 1234n, /*offset=*/ 1).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       const tag = machineState.memory.getTag(1);
@@ -31,7 +31,7 @@ describe('Memory instructions', () => {
     it('should correctly set value and tag (overwriting)', async () => {
       machineState.memory.set(1, new Field(27));
 
-      await new Set(/*value=*/ 1234n, /*offset=*/ 1, TypeTag.UINT32).execute(machineState, journal);
+      await new Set(TypeTag.UINT32, /*value=*/ 1234n, /*offset=*/ 1).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       const tag = machineState.memory.getTag(1);
@@ -50,11 +50,11 @@ describe('Memory instructions', () => {
       machineState.memory.set(4, new Uint128(1n << 100n));
 
       [
-        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.UINT16),
-        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.UINT32),
-        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT64),
-        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT128),
-        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT128),
+        new Cast(TypeTag.UINT16, /*aOffset=*/ 0, /*dstOffset=*/ 10),
+        new Cast(TypeTag.UINT32, /*aOffset=*/ 1, /*dstOffset=*/ 11),
+        new Cast(TypeTag.UINT64, /*aOffset=*/ 2, /*dstOffset=*/ 12),
+        new Cast(TypeTag.UINT128, /*aOffset=*/ 3, /*dstOffset=*/ 13),
+        new Cast(TypeTag.UINT128, /*aOffset=*/ 4, /*dstOffset=*/ 14),
       ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
@@ -77,11 +77,11 @@ describe('Memory instructions', () => {
       machineState.memory.set(4, new Uint128((1n << 100n) - 1n));
 
       [
-        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.UINT8),
-        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.UINT8),
-        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT16),
-        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT32),
-        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT64),
+        new Cast(TypeTag.UINT8, /*aOffset=*/ 0, /*dstOffset=*/ 10),
+        new Cast(TypeTag.UINT8, /*aOffset=*/ 1, /*dstOffset=*/ 11),
+        new Cast(TypeTag.UINT16, /*aOffset=*/ 2, /*dstOffset=*/ 12),
+        new Cast(TypeTag.UINT32, /*aOffset=*/ 3, /*dstOffset=*/ 13),
+        new Cast(TypeTag.UINT64, /*aOffset=*/ 4, /*dstOffset=*/ 14),
       ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
@@ -104,11 +104,11 @@ describe('Memory instructions', () => {
       machineState.memory.set(4, new Uint128(1n << 100n));
 
       [
-        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.FIELD),
-        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.FIELD),
-        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.FIELD),
-        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.FIELD),
-        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.FIELD),
+        new Cast(TypeTag.FIELD, /*aOffset=*/ 0, /*dstOffset=*/ 10),
+        new Cast(TypeTag.FIELD, /*aOffset=*/ 1, /*dstOffset=*/ 11),
+        new Cast(TypeTag.FIELD, /*aOffset=*/ 2, /*dstOffset=*/ 12),
+        new Cast(TypeTag.FIELD, /*aOffset=*/ 3, /*dstOffset=*/ 13),
+        new Cast(TypeTag.FIELD, /*aOffset=*/ 4, /*dstOffset=*/ 14),
       ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
@@ -131,11 +131,11 @@ describe('Memory instructions', () => {
       machineState.memory.set(4, new Field((1n << 200n) - 1n));
 
       [
-        new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 10, TypeTag.UINT8),
-        new Cast(/*aOffset=*/ 1, /*dstOffset=*/ 11, TypeTag.UINT16),
-        new Cast(/*aOffset=*/ 2, /*dstOffset=*/ 12, TypeTag.UINT32),
-        new Cast(/*aOffset=*/ 3, /*dstOffset=*/ 13, TypeTag.UINT64),
-        new Cast(/*aOffset=*/ 4, /*dstOffset=*/ 14, TypeTag.UINT128),
+        new Cast(TypeTag.UINT8, /*aOffset=*/ 0, /*dstOffset=*/ 10),
+        new Cast(TypeTag.UINT16, /*aOffset=*/ 1, /*dstOffset=*/ 11),
+        new Cast(TypeTag.UINT32, /*aOffset=*/ 2, /*dstOffset=*/ 12),
+        new Cast(TypeTag.UINT64, /*aOffset=*/ 3, /*dstOffset=*/ 13),
+        new Cast(TypeTag.UINT128, /*aOffset=*/ 4, /*dstOffset=*/ 14),
       ].forEach(i => i.execute(machineState, journal));
 
       const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
@@ -153,7 +153,7 @@ describe('Memory instructions', () => {
     it('Should cast between field elements', async () => {
       machineState.memory.set(0, new Field(12345678n));
 
-      await new Cast(/*aOffset=*/ 0, /*dstOffset=*/ 1, TypeTag.FIELD).execute(machineState, journal);
+      await new Cast(TypeTag.FIELD, /*aOffset=*/ 0, /*dstOffset=*/ 1).execute(machineState, journal);
 
       const actual = machineState.memory.get(1);
       expect(actual).toEqual(new Field(12345678n));

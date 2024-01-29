@@ -19,7 +19,7 @@ describe('Bitwise instructions', () => {
     machineState.memory.set(0, new Uint32(0b11111110010011100100n));
     machineState.memory.set(1, new Uint32(0b11100100111001001111n));
 
-    await new And(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+    await new And(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
     const actual = machineState.memory.get(2);
     expect(actual).toEqual(new Uint32(0b11100100010001000100n));
@@ -32,7 +32,7 @@ describe('Bitwise instructions', () => {
     machineState.memory.set(0, a);
     machineState.memory.set(1, b);
 
-    await new Or(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+    await new Or(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
     const expected = new Uint32(0b11111110111011101111n);
     const actual = machineState.memory.get(2);
@@ -46,7 +46,7 @@ describe('Bitwise instructions', () => {
     machineState.memory.set(0, a);
     machineState.memory.set(1, b);
 
-    await new Xor(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+    await new Xor(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
     const expected = new Uint32(0b00011010101010101011n);
     const actual = machineState.memory.get(2);
@@ -61,7 +61,7 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shr(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+      await new Shr(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
       const expected = a;
       const actual = machineState.memory.get(2);
@@ -75,7 +75,7 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shr(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+      await new Shr(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
       const expected = new Uint32(0b00111111100100111001n);
       const actual = machineState.memory.get(2);
@@ -89,7 +89,7 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shr(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+      await new Shr(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
       const expected = new Uint32(0b01n);
       const actual = machineState.memory.get(2);
@@ -105,7 +105,7 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+      await new Shl(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
       const expected = a;
       const actual = machineState.memory.get(2);
@@ -119,7 +119,7 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(0, 1, 2, TypeTag.UINT32).execute(machineState, journal);
+      await new Shl(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
 
       const expected = new Uint32(0b1111111001001110010000n);
       const actual = machineState.memory.get(2);
@@ -133,7 +133,7 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(0, 1, 2, TypeTag.UINT16).execute(machineState, journal);
+      await new Shl(TypeTag.UINT16, 0, 1, 2).execute(machineState, journal);
 
       const expected = new Uint16(0n);
       const actual = machineState.memory.get(2);
@@ -147,7 +147,7 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(0, 1, 2, TypeTag.UINT16).execute(machineState, journal);
+      await new Shl(TypeTag.UINT16, 0, 1, 2).execute(machineState, journal);
 
       const expected = new Uint16(0b1001001110011100n);
       const actual = machineState.memory.get(2);
@@ -160,7 +160,7 @@ describe('Bitwise instructions', () => {
 
     machineState.memory.set(0, a);
 
-    await new Not(0, 1, TypeTag.UINT16).execute(machineState, journal);
+    await new Not(TypeTag.UINT16, 0, 1).execute(machineState, journal);
 
     const expected = new Uint16(0b1001101100011011n); // high bits!
     const actual = machineState.memory.get(1);
