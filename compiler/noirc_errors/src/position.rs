@@ -111,12 +111,12 @@ impl Span {
         Span { byte_span: ByteSpan::from(start.0..end.0 + 1), src_id: start.1 }
     }
 
-    pub fn inclusive_within(start: u32, end: u32, src_id: impl Into<usize>) -> Span {
-        Span { byte_span: ByteSpan::from(start..end + 1), src_id: src_id.into().into() }
+    pub fn inclusive_within(start: u32, end: u32, src_id: SrcId) -> Span {
+        Span { byte_span: ByteSpan::from(start..end + 1), src_id }
     }
 
-    pub fn single_char(start: u32, src_id: impl Into<usize>) -> Span {
-        let start_position = Position::new(start, src_id.into().into());
+    pub fn single_char(start: u32, src_id: SrcId) -> Span {
+        let start_position = Position::new(start, src_id);
         Span::inclusive(start_position, start_position)
     }
 
