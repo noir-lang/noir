@@ -8,6 +8,9 @@ export abstract class MemoryValue {
   public abstract mul(rhs: MemoryValue): MemoryValue;
   public abstract div(rhs: MemoryValue): MemoryValue;
 
+  public abstract equals(rhs: MemoryValue): boolean;
+  public abstract lt(rhs: MemoryValue): boolean;
+
   // We need this to be able to build an instance of the subclasses.
   public abstract build(n: bigint): MemoryValue;
 
@@ -92,6 +95,16 @@ abstract class UnsignedInteger extends IntegralValue {
     return this.build(~this.n & this.bitmask);
   }
 
+  public equals(rhs: UnsignedInteger): boolean {
+    assert(this.bits == rhs.bits);
+    return this.n === rhs.n;
+  }
+
+  public lt(rhs: UnsignedInteger): boolean {
+    assert(this.bits == rhs.bits);
+    return this.n < rhs.n;
+  }
+
   public toBigInt(): bigint {
     return this.n;
   }
@@ -174,6 +187,14 @@ export class Field extends MemoryValue {
 
   public div(rhs: Field): Field {
     return new Field(this.rep.div(rhs.rep));
+  }
+
+  public equals(rhs: Field): boolean {
+    return this.rep.equals(rhs.rep);
+  }
+
+  public lt(rhs: Field): boolean {
+    return this.rep.lt(rhs.rep);
   }
 
   public toBigInt(): bigint {
