@@ -3,9 +3,6 @@ import { LogFn } from '@aztec/foundation/log';
 
 import { mnemonicToAccount } from 'viem/accounts';
 
-/**
- *
- */
 export function generatePrivateKey(mnemonic: string | undefined, log: LogFn) {
   let privKey;
   let publicKey;

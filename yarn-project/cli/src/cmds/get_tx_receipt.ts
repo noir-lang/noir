@@ -4,9 +4,6 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 
-/**
- *
- */
 export async function getTxReceipt(rpcUrl: string, txHash: TxHash, debugLogger: DebugLogger, log: LogFn) {
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const receipt = await client.getTxReceipt(txHash);

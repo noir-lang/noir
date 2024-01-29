@@ -2,9 +2,6 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 
-/**
- *
- */
 export async function getAccounts(
   rpcUrl: string,
   json: boolean,

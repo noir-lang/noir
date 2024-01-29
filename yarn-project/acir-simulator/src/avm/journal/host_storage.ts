@@ -6,11 +6,10 @@ import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js'
  * A wrapper around the node dbs
  */
 export class HostStorage {
-  /** - */
   public readonly publicStateDb: PublicStateDB;
-  /** - */
+
   public readonly contractsDb: PublicContractsDB;
-  /** - */
+
   public readonly commitmentsDb: CommitmentsDB;
 
   constructor(publicStateDb: PublicStateDB, contractsDb: PublicContractsDB, commitmentsDb: CommitmentsDB) {

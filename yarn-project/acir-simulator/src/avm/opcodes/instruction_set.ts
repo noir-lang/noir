@@ -8,11 +8,9 @@ import { Opcode } from './opcodes.js';
 //import { Eq, Lt, Lte } from './comparators.js';
 import { SLoad, SStore } from './storage.js';
 
-/** - */
 type InstructionConstructor = new (...args: any[]) => Instruction;
-/** - */
+
 type InstructionConstructorAndMembers = InstructionConstructor & {
-  /** - */
   numberOfOperands: number;
 };
 

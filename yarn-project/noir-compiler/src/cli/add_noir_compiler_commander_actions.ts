@@ -3,16 +3,10 @@ import { LogFn } from '@aztec/foundation/log';
 import { Command } from 'commander';
 import { dirname } from 'path';
 
-/**
- *
- */
 export function addNoirCompilerCommanderActions(program: Command, log: LogFn = () => {}) {
   addCodegenCommanderAction(program, log);
 }
 
-/**
- *
- */
 export function addCodegenCommanderAction(program: Command, _: LogFn = () => {}) {
   program
     .command('codegen')

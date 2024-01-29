@@ -2,9 +2,6 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { deployAztecContracts } from '../utils.js';
 
-/**
- *
- */
 export async function deployL1Contracts(
   rpcUrl: string,
   apiKey: string,

@@ -7,11 +7,10 @@ import { HostStorage } from './host_storage.js';
  * Data held within the journal
  */
 export type JournalData = {
-  /** - */
   newCommitments: Fr[];
-  /** - */
+
   newL1Messages: Fr[];
-  /** - */
+
   newNullifiers: Fr[];
   /** contract address -\> key -\> value */
   storageWrites: Map<bigint, Map<bigint, Fr>>;

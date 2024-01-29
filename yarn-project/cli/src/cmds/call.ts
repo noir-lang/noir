@@ -6,9 +6,6 @@ import { format } from 'util';
 import { createCompatibleClient } from '../client.js';
 import { getFunctionArtifact, getTxSender, prepTx } from '../utils.js';
 
-/**
- *
- */
 export async function call(
   functionName: string,
   functionArgsIn: any[],

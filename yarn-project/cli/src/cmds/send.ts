@@ -5,9 +5,6 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { createCompatibleClient } from '../client.js';
 import { prepTx } from '../utils.js';
 
-/**
- *
- */
 export async function send(
   functionName: string,
   functionArgsIn: any[],

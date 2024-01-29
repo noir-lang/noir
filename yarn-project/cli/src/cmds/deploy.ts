@@ -6,9 +6,6 @@ import { encodeArgs } from '../encoding.js';
 import { GITHUB_TAG_PREFIX } from '../github.js';
 import { getContractArtifact, getFunctionArtifact } from '../utils.js';
 
-/**
- *
- */
 export async function deploy(
   artifactPath: string,
   json: boolean,

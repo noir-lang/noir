@@ -10,31 +10,30 @@ import { Fr } from '@aztec/foundation/fields';
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3992): gas not implemented
 export class AvmExecutionEnvironment {
   constructor(
-    /** - */
     public readonly address: AztecAddress,
-    /** - */
+
     public readonly storageAddress: AztecAddress,
-    /** - */
+
     public readonly origin: AztecAddress,
-    /** - */
+
     public readonly sender: AztecAddress,
-    /** - */
+
     public readonly portal: EthAddress,
-    /** - */
+
     public readonly feePerL1Gas: Fr,
-    /** - */
+
     public readonly feePerL2Gas: Fr,
-    /** - */
+
     public readonly feePerDaGas: Fr,
-    /** - */
+
     public readonly contractCallDepth: Fr,
-    /** - */
+
     public readonly globals: GlobalVariables,
-    /** - */
+
     public readonly isStaticCall: boolean,
-    /** - */
+
     public readonly isDelegateCall: boolean,
-    /** - */
+
     public readonly calldata: Fr[],
   ) {}
 

@@ -80,9 +80,6 @@ function copyDependenciesToBox(dirName: string, destPath: string) {
   );
 }
 
-/**
- *
- */
 function packageJsonInjectLocalResolutions(path: string) {
   const data = readFileSync(path, 'utf-8');
   const packageJson = JSON.parse(data);

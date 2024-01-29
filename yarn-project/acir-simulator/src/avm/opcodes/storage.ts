@@ -6,7 +6,6 @@ import { AvmInterpreterError } from '../interpreter/interpreter.js';
 import { AvmJournal } from '../journal/journal.js';
 import { Instruction } from './instruction.js';
 
-/** - */
 export class SStore extends Instruction {
   static type: string = 'SSTORE';
   static numberOfOperands = 2;
@@ -33,7 +32,6 @@ export class SStore extends Instruction {
   }
 }
 
-/** - */
 export class SLoad extends Instruction {
   static type: string = 'SLOAD';
   static numberOfOperands = 2;

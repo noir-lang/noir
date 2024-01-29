@@ -7,9 +7,6 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { getContractArtifact } from '../utils.js';
 
-/**
- *
- */
 export async function inspectContract(contractArtifactFile: string, debugLogger: DebugLogger, log: LogFn) {
   const contractArtifact = await getContractArtifact(contractArtifactFile, debugLogger);
   const contractFns = contractArtifact.functions.filter(

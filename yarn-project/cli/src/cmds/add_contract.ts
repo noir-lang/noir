@@ -4,9 +4,6 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { createCompatibleClient } from '../client.js';
 import { getContractArtifact } from '../utils.js';
 
-/**
- *
- */
 export async function addContract(
   rpcUrl: string,
   contractArtifactPath: string,

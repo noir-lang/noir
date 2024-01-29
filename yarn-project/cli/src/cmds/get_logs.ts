@@ -5,9 +5,6 @@ import { sleep } from '@aztec/foundation/sleep';
 
 import { createCompatibleClient } from '../client.js';
 
-/**
- *
- */
 export async function getLogs(
   txHash: TxHash,
   fromBlock: number,

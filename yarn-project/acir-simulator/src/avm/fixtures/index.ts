@@ -10,31 +10,30 @@ import { AvmExecutionEnvironment } from '../avm_execution_environment.js';
  * An interface that allows to override the default values of the AvmExecutionEnvironment
  */
 export interface AvmExecutionEnvironmentOverrides {
-  /** - */
   address?: AztecAddress;
-  /** - */
+
   storageAddress?: AztecAddress;
-  /** - */
+
   origin?: AztecAddress;
-  /** - */
+
   sender?: AztecAddress;
-  /** - */
+
   portal?: EthAddress;
-  /** - */
+
   feePerL1Gas?: Fr;
-  /** - */
+
   feePerL2Gas?: Fr;
-  /** - */
+
   feePerDaGas?: Fr;
-  /** - */
+
   contractCallDepth?: Fr;
-  /** - */
+
   globals?: GlobalVariables;
-  /** - */
+
   isStaticCall?: boolean;
-  /** - */
+
   isDelegateCall?: boolean;
-  /** - */
+
   calldata?: Fr[];
 }
 

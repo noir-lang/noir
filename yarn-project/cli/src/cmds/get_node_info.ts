@@ -2,9 +2,6 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 
-/**
- *
- */
 export async function getNodeInfo(rpcUrl: string, debugLogger: DebugLogger, log: LogFn) {
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const info = await client.getNodeInfo();

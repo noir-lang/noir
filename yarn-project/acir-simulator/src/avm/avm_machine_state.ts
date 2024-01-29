@@ -15,7 +15,6 @@ export class AvmMachineState {
 
   private returnData: Fr[];
 
-  /** - */
   public readonly memory: TaggedMemory;
 
   /**
@@ -24,9 +23,8 @@ export class AvmMachineState {
    */
   public internalCallStack: number[];
 
-  /** - */
   public pc: number;
-  /** - */
+
   public callStack: number[];
 
   /**
@@ -60,7 +58,6 @@ export class AvmMachineState {
     Object.freeze(returnData);
   }
 
-  /** - */
   public getReturnData(): Fr[] {
     return this.returnData;
   }

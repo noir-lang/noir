@@ -59,7 +59,6 @@ export class Mul extends Instruction {
   }
 }
 
-/** -*/
 export class Div extends Instruction {
   static type: string = 'DIV';
   static numberOfOperands = 3;

@@ -4,9 +4,8 @@ import { Fr } from '@aztec/foundation/fields';
  * AVM message call result.
  */
 export class AvmMessageCallResult {
-  /** - */
   public readonly reverted: boolean;
-  /** - */
+
   public readonly revertReason: Error | undefined;
   /** .- */
   public readonly output: Fr[];

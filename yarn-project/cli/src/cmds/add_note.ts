@@ -5,9 +5,6 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { createCompatibleClient } from '../client.js';
 import { parseFields } from '../parse_args.js';
 
-/**
- *
- */
 export async function addNote(
   address: AztecAddress,
   contractAddress: AztecAddress,

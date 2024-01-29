@@ -5,9 +5,6 @@ import { LogFn } from '@aztec/foundation/log';
 import { parseStructString } from '../encoding.js';
 import { getContractArtifact } from '../utils.js';
 
-/**
- *
- */
 export async function parseParameterStruct(
   encodedString: string,
   contractArtifactPath: string,

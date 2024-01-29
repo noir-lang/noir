@@ -185,9 +185,6 @@ export function mapNumberFromNoir(number: NoirField): number {
   return Number(Fr.fromString(number).toBigInt());
 }
 
-/**
- *
- */
 export function mapNumberToNoir(number: number): NoirField {
   return new Fr(BigInt(number)).toString();
 }
