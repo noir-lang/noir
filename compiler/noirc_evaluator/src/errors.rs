@@ -79,11 +79,8 @@ impl From<SsaReport> for FileDiagnostic {
                     call_stack.last().map(|location| location.src_id()).unwrap_or_default();
                 let call_stack_last_span =
                     call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic = Diagnostic::simple_warning(
-                    message,
-                    secondary_message,
-                    call_stack_last_span.clone(),
-                );
+                let diagnostic =
+                    Diagnostic::simple_warning(message, secondary_message, *call_stack_last_span);
                 diagnostic.in_file(file_id).with_call_stack(call_stack)
             }
         }
@@ -165,10 +162,10 @@ impl RuntimeError {
             }
             _ => {
                 let message = self.to_string();
-                let location =
+                let span =
                     self.call_stack().back().expect("Expected RuntimeError to have a location");
 
-                Diagnostic::simple_error(message, String::new(), location.clone())
+                Diagnostic::simple_error(message, String::new(), *span)
             }
         }
     }

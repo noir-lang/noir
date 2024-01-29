@@ -148,7 +148,7 @@ impl FmtVisitor<'_> {
         } else {
             self.push_str("{");
             self.indent.block_indent(self.config);
-            self.close_block(block_span.clone());
+            self.close_block(block_span);
         };
 
         self.last_position = block_span.end();
