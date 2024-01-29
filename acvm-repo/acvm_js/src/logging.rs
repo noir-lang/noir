@@ -14,7 +14,7 @@ pub fn init_log_level(filter: String) -> Result<(), JsLogInitError> {
 
     let filter: EnvFilter = filter.parse().map_err(|err| {
         JsLogInitError::constructor(
-            format!("Could not parse log filter while initializing logger: {err}").into()
+            format!("Could not parse log filter while initializing logger: {err}").into(),
         )
     })?;
 
