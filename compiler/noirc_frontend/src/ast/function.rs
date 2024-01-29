@@ -72,7 +72,7 @@ impl NoirFunction {
     pub fn function_attribute(&self) -> Option<&FunctionAttribute> {
         self.def.attributes.function.as_ref()
     }
-    pub fn secondary_attributes(&self) -> &Vec<SecondaryAttribute> {
+    pub fn secondary_attributes(&self) -> &[SecondaryAttribute] {
         self.def.attributes.secondary.as_ref()
     }
     pub fn def(&self) -> &FunctionDefinition {

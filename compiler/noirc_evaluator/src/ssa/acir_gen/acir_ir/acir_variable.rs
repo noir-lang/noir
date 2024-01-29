@@ -1751,7 +1751,7 @@ fn execute_brillig(
     // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
     // If it's finished then we can omit the opcode and just write in the return values.
     match vm_status {
-        VMStatus::Finished => Some((vm.get_registers().clone(), vm.get_memory().clone())),
+        VMStatus::Finished => Some((vm.get_registers().clone(), vm.get_memory().to_vec())),
         VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
         VMStatus::Failure { .. } => {
             // TODO: Return an error stating that the brillig function failed.

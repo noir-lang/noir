@@ -54,7 +54,10 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
     let target_dir = &workspace.target_directory_path();
-    let expression_width = backend.get_backend_info()?;
+    let expression_width = args
+        .compile_options
+        .expression_width
+        .unwrap_or_else(|| backend.get_backend_info_or_default());
 
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
@@ -72,7 +75,6 @@ pub(crate) fn run(
         &parsed_files,
         package,
         &args.compile_options,
-        expression_width,
         None,
     );
 
@@ -82,6 +84,8 @@ pub(crate) fn run(
         args.compile_options.deny_warnings,
         args.compile_options.silence_warnings,
     )?;
+
+    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }

@@ -460,7 +460,7 @@ fn type_check_functions(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn check_methods_signatures(
     resolver: &mut Resolver,
-    impl_methods: &Vec<(FileId, FuncId)>,
+    impl_methods: &[(FileId, FuncId)],
     trait_id: TraitId,
     trait_name_span: Span,
     // These are the generics on the trait itself from the impl.

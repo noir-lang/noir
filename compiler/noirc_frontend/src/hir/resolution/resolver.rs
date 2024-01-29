@@ -1450,6 +1450,8 @@ impl<'a> Resolver<'a> {
                 HirExpression::MemberAccess(HirMemberAccess {
                     lhs: self.resolve_expression(access.lhs),
                     rhs: access.rhs,
+                    // This is only used when lhs is a reference and we want to return a reference to rhs
+                    is_offset: false,
                 })
             }
             ExpressionKind::Error => HirExpression::Error,
@@ -1746,7 +1748,8 @@ impl<'a> Resolver<'a> {
 
     // This resolves a static trait method T::trait_method by iterating over the where clause
     //
-    // Returns the trait method, object type, and the trait generics.
+    // Returns the trait method, trait constraint, and whether the impl is assumed from a where
+    // clause. This is always true since this helper searches where clauses for a generic constraint.
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_method_by_named_generic(
         &mut self,
@@ -1789,7 +1792,7 @@ impl<'a> Resolver<'a> {
 
     // Try to resolve the given trait method path.
     //
-    // Returns the trait method, object type, and the trait generics.
+    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_generic_path(
         &mut self,
