@@ -84,12 +84,6 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
 )]
 pub struct SrcId(pub usize);
 
-impl From<usize> for SrcId {
-    fn from(value: usize) -> Self {
-        Self(value)
-    }
-}
-
 impl From<SrcId> for usize {
     fn from(val: SrcId) -> Self {
         val.0
