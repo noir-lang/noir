@@ -149,7 +149,7 @@ impl Span {
     }
 
     fn from_range(Range { start, end }: Range<u32>, src_id: SrcId) -> Self {
-        Self { byte_span: ByteSpan::new(start, end), src_id: src_id }
+        Self { byte_span: ByteSpan::new(start, end), src_id }
     }
 
     pub fn src_id(&self) -> SrcId {
