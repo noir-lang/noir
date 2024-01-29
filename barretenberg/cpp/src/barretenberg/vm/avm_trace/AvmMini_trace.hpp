@@ -26,6 +26,8 @@ class AvmMiniTraceBuilder {
     std::vector<Row> finalize();
     void reset();
 
+    uint32_t getPc() const { return pc; }
+
     // Addition with direct memory access.
     void add(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
