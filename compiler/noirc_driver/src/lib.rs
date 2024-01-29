@@ -10,7 +10,7 @@ use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_circuit;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_frontend::debug::create_prologue_program;
+use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -131,7 +131,8 @@ fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
 fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
     // Adds the synthetic debug module for instrumentation into the file manager
     let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
-    file_manager.add_file_with_contents(&path_to_debug_lib_file, &create_prologue_program(8));
+    file_manager
+        .add_file_with_source_canonical_path(&path_to_debug_lib_file, build_debug_crate_file());
 }
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
@@ -157,12 +158,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
 
 pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
     let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
-    let debug_file_id = context
-        .file_manager
-        .name_to_id(path_to_debug_lib_file)
-        .expect("debug source is expected to be present in file manager");
-    let debug_crate_id = context.crate_graph.add_crate(debug_file_id);
-
+    let debug_crate_id = prepare_dependency(context, &path_to_debug_lib_file);
     add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
 }
 

@@ -24,15 +24,22 @@ impl DebugArtifact {
     pub fn new(debug_symbols: Vec<DebugInfo>, file_manager: &FileManager) -> Self {
         let mut file_map = BTreeMap::new();
 
-        let file_ids: BTreeSet<FileId> =
-            debug_symbols.iter().flat_map(|debug_info| debug_info.get_file_ids()).collect();
+        let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
+            .iter()
+            .flat_map(|function_symbols| {
+                function_symbols
+                    .locations
+                    .values()
+                    .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+            })
+            .collect();
 
-        for file_id in file_ids.iter() {
-            let file_path = file_manager.path(*file_id).expect("file should exist");
-            let file_source = file_manager.fetch_file(*file_id).expect("file should exist");
+        for file_id in files_with_debug_symbols {
+            let file_path = file_manager.path(file_id).expect("file should exist");
+            let file_source = file_manager.fetch_file(file_id).expect("file should exist");
 
             file_map.insert(
-                *file_id,
+                file_id,
                 DebugFile { source: file_source.to_string(), path: file_path.to_path_buf() },
             );
         }
@@ -80,7 +87,8 @@ impl DebugArtifact {
         let line_index = self.line_index(location.file, location_start)?;
         let line_span = self.line_range(location.file, line_index)?;
 
-        let line_length = line_span.end - (line_span.start + 1);
+        let line_length =
+            if line_span.end > line_span.start { line_span.end - (line_span.start + 1) } else { 0 };
         let start_in_line = location_start - line_span.start;
 
         // The location might continue beyond the line,

@@ -1,6 +1,5 @@
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
-use fm::FileId;
 
 use base64::Engine;
 use flate2::read::DeflateDecoder;
@@ -110,13 +109,6 @@ impl DebugInfo {
             .collect();
 
         counted_opcodes
-    }
-
-    pub fn get_file_ids(&self) -> Vec<FileId> {
-        self.locations
-            .values()
-            .filter_map(|call_stack| call_stack.last().map(|location| location.file))
-            .collect()
     }
 
     pub fn serialize_compressed_base64_json<S>(

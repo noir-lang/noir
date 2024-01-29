@@ -49,7 +49,7 @@ pub(crate) fn run(
     args: DebugCommand,
     config: NargoConfig,
 ) -> Result<(), CliError> {
-    // TODO: set clap default for flattened flag
+    // Override clap default for compiler option flag
     let mut args = args.clone();
     args.compile_options.instrument_debug = true;
 

@@ -8,6 +8,8 @@ use noirc_errors::{Span, Spanned};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
+const MAX_MEMBER_ASSIGN_DEPTH: usize = 8;
+
 #[derive(Debug, Clone)]
 pub struct DebugState {
     pub variables: HashMap<u32, String>, // var_id => var_name
@@ -15,7 +17,6 @@ pub struct DebugState {
     next_var_id: u32,
     next_field_name_id: u32,
     scope: Vec<HashMap<String, u32>>, // var_name => var_id
-    pub enabled: bool,
 }
 
 impl Default for DebugState {
@@ -26,7 +27,6 @@ impl Default for DebugState {
             scope: vec![],
             next_var_id: 0,
             next_field_name_id: 1,
-            enabled: true, // TODO
         }
     }
 }
@@ -70,18 +70,16 @@ impl DebugState {
             .map(|(var_id, id, _is_mut)| self.wrap_assign_var(*var_id, id_expr(id)))
             .collect();
 
-        self.walk_scope(&mut f.body.0);
+        self.walk_scope(&mut f.body.0, f.span);
 
-        // prapend fn params:
+        // prepend fn params:
         f.body.0 = vec![set_fn_params, f.body.0.clone()].concat();
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>) {
-        let end_span = statements
-            .last()
-            .map_or(none_span(), |statement| Span::empty(statement.span.end() + 1));
+    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span) {
+        let end_span = Span::empty(span.end());
 
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
@@ -90,9 +88,9 @@ impl DebugState {
                 ast::Statement {
                     kind: ast::StatementKind::Expression(ast::Expression {
                         kind: ast::ExpressionKind::Literal(ast::Literal::Unit),
-                        span: none_span(),
+                        span: end_span,
                     }),
-                    span: none_span(),
+                    span: end_span,
                 },
                 vec![],
             ));
@@ -104,11 +102,11 @@ impl DebugState {
             vec![match &ret_stmt.kind {
                 ast::StatementKind::Expression(ret_expr) => ast::Statement {
                     kind: ast::StatementKind::Let(ast::LetStatement {
-                        pattern: ast::Pattern::Identifier(ident("__debug_expr", none_span())),
+                        pattern: ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
                         r#type: ast::UnresolvedType::unspecified(),
                         expression: ret_expr.clone(),
                     }),
-                    span: none_span(),
+                    span: ret_expr.span,
                 },
                 _ => ret_stmt.clone(),
             }],
@@ -124,20 +122,20 @@ impl DebugState {
                 ast::StatementKind::Expression(_ret_expr) => ast::Statement {
                     kind: ast::StatementKind::Expression(ast::Expression {
                         kind: ast::ExpressionKind::Variable(ast::Path {
-                            segments: vec![ident("__debug_expr", none_span())],
+                            segments: vec![ident("__debug_expr", ret_stmt.span)],
                             kind: PathKind::Plain,
-                            span: none_span(),
+                            span: ret_stmt.span,
                         }),
-                        span: none_span(),
+                        span: ret_stmt.span,
                     }),
-                    span: none_span(),
+                    span: ret_stmt.span,
                 },
                 _ => ast::Statement {
                     kind: ast::StatementKind::Expression(ast::Expression {
                         kind: ast::ExpressionKind::Literal(ast::Literal::Unit),
-                        span: none_span(),
+                        span: ret_stmt.span,
                     }),
-                    span: none_span(),
+                    span: ret_stmt.span,
                 },
             }],
         ]
@@ -145,9 +143,6 @@ impl DebugState {
     }
 
     pub fn insert_symbols(&mut self, module: &mut ParsedModule) {
-        if !self.enabled {
-            return;
-        }
         module.items.iter_mut().for_each(|item| {
             if let Item { kind: ItemKind::Function(f), .. } = item {
                 self.walk_fn(&mut f.def);
@@ -196,26 +191,27 @@ impl DebugState {
         expr: &ast::Expression,
     ) -> ast::Statement {
         let arity = indexes.len();
+        if arity > MAX_MEMBER_ASSIGN_DEPTH {
+            unreachable!("Assignment to member exceeds maximum depth for debugging");
+        }
+        let span = expr.span;
         let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
             func: Box::new(ast::Expression {
                 kind: ast::ExpressionKind::Variable(ast::Path {
-                    segments: vec![ident(&format!["__debug_member_assign_{arity}"], none_span())],
+                    segments: vec![ident(&format!["__debug_member_assign_{arity}"], span)],
                     kind: PathKind::Plain,
-                    span: none_span(),
+                    span,
                 }),
-                span: none_span(),
+                span,
             }),
             arguments: [
-                vec![uint_expr(var_id as u128, none_span())],
+                vec![uint_expr(var_id as u128, span)],
                 vec![expr.clone()],
                 indexes.iter().rev().cloned().collect(),
             ]
             .concat(),
         }));
-        ast::Statement {
-            kind: ast::StatementKind::Semi(ast::Expression { kind, span: none_span() }),
-            span: none_span(),
-        }
+        ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
     }
 
     fn wrap_let_statement(&mut self, let_stmt: &ast::LetStatement, span: &Span) -> ast::Statement {
@@ -328,7 +324,7 @@ impl DebugState {
                         ast::LValue::MemberAccess { object, field_name } => {
                             cursor = object;
                             let field_name_id = self.insert_field_name(&field_name.0.contents);
-                            indexes.push(sint_expr(-(field_name_id as i128)));
+                            indexes.push(sint_expr(-(field_name_id as i128), expression_span));
                         }
                         ast::LValue::Index { index, array } => {
                             cursor = array;
@@ -369,7 +365,7 @@ impl DebugState {
         match &mut expr.kind {
             ast::ExpressionKind::Block(ast::BlockExpression(ref mut statements)) => {
                 self.scope.push(HashMap::default());
-                self.walk_scope(statements);
+                self.walk_scope(statements, expr.span);
             }
             ast::ExpressionKind::Prefix(prefix_expr) => {
                 self.walk_expr(&mut prefix_expr.rhs);
@@ -434,7 +430,7 @@ impl DebugState {
         let var_id = self.insert_var(var_name);
 
         let set_stmt = self.wrap_assign_var(var_id, id_expr(&for_stmt.identifier));
-        let drop_stmt = self.wrap_drop_var(var_id, Span::empty(for_stmt.span.end() + 1));
+        let drop_stmt = self.wrap_drop_var(var_id, Span::empty(for_stmt.span.end()));
 
         self.walk_expr(&mut for_stmt.block);
         for_stmt.block = ast::Expression {
@@ -442,11 +438,11 @@ impl DebugState {
                 set_stmt,
                 ast::Statement {
                     kind: ast::StatementKind::Semi(for_stmt.block.clone()),
-                    span: none_span(),
+                    span: for_stmt.block.span,
                 },
                 drop_stmt,
             ])),
-            span: none_span(),
+            span: for_stmt.span,
         };
     }
 
@@ -492,7 +488,7 @@ impl DebugState {
     }
 }
 
-pub fn create_prologue_program(n: u32) -> String {
+pub fn build_debug_crate_file() -> String {
     [
         r#"
             #[oracle(__debug_var_assign)]
@@ -523,7 +519,7 @@ pub fn create_prologue_program(n: u32) -> String {
             }
         "#
         .to_string(),
-        (1..=n)
+        (1..=MAX_MEMBER_ASSIGN_DEPTH)
             .map(|n| {
                 let var_sig =
                     (0..n).map(|i| format!["_v{i}: Field"]).collect::<Vec<String>>().join(", ");
@@ -598,13 +594,9 @@ fn uint_expr(x: u128, span: Span) -> ast::Expression {
     }
 }
 
-fn sint_expr(x: i128) -> ast::Expression {
+fn sint_expr(x: i128, span: Span) -> ast::Expression {
     ast::Expression {
         kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0)),
-        span: none_span(),
+        span,
     }
-}
-
-fn none_span() -> Span {
-    Span::build_from_str("")
 }
