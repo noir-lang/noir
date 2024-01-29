@@ -554,7 +554,7 @@ impl<'a> ModCollector<'a> {
 
             let error = DefCollectorErrorKind::ModuleOriginallyDefined {
                 mod_name: mod_name.clone(),
-                span: old_location.clone(),
+                span: *old_location,
             };
             errors.push((error.into(), old_location.src_id()));
             return errors;

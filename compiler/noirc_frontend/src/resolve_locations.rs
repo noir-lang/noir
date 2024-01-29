@@ -20,7 +20,7 @@ impl NodeInterner {
         for (index, interned_location) in self.id_to_location.iter() {
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
-                    if interned_location.is_smaller(&current_location.1) {
+                    if interned_location.is_smaller(current_location.1) {
                         location_candidate = Some((index, interned_location));
                     }
                 } else {

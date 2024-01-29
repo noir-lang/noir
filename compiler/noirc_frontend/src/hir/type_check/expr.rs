@@ -29,7 +29,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.errors.push(TypeCheckError::CallDeprecated {
                         name: self.interner.definition_name(id).to_string(),
                         note,
-                        span: span,
+                        span,
                     });
                 }
             }
