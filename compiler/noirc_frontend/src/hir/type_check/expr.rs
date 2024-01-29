@@ -638,8 +638,7 @@ impl<'interner> TypeChecker<'interner> {
             this.interner.push_expr_type(&old_lhs, lhs_type);
             this.interner.push_expr_type(access_lhs, element);
 
-            let old_expr_span = this.interner.id_location(old_lhs);
-            this.interner.push_expr_location(*access_lhs, old_expr_span);
+            this.interner.push_expr_location(*access_lhs, expr_span);
         };
 
         // If this access is just a field offset, we want to avoid dereferencing
