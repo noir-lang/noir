@@ -296,7 +296,11 @@ const sidebars = {
                 type: "doc",
                 id: "developers/contracts/syntax/storage/main",
               },
-              items: ["developers/contracts/syntax/storage/storage_slots"],
+              items: [
+              "developers/contracts/syntax/storage/private_state",
+              "developers/contracts/syntax/storage/public_state",
+              "developers/contracts/syntax/storage/storage_slots",
+            ],
             },
             "developers/contracts/syntax/events",
             "developers/contracts/syntax/functions",
