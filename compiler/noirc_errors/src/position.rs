@@ -79,6 +79,11 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
     }
 }
 
+/// [SrcId] represents id which particualr source originated from
+/// ie. a file in context of file system or url in context of web, etc.
+/// [SrcId] is used as conext for [Span] and [Position] which originate
+/// [SrcId] is used to uniquely identify a source within [fm::FileMap]
+/// from a resource.
 #[derive(
     Copy, Clone, Serialize, Eq, PartialEq, Ord, PartialOrd, Debug, Deserialize, Hash, Default,
 )]
