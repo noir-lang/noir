@@ -36,7 +36,7 @@ FOR INSTRUCTIONS FOR BUILDING A WALLET, WE SHOULD WRITE DOCS HERE
 
 ERRORS:
 
-- Add any error explanations to [errors.md](../docs/dev_docs/contracts/common_errors.md) (and break that file into multiple files if it's too unwieldy).
+- Add any error explanations to [errors.md](../docs/developers/contracts/common_errors.md) (and break that file into multiple files if it's too unwieldy).
 
 ## Testing a dapp
 

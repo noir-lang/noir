@@ -24,34 +24,15 @@ const sidebars = {
     {
       type: "html",
       className: "sidebar-title",
-      value: "About Aztec",
+      value: "LEARN",
       defaultStyle: true,
     },
 
-    {
-      label: "What is Aztec?",
-      type: "category",
-      link: { type: "doc", id: "intro" },
-      items: ["about_aztec/overview"],
-    },
-
-    "about_aztec/vision",
-
-    {
-      label: "Roadmap",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "about_aztec/roadmap/main",
-      },
-      items: [
-        "about_aztec/roadmap/features_initial_ldt",
-        "about_aztec/roadmap/cryptography_roadmap",
-      ],
-    },
-
-    "about_aztec/how_to_contribute",
-
+    "welcome",
+    "learn/about_aztec/what_is_aztec",
+    "learn/about_aztec/vision",
+    "learn/about_aztec/technical_overview",
+  
     {
       type: "html",
       value: '<span clasuns="sidebar-divider" />',
@@ -60,99 +41,93 @@ const sidebars = {
     // SPECIFICATION
 
     {
-      type: "html",
-      className: "sidebar-title",
-      value: "Specification",
-      defaultStyle: true,
-    },
-
-    {
-      label: "Foundational Concepts",
+      label: "Concepts",
       type: "category",
       link: {
         type: "doc",
-        id: "concepts/foundation/main",
+        id: "learn/concepts/main",
       },
       items: [
         {
-          label: "State Model",
+          label: "Hybrid State Model",
           type: "category",
           link: {
             type: "doc",
-            id: "concepts/foundation/state_model/main",
+            id: "learn/concepts/hybrid_state/main",
           },
-          items: ["concepts/foundation/state_model/storage_slots"],
+          items: [
+            "learn/concepts/hybrid_state/public_vm",
+          ],
+        },
+        {
+          label: "Storage",
+          type: "category",
+          items: [
+            {
+              label: "Trees",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "learn/concepts/storage/trees/main",
+              },
+              items: [
+                "learn/concepts/storage/trees/indexed_merkle_tree",
+              ],
+            },
+            "learn/concepts/storage/storage_slots",
+          ],
         },
         {
           label: "Accounts",
           type: "category",
-          link: { type: "doc", id: "concepts/foundation/accounts/main" },
+          link: {
+            type: "doc",
+            id: "learn/concepts/accounts/main",
+          },
           items: [
-            "concepts/foundation/accounts/keys",
-            "concepts/foundation/accounts/authwit",
+            "learn/concepts/accounts/keys",
+            "learn/concepts/accounts/authwit",
           ],
         },
-        "concepts/foundation/contracts",
-        "concepts/foundation/transactions",
-        // "concepts/foundation/globals",
+        "learn/concepts/transactions",
         {
-          label: "Communication",
+          label: "Smart Contracts",
           type: "category",
           link: {
             type: "doc",
-            id: "concepts/foundation/communication/main",
+            id: "learn/concepts/smart_contracts/main",
           },
+          items: [
+            "learn/concepts/smart_contracts/contract_creation",
+          ],
+        },
+        {
+          label: "Communication",
+          type: "category",
           items: [
             {
               label: "Public <> Private Communication",
               type: "category",
               link: {
                 type: "doc",
-                id: "concepts/foundation/communication/public_private_calls/main",
+                id: "learn/concepts/communication/public_private_calls/main",
               },
               items: [
-                "concepts/foundation/communication/public_private_calls/slow_updates_tree",
+                "learn/concepts/communication/public_private_calls/slow_updates_tree",
               ],
             },
-            "concepts/foundation/communication/cross_chain_calls",
+            "learn/concepts/communication/cross_chain_calls",
           ],
         },
         {
-          label: "Nodes and Clients",
-          type: "category",
-          // link: {
-          //   type: "doc",
-          //   id: "concepts/foundation/nodes_clients/main",
-          // },
-          items: [
-            // "concepts/foundation/nodes_clients/execution_client",
-            // "concepts/foundation/nodes_clients/prover_client",
-            "concepts/foundation/nodes_clients/sequencer",
-          ],
-        },
-        // "concepts/foundation/block_production",
-        // "concepts/foundation/upgrade_mechanism",
-      ],
-    },
-
-    {
-      label: "Advanced Concepts",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "concepts/advanced/main",
-      },
-      items: [
-        {
-          label: "Data Structures",
+          label: "Private Execution Environment (PXE)",
           type: "category",
           link: {
             type: "doc",
-            id: "concepts/advanced/data_structures/main",
+            id: "learn/concepts/pxe/main",
           },
           items: [
-            "concepts/advanced/data_structures/trees",
-            "concepts/advanced/data_structures/indexed_merkle_tree",
+            "learn/concepts/pxe/acir_simulator",
           ],
         },
         {
@@ -160,43 +135,38 @@ const sidebars = {
           type: "category",
           link: {
             type: "doc",
-            id: "concepts/advanced/circuits/main",
+            id: "learn/concepts/circuits/main",
           },
           items: [
             {
-              label: "Kernels",
+              label: "Kernel Circuits",
               type: "category",
-              link: {
-                type: "doc",
-                id: "concepts/advanced/circuits/kernels/main",
-              },
               items: [
-                "concepts/advanced/circuits/kernels/private_kernel",
-                "concepts/advanced/circuits/kernels/public_kernel",
+                "learn/concepts/circuits/kernels/private_kernel",
+                "learn/concepts/circuits/kernels/public_kernel",
               ],
             },
+            "learn/concepts/circuits/rollup_circuits/main",
+          ],
+        },
+        {
+          label: "Nodes and Clients",
+          type: "category",
+          items: [
             {
-              label: "Rollup Circuits",
-              type: "category",
+              label: "Sequencer",
               link: {
                 type: "doc",
-                id: "concepts/advanced/circuits/rollup_circuits/main",
+                id: "learn/concepts/nodes_clients/sequencer/main",
               },
-              items: [],
+              type: "category",
+              items: [
+                "learn/concepts/nodes_clients/sequencer/sequencer_selection",
+              ],
             },
           ],
         },
-        "concepts/advanced/public_vm",
-        "concepts/advanced/contract_creation",
-        "concepts/advanced/private_execution_environment",
-        "concepts/advanced/sequencer_selection",
-        "concepts/advanced/acir_simulator",
       ],
-    },
-
-    {
-      type: "html",
-      value: '<span class="sidebar-divider" />',
     },
 
     // DEVELOPER DOCUMENTATION
@@ -204,7 +174,7 @@ const sidebars = {
     {
       type: "html",
       className: "sidebar-title",
-      value: "Developer Documentation",
+      value: "BUILD",
       defaultStyle: true,
     },
 
@@ -213,13 +183,12 @@ const sidebars = {
       type: "category",
       link: {
         type: "doc",
-        id: "dev_docs/getting_started/main",
+        id: "developers/getting_started/main",
       },
       items: [
-        "dev_docs/getting_started/quickstart",
-        "dev_docs/getting_started/core-concepts",
-        "dev_docs/getting_started/aztecnr-getting-started",
-        "dev_docs/getting_started/aztecjs-getting-started",
+        "developers/getting_started/quickstart",
+        "developers/getting_started/aztecnr-getting-started",
+        "developers/getting_started/aztecjs-getting-started",
       ],
     },
 
@@ -228,25 +197,25 @@ const sidebars = {
       type: "category",
       link: {
         type: "doc",
-        id: "dev_docs/tutorials/main",
+        id: "developers/tutorials/main",
       },
       items: [
-        "dev_docs/tutorials/writing_token_contract",
-        "dev_docs/tutorials/writing_private_voting_contract",
+        "developers/tutorials/writing_token_contract",
+        "developers/tutorials/writing_private_voting_contract",
 
         {
           label: "Writing a DApp",
           type: "category",
           link: {
             type: "doc",
-            id: "dev_docs/tutorials/writing_dapp/main",
+            id: "developers/tutorials/writing_dapp/main",
           },
           items: [
-            "dev_docs/tutorials/writing_dapp/project_setup",
-            "dev_docs/tutorials/writing_dapp/pxe_service",
-            "dev_docs/tutorials/writing_dapp/contract_deployment",
-            "dev_docs/tutorials/writing_dapp/contract_interaction",
-            "dev_docs/tutorials/writing_dapp/testing",
+            "developers/tutorials/writing_dapp/project_setup",
+            "developers/tutorials/writing_dapp/pxe_service",
+            "developers/tutorials/writing_dapp/contract_deployment",
+            "developers/tutorials/writing_dapp/contract_interaction",
+            "developers/tutorials/writing_dapp/testing",
           ],
         },
         {
@@ -254,15 +223,15 @@ const sidebars = {
           type: "category",
           link: {
             type: "doc",
-            id: "dev_docs/tutorials/token_portal/main",
+            id: "developers/tutorials/token_portal/main",
           },
           items: [
-            "dev_docs/tutorials/token_portal/setup",
-            "dev_docs/tutorials/token_portal/depositing_to_aztec",
-            "dev_docs/tutorials/token_portal/minting_on_aztec",
-            "dev_docs/tutorials/token_portal/cancelling_deposits",
-            "dev_docs/tutorials/token_portal/withdrawing_to_l1",
-            "dev_docs/tutorials/token_portal/typescript_glue_code",
+            "developers/tutorials/token_portal/setup",
+            "developers/tutorials/token_portal/depositing_to_aztec",
+            "developers/tutorials/token_portal/minting_on_aztec",
+            "developers/tutorials/token_portal/cancelling_deposits",
+            "developers/tutorials/token_portal/withdrawing_to_l1",
+            "developers/tutorials/token_portal/typescript_glue_code",
           ],
         },
         {
@@ -270,21 +239,21 @@ const sidebars = {
           type: "category",
           link: {
             type: "doc",
-            id: "dev_docs/tutorials/uniswap/main",
+            id: "developers/tutorials/uniswap/main",
           },
           items: [
-            "dev_docs/tutorials/uniswap/setup",
-            "dev_docs/tutorials/uniswap/l1_portal",
-            "dev_docs/tutorials/uniswap/l2_contract_setup",
-            "dev_docs/tutorials/uniswap/swap_publicly",
-            "dev_docs/tutorials/uniswap/execute_public_swap_on_l1",
-            "dev_docs/tutorials/uniswap/swap_privately",
-            "dev_docs/tutorials/uniswap/execute_private_swap_on_l1",
-            "dev_docs/tutorials/uniswap/redeeming_swapped_assets_on_l2",
-            "dev_docs/tutorials/uniswap/typescript_glue_code",
+            "developers/tutorials/uniswap/setup",
+            "developers/tutorials/uniswap/l1_portal",
+            "developers/tutorials/uniswap/l2_contract_setup",
+            "developers/tutorials/uniswap/swap_publicly",
+            "developers/tutorials/uniswap/execute_public_swap_on_l1",
+            "developers/tutorials/uniswap/swap_privately",
+            "developers/tutorials/uniswap/execute_private_swap_on_l1",
+            "developers/tutorials/uniswap/redeeming_swapped_assets_on_l2",
+            "developers/tutorials/uniswap/typescript_glue_code",
           ],
         },
-        "dev_docs/tutorials/testing",
+        "developers/tutorials/testing",
       ],
     },
 
@@ -293,12 +262,12 @@ const sidebars = {
       type: "category",
       link: {
         type: "doc",
-        id: "dev_docs/cli/main",
+        id: "developers/cli/main",
       },
       items: [
-        "dev_docs/cli/cli-commands",
-        "dev_docs/cli/sandbox-reference",
-        "dev_docs/cli/run_more_than_one_pxe_sandbox"
+        "developers/cli/cli-commands",
+        "developers/cli/sandbox-reference",
+        "developers/cli/run_more_than_one_pxe_sandbox"
       ],
     },
     {
@@ -306,18 +275,18 @@ const sidebars = {
       type: "category",
       link: {
         type: "doc",
-        id: "dev_docs/contracts/main",
+        id: "developers/contracts/main",
       },
       items: [
-        "dev_docs/contracts/workflow",
-        "dev_docs/contracts/setup",
-        "dev_docs/contracts/layout",
+        "developers/contracts/workflow",
+        "developers/contracts/setup",
+        "developers/contracts/layout",
         {
           label: "Syntax",
           type: "category",
           link: {
             type: "doc",
-            id: "dev_docs/contracts/syntax/main",
+            id: "developers/contracts/syntax/main",
           },
           items: [
             {
@@ -325,67 +294,63 @@ const sidebars = {
               type: "category",
               link: {
                 type: "doc",
-                id: "dev_docs/contracts/syntax/storage/main",
+                id: "developers/contracts/syntax/storage/main",
               },
-              items: [
-                "dev_docs/contracts/syntax/storage/public_state",
-                "dev_docs/contracts/syntax/storage/private_state",
-                "dev_docs/contracts/syntax/storage/storage_slots",
-              ],
+              items: ["developers/contracts/syntax/storage/storage_slots"],
             },
-            "dev_docs/contracts/syntax/events",
-            "dev_docs/contracts/syntax/functions",
-            "dev_docs/contracts/syntax/oracles",
+            "developers/contracts/syntax/events",
+            "developers/contracts/syntax/functions",
+            "developers/contracts/syntax/oracles",
             {
               label: "Proving Historical Blockchain Data",
               type: "category",
               items: [
-                "dev_docs/contracts/syntax/historical_access/how_to_prove_history",
-                "dev_docs/contracts/syntax/historical_access/history_lib_reference",
+                "developers/contracts/syntax/historical_access/how_to_prove_history",
+                "developers/contracts/syntax/historical_access/history_lib_reference",
             ],
             },
-            "dev_docs/contracts/syntax/slow_updates_tree",
+            "developers/contracts/syntax/slow_updates_tree",
             
-            "dev_docs/contracts/syntax/context",
-            "dev_docs/contracts/syntax/globals",
+            "developers/contracts/syntax/context",
+            "developers/contracts/syntax/globals",
           ],
         },
-        "dev_docs/contracts/compiling",
-        "dev_docs/contracts/deploying",
-        "dev_docs/contracts/artifacts",
+        "developers/contracts/compiling",
+        "developers/contracts/deploying",
+        "developers/contracts/artifacts",
         {
           label: "Portals",
           type: "category",
           link: {
             type: "doc",
-            id: "dev_docs/contracts/portals/main",
+            id: "developers/contracts/portals/main",
           },
           items: [
-            "dev_docs/contracts/portals/data_structures",
-            "dev_docs/contracts/portals/registry",
-            "dev_docs/contracts/portals/inbox",
-            "dev_docs/contracts/portals/outbox",
+            "developers/contracts/portals/data_structures",
+            "developers/contracts/portals/registry",
+            "developers/contracts/portals/inbox",
+            "developers/contracts/portals/outbox",
           ],
         },
         {
           label: "Resources",
           type: "category",
           items: [
-            "dev_docs/contracts/resources/dependencies",
-            //"dev_docs/contracts/resources/style_guide",
+            "developers/contracts/resources/dependencies",
+            //"developers/contracts/resources/style_guide",
             {
               label: "Common Patterns",
               type: "category",
               link: {
                 type: "doc",
-                id: "dev_docs/contracts/resources/common_patterns/main",
+                id: "developers/contracts/resources/common_patterns/main",
               },
               items: [
-                "dev_docs/contracts/resources/common_patterns/authwit",
-                //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
-                //         "dev_docs/contracts/resources/common_patterns/sending_tokens_to_contract",
-                //         "dev_docs/contracts/resources/common_patterns/access_control",
-                //         "dev_docs/contracts/resources/common_patterns/interacting_with_l1",
+                "developers/contracts/resources/common_patterns/authwit",
+                //         "developers/contracts/resources/common_patterns/sending_tokens_to_user",
+                //         "developers/contracts/resources/common_patterns/sending_tokens_to_contract",
+                //         "developers/contracts/resources/common_patterns/access_control",
+                //         "developers/contracts/resources/common_patterns/interacting_with_l1",
               ],
             },
           ],
@@ -399,9 +364,9 @@ const sidebars = {
         //       type: "category",
         //       link: {
         //         type: "doc",
-        //         id: "dev_docs/contracts/security/breaking_changes/main",
+        //         id: "developers/contracts/security/breaking_changes/main",
         //       },
-        //       items: ["dev_docs/contracts/security/breaking_changes/v0"],
+        //       items: ["developers/contracts/security/breaking_changes/v0"],
         //     },
         //   ],
         // },
@@ -411,24 +376,24 @@ const sidebars = {
     {
       label: "Aztec.js",
       type: "doc",
-      id: "dev_docs/aztecjs/main",
+      id: "developers/aztecjs/main",
     },
     {
       label: "Debugging",
       type: "category",
       link: {
         type: "doc",
-        id: "dev_docs/debugging/main",
+        id: "developers/debugging/main",
       },
       items: [
-        "dev_docs/debugging/aztecnr-errors",
-        "dev_docs/debugging/sandbox-errors",
+        "developers/debugging/aztecnr-errors",
+        "developers/debugging/sandbox-errors",
       ],
     },
     {
       label: "Updating",
       type: "doc",
-      id: "dev_docs/updating",
+      id: "developers/updating",
     },
 
     {
@@ -436,21 +401,21 @@ const sidebars = {
       type: "category",
       link: {
         type: "doc",
-        id: "dev_docs/testing/main",
+        id: "developers/testing/main",
       },
-      items: ["dev_docs/testing/cheat_codes"],
+      items: ["developers/testing/cheat_codes"],
     },
     {
       label: "Wallets",
       type: "category",
       link: {
         type: "doc",
-        id: "dev_docs/wallets/main",
+        id: "developers/wallets/main",
       },
       items: [
-        "dev_docs/wallets/architecture",
-        "dev_docs/wallets/writing_an_account_contract",
-        "dev_docs/wallets/creating_schnorr_accounts",
+        "developers/wallets/architecture",
+        "developers/wallets/writing_an_account_contract",
+        "developers/wallets/creating_schnorr_accounts",
       ],
     },
 
@@ -459,8 +424,8 @@ const sidebars = {
       type: "category",
       items: [],
     },*/
-    "dev_docs/privacy/main",
-    "dev_docs/limitations/main",
+    "developers/privacy/main",
+    "developers/limitations/main",
 
     {
       label: "API Reference",
@@ -469,7 +434,7 @@ const sidebars = {
         {
           label: "Private Execution Environment (PXE)",
           type: "doc",
-          id: "apis/pxe/interfaces/PXE",
+          id: "developers/apis/pxe/interfaces/PXE",
         },
         {
           label: "Aztec.js",
@@ -494,11 +459,24 @@ const sidebars = {
     {
       type: "html",
       className: "sidebar-title",
-      value: "Miscellaneous",
+      value: "MISCELLANEOUS",
       defaultStyle: true,
     },
     "misc/migration_notes",
     "misc/glossary",
+    {
+      label: "Roadmap",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "misc/roadmap/main",
+      },
+      items: [
+        "misc/roadmap/features_initial_ldt",
+        "misc/roadmap/cryptography_roadmap",
+      ],
+    },
+    "misc/how_to_contribute",
 
     {
       type: "html",

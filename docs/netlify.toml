@@ -112,55 +112,55 @@
 
 [[redirects]]
     from = "/aztec/protocol/trees"
-    to = "/concepts/advanced/data_structures/trees"
+    to = "/learn/concepts/storage/trees/main"
 
 [[redirects]]
     from = "/aztec/protocol/trees/indexed-merkle-tree"
-    to = "/concepts/advanced/data_structures/indexed_merkle_tree"
+    to = "/learn/concepts/storage/trees/indexed_merkle_tree"
 
 [[redirects]]
     from = "/aztec/protocol/circuits/private-kernel"
-    to = "/concepts/advanced/circuits/kernels/private_kernel"
+    to = "/learn/concepts/circuits/kernels/private_kernel"
 
 [[redirects]]
     from = "/aztec/protocol/circuits/public-kernel"
-    to = "/concepts/advanced/circuits/kernels/public_kernel"
+    to = "/learn/concepts/circuits/kernels/public_kernel"
 
 [[redirects]]
     from = "/aztec/protocol/circuits/rollup"
-    to = "/concepts/advanced/circuits/rollup_circuits/main"
+    to = "/learn/concepts/circuits/rollup_circuits/main"
 
 [[redirects]]
     from = "/aztec/protocol/public-functions-vm-architectures"
-    to = "/concepts/advanced/public_vm"
+    to = "/learn/concepts/hybrid_state/public_vm"
 
 [[redirects]]
     from = "/aztec/how-it-works/private-smart-contracts"
-    to = "/concepts/foundation/contracts"
+    to = "/learn/concepts/contracts/main"
 
 [[redirects]]
     from = "/aztec/how-it-works/private-state"
-    to = "/concepts/foundation/state_model/main"
+    to = "/learn/concepts/hybrid_state/main"
 
 [[redirects]]
     from = "/concepts/foundation/state_model"
-    to = "/concepts/foundation/state_model/main"
+    to = "/learn/concepts/hybrid_state/main"
 
 [[redirects]]
     from = "/aztec/how-it-works/private-public-execution"
-    to = "/concepts/foundation/communication/public_private_calls/main"
+    to = "/learn/concepts/communication/public_private_calls/main"
 
 [[redirects]]
     from="/concepts/foundation/communication/public_private_calls"
-    to="/concepts/foundation/communication/public_private_calls/main"
+    to="/learn/concepts/communication/public_private_calls/main"
 
 [[redirects]]
     from = "/aztec/how-it-works/l1-l2-messaging"
-    to = "/concepts/foundation/communication/cross_chain_calls"
+    to = "/learn/concepts/communication/cross_chain_calls"
 
 [[redirects]]
     from = "/aztec/protocol/contract-creation"
-    to = "/concepts/advanced/contract_creation"
+    to = "/learn/concepts/contracts/contract_creation"
 
 [[redirects]]
     from = "/noir"

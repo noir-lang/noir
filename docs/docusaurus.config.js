@@ -195,7 +195,7 @@ const config = {
         items: [
           {
             type: "doc",
-            docId: "intro",
+            docId: "welcome",
             position: "left",
             label: "Aztec Protocol",
           },
@@ -213,7 +213,7 @@ const config = {
               },
               {
                 label: "Developer Quickstart",
-                to: "/dev_docs/getting_started/quickstart",
+                to: "/developers/getting_started/quickstart",
               },
               {
                 label: "Aztec.nr",
