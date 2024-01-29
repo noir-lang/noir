@@ -56,13 +56,24 @@ cd ~/.aztec && docker-compose up
 
 ## Running Aztec PXE / Node / P2P-Bootstrap node
 
-If you wish to run components of the Aztec network stack separately, you can still use the Sandbox by including a `MODE` variable.
-The values for `MODE` can be:
+If you wish to run components of the Aztec network stack separately, you can use the `aztec start` command with various options for enabling components.
 
-- sandbox (default)
-- node
-- pxe
-- p2p-bootstrap
+```bash
+aztec start --node [nodeOptions] --pxe [pxeOptions] --archiver [archiverOptions] --sequencer [sequencerOptions] ----p2p-bootstrap [p2pOptions]
+```
+
+Starting the aztec node alongside a PXE, sequencer or archiver, will attach the components to the node. If you want to e.g. run a PXE separately to a node, you can:
+Start a node:
+
+```bash
+aztec start --node [node] --archiver [archiverOptions]
+```
+
+Then start a PXE on a separate terminal that connects to that node:
+
+```bash
+aztec start --pxe nodeUrl=http://localhost:8080
+```
 
 ## Environment Variables
 

@@ -5,7 +5,7 @@ import 'source-map-support/register.js';
 
 import { getProgram } from '../index.js';
 
-const debugLogger = createDebugLogger('aztec:cli');
+const debugLogger = createDebugLogger('aztec:cli-client');
 const log = createConsoleLogger();
 
 /** CLI main entrypoint */

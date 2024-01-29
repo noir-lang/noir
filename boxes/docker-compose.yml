@@ -5,7 +5,7 @@ services:
     command: "'anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337'"
 
   aztec:
-    image: aztecprotocol/aztec-sandbox
+    image: aztecprotocol/aztec
     environment:
       ETHEREUM_HOST: http://ethereum:8545
       CHAIN_ID: 31337

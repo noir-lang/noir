@@ -1,5 +1,5 @@
 {
-  "name": "@aztec/aztec-sandbox",
+  "name": "@aztec/aztec",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -10,7 +10,7 @@
     "entryPoints": [
       "./src/index.ts"
     ],
-    "name": "Sandbox",
+    "name": "Aztec Packages",
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
@@ -28,18 +28,21 @@
   ],
   "dependencies": {
     "@aztec/accounts": "workspace:^",
+    "@aztec/archiver": "workspace:^",
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/kv-store": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/pxe": "workspace:^",
     "abitype": "^0.8.11",
+    "commander": "^11.1.0",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",
     "viem": "^1.2.5",

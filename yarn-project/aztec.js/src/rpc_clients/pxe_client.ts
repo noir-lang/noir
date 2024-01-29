@@ -26,8 +26,6 @@ import {
 } from '@aztec/circuits.js';
 import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
 
-export { makeFetch } from '@aztec/foundation/json-rpc/client';
-
 /**
  * Creates a JSON-RPC client to remotely talk to PXE.
  * @param url - The URL of the PXE.
@@ -59,5 +57,6 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], true))
     },
     { Tx, TxReceipt, L2BlockL2Logs },
     false,
+    'pxe',
     fetch,
   );

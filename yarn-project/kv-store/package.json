@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@aztec/foundation": "workspace:^",
-    "lmdb": "^2.9.1"
+    "lmdb": "^2.9.2"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

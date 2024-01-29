@@ -112,6 +112,7 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
             contractAddress: contractAddresses[i % contractAddresses.length],
             storageSlot: storageSlots[i % storageSlots.length],
             publicKey: owners[i % owners.length].publicKey,
+            index: BigInt(i),
           }),
         );
       });

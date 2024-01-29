@@ -20,7 +20,7 @@ const testSetup = async () => {
   debug(`Environment set up`);
   ({ pxe, teardown } = context);
   if (!RPC_URL) {
-    http = startHttpRpcServer(pxe, createPXERpcServer, HTTP_PORT);
+    http = startHttpRpcServer('pxe', pxe, createPXERpcServer, HTTP_PORT);
     debug(`HTTP RPC server started on port ${HTTP_PORT}`);
     RPC_URL = `http://localhost:${HTTP_PORT}`;
   }

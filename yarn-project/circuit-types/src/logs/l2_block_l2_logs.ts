@@ -57,6 +57,24 @@ export class L2BlockL2Logs {
   }
 
   /**
+   * Seralizes logs into a string.
+   * @returns A string representation of the serialized logs.
+   */
+  public toString(): string {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Deserializes logs from a string.
+   * @param data - The string containing the serialized logs.
+   * @returns A new `L2BlockL2Logs` object.
+   */
+  public static fromString(data: string): L2BlockL2Logs {
+    const buffer = Buffer.from(data, 'hex');
+    return L2BlockL2Logs.fromBuffer(buffer);
+  }
+
+  /**
    * Creates a new `L2BlockL2Logs` object with `numCalls` function logs and `numLogsPerCall` logs in each function
    * call.
    * @param numTxs - The number of txs in the block.

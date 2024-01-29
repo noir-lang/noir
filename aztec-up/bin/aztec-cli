@@ -3,5 +3,6 @@ set -euo pipefail
 
 export ENV_VARS_TO_INJECT="PXE_URL PRIVATE_KEY DEBUG"
 export PXE_URL=${PXE_URL:-"http://host.docker.internal:8080"}
+export ETHEREUM_HOST=${ETHEREUM_HOST:-"http://host.docker.internal:8545"}
 
 $(dirname $0)/.aztec-run aztecprotocol/cli $@

@@ -302,6 +302,7 @@ __metadata:
   resolution: "@aztec/types@portal:../yarn-project/types::locator=%40aztec%2Fboxes%40workspace%3A."
   dependencies:
     "@aztec/ethereum": "workspace:^"
+    "@aztec/foundation": "workspace:^"
   languageName: node
   linkType: soft
 

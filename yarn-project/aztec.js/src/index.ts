@@ -48,7 +48,7 @@ export {
   waitForAccountSynch,
 } from './utils/index.js';
 
-export { createPXEClient } from './pxe_client.js';
+export { createPXEClient } from './rpc_clients/index.js';
 
 export { AuthWitnessProvider } from './account/index.js';
 
@@ -108,7 +108,6 @@ export {
   mockTx,
   Comparator,
 } from '@aztec/circuit-types';
-
 export { NodeInfo } from '@aztec/types/interfaces';
 
 // TODO: These kinds of things have no place on our public api.

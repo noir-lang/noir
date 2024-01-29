@@ -101,7 +101,7 @@ describe('e2e_p2p_network', () => {
 
       // TODO: the following config options are not applicable to bootstrap nodes
       p2pBlockCheckIntervalMS: 1000,
-      l2QueueSize: 1,
+      p2pL2QueueSize: 1,
       transactionProtocol: '',
       bootstrapNodes: [''],
     };

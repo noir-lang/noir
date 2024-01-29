@@ -1,6 +1,6 @@
-# aztec-sandbox
+# aztec
 
-Aztec Sandbox is a package that allows for a simple development environment on Aztec stack. It creates a Private eXecution Environment (PXE) that listens for HTTP requests on `localhost:8080` by default. When started, it deploys all necessary L1 Aztec contracts and then starts listening for RPC requests.
+Aztec is a package that allows for a simple development environment on Aztec stack. It creates a Private eXecution Environment (PXE) that listens for HTTP requests on `localhost:8080` by default. When started, it deploys all necessary L1 Aztec contracts and then starts listening for RPC requests.
 
 ## How to run:
 
@@ -38,7 +38,7 @@ Before running locally you'll need to:
   - `yarn build`
     And you should be good to go!
 
-From the `aztec-sandbox` directory, you can run the two existing examples:
+From the `aztec` directory, you can run the two existing examples:
 
 - Deployment, mint and transfer on an Aztec Private Token
   - `yarn run:example:token`
@@ -54,4 +54,4 @@ export FORK_URL=<YOUR_RPC_URL e.g. https://mainnet.infura.io/v3/API_KEY>
 ## Publishing
 
 This package is set-up to be published on dockerhub by CI whenever there's a tagged release on `master` branch.
-It's published under the tags `aztecprotocol/aztec-sandbox:latest` & `aztecprotocol/aztec-sandbox:<version-tag>`.
+It's published under the tags `aztecprotocol/aztec:latest` & `aztecprotocol/aztec:<version-tag>`.

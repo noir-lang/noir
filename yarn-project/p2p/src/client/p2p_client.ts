@@ -132,8 +132,8 @@ export class P2PClient implements P2P {
     private p2pService: P2PService,
     private log = createDebugLogger('aztec:p2p'),
   ) {
-    const { p2pBlockCheckIntervalMS: checkInterval, l2QueueSize } = getP2PConfigEnvVars();
-    this.blockDownloader = new L2BlockDownloader(l2BlockSource, l2QueueSize, checkInterval);
+    const { p2pBlockCheckIntervalMS: checkInterval, p2pL2QueueSize } = getP2PConfigEnvVars();
+    this.blockDownloader = new L2BlockDownloader(l2BlockSource, p2pL2QueueSize, checkInterval);
     this.synchedBlockNumber = store.openSingleton('p2p_pool_last_l2_block');
   }
 

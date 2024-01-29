@@ -56,6 +56,7 @@ export default (_, argv) => ({
       crypto: false,
       fs: false,
       path: false,
+      events: require.resolve('events/'),
       stream: require.resolve('stream-browserify'),
       tty: require.resolve('tty-browserify'),
       util: require.resolve('util/'),

@@ -62,7 +62,9 @@ export async function deployAztecContracts(
   const { createEthereumChain, deployL1Contracts } = await import('@aztec/ethereum');
   const { mnemonicToAccount, privateKeyToAccount } = await import('viem/accounts');
 
-  const account = !privateKey ? mnemonicToAccount(mnemonic!) : privateKeyToAccount(`0x${privateKey}`);
+  const account = !privateKey
+    ? mnemonicToAccount(mnemonic!)
+    : privateKeyToAccount(`${privateKey.startsWith('0x') ? '' : '0x'}${privateKey}` as `0x${string}`);
   const chain = createEthereumChain(rpcUrl, apiKey);
   const l1Artifacts: L1ContractArtifactsForDeployment = {
     contractDeploymentEmitter: {

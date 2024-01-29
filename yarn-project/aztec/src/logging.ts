@@ -6,14 +6,14 @@ import * as winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
 const { format } = winston;
-const CURRENT_LOG_FILE_NAME = 'aztec-sandbox.debug.log';
+const CURRENT_LOG_FILE_NAME = 'aztec.debug.log';
 const LOG_DIR = 'log';
 
 /** Creates a winston logger that logs everything to a local rotating file */
 function createWinstonLogger() {
   // See https://www.npmjs.com/package/winston-daily-rotate-file#user-content-options
   const transport: DailyRotateFile = new DailyRotateFile({
-    filename: 'aztec-sandbox-%DATE%.debug.log',
+    filename: 'aztec-%DATE%.debug.log',
     dirname: LOG_DIR,
     datePattern: 'YYYY-MM-DD',
     zippedArchive: true,

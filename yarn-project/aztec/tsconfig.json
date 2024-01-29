@@ -10,6 +10,9 @@
       "path": "../accounts"
     },
     {
+      "path": "../archiver"
+    },
+    {
       "path": "../aztec-node"
     },
     {
@@ -26,6 +29,9 @@
     },
     {
       "path": "../foundation"
+    },
+    {
+      "path": "../kv-store"
     },
     {
       "path": "../l1-artifacts"

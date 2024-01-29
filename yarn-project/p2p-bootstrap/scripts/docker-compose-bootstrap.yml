@@ -1,11 +1,11 @@
 version: '3'
 services:
   p2p-bootstrap:
-    image: 278380418400.dkr.ecr.eu-west-2.amazonaws.com/aztec-sandbox:latest
+    image: 278380418400.dkr.ecr.eu-west-2.amazonaws.com/aztec:latest
+    command: 'start --p2p-bootstrap'
     ports:
       - '40400:40400'
     environment:
-      MODE: 'p2p-bootstrap'
       DEBUG: 'aztec:*'
       P2P_TCP_LISTEN_PORT: 40400
       PEER_ID: '0a260024080112205ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e1224080112205ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e1a44080112402df8b977f356c6e34fa021c9647973234dff4df706c185794405aafb556723cf5ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e'

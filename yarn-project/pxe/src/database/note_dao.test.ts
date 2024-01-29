@@ -11,7 +11,7 @@ export const randomNoteDao = ({
   nonce = Fr.random(),
   innerNoteHash = Fr.random(),
   siloedNullifier = Fr.random(),
-  index = BigInt(0),
+  index = Fr.random().toBigInt(),
   publicKey = Point.random(),
 }: Partial<NoteDao> = {}) => {
   return new NoteDao(

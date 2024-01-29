@@ -11,13 +11,13 @@ WORKDIR /usr/src/yarn-project
 ARG COMMIT_TAG=""
 RUN ./scripts/version_packages.sh
 # Productionify. See comment in yarn-project-base/Dockerfile.
-RUN yarn workspaces focus @aztec/cli @aztec/aztec-sandbox @aztec/aztec-faucet @aztec/aztec.js --production && \
-    yarn cache clean && \
-    rm -rf /usr/src/barretenberg/ts/src && \
-    # TODO: Fix by extracting noir code out of yarn-project.
-    # This was just a "rm -rf ./**/src".
-    # Due to the mess of us needing to find noir code in noir-protocol-circuits/src/crates we have to do this...
-    find . -maxdepth 2 -name src -type d | grep -v "./noir-protocol-circuits" | xargs rm -rf
+RUN yarn workspaces focus @aztec/cli @aztec/aztec @aztec/aztec-faucet @aztec/aztec.js --production && \
+  yarn cache clean && \
+  rm -rf /usr/src/barretenberg/ts/src && \
+  # TODO: Fix by extracting noir code out of yarn-project.
+  # This was just a "rm -rf ./**/src".
+  # Due to the mess of us needing to find noir code in noir-protocol-circuits/src/crates we have to do this...
+  find . -maxdepth 2 -name src -type d | grep -v "./noir-protocol-circuits" | xargs rm -rf
 
 # We no longer need nargo.
 RUN rm -rf /usr/src/noir/target
@@ -34,32 +34,32 @@ ENV COMMIT_TAG=$COMMIT_TAG
 RUN apt update && apt install -y curl && rm -rf /var/lib/apt/lists/* && apt-get clean
 ENV NODE_VERSION=18.19.0
 RUN ARCH= && \
-    dpkgArch="$(dpkg --print-architecture)" && \
-    case "${dpkgArch##*-}" in \
-        amd64) ARCH='x64';; \
-        arm64) ARCH='arm64';; \
-        *) echo "unsupported architecture"; exit 1 ;; \
-    esac && \
-    curl -fsSLO --compressed "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-$ARCH.tar.gz" && \
-    tar zxf "node-v$NODE_VERSION-linux-$ARCH.tar.gz" -C /usr --strip-components=1 --no-same-owner \
-    --exclude "*/share/*" \
-    --exclude "*/bin/corepack" \
-    --exclude "*/bin/npx" \
-    --exclude "*/bin/npm" \
-    --exclude "*/corepack/*" \
-    --exclude "*/npm/man/*" \
-    --exclude "*/npm/docs/*" \
-    --exclude "*/include/*" && \
-    rm "node-v$NODE_VERSION-linux-$ARCH.tar.gz" && \
-    node --version
+  dpkgArch="$(dpkg --print-architecture)" && \
+  case "${dpkgArch##*-}" in \
+  amd64) ARCH='x64';; \
+  arm64) ARCH='arm64';; \
+  *) echo "unsupported architecture"; exit 1 ;; \
+  esac && \
+  curl -fsSLO --compressed "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-$ARCH.tar.gz" && \
+  tar zxf "node-v$NODE_VERSION-linux-$ARCH.tar.gz" -C /usr --strip-components=1 --no-same-owner \
+  --exclude "*/share/*" \
+  --exclude "*/bin/corepack" \
+  --exclude "*/bin/npx" \
+  --exclude "*/bin/npm" \
+  --exclude "*/corepack/*" \
+  --exclude "*/npm/man/*" \
+  --exclude "*/npm/docs/*" \
+  --exclude "*/include/*" && \
+  rm "node-v$NODE_VERSION-linux-$ARCH.tar.gz" && \
+  node --version
 # Yarn is used for unboxing.
-ENV YARN_VERSION=1.22.19 
+ENV YARN_VERSION=1.22.19
 RUN curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz" && \
-    mkdir -p /opt && \
-    tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/ && \
-    ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg && \
-    rm yarn-v$YARN_VERSION.tar.gz && \
-    yarn --version
+  mkdir -p /opt && \
+  tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/ && \
+  ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn && \
+  ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg && \
+  rm yarn-v$YARN_VERSION.tar.gz && \
+  yarn --version
 COPY --from=builder /usr/src /usr/src
 ENTRYPOINT ["/usr/bin/node"]

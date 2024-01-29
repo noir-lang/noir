@@ -5,6 +5,7 @@
   "exports": "./dest/index.js",
   "scripts": {
     "build": "yarn clean && tsc -b && webpack",
+    "build:e2e": "yarn clean && tsc -b",
     "build:dev": "tsc -b --watch",
     "build:web": "webpack",
     "clean": "rm -rf ./dest .tsbuildinfo",

@@ -26,7 +26,7 @@ import {
 } from '@aztec/l1-artifacts';
 import { PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 
-import { HDAccount, createPublicClient, http as httpViemTransport } from 'viem';
+import { HDAccount, PrivateKeyAccount, createPublicClient, http as httpViemTransport } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
@@ -74,7 +74,11 @@ async function waitThenDeploy(config: AztecNodeConfig, deployFunction: () => Pro
  * @param aztecNodeConfig - The Aztec Node Config
  * @param hdAccount - Account for publishing L1 contracts
  */
-export async function deployContractsToL1(aztecNodeConfig: AztecNodeConfig, hdAccount: HDAccount) {
+export async function deployContractsToL1(
+  aztecNodeConfig: AztecNodeConfig,
+  hdAccount: HDAccount | PrivateKeyAccount,
+  contractDeployLogger = logger,
+) {
   const l1Artifacts: L1ContractArtifactsForDeployment = {
     contractDeploymentEmitter: {
       contractAbi: ContractDeploymentEmitterAbi,
@@ -104,7 +108,7 @@ export async function deployContractsToL1(aztecNodeConfig: AztecNodeConfig, hdAc
 
   aztecNodeConfig.l1Contracts = (
     await waitThenDeploy(aztecNodeConfig, () =>
-      deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, logger, l1Artifacts),
+      deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, contractDeployLogger, l1Artifacts),
     )
   ).l1ContractAddresses;
 

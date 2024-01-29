@@ -42,6 +42,7 @@ export function createAztecNodeClient(url: string, fetch = defaultFetch): AztecN
     },
     { Tx, L2BlockL2Logs },
     false,
+    'node',
     fetch,
   );
 }

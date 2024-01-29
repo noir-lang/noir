@@ -7,7 +7,7 @@
     "archiver",
     "aztec-cli",
     "pxe",
-    "aztec-sandbox",
+    "aztec",
     "aztec.js",
     "key-store",
     "noir-contracts",

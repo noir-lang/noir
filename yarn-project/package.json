@@ -22,7 +22,7 @@
     "aztec-faucet",
     "aztec-node",
     "pxe",
-    "aztec-sandbox",
+    "aztec",
     "aztec.js",
     "circuits.js",
     "circuit-types",
@@ -32,6 +32,7 @@
     "ethereum",
     "foundation",
     "key-store",
+    "kv-store",
     "l1-artifacts",
     "merkle-tree",
     "noir-compiler",
@@ -45,8 +46,7 @@
     "scripts",
     "types",
     "world-state",
-    "yarn-project-base",
-    "kv-store"
+    "yarn-project-base"
   ],
   "prettier": "@aztec/foundation/prettier",
   "devDependencies": {

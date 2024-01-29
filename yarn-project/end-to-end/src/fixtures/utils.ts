@@ -48,23 +48,17 @@ import {
   http,
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
+import { foundry } from 'viem/chains';
 
-import { MNEMONIC, localAnvil } from './fixtures.js';
+import { MNEMONIC } from './fixtures.js';
 import { isMetricsLoggingRequested, setupMetricsLogger } from './logging.js';
 
 export { deployAndInitializeTokenAndBridgeContracts } from '../shared/cross_chain_test_harness.js';
 
-const { PXE_URL = '', AZTEC_NODE_URL = '' } = process.env;
+const { PXE_URL = '' } = process.env;
 
-const getAztecNodeUrl = () => {
-  if (AZTEC_NODE_URL) {
-    return AZTEC_NODE_URL;
-  }
-
-  // If AZTEC_NODE_URL is not set, we assume that the PXE is running on the same host as the Aztec Node and use the default port
-  const url = new URL(PXE_URL);
-  url.port = '8079';
-  return url.toString();
+const getAztecUrl = () => {
+  return PXE_URL;
 };
 
 export const setupL1Contracts = async (
@@ -98,7 +92,7 @@ export const setupL1Contracts = async (
       contractBytecode: RollupBytecode,
     },
   };
-  return await deployL1Contracts(l1RpcUrl, account, localAnvil, logger, l1Artifacts);
+  return await deployL1Contracts(l1RpcUrl, account, foundry, logger, l1Artifacts);
 };
 
 /**
@@ -164,7 +158,7 @@ async function setupWithRemoteEnvironment(
   numberOfAccounts: number,
 ) {
   // we are setting up against a remote environment, l1 contracts are already deployed
-  const aztecNodeUrl = getAztecNodeUrl();
+  const aztecNodeUrl = getAztecUrl();
   logger(`Creating Aztec Node client to remote host ${aztecNodeUrl}`);
   const aztecNode = createAztecNodeClient(aztecNodeUrl);
   logger(`Creating PXE client to remote host ${PXE_URL}`);
@@ -184,11 +178,11 @@ async function setupWithRemoteEnvironment(
 
   const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
     account,
-    chain: localAnvil,
+    chain: foundry,
     transport: http(config.rpcUrl),
   });
   const publicClient = createPublicClient({
-    chain: localAnvil,
+    chain: foundry,
     transport: http(config.rpcUrl),
   });
   const deployL1ContractsValues: DeployL1Contracts = {

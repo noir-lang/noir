@@ -13,7 +13,7 @@ services:
       - '8545:8545'
 
   sandbox:
-    image: aztecprotocol/aztec-sandbox:latest
+    image: aztecprotocol/aztec:latest
     environment:
       DEBUG: 'aztec:*'
       DEBUG_COLORS: 1

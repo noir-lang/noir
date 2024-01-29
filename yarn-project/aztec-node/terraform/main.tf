@@ -62,7 +62,7 @@ locals {
     "/dns4/${var.DEPLOY_TAG}-p2p-bootstrap-${i + 1}.local/tcp/${var.BOOTNODE_LISTEN_PORT + i}/p2p/${local.bootnode_ids[i]}"
   ]
   combined_bootnodes = join(",", local.bootnodes)
-  data_dir           = "/usr/src/yarn-project/aztec-sandbox/data"
+  data_dir           = "/usr/src/yarn-project/aztec/data"
 }
 
 resource "aws_cloudwatch_log_group" "aztec-node-log-group" {
@@ -154,7 +154,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
 [
   {
     "name": "${var.DEPLOY_TAG}-aztec-node-${count.index + 1}",
-    "image": "${var.DOCKERHUB_ACCOUNT}/aztec-sandbox:${var.DEPLOY_TAG}",
+    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}",
     "essential": true,
     "memoryReservation": 3776,
     "portMappings": [

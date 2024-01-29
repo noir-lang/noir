@@ -17,9 +17,8 @@ services:
       ANVIL_PORT: ${ANVIL_PORT:-8545}
 
   aztec:
-    image: "aztecprotocol/aztec-sandbox"
+    image: "aztecprotocol/aztec"
     ports:
-      - "${AZTEC_NODE_PORT:-8079}:${AZTEC_NODE_PORT:-8079}"
       - "${PXE_PORT:-8080}:${PXE_PORT:-8080}"
     environment:
       DEBUG: # Loaded from the user shell if explicitly set
@@ -32,7 +31,6 @@ services:
       WS_BLOCK_CHECK_INTERVAL_MS: 50
       PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
-      AZTEC_NODE_PORT: ${AZTEC_NODE_PORT:-8079}
       PXE_PORT: ${PXE_PORT:-8080}
     volumes:
-      - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw
+      - ./log:/usr/src/yarn-project/aztec/log:rw

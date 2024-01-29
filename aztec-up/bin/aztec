@@ -1,4 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-$(dirname $0)/.aztec-run aztecprotocol/aztec-sandbox $@
+# Call cli image if used with `aztec cli ...args`
+if [ -n "${1-}" ] && [ "$1" != "--help" ]; then
+  if [ "$1" == "cli" ]; then
+    shift
+    $(dirname $0)/.aztec-run aztecprotocol/cli "$@"
+  elif [ "$1" == "sandbox" ]; then
+    $(dirname $0)/aztec-sandbox
+  else
+    $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
+  fi
+else
+  # TODO - display help message
+  echo
+  echo "Using 'aztec' CLI:"
+  echo "  aztec start <args>  - Start aztec infrastructure components. See 'aztec start --help' for detailed command info."
+  echo "  aztec sandbox       - Run a local sandbox network (same as aztec-sandbox)."
+  echo "  aztec cli <args>    - Run the aztec client CLI. See 'aztec cli --help' for detailed command info."
+fi

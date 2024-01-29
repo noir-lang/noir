@@ -1,4 +1,4 @@
-import { Archiver, KVArchiverDataStore } from '@aztec/archiver';
+import { ArchiveSource, Archiver, KVArchiverDataStore, createArchiverClient } from '@aztec/archiver';
 import {
   AztecNode,
   ContractData,
@@ -105,9 +105,14 @@ export class AztecNodeService implements AztecNode {
     const log = createDebugLogger('aztec:node');
     const store = await AztecLmdbStore.open(config.l1Contracts.rollupAddress, config.dataDirectory);
 
-    // first create and sync the archiver
-    const archiverStore = new KVArchiverDataStore(store, config.maxLogs);
-    const archiver = await Archiver.createAndSync(config, archiverStore, true);
+    let archiver: ArchiveSource;
+    if (!config.archiverUrl) {
+      // first create and sync the archiver
+      const archiverStore = new KVArchiverDataStore(store, config.maxLogs);
+      archiver = await Archiver.createAndSync(config, archiverStore, true);
+    } else {
+      archiver = createArchiverClient(config.archiverUrl);
+    }
 
     // we identify the P2P transaction protocol by using the rollup contract address.
     // this may well change in future

@@ -411,7 +411,7 @@ jobs:
           name: Test
           command: cond_spot_run_container yarn-project 64 test | add_timestamps
 
-  aztec-sandbox:
+  aztec-package:
     machine:
       image: ubuntu-2204:2023.07.2
     resource_class: large
@@ -420,7 +420,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: build aztec-sandbox
+          command: build aztec
 
   cli:
     machine:
@@ -993,7 +993,7 @@ jobs:
           command: |
             should_release || exit 0
             deploy_dockerhub noir
-            deploy_dockerhub aztec-sandbox
+            deploy_dockerhub aztec
             deploy_dockerhub cli
             deploy_dockerhub aztec-faucet
             deploy_dockerhub mainnet-fork
@@ -1045,7 +1045,7 @@ jobs:
             # Export variables for Terraform.
             export TF_VAR_BOOTNODE_1_PRIVATE_KEY=$BOOTNODE_1_PRIVATE_KEY
             export TF_VAR_BOOTNODE_2_PRIVATE_KEY=$BOOTNODE_2_PRIVATE_KEY
-            deploy_terraform_services yarn-project/p2p-bootstrap aztec-sandbox
+            deploy_terraform_services yarn-project/p2p-bootstrap aztec
       - run:
           name: "Deploy Aztec Nodes to AWS"
           command: |
@@ -1059,16 +1059,16 @@ jobs:
             # Check if l1-contracts have changed
             if [ "$CONTRACTS_DEPLOYED" -eq 1 ]; then
               echo "Contracts have changed, taint nodes to force redeploy.."
-              deploy_terraform_services yarn-project/aztec-node aztec-sandbox aztec-node "aws_ecs_task_definition.aztec-node[0],aws_ecs_task_definition.aztec-node[1]"
+              deploy_terraform_services yarn-project/aztec-node aztec aztec-node "aws_ecs_task_definition.aztec-node[0],aws_ecs_task_definition.aztec-node[1]"
             else
-              deploy_terraform_services yarn-project/aztec-node aztec-sandbox
+              deploy_terraform_services yarn-project/aztec-node aztec
             fi
       - run:
           name: "Deploy Aztec Faucet to AWS"
           command: |
             should_deploy 0 || exit 0
             export TF_VAR_FAUCET_PRIVATE_KEY=$FAUCET_PRIVATE_KEY
-            deploy_terraform_services yarn-project/aztec-faucet aztec-sandbox
+            deploy_terraform_services yarn-project/aztec-faucet aztec
 
 # Repeatable config for defining the workflow below.
 defaults: &defaults
@@ -1202,14 +1202,14 @@ workflows:
       - build-docs: *defaults_yarn_project
 
       # Artifacts
-      - aztec-sandbox: *defaults_yarn_project_prod
+      - aztec-package: *defaults_yarn_project_prod
       - cli: *defaults_yarn_project_prod
       - aztec-faucet: *defaults_yarn_project_prod
 
       # Boxes.
       - boxes:
           requires:
-            - aztec-sandbox
+            - aztec-package
           <<: *defaults
       - boxes-blank:
           requires:
@@ -1228,7 +1228,7 @@ workflows:
       - e2e-join:
           requires:
             - end-to-end
-            - aztec-sandbox
+            - aztec-package
             - cli
           <<: *defaults
       - e2e-2-pxes: *e2e_test

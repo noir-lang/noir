@@ -152,9 +152,9 @@ yarn-project-prod:
     - yarn-project
   multiarch: buildx
 
-aztec-sandbox:
+aztec:
   buildDir: yarn-project
-  projectDir: yarn-project/aztec-sandbox
+  projectDir: yarn-project/aztec
   dependencies:
     - yarn-project-prod
   multiarch: buildx
@@ -175,10 +175,10 @@ cli:
 boxes:
   buildDir: boxes
   dependencies:
-    - aztec-sandbox
+    - aztec
     - noir
   runDependencies:
-    - aztec-sandbox
+    - aztec
 
 end-to-end:
   buildDir: yarn-project
@@ -186,7 +186,7 @@ end-to-end:
   dependencies:
     - yarn-project
   runDependencies:
-    - aztec-sandbox
+    - aztec
 
 mainnet-fork:
   buildDir: iac/mainnet-fork

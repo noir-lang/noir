@@ -106,6 +106,23 @@ export class EncodedContractFunction {
   }
 
   /**
+   * Serializes this instance into a string.
+   * @returns Encoded string.
+   */
+  toString(): string {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Deserializes a contract function object from an encoded string.
+   * @param data - The encoded string.
+   * @returns The deserialized contract function.
+   */
+  static fromString(data: string): EncodedContractFunction {
+    return EncodedContractFunction.fromBuffer(Buffer.from(data, 'hex'));
+  }
+
+  /**
    * Creates a random contract function.
    * @returns A random contract function.
    */

@@ -105,7 +105,8 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
 [
   {
     "name": "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}",
-    "image": "${var.DOCKERHUB_ACCOUNT}/aztec-sandbox:${var.DEPLOY_TAG}",
+    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}",
+    "command": ["start", "--p2p-bootstrap"],
     "essential": true,
     "command": ["start"],
     "memoryReservation": 3776,

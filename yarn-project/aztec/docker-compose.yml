@@ -7,7 +7,7 @@ services:
       if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
         exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
       elif [ -n "$FORK_URL" ]; then
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent --fork-url "$FORK_URL" 
+        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent --fork-url "$FORK_URL"
       else
         exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --silent
       fi'
@@ -15,9 +15,8 @@ services:
       - '${SANDBOX_ANVIL_PORT:-8545}:8545'
 
   aztec:
-    image: 'aztecprotocol/aztec-sandbox:${SANDBOX_VERSION:-latest}'
+    image: 'aztecprotocol/aztec:${SANDBOX_VERSION:-latest}'
     ports:
-      - '${SANDBOX_AZTEC_NODE_PORT:-8079}:8079'
       - '${SANDBOX_PXE_PORT:-8080}:8080'
     environment:
       DEBUG: # Loaded from the user shell if explicitly set
@@ -31,4 +30,4 @@ services:
       PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
     volumes:
-      - ./log:/usr/src/yarn-project/aztec-sandbox/log:rw
+      - ./log:/usr/src/yarn-project/aztec/log:rw

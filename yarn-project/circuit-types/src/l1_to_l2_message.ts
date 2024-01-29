@@ -132,6 +132,15 @@ export class L1ToL2Message {
     return new L1ToL2Message(sender, recipient, content, secretHash, deadline, fee);
   }
 
+  toString(): string {
+    return this.toBuffer().toString('hex');
+  }
+
+  static fromString(data: string): L1ToL2Message {
+    const buffer = Buffer.from(data, 'hex');
+    return L1ToL2Message.fromBuffer(buffer);
+  }
+
   static empty(): L1ToL2Message {
     return new L1ToL2Message(L1Actor.empty(), L2Actor.empty(), Fr.ZERO, Fr.ZERO, 0, 0);
   }

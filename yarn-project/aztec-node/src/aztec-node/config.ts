@@ -11,6 +11,9 @@ export type AztecNodeConfig = ArchiverConfig &
   P2PConfig & {
     /** Whether the sequencer is disabled for this node. */
     disableSequencer: boolean;
+
+    /** A URL for an archiver service that the node will use. */
+    archiverUrl?: string;
   };
 
 /**
@@ -25,6 +28,7 @@ export function getConfigEnvVars(): AztecNodeConfig {
     ...getP2PConfigEnvVars(),
     ...getWorldStateVars(),
     disableSequencer: !!SEQ_DISABLED,
+    archiverUrl: process.env.ARCHIVER_URL,
   };
 
   return allEnvVars;

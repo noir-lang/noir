@@ -25,7 +25,7 @@
     { "path": "aztec.js/tsconfig.json" },
     { "path": "aztec-node/tsconfig.json" },
     { "path": "pxe/tsconfig.json" },
-    { "path": "aztec-sandbox/tsconfig.json" },
+    { "path": "aztec/tsconfig.json" },
     { "path": "circuits.js/tsconfig.json" },
     { "path": "circuit-types/tsconfig.json" },
     { "path": "cli/tsconfig.json" },
