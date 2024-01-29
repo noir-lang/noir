@@ -85,7 +85,7 @@ impl<'me> FmtVisitor<'me> {
     }
 
     fn push_str(&mut self, s: &str) {
-        let comments = Lexer::single_source(s).skip_comments(false).flatten().flat_map(|token| {
+        let comments = Lexer::from_string(s).skip_comments(false).flatten().flat_map(|token| {
             if let Token::LineComment(content, _) | Token::BlockComment(content, _) =
                 token.into_token()
             {

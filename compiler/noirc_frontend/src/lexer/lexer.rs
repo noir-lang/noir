@@ -25,11 +25,6 @@ pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 impl<'a> Lexer<'a> {
     /// Given a source buffer of noir code, return all the tokens in the buffer
     /// in order, along with any lexing errors that occurred.
-    pub fn lex_source(source: &'a str) -> (Tokens, Vec<LexerErrorKind>) {
-        let src_id = SrcId::default();
-        Self::lex(src_id, source)
-    }
-
     /// Given a source file of noir code, return all the tokens in the file
     /// in order, along with any lexing errors that occurred.
     pub fn lex(src_id: SrcId, source: &'a str) -> (Tokens, Vec<LexerErrorKind>) {
@@ -45,7 +40,7 @@ impl<'a> Lexer<'a> {
         (Tokens(tokens), errors)
     }
 
-    pub fn single_source(source: &'a str) -> Self {
+    pub fn from_string(source: &'a str) -> Self {
         Self::new(SrcId::default(), source)
     }
 
@@ -636,7 +631,7 @@ mod tests {
             Token::EOF,
         ];
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -647,7 +642,7 @@ mod tests {
     #[test]
     fn invalid_attribute() {
         let input = "#";
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next().unwrap();
         assert!(token.is_err());
@@ -656,7 +651,7 @@ mod tests {
     #[test]
     fn deprecated_attribute() {
         let input = r#"#[deprecated]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
@@ -669,7 +664,7 @@ mod tests {
     fn test_attribute_with_common_punctuation() {
         let input =
             r#"#[test(should_fail_with = "stmt. q? exclaim! & symbols, 1% shouldn't fail")]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap().token().clone();
         assert_eq!(
@@ -685,7 +680,7 @@ mod tests {
     #[test]
     fn deprecated_attribute_with_note() {
         let input = r#"#[deprecated("hello")]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
@@ -708,7 +703,7 @@ mod tests {
             Token::Attribute(Attribute::Function(FunctionAttribute::Builtin("sum".to_string()))),
         ];
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
@@ -718,7 +713,7 @@ mod tests {
     #[test]
     fn custom_attribute() {
         let input = r#"#[custom(hello)]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
@@ -732,7 +727,7 @@ mod tests {
     #[test]
     fn test_attribute() {
         let input = r#"#[test]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
@@ -744,7 +739,7 @@ mod tests {
     #[test]
     fn contract_library_method_attribute() {
         let input = r#"#[contract_library_method]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
@@ -756,7 +751,7 @@ mod tests {
     #[test]
     fn test_attribute_with_valid_scope() {
         let input = r#"#[test(should_fail)]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
@@ -770,7 +765,7 @@ mod tests {
     #[test]
     fn test_attribute_with_valid_scope_should_fail_with() {
         let input = r#"#[test(should_fail_with = "hello")]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
@@ -784,7 +779,7 @@ mod tests {
     #[test]
     fn test_attribute_with_invalid_scope() {
         let input = r#"#[test(invalid_scope)]"#;
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         let token = lexer.next().unwrap();
         let err = match token {
@@ -814,7 +809,7 @@ mod tests {
             Token::Int(5_i128.into()),
         ];
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
@@ -838,7 +833,7 @@ mod tests {
             Token::Assign,
         ];
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
@@ -849,7 +844,7 @@ mod tests {
     fn unterminated_block_comment() {
         let input = "/*/";
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
         let token = lexer.next().unwrap();
 
         assert!(token.is_err());
@@ -868,7 +863,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -890,7 +885,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -938,7 +933,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -954,7 +949,7 @@ mod tests {
             Token::Assign,
             Token::Str("hello".to_string()),
         ];
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -973,7 +968,7 @@ mod tests {
         ];
 
         for (input, expected_token) in test_cases {
-            let mut lexer = Lexer::single_source(input);
+            let mut lexer = Lexer::from_string(input);
             let got = lexer.next_token().unwrap();
             assert_eq!(got.token(), &expected_token);
         }
@@ -984,7 +979,7 @@ mod tests {
         let test_cases: Vec<&str> = vec!["0x05_", "5_", "5__5", "0x5__5"];
 
         for input in test_cases {
-            let mut lexer = Lexer::single_source(input);
+            let mut lexer = Lexer::from_string(input);
             let token = lexer.next_token();
             assert!(
                 matches!(token, Err(LexerErrorKind::InvalidIntegerLiteral { .. })),
@@ -1024,7 +1019,7 @@ mod tests {
         let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
 
         let expected = vec![let_token, ident_token, assign_token, int_token];
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         for spanned_token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1095,7 +1090,7 @@ mod tests {
             Token::Semicolon,
             Token::EOF,
         ];
-        let mut lexer = Lexer::single_source(input);
+        let mut lexer = Lexer::from_string(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();

@@ -265,6 +265,10 @@ mod test {
     };
     use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Visibility};
 
+    fn no_source() -> SrcId {
+        SrcId(0)
+    }
+
     #[test]
     fn basic_let() {
         let mut interner = NodeInterner::default();
@@ -478,7 +482,7 @@ mod test {
         expected_number_errors: usize,
         func_namespace: Vec<String>,
     ) {
-        let (program, errors) = parse_program(Default::default(), src);
+        let (program, errors) = parse_program(no_source(), src);
         let mut interner = NodeInterner::default();
         interner.populate_dummy_operator_traits();
 

@@ -10,7 +10,7 @@ pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
 }
 
 pub(crate) fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
-    Lexer::single_source(source).skip_comments(false).flatten().filter_map(|spanned| {
+    Lexer::from_string(source).skip_comments(false).flatten().filter_map(|spanned| {
         if let Token::LineComment(content, _) | Token::BlockComment(content, _) =
             spanned.into_token()
         {
@@ -125,13 +125,13 @@ pub(crate) trait FindToken {
 
 impl FindToken for str {
     fn find_token(&self, token: Token) -> Option<Span> {
-        Lexer::single_source(self)
+        Lexer::from_string(self)
             .flatten()
             .find_map(|it| (it.token() == &token).then(|| it.to_span().into()))
     }
 
     fn find_token_with(&self, f: impl Fn(&Token) -> bool) -> Option<Span> {
-        Lexer::single_source(self)
+        Lexer::from_string(self)
             .skip_comments(false)
             .flatten()
             .find_map(|spanned| f(spanned.token()).then(|| spanned.to_span().into()))
