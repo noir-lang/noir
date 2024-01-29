@@ -98,7 +98,7 @@
         buildInputs = [ ] ++ extraBuildInputs;
       };
 
-      # Combine the environmnet and other configuration needed for Crane to build our Wasm packages
+      # Combine the environment and other configuration needed for Crane to build our Wasm packages
       wasmConfig = environment // config // {
         CARGO_TARGET_DIR = "./target";
 
