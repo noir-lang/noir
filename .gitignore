@@ -55,3 +55,4 @@ packages
 
 # docs autogen build
 /docs/docs/noir_js/reference/
+.vscode/tasks.json
