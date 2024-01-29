@@ -5,8 +5,8 @@ use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
+            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
@@ -46,50 +46,7 @@ impl<'interner> TypeChecker<'interner> {
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
-            HirExpression::Ident(ident) => {
-                // An identifiers type may be forall-quantified in the case of generic functions.
-                // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
-                // We must instantiate identifiers at every call site to replace this T with a new type
-                // variable to handle generic functions.
-                let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-
-                // This instantiate's a trait's generics as well which need to be set
-                // when the constraint below is later solved for when the function is
-                // finished. How to link the two?
-                let (typ, bindings) = t.instantiate(self.interner);
-
-                // Push any trait constraints required by this definition to the context
-                // to be checked later when the type of this variable is further constrained.
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    if let DefinitionKind::Function(function) = definition.kind {
-                        let function = self.interner.function_meta(&function);
-
-                        for mut constraint in function.trait_constraints.clone() {
-                            constraint.apply_bindings(&bindings);
-                            self.trait_constraints.push((constraint, *expr_id));
-                        }
-                    }
-                }
-
-                if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
-                    constraint.apply_bindings(&bindings);
-                    if assumed {
-                        let trait_impl = TraitImplKind::Assumed {
-                            object_type: constraint.typ,
-                            trait_generics: constraint.trait_generics,
-                        };
-                        self.interner.select_impl_for_expression(*expr_id, trait_impl);
-                    } else {
-                        // Currently only one impl can be selected per expr_id, so this
-                        // constraint needs to be pushed after any other constraints so
-                        // that monomorphization can resolve this trait method to the correct impl.
-                        self.trait_constraints.push((constraint, *expr_id));
-                    }
-                }
-
-                self.interner.store_instantiation_bindings(*expr_id, bindings);
-                typ
-            }
+            HirExpression::Ident(ident) => self.check_ident(ident, expr_id),
             HirExpression::Literal(literal) => {
                 match literal {
                     HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
@@ -194,74 +151,42 @@ impl<'interner> TypeChecker<'interner> {
                 self.bind_function_type(function, args, span)
             }
             HirExpression::MethodCall(mut method_call) => {
-                let object_type = self.check_expression(&method_call.object).follow_bindings();
+                let mut object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_ref) => {
-                        let mut args = vec![(
-                            object_type.clone(),
-                            method_call.object,
-                            self.interner.expr_span(&method_call.object),
-                        )];
-
-                        for arg in &method_call.arguments {
-                            let typ = self.check_expression(arg);
-                            args.push((typ, *arg, self.interner.expr_span(arg)));
-                        }
-
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        let trait_id = match &method_ref {
-                            HirMethodReference::FuncId(func_id) => {
-                                // Automatically add `&mut` if the method expects a mutable reference and
-                                // the object is not already one.
-                                if *func_id != FuncId::dummy_id() {
-                                    let function_type =
-                                        self.interner.function_meta(func_id).typ.clone();
-                                    self.try_add_mutable_reference_to_object(
-                                        &mut method_call,
-                                        &function_type,
-                                        &mut args,
-                                    );
-                                }
+                        // Automatically add `&mut` if the method expects a mutable reference and
+                        // the object is not already one.
+                        if let HirMethodReference::FuncId(func_id) = &method_ref {
+                            if *func_id != FuncId::dummy_id() {
+                                let function_type =
+                                    self.interner.function_meta(func_id).typ.clone();
 
-                                let meta = self.interner.function_meta(func_id);
-                                meta.trait_impl.map(|impl_id| {
-                                    self.interner
-                                        .get_trait_implementation(impl_id)
-                                        .borrow()
-                                        .trait_id
-                                })
+                                self.try_add_mutable_reference_to_object(
+                                    &mut method_call,
+                                    &function_type,
+                                    &mut object_type,
+                                );
                             }
-                            HirMethodReference::TraitMethodId(method, _) => Some(method.trait_id),
-                        };
+                        }
 
-                        let (function_id, function_call) = method_call.into_function_call(
+                        // TODO: update object_type here?
+                        let function_call = method_call.into_function_call(
                             &method_ref,
-                            object_type.clone(),
+                            object_type,
                             location,
                             self.interner,
                         );
 
-                        let span = self.interner.expr_span(expr_id);
-                        let ret = self.check_method_call(&function_id, method_ref, args, span);
-
-                        if let Some(trait_id) = trait_id {
-                            // Assume no trait generics were specified
-                            // TODO: Fill in type variables
-                            self.verify_trait_constraint(
-                                &object_type,
-                                trait_id,
-                                &[],
-                                function_id,
-                                span,
-                            );
-                        }
-
                         self.interner.replace_expr(expr_id, function_call);
-                        ret
+
+                        // Type check the new call now that it has been changed from a method call
+                        // to a function call. This way we avoid duplicating code.
+                        self.check_expression(expr_id)
                     }
                     None => Type::Error,
                 }
@@ -341,6 +266,67 @@ impl<'interner> TypeChecker<'interner> {
         typ
     }
 
+    /// Returns the type of the given identifier
+    fn check_ident(&mut self, ident: HirIdent, expr_id: &ExprId) -> Type {
+        let mut bindings = TypeBindings::new();
+
+        // Add type bindings from any constraints that were used.
+        // We need to do this first since otherwise instantiating the type below
+        // will replace each trait generic with a fresh type variable, rather than
+        // the type used in the trait constraint (if it exists). See #4088.
+        if let ImplKind::TraitMethod(_, constraint, _) = &ident.impl_kind {
+            let the_trait = self.interner.get_trait(constraint.trait_id);
+            assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
+
+            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
+                bindings.insert(param.id(), (param.clone(), arg.clone()));
+            }
+        }
+
+        // An identifiers type may be forall-quantified in the case of generic functions.
+        // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
+        // We must instantiate identifiers at every call site to replace this T with a new type
+        // variable to handle generic functions.
+        let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+
+        // This instantiates a trait's generics as well which need to be set
+        // when the constraint below is later solved for when the function is
+        // finished. How to link the two?
+        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
+
+        // Push any trait constraints required by this definition to the context
+        // to be checked later when the type of this variable is further constrained.
+        if let Some(definition) = self.interner.try_definition(ident.id) {
+            if let DefinitionKind::Function(function) = definition.kind {
+                let function = self.interner.function_meta(&function);
+
+                for mut constraint in function.trait_constraints.clone() {
+                    constraint.apply_bindings(&bindings);
+                    self.trait_constraints.push((constraint, *expr_id));
+                }
+            }
+        }
+
+        if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
+            constraint.apply_bindings(&bindings);
+            if assumed {
+                let trait_impl = TraitImplKind::Assumed {
+                    object_type: constraint.typ,
+                    trait_generics: constraint.trait_generics,
+                };
+                self.interner.select_impl_for_expression(*expr_id, trait_impl);
+            } else {
+                // Currently only one impl can be selected per expr_id, so this
+                // constraint needs to be pushed after any other constraints so
+                // that monomorphization can resolve this trait method to the correct impl.
+                self.trait_constraints.push((constraint, *expr_id));
+            }
+        }
+
+        self.interner.store_instantiation_bindings(*expr_id, bindings);
+        typ
+    }
+
     pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
@@ -390,7 +376,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         method_call: &mut HirMethodCallExpression,
         function_type: &Type,
-        argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
+        object_type: &mut Type,
     ) {
         let expected_object_type = match function_type {
             Type::Function(args, _, _) => args.first(),
@@ -402,7 +388,7 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         if let Some(expected_object_type) = expected_object_type {
-            let actual_type = argument_types[0].0.follow_bindings();
+            let actual_type = object_type.follow_bindings();
 
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
@@ -412,34 +398,33 @@ impl<'interner> TypeChecker<'interner> {
                     }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
-                    argument_types[0].0 = new_type.clone();
+                    *object_type = new_type.clone();
 
                     // First try to remove a dereference operator that may have been implicitly
                     // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
-                    if self.try_remove_implicit_dereference(method_call.object).is_none() {
-                        // If that didn't work, then wrap the whole expression in an `&mut`
+                    let new_object = self.try_remove_implicit_dereference(method_call.object);
+
+                    // If that didn't work, then wrap the whole expression in an `&mut`
+                    method_call.object = new_object.unwrap_or_else(|| {
                         let location = self.interner.id_location(method_call.object);
 
-                        method_call.object =
+                        let new_object =
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
                             }));
-                        self.interner.push_expr_type(&method_call.object, new_type);
-                        self.interner.push_expr_location(
-                            method_call.object,
-                            location.span,
-                            location.file,
-                        );
-                    }
+                        self.interner.push_expr_type(&new_object, new_type);
+                        self.interner.push_expr_location(new_object, location.span, location.file);
+                        new_object
+                    });
                 }
             // Otherwise if the object type is a mutable reference and the method is not, insert as
             // many dereferences as needed.
             } else if matches!(actual_type, Type::MutableReference(_)) {
                 let (object, new_type) =
                     self.insert_auto_dereferences(method_call.object, actual_type);
+                *object_type = new_type;
                 method_call.object = object;
-                argument_types[0].0 = new_type;
             }
         }
     }
@@ -467,29 +452,22 @@ impl<'interner> TypeChecker<'interner> {
     /// Given a method object: `(*foo).bar` of a method call `(*foo).bar.baz()`, remove the
     /// implicitly added dereference operator if one is found.
     ///
-    /// Returns Some(()) if a dereference was removed and None otherwise.
-    fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<()> {
+    /// Returns Some(new_expr_id) if a dereference was removed and None otherwise.
+    fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<ExprId> {
         match self.interner.expression(&object) {
-            HirExpression::MemberAccess(access) => {
-                self.try_remove_implicit_dereference(access.lhs)?;
+            HirExpression::MemberAccess(mut access) => {
+                let new_lhs = self.try_remove_implicit_dereference(access.lhs)?;
+                access.lhs = new_lhs;
+                access.is_offset = true;
 
-                // Since we removed a dereference, instead of returning the field directly,
-                // we expect to be returning a reference to the field, so update the type accordingly.
-                let current_type = self.interner.id_type(object);
-                let reference_type = Type::MutableReference(Box::new(current_type));
-                self.interner.push_expr_type(&object, reference_type);
-                Some(())
+                // `object` will have a different type now, which will be filled in
+                // later when type checking the method call as a function call.
+                self.interner.replace_expr(&object, HirExpression::MemberAccess(access));
+                Some(object)
             }
             HirExpression::Prefix(prefix) => match prefix.operator {
-                UnaryOp::Dereference { implicitly_added: true } => {
-                    // Found a dereference we can remove. Now just replace it with its rhs to remove it.
-                    let rhs = self.interner.expression(&prefix.rhs);
-                    self.interner.replace_expr(&object, rhs);
-
-                    let rhs_type = self.interner.id_type(prefix.rhs);
-                    self.interner.push_expr_type(&object, rhs_type);
-                    Some(())
-                }
+                // Found a dereference we can remove. Now just replace it with its rhs to remove it.
+                UnaryOp::Dereference { implicitly_added: true } => Some(prefix.rhs),
                 _ => None,
             },
             _ => None,
@@ -564,60 +542,6 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Error
             }
         }
-    }
-
-    // We need a special function to type check method calls since the method
-    // is not a Expression::Ident it must be manually instantiated here
-    fn check_method_call(
-        &mut self,
-        function_ident_id: &ExprId,
-        method_ref: HirMethodReference,
-        arguments: Vec<(Type, ExprId, Span)>,
-        span: Span,
-    ) -> Type {
-        let (fn_typ, param_len, generic_bindings) = match method_ref {
-            HirMethodReference::FuncId(func_id) => {
-                if func_id == FuncId::dummy_id() {
-                    return Type::Error;
-                }
-
-                let func_meta = self.interner.function_meta(&func_id);
-                let param_len = func_meta.parameters.len();
-                (func_meta.typ.clone(), param_len, TypeBindings::new())
-            }
-            HirMethodReference::TraitMethodId(method, generics) => {
-                let the_trait = self.interner.get_trait(method.trait_id);
-                let method = &the_trait.methods[method.method_index];
-
-                // These are any bindings from the trait's generics itself,
-                // rather than an impl or method's generics.
-                let generic_bindings = the_trait
-                    .generics
-                    .iter()
-                    .zip(generics)
-                    .map(|(var, arg)| (var.id(), (var.clone(), arg)))
-                    .collect();
-
-                (method.typ.clone(), method.arguments().len(), generic_bindings)
-            }
-        };
-
-        let arg_len = arguments.len();
-
-        if param_len != arg_len {
-            self.errors.push(TypeCheckError::ArityMisMatch {
-                expected: param_len as u16,
-                found: arg_len as u16,
-                span,
-            });
-        }
-
-        let (function_type, instantiation_bindings) =
-            fn_typ.instantiate_with_bindings(generic_bindings, self.interner);
-
-        self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
-        self.interner.push_expr_type(function_ident_id, function_type.clone());
-        self.bind_function_type(function_type.clone(), arguments, span)
     }
 
     fn check_if_expr(&mut self, if_expr: &expr::HirIfExpression, expr_id: &ExprId) -> Type {
@@ -718,6 +642,9 @@ impl<'interner> TypeChecker<'interner> {
             this.interner.push_expr_location(*access_lhs, span, old_location.file);
         };
 
+        // If this access is just a field offset, we want to avoid dereferencing
+        let dereference_lhs = (!access.is_offset).then_some(dereference_lhs);
+
         match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
@@ -742,12 +669,16 @@ impl<'interner> TypeChecker<'interner> {
     /// expression. The second parameter of this function represents the lhs_type (which should
     /// always be a Type::MutableReference if `dereference_lhs` is called) and the third
     /// represents the element type.
+    ///
+    /// If `dereference_lhs` is None, this will assume we're taking the offset of a struct field
+    /// rather than dereferencing it. So the result of `foo.bar` with a `foo : &mut Foo` will
+    /// be a `&mut Bar` rather than just a `Bar`.
     pub(super) fn check_field_access(
         &mut self,
         lhs_type: &Type,
         field_name: &str,
         span: Span,
-        mut dereference_lhs: impl FnMut(&mut Self, Type, Type),
+        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
@@ -777,8 +708,19 @@ impl<'interner> TypeChecker<'interner> {
             // If the lhs is a mutable reference we automatically transform
             // lhs.field into (*lhs).field
             Type::MutableReference(element) => {
-                dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
-                return self.check_field_access(element, field_name, span, dereference_lhs);
+                if let Some(mut dereference_lhs) = dereference_lhs {
+                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                    return self.check_field_access(
+                        element,
+                        field_name,
+                        span,
+                        Some(dereference_lhs),
+                    );
+                } else {
+                    let (element, index) =
+                        self.check_field_access(element, field_name, span, dereference_lhs)?;
+                    return Some((Type::MutableReference(Box::new(element)), index));
+                }
             }
             _ => (),
         }
@@ -1010,9 +952,9 @@ impl<'interner> TypeChecker<'interner> {
 
     fn bind_function_type_impl(
         &mut self,
-        fn_params: &Vec<Type>,
+        fn_params: &[Type],
         fn_ret: &Type,
-        callsite_args: &Vec<(Type, ExprId, Span)>,
+        callsite_args: &[(Type, ExprId, Span)],
         span: Span,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {

@@ -63,7 +63,7 @@ fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
 // Takes each abi parameter and shallowly maps to the expected witness range in which the
 // parameter's constituent values live.
 fn param_witnesses_from_abi_param(
-    abi_params: &Vec<AbiParameter>,
+    abi_params: &[AbiParameter],
     input_witnesses: Vec<Witness>,
 ) -> BTreeMap<String, Vec<Range<Witness>>> {
     let mut idx = 0_usize;

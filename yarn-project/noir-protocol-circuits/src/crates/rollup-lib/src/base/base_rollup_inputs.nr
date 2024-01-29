@@ -648,7 +648,7 @@ mod tests {
 
         for i in 0..MAX_PUBLIC_DATA_WRITES_PER_TEST {
             if i < (public_data_writes.len() as u64) {
-                let (_, leaf): (u64, PublicDataTreeLeaf) = public_data_writes.get_unchecked(i as Field);
+                let leaf = public_data_writes.get_unchecked(i as Field).1;
 
                 kernel_data.public_inputs.end.public_data_update_requests[i] = PublicDataUpdateRequest {
                     leaf_slot : leaf.slot,

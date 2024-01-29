@@ -17,7 +17,7 @@ use crate::{node_interner::StructId, Ident, Signedness};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     /// A primitive Field type
     FieldElement,
@@ -64,7 +64,7 @@ pub enum Type {
     TypeVariable(TypeVariable, TypeVariableKind),
 
     /// `impl Trait` when used in a type position.
-    /// These are only matched based on the TraitId. The trait name paramer is only
+    /// These are only matched based on the TraitId. The trait name parameter is only
     /// used for displaying error messages using the name of the trait.
     TraitAsType(TraitId, /*name:*/ Rc<String>, /*generics:*/ Vec<Type>),
 
@@ -190,7 +190,7 @@ pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Type)>;
 /// Represents a struct type in the type system. Each instance of this
 /// rust struct will be shared across all Type::Struct variants that represent
 /// the same struct type.
-#[derive(Debug, Eq)]
+#[derive(Eq)]
 pub struct StructType {
     /// A unique id representing this struct type. Used to check if two
     /// struct types are equal.
@@ -449,7 +449,7 @@ pub enum TypeVariableKind {
 
 /// A TypeVariable is a mutable reference that is either
 /// bound to some type, or unbound with a given TypeVariableId.
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
 
 impl TypeVariable {
@@ -516,7 +516,7 @@ impl TypeVariable {
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
@@ -529,7 +529,7 @@ impl TypeBinding {
 }
 
 /// A unique ID used to differentiate different type variables
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVariableId(pub usize);
 
 impl Type {
@@ -804,7 +804,7 @@ impl std::fmt::Display for Type {
             Type::Function(args, ret, env) => {
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),
-                    _ => format!(" with closure environment {env}"),
+                    _ => format!(" with env {env}"),
                 };
 
                 let args = vecmap(args.iter(), ToString::to_string);
@@ -1659,5 +1659,103 @@ impl From<&Type> for PrintableType {
             }
             Type::NotConstant => unreachable!(),
         }
+    }
+}
+
+impl std::fmt::Debug for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::FieldElement => {
+                write!(f, "Field")
+            }
+            Type::Array(len, typ) => {
+                if matches!(len.follow_bindings(), Type::NotConstant) {
+                    write!(f, "[{typ:?}]")
+                } else {
+                    write!(f, "[{typ:?}; {len:?}]")
+                }
+            }
+            Type::Integer(sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "i{num_bits}"),
+                Signedness::Unsigned => write!(f, "u{num_bits}"),
+            },
+            Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{:?}", var),
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                write!(f, "IntOrField{:?}", binding)
+            }
+            Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
+                write!(f, "{}{:?}", n, binding)
+            }
+            Type::Struct(s, args) => {
+                let args = vecmap(args, |arg| format!("{:?}", arg));
+                if args.is_empty() {
+                    write!(f, "{:?}", s.borrow())
+                } else {
+                    write!(f, "{:?}<{}>", s.borrow(), args.join(", "))
+                }
+            }
+            Type::TraitAsType(_id, name, generics) => {
+                write!(f, "impl {}", name)?;
+                if !generics.is_empty() {
+                    let generics = vecmap(generics, |arg| format!("{:?}", arg)).join(", ");
+                    write!(f, "<{generics}>")?;
+                }
+                Ok(())
+            }
+            Type::Tuple(elements) => {
+                let elements = vecmap(elements, |arg| format!("{:?}", arg));
+                write!(f, "({})", elements.join(", "))
+            }
+            Type::Bool => write!(f, "bool"),
+            Type::String(len) => write!(f, "str<{len:?}>"),
+            Type::FmtString(len, elements) => {
+                write!(f, "fmtstr<{len:?}, {elements:?}>")
+            }
+            Type::Unit => write!(f, "()"),
+            Type::Error => write!(f, "error"),
+            Type::NamedGeneric(binding, name) => write!(f, "{}{:?}", name, binding),
+            Type::Constant(x) => x.fmt(f),
+            Type::Forall(typevars, typ) => {
+                let typevars = vecmap(typevars, |var| format!("{:?}", var));
+                write!(f, "forall {}. {:?}", typevars.join(" "), typ)
+            }
+            Type::Function(args, ret, env) => {
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with env {env:?}"),
+                };
+
+                let args = vecmap(args.iter(), |arg| format!("{:?}", arg));
+
+                write!(f, "fn({}) -> {ret:?}{closure_env_text}", args.join(", "))
+            }
+            Type::MutableReference(element) => {
+                write!(f, "&mut {element:?}")
+            }
+            Type::NotConstant => write!(f, "NotConstant"),
+        }
+    }
+}
+
+impl std::fmt::Debug for TypeVariableId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}", self.0)
+    }
+}
+
+impl std::fmt::Debug for TypeVariable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.id())?;
+
+        if let TypeBinding::Bound(typ) = &*self.borrow() {
+            write!(f, " -> {typ:?}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for StructType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
