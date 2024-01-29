@@ -31,7 +31,7 @@ graph TD;
 
 ## PXE Service 
 
-The PXE is a client-side interface of the PXE Service, which is a set of server-side APIs for interacting with the network. It provides functions for account management, contract and transaction interactions, note management, and more. For a more extensive list of operations, refer to the [PXE reference](../../../developers/apis/pxe/index.md).
+The PXE is a client-side interface of the PXE Service, which is a set of server-side APIs for interacting with the network. It provides functions for account management, contract and transaction interactions, note management, and more. For a more extensive list of operations, refer to the [PXE reference](../../../apis/pxe/index.md).
 
 ## Components
 

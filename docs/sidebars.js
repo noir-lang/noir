@@ -438,7 +438,7 @@ const sidebars = {
         {
           label: "Private Execution Environment (PXE)",
           type: "doc",
-          id: "developers/apis/pxe/interfaces/PXE",
+          id: "apis/pxe/interfaces/PXE",
         },
         {
           label: "Aztec.js",
