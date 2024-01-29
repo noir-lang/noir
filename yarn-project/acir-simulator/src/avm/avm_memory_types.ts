@@ -16,6 +16,11 @@ export abstract class MemoryValue {
 
   // Use sparingly.
   public abstract toBigInt(): bigint;
+
+  // To field
+  public toFr(): Fr {
+    return new Fr(this.toBigInt());
+  }
 }
 
 export abstract class IntegralValue extends MemoryValue {
@@ -235,6 +240,11 @@ export class TaggedMemory {
   public getSlice(offset: number, size: number): MemoryValue[] {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     return this._mem.slice(offset, offset + size);
+  }
+
+  public getSliceAs<T>(offset: number, size: number): T[] {
+    assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
+    return this._mem.slice(offset, offset + size) as T[];
   }
 
   public getSliceTags(offset: number, size: number): TypeTag[] {

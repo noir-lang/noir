@@ -7,11 +7,10 @@ import { HostStorage } from './host_storage.js';
  * Data held within the journal
  */
 export type JournalData = {
-  newCommitments: Fr[];
-
-  newL1Messages: Fr[];
-
+  newNoteHashes: Fr[];
   newNullifiers: Fr[];
+  newL1Messages: Fr[][];
+  newLogs: Fr[][];
   /** contract address -\> key -\> value */
   storageWrites: Map<bigint, Map<bigint, Fr>>;
 };
@@ -34,11 +33,11 @@ export class AvmJournal {
   private storageReads: Map<bigint, Map<bigint, Fr>> = new Map();
 
   // New written state
-  private newCommitments: Fr[] = [];
+  private newNoteHashes: Fr[] = [];
   private newNullifiers: Fr[] = [];
-  private newL1Message: Fr[] = [];
 
-  // New Substrate
+  // New Substate
+  private newL1Messages: Fr[][] = [];
   private newLogs: Fr[][] = [];
 
   // contract address -> key -> value
@@ -102,25 +101,20 @@ export class AvmJournal {
     return this.hostStorage.publicStateDb.storageRead(contractAddress, key);
   }
 
-  /** -
-   * @param commitment -
-   */
-  public writeCommitment(commitment: Fr) {
-    this.newCommitments.push(commitment);
+  public writeNoteHash(noteHash: Fr) {
+    this.newNoteHashes.push(noteHash);
   }
 
-  /** -
-   * @param message -
-   */
-  public writeL1Message(message: Fr) {
-    this.newL1Message.push(message);
+  public writeL1Message(message: Fr[]) {
+    this.newL1Messages.push(message);
   }
 
-  /** -
-   * @param nullifier -
-   */
   public writeNullifier(nullifier: Fr) {
     this.newNullifiers.push(nullifier);
+  }
+
+  public writeLog(log: Fr[]) {
+    this.newLogs.push(log);
   }
 
   /**
@@ -133,26 +127,26 @@ export class AvmJournal {
       throw new RootJournalCannotBeMerged();
     }
 
-    const incomingFlush = this.flush();
-
     // Merge UTXOs
-    this.parentJournal.newCommitments = this.parentJournal.newCommitments.concat(incomingFlush.newCommitments);
-    this.parentJournal.newL1Message = this.parentJournal.newL1Message.concat(incomingFlush.newL1Messages);
-    this.parentJournal.newNullifiers = this.parentJournal.newNullifiers.concat(incomingFlush.newNullifiers);
+    this.parentJournal.newNoteHashes = this.parentJournal.newNoteHashes.concat(this.newNoteHashes);
+    this.parentJournal.newL1Messages = this.parentJournal.newL1Messages.concat(this.newL1Messages);
+    this.parentJournal.newNullifiers = this.parentJournal.newNullifiers.concat(this.newNullifiers);
 
     // Merge Public State
-    mergeContractMaps(this.parentJournal.storageWrites, incomingFlush.storageWrites);
+    mergeContractMaps(this.parentJournal.storageWrites, this.storageWrites);
   }
 
-  /** Access the current state of the journal
+  /**
+   * Access the current state of the journal
    *
-   * @returns a JournalData object that can be used to write to the storage
+   * @returns a JournalData object
    */
   public flush(): JournalData {
     return {
-      newCommitments: this.newCommitments,
-      newL1Messages: this.newL1Message,
+      newNoteHashes: this.newNoteHashes,
       newNullifiers: this.newNullifiers,
+      newL1Messages: this.newL1Messages,
+      newLogs: this.newLogs,
       storageWrites: this.storageWrites,
     };
   }

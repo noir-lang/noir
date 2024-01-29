@@ -86,14 +86,14 @@ describe('journal', () => {
   describe('UTXOs', () => {
     it('Should maintain commitments', () => {
       const utxo = new Fr(1);
-      journal.writeCommitment(utxo);
+      journal.writeNoteHash(utxo);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.newCommitments).toEqual([utxo]);
+      expect(journalUpdates.newNoteHashes).toEqual([utxo]);
     });
 
     it('Should maintain l1 messages', () => {
-      const utxo = new Fr(1);
+      const utxo = [new Fr(1)];
       journal.writeL1Message(utxo);
 
       const journalUpdates = journal.flush();
@@ -123,16 +123,20 @@ describe('journal', () => {
     const valueT1 = new Fr(2);
     const commitment = new Fr(10);
     const commitmentT1 = new Fr(20);
+    const logs = [new Fr(1), new Fr(2)];
+    const logsT1 = [new Fr(3), new Fr(4)];
 
     journal.writeStorage(contractAddress, key, value);
-    journal.writeCommitment(commitment);
-    journal.writeL1Message(commitment);
+    journal.writeNoteHash(commitment);
+    journal.writeLog(logs);
+    journal.writeL1Message(logs);
     journal.writeNullifier(commitment);
 
     const journal1 = new AvmJournal(journal.hostStorage, journal);
     journal.writeStorage(contractAddress, key, valueT1);
-    journal.writeCommitment(commitmentT1);
-    journal.writeL1Message(commitmentT1);
+    journal.writeNoteHash(commitmentT1);
+    journal.writeLog(logsT1);
+    journal.writeL1Message(logsT1);
     journal.writeNullifier(commitmentT1);
 
     journal1.mergeWithParent();
@@ -143,8 +147,9 @@ describe('journal', () => {
 
     // Check that the UTXOs are merged
     const journalUpdates: JournalData = journal.flush();
-    expect(journalUpdates.newCommitments).toEqual([commitment, commitmentT1]);
-    expect(journalUpdates.newL1Messages).toEqual([commitment, commitmentT1]);
+    expect(journalUpdates.newNoteHashes).toEqual([commitment, commitmentT1]);
+    expect(journalUpdates.newLogs).toEqual([logs, logsT1]);
+    expect(journalUpdates.newL1Messages).toEqual([logs, logsT1]);
     expect(journalUpdates.newNullifiers).toEqual([commitment, commitmentT1]);
   });
 
