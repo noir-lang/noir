@@ -214,10 +214,10 @@ impl<'a> Lexer<'a> {
 
                 if self.peek_char_is('/') {
                     self.next_char();
-                    return self.parse_comment(start.into());
+                    return self.parse_comment(start.offset());
                 } else if self.peek_char_is('*') {
                     self.next_char();
-                    return self.parse_block_comment(start.into());
+                    return self.parse_block_comment(start.offset());
                 }
 
                 Ok(spanned_prev_token)

@@ -10,12 +10,16 @@ use std::{
 pub struct Position(u32, SrcId);
 
 impl Position {
-    pub fn new(pos: u32, src_id: SrcId) -> Position {
-        Position(pos, src_id)
+    pub fn new(offset: u32, src_id: SrcId) -> Position {
+        Position(offset, src_id)
     }
 
     pub fn src_id(&self) -> SrcId {
         self.1
+    }
+
+    pub fn offset(&self) -> u32 {
+        self.0
     }
 }
 impl std::ops::Add<u32> for Position {
@@ -23,12 +27,6 @@ impl std::ops::Add<u32> for Position {
 
     fn add(self, rhs: u32) -> Position {
         Position(self.0 + rhs, self.1)
-    }
-}
-
-impl From<Position> for u32 {
-    fn from(val: Position) -> Self {
-        val.0
     }
 }
 
