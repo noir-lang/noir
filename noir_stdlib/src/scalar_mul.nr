@@ -5,4 +5,10 @@
 // The embedded curve being used is decided by the 
 // underlying proof system.
 #[foreign(fixed_base_scalar_mul)]
-pub fn fixed_base_embedded_curve(low: Field, high: Field) -> [Field; 2] {}
+// docs:start:fixed_base_embedded_curve
+pub fn fixed_base_embedded_curve(
+    low: Field,
+    high: Field
+) -> [Field; 2]
+// docs:end:fixed_base_embedded_curve
+{}
