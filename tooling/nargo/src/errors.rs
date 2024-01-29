@@ -148,7 +148,7 @@ pub fn try_to_diagnose_runtime_error(
     };
 
     Some(
-        CustomDiagnostic::simple_error(message, String::new(), location.clone())
+        CustomDiagnostic::simple_error(message, String::new(), *location)
             .in_file(location.src_id())
             .with_call_stack(source_locations),
     )
