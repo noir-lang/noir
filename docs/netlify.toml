@@ -20,87 +20,87 @@
 
 [[redirects]]
     from = "/dev_docs/aztec3/*"
-    to = "/dev_docs/aztec/overview"
+    to = "/learn/about_aztec/what_is_aztec"
 
 [[redirects]]
     from = "/dev_docs/contracts/types"
-    to = "/dev_docs/contracts/syntax/types"
+    to = "/developers/contracts/syntax/types"
 
 [[redirects]]
     from = "/dev_docs/contracts/storage"
-    to = "/dev_docs/contracts/syntax/storage"
+    to = "/developers/contracts/syntax/storage"
 
 [[redirects]]
     from = "/dev_docs/contracts/state_variables"
-    to = "/dev_docs/contracts/syntax/storage"
+    to = "/developers/contracts/syntax/storage"
 
 [[redirects]]
     from = "/dev_docs/contracts/functions"
-    to = "/dev_docs/contracts/syntax/functions"
+    to = "/developers/contracts/syntax/functions"
 
 [[redirects]]
     from = "/dev_docs/contracts/visibility"
-    to = "/dev_docs/contracts/syntax/visibility"
+    to = "/developers/contracts/syntax/visibility"
 
 [[redirects]]
     from = "/dev_docs/contracts/globals"
-    to = "/dev_docs/contracts/syntax/globals"
+    to = "/developers/contracts/syntax/globals"
 
 [[redirects]]
     from = "/dev_docs/contracts/syntax"
-    to = "/dev_docs/contracts/syntax/main"
+    to = "/developers/contracts/syntax/main"
 
 [[redirects]]
     from = "/dev_docs/contracts/contract"
-    to = "/dev_docs/contracts/syntax/contract"
+    to = "/developers/contracts/syntax/contract"
 
 [[redirects]]
     from = "/dev_docs/getting_started/cli"
-    to = "/dev_docs/cli/main"
+    to = "/developers/cli/main"
 
 [[redirects]]
     from = "/dev_docs/getting_started/noir_contracts"
-    to = "/dev_docs/contracts/main"
+    to = "/developers/contracts/main"
 
 [[redirects]]
     from = "/dev_docs/getting_started/token_contract_tutorial"
-    to = "/dev_docs/tutorials/writing_token_contract"
+    to = "/developers/tutorials/writing_token_contract"
 
 [[redirects]]
     from = "/dev_docs/getting_started/updating"
-    to = "/dev_docs/updating"
+    to = "/developers/updating"
 
 [[redirects]]
     from = "/dev_docs/sandbox/main"
-    to = "/dev_docs/getting_started/sandbox"
+    to = "/developers/getting_started/sandbox"
 
 [[redirects]]
     from = "/dev_docs/cli/updating"
-    to = "/dev_docs/updating"
+    to = "/developers/updating"
 
 [[redirects]]
     from = "/dev_docs/dapps/tutorials/main"
-    to = "/dev_docs/tutorials/writing_dapp/main"
+    to = "/developers/tutorials/writing_dapp/main"
 
 [[redirects]]
     from = "/dev_docs/dapps/tutorials/project_setup"
-    to = "/dev_docs/tutorials/writing_dapp/project_setup"
+    to = "/developers/tutorials/writing_dapp/project_setup"
 
 [[redirects]]
     from = "/dev_docs/dapps/tutorials/contract_deployment"
-    to = "/dev_docs/tutorials/writing_dapp/contract_deployment"
+    to = "/developers/tutorials/writing_dapp/contract_deployment"
 
 [[redirects]]
     from = "/dev_docs/dapps/tutorials/contract_interaction"
-    to = "/dev_docs/tutorials/writing_dapp/contract_interaction"
+    to = "/developers/tutorials/writing_dapp/contract_interaction"
 
 [[redirects]]
     from = "/dev_docs/dapps/tutorials/rpc_server"
-    to = "/dev_docs/tutorials/writing_dapp/rpc_server"
+    to = "/developers/tutorials/writing_dapp/rpc_server"
 
 [[redirects]]
     from = "/dev_docs/dapps/tutorials/testing"
-    to = "/dev_docs/tutorials/writing_dapp/testing"
+    to = "/developers/tutorials/writing_dapp/testing"
 
 [[redirects]]
     from = "/aztec/cryptography/cryptography-roadmap"
@@ -180,27 +180,27 @@
 
 [[redirects]]
     from = "/dev_docs/contracts/syntax/state_variables"
-    to = "/dev_docs/contracts/syntax/storage"
+    to = "/developers/contracts/syntax/storage"
 
 [[redirects]]
     from = "/dev_docs/getting_started/sandbox"
-    to = "/dev_docs/getting_started/quickstart"
+    to = "/developers/getting_started/quickstart"
 
 [[redirects]]
     from = "/dev_docs/getting_started/blank_box"
-    to = "/dev_docs/cli/blank_box"
+    to = "/developers/cli/blank_box"
 
 [[redirects]]
     from = "/dev_docs/getting_started/updating"
-    to = "/dev_docs/cli/updating"
+    to = "/developers/cli/updating"
 
 [[redirects]]
     from = "/dev_docs/sandbox_errors/main"
-    to = "dev_docs/debugging/sandbox-errors"
+    to = "developers/debugging/sandbox-errors"
 
 [[redirects]]
     from = "/dev_docs/contracts/common_errors"
-    to = "dev_docs/debugging/aztecnr-errors"
+    to = "developers/debugging/aztecnr-errors"
 
 [[redirects]]
     from = "/misc/aztec-connect-sunset"
