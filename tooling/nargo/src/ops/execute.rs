@@ -28,7 +28,6 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
                 unreachable!("Execution should not stop while in `InProgress` state.")
             }
             ACVMStatus::Failure(error) => {
-                dbg!(num_foreign_calls);
                 let call_stack = match &error {
                     OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: ErrorLocation::Resolved(opcode_location),
