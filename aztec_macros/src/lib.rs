@@ -492,13 +492,13 @@ fn transform_event(
     let struct_type = interner.get_struct(struct_id);
     let selector_id = interner
         .lookup_method(&Type::Struct(struct_type.clone(), vec![]), struct_id, "selector", false)
-        .ok_or((
-            AztecMacroError::EventError {
+        .ok_or_else(|| {
+            let error = AztecMacroError::EventError {
                 span: struct_type.borrow().location.span,
                 message: "Selector method not found".to_owned(),
-            },
-            struct_type.borrow().location.file,
-        ))?;
+            };
+            (error, struct_type.borrow().location.file)
+        })?;
     let selector_function = interner.function(&selector_id);
 
     let compute_selector_statement =
