@@ -908,6 +908,13 @@ impl<'a> Resolver<'a> {
                 position: PubPosition::ReturnType,
             });
         }
+        let is_low_level_function =
+            func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+        if !self.path_resolver.module_id().krate.is_stdlib() && is_low_level_function {
+            let error =
+                ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
+            self.push_err(error);
+        }
 
         // 'pub' is required on return types for entry point functions
         if self.is_entry_point_function(func)
