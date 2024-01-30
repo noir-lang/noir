@@ -97,7 +97,7 @@ export interface SourceCodeLocation {
   /**
    * The section of the source code.
    */
-  span: {
+  byte_span: {
     /**
      * The byte where the section starts.
      */
@@ -110,7 +110,7 @@ export interface SourceCodeLocation {
   /**
    * The source code file pointed to.
    */
-  file: FileId;
+  src_id: FileId;
 }
 
 /**

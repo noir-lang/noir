@@ -69,7 +69,7 @@ function deleteDebugMetadata(contract: ContractArtifact) {
 function clearFileIdentifiers(debugSymbols: DebugInfo) {
   for (const loc of Object.values(debugSymbols.locations)) {
     for (const span of loc) {
-      span.file = 0;
+      span.src_id = 0;
     }
   }
 }
