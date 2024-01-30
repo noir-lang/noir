@@ -14,7 +14,7 @@ use crate::hir::resolution::{
 use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 
-use crate::macros_api::MacroProcessor;
+use crate::macros_api::{MacroError, MacroProcessor};
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 
 use crate::parser::{ParserError, SortedModule};
@@ -152,6 +152,12 @@ impl From<CompilationError> for CustomDiagnostic {
             CompilationError::ResolverError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
         }
+    }
+}
+
+impl From<MacroError> for CompilationError {
+    fn from(value: MacroError) -> Self {
+        CompilationError::DefinitionError(DefCollectorErrorKind::MacroError(value))
     }
 }
 
@@ -359,7 +365,11 @@ impl DefCollector {
         errors.extend(resolved_globals.errors);
 
         for macro_processor in macro_processors {
-            macro_processor.process_typed_ast(&crate_id, context);
+            let _ = macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
+                |(macro_err, file_id)| {
+                    errors.push((macro_err.into(), file_id));
+                },
+            );
         }
         errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
