@@ -1,6 +1,8 @@
+// docs:start:from-trait
 trait From<T> {
     fn from(input: T) -> Self;
 }
+// docs:end:from-trait
 
 impl<T> From<T> for T {
   fn from(input: T) -> T {
@@ -8,6 +10,7 @@ impl<T> From<T> for T {
   }
 }
 
+// docs:start:into-trait
 trait Into<T> {
     fn into(input: Self) -> T;
 }
@@ -17,7 +20,9 @@ impl<T, U> Into<T> for U where T: From<U> {
       T::from(input)
   }
 }
+// docs:end:into-trait
 
+// docs:start:from-impls
 // Unsigned integers
 impl From<u8> for u16 { fn from(value: u8) -> u16 { value as u16 } }
 
@@ -53,4 +58,4 @@ impl From<bool> for i16 { fn from(value: bool) -> i16 { value as i16 } }
 impl From<bool> for i32 { fn from(value: bool) -> i32 { value as i32 } }
 impl From<bool> for i64 { fn from(value: bool) -> i64 { value as i64 } }
 impl From<bool> for Field { fn from(value: bool) -> Field { value as Field } }
-
+// docs:end:from-impls
