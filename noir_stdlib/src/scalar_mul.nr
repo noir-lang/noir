@@ -18,9 +18,9 @@ pub fn fixed_base_embedded_curve(
 // docs:end:fixed_base_embedded_curve
 {}
 
-#[foreign(embedded_curve_add)]
-pub fn embedded_curve_add(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {}
+// #[foreign(embedded_curve_add)]
+// pub fn embedded_curve_add(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {}
 
-pub fn embedded_curve_double(point: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
-    embedded_curve_add(point, point)
-}
+// pub fn embedded_curve_double(point: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
+//     embedded_curve_add(point, point)
+// }
