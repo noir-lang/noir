@@ -1,3 +1,22 @@
+use crate::ops::Add;
+
+struct EmbeddedCurvePoint {
+    x: Field,
+    y: Field,
+}
+
+impl EmbeddedCurvePoint {
+    fn double(self) -> EmbeddedCurvePoint { 
+        embedded_curve_add(self, self)
+    }
+}
+
+impl Add for EmbeddedCurvePoint {
+    fn add(self, other: EmbeddedCurvePoint) -> EmbeddedCurvePoint { 
+        embedded_curve_add(self, other)
+    }
+}
+
 // Computes a fixed base scalar multiplication over the embedded curve.
 // For bn254, We have Grumpkin and Baby JubJub.
 // For bls12-381, we have JubJub and Bandersnatch.
@@ -12,3 +31,6 @@ pub fn fixed_base_embedded_curve(
 ) -> [Field; 2]
 // docs:end:fixed_base_embedded_curve
 {}
+
+#[foreign(embedded_curve_add)]
+fn embedded_curve_add(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {}

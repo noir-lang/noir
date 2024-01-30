@@ -17,7 +17,7 @@ mod pedersen;
 mod range;
 mod signature;
 
-use fixed_base_scalar_mul::fixed_base_scalar_mul;
+use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
 use hash::solve_generic_256_hash_opcode;
 use logic::{and, xor};
@@ -177,13 +177,26 @@ pub(crate) fn solve(
         BlackBoxFuncCall::FixedBaseScalarMul { low, high, outputs } => {
             fixed_base_scalar_mul(backend, initial_witness, *low, *high, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { .. } => {
-            todo!();
-        }
-        BlackBoxFuncCall::EmbeddedCurveDouble { .. } => {
-            todo!();
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, outputs } => {
+            embedded_curve_add(
+                backend,
+                initial_witness,
+                *input1_x,
+                *input1_y,
+                *input2_x,
+                *input2_y,
+                *outputs,
+            )
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
+        BlackBoxFuncCall::BigIntAdd { .. } => todo!(),
+        BlackBoxFuncCall::BigIntNeg { .. } => todo!(),
+        BlackBoxFuncCall::BigIntMul { .. } => todo!(),
+        BlackBoxFuncCall::BigIntDiv { .. } => todo!(),
+        BlackBoxFuncCall::BigIntFromLeBytes { .. } => todo!(),
+        BlackBoxFuncCall::BigIntToLeBytes { .. } => todo!(),
+        BlackBoxFuncCall::Poseidon2Permutation { .. } => todo!(),
+        BlackBoxFuncCall::Sha256Compression { .. } => todo!(),
     }
 }
