@@ -1541,7 +1541,7 @@ impl Context {
 
                 let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
 
-                Ok(Self::convert_vars_to_values(vars, dfg, result_ids))
+                Ok(self.convert_vars_to_values(vars, dfg, result_ids))
             }
             Intrinsic::ApplyRangeConstraint => {
                 unreachable!("ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`");
@@ -1588,7 +1588,7 @@ impl Context {
                     .sort(input_vars, bit_size, self.current_side_effects_enabled_var)
                     .expect("Could not sort");
 
-                Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
+                Ok(self.convert_vars_to_values(out_vars, dfg, result_ids))
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
@@ -2101,16 +2101,35 @@ impl Context {
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
+    /// If the type of a result id is a slice, the slice length must precede it and we can
+    /// convert to an AcirValue::Array when the length is known (constant).
     fn convert_vars_to_values(
+        &self,
         vars: Vec<AcirVar>,
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Vec<AcirValue> {
         let mut vars = vars.into_iter();
-        vecmap(result_ids, |result| {
+        let mut values: Vec<AcirValue> = Vec::new();
+        for result in result_ids {
             let result_type = dfg.type_of_value(*result);
-            Self::convert_var_type_to_values(&result_type, &mut vars)
-        })
+            if let Type::Slice(elements_type) = result_type {
+                let error = "ICE - cannot get slice length when converting slice to AcirValue";
+                let len = values.last().expect(error).borrow_var().expect(error);
+                let len = self.acir_context.constant(len).to_u128();
+                let mut element_values = im::Vector::new();
+                for _ in 0..len {
+                    for element_type in elements_type.iter() {
+                        let element = Self::convert_var_type_to_values(element_type, &mut vars);
+                        element_values.push_back(element);
+                    }
+                }
+                values.push(AcirValue::Array(element_values));
+            } else {
+                values.push(Self::convert_var_type_to_values(&result_type, &mut vars));
+            }
+        }
+        values
     }
 
     /// Recursive helper for convert_vars_to_values.
