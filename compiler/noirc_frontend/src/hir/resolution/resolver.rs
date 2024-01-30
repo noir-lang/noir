@@ -191,10 +191,18 @@ impl<'a> Resolver<'a> {
         self.add_generics(&func.def.generics);
         self.trait_bounds = func.def.where_clause.clone();
 
+        let is_low_level_or_oracle = func
+            .attributes()
+            .function
+            .as_ref()
+            .map_or(false, |func| func.is_low_level() || func.is_oracle());
         let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
 
-        self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+        // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
+        if !is_low_level_or_oracle {
+            self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+        }
 
         self.trait_bounds.clear();
         (hir_func, func_meta, self.errors)

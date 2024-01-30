@@ -1,17 +1,17 @@
 #[oracle(create_mock)]
-unconstrained fn create_mock_oracle<N>(_name: str<N>) -> Field {}
+unconstrained fn create_mock_oracle<N>(name: str<N>) -> Field {}
 
 #[oracle(set_mock_params)]
-unconstrained fn set_mock_params_oracle<P>(_id: Field, _params: P) {}
+unconstrained fn set_mock_params_oracle<P>(id: Field, params: P) {}
 
 #[oracle(set_mock_returns)]
-unconstrained fn set_mock_returns_oracle<R>(_id: Field, _returns: R) {}
+unconstrained fn set_mock_returns_oracle<R>(id: Field, returns: R) {}
 
 #[oracle(set_mock_times)]
-unconstrained fn set_mock_times_oracle(_id: Field, _times: u64) {}
+unconstrained fn set_mock_times_oracle(id: Field, times: u64) {}
 
 #[oracle(clear_mock)]
-unconstrained fn clear_mock_oracle(_id: Field) {}
+unconstrained fn clear_mock_oracle(id: Field) {}
 
 struct OracleMock {
     id: Field,
