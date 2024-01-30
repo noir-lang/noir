@@ -31,6 +31,10 @@ export class AvmMachineState {
    * If an instruction triggers a halt, then it ends execution of the VM
    */
   public halted: boolean;
+  /**
+   * Signifies if the execution has reverted ( due to a revert instruction )
+   */
+  public reverted: boolean;
 
   /**
    * Create a new avm context
@@ -45,6 +49,7 @@ export class AvmMachineState {
     this.callStack = [];
 
     this.halted = false;
+    this.reverted = false;
 
     this.executionEnvironment = executionEnvironment;
   }

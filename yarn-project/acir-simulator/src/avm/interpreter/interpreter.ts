@@ -45,6 +45,10 @@ export class AvmInterpreter {
       }
 
       const returnData = this.machineState.getReturnData();
+      if (this.machineState.reverted) {
+        return AvmMessageCallResult.revert(returnData);
+      }
+
       return AvmMessageCallResult.success(returnData);
     } catch (_e) {
       if (!(_e instanceof AvmInterpreterError)) {

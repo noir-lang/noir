@@ -19,6 +19,11 @@ export abstract class Instruction {
     machineState.halted = true;
   }
 
+  revert(machineState: AvmMachineState): void {
+    machineState.halted = true;
+    machineState.reverted = true;
+  }
+
   static checkTags(machineState: AvmMachineState, tag: TypeTag, ...offsets: number[]) {
     for (const offset of offsets) {
       checkTag(machineState, tag, offset);
