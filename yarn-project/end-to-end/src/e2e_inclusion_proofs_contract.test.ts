@@ -70,11 +70,6 @@ describe('e2e_inclusion_proofs_contract', () => {
         expect(receivedOwner).toEqual(owner.toField());
       }
 
-      // We advance block to be able to prove against block with `noteCreationBlockNumber` --> we have to do this
-      // because `last_archive` root in the `Header` of aztec-nr contexts is the root of the archive after applying
-      // the previous block and not the current one.
-      await advanceBlock();
-
       {
         // Prove note inclusion in a given block.
         const ignoredCommitment = 0; // Not ignored only when the note doesn't exist
@@ -88,7 +83,7 @@ describe('e2e_inclusion_proofs_contract', () => {
         // Prove that the note has not been nullified
         // TODO(#3535): Prove the nullifier non-inclusion at older block to test archival node. This is currently not
         // possible because of issue https://github.com/AztecProtocol/aztec-packages/issues/3535
-        const blockNumber = await getLatestUsableBlockNumber();
+        const blockNumber = await pxe.getBlockNumber();
         const ignoredNullifier = 0; // Not ignored only when the note doesn't exist
         await contract.methods.test_nullifier_non_inclusion_proof(owner, blockNumber, ignoredNullifier).send().wait();
       }
@@ -99,10 +94,7 @@ describe('e2e_inclusion_proofs_contract', () => {
         const { newNullifiers } = receipt.debugInfo!;
         expect(newNullifiers.length).toBe(2);
 
-        // Once again we advance the block to be able to access the correct archive root,
-        await advanceBlock();
-
-        const blockNumber = await getLatestUsableBlockNumber();
+        const blockNumber = await pxe.getBlockNumber();
         const nullifier = newNullifiers[1];
         // Note: getLowNullifierMembershipWitness returns the membership witness of the nullifier itself and not
         // the low nullifier when the nullifier already exists in the tree and for this reason the execution fails
@@ -133,11 +125,6 @@ describe('e2e_inclusion_proofs_contract', () => {
         expect(receivedValue.toBigInt()).toBe(value);
         expect(receivedOwner).toEqual(owner.toField());
       }
-
-      // We advance block to be able to prove against block with `noteCreationBlockNumber` --> we have to do this
-      // because `last_archive` root in the `Header` of aztec-nr contexts is the root of the archive after applying
-      // the previous block and not the current one.
-      await advanceBlock();
 
       {
         // Prove note validity
@@ -264,26 +251,10 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   const getRandomBlockNumberSinceDeployment = async () => {
-    return (
-      deploymentBlockNumber + Math.floor(Math.random() * ((await getLatestUsableBlockNumber()) - deploymentBlockNumber))
-    );
+    return deploymentBlockNumber + Math.floor(Math.random() * ((await pxe.getBlockNumber()) - deploymentBlockNumber));
   };
 
   const getRandomBlockNumber = async () => {
-    return (
-      deploymentBlockNumber + Math.floor(Math.random() * ((await getLatestUsableBlockNumber()) - INITIAL_L2_BLOCK_NUM))
-    );
-  };
-
-  const getLatestUsableBlockNumber = async () => {
-    const currentBlockNumber = await pxe.getBlockNumber();
-    // Note: We subtract 1 from current because the `last_archive` root in the `Header` of aztec-nr contexts is
-    // the root of the archive after applying the previous block and not the current one.
-    return currentBlockNumber - 1;
-  };
-
-  // We advance block by sending a transaction calling empty function on our contract.
-  const advanceBlock = async () => {
-    await contract.methods.empty().send().wait();
+    return deploymentBlockNumber + Math.floor(Math.random() * ((await pxe.getBlockNumber()) - INITIAL_L2_BLOCK_NUM));
   };
 });
