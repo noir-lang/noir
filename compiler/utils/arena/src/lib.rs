@@ -12,6 +12,12 @@ pub struct Arena<T> {
     vec: Vec<T>,
 }
 
+impl<T> Default for Arena<T> {
+    fn default() -> Self {
+        Self { vec: Vec::new() }
+    }
+}
+
 impl<T> core::ops::Index<Index> for Arena<T> {
     type Output = T;
 
@@ -27,10 +33,6 @@ impl<T> core::ops::IndexMut<Index> for Arena<T> {
 }
 
 impl<T> Arena<T> {
-    pub fn default() -> Self {
-        Self { vec: Vec::new() }
-    }
-
     pub fn insert(&mut self, item: T) -> Index {
         let ix = self.vec.len();
         self.vec.push(item);
@@ -46,6 +48,6 @@ impl<T> Arena<T> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (Index, &T)> {
-        self.vec.iter().enumerate().map(|(ix, item)| (Index { ix: ix }, item))
+        self.vec.iter().enumerate().map(|(ix, item)| (Index { ix }, item))
     }
 }
