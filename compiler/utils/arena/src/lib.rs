@@ -9,7 +9,7 @@ pub struct Index {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Arena<T> {
-    vec: Vec<T>
+    vec: Vec<T>,
 }
 
 impl<T> core::ops::Index<Index> for Arena<T> {
@@ -28,9 +28,7 @@ impl<T> core::ops::IndexMut<Index> for Arena<T> {
 
 impl<T> Arena<T> {
     pub fn default() -> Self {
-        Self {
-            vec: Vec::new()
-        }
+        Self { vec: Vec::new() }
     }
 
     pub fn insert(&mut self, item: T) -> Index {
@@ -48,9 +46,6 @@ impl<T> Arena<T> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (Index, &T)> {
-        self.vec.iter().enumerate().map(|(ix, item)| {
-            (Index { ix: ix }, item)
-        })
+        self.vec.iter().enumerate().map(|(ix, item)| (Index { ix: ix }, item))
     }
 }
-
