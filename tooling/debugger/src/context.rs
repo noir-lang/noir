@@ -225,10 +225,10 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         let foreign_call_result = self.foreign_call_executor.execute(&foreign_call);
         match foreign_call_result {
             Ok(foreign_call_result) => {
+                let foreign_call_result = foreign_call_result
+                    .get_brillig_output()
+                    .unwrap_or(ForeignCallResult::default());
                 if let Some(mut solver) = self.brillig_solver.take() {
-                    let foreign_call_result = foreign_call_result
-                        .get_brillig_output()
-                        .unwrap_or(ForeignCallResult::default());
                     solver.resolve_pending_foreign_call(foreign_call_result);
                     self.brillig_solver = Some(solver);
                 } else {

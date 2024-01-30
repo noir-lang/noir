@@ -193,34 +193,55 @@ fn compile_success_empty_{test_name}() {{
     // but we must call a backend as part of querying the number of opcodes in the circuit.
 
     let test_program_dir = PathBuf::from("{test_dir}");
-    let mut test_program_artifact = test_program_dir.clone();
-    test_program_artifact.push("target");
-    // TODO: We need more generalized handling for workspaces in this test
-    if "{test_name}" == "workspace_reexport_bug" {{
-        test_program_artifact.push("binary");
-    }} else {{
-        test_program_artifact.push("{test_name}");
-    }}
-    test_program_artifact.set_extension("json");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("compile").arg("--force");
+    cmd.arg("info");
+    cmd.arg("--json");
+    cmd.arg("--force");
 
-    cmd.assert().success();
+    let output = cmd.output().expect("Failed to execute command");
 
-    let input_string =
-        std::fs::read(&test_program_artifact).unwrap_or_else(|_| panic!("Failed to read program artifact"));
-    let program: nargo::artifacts::program::ProgramArtifact = serde_json::from_slice(&input_string).unwrap_or_else(|_| panic!("Failed to serialize program artifact"));
-
-    let mut only_brillig = true;
-    for opcode in program.bytecode.opcodes.iter() {{
-        if !matches!(opcode, acvm::acir::circuit::Opcode::Brillig(_)) {{
-            only_brillig = false;
-        }}
+    if !output.status.success() {{
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap_or_default());
     }}
-    assert_eq!(only_brillig, true);
+
+    // `compile_success_empty` tests should be able to compile down to an empty circuit.
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {{
+        panic!("JSON was not well-formatted {{:?}}",output.stdout)
+    }});
+    let num_opcodes = &json["programs"][0]["acir_opcodes"];
+    assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
+
+    // let mut test_program_artifact = test_program_dir.clone();
+    // test_program_artifact.push("target");
+    // // TODO: We need more generalized handling for workspaces in this test
+    // if "{test_name}" == "workspace_reexport_bug" {{
+    //     test_program_artifact.push("binary");
+    // }} else {{
+    //     test_program_artifact.push("{test_name}");
+    // }}
+    // test_program_artifact.set_extension("json");
+
+    // let mut cmd = Command::cargo_bin("nargo").unwrap();
+    // cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
+    // cmd.arg("--program-dir").arg(test_program_dir);
+    // cmd.arg("compile").arg("--force");
+
+    // cmd.assert().success();
+
+    // let input_string =
+    //     std::fs::read(&test_program_artifact).unwrap_or_else(|_| panic!("Failed to read program artifact"));
+    // let program: nargo::artifacts::program::ProgramArtifact = serde_json::from_slice(&input_string).unwrap_or_else(|_| panic!("Failed to serialize program artifact"));
+
+    // let mut only_brillig = true;
+    // for opcode in program.bytecode.opcodes.iter() {{
+    //     if !matches!(opcode, acvm::acir::circuit::Opcode::Brillig(_)) {{
+    //         only_brillig = false;
+    //     }}
+    // }}
+    // assert_eq!(only_brillig, true);
 }}
             "#,
             test_dir = test_dir.display(),

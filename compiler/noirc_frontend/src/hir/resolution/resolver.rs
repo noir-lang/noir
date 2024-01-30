@@ -1119,9 +1119,9 @@ impl<'a> Resolver<'a> {
             }
             StatementKind::Constrain(constrain_stmt) => {
                 let span = constrain_stmt.0.span;
+                let assert_msg_call_expr_id =
+                    self.resolve_assert_message(constrain_stmt.1, span, constrain_stmt.0.clone());
                 let expr_id = self.resolve_expression(constrain_stmt.0);
-
-                let assert_msg_call_expr_id = self.resolve_assert_message(constrain_stmt.1, span);
 
                 HirStatement::Constrain(HirConstrainStatement(
                     expr_id,
@@ -1180,14 +1180,16 @@ impl<'a> Resolver<'a> {
         &mut self,
         assert_message_expr: Option<Expression>,
         span: Span,
+        condition: Expression,
     ) -> ExprId {
-        let assert_msg_call_args = if let Some(assert_message_expr) = assert_message_expr {
+        let mut assert_msg_call_args = if let Some(assert_message_expr) = assert_message_expr {
             vec![assert_message_expr.clone()]
         } else {
             let kind = ExpressionKind::string("".to_owned());
             let arg = Expression { kind, span: Span::default() };
             vec![arg]
         };
+        assert_msg_call_args.push(condition);
 
         let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
         let assert_msg_call_path = if is_in_stdlib {

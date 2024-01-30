@@ -140,8 +140,6 @@ pub struct ACVM<'a, B: BlackBoxFunctionSolver> {
     witness_map: WitnessMap,
 
     brillig_solver: Option<BrilligSolver<'a, B>>,
-
-    current_assert_message: Option<String>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
@@ -155,7 +153,6 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             instruction_pointer: 0,
             witness_map: initial_witness,
             brillig_solver: None,
-            current_assert_message: None,
         }
     }
 
@@ -227,25 +224,13 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
     /// Resolves a foreign call's [result][acir::brillig_vm::ForeignCallResult] using a result calculated outside of the ACVM.
     ///
     /// The ACVM can then be restarted to solve the remaining Brillig VM process as well as the remaining ACIR opcodes.
-    pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ACVMForeignCallResult) {
+    pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult) {
         if !matches!(self.status, ACVMStatus::RequiresForeignCall(_)) {
             panic!("ACVM is not expecting a foreign call response as no call was made");
         }
 
         let brillig_solver = self.brillig_solver.as_mut().expect("No active Brillig solver");
-        match foreign_call_result {
-            ACVMForeignCallResult::BrilligOutput(foreign_call_result) => {
-                brillig_solver.resolve_pending_foreign_call(foreign_call_result);
-            }
-            ACVMForeignCallResult::ResolvedAssertMessage(assert_message) => {
-                if assert_message.is_empty() {
-                    self.current_assert_message = None;
-                } else {
-                    self.current_assert_message = Some(assert_message);
-                }
-                brillig_solver.resolve_pending_foreign_call(ForeignCallResult::default());
-            }
-        }
+        brillig_solver.resolve_pending_foreign_call(foreign_call_result);
 
         // Now that the foreign call has been resolved then we can resume execution.
         self.status(ACVMStatus::InProgress);
@@ -390,10 +375,6 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         self.brillig_solver = Some(solver);
         self.solve_opcode()
     }
-
-    pub fn get_assert_message(&self) -> &Option<String> {
-        &self.current_assert_message
-    }
 }
 
 // Returns the concrete value for a particular witness
@@ -461,60 +442,5 @@ fn any_witness_from_expression(expr: &Expression) -> Option<Witness> {
         }
     } else {
         Some(expr.linear_combinations[0].1)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ACVMForeignCallResult {
-    BrilligOutput(ForeignCallResult),
-    ResolvedAssertMessage(String),
-}
-
-impl ACVMForeignCallResult {
-    pub fn get_assert_message(self) -> Option<String> {
-        match self {
-            Self::ResolvedAssertMessage(msg) => Some(msg),
-            _ => None,
-        }
-    }
-
-    pub fn get_brillig_output(self) -> Option<ForeignCallResult> {
-        match self {
-            Self::BrilligOutput(foreign_call_result) => Some(foreign_call_result),
-            _ => None,
-        }
-    }
-}
-
-impl From<ForeignCallResult> for ACVMForeignCallResult {
-    fn from(value: ForeignCallResult) -> Self {
-        Self::BrilligOutput(value)
-    }
-}
-
-impl From<String> for ACVMForeignCallResult {
-    fn from(value: String) -> Self {
-        Self::ResolvedAssertMessage(value)
-    }
-}
-
-impl From<Value> for ACVMForeignCallResult {
-    fn from(value: Value) -> Self {
-        let foreign_call_result: ForeignCallResult = value.into();
-        foreign_call_result.into()
-    }
-}
-
-impl From<Vec<Value>> for ACVMForeignCallResult {
-    fn from(values: Vec<Value>) -> Self {
-        let foreign_call_result: ForeignCallResult = values.into();
-        foreign_call_result.into()
-    }
-}
-
-impl From<Vec<ForeignCallParam>> for ACVMForeignCallResult {
-    fn from(values: Vec<ForeignCallParam>) -> Self {
-        let foreign_call_result: ForeignCallResult = values.into();
-        foreign_call_result.into()
     }
 }

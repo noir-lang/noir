@@ -1,6 +1,6 @@
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
-    pwg::{ACVMForeignCallResult, ForeignCallWaitInfo},
+    pwg::ForeignCallWaitInfo,
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
@@ -9,7 +9,62 @@ pub trait ForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ACVMForeignCallResult, ForeignCallError>;
+    ) -> Result<NargoForeignCallResult, ForeignCallError>;
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum NargoForeignCallResult {
+    BrilligOutput(ForeignCallResult),
+    ResolvedAssertMessage(String),
+}
+
+impl NargoForeignCallResult {
+    pub fn get_assert_message(self) -> Option<String> {
+        match self {
+            Self::ResolvedAssertMessage(msg) => Some(msg),
+            _ => None,
+        }
+    }
+
+    pub fn get_brillig_output(self) -> Option<ForeignCallResult> {
+        match self {
+            Self::BrilligOutput(foreign_call_result) => Some(foreign_call_result),
+            _ => None,
+        }
+    }
+}
+
+impl From<ForeignCallResult> for NargoForeignCallResult {
+    fn from(value: ForeignCallResult) -> Self {
+        Self::BrilligOutput(value)
+    }
+}
+
+impl From<String> for NargoForeignCallResult {
+    fn from(value: String) -> Self {
+        Self::ResolvedAssertMessage(value)
+    }
+}
+
+impl From<Value> for NargoForeignCallResult {
+    fn from(value: Value) -> Self {
+        let foreign_call_result: ForeignCallResult = value.into();
+        foreign_call_result.into()
+    }
+}
+
+impl From<Vec<Value>> for NargoForeignCallResult {
+    fn from(values: Vec<Value>) -> Self {
+        let foreign_call_result: ForeignCallResult = values.into();
+        foreign_call_result.into()
+    }
+}
+
+impl From<Vec<ForeignCallParam>> for NargoForeignCallResult {
+    fn from(values: Vec<ForeignCallParam>) -> Self {
+        let foreign_call_result: ForeignCallResult = values.into();
+        foreign_call_result.into()
+    }
 }
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
@@ -149,7 +204,7 @@ impl DefaultForeignCallExecutor {
 
     fn execute_assert_message(
         foreign_call_inputs: &[ForeignCallParam],
-    ) -> Result<ACVMForeignCallResult, ForeignCallError> {
+    ) -> Result<NargoForeignCallResult, ForeignCallError> {
         let display_string = Self::format_printable_value(foreign_call_inputs, true)?;
         Ok(display_string.into())
     }
@@ -170,7 +225,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ACVMForeignCallResult, ForeignCallError> {
+    ) -> Result<NargoForeignCallResult, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
             Some(ForeignCall::Print) => {

@@ -38,8 +38,10 @@ fn add_resolve_assert_message_funcs(
     let assert_message_oracles = "
     #[oracle(assert_message)]
     unconstrained fn assert_message_oracle<T>(_input: T) {}
-    unconstrained pub fn resolve_assert_message<T>(input: T) {
-        assert_message_oracle(input);
+    unconstrained pub fn resolve_assert_message<T>(input: T, condition: bool) {
+        if !condition {
+            assert_message_oracle(input);
+        }
     }";
 
     let (assert_msg_funcs_ast, errors) = parse_program(assert_message_oracles);
