@@ -1,4 +1,3 @@
-
 use crate::ops::{Add, Sub, Mul, Div, Rem,};
 
 struct BigInt {
@@ -8,21 +7,21 @@ struct BigInt {
 
 impl BigInt {
     #[builtin(bigint_add)]
-    pub fn bigint_add(self, other: BigInt) -> BigInt {
+    pub fn bigint_add(_self: Self, _other: BigInt) -> BigInt {
     }
     #[builtin(bigint_neg)]
-    pub fn bigint_neg(self, other: BigInt) -> BigInt {
+    pub fn bigint_neg(_self: Self, _other: BigInt) -> BigInt {
     }
     #[builtin(bigint_mul)]
-    pub fn bigint_mul(self, other: BigInt) -> BigInt {
+    pub fn bigint_mul(_self: Self, _other: BigInt) -> BigInt {
     }
     #[builtin(bigint_div)]
-    pub fn bigint_div(self, other: BigInt) -> BigInt {
+    pub fn bigint_div(_self: Self, _other: BigInt) -> BigInt {
     }
     #[builtin(bigint_from_le_bytes)]
-    pub fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}
+    pub fn from_le_bytes(_bytes: [u8], _modulus: [u8]) -> BigInt {}
     #[builtin(bigint_to_le_bytes)]
-    pub fn to_le_bytes(self) -> [u8] {}
+    pub fn to_le_bytes(_self: Self) -> [u8] {}
 }
 
 impl Add for BigInt { 
