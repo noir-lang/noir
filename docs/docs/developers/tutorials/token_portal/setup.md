@@ -63,7 +63,6 @@ type = "contract"
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
 token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-contracts/contracts/token_portal_content_hash_lib" }
-protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
 ```
 
 We will also be writing some helper functions that should exist elsewhere so we don't overcomplicated our contract. In `src` create two more files - one called `util.nr` and one called `token_interface` - so your dir structure should now look like this:
@@ -156,11 +155,11 @@ Your `package.json` should look something like this (do not copy and paste):
   "license": "MIT",
   "private": true,
   "type": "module",
-  "dependencies": {    
-    "dep": "version",
+  "dependencies": {
+    "dep": "version"
   },
   "devDependencies": {
-    "dep": "version",
+    "dep": "version"
   },
   "scripts": {
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest)"

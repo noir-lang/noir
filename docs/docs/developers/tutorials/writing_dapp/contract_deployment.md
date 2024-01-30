@@ -22,6 +22,7 @@ Then, open the `contracts/token/Nargo.toml` configuration file, and add the `azt
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
 authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/authwit"}
 safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/safe-math"}
+compressed_string = {git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/compressed-string"}
 ```
 
 Last, copy-paste the code from the `Token` contract into `contracts/token/main.nr`:
@@ -51,7 +52,7 @@ Create a new file `src/deploy.mjs`:
 ```js
 // src/deploy.mjs
 import { writeFileSync } from 'fs';
-import { Contract, ContractDeployer, createPXEClient } from '@aztec/aztec.js';
+import { Contract, loadContractArtifact, createPXEClient } from '@aztec/aztec.js';
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import TokenContractJson from "../contracts/token/target/token_contract-Token.json" assert { type: "json" };
 
