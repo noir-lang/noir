@@ -61,12 +61,12 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
 
-    (module.unwrap(), parsing_errors)
+    (module.unwrap_or(ParsedModule { items: vec![] }), parsing_errors)
 }
 
 /// program: module EOF
 fn program() -> impl NoirParser<ParsedModule> {
-    module().then_ignore(force(just(Token::EOF)))
+    module().then_ignore(just(Token::EOF))
 }
 
 /// module: top_level_statement module
@@ -74,7 +74,7 @@ fn program() -> impl NoirParser<ParsedModule> {
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
         empty()
-            .map(|_| ParsedModule::default())
+            .to(ParsedModule::default())
             .then(spanned(top_level_statement(module_parser)).repeated())
             .foldl(|mut program, (statement, span)| {
                 let mut push_item = |kind| program.items.push(Item { kind, span });
@@ -164,7 +164,6 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attributes()
-        .or_not()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
@@ -224,6 +223,7 @@ fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
             )
         })
 }
+
 fn is_pub_crate() -> impl NoirParser<bool> {
     (keyword(Keyword::Pub)
         .then_ignore(just(Token::LeftParen))
@@ -260,18 +260,14 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
         ))
-        .or(just(Semicolon).map(|_| Vec::new()));
+        .or(just(Semicolon).to(Vec::new()));
 
-    attributes()
-        .or_not()
-        .then_ignore(keyword(Struct))
-        .then(ident())
-        .then(generics())
-        .then(fields)
-        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
+    attributes().then_ignore(keyword(Struct)).then(ident()).then(generics()).then(fields).validate(
+        |(((raw_attributes, name), generics), fields), span, emit| {
             let attributes = validate_struct_attributes(raw_attributes, span, emit);
             TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
-        })
+        },
+    )
 }
 
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
@@ -448,7 +444,7 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
 fn trait_function_declaration() -> impl NoirParser<TraitItem> {
     let trait_function_body_or_semicolon =
-        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).map(|_| Option::None));
+        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).to(Option::None));
 
     keyword(Keyword::Fn)
         .ignore_then(ident())
@@ -463,20 +459,14 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
 }
 
 fn validate_attributes(
-    attributes: Option<Vec<Attribute>>,
+    attributes: Vec<Attribute>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Attributes {
-    if attributes.is_none() {
-        return Attributes::empty();
-    }
-
-    let attrs = attributes.unwrap();
-
     let mut primary = None;
     let mut secondary = Vec::new();
 
-    for attribute in attrs {
+    for attribute in attributes {
         match attribute {
             Attribute::Function(attr) => {
                 if primary.is_some() {
@@ -495,14 +485,13 @@ fn validate_attributes(
 }
 
 fn validate_struct_attributes(
-    attributes: Option<Vec<Attribute>>,
+    attributes: Vec<Attribute>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Vec<SecondaryAttribute> {
-    let attrs = attributes.unwrap_or_default();
     let mut struct_attributes = vec![];
 
-    for attribute in attrs {
+    for attribute in attributes {
         match attribute {
             Attribute::Function(..) => {
                 emit(ParserError::with_reason(
@@ -976,7 +965,7 @@ fn assign_operator() -> impl NoirParser<Token> {
     // Since >> is lexed as two separate "greater-than"s, >>= is lexed as > >=, so
     // we need to account for that case here as well.
     let right_shift_fix =
-        just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
+        just(Token::Greater).then(just(Token::GreaterEqual)).to(Token::ShiftRight);
 
     let shorthand_syntax = shorthand_syntax.or(right_shift_fix);
     just(Token::Assign).or(shorthand_syntax)
@@ -1337,7 +1326,7 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
 // to parse nested generic types. For normal expressions however, it means we have to manually
 // parse two greater-than tokens as a single right-shift here.
 fn right_shift_operator() -> impl NoirParser<Token> {
-    just(Token::Greater).then(just(Token::Greater)).map(|_| Token::ShiftRight)
+    just(Token::Greater).then(just(Token::Greater)).to(Token::ShiftRight)
 }
 
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
