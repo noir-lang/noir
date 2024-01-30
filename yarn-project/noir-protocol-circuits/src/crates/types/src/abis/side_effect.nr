@@ -55,13 +55,6 @@ impl Deserialize<2> for SideEffect {
     }
 }
 
-impl SideEffect {
-    pub fn is_empty(self) -> bool {
-        (self.value == 0)
-        & (self.counter == 0)
-    }
-}
-
 struct SideEffectLinkedToNoteHash{
     value: Field,
     note_hash: Field,
@@ -113,14 +106,6 @@ impl Deserialize<3> for SideEffectLinkedToNoteHash {
             note_hash: values[1],
             counter: values[2] as u32,
         }
-    }
-}
-
-impl SideEffectLinkedToNoteHash{
-    pub fn is_empty(self) -> bool {
-        (self.value == 0)
-        &  (self.note_hash == 0)
-        & (self.counter == 0)
     }
 }
 

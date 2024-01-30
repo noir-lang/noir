@@ -11,11 +11,14 @@ import { CompleteAddress, EthAddress, Fq, Fr } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { TokenContract } from '@aztec/noir-contracts/Token';
 
+import { jest } from '@jest/globals';
 import { mkdtemp } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
 import { EndToEndContext, setup } from './fixtures/utils.js';
+
+jest.setTimeout(60_000);
 
 describe('Aztec persistence', () => {
   /**

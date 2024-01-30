@@ -1,4 +1,4 @@
-use acvm::brillig_vm::brillig::RegisterIndex;
+use acvm::brillig_vm::brillig::MemoryAddress;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
@@ -75,7 +75,7 @@ impl BlockVariables {
         brillig_context: &mut BrilligContext,
         value: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterIndex {
+    ) -> MemoryAddress {
         let variable = self.define_variable(function_context, brillig_context, value, dfg);
         variable.extract_register()
     }
