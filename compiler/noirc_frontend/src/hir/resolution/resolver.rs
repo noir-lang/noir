@@ -101,6 +101,9 @@ pub struct Resolver<'a> {
     /// for these so we can still resolve them in the parent module without them being in a contract.
     in_contract: bool,
 
+    /// True if the current crate is the Noir standard library.
+    in_stdlib: bool,
+
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
@@ -131,10 +134,12 @@ impl<'a> Resolver<'a> {
         interner: &'a mut NodeInterner,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+        crate_id: CrateId,
         file: FileId,
     ) -> Resolver<'a> {
         let module_id = path_resolver.module_id();
         let in_contract = module_id.module(def_maps).is_contract;
+        let in_stdlib = crate_id.is_stdlib();
 
         Self {
             path_resolver,
@@ -150,6 +155,7 @@ impl<'a> Resolver<'a> {
             current_trait_impl: None,
             file,
             in_contract,
+            in_stdlib,
         }
     }
 
@@ -899,6 +905,13 @@ impl<'a> Resolver<'a> {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
             });
+        }
+        let is_low_level_function =
+            func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+        if !self.in_stdlib && is_low_level_function {
+            let error =
+                ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
+            self.push_err(error);
         }
 
         // 'pub' is required on return types for entry point functions

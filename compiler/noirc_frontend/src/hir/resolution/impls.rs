@@ -98,7 +98,7 @@ pub(crate) fn resolve_impls(
         let file = def_maps[&crate_id].file_id(module_id);
 
         for (generics, _, functions) in methods {
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, crate_id, file);
             resolver.add_generics(&generics);
             let generics = resolver.get_generics().to_vec();
             let self_type = resolver.resolve_type(unresolved_type.clone());

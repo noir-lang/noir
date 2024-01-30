@@ -37,7 +37,7 @@ pub(crate) fn resolve_function_set(
         let module_id = ModuleId { krate: crate_id, local_id: mod_id };
         let path_resolver = StandardPathResolver::new(module_id);
 
-        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
+        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, crate_id, file_id);
         // Must use set_generics here to ensure we re-use the same generics from when
         // the impl was originally collected. Otherwise the function will be using different
         // TypeVariables for the same generic, causing it to instantiate incorrectly.

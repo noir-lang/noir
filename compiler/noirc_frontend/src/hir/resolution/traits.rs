@@ -382,8 +382,13 @@ pub(crate) fn resolve_trait_impls(
 
         let self_type_span = unresolved_type.span;
 
-        let mut resolver =
-            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+        let mut resolver = Resolver::new(
+            interner,
+            &path_resolver,
+            &context.def_maps,
+            crate_id,
+            trait_impl.file_id,
+        );
         resolver.add_generics(&trait_impl.generics);
 
         let trait_generics =
