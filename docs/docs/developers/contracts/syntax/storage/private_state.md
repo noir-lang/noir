@@ -250,7 +250,7 @@ You can view the implementation [here](https://github.com/AztecProtocol/aztec-pa
 
 #### `selects: BoundedVec<Option<Select>, N>`
 
-`selects` is a collection of filtering criteria, specified by `Select { field_index: u8, value: Field }` structs. It instructs the data oracle to find notes whose (`field_index`)th field matches the provided `value`.
+`selects` is a collection of filtering criteria, specified by `Select { field_index: u8, value: Field, comparator: u3 }` structs. It instructs the data oracle to find notes whose (`field_index`)th field matches the provided `value`, according to the `comparator`.
 
 #### `sorts: BoundedVec<Option<Sort>, N>`
 
@@ -304,6 +304,8 @@ This method sets the offset value, which determines where to start retrieving no
 
 #### Examples
 
+##### Example 1
+
 The following code snippet creates an instance of `NoteGetterOptions`, which has been configured to find the cards that belong to `account_address`. The returned cards are sorted by their points in descending order, and the first `offset` cards with the highest points are skipped.
 
 #include_code state_vars-NoteGetterOptionsSelectSortOffset /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
@@ -314,7 +316,7 @@ The first value of `.select` and `.sort` is the index of a field in a note type.
 
 The indices are: 0 for `points`, 1 for `secret`, and 2 for `owner`.
 
-In the example, `.select(2, account_address)` matches the 2nd field of `CardNote`, which is `owner`, and returns the cards whose `owner` field equals `account_address`.
+In the example, `.select(2, account_address, Option::none())` matches the 2nd field of `CardNote`, which is `owner`, and returns the cards whose `owner` field equals `account_address`, equality is the comparator used because because including no comparator (the third argument) defaults to using the equality comparator. The current possible values of Comparator are specified in the Note Getter Options implementation linked above.
 
 `.sort(0, SortOrder.DESC)` sorts the 0th field of `CardNote`, which is `points`, in descending order.
 
@@ -322,7 +324,7 @@ There can be as many conditions as the number of fields a note type has. The fol
 
 #include_code state_vars-NoteGetterOptionsMultiSelects /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
-While `selects` lets us find notes with specific values, `filter` lets us find notes in a more dynamic way. The function below picks the cards whose points are at least `min_points`:
+While `selects` lets us find notes with specific values, `filter` lets us find notes in a more dynamic way. The function below picks the cards whose points are at least `min_points`, although this now can be done by using the select function with a GTE comparator:
 
 #include_code state_vars-OptionFilter /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
@@ -330,8 +332,19 @@ We can use it as a filter to further reduce the number of the final notes:
 
 #include_code state_vars-NoteGetterOptionsFilter /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
-One thing to remember is, `filter` will be applied on the notes after they are picked from the database. Therefore, it's possible that the actual notes we end up getting are fewer than the limit.
+One thing to remember is, `filter` will be applied on the notes after they are picked from the database, so it is more efficient to use select with comparators where possible. Another side effect of this is that it's possible that the actual notes we end up getting are fewer than the limit.
 
 The limit is `MAX_READ_REQUESTS_PER_CALL` by default. But we can set it to any value **smaller** than that:
 
 #include_code state_vars-NoteGetterOptionsPickOne /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
+
+##### Example 2
+
+An example of how we can use a Comparator to select notes when calling a Noir contract from aztec.js is below.
+
+#include_code state_vars-NoteGetterOptionsComparatorExampleTs /yarn-project/end-to-end/src/e2e_note_getter.test.ts typescript
+
+In this example, we use the above typescript code to invoke a call to our Noir contract below. This Noir contract function takes an input to match with, and a comparator to use when fetching and selecting notes from storage.
+
+#include_code state_vars-NoteGetterOptionsComparatorExampleNoir /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+

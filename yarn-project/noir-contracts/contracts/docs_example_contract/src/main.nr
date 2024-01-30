@@ -109,12 +109,14 @@ contract DocsExample {
         storage.test.insert(&mut note, true);
     }
 
+    // docs:start:state_vars-NoteGetterOptionsComparatorExampleNoir
     unconstrained fn read_note(amount: Field, comparator: u3) -> pub [Option<CardNote>; 10] {
         let options = NoteViewerOptions::new().select(0, amount, Option::some(comparator));
         let notes = storage.test.view_notes(options);
 
         notes
     }
+    // docs:end:state_vars-NoteGetterOptionsComparatorExampleNoir
 
     #[aztec(private)]
     fn update_legendary_card(randomness: Field, points: u8) {

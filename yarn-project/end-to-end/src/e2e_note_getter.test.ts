@@ -49,7 +49,9 @@ describe('e2e_note_getter', () => {
       contract.methods.read_note(5, Comparator.LT).view(),
       contract.methods.read_note(5, Comparator.GT).view(),
       contract.methods.read_note(5, Comparator.LTE).view(),
+      // docs:start:state_vars-NoteGetterOptionsComparatorExampleTs
       contract.methods.read_note(5, Comparator.GTE).view(),
+      // docs:end:state_vars-NoteGetterOptionsComparatorExampleTs
     ]);
 
     expect(
