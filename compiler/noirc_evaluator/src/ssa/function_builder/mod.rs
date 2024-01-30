@@ -486,10 +486,30 @@ impl FunctionBuilder {
                     self.increment_array_reference_count(value);
                 }
             }
-            Type::Array(..) | Type::Slice(..) => {
-                self.insert_instruction(Instruction::IncrementRc { value }, None);
+            typ @ Type::Array(..) | typ @ Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
+
+                // This is a bit odd, but in brillig the inc_rc instruction operates on
+                // a copy of the array's metadata, so we need to re-store a loaded array
+                // even if there have been no other changes to it.
+                match &self.current_function.dfg[value] {
+                    Value::Instruction { instruction, .. } => {
+                        match &self.current_function.dfg[*instruction] {
+                            Instruction::Load { address } => {
+                                // We can't re-use `value` in case the original address was stored
+                                // to again in the meantime. So introduce another load.
+                                let address = *address;
+                                let value = self.insert_load(address, typ);
+                                self.insert_instruction(Instruction::IncrementRc { value }, None);
+                                self.insert_store(address, value);
+                            }
+                            _ => (),
+                        }
+                    }
+                    _ => (),
+                }
             }
         }
     }
