@@ -23,6 +23,10 @@ contract Test {
         note::{
             note_header::NoteHeader,
             utils as note_utils,
+            lifecycle::{create_note, destroy_note},
+            note_getter::{get_notes, view_notes},
+            note_getter_options::{NoteGetterOptions, NoteStatus},
+            note_viewer_options::NoteViewerOptions,
         },
         oracle::{
             get_public_key::get_public_key as get_public_key_oracle,
@@ -35,6 +39,7 @@ contract Test {
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
     use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
+    use dep::value_note::value_note::{ValueNote, ValueNoteMethods, VALUE_NOTE_LEN};
 
     #[event]
     struct ExampleEvent {
@@ -81,6 +86,89 @@ contract Test {
     #[aztec(private)]
     fn get_this_address() -> AztecAddress {
         context.this_address()
+    }
+
+    #[aztec(private)]
+    fn call_create_note(value: Field, owner: AztecAddress, storage_slot: Field) {
+        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+
+        let mut note = ValueNote::new(value, owner);
+        create_note(&mut context, storage_slot, &mut note, ValueNoteMethods, true);
+    }
+
+    #[aztec(private)]
+    fn call_get_notes(storage_slot: Field, active_or_nullified: bool) {
+        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+
+        let mut options = NoteGetterOptions::new();
+        if (active_or_nullified) {
+            options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
+        }
+
+        let opt_notes = get_notes(&mut context, storage_slot, ValueNoteMethods, options);
+
+        // We can't get the return value of a private function from the outside world in an end to end test, so we
+        // expose it via an unecrypted log instead.
+        let value = opt_notes[0].unwrap().value;
+        emit_unencrypted_log_from_private(&mut context, value);
+    }
+
+    #[aztec(private)]
+    fn call_get_notes_many(storage_slot: Field, active_or_nullified: bool) {
+        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+
+        let mut options = NoteGetterOptions::new();
+        if (active_or_nullified) {
+            options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
+        }
+
+        let opt_notes = get_notes(&mut context, storage_slot, ValueNoteMethods, options);
+
+        // We can't get the return value of a private function from the outside world in an end to end test, so we
+        // expose it via an unecrypted log instead.
+        emit_unencrypted_log_from_private(&mut context, opt_notes[0].unwrap().value);
+        emit_unencrypted_log_from_private(&mut context, opt_notes[1].unwrap().value);
+    }
+
+    unconstrained fn call_view_notes(storage_slot: Field, active_or_nullified: bool) -> pub Field {
+        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+
+        let mut options = NoteViewerOptions::new();
+        if (active_or_nullified) {
+            options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
+        }
+
+        let opt_notes = view_notes(storage_slot, ValueNoteMethods, options);
+
+        opt_notes[0].unwrap().value
+    }
+
+    unconstrained fn call_view_notes_many(
+        storage_slot: Field,
+        active_or_nullified: bool
+    ) -> pub [Field; 2] {
+        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+
+        let mut options = NoteViewerOptions::new();
+        if (active_or_nullified) {
+            options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
+        }
+
+        let opt_notes = view_notes(storage_slot, ValueNoteMethods, options);
+
+        [opt_notes[0].unwrap().value, opt_notes[1].unwrap().value]
+    }
+
+    #[aztec(private)]
+    fn call_destroy_note(storage_slot: Field) {
+        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+
+        let options = NoteGetterOptions::new();
+        let opt_notes = get_notes(&mut context, storage_slot, ValueNoteMethods, options);
+
+        let note = opt_notes[0].unwrap();
+
+        destroy_note(&mut context, note, ValueNoteMethods);
     }
 
     // Test codegen for Aztec.nr interfaces
@@ -238,10 +326,15 @@ contract Test {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
-        serialized_note: [Field; FIELD_NOTE_LEN]
+        serialized_note: [Field; VALUE_NOTE_LEN] // must fit either a FieldNote or a ValueNote
     ) -> pub [Field; 4] {
-        assert(storage_slot == 1);
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(FieldNoteMethods, note_header, serialized_note)
+        if (storage_slot == 1) {
+            let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+            note_utils::compute_note_hash_and_nullifier(FieldNoteMethods, note_header, serialized_note)
+        } else {
+            // For ValueNotes created via write_value_to_storage
+            let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+            note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
+        }
     }
 }

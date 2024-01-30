@@ -53,6 +53,17 @@ impl Sort {
     }
 }
 
+struct NoteStatusEnum {
+    ACTIVE: u2,
+    ACTIVE_OR_NULLIFIED: u2,
+}
+
+global NoteStatus = NoteStatusEnum {
+    ACTIVE: 1,
+    ACTIVE_OR_NULLIFIED: 2,
+    // TODO 4217: add 'NULLIFIED'
+};
+
 fn return_all_notes<Note, N>(
     notes: [Option<Note>; MAX_READ_REQUESTS_PER_CALL],
     _p: Field
@@ -68,6 +79,7 @@ struct NoteGetterOptions<Note, N, FILTER_ARGS> {
     offset: u32,
     filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL],
     filter_args: FILTER_ARGS,
+    status: u2,
 }
 // docs:end:NoteGetterOptions
 
@@ -85,6 +97,7 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
             offset: 0,
             filter: return_all_notes,
             filter_args: 0,
+            status: NoteStatus.ACTIVE,
         }
     }
 
@@ -101,6 +114,7 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
             offset: 0,
             filter,
             filter_args,
+            status: NoteStatus.ACTIVE,
         }
     }
 
@@ -120,16 +134,22 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
         *self
     }
 
-    // This method lets you set a limit for the maximum number of notes to be retrieved in a single query result. 
+    // This method lets you set a limit for the maximum number of notes to be retrieved in a single query result.
     pub fn set_limit(&mut self, limit: u32) -> Self {
         assert(limit <= MAX_READ_REQUESTS_PER_CALL as u32);
         self.limit = limit;
         *self
     }
 
-    // This method sets the offset value, which determines where to start retrieving notes in the query results. 
+    // This method sets the offset value, which determines where to start retrieving notes in the query results.
     pub fn set_offset(&mut self, offset: u32) -> Self {
         self.offset = offset;
+        *self
+    }
+
+    // This method sets the status value, which determines whether to retrieve active or nullified notes.
+    pub fn set_status(&mut self, status: u2) -> Self {
+        self.status = status;
         *self
     }
 }

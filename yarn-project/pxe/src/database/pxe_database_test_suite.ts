@@ -1,4 +1,4 @@
-import { INITIAL_L2_BLOCK_NUM, NoteFilter, randomTxHash } from '@aztec/circuit-types';
+import { INITIAL_L2_BLOCK_NUM, NoteFilter, NoteStatus, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/factories';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -136,21 +136,53 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
         await expect(database.getNotes(getFilter())).resolves.toEqual(getExpected());
       });
 
-      it('removes nullified notes', async () => {
-        const notesToNullify = notes.filter(note => note.publicKey.equals(owners[0].publicKey));
-        const nullifiers = notesToNullify.map(note => note.siloedNullifier);
-
+      it.each(filteringTests)('retrieves nullified notes', async (getFilter, getExpected) => {
         await database.addNotes(notes);
 
+        // Nullify all notes and use the same filter as other test cases
+        for (const owner of owners) {
+          const notesToNullify = notes.filter(note => note.publicKey.equals(owner.publicKey));
+          const nullifiers = notesToNullify.map(note => note.siloedNullifier);
+          await expect(database.removeNullifiedNotes(nullifiers, owner.publicKey)).resolves.toEqual(notesToNullify);
+        }
+
+        await expect(database.getNotes({ ...getFilter(), status: NoteStatus.ACTIVE_OR_NULLIFIED })).resolves.toEqual(
+          getExpected(),
+        );
+      });
+
+      it('skips nullified notes by default or when requesting active', async () => {
+        await database.addNotes(notes);
+
+        const notesToNullify = notes.filter(note => note.publicKey.equals(owners[0].publicKey));
+        const nullifiers = notesToNullify.map(note => note.siloedNullifier);
         await expect(database.removeNullifiedNotes(nullifiers, notesToNullify[0].publicKey)).resolves.toEqual(
           notesToNullify,
         );
-        await expect(
-          database.getNotes({
-            owner: owners[0].address,
-          }),
-        ).resolves.toEqual([]);
-        await expect(database.getNotes({})).resolves.toEqual(notes.filter(note => !notesToNullify.includes(note)));
+
+        const actualNotesWithDefault = await database.getNotes({});
+        const actualNotesWithActive = await database.getNotes({ status: NoteStatus.ACTIVE });
+
+        expect(actualNotesWithDefault).toEqual(actualNotesWithActive);
+        expect(actualNotesWithActive).toEqual(notes.filter(note => !notesToNullify.includes(note)));
+      });
+
+      it('returns active and nullified notes when requesting either', async () => {
+        await database.addNotes(notes);
+
+        const notesToNullify = notes.filter(note => note.publicKey.equals(owners[0].publicKey));
+        const nullifiers = notesToNullify.map(note => note.siloedNullifier);
+        await expect(database.removeNullifiedNotes(nullifiers, notesToNullify[0].publicKey)).resolves.toEqual(
+          notesToNullify,
+        );
+
+        const result = await database.getNotes({
+          status: NoteStatus.ACTIVE_OR_NULLIFIED,
+        });
+
+        // We have to compare the sorted arrays since the database does not return the same order as when originally
+        // inserted combining active and nullified results.
+        expect(result.sort()).toEqual([...notes].sort());
       });
     });
 

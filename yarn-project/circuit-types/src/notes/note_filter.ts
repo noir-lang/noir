@@ -3,6 +3,15 @@ import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { TxHash } from '../index.js';
 
 /**
+ * The status of notes to retrieve.
+ */
+export enum NoteStatus {
+  ACTIVE = 1,
+  ACTIVE_OR_NULLIFIED = 2,
+  // TODO 4217: add 'NULLIFIED'
+}
+
+/**
  * A filter used to fetch Notes.
  * @remarks This filter is applied as an intersection of all it's params.
  */
@@ -15,6 +24,8 @@ export type NoteFilter = {
   storageSlot?: Fr;
   /** The owner of the note (whose public key was used to encrypt the note). */
   owner?: AztecAddress;
+  /** The status of the note. Defaults to 'ACTIVE'. */
+  status?: NoteStatus;
 };
 
 /**

@@ -1,4 +1,4 @@
-import { AuthWitness, FunctionL2Logs, L1NotePayload, Note, UnencryptedL2Log } from '@aztec/circuit-types';
+import { AuthWitness, FunctionL2Logs, L1NotePayload, Note, NoteStatus, UnencryptedL2Log } from '@aztec/circuit-types';
 import {
   CallContext,
   ContractDeploymentData,
@@ -190,6 +190,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param sortOrder - The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
    * @param limit - The number of notes to retrieve per query.
    * @param offset - The starting index for pagination.
+   * @param status - The status of notes to fetch.
    * @returns Array of note data.
    */
   public async getNotes(
@@ -202,12 +203,13 @@ export class ClientExecutionContext extends ViewDataOracle {
     sortOrder: number[],
     limit: number,
     offset: number,
+    status: NoteStatus,
   ): Promise<NoteData[]> {
     // Nullified pending notes are already removed from the list.
     const pendingNotes = this.noteCache.getNotes(this.contractAddress, storageSlot);
 
     const pendingNullifiers = this.noteCache.getNullifiers(this.contractAddress);
-    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot);
+    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot, status);
     const dbNotesFiltered = dbNotes.filter(n => !pendingNullifiers.has((n.siloedNullifier as Fr).value));
 
     const notes = pickNotes<NoteData>([...dbNotesFiltered, ...pendingNotes], {

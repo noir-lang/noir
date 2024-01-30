@@ -3,6 +3,7 @@ import {
   AztecNode,
   CompleteAddress,
   MerkleTreeId,
+  NoteStatus,
   NullifierMembershipWitness,
   PublicDataWitness,
 } from '@aztec/circuit-types';
@@ -169,6 +170,7 @@ export class ViewDataOracle extends TypedOracle {
    * @param sortOrder - The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
    * @param limit - The number of notes to retrieve per query.
    * @param offset - The starting index for pagination.
+   * @param status - The status of notes to fetch.
    * @returns Array of note data.
    */
   public async getNotes(
@@ -181,8 +183,9 @@ export class ViewDataOracle extends TypedOracle {
     sortOrder: number[],
     limit: number,
     offset: number,
+    status: NoteStatus,
   ): Promise<NoteData[]> {
-    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot);
+    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot, status);
     return pickNotes<NoteData>(dbNotes, {
       selects: selectBy
         .slice(0, numSelects)

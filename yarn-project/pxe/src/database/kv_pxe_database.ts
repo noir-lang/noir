@@ -1,4 +1,4 @@
-import { ContractDao, MerkleTreeId, NoteFilter, PublicKey } from '@aztec/circuit-types';
+import { ContractDao, MerkleTreeId, NoteFilter, NoteStatus, PublicKey } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress, Header } from '@aztec/circuits.js';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -22,11 +22,16 @@ export class KVPxeDatabase implements PxeDatabase {
   #capsules: AztecArray<Buffer[]>;
   #contracts: AztecMap<string, Buffer>;
   #notes: AztecMap<string, Buffer>;
+  #nullifiedNotes: AztecMap<string, Buffer>;
   #nullifierToNoteId: AztecMap<string, string>;
   #notesByContract: AztecMultiMap<string, string>;
   #notesByStorageSlot: AztecMultiMap<string, string>;
   #notesByTxHash: AztecMultiMap<string, string>;
   #notesByOwner: AztecMultiMap<string, string>;
+  #nullifiedNotesByContract: AztecMultiMap<string, string>;
+  #nullifiedNotesByStorageSlot: AztecMultiMap<string, string>;
+  #nullifiedNotesByTxHash: AztecMultiMap<string, string>;
+  #nullifiedNotesByOwner: AztecMultiMap<string, string>;
   #deferredNotes: AztecArray<Buffer | null>;
   #deferredNotesByContract: AztecMultiMap<string, number>;
   #syncedBlockPerPublicKey: AztecMap<string, number>;
@@ -46,21 +51,23 @@ export class KVPxeDatabase implements PxeDatabase {
 
     this.#contractArtifacts = db.openMap('contract_artifacts');
     this.#contractInstances = db.openMap('contracts_instances');
-    this.#notesByOwner = db.openMultiMap('notes_by_owner');
 
     this.#synchronizedBlock = db.openSingleton('header');
     this.#syncedBlockPerPublicKey = db.openMap('synced_block_per_public_key');
 
     this.#notes = db.openMap('notes');
+    this.#nullifiedNotes = db.openMap('nullified_notes');
     this.#nullifierToNoteId = db.openMap('nullifier_to_note');
-    this.#notesByContract = db.openMultiMap('notes_by_contract');
-    this.#notesByStorageSlot = db.openMultiMap('notes_by_storage_slot');
-    this.#notesByTxHash = db.openMultiMap('notes_by_tx_hash');
 
     this.#notesByContract = db.openMultiMap('notes_by_contract');
     this.#notesByStorageSlot = db.openMultiMap('notes_by_storage_slot');
     this.#notesByTxHash = db.openMultiMap('notes_by_tx_hash');
     this.#notesByOwner = db.openMultiMap('notes_by_owner');
+
+    this.#nullifiedNotesByContract = db.openMultiMap('nullified_notes_by_contract');
+    this.#nullifiedNotesByStorageSlot = db.openMultiMap('nullified_notes_by_storage_slot');
+    this.#nullifiedNotesByTxHash = db.openMultiMap('nullified_notes_by_tx_hash');
+    this.#nullifiedNotesByOwner = db.openMultiMap('nullified_notes_by_owner');
 
     this.#deferredNotes = db.openArray('deferred_notes');
     this.#deferredNotesByContract = db.openMultiMap('deferred_notes_by_contract');
@@ -181,46 +188,70 @@ export class KVPxeDatabase implements PxeDatabase {
     });
   }
 
-  #getNotes(filter: NoteFilter = {}): NoteDao[] {
+  #getNotes(filter: NoteFilter): NoteDao[] {
     const publicKey: PublicKey | undefined = filter.owner
       ? this.#getCompleteAddress(filter.owner)?.publicKey
       : undefined;
 
-    const initialNoteIds = publicKey
-      ? this.#notesByOwner.getValues(publicKey.toString())
-      : filter.txHash
-      ? this.#notesByTxHash.getValues(filter.txHash.toString())
-      : filter.contractAddress
-      ? this.#notesByContract.getValues(filter.contractAddress.toString())
-      : filter.storageSlot
-      ? this.#notesByStorageSlot.getValues(filter.storageSlot.toString())
-      : this.#notes.keys();
+    filter.status = filter.status ?? NoteStatus.ACTIVE;
+
+    const candidateNoteSources = [];
+
+    candidateNoteSources.push({
+      ids: publicKey
+        ? this.#notesByOwner.getValues(publicKey.toString())
+        : filter.txHash
+        ? this.#notesByTxHash.getValues(filter.txHash.toString())
+        : filter.contractAddress
+        ? this.#notesByContract.getValues(filter.contractAddress.toString())
+        : filter.storageSlot
+        ? this.#notesByStorageSlot.getValues(filter.storageSlot.toString())
+        : this.#notes.keys(),
+      notes: this.#notes,
+    });
+
+    if (filter.status == NoteStatus.ACTIVE_OR_NULLIFIED) {
+      candidateNoteSources.push({
+        ids: publicKey
+          ? this.#nullifiedNotesByOwner.getValues(publicKey.toString())
+          : filter.txHash
+          ? this.#nullifiedNotesByTxHash.getValues(filter.txHash.toString())
+          : filter.contractAddress
+          ? this.#nullifiedNotesByContract.getValues(filter.contractAddress.toString())
+          : filter.storageSlot
+          ? this.#nullifiedNotesByStorageSlot.getValues(filter.storageSlot.toString())
+          : this.#nullifiedNotes.keys(),
+        notes: this.#nullifiedNotes,
+      });
+    }
 
     const result: NoteDao[] = [];
-    for (const noteId of initialNoteIds) {
-      const serializedNote = this.#notes.get(noteId);
-      if (!serializedNote) {
-        continue;
-      }
+    for (const { ids, notes } of candidateNoteSources) {
+      for (const id of ids) {
+        const serializedNote = notes.get(id);
+        if (!serializedNote) {
+          continue;
+        }
 
-      const note = NoteDao.fromBuffer(serializedNote);
-      if (filter.contractAddress && !note.contractAddress.equals(filter.contractAddress)) {
-        continue;
-      }
+        const note = NoteDao.fromBuffer(serializedNote);
+        if (filter.contractAddress && !note.contractAddress.equals(filter.contractAddress)) {
+          continue;
+        }
 
-      if (filter.txHash && !note.txHash.equals(filter.txHash)) {
-        continue;
-      }
+        if (filter.txHash && !note.txHash.equals(filter.txHash)) {
+          continue;
+        }
 
-      if (filter.storageSlot && !note.storageSlot.equals(filter.storageSlot!)) {
-        continue;
-      }
+        if (filter.storageSlot && !note.storageSlot.equals(filter.storageSlot!)) {
+          continue;
+        }
 
-      if (publicKey && !note.publicKey.equals(publicKey)) {
-        continue;
-      }
+        if (publicKey && !note.publicKey.equals(publicKey)) {
+          continue;
+        }
 
-      result.push(note);
+        result.push(note);
+      }
     }
 
     return result;
@@ -264,6 +295,12 @@ export class KVPxeDatabase implements PxeDatabase {
         void this.#notesByTxHash.deleteValue(note.txHash.toString(), noteIndex);
         void this.#notesByContract.deleteValue(note.contractAddress.toString(), noteIndex);
         void this.#notesByStorageSlot.deleteValue(note.storageSlot.toString(), noteIndex);
+
+        void this.#nullifiedNotes.set(noteIndex, note.toBuffer());
+        void this.#nullifiedNotesByContract.set(note.contractAddress.toString(), noteIndex);
+        void this.#nullifiedNotesByStorageSlot.set(note.storageSlot.toString(), noteIndex);
+        void this.#nullifiedNotesByTxHash.set(note.txHash.toString(), noteIndex);
+        void this.#nullifiedNotesByOwner.set(note.publicKey.toString(), noteIndex);
 
         void this.#nullifierToNoteId.delete(nullifier.toString());
       }

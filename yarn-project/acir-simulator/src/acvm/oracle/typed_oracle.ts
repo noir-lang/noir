@@ -2,6 +2,7 @@ import {
   CompleteAddress,
   MerkleTreeId,
   Note,
+  NoteStatus,
   NullifierMembershipWitness,
   PublicDataWitness,
   PublicKey,
@@ -137,6 +138,7 @@ export abstract class TypedOracle {
     _sortOrder: number[],
     _limit: number,
     _offset: number,
+    _status: NoteStatus,
   ): Promise<NoteData[]> {
     throw new Error('Not available.');
   }

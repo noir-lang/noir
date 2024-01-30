@@ -32,6 +32,7 @@ fn get_notes_oracle<N, S>(
     _sort_order: [u2; N],
     _limit: u32,
     _offset: u32,
+    _status: u2,
     _return_size: u32,
     _placeholder_fields: [Field; S]
 ) -> [Field; S] {}
@@ -46,6 +47,7 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     sort_order: [u2; N],
     limit: u32,
     offset: u32,
+    status: u2,
     mut placeholder_fields: [Field; S]
 ) -> [Field; S] {
     let return_size = placeholder_fields.len() as u32;
@@ -59,6 +61,7 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
         sort_order,
         limit,
         offset,
+        status,
         return_size,
         placeholder_fields
     )
@@ -75,6 +78,7 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
     sort_order: [u2; M],
     limit: u32,
     offset: u32,
+    status: u2,
     mut placeholder_opt_notes: [Option<Note>; S], // TODO: Remove it and use `limit` to initialize the note array.
     placeholder_fields: [Field; NS] // TODO: Remove it and use `limit` to initialize the note array.
 ) -> [Option<Note>; S] {
@@ -88,6 +92,7 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
         sort_order,
         limit,
         offset,
+        status,
         placeholder_fields
     );
     let num_notes = fields[0] as u32;
