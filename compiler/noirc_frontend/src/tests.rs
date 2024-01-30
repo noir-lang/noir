@@ -6,7 +6,6 @@ mod test {
 
     use core::panic;
     use std::collections::BTreeMap;
-    use std::path::Path;
 
     use fm::FileId;
 
@@ -52,18 +51,12 @@ mod test {
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
-        let mut fm = FileManager::new(root);
-        let entrypoint = Path::new("main.nr");
-        let root_file_id = fm.add_file_with_source(entrypoint, src.to_string()).unwrap();
-        let path_to_std_lib_file = Path::new("std").join("lib.nr");
-        let std_file_id =
-            fm.add_file_with_source_canonical_path(&path_to_std_lib_file, "".to_string()).unwrap();
+        let fm = FileManager::new(root);
 
         let mut context = Context::new(fm, Default::default());
         context.def_interner.populate_dummy_operator_traits();
-
+        let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-        context.crate_graph.add_stdlib(std_file_id);
 
         let (program, parser_errors) = parse_program(src);
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
