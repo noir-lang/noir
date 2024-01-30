@@ -75,6 +75,10 @@ pub mod macros_api {
         ) -> Result<SortedModule, (MacroError, FileId)>;
         /// Function to manipulate the AST after type checking has been completed.
         /// The AST after type checking has been done is called the HIR.
-        fn process_typed_ast(&self, crate_id: &CrateId, context: &mut HirContext);
+        fn process_typed_ast(
+            &self,
+            crate_id: &CrateId,
+            context: &mut HirContext,
+        ) -> Result<(), (MacroError, FileId)>;
     }
 }
