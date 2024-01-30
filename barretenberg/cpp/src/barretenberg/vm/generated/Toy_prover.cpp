@@ -94,13 +94,13 @@ void ToyProver::execute_zeromorph_rounds()
                      transcript);
 }
 
-plonk::proof& ToyProver::export_proof()
+honk::proof& ToyProver::export_proof()
 {
-    proof.proof_data = transcript->proof_data;
+    proof = transcript->proof_data;
     return proof;
 }
 
-plonk::proof& ToyProver::construct_proof()
+honk::proof& ToyProver::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();

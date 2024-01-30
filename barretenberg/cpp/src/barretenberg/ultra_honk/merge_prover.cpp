@@ -27,9 +27,9 @@ MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<CommitmentKey>& commitm
  * for details (https://github.com/AztecProtocol/barretenberg/issues/746).
  *
  * @tparam Flavor
- * @return plonk::proof&
+ * @return honk::proof&
  */
-template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
+template <typename Flavor> honk::proof& MergeProver_<Flavor>::construct_proof()
 {
     size_t N = op_queue->get_current_size();
 
@@ -112,7 +112,7 @@ template <typename Flavor> plonk::proof& MergeProver_<Flavor>::construct_proof()
     auto quotient_commitment = pcs_commitment_key->commit(quotient);
     transcript->send_to_verifier("KZG:W", quotient_commitment);
 
-    proof.proof_data = transcript->proof_data;
+    proof = transcript->proof_data;
     return proof;
 }
 

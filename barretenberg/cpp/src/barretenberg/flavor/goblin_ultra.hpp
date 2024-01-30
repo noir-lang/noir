@@ -3,6 +3,7 @@
 #include "barretenberg/common/ref_vector.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/flavor/flavor_macros.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
@@ -505,48 +506,47 @@ class GoblinUltra {
 
         Transcript_() = default;
 
-        Transcript_(const std::vector<uint8_t>& proof)
+        Transcript_(const honk::proof& proof)
             : BaseTranscript(proof)
         {}
 
         void deserialize_full_transcript()
         {
             // take current proof and put them into the struct
-            size_t num_bytes_read = 0;
-            circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            size_t num_frs_read = 0;
+            circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
-            public_input_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
-            pub_inputs_offset = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            public_input_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
+            pub_inputs_offset = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             for (size_t i = 0; i < public_input_size; ++i) {
-                public_inputs.push_back(deserialize_from_buffer<FF>(proof_data, num_bytes_read));
+                public_inputs.push_back(deserialize_from_buffer<FF>(proof_data, num_frs_read));
             }
-            w_l_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            w_r_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            w_o_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            ecc_op_wire_1_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            ecc_op_wire_2_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            ecc_op_wire_3_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            ecc_op_wire_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            calldata_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            calldata_read_counts_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            lookup_inverses_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            sorted_accum_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            w_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            z_perm_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            z_lookup_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            w_l_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            w_r_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            w_o_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            ecc_op_wire_1_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            ecc_op_wire_2_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            ecc_op_wire_3_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            ecc_op_wire_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            calldata_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            calldata_read_counts_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            lookup_inverses_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            sorted_accum_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            w_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            z_perm_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            z_lookup_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.push_back(
                     deserialize_from_buffer<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(proof_data,
-                                                                                                 num_bytes_read));
+                                                                                                 num_frs_read));
             }
-            sumcheck_evaluations =
-                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(proof_data, num_bytes_read);
+            sumcheck_evaluations = deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(proof_data, num_frs_read);
             for (size_t i = 0; i < log_n; ++i) {
-                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_bytes_read));
+                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_frs_read));
             }
-            zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
         }
 
         void serialize_full_transcript()

@@ -30,7 +30,7 @@ ToyVerifier& ToyVerifier::operator=(ToyVerifier&& other) noexcept
  * @brief This function verifies an Toy Honk proof for given program settings.
  *
  */
-bool ToyVerifier::verify_proof(const plonk::proof& proof)
+bool ToyVerifier::verify_proof(const honk::proof& proof)
 {
     using Flavor = honk::flavor::ToyFlavor;
     using FF = Flavor::FF;
@@ -42,7 +42,7 @@ bool ToyVerifier::verify_proof(const plonk::proof& proof)
 
     RelationParameters<FF> relation_parameters;
 
-    transcript = std::make_shared<Transcript>(proof.proof_data);
+    transcript = std::make_shared<Transcript>(proof);
 
     VerifierCommitments commitments{ key };
     CommitmentLabels commitment_labels;

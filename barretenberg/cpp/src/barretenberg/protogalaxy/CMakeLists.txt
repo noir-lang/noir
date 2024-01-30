@@ -1,1 +1,1 @@
-barretenberg_module(protogalaxy honk flavor relations)
+barretenberg_module(protogalaxy honk flavor relations sumcheck)

@@ -481,7 +481,7 @@ class Ultra {
         Transcript() = default;
 
         // Used by verifier to initialize the transcript
-        Transcript(const std::vector<uint8_t>& proof)
+        Transcript(const std::vector<FF>& proof)
             : BaseTranscript(proof)
         {}
 
@@ -508,34 +508,33 @@ class Ultra {
         void deserialize_full_transcript()
         {
             // take current proof and put them into the struct
-            size_t num_bytes_read = 0;
-            circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            size_t num_frs_read = 0;
+            circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
-            public_input_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
-            pub_inputs_offset = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            public_input_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
+            pub_inputs_offset = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             for (size_t i = 0; i < public_input_size; ++i) {
-                public_inputs.push_back(deserialize_from_buffer<FF>(proof_data, num_bytes_read));
+                public_inputs.push_back(deserialize_from_buffer<FF>(proof_data, num_frs_read));
             }
-            w_l_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            w_r_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            w_o_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            sorted_accum_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            w_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            z_perm_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            z_lookup_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            w_l_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            w_r_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            w_o_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            sorted_accum_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            w_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            z_perm_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            z_lookup_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.push_back(
                     deserialize_from_buffer<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(proof_data,
-                                                                                                 num_bytes_read));
+                                                                                                 num_frs_read));
             }
-            sumcheck_evaluations =
-                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(proof_data, num_bytes_read);
+            sumcheck_evaluations = deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(proof_data, num_frs_read);
             for (size_t i = 0; i < log_n; ++i) {
-                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_bytes_read));
+                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_frs_read));
             }
-            zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
         }
         /**
          * @brief Serializes the structure variables into a FULL Ultra proof. Should be called only if

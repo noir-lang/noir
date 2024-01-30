@@ -18,7 +18,7 @@ DeciderRecursiveVerifier_<Flavor>::DeciderRecursiveVerifier_(Builder* builder)
  */
 template <typename Flavor>
 std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::verify_proof(
-    const bb::plonk::proof& proof)
+    const bb::honk::proof& proof)
 {
     using Sumcheck = ::bb::honk::sumcheck::SumcheckVerifier<Flavor>;
     using Curve = typename Flavor::Curve;
@@ -28,7 +28,7 @@ std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::
     using Instance = typename ::bb::honk::VerifierInstance_<Flavor>;
 
     static constexpr size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
-    transcript = std::make_shared<Transcript>(builder, proof.proof_data);
+    transcript = std::make_shared<Transcript>(builder, proof);
     auto inst = std::make_unique<Instance>();
 
     const auto instance_size = transcript->template receive_from_prover<uint32_t>("instance_size");

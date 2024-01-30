@@ -3,6 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/fq.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 
 #include "barretenberg/transcript/transcript.hpp"
@@ -17,17 +18,17 @@ template <typename Builder> class Transcript {
   public:
     using field_ct = field_t<Builder>;
     using FF = bb::fr;
-    using BaseTranscript = bb::honk::BaseTranscript;
+    using NativeTranscript = bb::honk::BaseTranscript;
     using StdlibTypes = utility::StdlibTypesUtility<Builder>;
 
-    static constexpr size_t HASH_OUTPUT_SIZE = BaseTranscript::HASH_OUTPUT_SIZE;
+    static constexpr size_t HASH_OUTPUT_SIZE = NativeTranscript::HASH_OUTPUT_SIZE;
 
-    BaseTranscript native_transcript;
+    NativeTranscript native_transcript;
     Builder* builder;
 
     Transcript() = default;
 
-    Transcript(Builder* builder, auto proof_data)
+    Transcript(Builder* builder, const bb::honk::proof& proof_data)
         : native_transcript(proof_data)
         , builder(builder){};
 
@@ -59,7 +60,7 @@ template <typename Builder> class Transcript {
          */
         std::array<field_ct, num_challenges> challenges;
         for (size_t i = 0; i < num_challenges; ++i) {
-            challenges[i] = field_ct::from_witness(builder, static_cast<FF>(native_challenges[i]));
+            challenges[i] = field_ct::from_witness(builder, native_challenges[i]);
         }
 
         return challenges;

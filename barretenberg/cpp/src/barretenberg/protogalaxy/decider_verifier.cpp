@@ -26,7 +26,7 @@ DeciderVerifier_<Flavor>::DeciderVerifier_()
  * e*).
  *
  */
-template <typename Flavor> bool DeciderVerifier_<Flavor>::verify_proof(const plonk::proof& proof)
+template <typename Flavor> bool DeciderVerifier_<Flavor>::verify_proof(const honk::proof& proof)
 {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
@@ -36,7 +36,7 @@ template <typename Flavor> bool DeciderVerifier_<Flavor>::verify_proof(const plo
     using VerifierCommitments = typename Flavor::VerifierCommitments;
 
     static constexpr size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
-    transcript = std::make_shared<Transcript>(proof.proof_data);
+    transcript = std::make_shared<Transcript>(proof);
     auto inst = std::make_unique<Instance>();
 
     inst->instance_size = transcript->template receive_from_prover<uint32_t>("instance_size");

@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/flavor/goblin_ultra_recursive.hpp"
 #include "barretenberg/flavor/ultra_recursive.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
@@ -19,7 +19,7 @@ template <typename Flavor> class DeciderRecursiveVerifier_ {
   public:
     explicit DeciderRecursiveVerifier_(Builder* builder);
 
-    PairingPoints verify_proof(const bb::plonk::proof& proof);
+    PairingPoints verify_proof(const bb::honk::proof& proof);
 
     std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;

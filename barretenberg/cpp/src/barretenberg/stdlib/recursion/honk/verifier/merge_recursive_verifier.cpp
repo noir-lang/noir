@@ -16,9 +16,9 @@ MergeRecursiveVerifier_<CircuitBuilder>::MergeRecursiveVerifier_(CircuitBuilder*
  */
 template <typename CircuitBuilder>
 std::array<typename bn254<CircuitBuilder>::Element, 2> MergeRecursiveVerifier_<CircuitBuilder>::verify_proof(
-    const plonk::proof& proof)
+    const bb::honk::proof& proof)
 {
-    transcript = std::make_shared<Transcript>(builder, proof.proof_data);
+    transcript = std::make_shared<Transcript>(builder, proof);
 
     // Receive commitments [t_i^{shift}], [T_{i-1}], and [T_i]
     std::array<Commitment, NUM_WIRES> C_T_prev;

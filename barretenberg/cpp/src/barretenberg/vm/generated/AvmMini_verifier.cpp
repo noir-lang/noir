@@ -30,7 +30,7 @@ AvmMiniVerifier& AvmMiniVerifier::operator=(AvmMiniVerifier&& other) noexcept
  * @brief This function verifies an AvmMini Honk proof for given program settings.
  *
  */
-bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
+bool AvmMiniVerifier::verify_proof(const honk::proof& proof)
 {
     using Flavor = honk::flavor::AvmMiniFlavor;
     using FF = Flavor::FF;
@@ -42,7 +42,7 @@ bool AvmMiniVerifier::verify_proof(const plonk::proof& proof)
 
     RelationParameters<FF> relation_parameters;
 
-    transcript = std::make_shared<Transcript>(proof.proof_data);
+    transcript = std::make_shared<Transcript>(proof);
 
     VerifierCommitments commitments{ key };
     CommitmentLabels commitment_labels;

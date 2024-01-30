@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/flavor/goblin_translator.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 
@@ -32,8 +32,8 @@ class GoblinTranslatorProver {
     BBERG_PROFILE void execute_grand_product_computation_round();
     BBERG_PROFILE void execute_relation_check_rounds();
     BBERG_PROFILE void execute_zeromorph_rounds();
-    plonk::proof& export_proof();
-    plonk::proof& construct_proof();
+    honk::proof& export_proof();
+    honk::proof& construct_proof();
 
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
@@ -51,7 +51,7 @@ class GoblinTranslatorProver {
     sumcheck::SumcheckOutput<Flavor> sumcheck_output;
 
   private:
-    plonk::proof proof;
+    honk::proof proof;
 };
 
 } // namespace bb::honk

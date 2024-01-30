@@ -3,7 +3,7 @@
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/flavor/ultra.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
@@ -33,10 +33,10 @@ template <typename Flavor> class MergeProver_ {
     explicit MergeProver_(const std::shared_ptr<CommitmentKey>&,
                           const std::shared_ptr<ECCOpQueue>&,
                           const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
-    BBERG_PROFILE plonk::proof& construct_proof();
+    BBERG_PROFILE honk::proof& construct_proof();
 
   private:
-    plonk::proof proof;
+    honk::proof proof;
 };
 
 } // namespace bb::honk

@@ -1,1 +1,1 @@
-barretenberg_module(transcript crypto_blake3s crypto_pedersen_hash)
+barretenberg_module(transcript crypto_poseidon2)

@@ -16,11 +16,11 @@ MergeVerifier_<Flavor>::MergeVerifier_()
  * queue has been constructed correctly via a simple Schwartz-Zippel check. Evaluations are checked via batched KZG.
  *
  * @tparam Flavor
- * @return plonk::proof&
+ * @return honk::proof&
  */
-template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const plonk::proof& proof)
+template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const honk::proof& proof)
 {
-    transcript = std::make_shared<Transcript>(proof.proof_data);
+    transcript = std::make_shared<Transcript>(proof);
 
     // Receive commitments [t_i^{shift}], [T_{i-1}], and [T_i]
     std::array<Commitment, Flavor::NUM_WIRES> C_T_prev;

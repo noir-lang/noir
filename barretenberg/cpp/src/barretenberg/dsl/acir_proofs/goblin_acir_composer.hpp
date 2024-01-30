@@ -28,9 +28,9 @@ class GoblinAcirComposer {
      * @brief Accumulate a circuit via Goblin
      * @details For the present circuit, construct a GUH proof and the vkey needed to verify it
      *
-     * @return std::vector<uint8_t> The GUH proof bytes
+     * @return std::vector<bb::fr> The GUH proof bytes
      */
-    std::vector<uint8_t> accumulate();
+    std::vector<bb::fr> accumulate();
 
     /**
      * @brief Verify the Goblin accumulator (the GUH proof) using the vkey internal to Goblin
@@ -38,7 +38,7 @@ class GoblinAcirComposer {
      * @param proof
      * @return bool Whether or not the proof was verified
      */
-    bool verify_accumulator(std::vector<uint8_t> const& proof);
+    bool verify_accumulator(std::vector<bb::fr> const& proof);
 
     /**
      * @brief Accumulate a final circuit and construct a full Goblin proof
@@ -48,14 +48,14 @@ class GoblinAcirComposer {
      * accumulation phase.
      *
      */
-    std::vector<uint8_t> accumulate_and_prove();
+    std::vector<bb::fr> accumulate_and_prove();
 
     /**
      * @brief Verify the final GUH proof and the full Goblin proof
      *
      * @return bool verified
      */
-    bool verify(std::vector<uint8_t> const& proof);
+    bool verify(std::vector<bb::fr> const& proof);
 
   private:
     acir_format::GoblinBuilder builder_;

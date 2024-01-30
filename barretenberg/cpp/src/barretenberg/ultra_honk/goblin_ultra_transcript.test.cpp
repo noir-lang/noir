@@ -36,37 +36,37 @@ class GoblinUltraTranscriptTests : public ::testing::Test {
         size_t MAX_PARTIAL_RELATION_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
         size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
 
-        size_t size_FF = sizeof(FF);
-        size_t size_G = 2 * size_FF;
-        size_t size_uni = MAX_PARTIAL_RELATION_LENGTH * size_FF;
-        size_t size_evals = (Flavor::NUM_ALL_ENTITIES)*size_FF;
-        size_t size_uint32 = 4;
+        size_t frs_per_Fr = bb::field_conversion::calc_num_bn254_frs<FF>();
+        size_t frs_per_G = bb::field_conversion::calc_num_bn254_frs<Flavor::Commitment>();
+        size_t frs_per_uni = MAX_PARTIAL_RELATION_LENGTH * frs_per_Fr;
+        size_t frs_per_evals = (Flavor::NUM_ALL_ENTITIES)*frs_per_Fr;
+        size_t frs_per_uint32 = bb::field_conversion::calc_num_bn254_frs<uint32_t>();
 
         size_t round = 0;
-        manifest_expected.add_entry(round, "circuit_size", size_uint32);
-        manifest_expected.add_entry(round, "public_input_size", size_uint32);
-        manifest_expected.add_entry(round, "pub_inputs_offset", size_uint32);
-        manifest_expected.add_entry(round, "public_input_0", size_FF);
-        manifest_expected.add_entry(round, "W_L", size_G);
-        manifest_expected.add_entry(round, "W_R", size_G);
-        manifest_expected.add_entry(round, "W_O", size_G);
-        manifest_expected.add_entry(round, "ECC_OP_WIRE_1", size_G);
-        manifest_expected.add_entry(round, "ECC_OP_WIRE_2", size_G);
-        manifest_expected.add_entry(round, "ECC_OP_WIRE_3", size_G);
-        manifest_expected.add_entry(round, "ECC_OP_WIRE_4", size_G);
-        manifest_expected.add_entry(round, "CALLDATA", size_G);
-        manifest_expected.add_entry(round, "CALLDATA_READ_COUNTS", size_G);
+        manifest_expected.add_entry(round, "circuit_size", frs_per_uint32);
+        manifest_expected.add_entry(round, "public_input_size", frs_per_uint32);
+        manifest_expected.add_entry(round, "pub_inputs_offset", frs_per_uint32);
+        manifest_expected.add_entry(round, "public_input_0", frs_per_Fr);
+        manifest_expected.add_entry(round, "W_L", frs_per_G);
+        manifest_expected.add_entry(round, "W_R", frs_per_G);
+        manifest_expected.add_entry(round, "W_O", frs_per_G);
+        manifest_expected.add_entry(round, "ECC_OP_WIRE_1", frs_per_G);
+        manifest_expected.add_entry(round, "ECC_OP_WIRE_2", frs_per_G);
+        manifest_expected.add_entry(round, "ECC_OP_WIRE_3", frs_per_G);
+        manifest_expected.add_entry(round, "ECC_OP_WIRE_4", frs_per_G);
+        manifest_expected.add_entry(round, "CALLDATA", frs_per_G);
+        manifest_expected.add_entry(round, "CALLDATA_READ_COUNTS", frs_per_G);
         manifest_expected.add_challenge(round, "eta");
 
         round++;
-        manifest_expected.add_entry(round, "SORTED_ACCUM", size_G);
-        manifest_expected.add_entry(round, "W_4", size_G);
+        manifest_expected.add_entry(round, "SORTED_ACCUM", frs_per_G);
+        manifest_expected.add_entry(round, "W_4", frs_per_G);
         manifest_expected.add_challenge(round, "beta", "gamma");
 
         round++;
-        manifest_expected.add_entry(round, "LOOKUP_INVERSES", size_G);
-        manifest_expected.add_entry(round, "Z_PERM", size_G);
-        manifest_expected.add_entry(round, "Z_LOOKUP", size_G);
+        manifest_expected.add_entry(round, "LOOKUP_INVERSES", frs_per_G);
+        manifest_expected.add_entry(round, "Z_PERM", frs_per_G);
+        manifest_expected.add_entry(round, "Z_LOOKUP", frs_per_G);
 
         for (size_t i = 0; i < NUM_SUBRELATIONS - 1; i++) {
             std::string label = "Sumcheck:alpha_" + std::to_string(i);
@@ -82,29 +82,29 @@ class GoblinUltraTranscriptTests : public ::testing::Test {
 
         for (size_t i = 0; i < log_n; ++i) {
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Sumcheck:univariate_" + idx, size_uni);
+            manifest_expected.add_entry(round, "Sumcheck:univariate_" + idx, frs_per_uni);
             std::string label = "Sumcheck:u_" + idx;
             manifest_expected.add_challenge(round, label);
             round++;
         }
 
-        manifest_expected.add_entry(round, "Sumcheck:evaluations", size_evals);
+        manifest_expected.add_entry(round, "Sumcheck:evaluations", frs_per_evals);
         manifest_expected.add_challenge(round, "rho");
 
         round++;
         for (size_t i = 0; i < log_n; ++i) {
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "ZM:C_q_" + idx, size_G);
+            manifest_expected.add_entry(round, "ZM:C_q_" + idx, frs_per_G);
         }
         manifest_expected.add_challenge(round, "ZM:y");
 
         round++;
-        manifest_expected.add_entry(round, "ZM:C_q", size_G);
+        manifest_expected.add_entry(round, "ZM:C_q", frs_per_G);
         manifest_expected.add_challenge(round, "ZM:x", "ZM:z");
 
         round++;
         // TODO(Mara): Make testing more flavor agnostic so we can test this with all flavors
-        manifest_expected.add_entry(round, "ZM:PI", size_G);
+        manifest_expected.add_entry(round, "ZM:PI", frs_per_G);
         manifest_expected.add_challenge(round); // no challenge
 
         return manifest_expected;

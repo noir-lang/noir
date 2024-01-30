@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 
@@ -23,7 +23,7 @@ template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
 
     explicit MergeRecursiveVerifier_(CircuitBuilder* builder);
 
-    PairingPoints verify_proof(const plonk::proof& proof);
+    PairingPoints verify_proof(const bb::honk::proof& proof);
 };
 
 } // namespace bb::stdlib::recursion::goblin

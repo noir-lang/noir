@@ -39,94 +39,94 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
         auto log_n = numeric::get_msb(circuit_size);
 
         size_t MAX_PARTIAL_RELATION_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
-        size_t size_FF = sizeof(FF);
-        size_t size_G = 2 * size_FF;
-        size_t size_uni = MAX_PARTIAL_RELATION_LENGTH * size_FF;
-        size_t size_evals = (Flavor::NUM_ALL_ENTITIES)*size_FF;
-        size_t size_uint32 = 4;
-        size_t size_uint64 = 8;
+        // Size of types is number of bb::frs needed to represent the type
+        size_t frs_per_Fr = bb::field_conversion::calc_num_bn254_frs<FF>();
+        size_t frs_per_G = bb::field_conversion::calc_num_bn254_frs<typename Flavor::Commitment>();
+        size_t frs_per_uni = MAX_PARTIAL_RELATION_LENGTH * frs_per_Fr;
+        size_t frs_per_evals = (Flavor::NUM_ALL_ENTITIES)*frs_per_Fr;
+        size_t frs_per_uint32 = bb::field_conversion::calc_num_bn254_frs<uint32_t>();
 
         size_t round = 0;
-        manifest_expected.add_entry(round, "circuit_size", size_uint32);
-        manifest_expected.add_entry(round, "TRANSCRIPT_ADD", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_MUL", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_EQ", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_COLLISION_CHECK", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_TRANSITION", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_PC", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_COUNT", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_PX", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_PY", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_Z1", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_Z2", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_Z1ZERO", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_Z2ZERO", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_OP", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_ACCUMULATOR_X", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_ACCUMULATOR_Y", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_X", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_Y", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_PC", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_POINT_TRANSITION", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_ROUND", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_SCALAR_SUM", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S1HI", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S1LO", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S2HI", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S2LO", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S3HI", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S3LO", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S4HI", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_S4LO", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_SKEW", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_DX", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_DY", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_TX", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_TY", size_G);
-        manifest_expected.add_entry(round, "MSM_TRANSITION", size_G);
-        manifest_expected.add_entry(round, "MSM_ADD", size_G);
-        manifest_expected.add_entry(round, "MSM_DOUBLE", size_G);
-        manifest_expected.add_entry(round, "MSM_SKEW", size_G);
-        manifest_expected.add_entry(round, "MSM_ACCUMULATOR_X", size_G);
-        manifest_expected.add_entry(round, "MSM_ACCUMULATOR_Y", size_G);
-        manifest_expected.add_entry(round, "MSM_PC", size_G);
-        manifest_expected.add_entry(round, "MSM_SIZE_OF_MSM", size_G);
-        manifest_expected.add_entry(round, "MSM_COUNT", size_G);
-        manifest_expected.add_entry(round, "MSM_ROUND", size_G);
-        manifest_expected.add_entry(round, "MSM_ADD1", size_G);
-        manifest_expected.add_entry(round, "MSM_ADD2", size_G);
-        manifest_expected.add_entry(round, "MSM_ADD3", size_G);
-        manifest_expected.add_entry(round, "MSM_ADD4", size_G);
-        manifest_expected.add_entry(round, "MSM_X1", size_G);
-        manifest_expected.add_entry(round, "MSM_Y1", size_G);
-        manifest_expected.add_entry(round, "MSM_X2", size_G);
-        manifest_expected.add_entry(round, "MSM_Y2", size_G);
-        manifest_expected.add_entry(round, "MSM_X3", size_G);
-        manifest_expected.add_entry(round, "MSM_Y3", size_G);
-        manifest_expected.add_entry(round, "MSM_X4", size_G);
-        manifest_expected.add_entry(round, "MSM_Y4", size_G);
-        manifest_expected.add_entry(round, "MSM_COLLISION_X1", size_G);
-        manifest_expected.add_entry(round, "MSM_COLLISION_X2", size_G);
-        manifest_expected.add_entry(round, "MSM_COLLISION_X3", size_G);
-        manifest_expected.add_entry(round, "MSM_COLLISION_X4", size_G);
-        manifest_expected.add_entry(round, "MSM_LAMBDA1", size_G);
-        manifest_expected.add_entry(round, "MSM_LAMBDA2", size_G);
-        manifest_expected.add_entry(round, "MSM_LAMBDA3", size_G);
-        manifest_expected.add_entry(round, "MSM_LAMBDA4", size_G);
-        manifest_expected.add_entry(round, "MSM_SLICE1", size_G);
-        manifest_expected.add_entry(round, "MSM_SLICE2", size_G);
-        manifest_expected.add_entry(round, "MSM_SLICE3", size_G);
-        manifest_expected.add_entry(round, "MSM_SLICE4", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_ACCUMULATOR_EMPTY", size_G);
-        manifest_expected.add_entry(round, "TRANSCRIPT_RESET_ACCUMULATOR", size_G);
-        manifest_expected.add_entry(round, "PRECOMPUTE_SELECT", size_G);
-        manifest_expected.add_entry(round, "LOOKUP_READ_COUNTS_0", size_G);
-        manifest_expected.add_entry(round, "LOOKUP_READ_COUNTS_1", size_G);
+        manifest_expected.add_entry(round, "circuit_size", frs_per_uint32);
+        manifest_expected.add_entry(round, "TRANSCRIPT_ADD", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_MUL", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_EQ", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_COLLISION_CHECK", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_TRANSITION", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_PC", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_COUNT", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_PX", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_PY", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_Z1", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_Z2", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_Z1ZERO", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_Z2ZERO", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_OP", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_ACCUMULATOR_X", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_ACCUMULATOR_Y", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_X", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_MSM_Y", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_PC", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_POINT_TRANSITION", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_ROUND", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_SCALAR_SUM", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S1HI", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S1LO", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S2HI", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S2LO", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S3HI", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S3LO", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S4HI", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_S4LO", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_SKEW", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_DX", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_DY", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_TX", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_TY", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_TRANSITION", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ADD", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_DOUBLE", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_SKEW", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ACCUMULATOR_X", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ACCUMULATOR_Y", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_PC", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_SIZE_OF_MSM", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_COUNT", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ROUND", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ADD1", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ADD2", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ADD3", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_ADD4", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_X1", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_Y1", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_X2", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_Y2", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_X3", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_Y3", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_X4", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_Y4", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_COLLISION_X1", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_COLLISION_X2", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_COLLISION_X3", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_COLLISION_X4", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_LAMBDA1", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_LAMBDA2", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_LAMBDA3", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_LAMBDA4", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_SLICE1", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_SLICE2", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_SLICE3", frs_per_G);
+        manifest_expected.add_entry(round, "MSM_SLICE4", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_ACCUMULATOR_EMPTY", frs_per_G);
+        manifest_expected.add_entry(round, "TRANSCRIPT_RESET_ACCUMULATOR", frs_per_G);
+        manifest_expected.add_entry(round, "PRECOMPUTE_SELECT", frs_per_G);
+        manifest_expected.add_entry(round, "LOOKUP_READ_COUNTS_0", frs_per_G);
+        manifest_expected.add_entry(round, "LOOKUP_READ_COUNTS_1", frs_per_G);
         manifest_expected.add_challenge(round, "beta", "gamma");
 
         round++;
-        manifest_expected.add_entry(round, "LOOKUP_INVERSES", size_G);
-        manifest_expected.add_entry(round, "Z_PERM", size_G);
+        manifest_expected.add_entry(round, "LOOKUP_INVERSES", frs_per_G);
+        manifest_expected.add_entry(round, "Z_PERM", frs_per_G);
         manifest_expected.add_challenge(round, "Sumcheck:alpha");
 
         for (size_t i = 0; i < log_n; i++) {
@@ -138,49 +138,49 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
         for (size_t i = 0; i < log_n; ++i) {
             round++;
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Sumcheck:univariate_" + idx, size_uni);
+            manifest_expected.add_entry(round, "Sumcheck:univariate_" + idx, frs_per_uni);
             std::string label = "Sumcheck:u_" + idx;
             manifest_expected.add_challenge(round, label);
         }
 
         round++;
-        manifest_expected.add_entry(round, "Sumcheck:evaluations", size_evals);
+        manifest_expected.add_entry(round, "Sumcheck:evaluations", frs_per_evals);
         manifest_expected.add_challenge(round, "rho");
 
         round++;
         for (size_t i = 1; i < log_n; ++i) {
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Gemini:FOLD_" + idx, size_G);
+            manifest_expected.add_entry(round, "Gemini:FOLD_" + idx, frs_per_G);
         }
         manifest_expected.add_challenge(round, "Gemini:r");
 
         round++;
         for (size_t i = 0; i < log_n; ++i) {
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Gemini:a_" + idx, size_FF);
+            manifest_expected.add_entry(round, "Gemini:a_" + idx, frs_per_Fr);
         }
         manifest_expected.add_challenge(round, "Shplonk:nu");
 
         round++;
-        manifest_expected.add_entry(round, "Shplonk:Q", size_G);
+        manifest_expected.add_entry(round, "Shplonk:Q", frs_per_G);
         manifest_expected.add_challenge(round, "Shplonk:z");
 
         round++;
-        manifest_expected.add_entry(round, "IPA:poly_degree", size_uint64);
+        manifest_expected.add_entry(round, "IPA:poly_degree", frs_per_uint32);
         manifest_expected.add_challenge(round, "IPA:generator_challenge");
 
         auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
         for (size_t i = 0; i < log_poly_degree; ++i) {
             round++;
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "IPA:L_" + idx, size_G);
-            manifest_expected.add_entry(round, "IPA:R_" + idx, size_G);
+            manifest_expected.add_entry(round, "IPA:L_" + idx, frs_per_G);
+            manifest_expected.add_entry(round, "IPA:R_" + idx, frs_per_G);
             std::string label = "IPA:round_challenge_" + idx;
             manifest_expected.add_challenge(round, label);
         }
 
         round++;
-        manifest_expected.add_entry(round, "IPA:a_0", size_FF);
+        manifest_expected.add_entry(round, "IPA:a_0", frs_per_Fr);
 
         return manifest_expected;
     }

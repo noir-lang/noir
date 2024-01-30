@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/flavor/ecc_vm.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace bb::honk {
@@ -30,7 +30,7 @@ template <typename Flavor> class ECCVMVerifier_ {
     ECCVMVerifier_& operator=(ECCVMVerifier_&& other) noexcept;
     ~ECCVMVerifier_() = default;
 
-    bool verify_proof(const plonk::proof& proof);
+    bool verify_proof(const honk::proof& proof);
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;

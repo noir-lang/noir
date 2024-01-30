@@ -64,7 +64,7 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
      *
      * @param fold_data The data transmitted via the transcript by the prover.
      */
-    void prepare_for_folding(const std::vector<uint8_t>&);
+    void prepare_for_folding(const std::vector<FF>&);
 
     /**
      * @brief Instantiatied the accumulator (i.e. the relaxed instance) from the transcript.
@@ -83,7 +83,7 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
      * accumulator, received from the prover is the same as that produced by the verifier.
      *
      */
-    bool verify_folding_proof(std::vector<uint8_t>);
+    bool verify_folding_proof(const std::vector<FF>&);
 };
 
 } // namespace bb::honk

@@ -3,7 +3,7 @@
 #include "barretenberg/commitment_schemes/shplonk/shplonk.hpp"
 #include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/goblin/translation_evaluations.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"
@@ -42,8 +42,8 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     BBERG_PROFILE void execute_final_pcs_round();
     BBERG_PROFILE void execute_transcript_consistency_univariate_opening_round();
 
-    plonk::proof& export_proof();
-    plonk::proof& construct_proof();
+    honk::proof& export_proof();
+    honk::proof& construct_proof();
 
     std::shared_ptr<Transcript> transcript;
 
@@ -80,7 +80,7 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     using Shplonk = pcs::shplonk::ShplonkProver_<Curve>;
 
   private:
-    plonk::proof proof;
+    honk::proof proof;
 };
 
 } // namespace bb::honk

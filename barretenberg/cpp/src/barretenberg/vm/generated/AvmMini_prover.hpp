@@ -3,7 +3,7 @@
 #pragma once
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"
@@ -31,8 +31,8 @@ class AvmMiniProver {
     void execute_relation_check_rounds();
     void execute_zeromorph_rounds();
 
-    plonk::proof& export_proof();
-    plonk::proof& construct_proof();
+    honk::proof& export_proof();
+    honk::proof& construct_proof();
 
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
@@ -56,7 +56,7 @@ class AvmMiniProver {
     using ZeroMorph = pcs::zeromorph::ZeroMorphProver_<Curve>;
 
   private:
-    plonk::proof proof;
+    honk::proof proof;
 };
 
 } // namespace bb::honk

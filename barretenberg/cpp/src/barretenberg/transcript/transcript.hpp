@@ -1,8 +1,11 @@
 #pragma once
 
 #include "barretenberg/common/serialize.hpp"
-#include "barretenberg/crypto/blake3s/blake3s.hpp"
-#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
+#include "barretenberg/crypto/poseidon2/poseidon2.hpp"
+#include "barretenberg/ecc/curves/bn254/g1.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/ecc/fields/field_conversion.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 
 // #define LOG_CHALLENGES
 // #define LOG_INTERACTIONS
@@ -61,7 +64,9 @@ class TranscriptManifest {
  */
 class BaseTranscript {
   public:
-    using Proof = std::vector<uint8_t>;
+    using Fr = bb::fr;
+    using Poseidon2Params = crypto::Poseidon2Bn254ScalarFieldParams;
+    using Proof = honk::proof;
 
     BaseTranscript() = default;
 
@@ -76,15 +81,14 @@ class BaseTranscript {
     static constexpr size_t HASH_OUTPUT_SIZE = 32;
 
     std::ptrdiff_t proof_start = 0;
-    size_t num_bytes_written = 0; // the number of bytes written to proof_data by the prover or the verifier
-    size_t num_bytes_read = 0;    // the number of bytes read from proof_data by the verifier
-    size_t round_number = 0;      // current round for manifest
+    size_t num_frs_written = 0; // the number of bb::frs written to proof_data by the prover or the verifier
+    size_t num_frs_read = 0;    // the number of bb::frs read from proof_data by the verifier
+    size_t round_number = 0;    // current round for manifest
 
   private:
-    static constexpr size_t MIN_BYTES_PER_CHALLENGE = 128 / 8; // 128 bit challenges
     bool is_first_challenge = true; // indicates if this is the first challenge this transcript is generating
-    std::array<uint8_t, HASH_OUTPUT_SIZE> previous_challenge_buffer{}; // default-initialized to zeros
-    std::vector<uint8_t> current_round_data;
+    Fr previous_challenge{};        // default-initialized to zeros
+    std::vector<Fr> current_round_data;
 
     // "Manifest" object that records a summary of the transcript interactions
     TranscriptManifest manifest;
@@ -93,11 +97,11 @@ class BaseTranscript {
      * @brief Compute next challenge c_next = H( Compress(c_prev || round_buffer) )
      * @details This function computes a new challenge for the current round using the previous challenge
      * and the current round data, if they are exist. It clears the current_round_data if nonempty after
-     * computing the challenge to minimize how much we compress. It also sets previous_challenge_buffer
+     * computing the challenge to minimize how much we compress. It also sets previous_challenge
      * to the current challenge buffer to set up next function call.
-     * @return std::array<uint8_t, HASH_OUTPUT_SIZE>
+     * @return std::array<Fr, HASH_OUTPUT_SIZE>
      */
-    [[nodiscard]] std::array<uint8_t, HASH_OUTPUT_SIZE> get_next_challenge_buffer()
+    [[nodiscard]] Fr get_next_challenge_buffer()
     {
         // Prevent challenge generation if this is the first challenge we're generating,
         // AND nothing was sent by the prover.
@@ -109,33 +113,31 @@ class BaseTranscript {
         // TODO(Adrian): Do we want to use a domain separator as the initial challenge buffer?
         // We could be cheeky and use the hash of the manifest as domain separator, which would prevent us from having
         // to domain separate all the data. (See https://safe-hash.dev)
-        std::vector<uint8_t> full_buffer;
+        std::vector<Fr> full_buffer;
         if (!is_first_challenge) {
-            // if not the first challenge, we can use the previous_challenge_buffer
-            full_buffer.insert(full_buffer.end(), previous_challenge_buffer.begin(), previous_challenge_buffer.end());
+            // if not the first challenge, we can use the previous_challenge
+            full_buffer.emplace_back(previous_challenge);
         } else {
             // Update is_first_challenge for the future
             is_first_challenge = false;
         }
         if (!current_round_data.empty()) {
-            full_buffer.insert(full_buffer.end(), current_round_data.begin(), current_round_data.end());
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/832): investigate why
+            // full_buffer.insert(full_buffer.end(), current_round_data.begin(), current_round_data.end()); fails to
+            // compile with gcc
+            std::copy(current_round_data.begin(), current_round_data.end(), std::back_inserter(full_buffer));
             current_round_data.clear(); // clear the round data buffer since it has been used
         }
 
-        // Pre-hash the full buffer to minimize the amount of data passed to the cryptographic hash function.
-        // Only a collision-resistant hash-function like Pedersen is required for this step.
-        // Note: this pre-hashing is an efficiency trick that may be discareded if using a SNARK-friendly or in contexts
-        // (eg smart contract verification) where the cost of elliptic curve operations is high.
-        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen_hash::hash_buffer(full_buffer));
+        // Hash the full buffer with poseidon2, which is believed to be a collision resistant hash function and a random
+        // oracle, removing the need to pre-hash to compress and then hash with a random oracle, as we previously did
+        // with Pedersen and Blake3s.
+        Fr base_hash = crypto::Poseidon2<Poseidon2Params>::hash(full_buffer);
 
-        // Use a strong hash function to derive the new challenge_buffer.
-        auto base_hash = blake3::blake3s(compressed_buffer);
-
-        std::array<uint8_t, HASH_OUTPUT_SIZE> new_challenge_buffer;
-        std::copy_n(base_hash.begin(), HASH_OUTPUT_SIZE, new_challenge_buffer.begin());
+        Fr new_challenge = base_hash;
         // update previous challenge buffer for next time we call this function
-        previous_challenge_buffer = new_challenge_buffer;
-        return new_challenge_buffer;
+        previous_challenge = new_challenge;
+        return new_challenge;
     };
 
   protected:
@@ -143,35 +145,35 @@ class BaseTranscript {
      * @brief Adds challenge elements to the current_round_buffer and updates the manifest.
      *
      * @param label of the element sent
-     * @param element_bytes serialized
+     * @param element_frs serialized
      */
-    void consume_prover_element_bytes(const std::string& label, std::span<const uint8_t> element_bytes)
+    void consume_prover_element_frs(const std::string& label, std::span<const Fr> element_frs)
     {
         // Add an entry to the current round of the manifest
-        manifest.add_entry(round_number, label, element_bytes.size());
+        manifest.add_entry(round_number, label, element_frs.size());
 
-        current_round_data.insert(current_round_data.end(), element_bytes.begin(), element_bytes.end());
+        current_round_data.insert(current_round_data.end(), element_frs.begin(), element_frs.end());
 
-        num_bytes_written += element_bytes.size();
+        num_frs_written += element_frs.size();
     }
 
     /**
      * @brief Serializes object and appends it to proof_data
      * @details Calls to_buffer on element to serialize, and modifies proof_data object by appending the serialized
-     * bytes to it.
+     * frs to it.
      * @tparam T
      * @param element
      * @param proof_data
      */
     template <typename T> void serialize_to_buffer(const T& element, Proof& proof_data)
     {
-        auto element_bytes = to_buffer(element);
-        proof_data.insert(proof_data.end(), element_bytes.begin(), element_bytes.end());
+        auto element_frs = bb::field_conversion::convert_to_bn254_frs(element);
+        proof_data.insert(proof_data.end(), element_frs.begin(), element_frs.end());
     }
     /**
-     * @brief Deserializes the bytes starting at offset into the typed element and returns that element.
-     * @details Using the template parameter and the offset argument, this function deserializes the bytes with
-     * from_buffer and then increments the offset appropriately based on the number of bytes that were deserialized.
+     * @brief Deserializes the frs starting at offset into the typed element and returns that element.
+     * @details Using the template parameter and the offset argument, this function deserializes the frs with
+     * from_buffer and then increments the offset appropriately based on the number of frs that were deserialized.
      * @tparam T
      * @param proof_data
      * @param offset
@@ -179,13 +181,13 @@ class BaseTranscript {
      */
     template <typename T> T deserialize_from_buffer(const Proof& proof_data, size_t& offset) const
     {
-        constexpr size_t element_size = sizeof(T);
-        ASSERT(offset + element_size <= proof_data.size());
+        constexpr size_t element_fr_size = bb::field_conversion::calc_num_bn254_frs<T>();
+        ASSERT(offset + element_fr_size <= proof_data.size());
 
-        auto element_bytes = std::span{ proof_data }.subspan(offset, element_size);
-        offset += element_size;
+        auto element_frs = std::span{ proof_data }.subspan(offset, element_fr_size);
+        offset += element_fr_size;
 
-        T element = from_buffer<T>(element_bytes);
+        auto element = bb::field_conversion::convert_from_bn254_frs<T>(element_frs);
 
         return element;
     }
@@ -198,16 +200,16 @@ class BaseTranscript {
      * @brief Return the proof data starting at proof_start
      * @details This is useful for when two different provers share a transcript.
      */
-    std::vector<uint8_t> export_proof()
+    std::vector<Fr> export_proof()
     {
-        std::vector<uint8_t> result(num_bytes_written);
-        std::copy_n(proof_data.begin() + proof_start, num_bytes_written, result.begin());
-        proof_start += static_cast<std::ptrdiff_t>(num_bytes_written);
-        num_bytes_written = 0;
+        std::vector<Fr> result(num_frs_written);
+        std::copy_n(proof_data.begin() + proof_start, num_frs_written, result.begin());
+        proof_start += static_cast<std::ptrdiff_t>(num_frs_written);
+        num_frs_written = 0;
         return result;
     };
 
-    void load_proof(const std::vector<uint8_t>& proof)
+    void load_proof(const std::vector<Fr>& proof)
     {
         std::copy(proof.begin(), proof.end(), std::back_inserter(proof_data));
     }
@@ -221,7 +223,7 @@ class BaseTranscript {
      * multiple challenges.
      *
      * @param labels human-readable names for the challenges for the manifest
-     * @return std::array<uint256_t, num_challenges> challenges for this round.
+     * @return std::array<Fr, num_challenges> challenges for this round.
      */
     template <typename... Strings> std::array<uint256_t, sizeof...(Strings)> get_challenges(const Strings&... labels)
     {
@@ -232,20 +234,23 @@ class BaseTranscript {
 
         // Compute the new challenge buffer from which we derive the challenges.
 
-        // Create challenges from bytes.
+        // Create challenges from Frs.
         std::array<uint256_t, num_challenges> challenges{};
 
         // Generate the challenges by iteratively hashing over the previous challenge.
         for (size_t i = 0; i < num_challenges; i++) {
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/741): Optimize this by truncating hash to 128
+            // bits or by splitting hash into 2 challenges.
+            /*
             auto next_challenge_buffer = get_next_challenge_buffer(); // get next challenge buffer
-            std::array<uint8_t, sizeof(uint256_t)> field_element_buffer{};
-            // copy half of the hash to lower 128 bits of challenge
-            // Note: because of how read() from buffers to fields works (in field_declarations.hpp),
-            // we use the later half of the buffer
-            std::copy_n(next_challenge_buffer.begin(),
+            Fr field_element_buffer = next_challenge_buffer;
+            // copy half of the hash to lower 128 bits of challenge Note: because of how read() from buffers to fields
+            works (in field_declarations.hpp), we use the later half of the buffer
+            // std::copy_n(next_challenge_buffer.begin(),
                         HASH_OUTPUT_SIZE / 2,
                         field_element_buffer.begin() + HASH_OUTPUT_SIZE / 2);
-            challenges[i] = from_buffer<uint256_t>(field_element_buffer);
+            */
+            challenges[i] = static_cast<uint256_t>(get_next_challenge_buffer());
         }
 
         // Prepare for next round.
@@ -258,7 +263,7 @@ class BaseTranscript {
      * @brief Adds a prover message to the transcript, only intended to be used by the prover.
      *
      * @details Serializes the provided object into `proof_data`, and updates the current round state in
-     * consume_prover_element_bytes.
+     * consume_prover_element_frs.
      *
      * @param label Description/name of the object being added.
      * @param element Serializable object that will be added to the transcript
@@ -269,19 +274,19 @@ class BaseTranscript {
      */
     template <class T> void send_to_verifier(const std::string& label, const T& element)
     {
-        using serialize::write;
         // TODO(Adrian): Ensure that serialization of affine elements (including point at infinity) is consistent.
         // TODO(Adrian): Consider restricting serialization (via concepts) to types T for which sizeof(T) reliably
-        // returns the size of T in bytes. (E.g. this is true for std::array but not for std::vector).
-        auto element_bytes = to_buffer(element);
-        proof_data.insert(proof_data.end(), element_bytes.begin(), element_bytes.end());
+        // returns the size of T in frs. (E.g. this is true for std::array but not for std::vector).
+        // convert element to field elements
+        auto element_frs = bb::field_conversion::convert_to_bn254_frs(element);
+        proof_data.insert(proof_data.end(), element_frs.begin(), element_frs.end());
 
 #ifdef LOG_INTERACTIONS
         if constexpr (Loggable<T>) {
             info("sent:     ", label, ": ", element);
         }
 #endif
-        BaseTranscript::consume_prover_element_bytes(label, element_bytes);
+        BaseTranscript::consume_prover_element_frs(label, element_frs);
     }
 
     /**
@@ -292,15 +297,15 @@ class BaseTranscript {
      */
     template <class T> T receive_from_prover(const std::string& label)
     {
-        constexpr size_t element_size = sizeof(T);
-        ASSERT(num_bytes_read + element_size <= proof_data.size());
+        constexpr size_t element_size = bb::field_conversion::calc_num_bn254_frs<T>();
+        ASSERT(num_frs_read + element_size <= proof_data.size());
 
-        auto element_bytes = std::span{ proof_data }.subspan(num_bytes_read, element_size);
-        num_bytes_read += element_size;
+        auto element_frs = std::span{ proof_data }.subspan(num_frs_read, element_size);
+        num_frs_read += element_size;
 
-        BaseTranscript::consume_prover_element_bytes(label, element_bytes);
+        BaseTranscript::consume_prover_element_frs(label, element_frs);
 
-        T element = from_buffer<T>(element_bytes);
+        auto element = bb::field_conversion::convert_from_bn254_frs<T>(element_frs);
 
 #ifdef LOG_INTERACTIONS
         if constexpr (Loggable<T>) {
@@ -354,12 +359,12 @@ class BaseTranscript {
 
 /**
  * @brief Convert an array of uint256_t's to an array of field elements
- * @details The syntax `std::array<FF, 2> [a, b] = transcript.get_challenges("a", "b")` is unfortunately not allowed
+ * @details The syntax `std::array<Fr, 2> [a, b] = transcript.get_challenges("a", "b")` is unfortunately not allowed
  * (structured bindings must be defined with auto return type), so we need a workaround.
  */
-template <typename FF, typename T, size_t N> std::array<FF, N> challenges_to_field_elements(std::array<T, N>&& arr)
+template <typename Fr, typename T, size_t N> std::array<Fr, N> challenges_to_field_elements(std::array<T, N>&& arr)
 {
-    std::array<FF, N> result;
+    std::array<Fr, N> result;
     std::move(arr.begin(), arr.end(), result.begin());
     return result;
 }

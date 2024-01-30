@@ -14,6 +14,7 @@
 namespace bb::honk {
 
 using Flavor = honk::flavor::AvmMiniFlavor;
+using FF = Flavor::FF;
 
 /**
  * Create AvmMiniProver from proving key, witness and manifest.
@@ -98,13 +99,13 @@ void AvmMiniProver::execute_zeromorph_rounds()
                      transcript);
 }
 
-plonk::proof& AvmMiniProver::export_proof()
+honk::proof& AvmMiniProver::export_proof()
 {
-    proof.proof_data = transcript->proof_data;
+    proof = transcript->proof_data;
     return proof;
 }
 
-plonk::proof& AvmMiniProver::construct_proof()
+bb::honk::proof& AvmMiniProver::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();

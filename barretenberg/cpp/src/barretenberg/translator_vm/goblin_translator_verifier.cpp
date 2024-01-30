@@ -65,10 +65,10 @@ void GoblinTranslatorVerifier::put_translation_data_in_relation_parameters(const
 /**
  * @brief This function verifies an GoblinTranslator Honk proof for given program settings.
  */
-bool GoblinTranslatorVerifier::verify_proof(const plonk::proof& proof)
+bool GoblinTranslatorVerifier::verify_proof(const honk::proof& proof)
 {
     batching_challenge_v = transcript->get_challenge("Translation:batching_challenge");
-    transcript->load_proof(proof.proof_data);
+    transcript->load_proof(proof);
 
     Flavor::VerifierCommitments commitments{ key };
     Flavor::CommitmentLabels commitment_labels;

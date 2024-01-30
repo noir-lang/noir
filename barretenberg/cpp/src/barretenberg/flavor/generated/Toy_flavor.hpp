@@ -285,45 +285,45 @@ class ToyFlavor {
 
         Transcript() = default;
 
-        Transcript(const std::vector<uint8_t>& proof)
+        Transcript(const std::vector<FF>& proof)
             : BaseTranscript(proof)
         {}
 
         void deserialize_full_transcript()
         {
-            size_t num_bytes_read = 0;
-            circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_bytes_read);
+            size_t num_frs_read = 0;
+            circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
-            toy_q_tuple_set = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_set_1_column_1 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_set_1_column_2 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_set_2_column_1 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_set_2_column_2 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_xor_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_xor_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_xor_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_table_xor_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_table_xor_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_table_xor_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_q_xor = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            toy_q_xor_table = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            two_column_perm = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            lookup_xor = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
-            lookup_xor_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_bytes_read);
+            toy_q_tuple_set = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_set_1_column_1 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_set_1_column_2 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_set_2_column_1 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_set_2_column_2 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_xor_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_xor_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_xor_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_table_xor_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_table_xor_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_table_xor_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_q_xor = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            toy_q_xor_table = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            two_column_perm = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            lookup_xor = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            lookup_xor_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
 
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.emplace_back(
                     deserialize_from_buffer<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(Transcript::proof_data,
-                                                                                                 num_bytes_read));
+                                                                                                 num_frs_read));
             }
             sumcheck_evaluations =
-                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(Transcript::proof_data, num_bytes_read);
+                deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(Transcript::proof_data, num_frs_read);
             for (size_t i = 0; i < log_n; ++i) {
-                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_bytes_read));
+                zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_frs_read));
             }
-            zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
-            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_bytes_read);
+            zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
         }
 
         void serialize_full_transcript()

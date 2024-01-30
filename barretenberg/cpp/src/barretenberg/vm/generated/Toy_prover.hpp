@@ -31,8 +31,8 @@ class ToyProver {
     void execute_relation_check_rounds();
     void execute_zeromorph_rounds();
 
-    plonk::proof& export_proof();
-    plonk::proof& construct_proof();
+    honk::proof& export_proof();
+    honk::proof& construct_proof();
 
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
@@ -56,7 +56,7 @@ class ToyProver {
     using ZeroMorph = pcs::zeromorph::ZeroMorphProver_<Curve>;
 
   private:
-    plonk::proof proof;
+    honk::proof proof;
 };
 
 } // namespace bb::honk
