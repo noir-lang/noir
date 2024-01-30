@@ -57,3 +57,25 @@ export function initExecutionEnvironment(overrides?: AvmExecutionEnvironmentOver
     overrides?.calldata ?? [],
   );
 }
+
+/**
+ * An interface that allows to override the default values of the GlobalVariables
+ */
+export interface GlobalVariablesOverrides {
+  chainId?: Fr;
+  version?: Fr;
+  blockNumber?: Fr;
+  timestamp?: Fr;
+}
+
+/**
+ * Create an empty instance of the Global Variables where all values are zero, unless overriden in the overrides object
+ */
+export function initGlobalVariables(overrides?: GlobalVariablesOverrides): GlobalVariables {
+  return new GlobalVariables(
+    overrides?.chainId ?? Fr.zero(),
+    overrides?.version ?? Fr.zero(),
+    overrides?.blockNumber ?? Fr.zero(),
+    overrides?.timestamp ?? Fr.zero(),
+  );
+}
