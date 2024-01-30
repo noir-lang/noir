@@ -8,7 +8,7 @@ use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 mod fixed_base_scalar_mul;
 mod wasm;
 
-pub use fixed_base_scalar_mul::fixed_base_scalar_mul;
+pub use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
 use wasm::Barretenberg;
 
 use self::wasm::{Pedersen, SchnorrSig};
@@ -90,19 +90,11 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
 
     fn ec_add(
         &self,
-        _input1_x: &FieldElement,
-        _input1_y: &FieldElement,
-        _input2_x: &FieldElement,
-        _input2_y: &FieldElement,
+        input1_x: &FieldElement,
+        input1_y: &FieldElement,
+        input2_x: &FieldElement,
+        input2_y: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        todo!();
-    }
-
-    fn ec_double(
-        &self,
-        _input_x: &FieldElement,
-        _input_y: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        todo!();
+        embedded_curve_add(*input1_x, *input1_y, *input2_x, *input2_y)
     }
 }

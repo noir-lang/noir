@@ -1,3 +1,4 @@
+use super::big_int::BigIntContext;
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
@@ -107,6 +108,9 @@ pub(crate) struct AcirContext {
     /// then the `acir_ir` will be populated to assert this
     /// addition.
     acir_ir: GeneratedAcir,
+
+    /// The BigIntContext, used to generate identifiers for BigIntegers
+    big_int_ctx: BigIntContext,
 }
 
 impl AcirContext {
@@ -1140,10 +1144,10 @@ impl AcirContext {
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
-        output_count: usize,
+        mut output_count: usize,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
-        let constants = match name {
+        let (constant_inputs, constant_outputs) = match name {
             BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
@@ -1167,23 +1171,140 @@ impl AcirContext {
                     }
                 };
 
-                vec![domain_constant]
+                (vec![domain_constant], Vec::new())
             }
-            _ => vec![],
+            BlackBoxFunc::Poseidon2Permutation => {
+                // The last argument is the state length, which must be a constant
+                let state_len = match inputs.pop() {
+                    Some(state_len) => state_len.into_var()?,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "poseidon_2_permutation call".to_string(),
+                            arg: "length".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                let state_len = match self.vars[&state_len].as_constant() {
+                    Some(state_len) => state_len,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "length".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                (vec![state_len], Vec::new())
+            }
+            BlackBoxFunc::BigIntAdd
+            | BlackBoxFunc::BigIntNeg
+            | BlackBoxFunc::BigIntMul
+            | BlackBoxFunc::BigIntDiv => {
+                assert_eq!(inputs.len(), 4, "ICE - bigint operation requires 4 inputs");
+                let const_inputs = vecmap(inputs, |i| {
+                    let var = i.into_var()?;
+                    match self.vars[&var].as_constant() {
+                        Some(const_var) => Ok(const_var),
+                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "big integer".to_string(),
+                            call_stack: self.get_call_stack(),
+                        })),
+                    }
+                });
+                inputs = Vec::new();
+                output_count = 0;
+                let mut field_inputs = Vec::new();
+                for i in const_inputs {
+                    field_inputs.push(i?);
+                }
+                if field_inputs[1] != field_inputs[3] {
+                    return Err(RuntimeError::BigIntModulus { call_stack: self.get_call_stack() });
+                }
+
+                let result_id = self.big_int_ctx.new_big_int(field_inputs[1]);
+                (
+                    vec![field_inputs[0], field_inputs[2]],
+                    vec![result_id.bigint_id(), result_id.modulus_id()],
+                )
+            }
+            BlackBoxFunc::BigIntToLeBytes => {
+                let const_inputs = vecmap(inputs, |i| {
+                    let var = i.into_var()?;
+                    match self.vars[&var].as_constant() {
+                        Some(const_var) => Ok(const_var),
+                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "big integer".to_string(),
+                            call_stack: self.get_call_stack(),
+                        })),
+                    }
+                });
+                inputs = Vec::new();
+                let mut field_inputs = Vec::new();
+                for i in const_inputs {
+                    field_inputs.push(i?);
+                }
+                let modulus = self.big_int_ctx.modulus(field_inputs[0]);
+                let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
+                output_count = bytes_len as usize;
+                (field_inputs, vec![FieldElement::from(bytes_len as u128)])
+            }
+            BlackBoxFunc::BigIntFromLeBytes => {
+                let invalid_input = "ICE - bigint operation requires 2 inputs";
+                assert_eq!(inputs.len(), 2, "{invalid_input}");
+                let mut modulus = Vec::new();
+                match inputs.pop().expect(invalid_input) {
+                    AcirValue::Array(values) => {
+                        for value in values {
+                            modulus.push(self.vars[&value.into_var()?].as_constant().ok_or(
+                                RuntimeError::InternalError(InternalError::NotAConstant {
+                                    name: "big integer".to_string(),
+                                    call_stack: self.get_call_stack(),
+                                }),
+                            )?);
+                        }
+                    }
+                    _ => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "big_int_from_le_bytes".to_owned(),
+                            arg: "modulus".to_owned(),
+                            call_stack: self.get_call_stack(),
+                        }));
+                    }
+                }
+                let big_modulus = BigUint::from_bytes_le(&vecmap(&modulus, |b| b.to_u128() as u8));
+                output_count = 0;
+
+                let modulus_id = self.big_int_ctx.get_or_insert_modulus(big_modulus);
+                let result_id =
+                    self.big_int_ctx.new_big_int(FieldElement::from(modulus_id as u128));
+                (modulus, vec![result_id.bigint_id(), result_id.modulus_id()])
+            }
+            _ => (vec![], vec![]),
         };
 
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
-
         // Call Black box with `FunctionInput`
-        let outputs = self.acir_ir.call_black_box(name, &inputs, constants, output_count)?;
+        let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
+        let outputs = self.acir_ir.call_black_box(
+            name,
+            &inputs,
+            constant_inputs,
+            constant_outputs,
+            output_count,
+        )?;
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.
         //
         // We do not apply range information on the output of the black box function.
         // See issue #1439
-        Ok(vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index))))
+        results.extend(vecmap(&outputs, |witness_index| {
+            self.add_data(AcirVarData::Witness(*witness_index))
+        }));
+        Ok(results)
     }
 
     /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).

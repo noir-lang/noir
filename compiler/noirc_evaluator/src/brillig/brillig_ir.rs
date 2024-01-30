@@ -1096,14 +1096,6 @@ pub(crate) mod tests {
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
-
-        fn ec_double(
-            &self,
-            _input_x: &FieldElement,
-            _input_y: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            panic!("Path not trodden by this test")
-        }
     }
 
     pub(crate) fn create_context() -> BrilligContext {

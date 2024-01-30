@@ -69,3 +69,8 @@ pub fn keccak256<N>(_input: [u8; N], _message_size: u32) -> [u8; 32]
 // docs:end:keccak256
 {}
 
+#[foreign(poseidon2_permutation)]
+pub fn poseidon2_permutation<N>(_input: [u8; N], _state_length: u32) -> [u8; N] {}
+
+#[foreign(sha256_compression)]
+pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}

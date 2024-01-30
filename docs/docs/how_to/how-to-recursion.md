@@ -108,11 +108,7 @@ This call takes the public inputs and the proof, but also the public inputs coun
 
 :::info
 
-The `proofAsFields` has a constant size `[Field; 93]`. However, currently the backend doesn't remove the public inputs from the proof when converting it.
-
-This means that if your `main` circuit has two public inputs, then you should also modify the recursive circuit to accept a proof with the public inputs appended. This means that in our example, since `y` is a public input, our `proofAsFields` is of type `[Field; 94]`.
-
-Verification keys in Barretenberg are always of size 114.
+The `proofAsFields` has a constant size `[Field; 93]` and verification keys in Barretenberg are always `[Field; 114]`.
 
 :::
 
@@ -136,7 +132,6 @@ const recursiveInputs = {
     proof: proofAsFields, // array of length 93 + size of public inputs
     publicInputs: [mainInput.y], // using the example above, where `y` is the only public input
     key_hash: vkHash,
-    input_aggregation_object: Array(16).fill(0) // this circuit is verifying a non-recursive proof, so there's no input aggregation object: just use zero
 }
 
 const { witness, returnValue } = noir.execute(recursiveInputs) // we're executing the recursive circuit now!
@@ -144,7 +139,7 @@ const { proof, publicInputs } = backend.generateFinalProof(witness)
 const verified = backend.verifyFinalProof({ proof, publicInputs })
 ```
 
-You can obviously chain this proof into another proof. In fact, if you're using recursive proofs, you're probably interested of using them this way! In that case, you should keep in mind the `returnValue`, as it will contain the `input_aggregation_object` for the next proof.
+You can obviously chain this proof into another proof. In fact, if you're using recursive proofs, you're probably interested of using them this way!
 
 :::tip
 
@@ -152,16 +147,16 @@ Managing circuits and "who does what" can be confusing. To make sure your naming
 
 ```js
 const circuits = {
-main: mainJSON, 
-recursive: recursiveJSON
+  main: mainJSON, 
+  recursive: recursiveJSON
 }
 const backends = {
-main: new BarretenbergBackend(circuits.main),
-recursive: new BarretenbergBackend(circuits.recursive)
+  main: new BarretenbergBackend(circuits.main),
+  recursive: new BarretenbergBackend(circuits.recursive)
 }
 const noir_programs = {
-main: new Noir(circuits.main, backends.main),
-recursive: new Noir(circuits.recursive, backends.recursive)
+  main: new Noir(circuits.main, backends.main),
+  recursive: new Noir(circuits.recursive, backends.recursive)
 }
 ```
 
