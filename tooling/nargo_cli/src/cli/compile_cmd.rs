@@ -61,7 +61,10 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = backend.get_backend_info_or_default();
+    let expression_width = args
+        .compile_options
+        .expression_width
+        .unwrap_or_else(|| backend.get_backend_info_or_default());
     let (compiled_program, compiled_contracts) = compile_workspace(
         &workspace_file_manager,
         &parsed_files,

@@ -99,50 +99,8 @@ pub(super) fn transform_internal(
                 }
             }
             Opcode::BlackBoxFuncCall(ref func) => {
-                match func {
-                    acir::circuit::opcodes::BlackBoxFuncCall::AND { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::XOR { output, .. } => {
-                        transformer.mark_solvable(*output);
-                    }
-                    acir::circuit::opcodes::BlackBoxFuncCall::RANGE { .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation { .. } => (),
-                    acir::circuit::opcodes::BlackBoxFuncCall::SHA256 { outputs, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256 { outputs, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Keccak256VariableLength {
-                        outputs,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Keccakf1600 { outputs, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Blake2s { outputs, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::Blake3 { outputs, .. } => {
-                        for witness in outputs {
-                            transformer.mark_solvable(*witness);
-                        }
-                    }
-                    acir::circuit::opcodes::BlackBoxFuncCall::FixedBaseScalarMul {
-                        outputs,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd {
-                        outputs, ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveDouble {
-                        outputs,
-                        ..
-                    }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenCommitment {
-                        outputs,
-                        ..
-                    } => {
-                        transformer.mark_solvable(outputs.0);
-                        transformer.mark_solvable(outputs.1);
-                    }
-                    acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1 { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::SchnorrVerify { output, .. }
-                    | acir::circuit::opcodes::BlackBoxFuncCall::PedersenHash { output, .. } => {
-                        transformer.mark_solvable(*output);
-                    }
+                for witness in func.get_outputs_vec() {
+                    transformer.mark_solvable(witness);
                 }
 
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
