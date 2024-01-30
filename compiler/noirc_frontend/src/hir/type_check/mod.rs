@@ -520,7 +520,8 @@ mod test {
         );
 
         let func_meta = vecmap(program.into_sorted().functions, |nf| {
-            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let resolver =
+                Resolver::new(&mut interner, &path_resolver, &def_maps, CrateId::dummy_id(), file);
             let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)

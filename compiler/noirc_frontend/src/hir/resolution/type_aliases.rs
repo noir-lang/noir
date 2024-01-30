@@ -23,9 +23,14 @@ pub(crate) fn resolve_type_aliases(
             krate: crate_id,
         });
         let file = unresolved_typ.file_id;
-        let (typ, generics, resolver_errors) =
-            Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
-                .resolve_type_aliases(unresolved_typ.type_alias_def);
+        let (typ, generics, resolver_errors) = Resolver::new(
+            &mut context.def_interner,
+            &path_resolver,
+            &context.def_maps,
+            crate_id,
+            file,
+        )
+        .resolve_type_aliases(unresolved_typ.type_alias_def);
         errors.extend(resolver_errors.iter().cloned().map(|e| (e.into(), file)));
         context.def_interner.set_type_alias(type_id, typ, generics);
     }

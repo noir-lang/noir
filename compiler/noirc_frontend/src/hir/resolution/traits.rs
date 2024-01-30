@@ -122,7 +122,7 @@ fn resolve_trait_methods(
             let self_type = Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
             let name_span = the_trait.name.span();
 
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, crate_id, file);
             resolver.add_generics(generics);
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
             resolver.add_existing_generic("Self", name_span, self_typevar);
@@ -288,7 +288,7 @@ fn collect_trait_impl(
 
         let path_resolver = StandardPathResolver::new(module);
         let file = def_maps[&crate_id].file_id(trait_impl.module_id);
-        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, crate_id, file);
         resolver.add_generics(&trait_impl.generics);
         let typ = resolver.resolve_type(unresolved_type);
         errors.extend(take_errors(trait_impl.file_id, resolver));
@@ -334,7 +334,7 @@ fn check_trait_impl_crate_coherence(
     let module = ModuleId { krate: current_crate, local_id: trait_impl.module_id };
     let file = def_maps[&current_crate].file_id(trait_impl.module_id);
     let path_resolver = StandardPathResolver::new(module);
-    let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+    let mut resolver = Resolver::new(interner, &path_resolver, def_maps, current_crate, file);
 
     let object_crate = match resolver.resolve_type(trait_impl.object_type.clone()) {
         Type::Struct(struct_type, _) => struct_type.borrow().id.krate(),
@@ -422,8 +422,13 @@ pub(crate) fn resolve_trait_impls(
             errors.push((error.into(), trait_impl.file_id));
         }
 
-        let mut new_resolver =
-            Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
+        let mut new_resolver = Resolver::new(
+            interner,
+            &path_resolver,
+            &context.def_maps,
+            crate_id,
+            trait_impl.file_id,
+        );
 
         new_resolver.set_generics(impl_generics.clone());
         new_resolver.set_self_type(Some(self_type.clone()));

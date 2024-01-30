@@ -37,6 +37,7 @@ pub(crate) fn resolve_globals(
             &mut context.def_interner,
             &path_resolver,
             &context.def_maps,
+            crate_id,
             global.file_id,
         );
 
