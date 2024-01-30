@@ -30,11 +30,7 @@ contract DiversifiedAccount
         return address_preimage.deployer_address
 ```
 
-<!-- TODO: The implementation above hinges on whether `deployer_address` for a contract is the actual deployer, or is the ContractDeployer contract. -->
-
 Given the contract does not require initialization since it has no constructor, it can be used by its owner without being actually deployed, which reduces the setup cost.
-
-<!-- TODO: The above requires that we implement "using a contract without deploying it if it has no constructor", or "constructor abstraction", both of which are a bit controversial. -->
 
 ## Discarded Approaches
 
