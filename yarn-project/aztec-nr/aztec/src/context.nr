@@ -86,6 +86,7 @@ struct PrivateContext {
     new_l2_to_l1_msgs : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
     // docs:end:private-context
 
+    // Header of a block whose state is used during private execution (not the block the transaction is included in).
     historical_header: Header,
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
@@ -148,11 +149,14 @@ impl PrivateContext {
         self.inputs.call_context.function_selector
     }
 
-    // Returns the header of a block whose state is used during private execution
+    // Returns the header of a block whose state is used during private execution (not the block the transaction is
+    // included in).
     pub fn get_header(self) -> Header {
         self.historical_header
     }
 
+    // Returns the header of an arbitrary block whose block number is less than or equal to the block number
+    // of historical header.
     pub fn get_header_at(self, block_number: u32) -> Header {
         get_header_at(block_number, self)
     }
@@ -494,6 +498,8 @@ struct PublicContext {
     unencrypted_logs_hash: BoundedVec<Field, NUM_FIELDS_PER_SHA256>,
     unencrypted_logs_preimages_length: Field,
 
+    // Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
+    // previous to the one in which the tx is included.
     historical_header: Header,
     prover_address: AztecAddress,
 }

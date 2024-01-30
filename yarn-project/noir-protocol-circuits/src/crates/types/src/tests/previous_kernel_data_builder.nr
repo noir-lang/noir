@@ -32,7 +32,7 @@ struct PreviousKernelDataBuilder {
     contract_address: AztecAddress,
     portal_contract_address: EthAddress,
     end: CombinedAccumulatedDataBuilder,
-    header: Header,
+    historical_header: Header,
     tx_context: TxContext,
     is_private: bool,
     proof: Proof,
@@ -57,7 +57,7 @@ impl PreviousKernelDataBuilder {
             contract_address: fixtures::contracts::parent_contract.address,
             portal_contract_address: fixtures::contracts::parent_contract.portal_contract_address,
             end,
-            header: fixtures::HEADER,
+            historical_header: fixtures::HEADER,
             tx_context,
             is_private: true,
             proof: Proof {},
@@ -197,7 +197,7 @@ impl PreviousKernelDataBuilder {
         let public_inputs = KernelCircuitPublicInputs {
             end: self.end.finish(),
             constants: CombinedConstantData {
-                header: self.header,
+                historical_header: self.historical_header,
                 tx_context: self.tx_context,
             },
             is_private: self.is_private,

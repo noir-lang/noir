@@ -994,7 +994,7 @@ export function mapCombinedAccumulatedDataToNoir(
  */
 export function mapCombinedConstantDataFromNoir(combinedConstantData: CombinedConstantDataNoir): CombinedConstantData {
   return new CombinedConstantData(
-    mapHeaderFromNoir(combinedConstantData.header),
+    mapHeaderFromNoir(combinedConstantData.historical_header),
     mapTxContextFromNoir(combinedConstantData.tx_context),
   );
 }
@@ -1006,7 +1006,7 @@ export function mapCombinedConstantDataFromNoir(combinedConstantData: CombinedCo
  */
 export function mapCombinedConstantDataToNoir(combinedConstantData: CombinedConstantData): CombinedConstantDataNoir {
   return {
-    header: mapHeaderToNoir(combinedConstantData.header),
+    historical_header: mapHeaderToNoir(combinedConstantData.historicalHeader),
     tx_context: mapTxContextToNoir(combinedConstantData.txContext),
   };
 }

@@ -51,11 +51,14 @@ struct PrivateCircuitPublicInputs {
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
 
-    // Header of the block the transaction is executing against (not the block the transaction is included in).
+    // Header of a block whose state is used during private execution (not the block the transaction is included in).
     historical_header: Header,
 
     contract_deployment_data: ContractDeploymentData,
 
+    // Note: The following 2 values are not redundant to the values in self.historical_header.global_variables because
+    // they can be different in case of a protocol upgrade. In such a situation we could be using header from a block
+    // before the upgrade took place but be using the updated protocol to execute and prove the transaction.
     chain_id: Field,
     version: Field,
 }

@@ -9,17 +9,22 @@ import { TxContext } from '../tx_context.js';
 export class CombinedConstantData {
   constructor(
     /**
-     * Roots of the trees relevant for both kernel circuits.
+     * Header of a block whose state is used during execution (not the block the transaction is included in).
      */
-    public header: Header,
+    public historicalHeader: Header,
     /**
      * Context of the transaction.
+     *
+     * Note: `chainId` and `version` in txContext are not redundant to the values in
+     * self.historical_header.global_variables because they can be different in case of a protocol upgrade. In such
+     * a situation we could be using header from a block before the upgrade took place but be using the updated
+     * protocol to execute and prove the transaction.
      */
     public txContext: TxContext,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.header, this.txContext);
+    return serializeToBuffer(this.historicalHeader, this.txContext);
   }
 
   /**

@@ -103,7 +103,7 @@ exports[`Noir compatibility tests (interop_testing.nr) TxRequest Hash matches No
 exports[`Private kernel Executes private kernel init circuit for a contract deployment 1`] = `
 KernelCircuitPublicInputs {
   "constants": CombinedConstantData {
-    "header": Header {
+    "historicalHeader": Header {
       "bodyHash": {
         "data": [
           0,
@@ -33274,7 +33274,7 @@ KernelCircuitPublicInputs {
 exports[`Private kernel Executes private kernel inner for a nested call 1`] = `
 KernelCircuitPublicInputs {
   "constants": CombinedConstantData {
-    "header": Header {
+    "historicalHeader": Header {
       "bodyHash": {
         "data": [
           210,
@@ -66445,7 +66445,7 @@ KernelCircuitPublicInputs {
 exports[`Private kernel Executes private kernel ordering after a deployment 1`] = `
 KernelCircuitPublicInputsFinal {
   "constants": CombinedConstantData {
-    "header": Header {
+    "historicalHeader": Header {
       "bodyHash": {
         "data": [
           0,

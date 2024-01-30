@@ -139,11 +139,11 @@ export class Sequencer {
       }
       this.log.info(`Retrieved ${pendingTxs.length} txs from P2P pool`);
 
-      const prevHeader = (await this.l2BlockSource.getBlock(-1))?.header;
+      const historicalHeader = (await this.l2BlockSource.getBlock(-1))?.header;
       const newBlockNumber =
-        (prevHeader === undefined
+        (historicalHeader === undefined
           ? await this.l2BlockSource.getBlockNumber()
-          : Number(prevHeader.globalVariables.blockNumber.toBigInt())) + 1;
+          : Number(historicalHeader.globalVariables.blockNumber.toBigInt())) + 1;
 
       /**
        * We'll call this function before running expensive operations to avoid wasted work.
@@ -169,7 +169,7 @@ export class Sequencer {
 
       // Process txs and drop the ones that fail processing
       // We create a fresh processor each time to reset any cached state (eg storage writes)
-      const processor = await this.publicProcessorFactory.create(prevHeader, newGlobalVariables);
+      const processor = await this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
       const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() => processor.process(validTxs));
       if (failedTxs.length > 0) {
         const failedTxData = failedTxs.map(fail => fail.tx);

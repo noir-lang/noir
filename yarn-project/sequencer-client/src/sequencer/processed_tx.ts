@@ -89,7 +89,7 @@ export async function makeProcessedTx(
  */
 export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): Promise<ProcessedTx> {
   const emptyKernelOutput = PublicKernelPublicInputs.empty();
-  emptyKernelOutput.constants.header = header;
+  emptyKernelOutput.constants.historicalHeader = header;
   emptyKernelOutput.constants.txContext.chainId = chainId;
   emptyKernelOutput.constants.txContext.version = version;
   const emptyProof = makeEmptyProof();

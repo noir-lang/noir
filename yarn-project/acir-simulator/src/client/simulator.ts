@@ -139,8 +139,7 @@ export class AcirSimulator {
       throw new Error(`Cannot run ${entryPointArtifact.functionType} function as constrained`);
     }
 
-    const header = await this.db.getHeader();
-    const context = new ViewDataOracle(contractAddress, header, [], this.db, aztecNode);
+    const context = new ViewDataOracle(contractAddress, [], this.db, aztecNode);
 
     try {
       return await executeUnconstrainedFunction(

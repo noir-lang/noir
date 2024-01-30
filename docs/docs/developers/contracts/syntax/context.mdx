@@ -75,7 +75,7 @@ The call context contains information about the current call being made:
 
 Another structure that is contained within the context is the Header object.
 In the private context this is a header of a block which used to generate proofs against.
-In the public context this TBD TODO(#4262)
+In the public context this header is set by sequencer (sequencer executes public calls) and it is set to 1 block before the block in which the transaction is included.
 
 #include_code header /yarn-project/noir-protocol-circuits/src/crates/types/src/header.nr rust
 

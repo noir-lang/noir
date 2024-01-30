@@ -198,7 +198,8 @@ export class PublicCircuitPublicInputs {
      */
     public unencryptedLogPreimagesLength: Fr,
     /**
-     * L2 block header of the block preceding the block in which this tx is included.
+     * Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
+     * previous to the one in which the tx is included.
      */
     public historicalHeader: Header,
     /**

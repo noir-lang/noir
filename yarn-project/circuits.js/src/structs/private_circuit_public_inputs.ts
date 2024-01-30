@@ -94,7 +94,7 @@ export class PrivateCircuitPublicInputs {
      */
     public unencryptedLogPreimagesLength: Fr,
     /**
-     * L2 block header.
+     * Header of a block whose state is used during private execution (not the block the transaction is included in).
      */
     public historicalHeader: Header,
     /**
@@ -103,6 +103,10 @@ export class PrivateCircuitPublicInputs {
     public contractDeploymentData: ContractDeploymentData,
     /**
      * Chain Id of the instance.
+     *
+     * Note: The following 2 values are not redundant to the values in self.historical_header.global_variables because
+     * they can be different in case of a protocol upgrade. In such a situation we could be using header from a block
+     * before the upgrade took place but be using the updated protocol to execute and prove the transaction.
      */
     public chainId: Fr,
     /**

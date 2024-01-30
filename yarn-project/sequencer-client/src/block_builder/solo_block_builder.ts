@@ -157,7 +157,7 @@ export class SoloBlockBuilder implements BlockBuilder {
 
   protected validateTxs(txs: ProcessedTx[]) {
     for (const tx of txs) {
-      const txHeader = tx.data.constants.header;
+      const txHeader = tx.data.constants.historicalHeader;
       if (txHeader.state.l1ToL2MessageTree.isEmpty()) {
         throw new Error(`Empty L1 to L2 messages tree in tx: ${toFriendlyJSON(tx)}`);
       }
@@ -492,7 +492,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   protected getHistoricalTreesMembershipWitnessFor(tx: ProcessedTx) {
-    const header = tx.data.constants.header;
+    const header = tx.data.constants.historicalHeader;
     // TODO(#3941)
     const blockHash = computeBlockHash(
       computeGlobalsHash(header.globalVariables),

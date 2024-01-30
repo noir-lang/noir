@@ -163,7 +163,7 @@ describe('L1Publisher integration', () => {
     const kernelOutput = KernelCircuitPublicInputs.empty();
     kernelOutput.constants.txContext.chainId = fr(chainId);
     kernelOutput.constants.txContext.version = fr(config.version);
-    kernelOutput.constants.header = prevHeader;
+    kernelOutput.constants.historicalHeader = prevHeader;
     kernelOutput.end.publicDataUpdateRequests = makeTuple(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),

@@ -46,6 +46,8 @@ struct PublicCircuitPublicInputs{
     // variable-length data.
     unencrypted_log_preimages_length: Field,
 
+    // Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
+    // previous to the one in which the tx is included.
     historical_header: Header,
 
     prover_address: AztecAddress,
