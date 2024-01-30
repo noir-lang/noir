@@ -517,21 +517,21 @@ fn transform_event(
         },
         _ => None,
     }
-    .ok_or((
-        AztecMacroError::EventError {
+    .ok_or_else(|| {
+        let error = AztecMacroError::EventError {
             span: struct_type.borrow().location.span,
             message: "Compute selector statement is not a call expression".to_owned(),
-        },
-        struct_type.borrow().location.file,
-    ))?;
+        };
+        (error, struct_type.borrow().location.file)
+    })?;
 
-    let first_arg_id = compute_selector_expression.arguments.first().ok_or((
-        AztecMacroError::EventError {
+    let first_arg_id = compute_selector_expression.arguments.first().ok_or_else(|| {
+        let error = AztecMacroError::EventError {
             span: struct_type.borrow().location.span,
-            message: "Missing argument for compute selector".to_owned(),
-        },
-        struct_type.borrow().location.file,
-    ))?;
+            message: "Compute selector statement is not a call expression".to_owned(),
+        };
+        (error, struct_type.borrow().location.file)
+    })?;
 
     match interner.expression(first_arg_id) {
         HirExpression::Literal(HirLiteral::Str(signature))
