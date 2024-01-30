@@ -41,6 +41,8 @@ static ecdsa_signature<Builder> ecdsa_from_witness(Builder* ctx, const crypto::e
     return out;
 }
 
+template <typename Builder> void generate_ecdsa_verification_test_circuit(Builder& builder, size_t num_iterations);
+
 } // namespace bb::stdlib
 
 #include "./ecdsa_impl.hpp"

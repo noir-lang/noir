@@ -44,7 +44,7 @@ TEST_F(GoblinRecursionTests, Pseudo)
     for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
         // Construct a circuit with logic resembling that of the "kernel circuit"
         GoblinUltraBuilder circuit_builder{ goblin.op_queue };
-        GoblinMockCircuits::construct_mock_kernel_circuit(circuit_builder, kernel_input);
+        GoblinMockCircuits::construct_mock_kernel_circuit(circuit_builder, kernel_input, kernel_input);
 
         // Construct proof of the current kernel circuit to be recursively verified by the next one
         kernel_input = goblin.accumulate(circuit_builder);

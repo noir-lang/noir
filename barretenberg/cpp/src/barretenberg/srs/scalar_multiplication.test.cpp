@@ -70,7 +70,7 @@ TYPED_TEST(ScalarMultiplicationTests, ReduceBucketsSimple)
         TestFixture::read_transcript_g2(TestFixture::SRS_PATH);
     }
     auto crs = srs::factories::FileProverCrs<Curve>(num_points / 2, TestFixture::SRS_PATH);
-    auto monomials = crs.get_monomial_points();
+    auto* monomials = crs.get_monomial_points();
 
     std::vector<uint64_t> point_schedule(bb::scalar_multiplication::point_table_size(num_points / 2));
     std::array<bool, num_points> bucket_empty_status;

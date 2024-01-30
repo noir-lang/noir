@@ -29,21 +29,17 @@ static void construct_proof_ultrahonk_power_of_2(State& state) noexcept
 }
 
 // Define benchmarks
-BENCHMARK_CAPTURE(construct_proof_ultrahonk,
-                  sha256,
-                  &bb::mock_proofs::generate_sha256_test_circuit<UltraCircuitBuilder>)
+BENCHMARK_CAPTURE(construct_proof_ultrahonk, sha256, &stdlib::generate_sha256_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
-BENCHMARK_CAPTURE(construct_proof_ultrahonk,
-                  keccak,
-                  &bb::mock_proofs::generate_keccak_test_circuit<UltraCircuitBuilder>)
+BENCHMARK_CAPTURE(construct_proof_ultrahonk, keccak, &stdlib::generate_keccak_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
 BENCHMARK_CAPTURE(construct_proof_ultrahonk,
                   ecdsa_verification,
-                  &bb::mock_proofs::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>)
+                  &stdlib::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
 BENCHMARK_CAPTURE(construct_proof_ultrahonk,
                   merkle_membership,
-                  &bb::mock_proofs::generate_merkle_membership_test_circuit<UltraCircuitBuilder>)
+                  &stdlib::generate_merkle_membership_test_circuit<UltraCircuitBuilder>)
     ->Unit(kMillisecond);
 
 BENCHMARK(construct_proof_ultrahonk_power_of_2)

@@ -2,6 +2,7 @@
 #include <benchmark/benchmark.h>
 #include <cstddef>
 
+#include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
@@ -43,121 +44,6 @@ template <typename Builder> void generate_basic_arithmetic_circuit(Builder& buil
         c = a * c;
         a = b * b;
         b = c * c;
-    }
-}
-
-/**
- * @brief Generate test circuit with specified number of sha256 hashes
- *
- * @param builder
- * @param num_iterations
- */
-template <typename Builder> void generate_sha256_test_circuit(Builder& builder, size_t num_iterations)
-{
-    std::string in;
-    in.resize(32);
-    stdlib::packed_byte_array<Builder> input(&builder, in);
-    for (size_t i = 0; i < num_iterations; i++) {
-        input = stdlib::sha256<Builder>(input);
-    }
-}
-
-/**
- * @brief Generate test circuit with specified number of keccak hashes
- *
- * @param builder
- * @param num_iterations
- */
-template <typename Builder> void generate_keccak_test_circuit(Builder& builder, size_t num_iterations)
-{
-    std::string in = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
-
-    stdlib::byte_array<Builder> input(&builder, in);
-    for (size_t i = 0; i < num_iterations; i++) {
-        input = stdlib::keccak<Builder>::hash(input);
-    }
-}
-
-/**
- * @brief Generate test circuit with specified number of ecdsa verifications
- *
- * @param builder
- * @param num_iterations
- */
-template <typename Builder> void generate_ecdsa_verification_test_circuit(Builder& builder, size_t num_iterations)
-{
-    using curve = stdlib::secp256k1<Builder>;
-    using fr = typename curve::fr;
-    using fq = typename curve::fq;
-    using g1 = typename curve::g1;
-
-    std::string message_string = "Instructions unclear, ask again later.";
-
-    crypto::ecdsa_key_pair<fr, g1> account;
-    for (size_t i = 0; i < num_iterations; i++) {
-        // Generate unique signature for each iteration
-        account.private_key = curve::fr::random_element();
-        account.public_key = curve::g1::one * account.private_key;
-
-        crypto::ecdsa_signature signature =
-            crypto::ecdsa_construct_signature<Sha256Hasher, fq, fr, g1>(message_string, account);
-
-        bool first_result =
-            crypto::ecdsa_verify_signature<Sha256Hasher, fq, fr, g1>(message_string, account.public_key, signature);
-        static_cast<void>(first_result); // TODO(Cody): This is not used anywhere.
-
-        std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());
-        std::vector<uint8_t> ss(signature.s.begin(), signature.s.end());
-        uint8_t vv = signature.v;
-
-        typename curve::g1_bigfr_ct public_key = curve::g1_bigfr_ct::from_witness(&builder, account.public_key);
-
-        stdlib::ecdsa_signature<Builder> sig{ typename curve::byte_array_ct(&builder, rr),
-                                              typename curve::byte_array_ct(&builder, ss),
-                                              stdlib::uint8<Builder>(&builder, vv) };
-
-        typename curve::byte_array_ct message(&builder, message_string);
-
-        // Verify ecdsa signature
-        stdlib::ecdsa_verify_signature<Builder,
-                                       curve,
-                                       typename curve::fq_ct,
-                                       typename curve::bigfr_ct,
-                                       typename curve::g1_bigfr_ct>(message, public_key, sig);
-    }
-}
-
-/**
- * @brief Generate test circuit with specified number of merkle membership checks
- *
- * @param builder
- * @param num_iterations
- */
-template <typename Builder> void generate_merkle_membership_test_circuit(Builder& builder, size_t num_iterations)
-{
-    using namespace stdlib;
-    using field_ct = field_t<Builder>;
-    using witness_ct = witness_t<Builder>;
-    using witness_ct = witness_t<Builder>;
-    using MemStore = merkle_tree::MemoryStore;
-    using MerkleTree_ct = merkle_tree::MerkleTree<MemStore>;
-
-    MemStore store;
-    const size_t tree_depth = 7;
-    auto merkle_tree = MerkleTree_ct(store, tree_depth);
-
-    for (size_t i = 0; i < num_iterations; i++) {
-        // For each iteration update and check the membership of a different value
-        size_t idx = i;
-        size_t value = i * 2;
-        merkle_tree.update_element(idx, value);
-
-        field_ct root_ct = witness_ct(&builder, merkle_tree.root());
-        auto idx_ct = field_ct(witness_ct(&builder, fr(idx))).decompose_into_bits();
-        auto value_ct = field_ct(value);
-
-        merkle_tree::check_membership(
-            root_ct, merkle_tree::create_witness_hash_path(builder, merkle_tree.get_hash_path(idx)), value_ct, idx_ct);
     }
 }
 

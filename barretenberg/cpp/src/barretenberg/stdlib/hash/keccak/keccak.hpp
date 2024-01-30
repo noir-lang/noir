@@ -201,4 +201,6 @@ template <typename Builder> class keccak {
                                                                Builder* context);
 };
 
+template <typename Builder> void generate_keccak_test_circuit(Builder& builder, size_t num_iterations);
+
 } // namespace bb::stdlib

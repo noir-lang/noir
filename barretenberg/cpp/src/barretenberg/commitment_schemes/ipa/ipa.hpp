@@ -49,7 +49,7 @@ template <typename Curve> class IPA {
                "The poly_degree should be positive and a power of two");
 
         auto a_vec = polynomial;
-        auto srs_elements = ck->srs->get_monomial_points();
+        auto* srs_elements = ck->srs->get_monomial_points();
         std::vector<Commitment> G_vec_local(poly_degree);
 
         // The SRS stored in the commitment key is the result after applying the pippenger point table so the
@@ -254,7 +254,7 @@ template <typename Curve> class IPA {
             /*finite_field_additions_per_iteration=*/0,
             /*finite_field_multiplications_per_iteration=*/log_poly_degree);
 
-        auto srs_elements = vk->srs->get_monomial_points();
+        auto* srs_elements = vk->srs->get_monomial_points();
 
         // Copy the G_vector to local memory.
         std::vector<Commitment> G_vec_local(poly_degree);

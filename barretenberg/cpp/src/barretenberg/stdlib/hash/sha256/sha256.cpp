@@ -178,6 +178,23 @@ template <typename Builder> packed_byte_array<Builder> sha256(const packed_byte_
     return packed_byte_array<Builder>(output, 4);
 }
 
+/**
+ * @brief Generate a simple sha256 circuit for testing purposes
+ *
+ * @tparam Builder
+ * @param builder
+ * @param num_iterations number of hashes to perform
+ */
+template <typename Builder> void generate_sha256_test_circuit(Builder& builder, size_t num_iterations)
+{
+    std::string in;
+    in.resize(32);
+    stdlib::packed_byte_array<Builder> input(&builder, in);
+    for (size_t i = 0; i < num_iterations; i++) {
+        input = stdlib::sha256<Builder>(input);
+    }
+}
+
 template byte_array<bb::StandardCircuitBuilder> sha256_block(const byte_array<bb::StandardCircuitBuilder>& input);
 template byte_array<bb::UltraCircuitBuilder> sha256_block(const byte_array<bb::UltraCircuitBuilder>& input);
 template byte_array<bb::GoblinUltraCircuitBuilder> sha256_block(const byte_array<bb::GoblinUltraCircuitBuilder>& input);
@@ -186,4 +203,6 @@ template packed_byte_array<bb::StandardCircuitBuilder> sha256(
 template packed_byte_array<bb::UltraCircuitBuilder> sha256(const packed_byte_array<bb::UltraCircuitBuilder>& input);
 template packed_byte_array<bb::GoblinUltraCircuitBuilder> sha256(
     const packed_byte_array<bb::GoblinUltraCircuitBuilder>& input);
+template void generate_sha256_test_circuit(bb::UltraCircuitBuilder&, size_t);
+template void generate_sha256_test_circuit(bb::GoblinUltraCircuitBuilder&, size_t);
 } // namespace bb::stdlib

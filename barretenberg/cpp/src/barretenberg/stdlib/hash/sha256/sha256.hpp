@@ -23,4 +23,6 @@ template <typename Builder> field_t<Builder> sha256_to_field(const packed_byte_a
     return slices[1] + (slices[0] * (uint256_t(1) << 128));
 }
 
+template <typename Builder> void generate_sha256_test_circuit(Builder& builder, size_t num_iterations);
+
 } // namespace bb::stdlib
