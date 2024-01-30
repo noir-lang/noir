@@ -2,6 +2,7 @@ use crate::{
     constants::{
         GENERATOR_INDEX__CONTRACT_ADDRESS,
         GENERATOR_INDEX__PARTIAL_ADDRESS,
+        GENERATOR_INDEX__CONSTRUCTOR
     },
     hash::pedersen_hash,
     utils,
@@ -61,10 +62,14 @@ impl AztecAddress {
         }
     }
 
-    pub fn compute(pub_key: GrumpkinPoint, partial_address: PartialAddress) -> AztecAddress {
+    pub fn compute_from_public_key(pub_key: GrumpkinPoint, contract_class_id : Field, salt : Field, initialization_hash: Field, portal_contract_address: EthAddress) -> AztecAddress {
+        AztecAddress::compute(PublicKeysHash::compute(pub_key), PartialAddress::compute(contract_class_id, salt, initialization_hash, portal_contract_address))
+    }
+
+    pub fn compute(pub_keys_hash: PublicKeysHash, partial_address: PartialAddress) -> AztecAddress {
         AztecAddress::from_field(
             pedersen_hash(
-                [pub_key.x, pub_key.y, partial_address.to_field()],
+                [pub_keys_hash.to_field(), partial_address.to_field()],
                 GENERATOR_INDEX__CONTRACT_ADDRESS
             )
         )
@@ -171,15 +176,53 @@ impl PartialAddress {
         }
     }
 
-    pub fn compute(contract_address_salt : Field, function_tree_root : Field, constructor_hash : Field) -> Self {
+    pub fn compute(contract_class_id : Field, salt : Field, initialization_hash: Field, portal_contract_address: EthAddress) -> Self {
+        PartialAddress::compute_from_salted_initialization_hash(contract_class_id, SaltedInitializationHash::compute(salt, initialization_hash, portal_contract_address))
+    }
+
+    pub fn compute_from_salted_initialization_hash(contract_class_id : Field, salted_initialization_hash : SaltedInitializationHash) -> Self {
         PartialAddress::from_field(
             pedersen_hash([
-                // TODO why the zeroes?
-                0,
-                0,
-                contract_address_salt,
-                function_tree_root,
-                constructor_hash
+                contract_class_id,
+                salted_initialization_hash.to_field()
+            ], GENERATOR_INDEX__PARTIAL_ADDRESS)
+        )
+    }
+
+
+    pub fn to_field(self) -> Field {
+        self.inner
+    }
+
+    pub fn assert_is_zero(self) {
+        assert(self.to_field() == 0);
+    }
+}
+
+// Salted initialization hash. Used in the computation of a partial address.
+struct SaltedInitializationHash {
+    inner: Field
+}
+
+impl ToField for SaltedInitializationHash {
+    fn to_field(self) -> Field {
+        self.inner
+    }
+}
+
+impl SaltedInitializationHash {
+    pub fn from_field(field : Field) -> Self {
+        Self {
+            inner : field
+        }
+    }
+
+    pub fn compute(salt : Field, initialization_hash: Field, portal_contract_address: EthAddress) -> Self {
+        SaltedInitializationHash::from_field(
+            pedersen_hash([
+                salt,
+                initialization_hash,
+                portal_contract_address.to_field(),
             ], GENERATOR_INDEX__PARTIAL_ADDRESS)
         )
     }
@@ -191,4 +234,50 @@ impl PartialAddress {
     pub fn assert_is_zero(self) {
         assert(self.to_field() == 0);
     }
+}
+
+// Public keys hash. Used in the computation of an address.
+struct PublicKeysHash {
+    inner: Field
+}
+
+impl ToField for PublicKeysHash {
+    fn to_field(self) -> Field {
+        self.inner
+    }
+}
+
+impl PublicKeysHash {
+    pub fn from_field(field : Field) -> Self {
+        Self {
+            inner : field
+        }
+    }
+
+    pub fn compute(public_key: GrumpkinPoint) -> Self {
+        PublicKeysHash::from_field(
+            pedersen_hash([
+                public_key.x,
+                public_key.y,
+            ], GENERATOR_INDEX__PARTIAL_ADDRESS)
+        )
+    }
+
+    pub fn to_field(self) -> Field {
+        self.inner
+    }
+
+    pub fn assert_is_zero(self) {
+        assert(self.to_field() == 0);
+    }
+}
+
+pub fn compute_initialization_hash(selector: Field, args_hash: Field) -> Field {
+    pedersen_hash(
+        [
+        selector,
+        args_hash
+    ],
+        GENERATOR_INDEX__CONSTRUCTOR
+    )
 }

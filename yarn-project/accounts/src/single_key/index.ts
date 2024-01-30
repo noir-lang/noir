@@ -6,7 +6,7 @@
  */
 import { AccountManager, Salt } from '@aztec/aztec.js/account';
 import { AccountWallet, getWallet } from '@aztec/aztec.js/wallet';
-import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/circuit-types';
+import { GrumpkinPrivateKey, PXE } from '@aztec/circuit-types';
 import { AztecAddress } from '@aztec/circuits.js';
 
 import { SingleKeyAccountContract } from './account_contract.js';
@@ -19,18 +19,18 @@ export { SchnorrSingleKeyAccountContractArtifact as SingleKeyAccountContractArti
  * Creates an Account that uses the same Grumpkin key for encryption and authentication.
  * @param pxe - An PXE server instance.
  * @param encryptionAndSigningPrivateKey - Grumpkin key used for note encryption and signing transactions.
- * @param saltOrAddress - Deployment salt or complete address if account contract is already deployed.
+ * @param salt - Deployment salt .
  */
 export function getSingleKeyAccount(
   pxe: PXE,
   encryptionAndSigningPrivateKey: GrumpkinPrivateKey,
-  saltOrAddress?: Salt | CompleteAddress,
+  salt?: Salt,
 ): AccountManager {
   return new AccountManager(
     pxe,
     encryptionAndSigningPrivateKey,
     new SingleKeyAccountContract(encryptionAndSigningPrivateKey),
-    saltOrAddress,
+    salt,
   );
 }
 
@@ -49,5 +49,4 @@ export function getSingleKeyWallet(
   return getWallet(pxe, address, new SingleKeyAccountContract(signingKey));
 }
 
-export { getSingleKeyAccount as getUnsafeSchnorrAccount };
-export { getSingleKeyWallet as getUnsafeSchnorrWallet };
+export { getSingleKeyAccount as getUnsafeSchnorrAccount, getSingleKeyWallet as getUnsafeSchnorrWallet };

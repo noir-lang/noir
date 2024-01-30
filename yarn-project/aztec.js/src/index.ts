@@ -67,7 +67,8 @@ export {
   GlobalVariables,
   GrumpkinScalar,
   Point,
-  getContractDeploymentInfo,
+  getContractInstanceFromDeployParams,
+  getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 
 export { Grumpkin, Schnorr } from '@aztec/circuits.js/barretenberg';
@@ -109,6 +110,8 @@ export {
   Comparator,
 } from '@aztec/circuit-types';
 export { NodeInfo } from '@aztec/types/interfaces';
+
+export { ContractInstanceWithAddress, ContractClassWithId } from '@aztec/types/contracts';
 
 // TODO: These kinds of things have no place on our public api.
 // External devs will almost certainly have their own methods of doing these things.

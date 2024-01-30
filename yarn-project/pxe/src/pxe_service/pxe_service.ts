@@ -44,8 +44,9 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PartialAddress,
   PublicCallRequest,
-  createContractClassFromArtifact,
+  computeSaltedInitializationHash,
   getArtifactHash,
+  getContractClassFromArtifact,
   getContractClassId,
 } from '@aztec/circuits.js';
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
@@ -157,6 +158,10 @@ export class PXEService implements PXE {
     return this.db.addCapsule(capsule);
   }
 
+  public getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
+    return this.db.getContractInstance(address);
+  }
+
   public async registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<CompleteAddress> {
     const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(privKey, partialAddress);
     const wasAdded = await this.db.addCompleteAddress(completeAddress);
@@ -211,13 +216,14 @@ export class PXEService implements PXE {
   }
 
   public async addContracts(contracts: DeployedContract[]) {
-    const contractDaos = contracts.map(c => new ContractDao(c.artifact, c.completeAddress, c.portalContract));
+    const contractDaos = contracts.map(c => new ContractDao(c.artifact, c.instance));
     await Promise.all(contractDaos.map(c => this.db.addContract(c)));
     await this.addArtifactsAndInstancesFromDeployedContracts(contracts);
     for (const contract of contractDaos) {
-      const contractAztecAddress = contract.completeAddress.address;
-      const portalInfo =
-        contract.portalContract && !contract.portalContract.isZero() ? ` with portal ${contract.portalContract}` : '';
+      const instance = contract.instance;
+      const contractAztecAddress = instance.address;
+      const hasPortal = instance.portalContractAddress && !instance.portalContractAddress.isZero();
+      const portalInfo = hasPortal ? ` with portal ${instance.portalContractAddress.toChecksumString()}` : '';
       this.log.info(`Added contract ${contract.name} at ${contractAztecAddress}${portalInfo}`);
       await this.synchronizer.reprocessDeferredNotesForContract(contractAztecAddress);
     }
@@ -227,26 +233,14 @@ export class PXEService implements PXE {
     for (const contract of contracts) {
       const artifact = contract.artifact;
       const artifactHash = getArtifactHash(artifact);
-      const contractClassId = getContractClassId(createContractClassFromArtifact({ ...artifact, artifactHash }));
-
-      // TODO: Properly derive this from the DeployedContract once we update address calculation
-      const contractInstance: ContractInstanceWithAddress = {
-        version: 1,
-        salt: Fr.ZERO,
-        contractClassId,
-        initializationHash: Fr.ZERO,
-        portalContractAddress: contract.portalContract,
-        publicKeysHash: contract.completeAddress.publicKey.x,
-        address: contract.completeAddress.address,
-      };
-
+      const contractClassId = getContractClassId(getContractClassFromArtifact({ ...artifact, artifactHash }));
       await this.db.addContractArtifact(contractClassId, artifact);
-      await this.db.addContractInstance(contractInstance);
+      await this.db.addContractInstance(contract.instance);
     }
   }
 
   public async getContracts(): Promise<AztecAddress[]> {
-    return (await this.db.getContracts()).map(c => c.completeAddress.address);
+    return (await this.db.getContracts()).map(c => c.instance.address);
   }
 
   public async getPublicStorageAt(contract: AztecAddress, slot: Fr) {
@@ -652,10 +646,11 @@ export class PXEService implements PXE {
 
     const extendedContractData = newContract
       ? new ExtendedContractData(
-          new ContractData(newContract.completeAddress.address, newContract.portalContract),
+          new ContractData(newContract.instance.address, newContract.instance.portalContractAddress),
           getNewContractPublicFunctions(newContract),
-          newContract.completeAddress.partialAddress,
-          newContract.completeAddress.publicKey,
+          getContractClassFromArtifact(newContract).id,
+          computeSaltedInitializationHash(newContract.instance),
+          newContract.instance.publicKeysHash,
         )
       : ExtendedContractData.empty();
 

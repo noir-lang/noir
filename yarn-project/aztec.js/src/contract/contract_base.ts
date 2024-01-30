@@ -1,6 +1,7 @@
-import { CompleteAddress, DeployedContract } from '@aztec/circuit-types';
+import { DeployedContract } from '@aztec/circuit-types';
+import { computePartialAddress } from '@aztec/circuits.js';
 import { ContractArtifact, FunctionArtifact, FunctionSelector } from '@aztec/foundation/abi';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { Wallet } from '../account/index.js';
 import { ContractFunctionInteraction } from './contract_function_interaction.js';
@@ -26,18 +27,16 @@ export class ContractBase implements DeployedContract {
   public methods: { [name: string]: ContractMethod } = {};
 
   protected constructor(
-    /** The deployed contract's complete address. */
-    public readonly completeAddress: CompleteAddress,
+    /** The deployed contract instance definition. */
+    public readonly instance: ContractInstanceWithAddress,
     /** The Application Binary Interface for the contract. */
     public readonly artifact: ContractArtifact,
     /** The wallet used for interacting with this contract. */
     protected wallet: Wallet,
-    /** The portal contract address on L1, if any. */
-    public readonly portalContract: EthAddress,
   ) {
     artifact.functions.forEach((f: FunctionArtifact) => {
       const interactionFunction = (...args: any[]) => {
-        return new ContractFunctionInteraction(this.wallet, this.completeAddress.address!, f, args);
+        return new ContractFunctionInteraction(this.wallet, this.instance.address, f, args);
       };
 
       this.methods[f.name] = Object.assign(interactionFunction, {
@@ -52,11 +51,14 @@ export class ContractBase implements DeployedContract {
     });
   }
 
-  /**
-   * Address of the contract.
-   */
+  /** Address of the contract. */
   public get address() {
-    return this.completeAddress.address;
+    return this.instance.address;
+  }
+
+  /** Partial address of the contract. */
+  public get partialAddress() {
+    return computePartialAddress(this.instance);
   }
 
   /**
@@ -65,6 +67,6 @@ export class ContractBase implements DeployedContract {
    * @returns A new contract instance.
    */
   public withWallet(wallet: Wallet): this {
-    return new ContractBase(this.completeAddress, this.artifact, wallet, this.portalContract) as this;
+    return new ContractBase(this.instance, this.artifact, wallet) as this;
   }
 }

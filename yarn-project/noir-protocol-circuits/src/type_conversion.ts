@@ -276,9 +276,9 @@ export function mapEthAddressFromNoir(address: NoirEthAddress): EthAddress {
  */
 export function mapContractDeploymentDataToNoir(data: ContractDeploymentData): ContractDeploymentDataNoir {
   return {
-    deployer_public_key: mapPointToNoir(data.deployerPublicKey),
-    constructor_vk_hash: mapFieldToNoir(data.constructorVkHash),
-    function_tree_root: mapFieldToNoir(data.functionTreeRoot),
+    public_key: mapPointToNoir(data.publicKey),
+    initialization_hash: mapFieldToNoir(data.initializationHash),
+    contract_class_id: mapFieldToNoir(data.contractClassId),
     contract_address_salt: mapFieldToNoir(data.contractAddressSalt),
     portal_contract_address: mapEthAddressToNoir(data.portalContractAddress),
   };
@@ -291,9 +291,9 @@ export function mapContractDeploymentDataToNoir(data: ContractDeploymentData): C
  */
 export function mapContractDeploymentDataFromNoir(data: ContractDeploymentDataNoir): ContractDeploymentData {
   return new ContractDeploymentData(
-    mapPointFromNoir(data.deployer_public_key),
-    mapFieldFromNoir(data.constructor_vk_hash),
-    mapFieldFromNoir(data.function_tree_root),
+    mapPointFromNoir(data.public_key),
+    mapFieldFromNoir(data.initialization_hash),
+    mapFieldFromNoir(data.contract_class_id),
     mapFieldFromNoir(data.contract_address_salt),
     mapEthAddressFromNoir(data.portal_contract_address),
   );
@@ -797,7 +797,7 @@ export function mapNewContractDataFromNoir(newContractData: NewContractDataNoir)
   return new NewContractData(
     mapAztecAddressFromNoir(newContractData.contract_address),
     mapEthAddressFromNoir(newContractData.portal_contract_address),
-    mapFieldFromNoir(newContractData.function_tree_root),
+    mapFieldFromNoir(newContractData.contract_class_id),
   );
 }
 
@@ -810,7 +810,7 @@ export function mapNewContractDataToNoir(newContractData: NewContractData): NewC
   return {
     contract_address: mapAztecAddressToNoir(newContractData.contractAddress),
     portal_contract_address: mapEthAddressToNoir(newContractData.portalContractAddress),
-    function_tree_root: mapFieldToNoir(newContractData.functionTreeRoot),
+    contract_class_id: mapFieldToNoir(newContractData.contractClassId),
   };
 }
 

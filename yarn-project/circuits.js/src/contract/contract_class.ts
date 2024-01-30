@@ -1,22 +1,22 @@
 import { ContractArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
-import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractClass } from '@aztec/types/contracts';
+import { ContractClass, ContractClassWithId } from '@aztec/types/contracts';
 
-import chunk from 'lodash.chunk';
-
-import { GeneratorIndex } from '../constants.gen.js';
+import { getArtifactHash } from './artifact_hash.js';
+import { getContractClassId } from './contract_class_id.js';
+import { hashVKStr } from './contract_tree/index.js';
 
 /** Contract artifact including its artifact hash */
 type ContractArtifactWithHash = ContractArtifact & { artifactHash: Fr };
 
-/**
- * Creates a ContractClass from a contract compilation artifact with its artifact hash.
- */
-export function createContractClassFromArtifact(artifact: ContractArtifactWithHash): ContractClass {
-  return {
+/** Creates a ContractClass from a contract compilation artifact. */
+export function getContractClassFromArtifact(
+  artifact: ContractArtifact | ContractArtifactWithHash,
+): ContractClassWithId {
+  const artifactHash = (artifact as ContractArtifactWithHash).artifactHash ?? getArtifactHash(artifact);
+  const contractClass: ContractClass = {
     version: 1,
-    artifactHash: artifact.artifactHash,
+    artifactHash: artifactHash,
     publicFunctions: artifact.functions
       .filter(f => f.functionType === FunctionType.OPEN)
       .map(f => ({
@@ -28,18 +28,18 @@ export function createContractClassFromArtifact(artifact: ContractArtifactWithHa
       .filter(f => f.functionType === FunctionType.SECRET)
       .map(f => ({
         selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
-        vkHash: getVerificationKeyHash(Buffer.from(f.verificationKey!, 'base64')),
+        vkHash: getVerificationKeyHash(f.verificationKey!),
         isInternal: f.isInternal,
       })),
     packedBytecode: Buffer.alloc(0),
   };
+  const id = getContractClassId(contractClass);
+  return { ...contractClass, id };
 }
 
 /**
  * Calculates the hash of a verification key.
- * TODO(@spalladino) Check this is the correct calculation of vkhash
  * */
-function getVerificationKeyHash(vk: Buffer) {
-  const chunks = chunk(vk, 32).map(nums => Buffer.from(nums));
-  return Fr.fromBuffer(pedersenHash(chunks, GeneratorIndex.VK));
+function getVerificationKeyHash(verificationKeyInBase64: string) {
+  return Fr.fromBuffer(hashVKStr(verificationKeyInBase64));
 }

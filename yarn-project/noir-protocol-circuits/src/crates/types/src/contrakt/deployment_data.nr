@@ -9,9 +9,9 @@ use crate::traits::{Hash, Serialize};
 
 // docs:start:contract-deployment-data
 struct ContractDeploymentData {
-    deployer_public_key : GrumpkinPoint,
-    constructor_vk_hash : Field,
-    function_tree_root : Field,
+    public_key : GrumpkinPoint,
+    initialization_hash : Field,
+    contract_class_id : Field,
     contract_address_salt : Field,
     portal_contract_address : EthAddress,
 }
@@ -26,10 +26,10 @@ impl Hash for ContractDeploymentData {
 impl Serialize<CONTRACT_DEPLOYMENT_DATA_LENGTH> for ContractDeploymentData {
     fn serialize(self) -> [Field; CONTRACT_DEPLOYMENT_DATA_LENGTH] {
         [
-            self.deployer_public_key.x,
-            self.deployer_public_key.y,
-            self.constructor_vk_hash,
-            self.function_tree_root,
+            self.public_key.x,
+            self.public_key.y,
+            self.initialization_hash,
+            self.contract_class_id,
             self.contract_address_salt,
             self.portal_contract_address.to_field(),
         ]
@@ -39,9 +39,9 @@ impl Serialize<CONTRACT_DEPLOYMENT_DATA_LENGTH> for ContractDeploymentData {
 impl ContractDeploymentData {
     
     fn assert_is_zero(self) {
-        self.deployer_public_key.assert_is_zero();
-        assert(self.constructor_vk_hash == 0);
-        assert(self.function_tree_root == 0);
+        self.public_key.assert_is_zero();
+        assert(self.initialization_hash == 0);
+        assert(self.contract_class_id == 0);
         assert(self.contract_address_salt == 0);
         self.portal_contract_address.assert_is_zero();
     }

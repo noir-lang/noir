@@ -50,16 +50,16 @@ export class NewContractData {
      */
     portalContractAddress: EthAddress | AztecAddress,
     /**
-     * Function tree root of the contract.
+     * Contract class id.
      */
-    public functionTreeRoot: Fr,
+    public contractClassId: Fr,
   ) {
     // Handle circuits emitting this as an AztecAddress
     this.portalContractAddress = new EthAddress(portalContractAddress.toBuffer());
   }
 
   toBuffer() {
-    return serializeToBuffer(this.contractAddress, this.portalContractAddress, this.functionTreeRoot);
+    return serializeToBuffer(this.contractAddress, this.portalContractAddress, this.contractClassId);
   }
 
   /**

@@ -9,7 +9,8 @@
     "./factories": "./dest/tests/factories.js",
     "./utils": "./dest/utils/index.js",
     "./types": "./dest/types/index.js",
-    "./constants": "./dest/constants.gen.js"
+    "./constants": "./dest/constants.gen.js",
+    "./contract": "./dest/contract/index.js"
   },
   "typedocOptions": {
     "entryPoints": [

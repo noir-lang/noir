@@ -5,7 +5,7 @@ import { InvalidArgumentError } from 'commander';
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { encodeArgs } from '../encoding.js';
-import { parseSaltFromHexString } from '../parse_args.js';
+import { parseFieldFromHexString } from '../parse_args.js';
 import { getTxSender, stripLeadingHex } from '../utils.js';
 import { mockContractArtifact } from './mocks.js';
 
@@ -147,11 +147,11 @@ describe('CLI Utils', () => {
       ['0xa', new Fr(0xa)],
       ['fff', new Fr(0xfff)],
     ])('correctly generates salt from a hex string', (hex, expected) => {
-      expect(parseSaltFromHexString(hex)).toEqual(expected);
+      expect(parseFieldFromHexString(hex)).toEqual(expected);
     });
 
     it.each(['foo', '', ' ', ' 0x1', '01foo', 'foo1', '0xfoo'])('throws an error for invalid hex strings', str => {
-      expect(() => parseSaltFromHexString(str)).toThrow(InvalidArgumentError);
+      expect(() => parseFieldFromHexString(str)).toThrow(InvalidArgumentError);
     });
   });
 });

@@ -194,9 +194,9 @@ export class ViemTxSender implements L1PublisherTxSender {
         extendedContractData.contractData.contractAddress.toString() as Hex,
         extendedContractData.contractData.portalContractAddress.toString() as Hex,
         `0x${l2BlockHash.toString('hex')}`,
-        extendedContractData.partialAddress.toString(),
-        extendedContractData.publicKey.x.toString(),
-        extendedContractData.publicKey.y.toString(),
+        extendedContractData.contractClassId.toString(),
+        extendedContractData.saltedInitializationHash.toString(),
+        extendedContractData.publicKeyHash.toString(),
         `0x${extendedContractData.bytecode.toString('hex')}`,
       ] as const;
 

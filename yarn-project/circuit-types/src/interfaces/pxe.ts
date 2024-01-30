@@ -1,4 +1,5 @@
 import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { NodeInfo } from '@aztec/types/interfaces';
 
 import { AuthWitness } from '../auth_witness.js';
@@ -261,5 +262,13 @@ export interface PXE {
    * @returns The latest block synchronized for blocks, and the latest block synched for notes for each public key being tracked.
    */
   getSyncStatus(): Promise<SyncStatus>;
+
+  /**
+   * Returns a Contact Instance given its address, which includes the contract class identifier, portal address,
+   * initialization hash, deployment salt, and public keys hash.
+   * TOOD(@spalladino): Should we return the public keys in plain as well here?
+   * @param address
+   */
+  getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
 }
 // docs:end:pxe-interface

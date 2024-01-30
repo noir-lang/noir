@@ -2,7 +2,6 @@ use dep::types::{
     abis::{
         call_request::CallRequest,
         combined_accumulated_data::CombinedAccumulatedData,
-        complete_address::CompleteAddress,
         function_data::FunctionData,
         kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder,
         membership_witness::ReadRequestMembershipWitness,
@@ -13,7 +12,7 @@ use dep::types::{
         previous_kernel_data::PreviousKernelData,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
-    address::{AztecAddress, EthAddress},
+    address::{AztecAddress, EthAddress, compute_initialization_hash},
     contrakt::deployment_data::ContractDeploymentData,
     constants::{
         MAX_NEW_NULLIFIERS_PER_CALL,
@@ -313,23 +312,27 @@ pub fn contract_logic(
 
     // input storage contract address must be 0 if its a constructor call and non-zero otherwise
     if is_contract_deployment {
-        //TODO(https://github.com/AztecProtocol/aztec-packages/issues/3062) use locally computed private_call_vk_hash here
-        let constructor_hash = compute_constructor_hash(
-            function_data,
-            private_call_public_inputs.args_hash,
-            contract_dep_data.constructor_vk_hash
+        let computed_initialization_hash = compute_initialization_hash(
+            function_data.selector.to_field(),
+            private_call_public_inputs.args_hash
         );
-        let new_contract_address = CompleteAddress::compute(
-            contract_dep_data.deployer_public_key,
+
+        assert(
+            computed_initialization_hash == contract_dep_data.initialization_hash, "initialization hash does not match computed one"
+        );
+
+        let new_contract_address = AztecAddress::compute_from_public_key(
+            contract_dep_data.public_key,
+            contract_dep_data.contract_class_id,
             contract_dep_data.contract_address_salt,
-            contract_dep_data.function_tree_root,
-            constructor_hash
-        ).address;
+            contract_dep_data.initialization_hash,
+            contract_dep_data.portal_contract_address
+        );
 
         let new_contract_data = NewContractData {
             contract_address: new_contract_address,
             portal_contract_address,
-            function_tree_root: contract_dep_data.function_tree_root
+            contract_class_id: contract_dep_data.contract_class_id
         };
         public_inputs.end.new_contracts.push(new_contract_data);
 
@@ -377,9 +380,14 @@ pub fn contract_logic(
         );
 
         let purported_contract_tree_root = private_call.call_stack_item.public_inputs.historical_header.state.partial.contract_tree.root;
-        assert_eq(
-            computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root does not match purported_contract_tree_root"
-        );
+        // TODO(@spalladino): Re-enable this check using contract classes:
+        // - Compute the function_leaf
+        // - Compute the function_tree_root using the sibling path
+        // - Compute the contract_class_id (needs injecting artifact_hash and bytecode_commitment into kernel)
+        // - Compute the address using the class_id (needs injecting salted_initialization_hash and public_keys_hash)
+        // assert_eq(
+        //     computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root does not match purported_contract_tree_root"
+        // );
     }
 }
 

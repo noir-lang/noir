@@ -129,7 +129,7 @@ pub fn function_tree_root_from_siblings(
 
 // Calculate the contract tree root from the sibling path and leaf preimage.
 pub fn contract_tree_root_from_siblings(
-    function_tree_root: Field,
+    contract_class_id: Field,
     storage_contract_address: AztecAddress,
     portal_contract_address: EthAddress,
     contract_leaf_index: Field,
@@ -137,7 +137,7 @@ pub fn contract_tree_root_from_siblings(
 ) -> Field {
     //TODO(Kev): if we use shorthand syntax here, we get an error as expected,
     // since variable name is `storage_contract_address` but the span is incorrect.
-    let contract_leaf_preimage = ContractLeafPreimage { contract_address: storage_contract_address, portal_contract_address, function_tree_root };
+    let contract_leaf_preimage = ContractLeafPreimage { contract_address: storage_contract_address, portal_contract_address, contract_class_id };
 
     let contract_leaf = contract_leaf_preimage.hash();
 

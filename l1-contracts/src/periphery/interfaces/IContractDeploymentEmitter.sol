@@ -15,9 +15,9 @@ interface IContractDeploymentEmitter {
    * @param aztecAddress - The address of the L2 counterparty
    * @param portalAddress - The address of the L1 counterparty
    * @param l2BlockHash - The hash of the L2 block that this is related to
-   * @param partialAddress - The partial address of the deployed contract
-   * @param pubKeyX - The x coordinate of the contract's public key
-   * @param pubKeyY - The y coordinate of the contract's public key
+   * @param contractClassId - The contract class id
+   * @param saltedInitializationHash - Salted init hash
+   * @param publicKeyHash - Public key hash
    * @param acir - The acir bytecode of the L2 contract
    * @dev See the link bellow for more info on partial address and public key:
    * https://github.com/AztecProtocol/aztec-packages/blob/master/docs/docs/concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys
@@ -28,9 +28,9 @@ interface IContractDeploymentEmitter {
     bytes32 indexed aztecAddress,
     address indexed portalAddress,
     bytes32 l2BlockHash,
-    bytes32 partialAddress,
-    bytes32 pubKeyX,
-    bytes32 pubKeyY,
+    bytes32 contractClassId,
+    bytes32 saltedInitializationHash,
+    bytes32 publicKeyHash,
     bytes acir
   );
 
@@ -39,9 +39,9 @@ interface IContractDeploymentEmitter {
     bytes32 _aztecAddress,
     address _portalAddress,
     bytes32 _l2BlockHash,
-    bytes32 _partialAddress,
-    bytes32 _pubKeyX,
-    bytes32 _pubKeyY,
+    bytes32 _contractClassId,
+    bytes32 _saltedInitializationHash,
+    bytes32 _publicKeyHash,
     bytes calldata _acir
   ) external;
 }

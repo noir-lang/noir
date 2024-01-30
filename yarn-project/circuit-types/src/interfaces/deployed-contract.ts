@@ -1,6 +1,5 @@
-import { CompleteAddress } from '@aztec/circuits.js';
 import { ContractArtifact } from '@aztec/foundation/abi';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 /**
  * Represents a deployed contract on the Aztec network.
@@ -12,11 +11,7 @@ export interface DeployedContract {
    */
   artifact: ContractArtifact;
   /**
-   * The complete address representing the contract on L2.
+   * The contract instance.
    */
-  completeAddress: CompleteAddress;
-  /**
-   * The Ethereum address of the L1 portal contract.
-   */
-  portalContract: EthAddress;
+  instance: ContractInstanceWithAddress;
 }

@@ -98,11 +98,10 @@ function generateDeploy(input: ContractArtifact) {
 function generateConstructor(name: string) {
   return `
   private constructor(
-    completeAddress: CompleteAddress,
+    instance: ContractInstanceWithAddress,
     wallet: Wallet,
-    portalContract = EthAddress.ZERO
   ) {
-    super(completeAddress, ${name}ContractArtifact, wallet, portalContract);
+    super(instance, ${name}ContractArtifact, wallet);
   }
   `;
 }
@@ -185,6 +184,7 @@ import {
   ContractArtifact,
   ContractBase,
   ContractFunctionInteraction,
+  ContractInstanceWithAddress,
   ContractMethod,
   DeployMethod,
   EthAddress,

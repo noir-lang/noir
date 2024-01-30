@@ -9,7 +9,7 @@ import {
 } from '@aztec/circuit-types';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, numToUInt32BE } from '@aztec/foundation/serialize';
 import { ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 
@@ -195,17 +195,16 @@ export function processContractDeploymentLogs(
       continue;
     }
     const publicFnsReader = BufferReader.asReader(Buffer.from(log.args.acir.slice(2), 'hex'));
-    const partialAddress = Fr.fromBuffer(Buffer.from(hexToBytes(log.args.partialAddress)));
-    const publicKey = new Point(
-      Fr.fromBuffer(Buffer.from(hexToBytes(log.args.pubKeyX))),
-      Fr.fromBuffer(Buffer.from(hexToBytes(log.args.pubKeyY))),
-    );
+    const contractClassId = Fr.fromBuffer(Buffer.from(hexToBytes(log.args.contractClassId)));
+    const saltedInitializationHash = Fr.fromBuffer(Buffer.from(hexToBytes(log.args.saltedInitializationHash)));
+    const publicKeyHash = Fr.fromBuffer(Buffer.from(hexToBytes(log.args.publicKeyHash)));
 
     const contractData = new ExtendedContractData(
       new ContractData(AztecAddress.fromString(log.args.aztecAddress), EthAddress.fromString(log.args.portalAddress)),
       publicFnsReader.readVector(EncodedContractFunction),
-      partialAddress,
-      publicKey,
+      contractClassId,
+      saltedInitializationHash,
+      publicKeyHash,
     );
     if (extendedContractData[i]) {
       extendedContractData[i][0].push(contractData);

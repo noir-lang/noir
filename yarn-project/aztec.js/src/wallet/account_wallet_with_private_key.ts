@@ -1,6 +1,7 @@
 import { PXE } from '@aztec/circuit-types';
 import { GrumpkinPrivateKey } from '@aztec/circuits.js';
 
+import { Salt } from '../account/index.js';
 import { AccountInterface } from '../account/interface.js';
 import { AccountWallet } from './account_wallet.js';
 
@@ -10,7 +11,13 @@ import { AccountWallet } from './account_wallet.js';
  * an account to another pxe.
  */
 export class AccountWalletWithPrivateKey extends AccountWallet {
-  constructor(pxe: PXE, account: AccountInterface, private encryptionPrivateKey: GrumpkinPrivateKey) {
+  constructor(
+    pxe: PXE,
+    account: AccountInterface,
+    private encryptionPrivateKey: GrumpkinPrivateKey,
+    /** Deployment salt for this account contract. */
+    public readonly salt: Salt,
+  ) {
     super(pxe, account);
   }
 

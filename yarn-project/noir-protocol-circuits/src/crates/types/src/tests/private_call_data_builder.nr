@@ -103,7 +103,7 @@ impl PrivateCallDataBuilder {
     }
 
     pub fn build_tx_request(self) -> TxRequest {
-        let tx_context = build_tx_context(self.public_inputs.call_context.is_contract_deployment);
+        let tx_context = build_tx_context(self.public_inputs.call_context.is_contract_deployment, self.public_inputs.args_hash);
         TxRequest {
             origin: self.contract_address,
             args_hash: self.public_inputs.args_hash,

@@ -6,8 +6,6 @@ import { AztecAddress, EthAddress, Fr, Point } from './index.js';
 
 /**
  * Contract deployment data in a TxContext
- * cpp/src/aztec3/circuits/abis/contract_deployment_data.hpp.
- *
  * Not to be confused with NewContractData.
  */
 export class ContractDeploymentData {
@@ -15,12 +13,12 @@ export class ContractDeploymentData {
   public portalContractAddress: EthAddress;
 
   constructor(
-    /** Public key of the contract deployer (used when deploying account contracts). */
-    public deployerPublicKey: PublicKey,
-    /** Hash of the constructor verification key. */
-    public constructorVkHash: Fr,
-    /** Function tree root. */
-    public functionTreeRoot: Fr,
+    /** Public key of the contract. */
+    public publicKey: PublicKey,
+    /** Hash of the initialization payload. */
+    public initializationHash: Fr,
+    /** Contract class identifier. */
+    public contractClassId: Fr,
     /** Contract address salt (used when deriving a contract address). */
     public contractAddressSalt: Fr,
     /**
@@ -34,9 +32,9 @@ export class ContractDeploymentData {
 
   toBuffer() {
     return serializeToBuffer(
-      this.deployerPublicKey,
-      this.constructorVkHash,
-      this.functionTreeRoot,
+      this.publicKey,
+      this.initializationHash,
+      this.contractClassId,
       this.contractAddressSalt,
       this.portalContractAddress,
     );
@@ -52,9 +50,9 @@ export class ContractDeploymentData {
 
   isEmpty() {
     return (
-      this.deployerPublicKey.isZero() &&
-      this.constructorVkHash.isZero() &&
-      this.functionTreeRoot.isZero() &&
+      this.publicKey.isZero() &&
+      this.initializationHash.isZero() &&
+      this.contractClassId.isZero() &&
       this.contractAddressSalt.isZero() &&
       this.portalContractAddress.isZero()
     );

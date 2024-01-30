@@ -37,6 +37,7 @@
     "@aztec/accounts": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",

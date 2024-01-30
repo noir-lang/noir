@@ -20,11 +20,11 @@ const stripLeadingHex = (hex: string) => {
 };
 
 /**
- * Parses a hex encoded string to an Fr integer to be used as salt
+ * Parses a hex encoded string to an Fr integer
  * @param str - Hex encoded string
- * @returns A integer to be used as salt
+ * @returns A integer
  */
-export function parseSaltFromHexString(str: string): Fr {
+export function parseFieldFromHexString(str: string): Fr {
   const hex = stripLeadingHex(str);
 
   // ensure it's a hex string

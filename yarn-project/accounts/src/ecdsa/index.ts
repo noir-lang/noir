@@ -6,28 +6,28 @@
  */
 import { AccountManager, Salt } from '@aztec/aztec.js/account';
 import { AccountWallet, getWallet } from '@aztec/aztec.js/wallet';
-import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/circuit-types';
+import { GrumpkinPrivateKey, PXE } from '@aztec/circuit-types';
 import { AztecAddress } from '@aztec/circuits.js';
 
 import { EcdsaAccountContract } from './account_contract.js';
 
-export { EcdsaAccountContract };
 export { EcdsaAccountContractArtifact } from './artifact.js';
+export { EcdsaAccountContract };
 
 /**
  * Creates an Account that relies on an ECDSA signing key for authentication.
  * @param pxe - An PXE server instance.
  * @param encryptionPrivateKey - Grumpkin key used for note encryption.
  * @param signingPrivateKey - Secp256k1 key used for signing transactions.
- * @param saltOrAddress - Deployment salt or complete address if account contract is already deployed.
+ * @param salt - Deployment salt.
  */
 export function getEcdsaAccount(
   pxe: PXE,
   encryptionPrivateKey: GrumpkinPrivateKey,
   signingPrivateKey: Buffer,
-  saltOrAddress?: Salt | CompleteAddress,
+  salt?: Salt,
 ): AccountManager {
-  return new AccountManager(pxe, encryptionPrivateKey, new EcdsaAccountContract(signingPrivateKey), saltOrAddress);
+  return new AccountManager(pxe, encryptionPrivateKey, new EcdsaAccountContract(signingPrivateKey), salt);
 }
 
 /**

@@ -86,10 +86,9 @@ describe('guides/writing_an_account_contract', () => {
     expect(balance).toEqual(50n);
 
     // docs:start:account-contract-fails
-    const walletAddress = wallet.getCompleteAddress();
     const wrongKey = GrumpkinScalar.random();
     const wrongAccountContract = new SchnorrHardcodedKeyAccountContract(wrongKey);
-    const wrongAccount = new AccountManager(pxe, encryptionPrivateKey, wrongAccountContract, walletAddress);
+    const wrongAccount = new AccountManager(pxe, encryptionPrivateKey, wrongAccountContract, account.salt);
     const wrongWallet = await wrongAccount.getWallet();
     const tokenWithWrongWallet = token.withWallet(wrongWallet);
 

@@ -4,6 +4,7 @@ import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
 import {
   AccountContract,
   AccountManager,
+  AccountWallet,
   CompleteAddress,
   Fr,
   GrumpkinPrivateKey,
@@ -23,13 +24,12 @@ function itShouldBehaveLikeAnAccountContract(
     pxe: PXE,
     encryptionPrivateKey: GrumpkinPrivateKey,
     accountContract: AccountContract,
-    address?: CompleteAddress,
-  ) => Promise<{ account: AccountManager; wallet: Wallet }>,
+  ) => Promise<Wallet>,
+  walletAt: (pxe: PXE, accountContract: AccountContract, address: CompleteAddress) => Promise<Wallet>,
 ) {
   describe(`behaves like an account contract`, () => {
     let context: Awaited<ReturnType<typeof setup>>;
     let child: ChildContract;
-    let account: AccountManager;
     let wallet: Wallet;
     let encryptionPrivateKey: GrumpkinPrivateKey;
 
@@ -37,11 +37,7 @@ function itShouldBehaveLikeAnAccountContract(
       context = await setup(0);
       encryptionPrivateKey = GrumpkinScalar.random();
 
-      ({ account, wallet } = await walletSetup(
-        context.pxe,
-        encryptionPrivateKey,
-        getAccountContract(encryptionPrivateKey),
-      ));
+      wallet = await walletSetup(context.pxe, encryptionPrivateKey, getAccountContract(encryptionPrivateKey));
       child = await ChildContract.deploy(wallet).send().deployed();
     }, 60_000);
 
@@ -62,13 +58,8 @@ function itShouldBehaveLikeAnAccountContract(
     }, 60_000);
 
     it('fails to call a function using an invalid signature', async () => {
-      const accountAddress = account.getCompleteAddress();
-      const { wallet: invalidWallet } = await walletSetup(
-        context.pxe,
-        encryptionPrivateKey,
-        getAccountContract(GrumpkinScalar.random()),
-        accountAddress,
-      );
+      const accountAddress = wallet.getCompleteAddress();
+      const invalidWallet = await walletAt(context.pxe, getAccountContract(GrumpkinScalar.random()), accountAddress);
       const childWithInvalidWallet = await ChildContract.at(child.address, invalidWallet);
       await expect(childWithInvalidWallet.methods.value(42).simulate()).rejects.toThrowError(
         /Cannot satisfy constraint.*/,
@@ -78,29 +69,34 @@ function itShouldBehaveLikeAnAccountContract(
 }
 
 describe('e2e_account_contracts', () => {
-  const base = async (
-    pxe: PXE,
-    encryptionPrivateKey: GrumpkinPrivateKey,
-    accountContract: AccountContract,
-    address?: CompleteAddress,
-  ) => {
-    const account = new AccountManager(pxe, encryptionPrivateKey, accountContract, address);
-    const wallet = !address ? await account.deploy().then(tx => tx.getWallet()) : await account.getWallet();
-    return { account, wallet };
+  const walletSetup = async (pxe: PXE, encryptionPrivateKey: GrumpkinPrivateKey, accountContract: AccountContract) => {
+    const account = new AccountManager(pxe, encryptionPrivateKey, accountContract);
+    return await account.deploy().then(tx => tx.getWallet());
+  };
+
+  const walletAt = async (pxe: PXE, accountContract: AccountContract, address: CompleteAddress) => {
+    const nodeInfo = await pxe.getNodeInfo();
+    const entrypoint = accountContract.getInterface(address, nodeInfo);
+    return new AccountWallet(pxe, entrypoint);
   };
 
   describe('schnorr single-key account', () => {
     itShouldBehaveLikeAnAccountContract(
       (encryptionKey: GrumpkinPrivateKey) => new SingleKeyAccountContract(encryptionKey),
-      base,
+      walletSetup,
+      walletAt,
     );
   });
 
   describe('schnorr multi-key account', () => {
-    itShouldBehaveLikeAnAccountContract(() => new SchnorrAccountContract(GrumpkinScalar.random()), base);
+    itShouldBehaveLikeAnAccountContract(
+      () => new SchnorrAccountContract(GrumpkinScalar.random()),
+      walletSetup,
+      walletAt,
+    );
   });
 
   describe('ecdsa stored-key account', () => {
-    itShouldBehaveLikeAnAccountContract(() => new EcdsaAccountContract(randomBytes(32)), base);
+    itShouldBehaveLikeAnAccountContract(() => new EcdsaAccountContract(randomBytes(32)), walletSetup, walletAt);
   });
 });

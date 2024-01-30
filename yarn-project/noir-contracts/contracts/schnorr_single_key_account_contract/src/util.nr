@@ -1,4 +1,4 @@
-use dep::aztec::protocol_types::address::AztecAddress;
+use dep::aztec::protocol_types::address::{AztecAddress, PublicKeysHash};
 use dep::std::{schnorr::verify_signature};
 use crate::auth_oracle::{AuthWitness};
 
@@ -12,5 +12,8 @@ pub fn recover_address(message_hash: Field, witness: AuthWitness) -> AztecAddres
     );
     assert(verification == true);
 
-    AztecAddress::compute(witness.owner, witness.partial_address)
+    AztecAddress::compute(
+        PublicKeysHash::compute(witness.owner),
+        witness.partial_address
+    )
 }

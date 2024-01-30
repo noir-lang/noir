@@ -6,6 +6,7 @@ import { NodeInfo } from '@aztec/types/interfaces';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
+import { ContractInstanceWithAddress } from '../index.js';
 import { Wallet } from '../wallet/index.js';
 import { Contract } from './contract.js';
 
@@ -14,6 +15,7 @@ describe('Contract Class', () => {
   let resolvedExtendedContractData: ExtendedContractData;
   let contractAddress: AztecAddress;
   let account: CompleteAddress;
+  let contractInstance: ContractInstanceWithAddress;
 
   const mockTx = { type: 'Tx' } as any as Tx;
   const mockTxRequest = { type: 'TxRequest' } as any as TxExecutionRequest;
@@ -103,10 +105,12 @@ describe('Contract Class', () => {
     resolvedExtendedContractData = ExtendedContractData.random();
     contractAddress = resolvedExtendedContractData.contractData.contractAddress;
     account = CompleteAddress.random();
+    contractInstance = { address: contractAddress } as ContractInstanceWithAddress;
 
     wallet = mock<Wallet>();
     wallet.createTxExecutionRequest.mockResolvedValue(mockTxRequest);
     wallet.getExtendedContractData.mockResolvedValue(resolvedExtendedContractData);
+    wallet.getContractInstance.mockResolvedValue(contractInstance);
     wallet.sendTx.mockResolvedValue(mockTxHash);
     wallet.viewTx.mockResolvedValue(mockViewResultValue);
     wallet.getTxReceipt.mockResolvedValue(mockTxReceipt);

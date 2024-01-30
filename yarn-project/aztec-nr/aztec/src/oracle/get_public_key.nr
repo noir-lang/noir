@@ -2,6 +2,7 @@ use dep::protocol_types::{
     address::{
         AztecAddress,
         PartialAddress,
+        PublicKeysHash,
     },
     grumpkin_point::GrumpkinPoint,
 };
@@ -18,7 +19,7 @@ pub fn get_public_key(address: AztecAddress) -> GrumpkinPoint {
     let pub_key = GrumpkinPoint::new(result[0], result[1]);
     let partial_address = PartialAddress::from_field(result[2]);
 
-    let calculated_address = AztecAddress::compute(pub_key, partial_address);
+    let calculated_address = AztecAddress::compute(PublicKeysHash::compute(pub_key), partial_address);
     assert(calculated_address.eq(address));
 
     pub_key

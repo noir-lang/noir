@@ -1,3 +1,4 @@
+import { Fr } from '@aztec/circuits.js';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 import { addCodegenCommanderAction } from '@aztec/noir-compiler/cli';
@@ -11,6 +12,7 @@ import {
   parseAztecAddress,
   parseEthereumAddress,
   parseField,
+  parseFieldFromHexString,
   parseOptionalAztecAddress,
   parseOptionalInteger,
   parseOptionalLogId,
@@ -19,7 +21,6 @@ import {
   parsePartialAddress,
   parsePrivateKey,
   parsePublicKey,
-  parseSaltFromHexString,
   parseTxHash,
 } from './parse_args.js';
 
@@ -170,7 +171,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option(
       '-s, --salt <hex string>',
       'Optional deployment salt as a hex string for generating the deployment address.',
-      parseSaltFromHexString,
+      parseFieldFromHexString,
     )
     .option('--json', 'Emit output as json')
     // `options.wait` is default true. Passing `--no-wait` will set it to false.
@@ -217,7 +218,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       "A compiled Aztec.nr contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
     )
     .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.', parseAztecAddress)
-    .requiredOption('-pa, --partial-address <address>', 'Partial address of the contract', parsePartialAddress)
+    .requiredOption('--init-hash <init hash>', 'Initialization hash', parseFieldFromHexString)
+    .option('--salt <salt>', 'Optional deployment salt', parseFieldFromHexString)
     .option('-p, --public-key <public key>', 'Optional public key for this contract', parsePublicKey)
     .option('--portal-address <address>', 'Optional address to a portal contract on L1', parseEthereumAddress)
     .addOption(pxeOption)
@@ -227,7 +229,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         options.rpcUrl,
         options.contractArtifact,
         options.contractAddress,
-        options.partialAddress,
+        options.initHash,
+        options.salt ?? Fr.ZERO,
         options.publicKey,
         options.portalContract,
         debugLogger,

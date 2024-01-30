@@ -16,6 +16,9 @@
       "path": "../circuit-types"
     },
     {
+      "path": "../circuits.js"
+    },
+    {
       "path": "../ethereum"
     },
     {

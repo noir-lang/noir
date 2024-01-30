@@ -344,12 +344,12 @@ impl PrivateContext {
                 unencrypted_log_preimages_length: reader.read(),
                 historical_header: reader.read_struct(Header::deserialize),
                 contract_deployment_data: ContractDeploymentData {
-                    deployer_public_key: GrumpkinPoint {
+                    public_key: GrumpkinPoint {
                       x: reader.read(), 
                       y: reader.read()
                     },
-                    constructor_vk_hash : reader.read(),
-                    function_tree_root : reader.read(),
+                    initialization_hash : reader.read(),
+                    contract_class_id : reader.read(),
                     contract_address_salt : reader.read(),
                     portal_contract_address : EthAddress::from_field(reader.read()),
                 },

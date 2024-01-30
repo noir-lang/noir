@@ -1,7 +1,6 @@
-use crate::abis::complete_address::CompleteAddress;
 use crate::grumpkin_point::GrumpkinPoint;
 use crate::transaction::request::TxRequest;
-use crate::address::{AztecAddress, EthAddress};
+use crate::address::{AztecAddress, EthAddress, PartialAddress, PublicKeysHash};
 use crate::transaction::context::TxContext;
 use crate::abis::function_data::FunctionData;
 use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
@@ -13,29 +12,38 @@ use crate::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
 use crate::abis::side_effect::SideEffect;
 
 #[test]
-fn compute_complete_address() {
+fn compute_address() {
     let point = GrumpkinPoint { x: 1, y: 2 };
     let contract_address_salt = 3;
-    let function_tree_root = 4;
-    let constructor_hash = 5;
+    let contract_class_id = 4;
+    let initialization_hash = 5;
+    let portal_contract_address = EthAddress::from_field(6);
 
-    let complete_address = CompleteAddress::compute(
+    let address = AztecAddress::compute_from_public_key(
         point,
+        contract_class_id,
         contract_address_salt,
-        function_tree_root,
-        constructor_hash
+        initialization_hash,
+        portal_contract_address
     );
 
-    assert(
-        complete_address.partial_address.to_field()
-        == 0x197673f31940878b2d6c681223dbed9cfacd2f722cbe30155225b2ada17778db
-    );
-    assert(
-        complete_address.address.to_field()
-        == 0x1a6e89b034478713c7a9f1c77fb80af995f708f6f208bf352b4dda2124739109
-    );
-    assert(complete_address.public_key.x == 1);
-    assert(complete_address.public_key.y == 2);
+    assert(address.to_field() == 0x2fd71a4f0742364f194dd16d0ae32d2f47845ddc7f5d328f37d4148b565c4123);
+}
+
+#[test]
+fn compute_public_keys_hash() {
+    let point = GrumpkinPoint { x: 1, y: 2 };
+    let actual = PublicKeysHash::compute(point);
+    assert(actual.to_field() == 0x1923a6246e305720b6aaf751fde0342613e93c82e455c3831e28375c16dd40d8);
+}
+
+#[test]
+fn compute_address_from_partial_and_pubkey() {
+    let point = GrumpkinPoint { x: 1, y: 2 };
+    let partial_address = PartialAddress::from_field(3);
+
+    let address = AztecAddress::compute(PublicKeysHash::compute(point), partial_address);
+    assert(address.to_field() == 0x0447f893197175723deb223696e2e96dbba1e707ee8507766373558877e74197);
 }
 
 #[test]
@@ -48,9 +56,9 @@ fn compute_tx_request_hash() {
             is_rebate_payment_tx: false,
             is_contract_deployment_tx: true,
             contract_deployment_data: ContractDeploymentData {
-                deployer_public_key: GrumpkinPoint { x: 1, y: 2 },
-                constructor_vk_hash: 1,
-                function_tree_root: 2,
+                public_key: GrumpkinPoint { x: 1, y: 2 },
+                initialization_hash: 1,
+                contract_class_id: 2,
                 contract_address_salt: 3,
                 portal_contract_address: EthAddress::from_field(1)
             },

@@ -7,7 +7,7 @@ struct ContractData {
     address: AztecAddress,
     portal_contract_address: EthAddress,
     membership_witness: ContractLeafMembershipWitness,
-    function_tree_root: Field,
+    contract_class_id: Field,
 }
 
 global default_contract = ContractData {
@@ -18,7 +18,7 @@ global default_contract = ContractData {
         leaf_index: 0,
         sibling_path: fixtures::contract_tree::SIBLING_PATHS[0],
     },
-    function_tree_root: 0x1c55b3903b8b2812ba2a2315edb30aa9b9d9c99c153e9215cc01ec8979a8e9be,
+    contract_class_id: 0x1c55b3903b8b2812ba2a2315edb30aa9b9d9c99c153e9215cc01ec8979a8e9be,
 };
 
 global parent_contract = ContractData {
@@ -29,5 +29,5 @@ global parent_contract = ContractData {
         leaf_index: 1,
         sibling_path: fixtures::contract_tree::SIBLING_PATHS[1],
     },
-    function_tree_root: 0x02b3f6b0a36bd01f08cee2d607dbe08894bb8c58159e87bb17db28cad43291d4,
+    contract_class_id: 0x02b3f6b0a36bd01f08cee2d607dbe08894bb8c58159e87bb17db28cad43291d4,
 };

@@ -1,28 +1,18 @@
-import { AztecNode, ContractDao, MerkleTreeId, PublicKey, StateInfoProvider } from '@aztec/circuit-types';
+import { ContractDao, MerkleTreeId, StateInfoProvider } from '@aztec/circuit-types';
 import {
   CONTRACT_TREE_HEIGHT,
-  EthAddress,
   FUNCTION_TREE_HEIGHT,
   Fr,
-  FunctionData,
   MembershipWitness,
   NewContractConstructor,
   NewContractData,
   computeFunctionTreeData,
   generateFunctionLeaves,
-  hashVKStr,
+  getContractClassFromArtifact,
   isConstrained,
-  isConstructor,
 } from '@aztec/circuits.js';
-import {
-  computeCompleteAddress,
-  computeContractLeaf,
-  computeFunctionTree,
-  computeFunctionTreeRoot,
-  computeVarArgsHash,
-  hashConstructor,
-} from '@aztec/circuits.js/abis';
-import { ContractArtifact, FunctionSelector } from '@aztec/foundation/abi';
+import { computeContractLeaf, computeFunctionTree, computeFunctionTreeRoot } from '@aztec/circuits.js/abis';
+import { FunctionSelector } from '@aztec/foundation/abi';
 import { assertLength } from '@aztec/foundation/serialize';
 
 /**
@@ -36,6 +26,7 @@ export class ContractTree {
   private functionTree?: Fr[];
   private functionTreeRoot?: Fr;
   private contractIndex?: bigint;
+  private contractClassId?: Fr;
 
   constructor(
     /**
@@ -50,58 +41,6 @@ export class ContractTree {
   ) {}
 
   /**
-   * Create a new ContractTree instance from the provided contract artifact, constructor arguments, and related data.
-   * The function generates function leaves for constrained functions, computes the function tree root,
-   * and hashes the constructor's verification key. It then computes the contract address using the contract
-   * and portal contract addresses, contract address salt, and generated data. Finally, it returns a new
-   * ContractTree instance containing the contract data and computed values.
-   *
-   * @param artifact - The contract's build artifact containing the functions and their metadata.
-   * @param args - An array of Fr elements representing the constructor's arguments.
-   * @param portalContract - The Ethereum address of the portal smart contract.
-   * @param contractAddressSalt - An Fr element representing the salt used to compute the contract address.
-   * @param from - The public key of the contract deployer.
-   * @param node - An instance of the AztecNode class representing the current node.
-   * @returns A new ContractTree instance containing the contract data and computed values.
-   */
-  public static new(
-    artifact: ContractArtifact,
-    args: Fr[],
-    portalContract: EthAddress,
-    contractAddressSalt: Fr,
-    from: PublicKey,
-    node: AztecNode,
-  ) {
-    const constructorArtifact = artifact.functions.find(isConstructor);
-    if (!constructorArtifact) {
-      throw new Error('Constructor not found.');
-    }
-    if (!constructorArtifact.verificationKey) {
-      throw new Error('Missing verification key for the constructor.');
-    }
-
-    const functions = artifact.functions.map(f => ({
-      ...f,
-      selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
-    }));
-    const leaves = generateFunctionLeaves(functions);
-    const root = computeFunctionTreeRoot(leaves);
-    const functionData = FunctionData.fromAbi(constructorArtifact);
-    const vkHash = hashVKStr(constructorArtifact.verificationKey);
-    const argsHash = computeVarArgsHash(args);
-    const constructorHash = hashConstructor(functionData, argsHash, vkHash);
-
-    const completeAddress = computeCompleteAddress(from, contractAddressSalt, root, constructorHash);
-
-    const contractDao = new ContractDao(artifact, completeAddress, portalContract);
-    const NewContractConstructor = {
-      functionData,
-      vkHash,
-    };
-    return new ContractTree(contractDao, node, NewContractConstructor);
-  }
-
-  /**
    * Retrieve the artifact of a given function.
    * The function is identified by its selector, which represents a unique identifier for the function's signature.
    * Throws an error if the function with the provided selector is not found in the contract.
@@ -113,7 +52,7 @@ export class ContractTree {
     const artifact = this.contract.functions.find(f => f.selector.equals(selector));
     if (!artifact) {
       throw new Error(
-        `Unknown function. Selector ${selector.toString()} not found in the artifact of contract ${this.contract.completeAddress.address.toString()}. Expected one of: ${this.contract.functions
+        `Unknown function. Selector ${selector.toString()} not found in the artifact of contract ${this.contract.instance.address.toString()}. Expected one of: ${this.contract.functions
           .map(f => f.selector.toString())
           .join(', ')}`,
       );
@@ -172,6 +111,16 @@ export class ContractTree {
   }
 
   /**
+   * Returns the contract class identifier for the given artifact.
+   */
+  public getContractClassId() {
+    if (!this.contractClassId) {
+      this.contractClassId = getContractClassFromArtifact(this.contract).id;
+    }
+    return this.contractClassId;
+  }
+
+  /**
    * Retrieve the membership witness of a function within a contract's function tree.
    * A membership witness represents the position and authentication path of a target function
    * in the Merkle tree of constrained functions. It is required to prove the existence of the
@@ -219,15 +168,13 @@ export class ContractTree {
 
   private async getContractIndex() {
     if (this.contractIndex === undefined) {
-      const { completeAddress, portalContract } = this.contract;
-      const root = await this.getFunctionTreeRoot();
-      const newContractData = new NewContractData(completeAddress.address, portalContract, root);
+      const { address, portalContractAddress } = this.contract.instance;
+      const contractClassId = this.getContractClassId();
+      const newContractData = new NewContractData(address, portalContractAddress, contractClassId);
       const commitment = computeContractLeaf(newContractData);
       this.contractIndex = await this.stateInfoProvider.findLeafIndex('latest', MerkleTreeId.CONTRACT_TREE, commitment);
       if (this.contractIndex === undefined) {
-        throw new Error(
-          `Failed to find contract at ${completeAddress.address} with portal ${portalContract} resulting in commitment ${commitment}.`,
-        );
+        throw new Error(`Failed to find contract at ${address.toString()} resulting in commitment ${commitment}.`);
       }
       return this.contractIndex;
     }

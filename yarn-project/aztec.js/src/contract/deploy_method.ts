@@ -1,15 +1,17 @@
 import { PXE, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/circuit-types';
 import {
   AztecAddress,
-  CompleteAddress,
   ContractDeploymentData,
   FunctionData,
   TxContext,
-  getContractDeploymentInfo,
+  computeContractAddressFromInstance,
+  computePartialAddress,
+  getContractInstanceFromDeployParams,
 } from '@aztec/circuits.js';
 import { ContractArtifact, FunctionArtifact, encodeArguments } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { Wallet } from '../account/index.js';
 import { BaseContractInteraction, SendMethodOptions } from './base_contract_interaction.js';
@@ -37,8 +39,8 @@ export type DeployOptions = {
  * Extends the ContractFunctionInteraction class.
  */
 export class DeployMethod<TContract extends ContractBase = Contract> extends BaseContractInteraction {
-  /** The complete address of the contract. */
-  public completeAddress?: CompleteAddress = undefined;
+  /** The contract instance to be deployed. */
+  public instance?: ContractInstanceWithAddress = undefined;
 
   /** Constructor function to call. */
   private constructorArtifact: FunctionArtifact;
@@ -73,17 +75,14 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
 
     const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
 
-    const { completeAddress, constructorVkHash, functionTreeRoot } = getContractDeploymentInfo(
-      this.artifact,
-      this.args,
-      contractAddressSalt,
-      this.publicKey,
-    );
+    const deployParams = [this.artifact, this.args, contractAddressSalt, this.publicKey, portalContract] as const;
+    const instance = getContractInstanceFromDeployParams(...deployParams);
+    const address = computeContractAddressFromInstance(instance);
 
     const contractDeploymentData = new ContractDeploymentData(
       this.publicKey,
-      constructorVkHash,
-      functionTreeRoot,
+      instance.initializationHash,
+      instance.contractClassId,
       contractAddressSalt,
       portalContract,
     );
@@ -98,7 +97,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     );
     const args = encodeArguments(this.constructorArtifact, this.args);
     const functionData = FunctionData.fromAbi(this.constructorArtifact);
-    const execution = { args, functionData, to: completeAddress.address };
+    const execution = { args, functionData, to: address };
     const packedArguments = PackedArguments.fromArgs(execution.args);
 
     const txRequest = TxExecutionRequest.from({
@@ -111,10 +110,10 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     });
 
     this.txRequest = txRequest;
-    this.completeAddress = completeAddress;
+    this.instance = instance;
 
     // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
-    await this.pxe.addContracts([{ artifact: this.artifact, completeAddress, portalContract }]);
+    await this.pxe.addContracts([{ artifact: this.artifact, instance }]);
 
     return this.txRequest;
   }
@@ -129,7 +128,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public send(options: DeployOptions = {}): DeploySentTx<TContract> {
     const txHashPromise = super.send(options).getTxHash();
-    return new DeploySentTx(this.pxe, txHashPromise, this.postDeployCtor, this.completeAddress);
+    return new DeploySentTx(this.pxe, txHashPromise, this.postDeployCtor, this.instance!);
   }
 
   /**
@@ -139,5 +138,15 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public simulate(options: DeployOptions): Promise<Tx> {
     return super.simulate(options);
+  }
+
+  /** Return this deployment address. */
+  public get address() {
+    return this.instance?.address;
+  }
+
+  /** Returns the partial address for this deployment. */
+  public get partialAddress() {
+    return this.instance && computePartialAddress(this.instance);
   }
 }

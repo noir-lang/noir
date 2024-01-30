@@ -1,6 +1,7 @@
 import { PXE, TxHash, TxReceipt } from '@aztec/circuit-types';
-import { AztecAddress, CompleteAddress } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/circuits.js';
 import { FieldsOf } from '@aztec/foundation/types';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { Wallet } from '../account/index.js';
 import { type Contract } from './contract.js';
@@ -27,11 +28,8 @@ export class DeploySentTx<TContract extends Contract = Contract> extends SentTx 
     wallet: PXE | Wallet,
     txHashPromise: Promise<TxHash>,
     private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
-
-    /**
-     * The complete address of the deployed contract
-     */
-    public completeContractAddress?: CompleteAddress,
+    /** The deployed contract instance */
+    public instance?: ContractInstanceWithAddress,
   ) {
     super(wallet, txHashPromise);
   }
@@ -53,11 +51,11 @@ export class DeploySentTx<TContract extends Contract = Contract> extends SentTx 
    */
   public async wait(opts?: DeployedWaitOpts): Promise<DeployTxReceipt<TContract>> {
     const receipt = await super.wait(opts);
-    const contract = await this.getContractInstance(opts?.wallet, receipt.contractAddress);
+    const contract = await this.getContractObject(opts?.wallet, receipt.contractAddress);
     return { ...receipt, contract };
   }
 
-  protected getContractInstance(wallet?: Wallet, address?: AztecAddress): Promise<TContract> {
+  protected getContractObject(wallet?: Wallet, address?: AztecAddress): Promise<TContract> {
     const isWallet = (pxe: PXE | Wallet): pxe is Wallet => !!(pxe as Wallet).createTxExecutionRequest;
     const contractWallet = wallet ?? (isWallet(this.pxe) && this.pxe);
     if (!contractWallet) {

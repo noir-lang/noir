@@ -16,7 +16,6 @@ import {
 } from '../constants.gen.js';
 import {
   CallContext,
-  CompleteAddress,
   ContractDeploymentData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -34,7 +33,6 @@ import {
   TxRequest,
   VerificationKey,
 } from '../structs/index.js';
-import { PublicKey } from '../types/index.js';
 import { MerkleTreeCalculator } from './merkle_tree_calculator.js';
 
 /**
@@ -166,58 +164,6 @@ export function hashConstructor(functionData: FunctionData, argsHash: Fr, constr
       GeneratorIndex.CONSTRUCTOR,
     ),
   );
-}
-
-/**
- * Computes a complete address.
- * @param deployerPubKey - The pubkey of the contract deployer.
- * @param contractAddrSalt - The salt used as one of the inputs of the contract address computation.
- * @param fnTreeRoot - The function tree root of the contract being deployed.
- * @param constructorHash - The hash of the constructor.
- * @returns The complete address.
- */
-export function computeCompleteAddress(
-  deployerPubKey: PublicKey,
-  contractAddrSalt: Fr,
-  fnTreeRoot: Fr,
-  constructorHash: Fr,
-): CompleteAddress {
-  const partialAddress = computePartialAddress(contractAddrSalt, fnTreeRoot, constructorHash);
-  return new CompleteAddress(
-    computeContractAddressFromPartial(deployerPubKey, partialAddress),
-    deployerPubKey,
-    partialAddress,
-  );
-}
-
-function computePartialAddress(contractAddrSalt: Fr, fnTreeRoot: Fr, constructorHash: Fr) {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [
-        Fr.ZERO.toBuffer(),
-        Fr.ZERO.toBuffer(),
-        contractAddrSalt.toBuffer(),
-        fnTreeRoot.toBuffer(),
-        constructorHash.toBuffer(),
-      ],
-      GeneratorIndex.PARTIAL_ADDRESS,
-    ),
-  );
-}
-
-/**
- * Computes a contract address from its partial address and the pubkey.
- * @param partial - The salt used as one of the inputs of the contract address computation.
- * @param fnTreeRoot - The function tree root of the contract being deployed.
- * @param constructorHash - The hash of the constructor.
- * @returns The partially constructed contract address.
- */
-export function computeContractAddressFromPartial(pubKey: PublicKey, partialAddress: Fr): AztecAddress {
-  const result = pedersenHash(
-    [pubKey.x.toBuffer(), pubKey.y.toBuffer(), partialAddress.toBuffer()],
-    GeneratorIndex.CONTRACT_ADDRESS,
-  );
-  return new AztecAddress(result);
 }
 
 /**
@@ -419,12 +365,12 @@ export function computeVarArgsHash(args: Fr[]) {
  * @returns The contract leaf.
  */
 export function computeContractLeaf(cd: NewContractData): Fr {
-  if (cd.contractAddress.isZero() && cd.portalContractAddress.isZero() && cd.functionTreeRoot.isZero()) {
+  if (cd.contractAddress.isZero() && cd.portalContractAddress.isZero() && cd.contractClassId.isZero()) {
     return new Fr(0);
   }
   return Fr.fromBuffer(
     pedersenHash(
-      [cd.contractAddress.toBuffer(), cd.portalContractAddress.toBuffer(), cd.functionTreeRoot.toBuffer()],
+      [cd.contractAddress.toBuffer(), cd.portalContractAddress.toBuffer(), cd.contractClassId.toBuffer()],
       GeneratorIndex.CONTRACT_LEAF,
     ),
   );
@@ -483,10 +429,10 @@ function computeContractDeploymentDataHash(data: ContractDeploymentData): Fr {
   return Fr.fromBuffer(
     pedersenHash(
       [
-        data.deployerPublicKey.x.toBuffer(),
-        data.deployerPublicKey.y.toBuffer(),
-        data.constructorVkHash.toBuffer(),
-        data.functionTreeRoot.toBuffer(),
+        data.publicKey.x.toBuffer(),
+        data.publicKey.y.toBuffer(),
+        data.initializationHash.toBuffer(),
+        data.contractClassId.toBuffer(),
         data.contractAddressSalt.toBuffer(),
         data.portalContractAddress.toBuffer(),
       ],

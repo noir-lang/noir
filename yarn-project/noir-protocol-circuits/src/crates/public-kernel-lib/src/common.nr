@@ -3,7 +3,6 @@ use dep::types::{
         call_request::CallRequest,
         call_stack_item::PublicCallStackItem,
         combined_accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder},
-        complete_address::CompleteAddress,
         kernel_circuit_public_inputs::KernelCircuitPublicInputsBuilder,
         new_contract_data::NewContractData,
         previous_kernel_data::PreviousKernelData,

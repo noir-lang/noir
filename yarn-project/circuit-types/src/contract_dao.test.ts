@@ -1,13 +1,12 @@
-import { CompleteAddress, EthAddress } from '@aztec/circuits.js';
 import { ABIParameterVisibility, ContractArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 
 import { ContractDao } from './contract_dao.js';
-import { randomContractArtifact } from './mocks.js';
+import { randomContractArtifact, randomContractInstanceWithAddress } from './mocks.js';
 
 describe('ContractDao', () => {
   it('serializes / deserializes correctly', () => {
     const artifact = randomContractArtifact();
-    const dao = new ContractDao(artifact, CompleteAddress.random(), EthAddress.random());
+    const dao = new ContractDao(artifact, randomContractInstanceWithAddress());
 
     expect(ContractDao.fromBuffer(dao.toBuffer())).toEqual(dao);
   });
@@ -45,7 +44,7 @@ describe('ContractDao', () => {
       fileMap: {},
     };
 
-    const dao = new ContractDao(artifact, CompleteAddress.random(), EthAddress.random());
+    const dao = new ContractDao(artifact, randomContractInstanceWithAddress());
 
     expect(dao.functions[0]).toEqual({
       ...artifact.functions[0],

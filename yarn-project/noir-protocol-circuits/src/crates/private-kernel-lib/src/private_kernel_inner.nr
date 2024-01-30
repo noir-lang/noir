@@ -177,7 +177,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
+    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
     fn private_function_incorrect_contract_leaf_index_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -188,7 +188,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
+    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
     fn private_function_incorrect_contract_leaf_sibling_path_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -199,7 +199,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
+    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
     fn private_function_incorrect_function_leaf_index_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -210,7 +210,7 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
+    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
     fn private_function_incorrect_function_leaf_sibling_path_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 

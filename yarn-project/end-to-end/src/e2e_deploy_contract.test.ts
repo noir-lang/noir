@@ -9,7 +9,7 @@ import {
   PXE,
   TxStatus,
   Wallet,
-  getContractDeploymentInfo,
+  getContractInstanceFromDeployParams,
   isContractDeployed,
 } from '@aztec/aztec.js';
 import { TestContractArtifact } from '@aztec/noir-contracts/Test';
@@ -39,7 +39,13 @@ describe('e2e_deploy_contract', () => {
   it('should deploy a contract', async () => {
     const publicKey = accounts[0].publicKey;
     const salt = Fr.random();
-    const deploymentData = getContractDeploymentInfo(TestContractArtifact, [], salt, publicKey);
+    const deploymentData = getContractInstanceFromDeployParams(
+      TestContractArtifact,
+      [],
+      salt,
+      publicKey,
+      EthAddress.ZERO,
+    );
     const deployer = new ContractDeployer(TestContractArtifact, pxe, publicKey);
     const tx = deployer.deploy().send({ contractAddressSalt: salt });
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
@@ -58,7 +64,7 @@ describe('e2e_deploy_contract', () => {
       expect.objectContaining({
         status: TxStatus.MINED,
         error: '',
-        contractAddress: deploymentData.completeAddress.address,
+        contractAddress: deploymentData.address,
       }),
     );
     const contractAddress = receiptAfterMined.contractAddress!;
@@ -178,11 +184,11 @@ describe('e2e_deploy_contract', () => {
       expect(goodTxReceipt.blockNumber).toEqual(expect.any(Number));
       expect(badTxReceipt.blockNumber).toBeUndefined();
 
-      await expect(pxe.getExtendedContractData(goodDeploy.completeAddress!.address)).resolves.toBeDefined();
-      await expect(pxe.getExtendedContractData(goodDeploy.completeAddress!.address)).resolves.toBeDefined();
+      await expect(pxe.getExtendedContractData(goodDeploy.instance!.address)).resolves.toBeDefined();
+      await expect(pxe.getExtendedContractData(goodDeploy.instance!.address)).resolves.toBeDefined();
 
-      await expect(pxe.getContractData(badDeploy.completeAddress!.address)).resolves.toBeUndefined();
-      await expect(pxe.getExtendedContractData(badDeploy.completeAddress!.address)).resolves.toBeUndefined();
+      await expect(pxe.getContractData(badDeploy.instance!.address)).resolves.toBeUndefined();
+      await expect(pxe.getExtendedContractData(badDeploy.instance!.address)).resolves.toBeUndefined();
     } finally {
       sequencer?.updateSequencerConfig({
         minTxsPerBlock: 1,

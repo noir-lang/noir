@@ -92,10 +92,10 @@ export function toACVMCallContext(callContext: CallContext): ACVMField[] {
  */
 export function toACVMContractDeploymentData(contractDeploymentData: ContractDeploymentData): ACVMField[] {
   return [
-    toACVMField(contractDeploymentData.deployerPublicKey.x),
-    toACVMField(contractDeploymentData.deployerPublicKey.y),
-    toACVMField(contractDeploymentData.constructorVkHash),
-    toACVMField(contractDeploymentData.functionTreeRoot),
+    toACVMField(contractDeploymentData.publicKey.x),
+    toACVMField(contractDeploymentData.publicKey.y),
+    toACVMField(contractDeploymentData.initializationHash),
+    toACVMField(contractDeploymentData.contractClassId),
     toACVMField(contractDeploymentData.contractAddressSalt),
     toACVMField(contractDeploymentData.portalContractAddress),
   ];

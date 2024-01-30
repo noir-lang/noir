@@ -20,8 +20,6 @@ mod optionally_revealed_data;
 
 mod combined_accumulated_data;
 
-mod complete_address;
-
 mod private_kernel;
 mod kernel_circuit_public_inputs;
 mod previous_kernel_data;

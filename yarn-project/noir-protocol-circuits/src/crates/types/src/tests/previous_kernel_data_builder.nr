@@ -51,7 +51,7 @@ impl PreviousKernelDataBuilder {
             counter: 0
         }); // 0th nullifier must be non-zero.
 
-        let tx_context = build_tx_context(false);
+        let tx_context = build_tx_context(false, 0);
 
         PreviousKernelDataBuilder {
             contract_address: fixtures::contracts::parent_contract.address,
@@ -66,11 +66,6 @@ impl PreviousKernelDataBuilder {
             vk_path: [0; VK_TREE_HEIGHT],
             sideffect_counter: 2,
         }
-    }
-
-    pub fn is_constructor(&mut self) -> Self {
-        self.tx_context = build_tx_context(true);
-        *self
     }
 
     pub fn is_public(&mut self) -> Self {

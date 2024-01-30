@@ -1,11 +1,11 @@
 use crate::{
     abis::{
         call_context::CallContext,
-        complete_address::CompleteAddress,
         nullifier_key_validation_request::NullifierKeyValidationRequest,
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
+    address::{AztecAddress, compute_initialization_hash},
     contrakt::deployment_data::ContractDeploymentData,
     hash::{compute_constructor_hash, hash_args},
     header::Header,
@@ -73,17 +73,18 @@ impl PrivateCircuitPublicInputsBuilder {
         };
         let function_data = contract_function.data;
 
-        let contract_deployment_data = build_contract_deployment_data(is_constructor);
+        let contract_deployment_data = build_contract_deployment_data(is_constructor, args_hash);
 
         let contract_address = if is_constructor {
             let constructor = fixtures::contract_functions::default_constructor;
-            let constructor_hash = compute_constructor_hash(constructor.data, args_hash, constructor.vk_hash);
-            CompleteAddress::compute(
-                contract_deployment_data.deployer_public_key,
+            let initialization_hash = compute_initialization_hash(constructor.data.selector.to_field(), args_hash);
+            AztecAddress::compute_from_public_key(
+                contract_deployment_data.public_key,
+                contract_deployment_data.contract_class_id,
                 contract_deployment_data.contract_address_salt,
-                contract_deployment_data.function_tree_root,
-                constructor_hash,
-            ).address
+                initialization_hash,
+                portal_contract_address,
+            )
         } else {
             contract_data.address
         };

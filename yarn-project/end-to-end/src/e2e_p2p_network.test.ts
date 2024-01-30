@@ -5,12 +5,13 @@ import {
   ContractDeployer,
   DebugLogger,
   DeploySentTx,
+  EthAddress,
   Fr,
   Grumpkin,
   PublicKey,
   TxStatus,
   Wallet,
-  getContractDeploymentInfo,
+  getContractInstanceFromDeployParams,
   isContractDeployed,
 } from '@aztec/aztec.js';
 import { TestContractArtifact } from '@aztec/noir-contracts/Test';
@@ -137,7 +138,13 @@ describe('e2e_p2p_network', () => {
     const txs: DeploySentTx[] = [];
     for (let i = 0; i < numTxs; i++) {
       const salt = Fr.random();
-      const origin = getContractDeploymentInfo(TestContractArtifact, [], salt, publicKey).completeAddress.address;
+      const origin = getContractInstanceFromDeployParams(
+        TestContractArtifact,
+        [],
+        salt,
+        publicKey,
+        EthAddress.ZERO,
+      ).address;
       const deployer = new ContractDeployer(TestContractArtifact, pxe, publicKey);
       const tx = deployer.deploy().send({ contractAddressSalt: salt });
       logger(`Tx sent with hash ${await tx.getTxHash()}`);

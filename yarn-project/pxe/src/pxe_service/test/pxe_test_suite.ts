@@ -83,7 +83,7 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
       const contracts: DeployedContract[] = [randomDeployedContract(), randomDeployedContract()];
       await pxe.addContracts(contracts);
 
-      const expectedContractAddresses = contracts.map(contract => contract.completeAddress.address);
+      const expectedContractAddresses = contracts.map(contract => contract.instance.address);
       const contractAddresses = await pxe.getContracts();
 
       // check if all the contracts were returned

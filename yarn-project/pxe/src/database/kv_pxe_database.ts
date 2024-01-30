@@ -395,7 +395,7 @@ export class KVPxeDatabase implements PxeDatabase {
   }
 
   async addContract(contract: ContractDao): Promise<void> {
-    await this.#contracts.set(contract.completeAddress.address.toString(), contract.toBuffer());
+    await this.#contracts.set(contract.instance.address.toString(), contract.toBuffer());
   }
 
   getContract(address: AztecAddress): Promise<ContractDao | undefined> {

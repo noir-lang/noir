@@ -82,7 +82,7 @@ export abstract class TreeBase implements MerkleTree {
     this.root = root ? root : current;
     this.maxIndex = 2n ** BigInt(depth) - 1n;
 
-    this.log = createDebugLogger(`aztec:merkle-tree:${name}`);
+    this.log = createDebugLogger(`aztec:merkle-tree:${name.toLowerCase()}`);
   }
 
   /**

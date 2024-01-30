@@ -403,7 +403,7 @@ mod tests {
             NewContractData {
                 contract_address: AztecAddress::from_field(123),
                 portal_contract_address: EthAddress::from_field(456),
-                function_tree_root: 78
+                contract_class_id: 78
             }
         ];
         builder.previous_kernel.end.new_contracts.push_array(new_contracts);
