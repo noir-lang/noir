@@ -4,7 +4,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { AvmExecutionEnvironment } from './avm_execution_environment.js';
 import { AvmMachineState } from './avm_machine_state.js';
 import { AvmMessageCallResult } from './avm_message_call_result.js';
-import { AvmInterpreter, AvmInterpreterError } from './interpreter/index.js';
+import { AvmInterpreterError, executeAvm } from './interpreter/index.js';
 import { AvmJournal } from './journal/journal.js';
 import { decodeBytecode } from './opcodes/decode_bytecode.js';
 import { Instruction } from './opcodes/index.js';
@@ -49,10 +49,8 @@ export class AvmContext {
 
     const instructions: Instruction[] = decodeBytecode(bytecode);
 
-    const context = new AvmMachineState(this.executionEnvironment);
-    const interpreter = new AvmInterpreter(context, this.journal, instructions);
-
-    return interpreter.run();
+    const machineState = new AvmMachineState(this.executionEnvironment);
+    return executeAvm(machineState, this.journal, instructions);
   }
 
   /**

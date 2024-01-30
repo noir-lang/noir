@@ -9,7 +9,7 @@ import { Add } from '../opcodes/arithmetic.js';
 import { Jump, Return } from '../opcodes/control_flow.js';
 import { Instruction } from '../opcodes/instruction.js';
 import { CalldataCopy } from '../opcodes/memory.js';
-import { AvmInterpreter, InvalidProgramCounterError } from './interpreter.js';
+import { InvalidProgramCounterError, executeAvm } from './interpreter.js';
 
 describe('interpreter', () => {
   let journal: MockProxy<AvmJournal>;
@@ -28,8 +28,7 @@ describe('interpreter', () => {
     ];
 
     const machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
-    const interpreter = new AvmInterpreter(machineState, journal, instructions);
-    const avmReturnData = await interpreter.run();
+    const avmReturnData = await executeAvm(machineState, journal, instructions);
 
     expect(avmReturnData.reverted).toBe(false);
     expect(avmReturnData.revertReason).toBeUndefined();
@@ -44,9 +43,7 @@ describe('interpreter', () => {
     const instructions: Instruction[] = [new Jump(invalidJumpDestination)];
 
     const machineState = new AvmMachineState(initExecutionEnvironment({ calldata }));
-    const interpreter = new AvmInterpreter(machineState, journal, instructions);
-
-    const avmReturnData = await interpreter.run();
+    const avmReturnData = await executeAvm(machineState, journal, instructions);
 
     expect(avmReturnData.reverted).toBe(true);
     expect(avmReturnData.revertReason).toBeInstanceOf(InvalidProgramCounterError);
