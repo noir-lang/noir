@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use acir::{
-    brillig::{ForeignCallParam, ForeignCallResult, Value},
+    brillig::ForeignCallResult,
     circuit::{opcodes::BlockId, Opcode, OpcodeLocation},
     native_types::{Expression, Witness, WitnessMap},
     BlackBoxFunc, FieldElement,
