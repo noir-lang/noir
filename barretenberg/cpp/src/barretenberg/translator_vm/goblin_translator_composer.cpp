@@ -33,22 +33,14 @@ using Transcript = typename Flavor::Transcript;
 
 void GoblinTranslatorComposer::compute_circuit_size_parameters(CircuitBuilder& circuit_builder)
 {
-    const size_t num_gates = circuit_builder.num_gates;
-
-    // number of populated rows in the execution trace
-    size_t num_rows_populated_in_execution_trace = num_gates;
-
-    // Goblin translator circuits always have a predefined size and are structured as a VM (no concept of selectors)
-    ASSERT(MINI_CIRCUIT_SIZE >= num_rows_populated_in_execution_trace);
-
-    total_num_gates = std::max(MINI_CIRCUIT_SIZE, num_rows_populated_in_execution_trace);
+    total_num_gates = std::max(circuit_builder.num_gates, MINIMUM_MINI_CIRCUIT_SIZE);
 
     // Next power of 2
     mini_circuit_dyadic_size = circuit_builder.get_circuit_subgroup_size(total_num_gates);
 
     // The actual circuit size is several times bigger than the trace in the builder, because we use concatenation to
     // bring the degree of relations down, while extending the length.
-    dyadic_circuit_size = mini_circuit_dyadic_size * Flavor::CONCATENATION_INDEX;
+    dyadic_circuit_size = mini_circuit_dyadic_size * Flavor::CONCATENATION_GROUP_SIZE;
 }
 
 /**
@@ -189,7 +181,7 @@ void GoblinTranslatorComposer::compute_witness(CircuitBuilder& circuit_builder)
     // We also contruct ordered polynomials, which have the same values as concatenated ones + enough values to bridge
     // the range from 0 to maximum range defined by the range constraint.
     bb::honk::permutation_library::compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(
-        proving_key.get());
+        proving_key.get(), mini_circuit_dyadic_size);
 
     computed_witness = true;
 }
@@ -273,11 +265,13 @@ std::shared_ptr<typename Flavor::ProvingKey> GoblinTranslatorComposer::compute_p
 
     // Compute polynomials with odd and even indices set to 1 up to the minicircuit margin + lagrange polynomials at
     // second and second to last indices in the minicircuit
-    bb::honk::permutation_library::compute_lagrange_polynomials_for_goblin_translator<Flavor>(proving_key.get());
+    bb::honk::permutation_library::compute_lagrange_polynomials_for_goblin_translator<Flavor>(proving_key.get(),
+                                                                                              mini_circuit_dyadic_size);
 
     // Compute the numerator for the permutation argument with several repetitions of steps bridging 0 and maximum range
     // constraint
-    bb::honk::permutation_library::compute_extra_range_constraint_numerator<Flavor>(proving_key.get());
+    bb::honk::permutation_library::compute_extra_range_constraint_numerator<Flavor>(proving_key.get(),
+                                                                                    dyadic_circuit_size);
 
     return proving_key;
 }

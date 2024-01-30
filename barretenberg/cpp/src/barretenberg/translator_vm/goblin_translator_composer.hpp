@@ -20,10 +20,11 @@ class GoblinTranslatorComposer {
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Polynomial = typename Flavor::Polynomial;
     using Transcript = BaseTranscript;
-    static constexpr size_t MINI_CIRCUIT_SIZE = Flavor::MINI_CIRCUIT_SIZE;
 
     static constexpr std::string_view NAME_STRING = "GoblinTranslator";
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
+    // The minimum size of the mini-circuit (or sorted constraints won't work)
+    static constexpr size_t MINIMUM_MINI_CIRCUIT_SIZE = 2048;
     std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<VerificationKey> verification_key;
 

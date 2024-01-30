@@ -379,7 +379,8 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
     using Polynomial = bb::Polynomial<FF>;
     using namespace bb::honk::permutation_library;
     auto& engine = numeric::get_debug_randomness();
-    auto circuit_size = Flavor::MINI_CIRCUIT_SIZE * Flavor::CONCATENATION_INDEX;
+    const size_t mini_circuit_size = 2048;
+    auto full_circuit_size = mini_circuit_size * Flavor::CONCATENATION_GROUP_SIZE;
 
     // We only need gamma, because permutationr elation only uses gamma
     FF gamma = FF::random_element();
@@ -391,16 +392,16 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
     // Create storage for polynomials
     ProverPolynomials prover_polynomials;
     for (Polynomial& prover_poly : prover_polynomials.get_all()) {
-        prover_poly = Polynomial{ circuit_size };
+        prover_poly = Polynomial{ full_circuit_size };
     }
 
     // Fill in lagrange polynomials used in the permutation relation
     prover_polynomials.lagrange_first[0] = 1;
-    prover_polynomials.lagrange_last[circuit_size - 1] = 1;
+    prover_polynomials.lagrange_last[full_circuit_size - 1] = 1;
 
     // Put random values in all the non-concatenated constraint polynomials used to range constrain the values
     auto fill_polynomial_with_random_14_bit_values = [&](auto& polynomial) {
-        for (size_t i = 0; i < Flavor::MINI_CIRCUIT_SIZE; i++) {
+        for (size_t i = 0; i < mini_circuit_size; i++) {
             polynomial[i] = engine.get_random_uint16() & ((1 << Flavor::MICRO_LIMB_BITS) - 1);
         }
     };
@@ -470,23 +471,23 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
     fill_polynomial_with_random_14_bit_values(prover_polynomials.relation_wide_limbs_range_constraint_3);
 
     // Compute ordered range constraint polynomials that go in the denominator of the grand product polynomial
-    compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(&prover_polynomials);
+    compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(&prover_polynomials, mini_circuit_size);
 
     // Compute the fixed numerator (part of verification key)
-    compute_extra_range_constraint_numerator<Flavor>(&prover_polynomials);
+    compute_extra_range_constraint_numerator<Flavor>(&prover_polynomials, full_circuit_size);
 
     // Compute concatenated polynomials (4 polynomials produced from other constraint polynomials by concatenation)
     compute_concatenated_polynomials<Flavor>(&prover_polynomials);
 
     // Compute the grand product polynomial
     grand_product_library::compute_grand_product<Flavor, bb::GoblinTranslatorPermutationRelation<FF>>(
-        circuit_size, prover_polynomials, params);
+        full_circuit_size, prover_polynomials, params);
     prover_polynomials.z_perm_shift = prover_polynomials.z_perm.shifted();
 
     using Relations = typename Flavor::Relations;
 
     // Check that permutation relation is satisfied across each row of the prover polynomials
-    check_relation<Flavor, std::tuple_element_t<0, Relations>>(circuit_size, prover_polynomials, params);
+    check_relation<Flavor, std::tuple_element_t<0, Relations>>(full_circuit_size, prover_polynomials, params);
 }
 
 TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
@@ -496,8 +497,8 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = bb::Polynomial<FF>;
     auto& engine = numeric::get_debug_randomness();
-
-    const auto circuit_size = Flavor::FULL_CIRCUIT_SIZE;
+    const size_t mini_circuit_size = 2048;
+    const auto circuit_size = Flavor::CONCATENATION_GROUP_SIZE * mini_circuit_size;
     const auto sort_step = Flavor::SORT_STEP;
     const auto max_value = (1 << Flavor::MICRO_LIMB_BITS) - 1;
 
@@ -579,8 +580,8 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorExtraRelationsCorrectness)
 
     auto& engine = numeric::get_debug_randomness();
 
-    auto circuit_size = Flavor::FULL_CIRCUIT_SIZE;
-    auto mini_circuit_size = Flavor::MINI_CIRCUIT_SIZE;
+    const size_t mini_circuit_size = 2048;
+    const auto circuit_size = Flavor::CONCATENATION_GROUP_SIZE * mini_circuit_size;
 
     // We only use accumulated_result from relation parameters in this relation
     RelationParameters<FF> params;
@@ -681,7 +682,8 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorDecompositionRelationCorrectnes
     using Polynomial = bb::Polynomial<FF>;
     auto& engine = numeric::get_debug_randomness();
 
-    auto circuit_size = Flavor::FULL_CIRCUIT_SIZE;
+    constexpr size_t mini_circuit_size = 2048;
+    const auto circuit_size = Flavor::CONCATENATION_GROUP_SIZE * mini_circuit_size;
 
     // Decomposition relation doesn't use any relation parameters
     RelationParameters<FF> params;
@@ -723,7 +725,7 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorDecompositionRelationCorrectnes
     }
 
     // Fill in lagrange odd polynomial (the only non-witness one we are using)
-    for (size_t i = 1; i < Flavor::MINI_CIRCUIT_SIZE - 1; i += 2) {
+    for (size_t i = 1; i < mini_circuit_size - 1; i += 2) {
         prover_polynomials.lagrange_odd_in_minicircuit[i] = 1;
     }
 
@@ -811,7 +813,7 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorDecompositionRelationCorrectnes
         };
 
     // Put random values in all the non-concatenated constraint polynomials used to range constrain the values
-    for (size_t i = 1; i < Flavor::MINI_CIRCUIT_SIZE - 1; i += 2) {
+    for (size_t i = 1; i < mini_circuit_size - 1; i += 2) {
         // P.x
         prover_polynomials.x_lo_y_hi[i] = FF(engine.get_random_uint256() & ((uint256_t(1) << LOW_WIDE_LIMB_WIDTH) - 1));
         prover_polynomials.x_hi_z_1[i] = FF(engine.get_random_uint256() & ((uint256_t(1) << HIGH_WIDE_LIMB_WIDTH) - 1));
@@ -1055,15 +1057,15 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorNonNativeRelationCorrectness)
     using Polynomial = bb::Polynomial<FF>;
 
     constexpr size_t NUM_LIMB_BITS = Flavor::NUM_LIMB_BITS;
-    constexpr auto circuit_size = Flavor::FULL_CIRCUIT_SIZE;
-    constexpr auto mini_circuit_size = Flavor::MINI_CIRCUIT_SIZE;
+    constexpr auto mini_circuit_size = 2048;
+    constexpr auto circuit_size = Flavor::CONCATENATION_GROUP_SIZE * mini_circuit_size;
 
     auto& engine = numeric::get_debug_randomness();
 
     auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     // Generate random EccOpQueue actions
-    for (size_t i = 0; i < ((Flavor::MINI_CIRCUIT_SIZE >> 1) - 1); i++) {
+    for (size_t i = 0; i < ((mini_circuit_size >> 1) - 1); i++) {
         switch (engine.get_random_uint8() & 3) {
         case 0:
             op_queue->empty_row();

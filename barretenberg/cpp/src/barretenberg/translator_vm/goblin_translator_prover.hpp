@@ -22,9 +22,6 @@ class GoblinTranslatorProver {
     using Curve = typename Flavor::Curve;
     using Transcript = typename Flavor::Transcript;
 
-    static size_t constexpr MINI_CIRCUIT_SIZE = Flavor::MINI_CIRCUIT_SIZE;
-    static size_t constexpr FULL_CIRCUIT_SIZE = Flavor::FULL_CIRCUIT_SIZE;
-
   public:
     explicit GoblinTranslatorProver(const std::shared_ptr<ProvingKey>& input_key,
                                     const std::shared_ptr<CommitmentKey>& commitment_key,

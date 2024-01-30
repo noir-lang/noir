@@ -44,13 +44,13 @@ class GoblinTranslator {
     // None of this parameters can be changed
 
     // How many mini_circuit_size polynomials are concatenated in one concatenated_*
-    static constexpr size_t CONCATENATION_INDEX = 16;
+    static constexpr size_t CONCATENATION_GROUP_SIZE = 16;
 
     // The number of concatenated_* wires
     static constexpr size_t NUM_CONCATENATED_WIRES = 4;
 
     // Actual circuit size
-    static constexpr size_t FULL_CIRCUIT_SIZE = MINI_CIRCUIT_SIZE * CONCATENATION_INDEX;
+    static constexpr size_t FULL_CIRCUIT_SIZE = MINI_CIRCUIT_SIZE * CONCATENATION_GROUP_SIZE;
 
     // Number of wires
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
