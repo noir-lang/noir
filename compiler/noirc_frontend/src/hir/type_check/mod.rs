@@ -454,7 +454,7 @@ mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId(arena::Index::from_raw_parts(0, 0))
+            LocalModuleId(arena::Index { ix: 0 })
         }
 
         fn module_id(&self) -> ModuleId {
@@ -505,7 +505,7 @@ mod test {
         let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
-        let mut modules = arena::Arena::new();
+        let mut modules = arena::Arena::default();
         let location = Location::new(Default::default(), file);
         modules.insert(ModuleData::new(None, location, false));
 
