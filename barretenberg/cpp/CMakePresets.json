@@ -141,6 +141,19 @@
       }
     },
     {
+      "name": "ubsan",
+      "displayName": "Debugging build with undefined behaviour sanitizer on Clang-16",
+      "description": "Build with undefined behaviour sanitizer on clang16 with debugging information",
+      "inherits": "clang16-dbg",
+      "binaryDir": "build-ubsan",
+      "generator": "Unix Makefiles",
+      "environment": {
+        "CFLAGS": "-fsanitize=undefined",
+        "CXXFLAGS": "-fsanitize=undefined",
+        "LDFLAGS": "-fsanitize=undefined"
+      }
+    },
+    {
       "name": "msan",
       "displayName": "Debugging build with memory sanitizer on Clang-16",
       "description": "Build with thread sanitizer on clang16 with debugging information",
@@ -151,10 +164,6 @@
         "CFLAGS": "-fsanitize=memory",
         "CXXFLAGS": "-fsanitize=memory",
         "LDFLAGS": "-fsanitize=memory"
-      },
-      "cacheVariables": {
-        "BENCHMARK": "OFF",
-        "TESTING": "OFF"
       }
     },
     {
@@ -226,6 +235,16 @@
       },
       "cacheVariables": {
         "MULTITHREADING": "ON"
+      }
+    },
+    {
+      "name": "wasm-bench",
+      "displayName": "WASM benchmarking.",
+      "description": "WASM benchmarking.",
+      "inherits": "wasm-threads",
+      "binaryDir": "build-wasm-bench",
+      "environment": {
+        "CXXFLAGS": "-DWASMTIME_ENV_HACK"
       }
     },
     {
@@ -337,6 +356,11 @@
       "configurePreset": "tsan"
     },
     {
+      "name": "ubsan",
+      "inherits": "default",
+      "configurePreset": "ubsan"
+    },
+    {
       "name": "coverage",
       "inherits": "default",
       "configurePreset": "coverage"
@@ -367,6 +391,12 @@
       "inheritConfigureEnvironment": true,
       "jobs": 0,
       "targets": ["barretenberg.wasm"]
+    },
+    {
+      "name": "wasm-bench",
+      "configurePreset": "wasm-bench",
+      "inheritConfigureEnvironment": true,
+      "jobs": 0
     },
     {
       "name": "xray",

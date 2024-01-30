@@ -108,3 +108,5 @@ void verify_proofs_bench(State& state) noexcept
     }
 }
 BENCHMARK(verify_proofs_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
+
+BENCHMARK_MAIN();

@@ -57,3 +57,5 @@ BENCHMARK(execute_relation<honk::flavor::ECCVM, ECCVMTranscriptRelation<Fq>>);
 BENCHMARK(execute_relation<honk::flavor::ECCVM, ECCVMWnafRelation<Fq>>);
 
 } // namespace bb::benchmark::relations
+
+BENCHMARK_MAIN();

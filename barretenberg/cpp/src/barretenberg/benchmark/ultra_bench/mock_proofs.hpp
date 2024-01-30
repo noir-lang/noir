@@ -35,7 +35,7 @@ template <typename Builder> void generate_basic_arithmetic_circuit(Builder& buil
     stdlib::field_t c(&builder);
     size_t passes = (1UL << log2_num_gates) / 4 - 4;
     if (static_cast<int>(passes) <= 0) {
-        throw std::runtime_error("too few gates");
+        throw_or_abort("too few gates");
     }
 
     for (size_t i = 0; i < passes; ++i) {

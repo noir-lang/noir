@@ -1,1 +1,0 @@
-barretenberg_module(celer stdlib_sha256)

@@ -134,3 +134,5 @@ BENCHMARK(goblin_full)->Unit(kMillisecond)->DenseRange(0, 7);
 BENCHMARK(goblin_accumulate)->Unit(kMillisecond)->DenseRange(0, 7);
 BENCHMARK(goblin_eccvm_prove)->Unit(kMillisecond)->DenseRange(0, 7);
 BENCHMARK(goblin_translator_prove)->Unit(kMillisecond)->DenseRange(0, 7);
+
+BENCHMARK_MAIN();

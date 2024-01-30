@@ -6,8 +6,8 @@
  * @date 2023-08-02
  *
  */
-#include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 #include <benchmark/benchmark.h>
 #include <bit>
 

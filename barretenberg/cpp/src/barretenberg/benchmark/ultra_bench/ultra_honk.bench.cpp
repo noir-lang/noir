@@ -50,3 +50,5 @@ BENCHMARK(construct_proof_ultrahonk_power_of_2)
     // 2**15 gates to 2**20 gates
     ->DenseRange(15, 20)
     ->Unit(kMillisecond);
+
+BENCHMARK_MAIN();

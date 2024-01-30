@@ -1,5 +1,6 @@
 
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/srs/factories/mem_bn254_crs_factory.hpp"
 #include <benchmark/benchmark.h>
 
 namespace bb {
@@ -14,8 +15,7 @@ std::shared_ptr<honk::pcs::CommitmentKey<Curve>> create_commitment_key(const siz
         static_assert(std::same_as<Curve, curve::Grumpkin>);
         srs_path = "../srs_db/grumpkin";
     }
-    std::shared_ptr<bb::srs::factories::CrsFactory<Curve>> crs_factory(
-        new bb::srs::factories::FileCrsFactory<Curve>(srs_path, num_points));
+    auto crs_factory = std::make_shared<bb::srs::factories::FileCrsFactory<Curve>>(srs_path, num_points);
     return std::make_shared<honk::pcs::CommitmentKey<Curve>>(num_points, crs_factory);
 }
 
@@ -36,3 +36,5 @@ template <typename Curve> void bench_commit(::benchmark::State& state)
 BENCHMARK(bench_commit<curve::BN254>)->DenseRange(10, MAX_LOG_NUM_POINTS)->Unit(benchmark::kMillisecond);
 
 } // namespace bb
+
+BENCHMARK_MAIN();

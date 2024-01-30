@@ -114,3 +114,5 @@ BENCHMARK(accumulate_contribution<ProverEllipticWidget<ultra_settings>>);
 BENCHMARK(accumulate_contribution<ProverPlookupAuxiliaryWidget<ultra_settings>>);
 
 } // namespace bb::plonk
+
+BENCHMARK_MAIN();

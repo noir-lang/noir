@@ -39,3 +39,5 @@ void fold_one(State& state) noexcept
 
 BENCHMARK(fold_one)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
 } // namespace bb::honk
+
+BENCHMARK_MAIN();

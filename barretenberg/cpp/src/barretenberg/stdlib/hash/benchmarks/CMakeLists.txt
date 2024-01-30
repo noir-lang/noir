@@ -1,3 +1,1 @@
-add_subdirectory(sha256)
-add_subdirectory(external)
-add_subdirectory(celer)
+barretenberg_module(hash_benchmarks stdlib_primitives crypto_sha256 stdlib_sha256 stdlib_blake3s)

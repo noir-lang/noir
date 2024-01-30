@@ -21,3 +21,5 @@ BENCHMARK(construct_proof_standard_power_of_2)
     // 2**15 gates to 2**20 gates
     ->DenseRange(15, 20)
     ->Unit(::benchmark::kMillisecond);
+
+BENCHMARK_MAIN();
