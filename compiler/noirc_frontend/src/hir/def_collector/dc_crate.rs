@@ -365,7 +365,7 @@ impl DefCollector {
         errors.extend(resolved_globals.errors);
 
         for macro_processor in macro_processors {
-            let _ = macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
+            macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
                 |(macro_err, file_id)| {
                     errors.push((macro_err.into(), file_id));
                 },
