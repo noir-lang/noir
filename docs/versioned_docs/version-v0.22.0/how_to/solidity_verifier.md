@@ -120,6 +120,7 @@ You can currently deploy the Solidity verifier contracts to most EVM compatible 
 - Polygon PoS
 - Scroll
 - Celo
+- Taiko
 
 Other EVM chains should work, but have not been tested directly by our team. If you test any other chains, please open a PR on this page to update the list. See [this doc](https://github.com/noir-lang/noir-starter/tree/main/with-foundry#testing-on-chain) for more info about testing verifier contracts on different EVM chains.
 
