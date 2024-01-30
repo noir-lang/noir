@@ -5,7 +5,7 @@ use crate::constants::{
 };
 use crate::hash::pedersen_hash;
 use crate::grumpkin_point::GrumpkinPoint;
-use crate::traits::Hash;
+use crate::traits::{Hash, Serialize};
 
 // docs:start:contract-deployment-data
 struct ContractDeploymentData {
@@ -23,7 +23,7 @@ impl Hash for ContractDeploymentData {
     }
 }
 
-impl ContractDeploymentData {
+impl Serialize<CONTRACT_DEPLOYMENT_DATA_LENGTH> for ContractDeploymentData {
     fn serialize(self) -> [Field; CONTRACT_DEPLOYMENT_DATA_LENGTH] {
         [
             self.deployer_public_key.x,
@@ -34,7 +34,10 @@ impl ContractDeploymentData {
             self.portal_contract_address.to_field(),
         ]
     }
+}
 
+impl ContractDeploymentData {
+    
     fn assert_is_zero(self) {
         self.deployer_public_key.assert_is_zero();
         assert(self.constructor_vk_hash == 0);

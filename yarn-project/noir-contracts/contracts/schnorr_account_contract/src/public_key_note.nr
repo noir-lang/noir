@@ -11,8 +11,11 @@ use dep::aztec::{
     },
     log::emit_encrypted_log,
     context::PrivateContext,
+    protocol_types::{
+        address::AztecAddress,
+        traits::{Serialize, Deserialize},
+    }
 };
-use dep::aztec::protocol_types::address::AztecAddress;
 
 global PUBLIC_KEY_NOTE_LEN: Field = 3;
 
@@ -25,23 +28,27 @@ struct PublicKeyNote {
     header: NoteHeader,
 }
 
-impl PublicKeyNote {
-    pub fn new(x: Field, y: Field, owner: AztecAddress) -> Self {
-        PublicKeyNote {
-            x,
-            y,
-            owner,
-            header: NoteHeader::empty(),
-        }
-    }
-
-    // serialize the note as 3 fields
-    pub fn serialize(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
+impl Serialize<PUBLIC_KEY_NOTE_LEN> for PublicKeyNote {
+    fn serialize(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
         [self.x, self.y, self.owner.to_field()]
     }
+}
 
-    pub fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
-        let unique_siloed_note_hash = compute_note_hash_for_read_or_nullify(PublicKeyNoteMethods, self);
+impl Deserialize<PUBLIC_KEY_NOTE_LEN> for PublicKeyNote {
+    fn deserialize(serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
+        PublicKeyNote {
+            x: serialized_note[0],
+            y: serialized_note[1],
+            owner: AztecAddress::from_field(serialized_note[2]),
+            header: NoteHeader::empty()
+        }
+    }
+}
+
+impl NoteInterface for PublicKeyNote {
+
+    fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
+        let unique_siloed_note_hash = compute_note_hash_for_read_or_nullify(self);
         let secret = context.request_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
@@ -51,8 +58,8 @@ impl PublicKeyNote {
         ],0)
     }
 
-    pub fn compute_nullifier_without_context(self) -> Field {
-        let unique_siloed_note_hash = compute_note_hash_for_read_or_nullify(PublicKeyNoteMethods, self);
+    fn compute_nullifier_without_context(self) -> Field {
+        let unique_siloed_note_hash = compute_note_hash_for_read_or_nullify(self);
         let secret = get_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
@@ -62,12 +69,21 @@ impl PublicKeyNote {
         ],0)
     }
 
-    pub fn set_header(&mut self, header: NoteHeader) {
+    fn compute_note_hash(note: PublicKeyNote) -> Field {
+        // TODO(#1205) Should use a non-zero generator index.
+        pedersen_hash(note.serialize(), 0)
+    }
+
+    fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 
+    fn get_header(self) -> NoteHeader {
+        self.header
+    }
+
     // Broadcasts the note as an encrypted log on L1.
-    pub fn broadcast(self, context: &mut PrivateContext, slot: Field) {
+    fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         let encryption_pub_key = get_public_key(self.owner);
         emit_encrypted_log(
             context,
@@ -79,52 +95,13 @@ impl PublicKeyNote {
     }
 }
 
-fn deserialize(serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
-    PublicKeyNote {
-        x: serialized_note[0],
-        y: serialized_note[1],
-        owner: AztecAddress::from_field(serialized_note[2]),
-        header: NoteHeader::empty()
+impl PublicKeyNote {
+    pub fn new(x: Field, y: Field, owner: AztecAddress) -> Self {
+        PublicKeyNote {
+            x,
+            y,
+            owner,
+            header: NoteHeader::empty(),
+        }
     }
 }
-
-fn serialize(note: PublicKeyNote) -> [Field; PUBLIC_KEY_NOTE_LEN] {
-    note.serialize()
-}
-
-fn compute_note_hash(note: PublicKeyNote) -> Field {
-    // TODO(#1205) Should use a non-zero generator index.
-    pedersen_hash(note.serialize(), 0)
-}
-
-fn compute_nullifier(note: PublicKeyNote, context: &mut PrivateContext) -> Field {
-    note.compute_nullifier(context)
-}
-
-fn compute_nullifier_without_context(note: PublicKeyNote) -> Field {
-    note.compute_nullifier_without_context()
-}
-
-fn get_header(note: PublicKeyNote) -> NoteHeader {
-    note.header
-}
-
-fn set_header(note: &mut PublicKeyNote, header: NoteHeader) {
-    note.set_header(header);
-}
-
-// Broadcasts the note as an encrypted log on L1.
-fn broadcast(context: &mut PrivateContext, slot: Field, note: PublicKeyNote) {
-    note.broadcast(context, slot);
-}
-
-global PublicKeyNoteMethods = NoteInterface {
-    deserialize,
-    serialize,
-    compute_note_hash,
-    compute_nullifier,
-    compute_nullifier_without_context,
-    get_header,
-    set_header,
-    broadcast,
-};

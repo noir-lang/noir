@@ -1,6 +1,6 @@
 use crate::constants::{GENERATOR_INDEX__SIDE_EFFECT};
 use dep::std::cmp::Eq;
-use crate::traits::{Empty, Hash};
+use crate::traits::{Empty, Hash, Serialize, Deserialize};
 
 trait Ordered {
     fn counter(self) -> u32;
@@ -40,18 +40,22 @@ impl Hash for SideEffect {
     }
 }
 
-impl SideEffect {
-    pub fn serialize(self) -> [Field; 2] {
+impl Serialize<2> for SideEffect {
+    fn serialize(self) -> [Field; 2] {
         [self.value, self.counter as Field]
     }
+}
 
-    pub fn deserialise(values: [Field; 2]) -> Self {
+impl Deserialize<2> for SideEffect {
+    fn deserialize(values: [Field; 2]) -> Self {
         Self {
             value: values[0],
             counter: values[1] as u32,
         }
     }
+}
 
+impl SideEffect {
     pub fn is_empty(self) -> bool {
         (self.value == 0)
         & (self.counter == 0)
@@ -96,19 +100,23 @@ impl Hash for SideEffectLinkedToNoteHash {
     }
 }
 
-impl SideEffectLinkedToNoteHash{
-    pub fn serialize(self) -> [Field; 3] {
+impl Serialize<3> for SideEffectLinkedToNoteHash {
+    fn serialize(self) -> [Field; 3] {
         [self.value, self.note_hash, self.counter as Field]
     }
+}
 
-    pub fn deserialise(values: [Field; 3]) -> Self {
+impl Deserialize<3> for SideEffectLinkedToNoteHash {
+    fn deserialize(values: [Field; 3]) -> Self {
         Self {
             value: values[0],
             note_hash: values[1],
             counter: values[2] as u32,
         }
     }
+}
 
+impl SideEffectLinkedToNoteHash{
     pub fn is_empty(self) -> bool {
         (self.value == 0)
         &  (self.note_hash == 0)

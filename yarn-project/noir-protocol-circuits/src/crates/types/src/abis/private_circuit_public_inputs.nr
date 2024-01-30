@@ -25,7 +25,7 @@ use crate::constants::{
         PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
         GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS,
 };
-use crate::traits::Hash;
+use crate::traits::{Hash, Serialize, Deserialize};
 
 struct PrivateCircuitPublicInputs {
     call_context: CallContext,
@@ -99,7 +99,7 @@ impl Hash for PrivateCircuitPublicInputs {
     }
 }
 
-impl PrivateCircuitPublicInputs {
+impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInputs {
     fn serialize(self) -> [Field; PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
         fields.push_array(self.call_context.serialize());

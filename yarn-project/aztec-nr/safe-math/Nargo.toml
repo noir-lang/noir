@@ -5,3 +5,4 @@ compiler_version = ">=0.18.0"
 type = "lib"
 
 [dependencies]
+aztec = { path = "../aztec" }

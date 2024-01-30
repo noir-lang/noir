@@ -14,7 +14,7 @@ contract SlowTree {
     use dep::value_note::{
         balance_utils,
         utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
+        value_note::{VALUE_NOTE_LEN, ValueNote},
     };
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
@@ -23,9 +23,7 @@ contract SlowTree {
             utils as note_utils,
         },
         state_vars::{map::Map, public_state::PublicState, set::Set},
-        types::type_serialization::field_serialization::{
-            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
-        },
+        protocol_types::type_serialization::FIELD_SERIALIZED_LEN,
     };
     use dep::slow_updates_tree::slow_map::{
         SlowMap, Leaf, SlowUpdateProof, compute_merkle_root, deserialize_slow_update_proof

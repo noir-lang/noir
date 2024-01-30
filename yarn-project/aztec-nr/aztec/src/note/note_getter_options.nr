@@ -1,6 +1,10 @@
 use dep::std::option::Option;
 use crate::types::vec::BoundedVec;
-use dep::protocol_types::constants::MAX_READ_REQUESTS_PER_CALL;
+use dep::protocol_types::{
+    constants::MAX_READ_REQUESTS_PER_CALL,
+    traits::Deserialize,
+};
+use crate::note::note_interface::NoteInterface;
 
 struct ComparatorEnum {
     EQ: u3,
@@ -89,7 +93,7 @@ struct NoteGetterOptions<Note, N, FILTER_ARGS> {
 // And finally, a custom filter to refine the outcome further.
 impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
     // This function initializes a NoteGetterOptions that simply returns the maximum number of notes allowed in a call.
-    pub fn new() -> NoteGetterOptions<Note, N, Field> {
+    pub fn new() -> NoteGetterOptions<Note, N, Field> where Note: NoteInterface + Deserialize<N> {
         NoteGetterOptions {
             selects: BoundedVec::new(Option::none()),
             sorts: BoundedVec::new(Option::none()),
@@ -106,7 +110,7 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
     pub fn with_filter(
         filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL],
         filter_args: FILTER_ARGS,
-    ) -> Self {
+    ) -> Self where Note: NoteInterface + Deserialize<N> {
          NoteGetterOptions {
             selects: BoundedVec::new(Option::none()),
             sorts: BoundedVec::new(Option::none()),

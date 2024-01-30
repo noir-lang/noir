@@ -8,17 +8,14 @@ For a higher level overview of the state model in Aztec, see the [state model](.
 
 ## Overview
 
-The `PublicState` struct is generic over the variable type `T` and its serialized size `T_SERIALIZED_LEN`.
+The `PublicState` struct is generic over the variable type `T`. The type *must* implement Serialize and Deserialize traits, as specified here:
 
-:::info
-Currently, the length of the types must be specified when declaring the storage struct but the intention is that this will be inferred in the future.
-:::
+#include_code serialize /yarn-project/noir-protocol-circuits/src/crates/types/src/traits.nr rust
+#include_code deserialize /yarn-project/noir-protocol-circuits/src/crates/types/src/traits.nr rust
 
 The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out _where_ in storage the variable is located. Notice that while we don't have the exact same [state model](../../../../learn/concepts/hybrid_state/main.md) as EVM chains it will look similar from the contract developers point of view.
 
-Beyond the struct, the `PublicState` also contains `serialization_methods`, which is a struct with methods that instruct the `PublicState` how to serialize and deserialize the variable. You can find the details of `PublicState` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr).
-
-The Aztec.nr library provides serialization methods for various common types.
+You can find the details of `PublicState` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr).
 
 :::info
 An example using a larger struct can be found in the [lending example](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/lending_contract)'s use of an [`Asset`](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/yarn-project/noir-contracts/contracts/lending_contract/src/asset.nr).
@@ -26,7 +23,7 @@ An example using a larger struct can be found in the [lending example](https://g
 
 ### `new`
 
-When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. As seen below, this takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](../context.mdx), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr).
+When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. As seen below, this takes the `storage_slot` and the  [`Context`](../context.mdx), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr).
 
 #### Single value example
 
@@ -68,7 +65,7 @@ mapping(address => bool) internal minters;
 
 ### `read`
 
-On the `PublicState` structs we have a `read` method to read the value at the location in storage and using the specified deserialization method to deserialize it.
+On the `PublicState` structs we have a `read` method to read the value at the location in storage.
 
 #### Reading from our `admin` example
 

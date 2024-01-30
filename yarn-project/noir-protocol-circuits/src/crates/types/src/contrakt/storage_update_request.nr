@@ -6,7 +6,7 @@ use crate::{
     hash::pedersen_hash,
 };
 use dep::std::cmp::Eq;
-use crate::traits::{Hash, Empty};
+use crate::traits::{Hash, Empty, Serialize};
 
 struct StorageUpdateRequest{
     storage_slot : Field,
@@ -39,11 +39,13 @@ impl Hash for StorageUpdateRequest {
     }
 }
 
-impl StorageUpdateRequest {
-    pub fn serialize(self) -> [Field; CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH] {
+impl Serialize<CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH> for StorageUpdateRequest {
+    fn serialize(self) -> [Field; CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH] {
         [self.storage_slot, self.old_value, self.new_value]
     }
+}
 
+impl StorageUpdateRequest {
     pub fn is_empty(self) -> bool {
         self.storage_slot == 0
     }

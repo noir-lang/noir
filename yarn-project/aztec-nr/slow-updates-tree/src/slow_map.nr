@@ -1,7 +1,6 @@
 use dep::aztec::context::{PrivateContext, PublicContext, Context};
-use dep::aztec::types::type_serialization::TypeSerializationInterface;
 use dep::aztec::oracle::storage::{storage_read, storage_write};
-
+use dep::aztec::protocol_types::traits::{Serialize, Deserialize};
 use dep::std::hash::pedersen_hash;
 use dep::std::merkle::compute_merkle_root;
 use dep::std::option::Option;
@@ -20,20 +19,15 @@ struct Leaf {
   after: Field,
 }
 
-fn serialize_leaf(leaf: Leaf) -> [Field; 3] {
-    [leaf.next_change, leaf.before, leaf.after]
-}
-
-fn deserialize_leaf(serialized: [Field; 3]) -> Leaf {
-    Leaf { next_change: serialized[0], before: serialized[1], after: serialized[2] }
-}
-
-impl Leaf {
-  fn serialize(self: Self) -> [Field; 3] {
-    serialize_leaf(self)
+impl Serialize<3> for Leaf {
+  fn serialize(leaf: Leaf) -> [Field; 3] {
+      [leaf.next_change, leaf.before, leaf.after]
   }
-   fn deserialize(serialized: [Field; 3]) -> Self {
-    deserialize_leaf(serialized)
+}
+
+impl Deserialize<3> for Leaf {
+  fn deserialize(serialized: [Field; 3]) -> Leaf {
+      Leaf { next_change: serialized[0], before: serialized[1], after: serialized[2] }
   }
 }
 
@@ -117,7 +111,8 @@ impl<N,M> SlowMap<N,M> {
   }
 
   pub fn read_root(self: Self) -> Leaf {
-    storage_read(self.storage_slot, deserialize_leaf)
+    let fields = storage_read(self.storage_slot);
+    Leaf::deserialize(fields)
   }
 
   // Beware that the initial root could include much state that is not shown by the public storage!
@@ -147,7 +142,8 @@ impl<N,M> SlowMap<N,M> {
   // docs:start:read_leaf_at
   pub fn read_leaf_at(self: Self, key: Field) -> Leaf {
     let derived_storage_slot = pedersen_hash([self.storage_slot, key]);
-    storage_read(derived_storage_slot, deserialize_leaf)
+    let fields = storage_read(derived_storage_slot);
+    Leaf::deserialize(fields)
   }
   // docs:end:read_leaf_at
 

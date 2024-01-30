@@ -1,7 +1,8 @@
 use dep::std::option::Option;
 use dep::protocol_types::{
     address::AztecAddress,
-    constants::{
+    traits::{Serialize, Deserialize},
+        constants::{
         GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
     },
     hash::pedersen_hash,
@@ -17,25 +18,22 @@ use crate::note::{
 use crate::oracle::notes::check_nullifier_exists;
 
 // docs:start:struct
-struct ImmutableSingleton<Note, N> {
+struct ImmutableSingleton<Note> {
     context: Option<&mut PrivateContext>,
     storage_slot: Field,
-    note_interface: NoteInterface<Note, N>,
 }
 // docs:end:struct
 
-impl<Note, N> ImmutableSingleton<Note, N> {
+impl<Note> ImmutableSingleton<Note> {
     // docs:start:new
     pub fn new(
         context: Context,
         storage_slot: Field,
-        note_interface: NoteInterface<Note, N>,
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Self {
             context: context.private,
             storage_slot,
-            note_interface,
         }
     }
     // docs:end:new
@@ -58,11 +56,11 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     // docs:end:is_initialized
 
     // docs:start:initialize
-    pub fn initialize(
+    pub fn initialize<N>(
         self,
         note: &mut Note, 
         broadcast: bool,
-    ) {
+    ) where Note: NoteInterface + Serialize<N> + Deserialize<N> {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
@@ -73,24 +71,23 @@ impl<Note, N> ImmutableSingleton<Note, N> {
             context,
             self.storage_slot,
             note,
-            self.note_interface,
             broadcast,
         );
     }
     // docs:end:initialize
 
     // docs:start:get_note
-    pub fn get_note(self) -> Note {
+    pub fn get_note<N>(self) -> Note where Note: NoteInterface + Deserialize<N> {
         let context = self.context.unwrap();
         let storage_slot = self.storage_slot;
-        get_note(context, storage_slot, self.note_interface)
+        get_note(context, storage_slot)
     }
     // docs:end:get_note
 
     // docs:start:view_note
-    unconstrained pub fn view_note(self) -> Note {
+    unconstrained pub fn view_note<N>(self) -> Note  where Note: NoteInterface + Deserialize<N> {
         let options = NoteViewerOptions::new().set_limit(1);
-        view_notes(self.storage_slot, self.note_interface, options)[0].unwrap()
+        view_notes(self.storage_slot, options)[0].unwrap()
     }
     // docs:end:view_note
 }

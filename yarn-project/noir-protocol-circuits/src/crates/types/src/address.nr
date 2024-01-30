@@ -8,7 +8,8 @@ use crate::{
     grumpkin_point::GrumpkinPoint,
 };
 use dep::std::cmp::Eq;
-use crate::traits::{Empty, ToField};
+use crate::traits::{Empty, ToField, Serialize, Deserialize};
+use crate::type_serialization::{ETH_ADDRESS_SERIALIZED_LEN, AZTEC_ADDRESS_SERIALIZED_LEN};
 
 // Aztec address
 struct AztecAddress {
@@ -32,6 +33,18 @@ impl Empty for AztecAddress {
 impl ToField for AztecAddress {
     fn to_field(self) -> Field {
         self.inner
+    }
+}
+
+impl Serialize<AZTEC_ADDRESS_SERIALIZED_LEN> for AztecAddress {
+    fn serialize(self: Self) -> [Field; AZTEC_ADDRESS_SERIALIZED_LEN] {
+        [self.to_field()]
+    }
+}
+
+impl Deserialize<AZTEC_ADDRESS_SERIALIZED_LEN> for AztecAddress {
+    fn deserialize(fields: [Field; AZTEC_ADDRESS_SERIALIZED_LEN]) -> Self {
+        AztecAddress::from_field(fields[0])
     }
 }
 
@@ -71,16 +84,6 @@ impl AztecAddress {
             inner : result
         }
     }
-
-    pub fn serialize(self: Self) -> [Field; 1] {
-        [self.inner]
-    }
-
-    pub fn deserialize(fields: [Field; 1]) -> Self {
-        Self {
-            inner: fields[0]
-        }
-    }
 }
 
 struct EthAddress{
@@ -104,6 +107,20 @@ impl Empty for EthAddress {
 impl ToField for EthAddress {
     fn to_field(self) -> Field {
         self.inner
+    }
+}
+
+impl Serialize<ETH_ADDRESS_SERIALIZED_LEN> for EthAddress {
+    fn serialize(self: Self) -> [Field; ETH_ADDRESS_SERIALIZED_LEN] {
+        [self.inner]
+    }
+}
+
+impl Deserialize<ETH_ADDRESS_SERIALIZED_LEN> for EthAddress {
+    fn deserialize(fields: [Field; ETH_ADDRESS_SERIALIZED_LEN]) -> Self {
+        Self {
+            inner: fields[0]
+        }
     }
 }
 
@@ -132,16 +149,6 @@ impl EthAddress{
         let result = utils::conditional_assign(predicate, rhs.to_field(), lhs.to_field());
         Self {
             inner : result
-        }
-    }
-
-    pub fn serialize(self: Self) -> [Field; 1] {
-        [self.inner]
-    }
-
-    pub fn deserialize(fields: [Field; 1]) -> Self {
-        Self {
-            inner: fields[0]
         }
     }
 }

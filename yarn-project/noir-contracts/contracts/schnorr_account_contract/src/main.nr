@@ -20,11 +20,11 @@ contract SchnorrAccount {
         auth_witness::get_auth_witness,
     };
 
-    use crate::public_key_note::{PublicKeyNote, PublicKeyNoteMethods, PUBLIC_KEY_NOTE_LEN};
+    use crate::public_key_note::{PublicKeyNote, PUBLIC_KEY_NOTE_LEN};
 
     struct Storage {
         // docs:start:storage
-        signing_public_key: ImmutableSingleton<PublicKeyNote, PUBLIC_KEY_NOTE_LEN>,
+        signing_public_key: ImmutableSingleton<PublicKeyNote>,
         // docs:end:storage
     }
 
@@ -32,7 +32,7 @@ contract SchnorrAccount {
         fn init(context: Context) -> Self {
             Storage {
                 // docs:start:storage_init
-                signing_public_key: ImmutableSingleton::new(context, 1, PublicKeyNoteMethods),
+                signing_public_key: ImmutableSingleton::new(context, 1),
                 // docs:end:storage_init
             }
         }
@@ -113,6 +113,6 @@ contract SchnorrAccount {
     ) -> pub [Field; 4] {
         assert(storage_slot == 1);
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(PublicKeyNoteMethods, note_header, serialized_note)
+        note_utils::compute_note_hash_and_nullifier(PublicKeyNote::deserialize, note_header, serialized_note)
     }
 }

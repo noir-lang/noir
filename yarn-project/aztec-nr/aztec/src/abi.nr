@@ -6,6 +6,7 @@ use dep::protocol_types::{
     },
     contrakt::deployment_data::ContractDeploymentData,
     hash::hash_args,
+    traits::{Hash, Serialize},
     header::Header,
 };
 
@@ -16,7 +17,7 @@ struct PrivateGlobalVariables {
 }
 // docs:end:private-global-variables
 
-impl PrivateGlobalVariables {
+impl Serialize<2> for PrivateGlobalVariables {
     fn serialize(self) -> [Field; 2] {
         [self.chain_id, self.version]
     }
@@ -31,7 +32,7 @@ struct PublicGlobalVariables {
 }
 // docs:end:public-global-variables
 
-impl PublicGlobalVariables {
+impl Serialize<4> for PublicGlobalVariables {
     fn serialize(self) -> [Field; 4] {
         [self.chain_id, self.version, self.block_number, self.timestamp]
     }
@@ -61,6 +62,12 @@ struct Hasher {
     fields: [Field],
 }
 
+impl Hash for Hasher {
+    fn hash(self) -> Field {
+        hash_args(self.fields)
+    }
+}
+
 impl Hasher {
     pub fn new()-> Self {
         Self { fields: [] }
@@ -74,9 +81,5 @@ impl Hasher {
         for i in 0..N {
             self.fields = self.fields.push_back(fields[i]);
         }
-    }
-
-    pub fn hash(self) -> Field {
-        hash_args(self.fields)
     }
 }

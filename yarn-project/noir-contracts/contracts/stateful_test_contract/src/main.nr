@@ -5,7 +5,7 @@ contract StatefulTest {
     use dep::value_note::{
         balance_utils,
         utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
+        value_note::{VALUE_NOTE_LEN, ValueNote},
     };
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
@@ -14,14 +14,11 @@ contract StatefulTest {
             utils as note_utils,
         },
         state_vars::{map::Map, public_state::PublicState, set::Set},
-        types::type_serialization::field_serialization::{
-            FieldSerializationMethods, FIELD_SERIALIZED_LEN,
-        },
     };
 
     struct Storage {
-        notes: Map<AztecAddress, Set<ValueNote, VALUE_NOTE_LEN>>,
-        public_values: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        notes: Map<AztecAddress, Set<ValueNote>>,
+        public_values: Map<AztecAddress, PublicState<Field>>,
     }
 
     impl Storage {
@@ -31,7 +28,7 @@ contract StatefulTest {
                     context,
                     1, // Storage slot
                     |context, slot| {
-                        Set::new(context, slot, ValueNoteMethods)
+                        Set::new(context, slot)
                     },
                 ),
                 public_values: Map::new(
@@ -41,7 +38,6 @@ contract StatefulTest {
                         PublicState::new(
                             context,
                             slot,
-                            FieldSerializationMethods,
                         )
                     },
                 ),
@@ -88,6 +84,6 @@ contract StatefulTest {
         serialized_note: [Field; VALUE_NOTE_LEN]
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
+        note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize, note_header, serialized_note)
     }
 }

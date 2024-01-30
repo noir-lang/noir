@@ -20,18 +20,17 @@ contract Escrow {
 
     use dep::address_note::address_note::{
         AddressNote,
-        AddressNoteMethods,
         ADDRESS_NOTE_LEN,
     };
 
     struct Storage {
-        owners: Set<AddressNote, ADDRESS_NOTE_LEN>,
+        owners: Set<AddressNote>,
     }
 
     impl Storage {
         fn init(context: Context) -> Self {
             Storage {
-                owners: Set::new(context, 1, AddressNoteMethods),
+                owners: Set::new(context, 1),
             }
         }
     }
@@ -77,6 +76,6 @@ contract Escrow {
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         assert(storage_slot == 1);
-        note_utils::compute_note_hash_and_nullifier(AddressNoteMethods, note_header, serialized_note)
+        note_utils::compute_note_hash_and_nullifier(AddressNote::deserialize, note_header, serialized_note)
     }
 }

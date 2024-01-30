@@ -1,5 +1,7 @@
-use dep::aztec::protocol_types::address::AztecAddress;
-use dep::aztec::types::type_serialization::TypeSerializationInterface;
+use dep::aztec::protocol_types::{
+    address::AztecAddress,
+    traits::{Serialize, Deserialize}
+};
 
 // Shows how to create a custom struct in Public
 struct Leader {
@@ -9,15 +11,15 @@ struct Leader {
 
 global LEADER_SERIALIZED_LEN: Field = 2;
 
-fn deserialize(fields: [Field; LEADER_SERIALIZED_LEN]) -> Leader {
-    Leader { account: AztecAddress::from_field(fields[0]), points: fields[1] as u8 }
+impl Deserialize<LEADER_SERIALIZED_LEN> for Leader {
+    fn deserialize(fields: [Field; LEADER_SERIALIZED_LEN]) -> Self {
+        Leader { account: AztecAddress::from_field(fields[0]), points: fields[1] as u8 }
+    }
 }
 
-fn serialize(leader: Leader) -> [Field; LEADER_SERIALIZED_LEN] {
-    [leader.account.to_field(), leader.points as Field]
+impl Serialize<LEADER_SERIALIZED_LEN> for Leader {
+    fn serialize(self) -> [Field; LEADER_SERIALIZED_LEN] {
+        [self.account.to_field(), self.points as Field]
+    }
 }
 
-global LeaderSerializationMethods = TypeSerializationInterface {
-    deserialize,
-    serialize,
-};

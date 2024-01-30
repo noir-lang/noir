@@ -1,5 +1,7 @@
-use dep::aztec::protocol_types::address::AztecAddress;
-use dep::aztec::types::type_serialization::TypeSerializationInterface;
+use dep::aztec::protocol_types::{
+    address::AztecAddress,
+    traits::{Serialize, Deserialize},
+};
 use crate::cards::Card;
 
 global NUMBER_OF_PLAYERS = 2;
@@ -31,59 +33,59 @@ struct Game {
 
 global GAME_SERIALIZED_LEN: Field = 15;
 
-fn deserializeGame(fields: [Field; GAME_SERIALIZED_LEN]) -> Game {
-    let players = [
-        PlayerEntry {
-            address: AztecAddress::from_field(fields[0]),
-            deck_strength: fields[1] as u32,
-            points: fields[2] as u120
-        },
-        PlayerEntry {
-            address: AztecAddress::from_field(fields[3]),
-            deck_strength: fields[4] as u32,
-            points: fields[5] as u120
-        }
-    ];
-    let rounds_cards = [
-        Card::from_field(fields[6]), Card::from_field(fields[7]),
-        Card::from_field(fields[8]), Card::from_field(fields[9])
-    ];
-    Game {
-        players,
-        rounds_cards,
-        started: fields[10] as bool,
-        finished: fields[11] as bool,
-        claimed: fields[12] as bool,
-        current_player: fields[13] as u32,
-        current_round: fields[14] as u32
+impl Serialize<GAME_SERIALIZED_LEN> for Game {
+    fn serialize(game: Game) -> [Field; GAME_SERIALIZED_LEN] {
+        [
+            game.players[0].address.to_field(),
+            game.players[0].deck_strength as Field,
+            game.players[0].points as Field,
+            game.players[1].address.to_field(),
+            game.players[1].deck_strength as Field,
+            game.players[1].points as Field,
+            game.rounds_cards[0].to_field(),
+            game.rounds_cards[1].to_field(),
+            game.rounds_cards[2].to_field(),
+            game.rounds_cards[3].to_field(),
+            game.started as Field,
+            game.finished as Field,
+            game.claimed as Field,
+            game.current_player as Field,
+            game.current_round as Field
+        ]
     }
 }
 
-fn serializeGame(game: Game) -> [Field; GAME_SERIALIZED_LEN] {
-    [
-        game.players[0].address.to_field(),
-        game.players[0].deck_strength as Field,
-        game.players[0].points as Field,
-        game.players[1].address.to_field(),
-        game.players[1].deck_strength as Field,
-        game.players[1].points as Field,
-        game.rounds_cards[0].to_field(),
-        game.rounds_cards[1].to_field(),
-        game.rounds_cards[2].to_field(),
-        game.rounds_cards[3].to_field(),
-        game.started as Field,
-        game.finished as Field,
-        game.claimed as Field,
-        game.current_player as Field,
-        game.current_round as Field
-    ]
+impl Deserialize<GAME_SERIALIZED_LEN> for Game {
+    fn deserialize(fields: [Field; GAME_SERIALIZED_LEN]) -> Game {
+        let players = [
+            PlayerEntry {
+                address: AztecAddress::from_field(fields[0]),
+                deck_strength: fields[1] as u32,
+                points: fields[2] as u120
+            },
+            PlayerEntry {
+                address: AztecAddress::from_field(fields[3]),
+                deck_strength: fields[4] as u32,
+                points: fields[5] as u120
+            }
+        ];
+        let rounds_cards = [
+            Card::from_field(fields[6]), Card::from_field(fields[7]),
+            Card::from_field(fields[8]), Card::from_field(fields[9])
+        ];
+        Game {
+            players,
+            rounds_cards,
+            started: fields[10] as bool,
+            finished: fields[11] as bool,
+            claimed: fields[12] as bool,
+            current_player: fields[13] as u32,
+            current_round: fields[14] as u32
+        }
+    }
 }
 
 impl Game {
-    pub fn serialize(self: Self) -> [Field; GAME_SERIALIZED_LEN] {
-        serializeGame(self)
-    }
-
     pub fn add_player(&mut self, player_entry: PlayerEntry) -> bool {
         let mut added = false;
 
@@ -166,8 +168,3 @@ impl Game {
         }
     }
 }
-
-global GameSerializationMethods = TypeSerializationInterface {
-    deserialize: deserializeGame,
-    serialize: serializeGame,
-};

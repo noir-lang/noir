@@ -1,7 +1,11 @@
 use dep::std::option::Option;
-use dep::protocol_types::constants::MAX_NOTES_PER_PAGE;
 use crate::note::note_getter_options::{Select, Sort, Comparator, NoteStatus};
 use crate::types::vec::BoundedVec;
+use dep::protocol_types::{
+    constants::MAX_NOTES_PER_PAGE,
+    traits::Deserialize,
+};
+use crate::note::note_interface::NoteInterface;
 
 // docs:start:NoteViewerOptions
 struct NoteViewerOptions<Note, N> {
@@ -14,7 +18,7 @@ struct NoteViewerOptions<Note, N> {
 // docs:end:NoteViewerOptions
 
 impl<Note, N> NoteViewerOptions<Note, N> {
-    pub fn new() -> NoteViewerOptions<Note, N> {
+    pub fn new() -> NoteViewerOptions<Note, N> where Note: NoteInterface + Deserialize<N> {
         NoteViewerOptions {
             selects: BoundedVec::new(Option::none()),
             sorts: BoundedVec::new(Option::none()),

@@ -1,5 +1,8 @@
-use dep::protocol_types::constants::PUBLIC_DATA_TREE_HEIGHT;
-use dep::protocol_types::hash::pedersen_hash;
+use dep::protocol_types::{
+    constants::PUBLIC_DATA_TREE_HEIGHT,
+    hash::pedersen_hash,
+    traits::{Hash, Serialize}
+};
 use crate::utils::arr_copy_slice;
 
 global LEAF_PREIMAGE_LENGTH: Field = 4;
@@ -14,11 +17,13 @@ struct PublicDataTreeLeafPreimage {
     next_slot :Field,
 }
 
-impl PublicDataTreeLeafPreimage {
+impl Serialize<LEAF_PREIMAGE_LENGTH> for PublicDataTreeLeafPreimage {
     fn serialize(self) -> [Field; LEAF_PREIMAGE_LENGTH] {
         [self.slot, self.value, self.next_index as Field, self.next_slot]
     }
+}
 
+impl Hash for PublicDataTreeLeafPreimage {
     fn hash(self) -> Field {
         // Performs the same hashing as StandardIndexedTree::encodeLeaf(...)
         pedersen_hash(self.serialize(), 0)
@@ -34,10 +39,7 @@ struct PublicDataWitness {
 #[oracle(getPublicDataTreeWitness)]
 fn get_public_data_witness_oracle(_block_number: u32, _leaf_slot: Field) -> [Field; PUBLIC_DATA_WITNESS] {}
 
-unconstrained pub fn get_public_data_witness(
-    block_number: u32,
-    leaf_slot: Field
-) -> PublicDataWitness {
+unconstrained pub fn get_public_data_witness(block_number: u32, leaf_slot: Field) -> PublicDataWitness {
     let fields = get_public_data_witness_oracle(block_number, leaf_slot);
     PublicDataWitness {
         index: fields[0],

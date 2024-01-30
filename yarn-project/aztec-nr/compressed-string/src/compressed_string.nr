@@ -1,11 +1,25 @@
-use dep::aztec::types::type_serialization::TypeSerializationInterface;
-use dep::aztec::protocol_types::utils::field::field_from_bytes;
+use dep::aztec::protocol_types::{
+  utils::field::field_from_bytes,
+  traits::{Serialize, Deserialize}  
+};
 use dep::std;
 
 // A Fixedsize Compressed String.
 // Essentially a special version of Compressed String for practical use.
 struct FieldCompressedString{
   value: Field
+}
+
+impl Serialize<1> for FieldCompressedString {
+  fn serialize(self) -> [Field; 1] {
+    [self.value]
+  }
+}
+
+impl Deserialize<1> for FieldCompressedString {
+  fn deserialize(input: [Field; 1]) -> Self {
+    Self { value: input[0] }
+  }
 }
 
 impl FieldCompressedString{
@@ -29,27 +43,7 @@ impl FieldCompressedString{
     }
     result
   }
-
-  pub fn serialize(self) -> [Field; 1] {
-    [self.value]
-  }
-
-  pub fn deserialize(input: [Field; 1]) -> Self {
-    Self { value: input[0] }
-  }
 }
-
-fn deserialize(fields: [Field; 1]) -> FieldCompressedString {
-    FieldCompressedString { value: fields[0] }
-}
-
-fn serialize(value: FieldCompressedString) -> [Field; 1] {
-    value.serialize()
-}
-global FieldCompressedStringSerializationMethods = TypeSerializationInterface {
-  deserialize,
-  serialize,
-};
 
 // The general Compressed String.
 // Compresses M bytes into N fields.

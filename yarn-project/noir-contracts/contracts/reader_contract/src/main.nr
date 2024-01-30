@@ -4,7 +4,7 @@ contract Reader {
         abis::function_selector::FunctionSelector,
     };
 
-    use dep::compressed_string::{FieldCompressedString, FieldCompressedStringSerializationMethods};
+    use dep::compressed_string::FieldCompressedString;
 
     #[aztec(private)]
 

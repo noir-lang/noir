@@ -3,6 +3,7 @@ use crate::abi::PublicContextInputs;
 use dep::protocol_types::{
     constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
     abis::side_effect::{SideEffect, SideEffectLinkedToNoteHash},
+    traits::{Deserialize, Serialize},
 };
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
@@ -16,51 +17,46 @@ use crate::note::{
 };
 
 // docs:start:struct
-struct Set<Note, N> {
+struct Set<Note> {
     context: Context,
     storage_slot: Field,
-    note_interface: NoteInterface<Note, N>,
 }
 // docs:end:struct
 
-impl<Note, N> Set<Note, N> {
+impl<Note> Set<Note> {
     // docs:start:new
     pub fn new(
         context: Context,
         storage_slot: Field,
-        note_interface: NoteInterface<Note, N>,
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Set {
             context,
             storage_slot,
-            note_interface,
         }
     }
     // docs:end:new
 
     // docs:start:insert
-    pub fn insert(self,
+    pub fn insert<N>(self,
         note: &mut Note,
         broadcast: bool,
-    ) {
+    ) where Note: NoteInterface + Deserialize<N> + Serialize<N> {
         create_note(
             self.context.private.unwrap(),
             self.storage_slot,
             note,
-            self.note_interface,
             broadcast,
         );
     }
     // docs:end:insert
 
     // docs:start:insert_from_public
-    pub fn insert_from_public(self, note: &mut Note) {
+    pub fn insert_from_public(self, note: &mut Note) where Note: NoteInterface {
         create_note_hash_from_public(
             self.context.public.unwrap(),
             self.storage_slot,
             note,
-            self.note_interface,
         );
     }
     // docs:end:insert_from_public
@@ -76,30 +72,28 @@ impl<Note, N> Set<Note, N> {
     }
 
     // docs:start:remove
-    pub fn remove(self, note: Note) {
+    pub fn remove(self, note: Note) where Note: NoteInterface {
         let context = self.context.private.unwrap();
-        let note_hash = compute_note_hash_for_read_or_nullify(self.note_interface, note);
+        let note_hash = compute_note_hash_for_read_or_nullify(note);
         let has_been_read = context.read_requests.any(|r: SideEffect| r.value == note_hash);
         assert(has_been_read, "Can only remove a note that has been read from the set.");
 
         destroy_note(
             context,
             note,
-            self.note_interface,
         );
     }
     // docs:end:remove
 
     // docs:start:get_notes
-    pub fn get_notes<FILTER_ARGS>(
+    pub fn get_notes<N, FILTER_ARGS>(
         self,
         options: NoteGetterOptions<Note, N, FILTER_ARGS>,
-    ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
+    ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface + Serialize<N> + Deserialize<N> {
         let storage_slot = self.storage_slot;
         let opt_notes = get_notes(
             self.context.private.unwrap(),
             storage_slot,
-            self.note_interface,
             options,
         );
         opt_notes
@@ -107,11 +101,11 @@ impl<Note, N> Set<Note, N> {
     // docs:end:get_notes
 
     // docs:start:view_notes
-    unconstrained pub fn view_notes(
+    unconstrained pub fn view_notes<N>(
         self,
         options: NoteViewerOptions<Note, N>,
-    ) -> [Option<Note>; MAX_NOTES_PER_PAGE] {
-        view_notes(self.storage_slot, self.note_interface, options)
+    ) -> [Option<Note>; MAX_NOTES_PER_PAGE] where Note: NoteInterface + Deserialize<N> {
+        view_notes(self.storage_slot, options)
     }
     // docs:end:view_notes
 }

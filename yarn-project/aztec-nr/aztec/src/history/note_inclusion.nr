@@ -30,12 +30,11 @@ pub fn prove_note_commitment_inclusion(
 }
 
 pub fn prove_note_inclusion<Note, N>(
-    note_interface: NoteInterface<Note, N>,
     note_with_header: Note,
     block_number: u32, // The block at which we'll prove that the note exists
     context: PrivateContext
-) {
-    let note_commitment = compute_note_hash_for_read_or_nullify(note_interface, note_with_header);
+) where Note: NoteInterface {
+    let note_commitment = compute_note_hash_for_read_or_nullify(note_with_header);
 
     prove_note_commitment_inclusion(note_commitment, block_number, context);
 }

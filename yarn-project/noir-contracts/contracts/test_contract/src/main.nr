@@ -1,9 +1,15 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
     use dep::std::option::Option;
-    use dep::aztec::protocol_types::address::{
-        AztecAddress,
-        EthAddress,
+    use dep::aztec::protocol_types::{
+        address::{
+            AztecAddress,
+            EthAddress,
+        },
+        constants::{
+            MAX_READ_REQUESTS_PER_CALL,
+            MAX_NOTES_PER_PAGE
+        }
     };
     // The following import is here in order to make the event macro work because the macro doesn't add the import.
     // It doesn't add the import because in the future we will re-export all the types via aztec-nr and aztec-nr is
@@ -38,8 +44,8 @@ contract Test {
         types::vec::BoundedVec,
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
-    use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
-    use dep::value_note::value_note::{ValueNote, ValueNoteMethods, VALUE_NOTE_LEN};
+    use dep::field_note::field_note::FieldNote;
+    use dep::value_note::value_note::{ValueNote,VALUE_NOTE_LEN};
 
     #[event]
     struct ExampleEvent {
@@ -47,13 +53,13 @@ contract Test {
     }
 
     struct Storage {
-        example_constant: ImmutableSingleton<FieldNote, FIELD_NOTE_LEN>,
+        example_constant: ImmutableSingleton<FieldNote>,
     }
 
     impl Storage {
         fn init(context: Context) -> Self {
             Storage {
-                example_constant: ImmutableSingleton::new(context, 1, FieldNoteMethods),
+                example_constant: ImmutableSingleton::new(context, 1),
             }
         }
     }
@@ -93,7 +99,7 @@ contract Test {
         assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
 
         let mut note = ValueNote::new(value, owner);
-        create_note(&mut context, storage_slot, &mut note, ValueNoteMethods, true);
+        create_note(&mut context, storage_slot, &mut note, true);
     }
 
     #[aztec(private)]
@@ -105,7 +111,7 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes = get_notes(&mut context, storage_slot, ValueNoteMethods, options);
+        let opt_notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
         // We can't get the return value of a private function from the outside world in an end to end test, so we
         // expose it via an unecrypted log instead.
@@ -122,7 +128,7 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes = get_notes(&mut context, storage_slot, ValueNoteMethods, options);
+        let opt_notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
         // We can't get the return value of a private function from the outside world in an end to end test, so we
         // expose it via an unecrypted log instead.
@@ -138,7 +144,7 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes = view_notes(storage_slot, ValueNoteMethods, options);
+        let opt_notes: [Option<ValueNote>; MAX_NOTES_PER_PAGE] = view_notes(storage_slot, options);
 
         opt_notes[0].unwrap().value
     }
@@ -154,7 +160,7 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes = view_notes(storage_slot, ValueNoteMethods, options);
+        let opt_notes: [Option<ValueNote>; MAX_NOTES_PER_PAGE] = view_notes(storage_slot, options);
 
         [opt_notes[0].unwrap().value, opt_notes[1].unwrap().value]
     }
@@ -164,11 +170,11 @@ contract Test {
         assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
 
         let options = NoteGetterOptions::new();
-        let opt_notes = get_notes(&mut context, storage_slot, ValueNoteMethods, options);
+        let opt_notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
         let note = opt_notes[0].unwrap();
 
-        destroy_note(&mut context, note, ValueNoteMethods);
+        destroy_note(&mut context, note);
     }
 
     // Test codegen for Aztec.nr interfaces
@@ -330,11 +336,11 @@ contract Test {
     ) -> pub [Field; 4] {
         if (storage_slot == 1) {
             let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-            note_utils::compute_note_hash_and_nullifier(FieldNoteMethods, note_header, serialized_note)
+            note_utils::compute_note_hash_and_nullifier(FieldNote::deserialize, note_header, serialized_note)
         } else {
             // For ValueNotes created via write_value_to_storage
             let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-            note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
+            note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize, note_header, serialized_note)
         }
     }
 }

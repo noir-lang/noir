@@ -50,12 +50,11 @@ pub fn prove_nullifier_non_inclusion(
 }
 
 pub fn prove_note_not_nullified<Note, N>(
-    note_interface: NoteInterface<Note, N>,
     note_with_header: Note,
     block_number: u32, // The block at which we'll prove that the note was not nullified
     context: &mut PrivateContext
-) {
-    let nullifier = compute_siloed_nullifier(note_interface, note_with_header, context);
+) where Note: NoteInterface {
+    let nullifier = compute_siloed_nullifier(note_with_header, context);
 
     prove_nullifier_non_inclusion(nullifier, block_number, *context);
 }

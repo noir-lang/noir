@@ -12,6 +12,7 @@ use dep::aztec::protocol_types::{
   address::AztecAddress,
   constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
   hash::pedersen_hash,
+  traits::{Hash, Serialize}
 };
 
 global ACCOUNT_MAX_CALLS: Field = 4;
@@ -27,11 +28,13 @@ struct FunctionCall {
   is_public: bool,
 }
 
-impl FunctionCall {
+impl Serialize<FUNCTION_CALL_SIZE> for FunctionCall {
   fn serialize(self) -> [Field; FUNCTION_CALL_SIZE] {
     [self.args_hash, self.function_selector.to_field(), self.target_address.to_field(), self.is_public as Field]
   }
+}
 
+impl FunctionCall {
   fn to_be_bytes(self) -> [u8; FUNCTION_CALL_SIZE_IN_BYTES] {
     let mut bytes: [u8; FUNCTION_CALL_SIZE_IN_BYTES] = [0; FUNCTION_CALL_SIZE_IN_BYTES];
     let args_hash_bytes = self.args_hash.to_be_bytes(32);
@@ -58,14 +61,7 @@ struct EntrypointPayload {
 }
 // docs:end:entrypoint-struct
 
-impl EntrypointPayload {
-  fn hash(self) -> Field {
-    pedersen_hash(
-      self.serialize(), 
-      GENERATOR_INDEX__SIGNATURE_PAYLOAD
-    )
-  }
-
+impl Serialize<ENTRYPOINT_PAYLOAD_SIZE> for EntrypointPayload {
   // Serializes the entrypoint struct
   fn serialize(self) -> [Field; ENTRYPOINT_PAYLOAD_SIZE] {
     let mut fields: BoundedVec<Field, ENTRYPOINT_PAYLOAD_SIZE> = BoundedVec::new(0); 
@@ -75,7 +71,18 @@ impl EntrypointPayload {
     fields.push(self.nonce);
     fields.storage
   }
+}
 
+impl Hash for EntrypointPayload {
+  fn hash(self) -> Field {
+    pedersen_hash(
+      self.serialize(), 
+      GENERATOR_INDEX__SIGNATURE_PAYLOAD
+    )
+  }
+}
+
+impl EntrypointPayload {
   // Serializes the payload as an array of bytes. Useful for hashing with sha256.
   fn to_be_bytes(self) -> [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] {
     let mut bytes: [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = [0; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES];

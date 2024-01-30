@@ -15,6 +15,7 @@ use dep::protocol_types::{
         GENERATOR_INDEX__SILOED_COMMITMENT,
     },
     hash::pedersen_hash,
+    traits::{Deserialize, Serialize},
 };
 
 fn compute_inner_hash(storage_slot: Field, note_hash: Field) -> Field {
@@ -32,89 +33,76 @@ fn compute_unique_hash(nonce: Field, siloed_note_hash: Field) -> Field {
     pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_COMMITMENT)
 }
 
-fn compute_inner_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note: Note) -> Field {
-    let get_header = note_interface.get_header;
-    let header = get_header(note);
-
-    let compute_note_hash = note_interface.compute_note_hash;
-    let note_hash = compute_note_hash(note);
+fn compute_inner_note_hash<Note, N>(note: Note) -> Field where Note: NoteInterface {
+    let header = note.get_header();
+    let note_hash = note.compute_note_hash();
 
     compute_inner_hash(header.storage_slot, note_hash)
 }
 
-fn compute_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
-    let get_header = note_interface.get_header;
-    let header = get_header(note_with_header);
+fn compute_siloed_note_hash<Note>(note_with_header: Note) -> Field where Note: NoteInterface {
+    let header = note_with_header.get_header();
 
-    let inner_note_hash = compute_inner_note_hash(note_interface, note_with_header);
+    let inner_note_hash = compute_inner_note_hash(note_with_header);
 
     compute_siloed_hash(header.contract_address, inner_note_hash)
 }
 
-fn compute_unique_siloed_note_hash<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
-    let get_header = note_interface.get_header;
-    let header = get_header(note_with_header);
+fn compute_unique_siloed_note_hash<Note, N>(note_with_header: Note) -> Field where Note: NoteInterface {
+    let header = note_with_header.get_header();
 
-    let siloed_note_hash = compute_siloed_note_hash(note_interface, note_with_header);
+    let siloed_note_hash = compute_siloed_note_hash(note_with_header);
 
     compute_unique_hash(header.nonce, siloed_note_hash)
 }
 
-pub fn compute_siloed_nullifier<Note, N>(
-    note_interface: NoteInterface<Note, N>,
+pub fn compute_siloed_nullifier<Note>(
     note_with_header: Note,
     context: &mut PrivateContext
-) -> Field {
-    let get_header = note_interface.get_header;
-    let header = get_header(note_with_header);
-
-    let compute_nullifier = note_interface.compute_nullifier;
-    let inner_nullifier = compute_nullifier(note_with_header, context);
+) -> Field where Note: NoteInterface {
+    let header = note_with_header.get_header();
+    let inner_nullifier = note_with_header.compute_nullifier(context);
 
     let input = [header.contract_address.to_field(), inner_nullifier];
     pedersen_hash(input, GENERATOR_INDEX__OUTER_NULLIFIER)
 }
 
-pub fn compute_note_hash_for_read_or_nullify<Note, N>(note_interface: NoteInterface<Note, N>, note_with_header: Note) -> Field {
-    let get_header = note_interface.get_header;
-    let header = get_header(note_with_header);
+pub fn compute_note_hash_for_read_or_nullify<Note>(note: Note) -> Field where Note: NoteInterface {
+    let header = note.get_header();
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
     if (header.is_transient) {
         // If a note is transient, we just read the inner_note_hash (kernel will silo by contract address).
-        compute_inner_note_hash(note_interface, note_with_header)
+        compute_inner_note_hash(note)
     } else if (header.nonce == 0) {
         // If not transient and nonce is zero, that means we are reading a public note.
-        compute_siloed_note_hash(note_interface, note_with_header)
+        compute_siloed_note_hash(note)
     } else {
         // When nonce is nonzero, that means we are reading a settled note (from tree) created in a
         // previous TX. So we need the unique_siloed_note_hash which has already been hashed with
         // contract address and then nonce. This hash will match the existing leaf in the private
         // data tree, so the kernel can just perform a membership check directly on this hash/leaf.
-        compute_unique_siloed_note_hash(note_interface, note_with_header)
+        compute_unique_siloed_note_hash(note)
     }
 }
 
-pub fn compute_note_hash_and_nullifier<Note, N, S>(
-    note_interface: NoteInterface<Note, N>,
+pub fn compute_note_hash_and_nullifier<T, N, S>(
+    deserialize: fn([Field; N]) -> T,
     note_header: NoteHeader,
     serialized_note: [Field; S]
-) -> [Field; 4] {
-    let deserialize = note_interface.deserialize;
-    let set_header = note_interface.set_header;
+) -> [Field; 4] where T: NoteInterface {
     let mut note = deserialize(arr_copy_slice(serialized_note, [0; N], 0));
-    set_header(&mut note, note_header);
+    // TODO: change this to note.setHeader(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
+    T::set_header((&mut note), note_header);
 
-    let compute_note_hash = note_interface.compute_note_hash;
-    let note_hash = compute_note_hash(note);
+    let note_hash = note.compute_note_hash();
     let inner_note_hash = compute_inner_hash(note_header.storage_slot, note_hash);
 
     let siloed_note_hash = compute_siloed_hash(note_header.contract_address, inner_note_hash);
 
     let unique_siloed_note_hash = compute_unique_hash(note_header.nonce, siloed_note_hash);
 
-    let compute_nullifier_without_context = note_interface.compute_nullifier_without_context;
-    let inner_nullifier = compute_nullifier_without_context(note);
+    let inner_nullifier = note.compute_nullifier_without_context();
 
     [inner_note_hash, siloed_note_hash, unique_siloed_note_hash, inner_nullifier]
 }

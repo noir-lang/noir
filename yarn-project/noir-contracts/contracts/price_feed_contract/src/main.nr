@@ -10,11 +10,11 @@ contract PriceFeed {
         },
     };
     use dep::aztec::protocol_types::address::AztecAddress;
-    use crate::asset::{ASSET_SERIALIZED_LEN, Asset, AssetSerializationMethods};
+    use crate::asset::Asset;
 
     // Storage structure, containing all storage, and specifying what slots they use.
     struct Storage {
-        assets: Map<Field, PublicState<Asset, ASSET_SERIALIZED_LEN>>,
+        assets: Map<Field, PublicState<Asset>>,
     }
 
     impl Storage {
@@ -27,7 +27,6 @@ contract PriceFeed {
                         PublicState::new(
                             context,
                             slot,
-                            AssetSerializationMethods,
                         )
                     },
                 ),

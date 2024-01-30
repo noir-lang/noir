@@ -1,7 +1,7 @@
 use dep::std::cmp::Eq;
 use crate::{
     address::AztecAddress,
-    traits::Empty,
+    traits::{Empty, Serialize, Deserialize},
     grumpkin_point::GrumpkinPoint,
     grumpkin_private_key::GrumpkinPrivateKey,
 };
@@ -30,8 +30,8 @@ impl Empty for NullifierKeyValidationRequest {
     }
 }
 
-impl NullifierKeyValidationRequest {
-    pub fn serialize(self) -> [Field; NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN] {
+impl Serialize<NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN> for NullifierKeyValidationRequest {
+    fn serialize(self) -> [Field; NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN] {
         [
             self.public_key.x,
             self.public_key.y,
@@ -39,14 +39,18 @@ impl NullifierKeyValidationRequest {
             self.secret_key.low,
         ]
     }
+}
 
-    pub fn deserialise(fields: [Field; NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN]) -> Self {
+impl Deserialize<NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN> for NullifierKeyValidationRequest {
+    fn deserialize(fields: [Field; NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN]) -> Self {
         Self {
             public_key: GrumpkinPoint::new(fields[0], fields[1]),
             secret_key: GrumpkinPrivateKey::new(fields[2], fields[3]),
         }
     }
+}
 
+impl NullifierKeyValidationRequest {
     pub fn to_context(self, contract_address: AztecAddress) -> NullifierKeyValidationRequestContext {
         NullifierKeyValidationRequestContext {
             public_key: self.public_key,
@@ -80,8 +84,8 @@ impl Empty for NullifierKeyValidationRequestContext {
     }
 }
 
-impl NullifierKeyValidationRequestContext {
-    pub fn serialize(self) -> [Field; NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_SERIALIZED_LEN] {
+impl Serialize<NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_SERIALIZED_LEN> for NullifierKeyValidationRequestContext {
+    fn serialize(self) -> [Field; NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_SERIALIZED_LEN] {
         [
             self.public_key.x,
             self.public_key.y,
@@ -90,8 +94,10 @@ impl NullifierKeyValidationRequestContext {
             self.contract_address.to_field(),
         ]
     }
+}
 
-    pub fn deserialise(fields: [Field; NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_SERIALIZED_LEN]) -> Self {
+impl Deserialize<NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_SERIALIZED_LEN> for NullifierKeyValidationRequestContext {
+    fn deserialize(fields: [Field; NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_SERIALIZED_LEN]) -> Self {
         Self {
             public_key: GrumpkinPoint::new(fields[0], fields[1]),
             secret_key: GrumpkinPrivateKey::new(fields[2], fields[3]),
@@ -99,3 +105,4 @@ impl NullifierKeyValidationRequestContext {
         }
     }
 }
+

@@ -1,5 +1,6 @@
 use crate::utils::field::field_from_bytes;
 use dep::std::cmp::Eq;
+use crate::traits::{Serialize, Deserialize};
 
 global SELECTOR_SIZE = 4;
 
@@ -11,6 +12,20 @@ struct FunctionSelector {
 impl Eq for FunctionSelector {
     fn eq(self, function_selector: FunctionSelector) -> bool {
         function_selector.inner == self.inner
+    }
+}
+
+impl Serialize<1> for FunctionSelector {
+    fn serialize(self: Self) -> [Field; 1] {
+        [self.inner as Field]
+    }
+}
+
+impl Deserialize<1> for FunctionSelector {
+    fn deserialize(fields: [Field; 1]) -> Self {
+        Self {
+            inner: fields[0] as u32
+        }
     }
 }
 
@@ -45,15 +60,5 @@ impl FunctionSelector {
 
     pub fn zero() -> Self {
         Self { inner: 0 }
-    }
-
-    pub fn serialize(self: Self) -> [Field; 1] {
-        [self.inner as Field]
-    }
-
-    pub fn deserialize(fields: [Field; 1]) -> Self {
-        Self {
-            inner: fields[0] as u32
-        }
     }
 }

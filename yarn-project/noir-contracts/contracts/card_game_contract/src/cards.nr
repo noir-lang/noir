@@ -19,7 +19,7 @@ use dep::std::{
     option::Option,
 };
 use dep::value_note::{
-    value_note::{ValueNote, ValueNoteMethods, VALUE_NOTE_LEN},
+    value_note::{ValueNote, VALUE_NOTE_LEN},
 };
 
 struct Card {
@@ -88,7 +88,7 @@ impl CardNote {
 }
 
 struct Deck {
-    set: Set<ValueNote, VALUE_NOTE_LEN>,
+    set: Set<ValueNote>,
 }
 
 pub fn filter_cards<N>(
@@ -125,7 +125,6 @@ impl Deck {
         let set = Set {
             context,
             storage_slot,
-            note_interface: ValueNoteMethods,
         };
         Deck {
             set

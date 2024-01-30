@@ -30,14 +30,9 @@ contract TokenBlacklist {
         context::{PrivateContext, PublicContext, Context},
         hash::{compute_secret_hash},
         state_vars::{map::Map, public_state::PublicState, set::Set, immutable_singleton::ImmutableSingleton},
-        types::type_serialization::{
-            field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
-            bool_serialization::{BoolSerializationMethods, BOOL_SERIALIZED_LEN},
-            address_serialization::{AddressSerializationMethods, AZTEC_ADDRESS_SERIALIZED_LEN},
-        },
     };
 
-    use dep::field_note::field_note::{FieldNote, FieldNoteMethods, FIELD_NOTE_LEN};
+    use dep::field_note::field_note::{FieldNote, FIELD_NOTE_LEN};
 
     use dep::authwit::{
         auth::{
@@ -47,10 +42,9 @@ contract TokenBlacklist {
     };
 
     use crate::types::{
-        transparent_note::{TransparentNote, TransparentNoteMethods, TRANSPARENT_NOTE_LEN},
-        token_note::{TokenNote, TokenNoteMethods, TOKEN_NOTE_LEN},
+        transparent_note::TransparentNote,
+        token_note::{TokenNote, TOKEN_NOTE_LEN},
         balances_map::{BalancesMap},
-        safe_u120_serialization::{SafeU120SerializationMethods, SAFE_U120_SERIALIZED_LEN},
         roles::UserFlags,
     };
     // docs:start:interface
@@ -58,13 +52,13 @@ contract TokenBlacklist {
     // docs:end:interface
 
     struct Storage {
-        admin: PublicState<AztecAddress, AZTEC_ADDRESS_SERIALIZED_LEN>,
+        admin: PublicState<AztecAddress>,
         balances: BalancesMap,
-        total_supply: PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>,
-        pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
-        public_balances: Map<AztecAddress, PublicState<SafeU120, SAFE_U120_SERIALIZED_LEN>>,
-        slow_update: ImmutableSingleton<FieldNote, FIELD_NOTE_LEN>,
-        public_slow_update: PublicState<AztecAddress, AZTEC_ADDRESS_SERIALIZED_LEN>,
+        total_supply: PublicState<SafeU120>,
+        pending_shields: Set<TransparentNote>,
+        public_balances: Map<AztecAddress, PublicState<SafeU120>>,
+        slow_update: ImmutableSingleton<FieldNote>,
+        public_slow_update: PublicState<AztecAddress>,
     }
 
     impl Storage {
@@ -73,33 +67,29 @@ contract TokenBlacklist {
                 admin: PublicState::new(
                     context,
                     1,
-                    AddressSerializationMethods,
                 ),
                 balances: BalancesMap::new(context, 3),
                 total_supply: PublicState::new(
                     context,
                     4,
-                    SafeU120SerializationMethods,
                 ),
-                pending_shields: Set::new(context, 5, TransparentNoteMethods),
+                pending_shields: Set::new(context, 5),
                 public_balances: Map::new(
                     context,
                     6,
                     |context, slot| {
                         PublicState::new(
                             context,
-                            slot,
-                            SafeU120SerializationMethods,
+                            slot
                         )
                     },
                 ),
                 // Below is an abomination to have same value in private and public (immutable in solidity).
                 // docs:start:slow_updates_storage
-                slow_update: ImmutableSingleton::new(context, 7, FieldNoteMethods),
+                slow_update: ImmutableSingleton::new(context, 7),
                 public_slow_update: PublicState::new(
                     context,
-                    8,
-                    AddressSerializationMethods,
+                    8
                 ),
                 // docs:end:slow_updates_storage
 
@@ -393,11 +383,11 @@ contract TokenBlacklist {
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         if (storage_slot == 5) {
-            note_utils::compute_note_hash_and_nullifier(TransparentNoteMethods, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(TransparentNote::deserialize, note_header, preimage)
         } else if (storage_slot == 7) {
-            note_utils::compute_note_hash_and_nullifier(FieldNoteMethods, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(FieldNote::deserialize, note_header, preimage)
         } else {
-            note_utils::compute_note_hash_and_nullifier(TokenNoteMethods, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(TokenNote::deserialize, note_header, preimage)
         }
     }
 }

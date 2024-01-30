@@ -8,7 +8,7 @@ contract PendingCommitments {
     use dep::value_note::{
         balance_utils,
         filter::filter_notes_min_sum,
-        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
+        value_note::{VALUE_NOTE_LEN, ValueNote},
     };
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
@@ -26,7 +26,7 @@ contract PendingCommitments {
     };
 
     struct Storage {
-        balances: Map<AztecAddress, Set<ValueNote, VALUE_NOTE_LEN>>,
+        balances: Map<AztecAddress, Set<ValueNote>>,
     }
 
     impl Storage {
@@ -36,7 +36,7 @@ contract PendingCommitments {
                     context,
                     1, // Storage slot
                     |context, slot| {
-                        Set::new(context, slot, ValueNoteMethods)
+                        Set::new(context, slot)
                     },
                 ),
             }
@@ -296,6 +296,6 @@ contract PendingCommitments {
         serialized_note: [Field; VALUE_NOTE_LEN]
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, serialized_note)
+        note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize, note_header, serialized_note)
     }
 }

@@ -468,7 +468,7 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            balances: Map::new(1, |slot| PublicState::new(slot, FieldSerializationMethods)),
+            balances: Map::new(1, |slot| PublicState::new(slot)),
         }
     }
 }
@@ -500,13 +500,13 @@ Note: One Field element occupies a storage slot. Hence, structs with multiple fi
 
 ```rust
 struct Storage {
-    balances: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
+    balances: Map<AztecAddress, PublicState<Field>>,
 }
 
 impl Storage {
-    fn init() -> Self {
+    fn init(context: Context) -> Self {
         Storage {
-            balances: Map::new(1, |slot| PublicState::new(slot, FieldSerializationMethods)),
+            balances: Map::new(context, 1, |context, slot| PublicState::new(context, slot)),
         }
     }
 }
