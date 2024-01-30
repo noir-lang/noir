@@ -1,9 +1,8 @@
 import { makeHalfFullTuple, makeTuple, range } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
-
-import { randomBytes } from 'crypto';
 
 import { SchnorrSignature } from '../barretenberg/index.js';
 import {
@@ -13,7 +12,6 @@ import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
-  BlockHeader,
   CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
   CONTRACT_TREE_HEIGHT,
   CallContext,
@@ -141,31 +139,12 @@ export function makeTxContext(seed: number): TxContext {
 }
 
 /**
- * Creates an arbitrary combined historical tree roots object from the given seed.
- * Note: "Combined" indicates that it's the combined output of both private and public circuit flows.
- * @param seed - The seed to use for generating the combined historical tree roots.
- * @returns A combined historical tree roots object.
- */
-export function makeBlockHeader(seed: number): BlockHeader {
-  return new BlockHeader(
-    fr(seed),
-    fr(seed + 1),
-    fr(seed + 2),
-    fr(seed + 3),
-    fr(seed + 4),
-    fr(seed + 5),
-    fr(seed + 6),
-    fr(seed + 7),
-  );
-}
-
-/**
  * Creates arbitrary constant data with the given seed.
  * @param seed - The seed to use for generating the constant data.
  * @returns A constant data object.
  */
 export function makeConstantData(seed = 1): CombinedConstantData {
-  return new CombinedConstantData(makeBlockHeader(seed), makeTxContext(seed + 4));
+  return new CombinedConstantData(makeHeader(seed, undefined), makeTxContext(seed + 4));
 }
 
 /**
@@ -392,7 +371,7 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, fr, seed + 0x900),
     tupleGenerator(2, fr, seed + 0x901),
     fr(seed + 0x902),
-    makeBlockHeader(seed + 0xa00),
+    makeHeader(seed + 0xa00, undefined),
     makeAztecAddress(seed + 0xb01),
   );
 }
@@ -747,7 +726,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     unencryptedLogsHash: makeTuple(NUM_FIELDS_PER_SHA256, fr, seed + 0xa00),
     encryptedLogPreimagesLength: fr(seed + 0xb00),
     unencryptedLogPreimagesLength: fr(seed + 0xc00),
-    blockHeader: makeBlockHeader(seed + 0xd00),
+    historicalHeader: makeHeader(seed + 0xd00, undefined),
     contractDeploymentData: makeContractDeploymentData(seed + 0xe00),
     chainId: fr(seed + 0x1400),
     version: fr(seed + 0x1500),
@@ -909,18 +888,17 @@ export function makeRootRollupInputs(seed = 0, globalVariables?: GlobalVariables
 /**
  * Makes root rollup public inputs.
  * @param seed - The seed to use for generating the root rollup public inputs.
- * @param blockNumber - The block number to use for generating the root rollup public inputs.
- * if blockNumber is undefined, it will be set to seed + 2.
+ * @param blockNumber - The block number to use in the global variables of a header.
  * @returns A root rollup public inputs.
  */
 export function makeRootRollupPublicInputs(
   seed = 0,
-  globalVariables: GlobalVariables | undefined = undefined,
+  blockNumber: number | undefined = undefined,
 ): RootRollupPublicInputs {
   return RootRollupPublicInputs.from({
     aggregationObject: makeAggregationObject(seed),
     archive: makeAppendOnlyTreeSnapshot(seed + 0x100),
-    header: makeHeader(seed + 0x200, globalVariables),
+    header: makeHeader(seed + 0x200, blockNumber),
     l1ToL2MessagesHash: [new Fr(3n), new Fr(4n)],
   });
 }
@@ -928,12 +906,12 @@ export function makeRootRollupPublicInputs(
 /**
  * Makes header.
  */
-export function makeHeader(seed = 0, globalVariables: GlobalVariables | undefined): Header {
+export function makeHeader(seed = 0, blockNumber: number | undefined = undefined): Header {
   return new Header(
     makeAppendOnlyTreeSnapshot(seed + 0x100),
-    randomBytes(NUM_BYTES_PER_SHA256),
-    makeStateReference(seed + 0x200),
-    globalVariables ?? makeGlobalVariables((seed += 0x100)),
+    toBufferBE(BigInt(seed + 0x200), NUM_BYTES_PER_SHA256),
+    makeStateReference(seed + 0x300),
+    makeGlobalVariables((seed += 0x400), blockNumber),
   );
 }
 

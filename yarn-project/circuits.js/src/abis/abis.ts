@@ -305,6 +305,7 @@ export function computeBlockHashWithGlobals(
  * @param publicDataTreeRoot - The root of the public data tree.
  * @returns The block hash.
  */
+// TODO(#3941): nuke this and replace with `Header.hash()`
 export function computeBlockHash(
   globalsHash: Fr,
   noteHashTreeRoot: Fr,
@@ -333,6 +334,7 @@ export function computeBlockHash(
  * @param globals - The global variables to put into the block hash.
  * @returns The globals hash.
  * TODO: move this to GlobalVariables?
+ * TODO(#3941) Investigate whether to nuke this once #3941 is done.
  */
 export function computeGlobalsHash(globals: GlobalVariables): Fr {
   return Fr.fromBuffer(
@@ -534,13 +536,7 @@ function computePrivateInputsHash(input: PrivateCircuitPublicInputs) {
     ...input.unencryptedLogsHash.map(fr => fr.toBuffer()),
     input.encryptedLogPreimagesLength.toBuffer(),
     input.unencryptedLogPreimagesLength.toBuffer(),
-    input.blockHeader.noteHashTreeRoot.toBuffer(),
-    input.blockHeader.nullifierTreeRoot.toBuffer(),
-    input.blockHeader.contractTreeRoot.toBuffer(),
-    input.blockHeader.l1ToL2MessageTreeRoot.toBuffer(),
-    input.blockHeader.archiveRoot.toBuffer(),
-    input.blockHeader.publicDataTreeRoot.toBuffer(),
-    input.blockHeader.globalVariablesHash.toBuffer(),
+    ...(input.historicalHeader.toFieldArray().map(fr => fr.toBuffer()) as Buffer[]),
     computeContractDeploymentDataHash(input.contractDeploymentData).toBuffer(),
     input.chainId.toBuffer(),
     input.version.toBuffer(),
@@ -606,13 +602,7 @@ export function computePublicInputsHash(input: PublicCircuitPublicInputs) {
     ...input.newL2ToL1Msgs.map(fr => fr.toBuffer()),
     ...input.unencryptedLogsHash.map(fr => fr.toBuffer()),
     input.unencryptedLogPreimagesLength.toBuffer(),
-    input.blockHeader.noteHashTreeRoot.toBuffer(),
-    input.blockHeader.nullifierTreeRoot.toBuffer(),
-    input.blockHeader.contractTreeRoot.toBuffer(),
-    input.blockHeader.l1ToL2MessageTreeRoot.toBuffer(),
-    input.blockHeader.archiveRoot.toBuffer(),
-    input.blockHeader.publicDataTreeRoot.toBuffer(),
-    input.blockHeader.globalVariablesHash.toBuffer(),
+    ...input.historicalHeader.toFieldArray().map(fr => fr.toBuffer()),
     input.proverAddress.toBuffer(),
   ];
   if (toHash.length != PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH) {

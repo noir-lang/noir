@@ -11,7 +11,7 @@ import {
   Tx,
   TxHash,
 } from '@aztec/circuit-types';
-import { BlockHeader, FunctionSelector } from '@aztec/circuits.js';
+import { FunctionSelector, Header } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -34,7 +34,7 @@ export function createAztecNodeRpcServer(node: AztecNode) {
       ContractData,
       Fr,
       FunctionSelector,
-      BlockHeader,
+      Header,
       L2Block,
       L2Tx,
       LogId,

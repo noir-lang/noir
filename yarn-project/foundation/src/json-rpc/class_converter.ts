@@ -17,6 +17,8 @@ import { assert } from './js_utils.js';
 interface StringIOClass {
   new (...args: any): any;
 
+  // TODO(#4254): Ensure that toString method is checked for as well.
+
   /**
    * Creates an IOClass from a given string.
    */
@@ -39,6 +41,8 @@ interface StringIOClass {
  */
 interface ObjIOClass {
   new (...args: any): any;
+
+  // TODO(#4254): Ensure that toJSON method is checked for as well.
 
   /**
    * Creates an IOClass from a given JSON object.

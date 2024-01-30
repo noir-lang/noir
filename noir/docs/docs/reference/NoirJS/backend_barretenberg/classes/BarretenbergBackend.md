@@ -51,6 +51,9 @@ Destroys the backend
 generateFinalProof(decompressedWitness): Promise<ProofData>
 ```
 
+Generate a final proof. This is the proof for the circuit which will verify
+intermediate proofs and or can be seen as the proof created for regular circuits.
+
 #### Parameters
 
 | Parameter | Type |
@@ -65,10 +68,6 @@ generateFinalProof(decompressedWitness): Promise<ProofData>
 
 [`Backend`](../interfaces/Backend.md).[`generateFinalProof`](../interfaces/Backend.md#generatefinalproof)
 
-#### Description
-
-Generates a final proof (not meant to be verified in another circuit)
-
 ***
 
 ### generateIntermediateProof()
@@ -76,6 +75,14 @@ Generates a final proof (not meant to be verified in another circuit)
 ```ts
 generateIntermediateProof(witness): Promise<ProofData>
 ```
+
+Generates an intermediate proof. This is the proof that can be verified
+in another circuit.
+
+This is sometimes referred to as a recursive proof.
+We avoid this terminology as the only property of this proof
+that matters is the fact that it is easy to verify in another circuit.
+We _could_ choose to verify this proof outside of a circuit just as easily.
 
 #### Parameters
 
@@ -104,6 +111,16 @@ const intermediateProof = await backend.generateIntermediateProof(witness);
 ```ts
 generateIntermediateProofArtifacts(proofData, numOfPublicInputs): Promise<object>
 ```
+
+Generates artifacts that will be passed to a circuit that will verify this proof.
+
+Instead of passing the proof and verification key as a byte array, we pass them
+as fields which makes it cheaper to verify in a circuit.
+
+The proof that is passed here will have been created using the `generateIntermediateProof`
+method.
+
+The number of public inputs denotes how many public inputs are in the inner proof.
 
 #### Parameters
 

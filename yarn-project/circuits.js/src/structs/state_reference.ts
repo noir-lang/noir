@@ -1,3 +1,4 @@
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { PartialStateReference } from './partial_state_reference.js';
@@ -19,8 +20,20 @@ export class StateReference {
     return serializeToBuffer(this.l1ToL2MessageTree, this.partial);
   }
 
+  toFieldArray(): Fr[] {
+    return [...this.l1ToL2MessageTree.toFieldArray(), ...this.partial.toFieldArray()];
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader): StateReference {
     const reader = BufferReader.asReader(buffer);
     return new StateReference(reader.readObject(AppendOnlyTreeSnapshot), reader.readObject(PartialStateReference));
+  }
+
+  static empty(): StateReference {
+    return new StateReference(AppendOnlyTreeSnapshot.empty(), PartialStateReference.empty());
+  }
+
+  isEmpty(): boolean {
+    return this.l1ToL2MessageTree.isEmpty() && this.partial.isEmpty();
   }
 }

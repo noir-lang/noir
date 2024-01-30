@@ -248,6 +248,9 @@ contract InclusionProofs {
         // Here typically the factory would add the contract address to its internal map of deployed contracts.
     }
 
+    #[aztec(private)]
+    fn empty() {}
+
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.

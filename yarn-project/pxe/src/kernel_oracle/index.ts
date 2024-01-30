@@ -1,4 +1,4 @@
-import { AztecNode, KeyStore, MerkleTreeId } from '@aztec/circuit-types';
+import { AztecNode, KeyStore } from '@aztec/circuit-types';
 import {
   AztecAddress,
   Fr,
@@ -40,8 +40,8 @@ export class KernelOracle implements ProvingDataOracle {
   }
 
   async getNoteHashTreeRoot(): Promise<Fr> {
-    const roots = await this.node.getTreeRoots();
-    return roots[MerkleTreeId.NOTE_HASH_TREE];
+    const header = await this.node.getHeader();
+    return header.state.partial.noteHashTree.root;
   }
 
   public getMasterNullifierSecretKey(nullifierPublicKey: Point) {

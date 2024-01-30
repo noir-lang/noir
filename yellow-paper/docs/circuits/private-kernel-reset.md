@@ -30,7 +30,7 @@ A read request can pertain to one of two note types:
    3. Perform a membership check on the note being read. Where:
       - The leaf corresponds to the hash of the note: _`read_request.note_hash`_
       - The index and sibling path are in: _`read_request_membership_witnesses[i]`_.
-      - The root is the _note_hash_tree_root_ in the _[block_header](./private-function.md#blockheader)_ within _[public_inputs](#public-inputs).[constant_data](./private-kernel-initial.md#constantdata)_.
+      - The root is the _note_hash_tree_root_ in the _[header](./private-function.md#header)_ within _[public_inputs](#public-inputs).[constant_data](./private-kernel-initial.md#constantdata)_.
 
    > Following the above process, at most _N_ read requests will be cleared, where _N_ is the length of the _persistent_read_indices_ array. It's worth noting that there can be multiple versions of this reset circuit, each with a different value of _N_.
 

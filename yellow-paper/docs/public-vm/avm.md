@@ -118,7 +118,7 @@ A context's world state interface is defined as follows:
 ```
 WorldState {
     contracts: AztecAddress => {bytecode, portalAddress}, // read-only from within AVM
-    blockHeaders: Vector<BlockHeader>,                    // read-only from within AVM
+    blockHeaders: Vector<Header>,                    // read-only from within AVM
     publicStorage: (AztecAddress, field) => value,        // read/write
     l1ToL2Messages: field => message,                     // read-only from within AVM
     l2ToL1Messages: Vector<[field; <msg-length>]>,        // append-only (no reads) from within AVM
@@ -137,7 +137,7 @@ WorldState {
 ```
 Journal {
     nestedCalls: Vector<(AztecAddress, boolean)>,
-    blockHeaderReads: Vector<(field, BlockHeader)>,
+    blockHeaderReads: Vector<(field, Header)>,
     publicStorageAccesses: Vector<StorageReadContext | StorageWriteContext>,
     l1ToL2MessageReads: Vector<(L1toL2MessageContext, [field; <msg-length>])>,
     newL2ToL1Messages: Vector<(L2toL1MessageContext, [field; <msg-length>])>,

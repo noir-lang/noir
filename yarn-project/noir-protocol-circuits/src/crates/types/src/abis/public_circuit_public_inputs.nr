@@ -15,13 +15,13 @@ use crate::{
     abis::{
         call_context::CallContext,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-        block_header::BlockHeader,
     },
     address::AztecAddress,
     contrakt::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
     },
+    header::Header,
     utils::bounded_vec::BoundedVec,
 };
 
@@ -46,7 +46,7 @@ struct PublicCircuitPublicInputs{
     // variable-length data.
     unencrypted_log_preimages_length: Field,
 
-    block_header: BlockHeader,
+    historical_header: Header,
 
     prover_address: AztecAddress,
 }
@@ -75,7 +75,7 @@ impl PublicCircuitPublicInputs{
         inputs.push_array(self.new_l2_to_l1_msgs);
         inputs.push_array(self.unencrypted_logs_hash);
         inputs.push(self.unencrypted_log_preimages_length);
-        inputs.push_array(self.block_header.serialize());
+        inputs.push_array(self.historical_header.serialize());
         inputs.push(self.prover_address.to_field());
 
         assert_eq(inputs.len(), PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PublicCircuitPublicInputs");
@@ -105,7 +105,7 @@ impl PublicCircuitPublicInputs{
         fields.push_array(self.new_l2_to_l1_msgs);
         fields.push_array(self.unencrypted_logs_hash);
         fields.push(self.unencrypted_log_preimages_length);
-        fields.push_array(self.block_header.serialize());
+        fields.push_array(self.historical_header.serialize());
         fields.push(self.prover_address.to_field());
         fields.storage
     }

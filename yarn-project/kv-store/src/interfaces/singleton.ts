@@ -1,5 +1,6 @@
 /**
  * Represents a singleton value in the database.
+ * Note: The singleton loses type info so it's recommended to serialize to buffer when storing it.
  */
 export interface AztecSingleton<T> {
   /**

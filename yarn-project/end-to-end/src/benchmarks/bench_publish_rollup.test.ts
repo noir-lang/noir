@@ -1,5 +1,5 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { Fr, GrumpkinScalar } from '@aztec/aztec.js';
+import { AztecAddress, Fr, GrumpkinScalar } from '@aztec/aztec.js';
 import { BENCHMARK_BLOCK_SIZES } from '@aztec/circuit-types/stats';
 import { BenchmarkingContract } from '@aztec/noir-contracts/Benchmarking';
 import { SequencerClient } from '@aztec/sequencer-client';
@@ -33,10 +33,11 @@ describe('benchmarks/publish_rollup', () => {
       await context.teardown();
 
       // Create a new aztec node to measure sync time of the block
-      // and call getTreeRoots to force a sync with world state to ensure the node has caught up
+      // and call getPublicStorageAt (which calls #getWorldState, which calls #syncWorldState) to force a sync with
+      // world state to ensure the node has caught up
       context.logger(`Starting new aztec node`);
       const node = await AztecNodeService.createAndSync({ ...context.config, disableSequencer: true });
-      await node.getTreeRoots();
+      await node.getPublicStorageAt(AztecAddress.random(), Fr.random());
 
       // Spin up a new pxe and sync it, we'll use it to test sync times of new accounts for the last block
       context.logger(`Starting new pxe`);

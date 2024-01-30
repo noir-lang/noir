@@ -1,4 +1,4 @@
-import { BlockHeader, FunctionSelector } from '@aztec/circuits.js';
+import { FunctionSelector, Header } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -32,7 +32,7 @@ export function createAztecNodeClient(url: string, fetch = defaultFetch): AztecN
       Fr,
       EventSelector,
       FunctionSelector,
-      BlockHeader,
+      Header,
       L2Block,
       L2Tx,
       LogId,

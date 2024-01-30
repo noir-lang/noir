@@ -61,6 +61,10 @@ export class GlobalVariables {
     return serializeToBuffer(...GlobalVariables.getFields(this));
   }
 
+  toFieldArray() {
+    return GlobalVariables.getFields(this);
+  }
+
   toJSON() {
     return {
       chainId: this.chainId.toString(),
@@ -68,5 +72,9 @@ export class GlobalVariables {
       blockNumber: this.blockNumber.toString(),
       timestamp: this.timestamp.toString(),
     };
+  }
+
+  isEmpty(): boolean {
+    return this.chainId.isZero() && this.version.isZero() && this.blockNumber.isZero() && this.timestamp.isZero();
   }
 }

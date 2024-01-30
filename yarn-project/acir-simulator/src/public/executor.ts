@@ -1,4 +1,4 @@
-import { BlockHeader, GlobalVariables } from '@aztec/circuits.js';
+import { GlobalVariables, Header } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { Oracle, acvm, extractCallStack, extractPublicCircuitPublicInputs } from '../acvm/index.js';
@@ -81,7 +81,7 @@ export class PublicExecutor {
     private readonly stateDb: PublicStateDB,
     private readonly contractsDb: PublicContractsDB,
     private readonly commitmentsDb: CommitmentsDB,
-    private readonly blockHeader: BlockHeader,
+    private readonly header: Header,
   ) {}
 
   /**
@@ -105,7 +105,7 @@ export class PublicExecutor {
 
     const context = new PublicExecutionContext(
       execution,
-      this.blockHeader,
+      this.header,
       globalVariables,
       packedArgs,
       sideEffectCounter,

@@ -1,10 +1,10 @@
 import { AuthWitness, FunctionL2Logs, L1NotePayload, Note, UnencryptedL2Log } from '@aztec/circuit-types';
 import {
-  BlockHeader,
   CallContext,
   ContractDeploymentData,
   FunctionData,
   FunctionSelector,
+  Header,
   PublicCallRequest,
   ReadRequestMembershipWitness,
   SideEffect,
@@ -19,9 +19,9 @@ import { createDebugLogger } from '@aztec/foundation/log';
 
 import {
   NoteData,
-  toACVMBlockHeader,
   toACVMCallContext,
   toACVMContractDeploymentData,
+  toACVMHeader,
   toACVMWitness,
 } from '../acvm/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
@@ -64,8 +64,8 @@ export class ClientExecutionContext extends ViewDataOracle {
     private readonly argsHash: Fr,
     private readonly txContext: TxContext,
     private readonly callContext: CallContext,
-    /** Data required to reconstruct the block hash, it contains historical roots. */
-    protected readonly blockHeader: BlockHeader,
+    /** Header of a block whose state is used during private execution. */
+    protected readonly historicalHeader: Header,
     /** List of transient auth witnesses to be used during this simulation */
     protected readonly authWitnesses: AuthWitness[],
     private readonly packedArgsCache: PackedArgsCache,
@@ -74,7 +74,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     private readonly curve: Grumpkin,
     protected log = createDebugLogger('aztec:simulator:client_execution_context'),
   ) {
-    super(contractAddress, blockHeader, authWitnesses, db, undefined, log);
+    super(contractAddress, historicalHeader, authWitnesses, db, undefined, log);
   }
 
   // We still need this function until we can get user-defined ordering of structs for fn arguments
@@ -97,7 +97,7 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     const fields = [
       ...toACVMCallContext(this.callContext),
-      ...toACVMBlockHeader(this.blockHeader),
+      ...toACVMHeader(this.historicalHeader),
       ...toACVMContractDeploymentData(contractDeploymentData),
 
       this.txContext.chainId,
@@ -341,7 +341,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       argsHash,
       derivedTxContext,
       derivedCallContext,
-      this.blockHeader,
+      this.historicalHeader,
       this.authWitnesses,
       this.packedArgsCache,
       this.noteCache,

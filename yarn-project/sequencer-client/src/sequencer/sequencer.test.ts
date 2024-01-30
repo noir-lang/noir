@@ -8,13 +8,7 @@ import {
   TxHash,
   mockTx,
 } from '@aztec/circuit-types';
-import {
-  BlockHeader,
-  Fr,
-  GlobalVariables,
-  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-  makeEmptyProof,
-} from '@aztec/circuits.js';
+import { Fr, GlobalVariables, Header, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, makeEmptyProof } from '@aztec/circuits.js';
 import { times } from '@aztec/foundation/collection';
 import { P2P, P2PClientState } from '@aztec/p2p';
 import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchronizer } from '@aztec/world-state';
@@ -66,7 +60,7 @@ describe('sequencer', () => {
 
     publicProcessor = mock<PublicProcessor>({
       process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx))), []],
-      makeEmptyProcessedTx: () => makeEmptyProcessedTx(BlockHeader.empty(), chainId, version),
+      makeEmptyProcessedTx: () => makeEmptyProcessedTx(Header.empty(), chainId, version),
     });
 
     publicProcessorFactory = mock<PublicProcessorFactory>({

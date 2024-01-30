@@ -27,7 +27,34 @@ export class PartialStateReference {
     );
   }
 
+  static empty(): PartialStateReference {
+    return new PartialStateReference(
+      AppendOnlyTreeSnapshot.empty(),
+      AppendOnlyTreeSnapshot.empty(),
+      AppendOnlyTreeSnapshot.empty(),
+      AppendOnlyTreeSnapshot.empty(),
+    );
+  }
+
   toBuffer() {
     return serializeToBuffer(this.noteHashTree, this.nullifierTree, this.contractTree, this.publicDataTree);
+  }
+
+  toFieldArray() {
+    return [
+      ...this.noteHashTree.toFieldArray(),
+      ...this.nullifierTree.toFieldArray(),
+      ...this.contractTree.toFieldArray(),
+      ...this.publicDataTree.toFieldArray(),
+    ];
+  }
+
+  isEmpty(): boolean {
+    return (
+      this.noteHashTree.isEmpty() &&
+      this.nullifierTree.isEmpty() &&
+      this.contractTree.isEmpty() &&
+      this.publicDataTree.isEmpty()
+    );
   }
 }

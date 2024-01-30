@@ -9,7 +9,7 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   STRING_ENCODING,
 } from '@aztec/circuits.js';
-import { makeAppendOnlyTreeSnapshot, makeGlobalVariables, makeHeader } from '@aztec/circuits.js/factories';
+import { makeAppendOnlyTreeSnapshot, makeHeader } from '@aztec/circuits.js/factories';
 import { times } from '@aztec/foundation/collection';
 import { keccak, sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
@@ -139,8 +139,6 @@ export class L2Block {
     numEncryptedLogsPerCall = 2,
     numUnencryptedLogsPerCall = 1,
   ): L2Block {
-    const globalVariables = makeGlobalVariables(0, l2BlockNum);
-
     const newNullifiers = times(MAX_NEW_NULLIFIERS_PER_TX * txsPerBlock, Fr.random);
     const newCommitments = times(MAX_NEW_COMMITMENTS_PER_TX * txsPerBlock, Fr.random);
     const newContracts = times(MAX_NEW_CONTRACTS_PER_TX * txsPerBlock, Fr.random);
@@ -164,7 +162,7 @@ export class L2Block {
     return L2Block.fromFields(
       {
         archive: makeAppendOnlyTreeSnapshot(1),
-        header: makeHeader(0, globalVariables),
+        header: makeHeader(0, l2BlockNum),
         newCommitments,
         newNullifiers,
         newContracts,

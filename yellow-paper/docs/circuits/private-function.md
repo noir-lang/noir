@@ -31,7 +31,7 @@ The following format defines the ABI that is used by the private kernel circuit 
 | _encrypted_note_preimage_hashes_    | [_[EncryptedNotePreimageHash](#encryptednotepreimagehash)_; _C_]         | Hashes of the encrypted note preimages emitted in this function call. |
 | _private_call_stack_item_hashes_    | [_field_; _C_]                                                           | Hashes of the private function calls initiated by this function.      |
 | _public_call_stack_item_hashes_     | [_field_; _C_]                                                           | Hashes of the public function calls initiated by this function.       |
-| _block_header_                      | _[BlockHeader](#blockheader)_                                            | Information about the trees used for the transaction.                 |
+| _header_                            | _[Header](#header)_                                                      | Header of a block which was used when assembling the tx.              |
 | _chain_id_                          | _field_                                                                  | Chain ID of the transaction.                                          |
 | _version_                           | _field_                                                                  | Version of the transaction.                                           |
 
@@ -104,7 +104,7 @@ The following format defines the ABI that is used by the private kernel circuit 
 | _counter_           | _field_ | Counter at which the hash was emitted.  |
 | _note_hash_counter_ | _field_ | Counter of the corresponding note hash. |
 
-#### _BlockHeader_
+#### _Header_
 
 | Field                         | Type    | Description                                                                                     |
 | ----------------------------- | ------- | ----------------------------------------------------------------------------------------------- |

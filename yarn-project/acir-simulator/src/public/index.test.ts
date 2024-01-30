@@ -1,5 +1,12 @@
 import { L1ToL2Message } from '@aztec/circuit-types';
-import { BlockHeader, CallContext, FunctionData, GlobalVariables, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
+import {
+  AppendOnlyTreeSnapshot,
+  CallContext,
+  FunctionData,
+  GlobalVariables,
+  Header,
+  L1_TO_L2_MSG_TREE_HEIGHT,
+} from '@aztec/circuits.js';
 import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
@@ -27,15 +34,15 @@ describe('ACIR public execution simulator', () => {
   let publicContracts: MockProxy<PublicContractsDB>;
   let commitmentsDb: MockProxy<CommitmentsDB>;
   let executor: PublicExecutor;
-  let blockHeader: BlockHeader;
+  let header: Header;
 
   beforeEach(() => {
     publicState = mock<PublicStateDB>();
     publicContracts = mock<PublicContractsDB>();
     commitmentsDb = mock<CommitmentsDB>();
 
-    blockHeader = BlockHeader.empty();
-    executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+    header = Header.empty();
+    executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
   }, 10000);
 
   describe('Token contract', () => {
@@ -460,7 +467,10 @@ describe('ACIR public execution simulator', () => {
           });
         });
 
-        return root;
+        return new AppendOnlyTreeSnapshot(
+          root,
+          1, // we set 1 message in the tree
+        );
       };
 
       it('Should be able to consume an L1 to L2 message in the public context', async () => {
@@ -470,11 +480,11 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         const result = await executor.simulate(execution, globalVariables);
         expect(result.newNullifiers.length).toEqual(1);
       });
@@ -488,11 +498,11 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError(
           'Message not matching requested key',
         );
@@ -510,7 +520,7 @@ describe('ACIR public execution simulator', () => {
         globalVariables = computeGlobalVariables();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Message not in state');
       });
 
@@ -521,11 +531,11 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid recipient');
       });
 
@@ -536,11 +546,11 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid sender');
       });
 
@@ -550,12 +560,12 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
         globalVariables.chainId = Fr.random();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid Chainid');
       });
 
@@ -565,12 +575,12 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
         globalVariables.version = Fr.random();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid Version');
       });
 
@@ -582,11 +592,11 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid Content');
       });
 
@@ -598,11 +608,11 @@ describe('ACIR public execution simulator', () => {
         callContext = computeCallContext();
 
         // Prepare the state
-        blockHeader.l1ToL2MessageTreeRoot = mockOracles();
+        header.state.l1ToL2MessageTree = mockOracles();
         globalVariables = computeGlobalVariables();
 
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockHeader);
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid message secret');
       });
     });

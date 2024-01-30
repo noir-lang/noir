@@ -5,7 +5,6 @@ import {
   AztecAddress,
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
-  BlockHeader,
   CONTRACT_TREE_HEIGHT,
   CallContext,
   CallRequest,
@@ -77,10 +76,9 @@ import {
   TxContext,
   TxRequest,
 } from '@aztec/circuits.js';
-import { Tuple, from2Fields, mapTuple } from '@aztec/foundation/serialize';
+import { Tuple, from2Fields, mapTuple, to2Fields } from '@aztec/foundation/serialize';
 
 import {
-  BlockHeader as BlockHeaderNoir,
   CallContext as CallContextNoir,
   CallRequest as CallRequestNoir,
   CallerContext as CallerContextNoir,
@@ -595,42 +593,6 @@ export function mapNullifierKeyValidationRequestContextFromNoir(
 }
 
 /**
- * Maps a block header to a noir block header.
- * @param blockHeader - The block header.
- * @returns The noir block header.
- */
-export function mapBlockHeaderToNoir(blockHeader: BlockHeader): BlockHeaderNoir {
-  return {
-    note_hash_tree_root: mapFieldToNoir(blockHeader.noteHashTreeRoot),
-    nullifier_tree_root: mapFieldToNoir(blockHeader.nullifierTreeRoot),
-    contract_tree_root: mapFieldToNoir(blockHeader.contractTreeRoot),
-    l1_to_l2_message_tree_root: mapFieldToNoir(blockHeader.l1ToL2MessageTreeRoot),
-    archive_root: mapFieldToNoir(blockHeader.archiveRoot),
-    public_data_tree_root: mapFieldToNoir(blockHeader.publicDataTreeRoot),
-    global_variables_hash: mapFieldToNoir(blockHeader.globalVariablesHash),
-    // TODO(#3441)
-  };
-}
-
-/**
- * Maps a noir block header to a block header.
- * @param blockHeader - The noir block header.
- * @returns The block header.
- */
-export function mapBlockHeaderFromNoir(blockHeader: BlockHeaderNoir): BlockHeader {
-  return new BlockHeader(
-    mapFieldFromNoir(blockHeader.note_hash_tree_root),
-    mapFieldFromNoir(blockHeader.nullifier_tree_root),
-    mapFieldFromNoir(blockHeader.contract_tree_root),
-    mapFieldFromNoir(blockHeader.l1_to_l2_message_tree_root),
-    mapFieldFromNoir(blockHeader.archive_root),
-    Fr.zero(), // TODO(#3441)
-    mapFieldFromNoir(blockHeader.public_data_tree_root),
-    mapFieldFromNoir(blockHeader.global_variables_hash),
-  );
-}
-
-/**
  * Maps private circuit public inputs to noir private circuit public inputs.
  * @param privateCircuitPublicInputs - The private circuit public inputs.
  * @returns The noir private circuit public inputs.
@@ -657,7 +619,7 @@ export function mapPrivateCircuitPublicInputsToNoir(
     unencrypted_logs_hash: mapTuple(privateCircuitPublicInputs.unencryptedLogsHash, mapFieldToNoir),
     encrypted_log_preimages_length: mapFieldToNoir(privateCircuitPublicInputs.encryptedLogPreimagesLength),
     unencrypted_log_preimages_length: mapFieldToNoir(privateCircuitPublicInputs.unencryptedLogPreimagesLength),
-    block_header: mapBlockHeaderToNoir(privateCircuitPublicInputs.blockHeader),
+    historical_header: mapHeaderToNoir(privateCircuitPublicInputs.historicalHeader),
     contract_deployment_data: mapContractDeploymentDataToNoir(privateCircuitPublicInputs.contractDeploymentData),
     chain_id: mapFieldToNoir(privateCircuitPublicInputs.chainId),
     version: mapFieldToNoir(privateCircuitPublicInputs.version),
@@ -775,6 +737,15 @@ export function mapTupleFromNoir<T, N extends number, M>(
  */
 export function mapSha256HashFromNoir(hash: FixedLengthArray<Field, 2>): Buffer {
   return from2Fields(mapFieldFromNoir(hash[0]), mapFieldFromNoir(hash[1]));
+}
+
+/**
+ * Maps a sha256 to the representation used in noir.
+ * @param hash - The hash represented as a 32 bytes long buffer.
+ * @returns The hash as it is represented in Noir (2 fields).
+ */
+export function mapSha256HashToNoir(hash: Buffer): FixedLengthArray<Field, 2> {
+  return to2Fields(hash).map(mapFieldToNoir) as FixedLengthArray<Field, 2>;
 }
 
 /**
@@ -1023,7 +994,7 @@ export function mapCombinedAccumulatedDataToNoir(
  */
 export function mapCombinedConstantDataFromNoir(combinedConstantData: CombinedConstantDataNoir): CombinedConstantData {
   return new CombinedConstantData(
-    mapBlockHeaderFromNoir(combinedConstantData.block_header),
+    mapHeaderFromNoir(combinedConstantData.header),
     mapTxContextFromNoir(combinedConstantData.tx_context),
   );
 }
@@ -1035,7 +1006,7 @@ export function mapCombinedConstantDataFromNoir(combinedConstantData: CombinedCo
  */
 export function mapCombinedConstantDataToNoir(combinedConstantData: CombinedConstantData): CombinedConstantDataNoir {
   return {
-    block_header: mapBlockHeaderToNoir(combinedConstantData.blockHeader),
+    header: mapHeaderToNoir(combinedConstantData.header),
     tx_context: mapTxContextToNoir(combinedConstantData.txContext),
   };
 }
@@ -1240,7 +1211,7 @@ export function mapPublicCircuitPublicInputsToNoir(
     new_l2_to_l1_msgs: mapTuple(publicInputs.newL2ToL1Msgs, mapFieldToNoir),
     unencrypted_logs_hash: mapTuple(publicInputs.unencryptedLogsHash, mapFieldToNoir),
     unencrypted_log_preimages_length: mapFieldToNoir(publicInputs.unencryptedLogPreimagesLength),
-    block_header: mapBlockHeaderToNoir(publicInputs.blockHeader),
+    historical_header: mapHeaderToNoir(publicInputs.historicalHeader),
 
     prover_address: mapAztecAddressToNoir(publicInputs.proverAddress),
   };
@@ -1420,6 +1391,20 @@ export function mapRootRollupPublicInputsFromNoir(
 }
 
 /**
+ * Maps header to Noir
+ * @param header - The header.
+ * @returns Header.
+ */
+export function mapHeaderToNoir(header: Header): HeaderNoir {
+  return {
+    last_archive: mapAppendOnlyTreeSnapshotToNoir(header.lastArchive),
+    body_hash: mapSha256HashToNoir(header.bodyHash),
+    state: mapStateReferenceToNoir(header.state),
+    global_variables: mapGlobalVariablesToNoir(header.globalVariables),
+  };
+}
+
+/**
  * Maps header from Noir.
  * @param header - The header.
  * @returns Header.
@@ -1431,6 +1416,18 @@ export function mapHeaderFromNoir(header: HeaderNoir): Header {
     mapStateReferenceFromNoir(header.state),
     mapGlobalVariablesFromNoir(header.global_variables),
   );
+}
+
+/**
+ * Maps state reference to Noir.
+ * @param stateReference - The state reference.
+ * @returns Noir representation of state reference.
+ */
+export function mapStateReferenceToNoir(stateReference: StateReference): StateReferenceNoir {
+  return {
+    l1_to_l2_message_tree: mapAppendOnlyTreeSnapshotToNoir(stateReference.l1ToL2MessageTree),
+    partial: mapPartialStateReferenceToNoir(stateReference.partial),
+  };
 }
 
 /**

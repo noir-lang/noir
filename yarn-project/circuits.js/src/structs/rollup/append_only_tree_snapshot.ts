@@ -30,6 +30,10 @@ export class AppendOnlyTreeSnapshot {
     return serializeToBuffer(this.root, this.nextAvailableLeafIndex);
   }
 
+  toFieldArray(): Fr[] {
+    return [this.root, new Fr(this.nextAvailableLeafIndex)];
+  }
+
   toString(): string {
     return this.toBuffer().toString(STRING_ENCODING);
   }
@@ -45,5 +49,9 @@ export class AppendOnlyTreeSnapshot {
 
   static empty() {
     return new AppendOnlyTreeSnapshot(Fr.ZERO, 0);
+  }
+
+  isEmpty(): boolean {
+    return this.root.isZero() && this.nextAvailableLeafIndex === 0;
   }
 }

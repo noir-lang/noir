@@ -84,7 +84,7 @@ export class AcirSimulator {
 
     const curve = new Grumpkin();
 
-    const blockHeader = await this.db.getBlockHeader();
+    const header = await this.db.getHeader();
     const callContext = new CallContext(
       msgSender,
       contractAddress,
@@ -101,7 +101,7 @@ export class AcirSimulator {
       request.argsHash,
       request.txContext,
       callContext,
-      blockHeader,
+      header,
       request.authWitnesses,
       PackedArgsCache.create(request.packedArguments),
       new ExecutionNoteCache(),
@@ -139,8 +139,8 @@ export class AcirSimulator {
       throw new Error(`Cannot run ${entryPointArtifact.functionType} function as constrained`);
     }
 
-    const blockHeader = await this.db.getBlockHeader();
-    const context = new ViewDataOracle(contractAddress, blockHeader, [], this.db, aztecNode);
+    const header = await this.db.getHeader();
+    const context = new ViewDataOracle(contractAddress, header, [], this.db, aztecNode);
 
     try {
       return await executeUnconstrainedFunction(

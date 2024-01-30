@@ -22,7 +22,7 @@ pub fn prove_public_value_inclusion(
     context: PrivateContext
 ) {
     // 1) Get block header from oracle and ensure that the block hash is included in the archive.
-    let block_header = context.get_block_header(block_number);
+    let header = context.get_header_at(block_number);
 
     // 2) Compute the leaf slot by siloing the storage slot with our own address
     let public_value_leaf_slot = pedersen_hash(
@@ -45,7 +45,7 @@ pub fn prove_public_value_inclusion(
 
     // 5) Prove that the leaf we validated is in the public data tree
     assert(
-        block_header.public_data_tree_root
+        header.state.partial.public_data_tree.root
         == compute_merkle_root(preimage.hash(), witness.index, witness.path), "Proving public value inclusion failed"
     );
     // --> Now we have traversed the trees all the way up to archive root and that way verified that a specific

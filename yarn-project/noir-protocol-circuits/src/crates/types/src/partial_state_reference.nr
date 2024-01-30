@@ -1,4 +1,7 @@
-use crate::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
+use crate::{
+    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+    traits::Empty,
+};
 
 struct PartialStateReference {
     note_hash_tree: AppendOnlyTreeSnapshot,
@@ -7,11 +10,59 @@ struct PartialStateReference {
     public_data_tree: AppendOnlyTreeSnapshot,
 }
 
+global PARTIAL_STATE_REFERENCE_LENGTH: Field = 8; // APPEND_ONLY_TREE_SNAPSHOT_LENGTH * 4;
+
 impl PartialStateReference {
-    fn eq(self, other: PartialStateReference) -> bool {
+    pub fn eq(self, other: PartialStateReference) -> bool {
         self.note_hash_tree.eq(other.note_hash_tree) &
         self.nullifier_tree.eq(other.nullifier_tree) &
         self.contract_tree.eq(other.contract_tree) &
         self.public_data_tree.eq(other.public_data_tree)
+    }
+
+    pub fn serialize(self) -> [Field; PARTIAL_STATE_REFERENCE_LENGTH] {
+        let serialized_note_hash_tree = self.note_hash_tree.serialize();
+        let serialized_nullifier_tree = self.nullifier_tree.serialize();
+        let serialized_contract_tree = self.contract_tree.serialize();
+        let serialized_public_data_tree = self.public_data_tree.serialize();
+
+        [
+            serialized_note_hash_tree[0],
+            serialized_note_hash_tree[1],
+            serialized_nullifier_tree[0],
+            serialized_nullifier_tree[1],
+            serialized_contract_tree[0],
+            serialized_contract_tree[1],
+            serialized_public_data_tree[0],
+            serialized_public_data_tree[1],
+        ]
+    }
+
+    pub fn deserialize(serialized: [Field; PARTIAL_STATE_REFERENCE_LENGTH]) -> PartialStateReference {
+        PartialStateReference {
+            note_hash_tree: AppendOnlyTreeSnapshot::deserialize(
+                [serialized[0], serialized[1]]
+            ),
+            nullifier_tree: AppendOnlyTreeSnapshot::deserialize(
+                [serialized[2], serialized[3]]
+            ),
+            contract_tree: AppendOnlyTreeSnapshot::deserialize(
+                [serialized[4], serialized[5]]
+            ),
+            public_data_tree: AppendOnlyTreeSnapshot::deserialize(
+                [serialized[6], serialized[7]]
+            ),
+        }
+    }
+}
+
+impl Empty for PartialStateReference {
+    fn empty() -> Self {
+        Self {
+            note_hash_tree: AppendOnlyTreeSnapshot::zero(),
+            nullifier_tree: AppendOnlyTreeSnapshot::zero(),
+            contract_tree: AppendOnlyTreeSnapshot::zero(),
+            public_data_tree: AppendOnlyTreeSnapshot::zero(),
+        }
     }
 }

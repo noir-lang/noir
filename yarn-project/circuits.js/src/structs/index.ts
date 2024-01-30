@@ -10,7 +10,6 @@ export * from './global_variables.js';
 export * from './header.js';
 export * from './kernel/combined_accumulated_data.js';
 export * from './kernel/combined_constant_data.js';
-export * from './kernel/block_header.js';
 export * from './kernel/previous_kernel_data.js';
 export * from './kernel/private_kernel.js';
 export * from './kernel/public_inputs.js';

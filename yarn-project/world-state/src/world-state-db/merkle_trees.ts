@@ -1,6 +1,7 @@
 import { L2Block, MerkleTreeId } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
+  AppendOnlyTreeSnapshot,
   CONTRACT_TREE_HEIGHT,
   Fr,
   GlobalVariables,
@@ -13,8 +14,10 @@ import {
   NullifierLeafPreimage,
   PUBLIC_DATA_SUBTREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
+  PartialStateReference,
   PublicDataTreeLeaf,
   PublicDataTreeLeafPreimage,
+  StateReference,
 } from '@aztec/circuits.js';
 import { computeBlockHash, computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { Committable } from '@aztec/foundation/committable';
@@ -37,13 +40,7 @@ import { Hasher } from '@aztec/types/interfaces';
 import { SiblingPath } from '@aztec/types/membership';
 
 import { INITIAL_NULLIFIER_TREE_SIZE, INITIAL_PUBLIC_DATA_TREE_SIZE, MerkleTreeDb } from './merkle_tree_db.js';
-import {
-  CurrentTreeRoots,
-  HandleL2BlockResult,
-  IndexedTreeId,
-  MerkleTreeOperations,
-  TreeInfo,
-} from './merkle_tree_operations.js';
+import { HandleL2BlockResult, IndexedTreeId, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
 import { MerkleTreeOperationsFacade } from './merkle_tree_operations_facade.js';
 
 /**
@@ -234,39 +231,42 @@ export class MerkleTrees implements MerkleTreeDb {
   }
 
   /**
-   * Get the current roots of the commitment trees.
+   * Get the current state reference
    * @param includeUncommitted - Indicates whether to include uncommitted data.
-   * @returns The current roots of the trees.
+   * @returns The current state reference
    */
-  public async getTreeRoots(includeUncommitted: boolean): Promise<CurrentTreeRoots> {
-    const roots = await this.synchronize(() => Promise.resolve(this._getAllTreeRoots(includeUncommitted)));
-
-    return {
-      noteHashTreeRoot: roots[0],
-      nullifierTreeRoot: roots[1],
-      contractDataTreeRoot: roots[2],
-      l1Tol2MessageTreeRoot: roots[3],
-      publicDataTreeRoot: roots[4],
-      archiveRoot: roots[5],
+  public getStateReference(includeUncommitted: boolean): Promise<StateReference> {
+    const getAppendOnlyTreeSnapshot = (treeId: MerkleTreeId) => {
+      const tree = this.trees[treeId] as AppendOnlyTree;
+      return new AppendOnlyTreeSnapshot(
+        Fr.fromBuffer(tree.getRoot(includeUncommitted)),
+        Number(tree.getNumLeaves(includeUncommitted)),
+      );
     };
+
+    const state = new StateReference(
+      getAppendOnlyTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE),
+      new PartialStateReference(
+        getAppendOnlyTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE),
+        getAppendOnlyTreeSnapshot(MerkleTreeId.NULLIFIER_TREE),
+        getAppendOnlyTreeSnapshot(MerkleTreeId.CONTRACT_TREE),
+        getAppendOnlyTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE),
+      ),
+    );
+    return Promise.resolve(state);
   }
 
+  // TODO(#3941)
   private async _getCurrentBlockHash(globalsHash: Fr, includeUncommitted: boolean): Promise<Fr> {
-    const roots = (await this._getAllTreeRoots(includeUncommitted)).map(root => Fr.fromBuffer(root));
-    return computeBlockHash(globalsHash, roots[0], roots[1], roots[2], roots[3], roots[4]);
-  }
-
-  private _getAllTreeRoots(includeUncommitted: boolean): Promise<Buffer[]> {
-    const roots = [
-      MerkleTreeId.NOTE_HASH_TREE,
-      MerkleTreeId.NULLIFIER_TREE,
-      MerkleTreeId.CONTRACT_TREE,
-      MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
-      MerkleTreeId.PUBLIC_DATA_TREE,
-      MerkleTreeId.ARCHIVE,
-    ].map(tree => this.trees[tree].getRoot(includeUncommitted));
-
-    return Promise.resolve(roots);
+    const state = await this.getStateReference(includeUncommitted);
+    return computeBlockHash(
+      globalsHash,
+      state.partial.noteHashTree.root,
+      state.partial.nullifierTree.root,
+      state.partial.contractTree.root,
+      state.l1ToL2MessageTree.root,
+      state.partial.publicDataTree.root,
+    );
   }
 
   /**

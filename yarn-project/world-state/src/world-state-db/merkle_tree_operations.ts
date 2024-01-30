@@ -1,5 +1,5 @@
 import { L2Block, MerkleTreeId } from '@aztec/circuit-types';
-import { NullifierLeafPreimage } from '@aztec/circuits.js';
+import { NullifierLeafPreimage, StateReference } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
@@ -35,24 +35,6 @@ export interface TreeInfo {
 }
 
 /**
- * The current roots of the commitment trees
- */
-export type CurrentTreeRoots = {
-  /** Note Hash Tree root. */
-  noteHashTreeRoot: Buffer;
-  /** Contract data tree root. */
-  contractDataTreeRoot: Buffer;
-  /** L1 to L2 Messages data tree root. */
-  l1Tol2MessageTreeRoot: Buffer;
-  /** Nullifier data tree root. */
-  nullifierTreeRoot: Buffer;
-  /** Archive root. */
-  archiveRoot: Buffer;
-  /** Public data tree root */
-  publicDataTreeRoot: Buffer;
-};
-
-/**
  * Defines the interface for operations on a set of Merkle Trees.
  */
 export interface MerkleTreeOperations {
@@ -70,9 +52,9 @@ export interface MerkleTreeOperations {
   getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo>;
 
   /**
-   * Gets the current roots of the commitment trees.
+   * Gets the current state reference.
    */
-  getTreeRoots(): Promise<CurrentTreeRoots>;
+  getStateReference(): Promise<StateReference>;
 
   /**
    * Gets sibling path for a leaf.

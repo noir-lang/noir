@@ -100,7 +100,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     txs: ProcessedTx[],
     newL1ToL2Messages: Fr[],
   ): Promise<[L2Block, Proof]> {
-    // Check txs are good for processing
+    // Check txs are good for processing by checking if all the tree snapshots in header are non-empty
     this.validateTxs(txs);
 
     // We fill the tx batch with empty txs, we process only one tx at a time for now
@@ -157,15 +157,21 @@ export class SoloBlockBuilder implements BlockBuilder {
 
   protected validateTxs(txs: ProcessedTx[]) {
     for (const tx of txs) {
-      for (const historicalTreeRoot of [
-        'noteHashTreeRoot',
-        'contractTreeRoot',
-        'nullifierTreeRoot',
-        'l1ToL2MessageTreeRoot',
-      ] as const) {
-        if (tx.data.constants.blockHeader[historicalTreeRoot].isZero()) {
-          throw new Error(`Empty ${historicalTreeRoot} for tx: ${toFriendlyJSON(tx)}`);
-        }
+      const txHeader = tx.data.constants.header;
+      if (txHeader.state.l1ToL2MessageTree.isEmpty()) {
+        throw new Error(`Empty L1 to L2 messages tree in tx: ${toFriendlyJSON(tx)}`);
+      }
+      if (txHeader.state.partial.noteHashTree.isEmpty()) {
+        throw new Error(`Empty note hash tree in tx: ${toFriendlyJSON(tx)}`);
+      }
+      if (txHeader.state.partial.nullifierTree.isEmpty()) {
+        throw new Error(`Empty nullifier tree in tx: ${toFriendlyJSON(tx)}`);
+      }
+      if (txHeader.state.partial.contractTree.isEmpty()) {
+        throw new Error(`Empty contract tree in tx: ${toFriendlyJSON(tx)}`);
+      }
+      if (txHeader.state.partial.publicDataTree.isEmpty()) {
+        throw new Error(`Empty public data tree in tx: ${toFriendlyJSON(tx)}`);
       }
     }
   }
@@ -486,16 +492,15 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   protected getHistoricalTreesMembershipWitnessFor(tx: ProcessedTx) {
-    const blockHeader = tx.data.constants.blockHeader;
-    const { noteHashTreeRoot, nullifierTreeRoot, contractTreeRoot, l1ToL2MessageTreeRoot, publicDataTreeRoot } =
-      blockHeader;
+    const header = tx.data.constants.header;
+    // TODO(#3941)
     const blockHash = computeBlockHash(
-      blockHeader.globalVariablesHash,
-      noteHashTreeRoot,
-      nullifierTreeRoot,
-      contractTreeRoot,
-      l1ToL2MessageTreeRoot,
-      publicDataTreeRoot,
+      computeGlobalsHash(header.globalVariables),
+      header.state.partial.noteHashTree.root,
+      header.state.partial.nullifierTree.root,
+      header.state.partial.contractTree.root,
+      header.state.l1ToL2MessageTree.root,
+      header.state.partial.publicDataTree.root,
     );
     return this.getMembershipWitnessFor(blockHash, MerkleTreeId.ARCHIVE, ARCHIVE_HEIGHT);
   }

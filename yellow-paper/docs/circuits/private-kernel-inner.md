@@ -91,7 +91,7 @@ This circuit verifies this proof and [the proof of the previous kernel iteration
 
 It ensures the private function circuit's intention by checking the following in _[private_call](#privatecall).[call_stack_item](#privatecallstackitem).[public_inputs](./private-function.md#public-inputs)_:
 
-- The _block_header_ must match the one in the _[constant_data](./private-kernel-initial.md#constantdata)_.
+- The _header_ must match the one in the _[constant_data](./private-kernel-initial.md#constantdata)_.
 - If it is a static call (_`public_inputs.call_context.is_static_call == true`_), it ensures that the function does not induce any state changes by verifying that the following arrays are empty:
   - _note_hashes_
   - _nullifiers_

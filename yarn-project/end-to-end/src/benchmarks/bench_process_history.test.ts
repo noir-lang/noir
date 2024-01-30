@@ -1,5 +1,5 @@
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import { Fr, GrumpkinScalar, INITIAL_L2_BLOCK_NUM, elapsed, sleep } from '@aztec/aztec.js';
+import { AztecAddress, Fr, GrumpkinScalar, INITIAL_L2_BLOCK_NUM, elapsed, sleep } from '@aztec/aztec.js';
 import {
   BENCHMARK_HISTORY_BLOCK_SIZE,
   BENCHMARK_HISTORY_CHAIN_LENGTHS,
@@ -52,7 +52,9 @@ describe('benchmarks/process_history', () => {
         const nodeConfig: AztecNodeConfig = { ...context.config, disableSequencer: true, dataDirectory };
         const [nodeSyncTime, node] = await elapsed(async () => {
           const node = await AztecNodeService.createAndSync(nodeConfig);
-          await node.getTreeRoots();
+          // call getPublicStorageAt (which calls #getWorldState, which calls #syncWorldState) to force a sync with
+          // world state to ensure the node has caught up
+          await node.getPublicStorageAt(AztecAddress.random(), Fr.random());
           return node;
         });
 

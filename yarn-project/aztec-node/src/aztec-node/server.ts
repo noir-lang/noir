@@ -24,10 +24,10 @@ import {
 } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
-  BlockHeader,
   CONTRACT_TREE_HEIGHT,
   Fr,
   GlobalVariables,
+  Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
   NOTE_HASH_TREE_HEIGHT,
   NULLIFIER_TREE_HEIGHT,
@@ -45,6 +45,7 @@ import {
   GlobalVariableBuilder,
   PublicProcessorFactory,
   SequencerClient,
+  buildInitialHeader,
   getGlobalVariableBuilder,
 } from '@aztec/sequencer-client';
 import { SiblingPath } from '@aztec/types/membership';
@@ -525,51 +526,18 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Returns the current committed roots for the data trees.
-   * @returns The current committed roots for the data trees.
-   */
-  public async getTreeRoots(): Promise<Record<MerkleTreeId, Fr>> {
-    const committedDb = await this.#getWorldState('latest');
-    const getTreeRoot = async (id: MerkleTreeId) => Fr.fromBuffer((await committedDb.getTreeInfo(id)).root);
-
-    const [noteHashTree, nullifierTree, contractTree, l1ToL2MessageTree, archive, publicDataTree] = await Promise.all([
-      getTreeRoot(MerkleTreeId.NOTE_HASH_TREE),
-      getTreeRoot(MerkleTreeId.NULLIFIER_TREE),
-      getTreeRoot(MerkleTreeId.CONTRACT_TREE),
-      getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE),
-      getTreeRoot(MerkleTreeId.ARCHIVE),
-      getTreeRoot(MerkleTreeId.PUBLIC_DATA_TREE),
-    ]);
-
-    return {
-      [MerkleTreeId.CONTRACT_TREE]: contractTree,
-      [MerkleTreeId.NOTE_HASH_TREE]: noteHashTree,
-      [MerkleTreeId.NULLIFIER_TREE]: nullifierTree,
-      [MerkleTreeId.PUBLIC_DATA_TREE]: publicDataTree,
-      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: l1ToL2MessageTree,
-      [MerkleTreeId.ARCHIVE]: archive,
-    };
-  }
-
-  /**
    * Returns the currently committed block header.
    * @returns The current committed block header.
    */
-  // TODO(#3937): Nuke this
-  public async getBlockHeader(): Promise<BlockHeader> {
-    const committedDb = await this.#getWorldState('latest');
-    const [roots, globalsHash] = await Promise.all([this.getTreeRoots(), committedDb.getLatestGlobalVariablesHash()]);
+  public async getHeader(): Promise<Header> {
+    const block = await this.getBlock(-1);
+    if (block) {
+      return block.header;
+    }
 
-    return new BlockHeader(
-      roots[MerkleTreeId.NOTE_HASH_TREE],
-      roots[MerkleTreeId.NULLIFIER_TREE],
-      roots[MerkleTreeId.CONTRACT_TREE],
-      roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE],
-      roots[MerkleTreeId.ARCHIVE],
-      Fr.ZERO, // TODO(#3441)
-      roots[MerkleTreeId.PUBLIC_DATA_TREE],
-      globalsHash,
-    );
+    // No block was not found so we build the initial header.
+    const committedDb = await this.#getWorldState('latest');
+    return await buildInitialHeader(committedDb);
   }
 
   /**
@@ -580,8 +548,8 @@ export class AztecNodeService implements AztecNode {
     this.log.info(`Simulating tx ${await tx.getTxHash()}`);
     const blockNumber = (await this.blockSource.getBlockNumber()) + 1;
     const newGlobalVariables = await this.globalVariableBuilder.buildGlobalVariables(new Fr(blockNumber));
-    const prevGlobalVariables =
-      (await this.blockSource.getBlock(-1))?.header.globalVariables ?? GlobalVariables.empty();
+    const prevHeader = (await this.blockSource.getBlock(-1))?.header;
+    const prevGlobalVariables = prevHeader?.globalVariables ?? GlobalVariables.empty();
 
     // Instantiate merkle trees so uncommitted updates by this simulation are local to it.
     // TODO we should be able to remove this after https://github.com/AztecProtocol/aztec-packages/issues/1869
@@ -597,7 +565,7 @@ export class AztecNodeService implements AztecNode {
       this.contractDataSource,
       this.l1ToL2MessageSource,
     );
-    const processor = await publicProcessorFactory.create(prevGlobalVariables, newGlobalVariables);
+    const processor = await publicProcessorFactory.create(prevHeader, newGlobalVariables);
     const [, failedTxs] = await processor.process([tx]);
     if (failedTxs.length) {
       throw failedTxs[0].error;

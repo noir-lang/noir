@@ -63,7 +63,7 @@ import {
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricalTreeRoots,
   makeProcessedTx,
 } from '../sequencer/processed_tx.js';
-import { getBlockHeader } from '../sequencer/utils.js';
+import { buildInitialHeader } from '../sequencer/utils.js';
 import { RollupSimulator } from '../simulator/index.js';
 import { RealRollupCircuitSimulator } from '../simulator/rollup.js';
 import { SoloBlockBuilder } from './solo_block_builder.js';
@@ -109,7 +109,8 @@ describe('sequencer/solo_block_builder', () => {
     // Create mock outputs for simulator
     baseRollupOutputLeft = makeBaseOrMergeRollupPublicInputs(0, globalVariables);
     baseRollupOutputRight = makeBaseOrMergeRollupPublicInputs(0, globalVariables);
-    rootRollupOutput = makeRootRollupPublicInputs(0, globalVariables);
+    rootRollupOutput = makeRootRollupPublicInputs(0);
+    rootRollupOutput.header.globalVariables = globalVariables;
 
     // Set up mocks
     prover.getBaseRollupProof.mockResolvedValue(emptyProof);
@@ -121,8 +122,8 @@ describe('sequencer/solo_block_builder', () => {
   }, 20_000);
 
   const makeEmptyProcessedTx = async () => {
-    const historicalTreeRoots = await getBlockHeader(builderDb);
-    return makeEmptyProcessedTxFromHistoricalTreeRoots(historicalTreeRoots, chainId, version);
+    const header = await buildInitialHeader(builderDb);
+    return makeEmptyProcessedTxFromHistoricalTreeRoots(header, chainId, version);
   };
 
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
@@ -190,7 +191,7 @@ describe('sequencer/solo_block_builder', () => {
 
   const buildMockSimulatorInputs = async () => {
     const kernelOutput = makePrivateKernelPublicInputsFinal();
-    kernelOutput.constants.blockHeader = await getBlockHeader(expectsDb);
+    kernelOutput.constants.header = await buildInitialHeader(expectsDb);
 
     const tx = await makeProcessedTx(
       new Tx(
@@ -296,7 +297,7 @@ describe('sequencer/solo_block_builder', () => {
     const makeBloatedProcessedTx = async (seed = 0x1) => {
       const tx = mockTx(seed);
       const kernelOutput = KernelCircuitPublicInputs.empty();
-      kernelOutput.constants.blockHeader = await getBlockHeader(builderDb);
+      kernelOutput.constants.header = await buildInitialHeader(builderDb);
       kernelOutput.end.publicDataUpdateRequests = makeTuple(
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),

@@ -16,14 +16,14 @@ pub fn prove_note_commitment_inclusion(
     context: PrivateContext
 ) {
     // 1) Get block header from oracle and ensure that the block is included in the archive.
-    let block_header = context.get_block_header(block_number);
+    let header = context.get_header_at(block_number);
 
     // 2) Get the membership witness of the note in the note hash tree
     let witness = get_note_hash_membership_witness(block_number, note_commitment);
 
     // 3) Prove that the commitment is in the note hash tree
     assert(
-        block_header.note_hash_tree_root
+        header.state.partial.note_hash_tree.root
         == compute_merkle_root(note_commitment, witness.index, witness.path), "Proving note inclusion failed"
     );
     // --> Now we have traversed the trees all the way up to archive root.

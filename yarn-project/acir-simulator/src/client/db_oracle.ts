@@ -1,5 +1,5 @@
 import { L2Block, MerkleTreeId, NullifierMembershipWitness, PublicDataWitness } from '@aztec/circuit-types';
-import { BlockHeader, CompleteAddress } from '@aztec/circuits.js';
+import { CompleteAddress, Header } from '@aztec/circuits.js';
 import { FunctionArtifactWithDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -111,9 +111,9 @@ export interface DBOracle extends CommitmentsDB {
    * Retrieve the databases view of the Block Header object.
    * This structure is fed into the circuits simulator and is used to prove against certain historical roots.
    *
-   * @returns A Promise that resolves to a BlockHeader object.
+   * @returns A Promise that resolves to a Header object.
    */
-  getBlockHeader(): Promise<BlockHeader>;
+  getHeader(): Promise<Header>;
 
   /**
    * Fetch the index of the leaf in the respective tree

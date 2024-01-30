@@ -1,11 +1,11 @@
 import { MerkleTreeId } from '@aztec/circuit-types';
-import { Fr } from '@aztec/circuits.js';
+import { AppendOnlyTreeSnapshot, Fr, PartialStateReference, StateReference } from '@aztec/circuits.js';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
 import { SiblingPath } from '@aztec/types/membership';
 
 import { MerkleTreeDb } from './merkle_tree_db.js';
-import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
+import { HandleL2BlockResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
 
 /**
  * Merkle tree operations on readonly tree snapshots.
@@ -86,7 +86,7 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     };
   }
 
-  async getTreeRoots(): Promise<CurrentTreeRoots> {
+  async getStateReference(): Promise<StateReference> {
     const snapshots = await Promise.all([
       this.#getTreeSnapshot(MerkleTreeId.CONTRACT_TREE),
       this.#getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE),
@@ -96,14 +96,30 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
       this.#getTreeSnapshot(MerkleTreeId.ARCHIVE),
     ]);
 
-    return {
-      archiveRoot: snapshots[MerkleTreeId.ARCHIVE].getRoot(),
-      contractDataTreeRoot: snapshots[MerkleTreeId.CONTRACT_TREE].getRoot(),
-      l1Tol2MessageTreeRoot: snapshots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE].getRoot(),
-      noteHashTreeRoot: snapshots[MerkleTreeId.NOTE_HASH_TREE].getRoot(),
-      nullifierTreeRoot: snapshots[MerkleTreeId.NULLIFIER_TREE].getRoot(),
-      publicDataTreeRoot: snapshots[MerkleTreeId.PUBLIC_DATA_TREE].getRoot(),
-    };
+    return new StateReference(
+      new AppendOnlyTreeSnapshot(
+        Fr.fromBuffer(snapshots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE].getRoot()),
+        Number(snapshots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE].getNumLeaves()),
+      ),
+      new PartialStateReference(
+        new AppendOnlyTreeSnapshot(
+          Fr.fromBuffer(snapshots[MerkleTreeId.NOTE_HASH_TREE].getRoot()),
+          Number(snapshots[MerkleTreeId.NOTE_HASH_TREE].getNumLeaves()),
+        ),
+        new AppendOnlyTreeSnapshot(
+          Fr.fromBuffer(snapshots[MerkleTreeId.NULLIFIER_TREE].getRoot()),
+          Number(snapshots[MerkleTreeId.NULLIFIER_TREE].getNumLeaves()),
+        ),
+        new AppendOnlyTreeSnapshot(
+          Fr.fromBuffer(snapshots[MerkleTreeId.CONTRACT_TREE].getRoot()),
+          Number(snapshots[MerkleTreeId.CONTRACT_TREE].getNumLeaves()),
+        ),
+        new AppendOnlyTreeSnapshot(
+          Fr.fromBuffer(snapshots[MerkleTreeId.PUBLIC_DATA_TREE].getRoot()),
+          Number(snapshots[MerkleTreeId.PUBLIC_DATA_TREE].getNumLeaves()),
+        ),
+      ),
+    );
   }
 
   appendLeaves(): Promise<void> {

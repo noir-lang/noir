@@ -2,13 +2,12 @@ import {
   AuthWitness,
   AztecNode,
   CompleteAddress,
-  INITIAL_L2_BLOCK_NUM,
   MerkleTreeId,
   NullifierMembershipWitness,
   PublicDataWitness,
 } from '@aztec/circuit-types';
-import { BlockHeader } from '@aztec/circuits.js';
-import { computeGlobalsHash, siloNullifier } from '@aztec/circuits.js/abis';
+import { Header } from '@aztec/circuits.js';
+import { siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -25,7 +24,7 @@ export class ViewDataOracle extends TypedOracle {
   constructor(
     protected readonly contractAddress: AztecAddress,
     /** Data required to reconstruct the block hash, it contains historical roots. */
-    protected readonly blockHeader: BlockHeader,
+    protected readonly historicalHeader: Header,
     /** List of transient auth witnesses to be used during this simulation */
     protected readonly authWitnesses: AuthWitness[],
     protected readonly db: DBOracle,
@@ -114,45 +113,12 @@ export class ViewDataOracle extends TypedOracle {
    * @param blockNumber - The number of a block of which to get the block header.
    * @returns Block extracted from a block with block number `blockNumber`.
    */
-  public async getBlockHeader(blockNumber: number): Promise<BlockHeader | undefined> {
+  public async getHeader(blockNumber: number): Promise<Header | undefined> {
     const block = await this.db.getBlock(blockNumber);
     if (!block) {
       return undefined;
     }
-    return new BlockHeader(
-      block.header.state.partial.noteHashTree.root,
-      block.header.state.partial.nullifierTree.root,
-      block.header.state.partial.contractTree.root,
-      block.header.state.l1ToL2MessageTree.root,
-      block.archive.root,
-      new Fr(0), // TODO(#3441) privateKernelVkTreeRoot is not present in L2Block and it's not yet populated in noir
-      block.header.state.partial.publicDataTree.root,
-      computeGlobalsHash(block.header.globalVariables),
-    );
-  }
-
-  /**
-   * Gets number of a block in which a given nullifier tree root was included.
-   * @param nullifierTreeRoot - The nullifier tree root to get the block number for.
-   * @returns The block number.
-   *
-   * TODO(#3564) - Nuke this oracle and inject the number directly to context
-   */
-  public async getNullifierRootBlockNumber(nullifierTreeRoot: Fr): Promise<number | undefined> {
-    const currentBlockNumber = await this.db.getBlockNumber();
-    for (let i = currentBlockNumber; i >= INITIAL_L2_BLOCK_NUM; i -= 2) {
-      const block = await this.db.getBlock(i);
-      if (!block) {
-        throw new Error(`Block ${i} not found`);
-      }
-      if (block.header.state.partial.nullifierTree.root.equals(nullifierTreeRoot)) {
-        return i;
-      }
-      if (block.header.state.partial.nullifierTree.root.equals(nullifierTreeRoot)) {
-        return i - 1;
-      }
-    }
-    throw new Error(`Failed to find block containing nullifier tree root ${nullifierTreeRoot}`);
+    return block.header;
   }
 
   /**

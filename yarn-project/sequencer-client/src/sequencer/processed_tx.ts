@@ -1,8 +1,8 @@
 import { ExtendedContractData, Tx, TxHash, TxL2Logs } from '@aztec/circuit-types';
 import {
-  BlockHeader,
   CombinedAccumulatedData,
   Fr,
+  Header,
   Proof,
   PublicKernelPublicInputs,
   makeEmptyProof,
@@ -87,9 +87,9 @@ export async function makeProcessedTx(
  * Makes an empty tx from an empty kernel circuit public inputs.
  * @returns A processed empty tx.
  */
-export function makeEmptyProcessedTx(historicalTreeRoots: BlockHeader, chainId: Fr, version: Fr): Promise<ProcessedTx> {
+export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): Promise<ProcessedTx> {
   const emptyKernelOutput = PublicKernelPublicInputs.empty();
-  emptyKernelOutput.constants.blockHeader = historicalTreeRoots;
+  emptyKernelOutput.constants.header = header;
   emptyKernelOutput.constants.txContext.chainId = chainId;
   emptyKernelOutput.constants.txContext.version = version;
   const emptyProof = makeEmptyProof();

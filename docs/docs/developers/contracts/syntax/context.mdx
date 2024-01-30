@@ -71,11 +71,13 @@ The call context contains information about the current call being made:
      - is_static_call: This will be set if and only if the current call is a static call. In a static call, state changing altering operations are not allowed.
      - is_contract_deployment: This will be set if and only if the current call is the contract's constructor.
 
-### Block Header
+### Header
 
-Another structure that is contained within the context is the Block Header object. This object is a special one as it contains all of the roots of Aztec's data trees.
+Another structure that is contained within the context is the Header object.
+In the private context this is a header of a block which used to generate proofs against.
+In the public context this TBD TODO(#4262)
 
-#include_code block-header /yarn-project/noir-protocol-circuits/src/crates/types/src/abis/block_header.nr rust
+#include_code header /yarn-project/noir-protocol-circuits/src/crates/types/src/header.nr rust
 
 ### Contract Deployment Data
 

@@ -1,6 +1,5 @@
 import {
   AztecAddress,
-  BlockHeader,
   ContractDeploymentData,
   EthAddress,
   Fr,
@@ -9,12 +8,11 @@ import {
   Point,
   TxContext,
 } from '@aztec/circuits.js';
+import { makeHeader } from '@aztec/circuits.js/factories';
 
 import {
   mapAztecAddressFromNoir,
   mapAztecAddressToNoir,
-  mapBlockHeaderFromNoir,
-  mapBlockHeaderToNoir,
   mapContractDeploymentDataFromNoir,
   mapContractDeploymentDataToNoir,
   mapEthAddressFromNoir,
@@ -25,6 +23,8 @@ import {
   mapFunctionDataToNoir,
   mapFunctionSelectorFromNoir,
   mapFunctionSelectorToNoir,
+  mapHeaderFromNoir,
+  mapHeaderToNoir,
   mapPointFromNoir,
   mapPointToNoir,
   mapTxContextFromNoir,
@@ -86,17 +86,8 @@ describe('Noir<>Circuits.js type conversion test suite', () => {
     });
 
     it('should map block header', () => {
-      const blockHeader = new BlockHeader(
-        new Fr(35n),
-        new Fr(36n),
-        new Fr(37n),
-        new Fr(38n),
-        new Fr(39n),
-        new Fr(0n), // TODO(#3441) this currently doesn't exist in Noir is it gets squashed to 0
-        new Fr(41n),
-        new Fr(42n),
-      );
-      expect(mapBlockHeaderFromNoir(mapBlockHeaderToNoir(blockHeader))).toEqual(blockHeader);
+      const header = makeHeader(35, undefined);
+      expect(mapHeaderFromNoir(mapHeaderToNoir(header))).toEqual(header);
     });
   });
 });

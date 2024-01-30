@@ -11,7 +11,7 @@ pub fn prove_nullifier_inclusion(
     context: PrivateContext
 ) {
     // 1) Get block header from oracle and ensure that the block hash is included in the archive.
-    let block_header = context.get_block_header(block_number);
+    let header = context.get_header_at(block_number);
 
     // 2) Get the membership witness of the nullifier
     let witness = get_nullifier_membership_witness(block_number, nullifier);
@@ -24,7 +24,7 @@ pub fn prove_nullifier_inclusion(
 
     // 5) Prove that the nullifier is in the nullifier tree
     assert(
-        block_header.nullifier_tree_root
+        header.state.partial.nullifier_tree.root
         == compute_merkle_root(nullifier_leaf, witness.index, witness.path), "Proving nullifier inclusion failed"
     );
     // --> Now we have traversed the trees all the way up to archive root and verified that the nullifier

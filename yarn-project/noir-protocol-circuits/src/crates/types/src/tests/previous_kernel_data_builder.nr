@@ -4,7 +4,6 @@ use crate::{
         call_request::{CallerContext, CallRequest},
         combined_constant_data::CombinedConstantData,
         combined_accumulated_data::CombinedAccumulatedDataBuilder,
-        block_header::BlockHeader,
         kernel_circuit_public_inputs::KernelCircuitPublicInputs,
         previous_kernel_data::PreviousKernelData,
         public_data_read::PublicDataRead,
@@ -12,6 +11,7 @@ use crate::{
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
     address::{AztecAddress, EthAddress},
+    header::Header,
     mocked::{Proof, VerificationKey},
     tests::{
         fixtures,
@@ -32,7 +32,7 @@ struct PreviousKernelDataBuilder {
     contract_address: AztecAddress,
     portal_contract_address: EthAddress,
     end: CombinedAccumulatedDataBuilder,
-    block_header: BlockHeader,
+    header: Header,
     tx_context: TxContext,
     is_private: bool,
     proof: Proof,
@@ -57,7 +57,7 @@ impl PreviousKernelDataBuilder {
             contract_address: fixtures::contracts::parent_contract.address,
             portal_contract_address: fixtures::contracts::parent_contract.portal_contract_address,
             end,
-            block_header: fixtures::BLOCK_HEADER,
+            header: fixtures::HEADER,
             tx_context,
             is_private: true,
             proof: Proof {},
@@ -197,7 +197,7 @@ impl PreviousKernelDataBuilder {
         let public_inputs = KernelCircuitPublicInputs {
             end: self.end.finish(),
             constants: CombinedConstantData {
-                block_header: self.block_header,
+                header: self.header,
                 tx_context: self.tx_context,
             },
             is_private: self.is_private,

@@ -1,12 +1,12 @@
 import { L2Block, MerkleTreeId } from '@aztec/circuit-types';
-import { NullifierLeafPreimage } from '@aztec/circuits.js';
+import { NullifierLeafPreimage, StateReference } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult } from '@aztec/merkle-tree';
 import { SiblingPath } from '@aztec/types/membership';
 
 import { MerkleTreeDb } from './merkle_tree_db.js';
-import { CurrentTreeRoots, HandleL2BlockResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
+import { HandleL2BlockResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
 
 /**
  * Wraps a MerkleTreeDbOperations to call all functions with a preset includeUncommitted flag.
@@ -25,11 +25,11 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
   }
 
   /**
-   * Get the current roots of the commitment trees.
-   * @returns The current roots of the trees.
+   * Get the current state reference.
+   * @returns The current state reference.
    */
-  getTreeRoots(): Promise<CurrentTreeRoots> {
-    return this.trees.getTreeRoots(this.includeUncommitted);
+  getStateReference(): Promise<StateReference> {
+    return this.trees.getStateReference(this.includeUncommitted);
   }
 
   /**

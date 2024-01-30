@@ -1,5 +1,6 @@
-import { INITIAL_L2_BLOCK_NUM, MerkleTreeId, NoteFilter, randomTxHash } from '@aztec/circuit-types';
-import { AztecAddress, BlockHeader, CompleteAddress } from '@aztec/circuits.js';
+import { INITIAL_L2_BLOCK_NUM, NoteFilter, randomTxHash } from '@aztec/circuit-types';
+import { AztecAddress, CompleteAddress } from '@aztec/circuits.js';
+import { makeHeader } from '@aztec/circuits.js/factories';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { BenchmarkingContractArtifact } from '@aztec/noir-contracts/Benchmarking';
 import { SerializableContractInstance } from '@aztec/types/contracts';
@@ -155,28 +156,14 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
 
     describe('block header', () => {
       it('stores and retrieves the block header', async () => {
-        const blockHeader = BlockHeader.random();
-        blockHeader.privateKernelVkTreeRoot = Fr.zero();
+        const header = makeHeader(Math.floor(Math.random() * 1000), INITIAL_L2_BLOCK_NUM);
 
-        await database.setBlockData(INITIAL_L2_BLOCK_NUM, blockHeader);
-        expect(database.getBlockHeader()).toEqual(blockHeader);
+        await database.setHeader(header);
+        expect(database.getHeader()).toEqual(header);
       });
 
-      it('retrieves the merkle tree roots from the block', async () => {
-        const blockHeader = BlockHeader.random();
-        await database.setBlockData(INITIAL_L2_BLOCK_NUM, blockHeader);
-        expect(database.getTreeRoots()).toEqual({
-          [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot,
-          [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot,
-          [MerkleTreeId.CONTRACT_TREE]: blockHeader.contractTreeRoot,
-          [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: blockHeader.l1ToL2MessageTreeRoot,
-          [MerkleTreeId.ARCHIVE]: blockHeader.archiveRoot,
-          [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot,
-        });
-      });
-
-      it('rejects getting merkle tree roots if no block set', () => {
-        expect(() => database.getTreeRoots()).toThrow();
+      it('rejects getting header if no block set', () => {
+        expect(() => database.getHeader()).toThrow();
       });
     });
 

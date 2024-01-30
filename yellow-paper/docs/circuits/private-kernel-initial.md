@@ -91,7 +91,7 @@ It verifies that the private function was executed successfully with the provide
 
 It ensures the private function circuit's intention by checking the following in _[private_call](#privatecall).[call_stack_item](#privatecallstackitem).[public_inputs](./private-function.md#public-inputs)_:
 
-- The _block_header_ must match the one in the _[constant_data](#constantdata)_.
+- The _header_ must match the one in the _[constant_data](#constantdata)_.
 
 #### Verifying the counters.
 
@@ -212,7 +212,7 @@ This circuit verifies that the values in _[private_inputs](#private-inputs).[pri
 It verifies that:
 
 - The _tx_context_ in the _[constant_data](#constantdata)_ matches the _tx_context_ in the _[transaction_request](#transactionrequest)_.
-- The _block_header_ must align with the one used in the private function circuit, as verified [earlier](#verifying-the-public-inputs-of-the-private-function-circuit).
+- The _header_ must align with the one used in the private function circuit, as verified [earlier](#verifying-the-public-inputs-of-the-private-function-circuit).
 
 ## Private Inputs
 
@@ -249,7 +249,7 @@ Data that remains the same throughout the entire transaction.
 
 | Field          | Type                                               | Description                                                   |
 | -------------- | -------------------------------------------------- | ------------------------------------------------------------- |
-| _block_header_ | _[BlockHeader](./private-function.md#blockheader)_ | Roots of the trees at the time the transaction was assembled. |
+| _header_       | _[Header](./private-function.md#header)_           | Header of a block which was used when assembling the tx.      |
 | _tx_context_   | _[TransactionContext](#transactioncontext)_        | Context of the transaction.                                   |
 
 ### _TransientAccumulatedData_

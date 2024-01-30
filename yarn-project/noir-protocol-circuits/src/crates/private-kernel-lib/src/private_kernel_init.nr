@@ -21,7 +21,7 @@ struct PrivateKernelInputsInit {
 impl PrivateKernelInputsInit {
     fn initialize_end_values(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
         public_inputs.constants = CombinedConstantData {
-            block_header: self.private_call.call_stack_item.public_inputs.block_header,
+            header: self.private_call.call_stack_item.public_inputs.historical_header,
             tx_context: self.tx_request.tx_context,
         };
     }
@@ -91,7 +91,7 @@ impl PrivateKernelInputsInit {
         self.validate_this_private_call_against_tx_request();
 
         common::validate_read_requests(
-            public_inputs.constants.block_header.note_hash_tree_root(),
+            public_inputs.constants.header.state.partial.note_hash_tree.root,
             self.private_call.call_stack_item.public_inputs.read_requests,
             self.private_call.read_request_membership_witnesses
         );

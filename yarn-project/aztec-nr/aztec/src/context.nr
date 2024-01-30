@@ -11,7 +11,7 @@ use crate::{
         public_call::call_public_function_internal,
         enqueue_public_function_call::enqueue_public_function_call_internal,
         context::get_portal_address,
-        get_block_header::get_block_header,
+        header::get_header_at,
         nullifier_key::{get_nullifier_key_pair, NullifierKeyPair},
     },
     types::vec::BoundedVec,
@@ -19,8 +19,9 @@ use crate::{
 };
 use dep::protocol_types::{
     abis::{
-        block_header::BlockHeader,
+        append_only_tree_snapshot::AppendOnlyTreeSnapshot,
         call_context::CallContext,
+        global_variables::GlobalVariables,
         function_data::FunctionData,
         function_selector::FunctionSelector,
         nullifier_key_validation_request::NullifierKeyValidationRequest,
@@ -55,6 +56,8 @@ use dep::protocol_types::{
     grumpkin_point::GrumpkinPoint,
     grumpkin_private_key::GrumpkinPrivateKey,
     hash::hash_args,
+    header::Header,
+    state_reference::StateReference,
 };
 use dep::std::{
     option::Option,
@@ -83,7 +86,7 @@ struct PrivateContext {
     new_l2_to_l1_msgs : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
     // docs:end:private-context
 
-    block_header: BlockHeader,
+    historical_header: Header,
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
     // encrypted_logs_preimages: Vec<Field>,
@@ -107,7 +110,7 @@ impl PrivateContext {
             new_commitments: BoundedVec::new(SideEffect::empty()),
             new_nullifiers: BoundedVec::new(SideEffectLinkedToNoteHash::empty()),
 
-            block_header: inputs.block_header,
+            historical_header: inputs.historical_header,
 
             private_call_stack_hashes: BoundedVec::new(0),
             public_call_stack_hashes: BoundedVec::new(0),
@@ -145,8 +148,13 @@ impl PrivateContext {
         self.inputs.call_context.function_selector
     }
 
-    pub fn get_block_header(self, block_number: u32) -> BlockHeader {
-        get_block_header(block_number, self)
+    // Returns the header of a block whose state is used during private execution
+    pub fn get_header(self) -> Header {
+        self.historical_header
+    }
+
+    pub fn get_header_at(self, block_number: u32) -> Header {
+        get_header_at(block_number, self)
     }
 
     pub fn finish(self) -> PrivateCircuitPublicInputs {
@@ -172,7 +180,7 @@ impl PrivateContext {
             unencrypted_logs_hash: unencrypted_logs_hash,
             encrypted_log_preimages_length: encrypted_log_preimages_length,
             unencrypted_log_preimages_length: unencrypted_log_preimages_length,
-            block_header: self.block_header,
+            historical_header: self.historical_header,
             contract_deployment_data: self.inputs.contract_deployment_data,
             chain_id: self.inputs.private_global_variables.chain_id,
             version: self.inputs.private_global_variables.version,
@@ -245,7 +253,7 @@ impl PrivateContext {
     ) 
     // docs:end:context_consume_l1_to_l2_message
     {
-        let nullifier = process_l1_to_l2_message(self.block_header.l1_to_l2_message_tree_root, self.this_address(), self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
+        let nullifier = process_l1_to_l2_message(self.historical_header.state.l1_to_l2_message_tree.root, self.this_address(), self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
         self.push_new_nullifier(nullifier, 0)
@@ -330,16 +338,7 @@ impl PrivateContext {
                 unencrypted_logs_hash: reader.read_array([0; NUM_FIELDS_PER_SHA256]),
                 encrypted_log_preimages_length: reader.read(),
                 unencrypted_log_preimages_length: reader.read(),
-                block_header: BlockHeader{
-                    // Must match order in `private_circuit_public_inputs.hpp`
-                    note_hash_tree_root : reader.read(),
-                    nullifier_tree_root : reader.read(),
-                    contract_tree_root : reader.read(),
-                    l1_to_l2_message_tree_root : reader.read(),
-                    archive_root : reader.read(),
-                    public_data_tree_root: reader.read(),
-                    global_variables_hash: reader.read(),
-                },
+                historical_header: reader.read_struct(Header::deserialize),
                 contract_deployment_data: ContractDeploymentData {
                     deployer_public_key: GrumpkinPoint {
                       x: reader.read(), 
@@ -446,7 +445,7 @@ impl PrivateContext {
                 new_l2_to_l1_msgs:[0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
                 unencrypted_logs_hash:[0; NUM_FIELDS_PER_SHA256],
                 unencrypted_log_preimages_length: 0,
-                block_header: BlockHeader::empty(),
+                historical_header: Header::empty(),
                 prover_address: AztecAddress::zero(),
             },
             is_execution_request: true,
@@ -495,7 +494,7 @@ struct PublicContext {
     unencrypted_logs_hash: BoundedVec<Field, NUM_FIELDS_PER_SHA256>,
     unencrypted_logs_preimages_length: Field,
 
-    block_header: BlockHeader,
+    historical_header: Header,
     prover_address: AztecAddress,
 }
 
@@ -523,7 +522,7 @@ impl PublicContext {
             unencrypted_logs_hash: BoundedVec::new(0),
             unencrypted_logs_preimages_length: 0,
 
-            block_header: inputs.block_header,
+            historical_header: inputs.historical_header,
             prover_address: AztecAddress::zero(),
 
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
@@ -583,7 +582,7 @@ impl PublicContext {
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             unencrypted_logs_hash: unencrypted_logs_hash,
             unencrypted_log_preimages_length: unencrypted_log_preimages_length,
-            block_header: self.inputs.block_header,
+            historical_header: self.inputs.historical_header,
             prover_address: self.prover_address,
         };
         pub_circuit_pub_inputs
@@ -616,7 +615,7 @@ impl PublicContext {
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
     pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field) {
         let this = (*self).this_address();
-        let nullifier = process_l1_to_l2_message(self.block_header.l1_to_l2_message_tree_root, this, self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
+        let nullifier = process_l1_to_l2_message(self.historical_header.state.l1_to_l2_message_tree.root, this, self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
         self.push_new_nullifier(nullifier, 0)

@@ -1,5 +1,5 @@
 import { ContractDao, MerkleTreeId, NoteFilter, PublicKey } from '@aztec/circuit-types';
-import { AztecAddress, BlockHeader, CompleteAddress } from '@aztec/circuits.js';
+import { AztecAddress, CompleteAddress, Header } from '@aztec/circuits.js';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -11,21 +11,11 @@ import { DeferredNoteDao } from './deferred_note_dao.js';
 import { NoteDao } from './note_dao.js';
 import { PxeDatabase } from './pxe_database.js';
 
-/** Serialized structure of a block header */
-type SynchronizedBlock = {
-  /** The tree roots when the block was created */
-  roots: Record<MerkleTreeId, string>;
-  /** The hash of the global variables */
-  globalVariablesHash: string;
-  /** The block number */
-  blockNumber: number;
-};
-
 /**
  * A PXE database backed by LMDB.
  */
 export class KVPxeDatabase implements PxeDatabase {
-  #synchronizedBlock: AztecSingleton<SynchronizedBlock>;
+  #synchronizedBlock: AztecSingleton<Buffer>;
   #addresses: AztecArray<Buffer>;
   #addressIndex: AztecMap<string, number>;
   #authWitnesses: AztecMap<string, Buffer[]>;
@@ -58,7 +48,7 @@ export class KVPxeDatabase implements PxeDatabase {
     this.#contractInstances = db.openMap('contracts_instances');
     this.#notesByOwner = db.openMultiMap('notes_by_owner');
 
-    this.#synchronizedBlock = db.openSingleton('block_header');
+    this.#synchronizedBlock = db.openSingleton('header');
     this.#syncedBlockPerPublicKey = db.openMap('synced_block_per_public_key');
 
     this.#notes = db.openMap('notes');
@@ -282,59 +272,26 @@ export class KVPxeDatabase implements PxeDatabase {
     });
   }
 
-  getTreeRoots(): Record<MerkleTreeId, Fr> {
-    const roots = this.#synchronizedBlock.get()?.roots;
-    if (!roots) {
-      throw new Error(`Tree roots not set`);
-    }
-
-    return {
-      [MerkleTreeId.ARCHIVE]: Fr.fromString(roots[MerkleTreeId.ARCHIVE]),
-      [MerkleTreeId.CONTRACT_TREE]: Fr.fromString(roots[MerkleTreeId.CONTRACT_TREE].toString()),
-      [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: Fr.fromString(roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE].toString()),
-      [MerkleTreeId.NOTE_HASH_TREE]: Fr.fromString(roots[MerkleTreeId.NOTE_HASH_TREE].toString()),
-      [MerkleTreeId.PUBLIC_DATA_TREE]: Fr.fromString(roots[MerkleTreeId.PUBLIC_DATA_TREE].toString()),
-      [MerkleTreeId.NULLIFIER_TREE]: Fr.fromString(roots[MerkleTreeId.NULLIFIER_TREE].toString()),
-    };
-  }
-
-  async setBlockData(blockNumber: number, blockHeader: BlockHeader): Promise<void> {
-    await this.#synchronizedBlock.set({
-      blockNumber,
-      globalVariablesHash: blockHeader.globalVariablesHash.toString(),
-      roots: {
-        [MerkleTreeId.NOTE_HASH_TREE]: blockHeader.noteHashTreeRoot.toString(),
-        [MerkleTreeId.NULLIFIER_TREE]: blockHeader.nullifierTreeRoot.toString(),
-        [MerkleTreeId.CONTRACT_TREE]: blockHeader.contractTreeRoot.toString(),
-        [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: blockHeader.l1ToL2MessageTreeRoot.toString(),
-        [MerkleTreeId.ARCHIVE]: blockHeader.archiveRoot.toString(),
-        [MerkleTreeId.PUBLIC_DATA_TREE]: blockHeader.publicDataTreeRoot.toString(),
-      },
-    });
+  async setHeader(header: Header): Promise<void> {
+    await this.#synchronizedBlock.set(header.toBuffer());
   }
 
   getBlockNumber(): number | undefined {
-    return this.#synchronizedBlock.get()?.blockNumber;
-  }
-
-  getBlockHeader(): BlockHeader {
-    const value = this.#synchronizedBlock.get();
-    if (!value) {
-      throw new Error(`Block header not set`);
+    const headerBuffer = this.#synchronizedBlock.get();
+    if (!headerBuffer) {
+      return undefined;
     }
 
-    const blockHeader = new BlockHeader(
-      Fr.fromString(value.roots[MerkleTreeId.NOTE_HASH_TREE]),
-      Fr.fromString(value.roots[MerkleTreeId.NULLIFIER_TREE]),
-      Fr.fromString(value.roots[MerkleTreeId.CONTRACT_TREE]),
-      Fr.fromString(value.roots[MerkleTreeId.L1_TO_L2_MESSAGE_TREE]),
-      Fr.fromString(value.roots[MerkleTreeId.ARCHIVE]),
-      Fr.ZERO, // todo: private kernel vk tree root
-      Fr.fromString(value.roots[MerkleTreeId.PUBLIC_DATA_TREE]),
-      Fr.fromString(value.globalVariablesHash),
-    );
+    return Number(Header.fromBuffer(headerBuffer).globalVariables.blockNumber.toBigInt());
+  }
 
-    return blockHeader;
+  getHeader(): Header {
+    const headerBuffer = this.#synchronizedBlock.get();
+    if (!headerBuffer) {
+      throw new Error(`Header not set`);
+    }
+
+    return Header.fromBuffer(headerBuffer);
   }
 
   addCompleteAddress(completeAddress: CompleteAddress): Promise<boolean> {
