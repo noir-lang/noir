@@ -400,8 +400,8 @@ impl AcirContext {
             // Operands are booleans.
             //
             // a ^ b == a + b - 2*a*b
-            let sum = self.add_var(lhs, rhs)?;
             let prod = self.mul_var(lhs, rhs)?;
+            let sum = self.add_var(lhs, rhs)?;
             self.add_mul_var(sum, -FieldElement::from(2_i128), prod)
         } else {
             let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
@@ -461,8 +461,8 @@ impl AcirContext {
         if bit_size == 1 {
             // Operands are booleans
             // a + b - ab
-            let sum = self.add_var(lhs, rhs)?;
             let mul = self.mul_var(lhs, rhs)?;
+            let sum = self.add_var(lhs, rhs)?;
             self.sub_var(sum, mul)
         } else {
             // Implement OR in terms of AND
