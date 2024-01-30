@@ -494,21 +494,16 @@ impl FunctionBuilder {
                 // This is a bit odd, but in brillig the inc_rc instruction operates on
                 // a copy of the array's metadata, so we need to re-store a loaded array
                 // even if there have been no other changes to it.
-                match &self.current_function.dfg[value] {
-                    Value::Instruction { instruction, .. } => {
-                        match &self.current_function.dfg[*instruction] {
-                            Instruction::Load { address } => {
-                                // We can't re-use `value` in case the original address was stored
-                                // to again in the meantime. So introduce another load.
-                                let address = *address;
-                                let value = self.insert_load(address, typ);
-                                self.insert_instruction(Instruction::IncrementRc { value }, None);
-                                self.insert_store(address, value);
-                            }
-                            _ => (),
-                        }
+                if let Value::Instruction { instruction, .. } = &self.current_function.dfg[value] {
+                    let instruction = &self.current_function.dfg[*instruction];
+                    if let Instruction::Load { address } = instruction {
+                        // We can't re-use `value` in case the original address was stored
+                        // to again in the meantime. So introduce another load.
+                        let address = *address;
+                        let value = self.insert_load(address, typ);
+                        self.insert_instruction(Instruction::IncrementRc { value }, None);
+                        self.insert_store(address, value);
                     }
-                    _ => (),
                 }
             }
         }
