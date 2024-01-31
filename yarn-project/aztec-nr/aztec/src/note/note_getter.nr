@@ -14,7 +14,7 @@ use crate::note::{
     note_getter_options::{NoteGetterOptions, Select, Sort, SortOrder, Comparator, NoteStatus},
     note_interface::NoteInterface,
     note_viewer_options::NoteViewerOptions,
-    utils::compute_note_hash_for_read_or_nullify,
+    utils::compute_note_hash_for_consumption,
 };
 use crate::oracle;
 
@@ -78,7 +78,7 @@ pub fn get_note<Note, N>(
 
     check_note_header(*context, storage_slot, note);
 
-    let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note);
+    let note_hash_for_read_request = compute_note_hash_for_consumption(note);
 
     context.push_read_request(note_hash_for_read_request);
     note
@@ -104,7 +104,7 @@ pub fn get_notes<Note, N, FILTER_ARGS>(
             }
             prev_fields = fields;
 
-            let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note);
+            let note_hash_for_read_request = compute_note_hash_for_consumption(note);
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure
             // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
             context.push_read_request(note_hash_for_read_request);

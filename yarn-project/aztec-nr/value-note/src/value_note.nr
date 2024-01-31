@@ -6,7 +6,7 @@ use dep::aztec::{
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
-        utils::compute_note_hash_for_read_or_nullify,
+        utils::compute_note_hash_for_consumption,
     },
     oracle::{
         rand::rand,
@@ -56,7 +56,7 @@ impl NoteInterface for ValueNote {
     // docs:start:nullifier
 
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
-        let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(self);
+        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([
@@ -69,7 +69,7 @@ impl NoteInterface for ValueNote {
     // docs:end:nullifier
 
     fn compute_nullifier_without_context(self) -> Field {
-        let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(self);
+        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_nullifier_secret_key(self.owner);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([

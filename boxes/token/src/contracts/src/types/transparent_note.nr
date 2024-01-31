@@ -3,7 +3,7 @@ use dep::aztec::{
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
-        utils::compute_note_hash_for_read_or_nullify,
+        utils::compute_note_hash_for_consumption,
     },
     hash::{compute_secret_hash, pedersen_hash},
     context::PrivateContext,
@@ -52,7 +52,7 @@ impl NoteInterface for TransparentNote {
     }
 
     fn compute_nullifier_without_context(self) -> Field {
-        let siloed_note_hash = compute_note_hash_for_read_or_nullify(self);
+        let siloed_note_hash = compute_note_hash_for_consumption(self);
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash([self.secret, siloed_note_hash],0)
     }

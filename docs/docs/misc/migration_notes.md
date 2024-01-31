@@ -29,7 +29,15 @@ impl NoteInterface for CardNote {
             self.owner.to_field(),
         ], 0)
     }
-``````
+```
+
+### Introduce `compute_note_hash_for_consumption` and `compute_note_hash_for_insertion`
+
+Makes a split in logic for note hash computation for consumption and insertion. This is to avoid confusion between the two, and to make it clear that the note hash for consumption is different from the note hash for insertion (sometimes).
+
+`compute_note_hash_for_consumption` replaces `compute_note_hash_for_read_or_nullify`.
+`compute_note_hash_for_insertion` is new, and mainly used in `lifecycle.nr``
+
 
 ## 0.22.0
 

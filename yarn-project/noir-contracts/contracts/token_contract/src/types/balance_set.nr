@@ -15,8 +15,7 @@ use dep::aztec::note::{
 };
 use dep::aztec::note::{
     note_header::NoteHeader,
-    note_interface::NoteInterface,
-    utils::compute_note_hash_for_read_or_nullify,
+    note_interface::NoteInterface
 };
 use crate::types::token_note::TokenNote;
 

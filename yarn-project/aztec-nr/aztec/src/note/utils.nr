@@ -63,10 +63,17 @@ pub fn compute_siloed_nullifier<Note>(
     pedersen_hash(input, GENERATOR_INDEX__OUTER_NULLIFIER)
 }
 
-pub fn compute_note_hash_for_read_or_nullify<Note>(note: Note) -> Field where Note: NoteInterface {
-    let header = note.get_header();
+pub fn compute_note_hash_for_insertion<Note>(note: Note) -> Field where Note: NoteInterface {
+    compute_inner_note_hash(note)
+}
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
+pub fn compute_note_hash_for_consumption<Note>(note: Note) -> Field where Note: NoteInterface {
+    let header = note.get_header();
+    // There are 3 cases for reading a note intended for consumption:
+    // 1. The note was inserted in this transaction, and is transient.
+    // 2. The note was inserted in a previous transaction, and was inserted in public
+    // 3. The note was inserted in a previous transaction, and was inserted in private
+
     if (header.is_transient) {
         // If a note is transient, we just read the inner_note_hash (kernel will silo by contract address).
         compute_inner_note_hash(note)
