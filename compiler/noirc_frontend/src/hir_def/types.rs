@@ -755,7 +755,7 @@ impl std::fmt::Display for Type {
                     // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
                     // what they bind to by default anyway. It is less confusing than displaying it
                     // as a generic.
-                    write!(f, "Integer")
+                    write!(f, "u64")
                 } else {
                     write!(f, "{}", binding.0.borrow())
                 }

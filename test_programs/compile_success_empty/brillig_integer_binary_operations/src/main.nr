@@ -1,7 +1,7 @@
 // Tests arithmetic operations on integers
 fn main() {
-    let x = 6;
-    let y = 2;
+    let x: u32 = 6;
+    let y: u32 = 2;
 
     assert((x + y) == add(x, y));
 
@@ -59,9 +59,8 @@ unconstrained fn and(x: u32, y: u32) -> u32 {
     x & y
 }
 
-unconstrained fn or(x: u32, y: u32) -> () {
-    let z = x | y;
-    ()
+unconstrained fn or(x: u32, y: u32) -> u32 {
+    x | y
 }
 
 unconstrained fn check_xor(x: u32, y: u32, result: u32) -> bool {
