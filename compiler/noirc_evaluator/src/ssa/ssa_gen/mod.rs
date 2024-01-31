@@ -689,7 +689,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         assert_message: &Option<Box<Expression>>,
     ) -> Result<Option<Box<ConstrainError>>, RuntimeError> {
- let Some(assert_message_expr) = assert_message else {
+        let Some(assert_message_expr) = assert_message else {
             return Ok(None)
         };
 
