@@ -280,7 +280,7 @@ impl<'block> BrilligBlock<'block> {
 
                             self.convert_ssa_function_call(*func_id, arguments, dfg, &[]);
 
-                            // Dynamic assert message is handled in the generated function call.
+                            // Dynamic assert messages are handled in the generated function call.
                             // We then don't need to attach one to the constrain instruction.
                             None
                         }
