@@ -246,69 +246,77 @@ The key distinction is that this method is unconstrained. It does not perform a 
 
 This function requires a `NoteViewerOptions`. The `NoteViewerOptions` is essentially similar to the [`NoteGetterOptions`](#notegetteroptions), except that it doesn't take a custom filter.
 
-### NoteGetterOptions
+## `NoteGetterOptions`
 
 `NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a [data oracle](../functions/oracles.md). Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
 
 You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/note/note_getter_options.nr).
 
-#### `selects: BoundedVec<Option<Select>, N>`
+### `selects: BoundedVec<Option<Select>, N>`
 
 `selects` is a collection of filtering criteria, specified by `Select { field_index: u8, value: Field, comparator: u3 }` structs. It instructs the data oracle to find notes whose (`field_index`)th field matches the provided `value`, according to the `comparator`.
 
-#### `sorts: BoundedVec<Option<Sort>, N>`
+### `sorts: BoundedVec<Option<Sort>, N>`
 
 `sorts` is a set of sorting instructions defined by `Sort { field_index: u8, order: u2 }` structs. This directs the data oracle to sort the matching notes based on the value of the specified field index and in the indicated order. The value of order is **1** for _DESCENDING_ and **2** for _ASCENDING_.
 
-#### `limit: u32`
+### `limit: u32`
 
 When the `limit` is set to a non-zero value, the data oracle will return a maximum of `limit` notes.
 
-#### `offset: u32`
+### `offset: u32`
 
 This setting enables us to skip the first `offset` notes. It's particularly useful for pagination.
 
-#### `filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL]`
+### `filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL]`
 
 Developers have the option to provide a custom filter. This allows specific logic to be applied to notes that meet the criteria outlined above. The filter takes the notes returned from the oracle and `filter_args` as its parameters.
 
 It's important to note that the process of applying the custom filter to get the final notes is not constrained. It's crucial to verify the returned notes even if certain assumptions are made in the custom filter.
 
-#### `filter_args: FILTER_ARGS`
+### `filter_args: FILTER_ARGS`
 
 `filter_args` provides a means to furnish additional data or context to the custom filter.
 
-#### Methods
+### `status: u2`
+
+`status` allows the caller to retrieve notes that have been nullified, which can be useful to prove historical data. Note that when querying for both active and nullified notes the caller cannot know if each note retrieved has or has not been nullified.
+
+### Methods
 
 Several methods are available on `NoteGetterOptions` to construct the options in a more readable manner:
 
-#### `fn new() -> NoteGetterOptions<Note, N, Field>`
+### `fn new() -> NoteGetterOptions<Note, N, Field>`
 
 This function initializes a `NoteGetterOptions` that simply returns the maximum number of notes allowed in a call.
 
-#### `fn with_filter(filter, filter_args) -> NoteGetterOptions<Note, N, FILTER_ARGS>`
+### `fn with_filter(filter, filter_args) -> NoteGetterOptions<Note, N, FILTER_ARGS>`
 
 This function initializes a `NoteGetterOptions` with a [`filter`](#filter-fn-optionnote-max_read_requests_per_call-filter_args---optionnote-max_read_requests_per_call) and [`filter_args`](#filter_args-filter_args).
 
-#### `.select`
+### `.select`
 
 This method adds a [`Select`](#selects-boundedvecoptionselect-n) criterion to the options.
 
-#### `.sort`
+### `.sort`
 
 This method adds a [`Sort`](#sorts-boundedvecoptionsort-n) criterion to the options.
 
-#### `.set_limit`
+### `.set_limit`
 
 This method lets you set a limit for the maximum number of notes to be retrieved.
 
-#### `.set_offset`
+### `.set_offset`
 
 This method sets the offset value, which determines where to start retrieving notes.
 
-#### Examples
+### `.set_status`
 
-##### Example 1
+This method sets the status of notes to retrieve (active or nullified).
+
+### Examples
+
+#### Example 1
 
 The following code snippet creates an instance of `NoteGetterOptions`, which has been configured to find the cards that belong to `account_address`. The returned cards are sorted by their points in descending order, and the first `offset` cards with the highest points are skipped.
 
@@ -342,7 +350,7 @@ The limit is `MAX_READ_REQUESTS_PER_CALL` by default. But we can set it to any v
 
 #include_code state_vars-NoteGetterOptionsPickOne /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
-##### Example 2
+#### Example 2
 
 An example of how we can use a Comparator to select notes when calling a Noir contract from aztec.js is below.
 
@@ -351,4 +359,3 @@ An example of how we can use a Comparator to select notes when calling a Noir co
 In this example, we use the above typescript code to invoke a call to our Noir contract below. This Noir contract function takes an input to match with, and a comparator to use when fetching and selecting notes from storage.
 
 #include_code state_vars-NoteGetterOptionsComparatorExampleNoir /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
-
