@@ -58,17 +58,7 @@ mod test {
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
-        let (program, parser_errors) = parse_program(src);
-        // match noirc_macros::AssertMessageMacro.process_untyped_ast(ast.clone(), &crate_id, context) {
-        //     Ok(processed_ast) => {
-        //         ast = processed_ast;
-        //     }
-        //     Err((error, file_id)) => {
-        //         let def_error = DefCollectorErrorKind::MacroError(error);
-        //         errors.push((def_error.into(), file_id));
-        //     }
-        // }
-
+        let (program, parser_errors) = parse_program(src);      
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
         remove_experimental_warnings(&mut errors);
 
