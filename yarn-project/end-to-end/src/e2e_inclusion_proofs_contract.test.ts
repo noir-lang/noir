@@ -157,11 +157,15 @@ describe('e2e_inclusion_proofs_contract', () => {
     it('public value existence failure case', async () => {
       // Choose random block number between first block and current block number to test archival node
       const blockNumber = await getRandomBlockNumber();
-
       const randomPublicValue = Fr.random();
       await expect(
         contract.methods.test_public_value_inclusion_proof(randomPublicValue, blockNumber).send().wait(),
-      ).rejects.toThrow(/Public value does not match value in witness/);
+      ).rejects.toThrow('Public value does not match the witness');
+    });
+
+    it('proves existence of uninitialized public value', async () => {
+      const blockNumber = await getRandomBlockNumber();
+      await contract.methods.test_public_unused_value_inclusion_proof(blockNumber).send().wait();
     });
   });
 

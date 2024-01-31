@@ -610,7 +610,7 @@ jobs:
           name: "Test"
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_sandbox_example.test.ts
 
-  e2e-singleton:
+  e2e-state-vars:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -619,7 +619,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_singleton.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_state_vars.test.ts
 
   e2e-block-building:
     docker:
@@ -1240,7 +1240,7 @@ workflows:
       # TODO(3458): Investigate intermittent failure
       # - e2e-slow-tree: *e2e_test
       - e2e-sandbox-example: *e2e_test
-      - e2e-singleton: *e2e_test
+      - e2e-state-vars: *e2e_test
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
       - e2e-non-contract-account: *e2e_test
@@ -1278,7 +1278,7 @@ workflows:
             - e2e-token-contract
             - e2e-blacklist-token-contract
             - e2e-sandbox-example
-            - e2e-singleton
+            - e2e-state-vars
             - e2e-block-building
             - e2e-nested-contract
             - e2e-non-contract-account

@@ -10,7 +10,7 @@ import {
   SideEffect,
   TxContext,
 } from '@aztec/circuits.js';
-import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
+import { computePublicDataTreeLeafSlot, computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { FunctionAbi, FunctionArtifact, countArgumentsSize } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -435,5 +435,30 @@ export class ClientExecutionContext extends ViewDataOracle {
       false,
       startSideEffectCounter,
     );
+  }
+
+  /**
+   * Read the public storage data.
+   * @param startStorageSlot - The starting storage slot.
+   * @param numberOfElements - Number of elements to read from the starting storage slot.
+   */
+  public async storageRead(startStorageSlot: Fr, numberOfElements: number): Promise<Fr[]> {
+    // TODO(#4320): This is a hack to work around not having directly access to the public data tree but
+    // still having access to the witnesses
+    const bn = await this.db.getBlockNumber();
+
+    const values = [];
+    for (let i = 0n; i < numberOfElements; i++) {
+      const storageSlot = new Fr(startStorageSlot.value + i);
+      const leafSlot = computePublicDataTreeLeafSlot(this.contractAddress, storageSlot);
+      const witness = await this.db.getPublicDataTreeWitness(bn, leafSlot);
+      if (!witness) {
+        throw new Error(`No witness for slot ${storageSlot.toString()}`);
+      }
+      const value = witness.leafPreimage.value;
+      this.log(`Oracle storage read: slot=${storageSlot.toString()} value=${value}`);
+      values.push(value);
+    }
+    return values;
   }
 }

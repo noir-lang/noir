@@ -35,12 +35,20 @@ pub fn prove_public_value_inclusion(
 
     // 4) Check that the witness matches the corresponding public_value
     let preimage = witness.leaf_preimage;
-    if preimage.slot == public_value_leaf_slot {
-        assert_eq(preimage.value, value, "Public value does not match value in witness");
+
+    // Here we have two cases. Code based on same checks in `validate_public_data_reads` in `base_rollup_inputs`
+    // 1. The value is the same as the one in the witness
+    // 2. The value was never initialized and is zero
+    let is_less_than_slot = full_field_less_than(preimage.slot, public_value_leaf_slot);
+    let is_next_greater_than = full_field_less_than(public_value_leaf_slot, preimage.next_slot);
+    let is_max = ((preimage.next_index == 0) & (preimage.next_slot == 0));
+    let is_in_range = is_less_than_slot & (is_next_greater_than | is_max);
+
+    if is_in_range {
+        assert_eq(value, 0, "Non-existant public data leaf value is non-zero");
     } else {
-        assert_eq(value, 0, "Got non-zero public value for non-existing slot");
-        assert(full_field_less_than(preimage.slot, public_value_leaf_slot), "Invalid witness range");
-        assert(full_field_less_than(public_value_leaf_slot, preimage.next_slot), "Invalid witness range");
+        assert_eq(preimage.slot, public_value_leaf_slot, "Public data slot don't match witness");
+        assert_eq(preimage.value, value, "Public value does not match the witness");
     }
 
     // 5) Prove that the leaf we validated is in the public data tree
