@@ -87,43 +87,87 @@ describe('e2e_token_contract', () => {
       reader = await ReaderContract.deploy(wallets[0]).send().deployed();
     });
 
-    it('name', async () => {
-      const t = toString(await asset.methods.un_get_name().view());
-      expect(t).toBe(TOKEN_NAME);
+    describe('name', () => {
+      it('private', async () => {
+        const t = toString(await asset.methods.un_get_name().view());
+        expect(t).toBe(TOKEN_NAME);
 
-      const tx = reader.methods.check_name(asset.address, TOKEN_NAME).send();
-      const receipt = await tx.wait();
-      expect(receipt.status).toBe(TxStatus.MINED);
+        const tx = reader.methods.check_name_private(asset.address, TOKEN_NAME).send();
+        const receipt = await tx.wait();
+        expect(receipt.status).toBe(TxStatus.MINED);
 
-      await expect(reader.methods.check_name(asset.address, 'WRONG_NAME').simulate()).rejects.toThrowError(
-        "Failed to solve brillig function, reason: explicit trap hit in brillig 'name.is_eq(_what)'",
-      );
+        await expect(reader.methods.check_name_private(asset.address, 'WRONG_NAME').simulate()).rejects.toThrowError(
+          "Cannot satisfy constraint 'name.is_eq(_what)'",
+        );
+      });
+
+      it('public', async () => {
+        const t = toString(await asset.methods.un_get_name().view());
+        expect(t).toBe(TOKEN_NAME);
+
+        const tx = reader.methods.check_name_public(asset.address, TOKEN_NAME).send();
+        const receipt = await tx.wait();
+        expect(receipt.status).toBe(TxStatus.MINED);
+
+        await expect(reader.methods.check_name_public(asset.address, 'WRONG_NAME').simulate()).rejects.toThrowError(
+          "Failed to solve brillig function, reason: explicit trap hit in brillig 'name.is_eq(_what)'",
+        );
+      });
     });
 
-    it('symbol', async () => {
-      const t = toString(await asset.methods.un_get_symbol().view());
-      expect(t).toBe(TOKEN_SYMBOL);
+    describe('symbol', () => {
+      it('private', async () => {
+        const t = toString(await asset.methods.un_get_symbol().view());
+        expect(t).toBe(TOKEN_SYMBOL);
 
-      const tx = reader.methods.check_symbol(asset.address, TOKEN_SYMBOL).send();
-      const receipt = await tx.wait();
-      expect(receipt.status).toBe(TxStatus.MINED);
+        const tx = reader.methods.check_symbol_private(asset.address, TOKEN_SYMBOL).send();
+        const receipt = await tx.wait();
+        expect(receipt.status).toBe(TxStatus.MINED);
 
-      await expect(reader.methods.check_symbol(asset.address, 'WRONG_SYMBOL').simulate()).rejects.toThrowError(
-        "Failed to solve brillig function, reason: explicit trap hit in brillig 'symbol.is_eq(_what)'",
-      );
+        await expect(
+          reader.methods.check_symbol_private(asset.address, 'WRONG_SYMBOL').simulate(),
+        ).rejects.toThrowError("Cannot satisfy constraint 'symbol.is_eq(_what)'");
+      });
+      it('public', async () => {
+        const t = toString(await asset.methods.un_get_symbol().view());
+        expect(t).toBe(TOKEN_SYMBOL);
+
+        const tx = reader.methods.check_symbol_public(asset.address, TOKEN_SYMBOL).send();
+        const receipt = await tx.wait();
+        expect(receipt.status).toBe(TxStatus.MINED);
+
+        await expect(reader.methods.check_symbol_public(asset.address, 'WRONG_SYMBOL').simulate()).rejects.toThrowError(
+          "Failed to solve brillig function, reason: explicit trap hit in brillig 'symbol.is_eq(_what)'",
+        );
+      });
     });
 
-    it('decimals', async () => {
-      const t = await asset.methods.un_get_decimals().view();
-      expect(t).toBe(TOKEN_DECIMALS);
+    describe('decimals', () => {
+      it('private', async () => {
+        const t = await asset.methods.un_get_decimals().view();
+        expect(t).toBe(TOKEN_DECIMALS);
 
-      const tx = reader.methods.check_decimals(asset.address, TOKEN_DECIMALS).send();
-      const receipt = await tx.wait();
-      expect(receipt.status).toBe(TxStatus.MINED);
+        const tx = reader.methods.check_decimals_private(asset.address, TOKEN_DECIMALS).send();
+        const receipt = await tx.wait();
+        expect(receipt.status).toBe(TxStatus.MINED);
 
-      await expect(reader.methods.check_decimals(asset.address, 99).simulate()).rejects.toThrowError(
-        "Failed to solve brillig function, reason: explicit trap hit in brillig 'ret[0] as u8 == what'",
-      );
+        await expect(reader.methods.check_decimals_private(asset.address, 99).simulate()).rejects.toThrowError(
+          "Cannot satisfy constraint 'ret[0] as u8 == what'",
+        );
+      });
+
+      it('public', async () => {
+        const t = await asset.methods.un_get_decimals().view();
+        expect(t).toBe(TOKEN_DECIMALS);
+
+        const tx = reader.methods.check_decimals_public(asset.address, TOKEN_DECIMALS).send();
+        const receipt = await tx.wait();
+        expect(receipt.status).toBe(TxStatus.MINED);
+
+        await expect(reader.methods.check_decimals_public(asset.address, 99).simulate()).rejects.toThrowError(
+          "Failed to solve brillig function, reason: explicit trap hit in brillig 'ret[0] as u8 == what'",
+        );
+      });
     });
   });
 

@@ -90,3 +90,45 @@ We have a `write` method on the `PublicState` struct that takes the value to wri
 #### Writing to our `minters` example
 
 #include_code write_minter /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+
+---
+
+## Stable Public State
+
+`StablePublicState` is a special type of `PublicState` that can be read from both public and private! 
+
+Since private execution is based on historical data, the user can pick ANY of its prior values to read from. This is why it `MUST` not be updated after the contract is deployed. The variable should be initialized at the constructor and then never changed. 
+
+This makes the stable public variables useful for stuff that you would usually have in `immutable` values in solidity. For example this can be the name of a token or its number of decimals.
+
+Just like the `PublicState` it is generic over the variable type `T`. The type `MUST` implement Serialize and Deserialize traits.
+
+You can find the details of `StablePublicState` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/stable_public_state.nr).
+
+### `new`
+Is done exactly like the `PublicState` struct, but with the `StablePublicState` struct.
+
+#include_code storage_decimals /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+
+#include_code storage_decimals_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+
+### `initialize`
+
+#include_code initialize_decimals /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+
+:::warning Should only be called as part of the deployment.
+If this is called outside the deployment transaction multiple values could be used down the line, potentially breaking the contract.
+
+Currently this is not constrained as we are in the middle of changing deployments.
+:::
+
+### `read_public`
+
+Reading the value is like `PublicState`, simply with `read_public` instead of `read`.
+#include_code read_decimals_public /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+
+
+### `read_private`
+Reading the value is like `PublicState`, simply with `read_private` instead of `read`. This part can only be executed in private.
+
+#include_code read_decimals_private /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust

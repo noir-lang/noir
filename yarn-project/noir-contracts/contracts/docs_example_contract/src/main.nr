@@ -46,7 +46,9 @@ contract DocsExample {
         // docs:end:storage-map-singleton-declaration
         test: Set<CardNote>,
         imm_singleton: ImmutableSingleton<CardNote>,
+        // docs:start:start_vars_stable
         stable_value: StablePublicState<Leader>,
+        // docs:end:start_vars_stable
     }
 
     impl Storage {
