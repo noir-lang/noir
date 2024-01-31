@@ -17,7 +17,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness);
 
-    // This message will be resolved by a nargo foreign call only when we have an unsatisfied assertion.
+    // This message should be resolved by a nargo foreign call only when we have an unsatisfied assertion.
     let mut assert_message: Option<String> = None;
     loop {
         let solver_status = acvm.solve();
@@ -40,7 +40,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
 
                 return Err(NargoError::ExecutionError(match call_stack {
                     Some(call_stack) => {
-                        // First check whether we have a runtime assertion message that should be returned on an ACVM failure
+                        // First check whether we have a runtime assertion message that should be resolved on an ACVM failure
                         // If we do not have a runtime assertion message, we should check whether the circuit has any hardcoded
                         // messages associated with a specific `OpcodeLocation`.
                         // Otherwise return the provided opcode resolution error.
@@ -59,7 +59,6 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
             }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
                 let foreign_call_result = foreign_call_executor.execute(&foreign_call)?;
-                dbg!(foreign_call_result.clone());
                 match foreign_call_result {
                     NargoForeignCallResult::BrilligOutput(foreign_call_result) => {
                         acvm.resolve_pending_foreign_call(foreign_call_result);
@@ -68,9 +67,8 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
                         if assert_message.is_some() {
                             panic!("ahhh we should not be resolving another assert message as the VM should have failed");
                         }
-                        if !message.is_empty() {
-                            assert_message = Some(message);
-                        }
+                        assert_message = Some(message);
+
                         acvm.resolve_pending_foreign_call(ForeignCallResult::default());
                     }
                 }

@@ -1181,13 +1181,11 @@ impl<'a> Resolver<'a> {
         assert_message_expr: Option<Expression>,
         span: Span,
         condition: Expression,
-    ) -> ExprId {
+    ) -> Option<ExprId> {
         let mut assert_msg_call_args = if let Some(assert_message_expr) = assert_message_expr {
             vec![assert_message_expr.clone()]
         } else {
-            let kind = ExpressionKind::string("".to_owned());
-            let arg = Expression { kind, span: Span::default() };
-            vec![arg]
+            return None;
         };
         assert_msg_call_args.push(condition);
 
@@ -1210,7 +1208,7 @@ impl<'a> Resolver<'a> {
             assert_msg_call_args,
             span,
         );
-        self.resolve_expression(assert_msg_call_expr)
+        Some(self.resolve_expression(assert_msg_call_expr))
     }
 
     pub fn intern_stmt(&mut self, stmt: StatementKind) -> StmtId {

@@ -151,7 +151,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<String>),
+    Constrain(ValueId, ValueId, Option<Box<SsaError>>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -320,7 +320,17 @@ impl Instruction {
                 max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                Instruction::Constrain(f(*lhs), f(*rhs), assert_message.clone())
+                // Must do this as the value is moved with the closure
+                let lhs = f(*lhs);
+                let rhs = f(*rhs);
+                let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
+                    SsaError::Dynamic(call_instr) => {
+                        let new_instr = call_instr.map_values(f);
+                        Box::new(SsaError::Dynamic(new_instr))
+                    }
+                    _ => error.clone(),
+                });
+                Instruction::Constrain(lhs, rhs, assert_message)
             }
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
@@ -370,9 +380,14 @@ impl Instruction {
             | Instruction::Load { address: value } => {
                 f(*value);
             }
-            Instruction::Constrain(lhs, rhs, _) => {
+            Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
+                if let Some(error) = assert_error.as_ref() {
+                    if let SsaError::Dynamic(call_instr) = error.as_ref() {
+                        call_instr.for_each_value(f);
+                    }
+                }
             }
 
             Instruction::Store { address, value } => {
@@ -435,7 +450,7 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                let constraints = decompose_constrain(*lhs, *rhs, msg.clone(), dfg);
+                let constraints = decompose_constrain(*lhs, *rhs, msg, dfg);
                 if constraints.is_empty() {
                     Remove
                 } else {
@@ -545,6 +560,26 @@ impl Instruction {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub(crate) enum SsaError {
+    // These are errors which have been hardcoded during SSA gen
+    Static(String),
+    // These are errors which come from runtime expressions specified by a Noir program
+    Dynamic(Instruction),
+}
+
+impl From<String> for SsaError {
+    fn from(value: String) -> Self {
+        SsaError::Static(value)
+    }
+}
+
+impl From<String> for Box<SsaError> {
+    fn from(value: String) -> Self {
+        Box::new(SsaError::Static(value))
+    }
+}
+
 /// Try to simplify this cast instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
 fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> SimplifyResult {
@@ -600,11 +635,35 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
 fn decompose_constrain(
     lhs: ValueId,
     rhs: ValueId,
-    msg: Option<String>,
+    msg: &Option<Box<SsaError>>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {
     let lhs = dfg.resolve(lhs);
     let rhs = dfg.resolve(rhs);
+    let msg = msg.clone();
+    // let msg = if let Some(msg) = msg {
+    //     match msg.as_ref() {
+    //         SsaError::Dynamic(call_instruction) => {
+
+    //         }
+    //         _ => {
+    //             Some(*msg)
+    //         }
+    //     }
+    // } else {
+    //     None
+    // };
+    // dbg!(msg.clone());
+    // let msg = msg.as_ref().map(|error| {
+    //     match error.as_ref() {
+    //         SsaError::Dynamic(call_instr) => {
+    //             let new_instr = call_instr.map_values(|value| dfg.resolve(value));
+    //             Box::new(SsaError::Dynamic(new_instr))
+    //         }
+    //         _ => error.clone()
+    //     }
+    // });
+    // dbg!(msg.clone());
 
     if lhs == rhs {
         // Remove trivial case `assert_eq(x, x)`
@@ -657,8 +716,8 @@ fn decompose_constrain(
                         let one = dfg.make_constant(one, Type::bool());
 
                         [
-                            decompose_constrain(lhs, one, msg.clone(), dfg),
-                            decompose_constrain(rhs, one, msg, dfg),
+                            decompose_constrain(lhs, one, &msg, dfg),
+                            decompose_constrain(rhs, one, &msg, dfg),
                         ]
                         .concat()
                     }
@@ -685,8 +744,8 @@ fn decompose_constrain(
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
 
                         [
-                            decompose_constrain(lhs, zero, msg.clone(), dfg),
-                            decompose_constrain(rhs, zero, msg, dfg),
+                            decompose_constrain(lhs, zero, &msg, dfg),
+                            decompose_constrain(rhs, zero, &msg, dfg),
                         ]
                         .concat()
                     }
@@ -706,7 +765,7 @@ fn decompose_constrain(
                         // will likely be removed through dead instruction elimination.
                         let reversed_constant = FieldElement::from(!constant.is_one());
                         let reversed_constant = dfg.make_constant(reversed_constant, Type::bool());
-                        decompose_constrain(value, reversed_constant, msg, dfg)
+                        decompose_constrain(value, reversed_constant, &msg, dfg)
                     }
 
                     _ => vec![Instruction::Constrain(lhs, rhs, msg)],

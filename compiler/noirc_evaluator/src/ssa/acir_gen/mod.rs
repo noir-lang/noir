@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
+use super::ir::instruction::SsaError;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -401,8 +402,8 @@ impl Context {
         brillig: &Brillig,
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
-        let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        let instruction = &dfg[instruction_id];
         let mut warnings = Vec::new();
         match instruction {
             Instruction::Binary(binary) => {
@@ -413,16 +414,95 @@ impl Context {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
 
-                self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
+                let assert_message = if let Some(error) = assert_message {
+                    match error.as_ref() {
+                        SsaError::Static(string) => Some(string.clone()),
+                        SsaError::Dynamic(call_instruction) => {
+                            self.convert_ssa_call(call_instruction, dfg, ssa, brillig, &[])?;
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.acir_context.assert_eq_var(lhs, rhs, assert_message)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
                 self.define_result_var(dfg, instruction_id, acir_var);
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
+                warnings.extend(self.convert_ssa_call(
+                    instruction,
+                    dfg,
+                    ssa,
+                    brillig,
+                    result_ids,
+                )?);
+            }
+            Instruction::Not(value_id) => {
+                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
+                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
+                    _ => unreachable!("NOT is only applied to numerics"),
+                };
+                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
+                self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let result_acir_var =
+                    self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
+                self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                let acir_var = self.convert_numeric_value(*condition, dfg)?;
+                self.current_side_effects_enabled_var = acir_var;
+            }
+            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
+                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
+            }
+            Instruction::Allocate => {
+                unreachable!("Expected all allocate instructions to be removed before acir_gen")
+            }
+            Instruction::Store { .. } => {
+                unreachable!("Expected all store instructions to be removed before acir_gen")
+            }
+            Instruction::Load { .. } => {
+                unreachable!("Expected all load instructions to be removed before acir_gen")
+            }
+            Instruction::IncrementRc { .. } => {
+                // Do nothing. Only Brillig needs to worry about reference counted arrays
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                let acir_var = self.convert_numeric_value(*value, dfg)?;
+                self.acir_context.range_constrain_var(
+                    acir_var,
+                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    assert_message.clone(),
+                )?;
+            }
+        }
+
+        self.acir_context.set_call_stack(CallStack::new());
+        Ok(warnings)
+    }
+
+    fn convert_ssa_call(
+        &mut self,
+        instruction: &Instruction,
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+        brillig: &Brillig,
+        result_ids: &[ValueId],
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
+        let mut warnings = Vec::new();
+
+        match instruction {
+            Instruction::Call { func, arguments } => {
                 match &dfg[*func] {
                     Value::Function(id) => {
+                        dbg!("got here");
                         let func = &ssa.functions[id];
                         match func.runtime() {
                             RuntimeType::Acir => unimplemented!(
@@ -495,51 +575,14 @@ impl Context {
                     Value::ForeignFunction(_) => unreachable!(
                         "All `oracle` methods should be wrapped in an unconstrained fn"
                     ),
-                    _ => unreachable!("expected calling a function"),
+                    _ => {
+                        dbg!(&dfg[*func]);
+                        unreachable!("expected calling a function")
+                    }
                 }
             }
-            Instruction::Not(value_id) => {
-                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
-                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
-                    _ => unreachable!("NOT is only applied to numerics"),
-                };
-                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
-            }
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
-                let result_acir_var =
-                    self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
-            }
-            Instruction::EnableSideEffects { condition } => {
-                let acir_var = self.convert_numeric_value(*condition, dfg)?;
-                self.current_side_effects_enabled_var = acir_var;
-            }
-            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
-                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
-            }
-            Instruction::Allocate => {
-                unreachable!("Expected all allocate instructions to be removed before acir_gen")
-            }
-            Instruction::Store { .. } => {
-                unreachable!("Expected all store instructions to be removed before acir_gen")
-            }
-            Instruction::Load { .. } => {
-                unreachable!("Expected all load instructions to be removed before acir_gen")
-            }
-            Instruction::IncrementRc { .. } => {
-                // Do nothing. Only Brillig needs to worry about reference counted arrays
-            }
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                let acir_var = self.convert_numeric_value(*value, dfg)?;
-                self.acir_context.range_constrain_var(
-                    acir_var,
-                    &NumericType::Unsigned { bit_size: *max_bit_size },
-                    assert_message.clone(),
-                )?;
-            }
+            _ => unreachable!("expected calling a call instruction"),
         }
-        self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
     }
 
@@ -1332,7 +1375,11 @@ impl Context {
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
-            Value::Instruction { .. } | Value::Param { .. } => {
+            Value::Instruction { instruction, .. } => {
+                dbg!(&dfg[*instruction]);
+                unreachable!("ICE: Should have been in cache {value_id} {value:?}")
+            }
+            Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
         };

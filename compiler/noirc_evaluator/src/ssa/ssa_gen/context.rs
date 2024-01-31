@@ -435,7 +435,7 @@ impl<'a> FunctionContext<'a> {
             self.builder.set_location(location).insert_constrain(
                 sign,
                 one,
-                Some("attempt to bit-shift with overflow".to_owned()),
+                Some("attempt to bit-shift with overflow".to_owned().into()),
             );
         }
 
@@ -446,7 +446,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.set_location(location).insert_constrain(
             overflow,
             one,
-            Some("attempt to bit-shift with overflow".to_owned()),
+            Some("attempt to bit-shift with overflow".to_owned().into()),
         );
         self.builder.insert_truncate(result, bit_size, bit_size + 1)
     }
@@ -498,8 +498,11 @@ impl<'a> FunctionContext<'a> {
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
                 let sign_diff_with_predicate =
                     self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
-                let overflow_check =
-                    Instruction::Constrain(sign_diff_with_predicate, same_sign, Some(message));
+                let overflow_check = Instruction::Constrain(
+                    sign_diff_with_predicate,
+                    same_sign,
+                    Some(message.into()),
+                );
                 self.builder.set_location(location).insert_instruction(overflow_check, None);
             }
             BinaryOpKind::Multiply => {
@@ -529,7 +532,7 @@ impl<'a> FunctionContext<'a> {
                 self.builder.set_location(location).insert_constrain(
                     product_overflow_check,
                     one,
-                    Some(message),
+                    Some(message.into()),
                 );
             }
             _ => unreachable!("operator {} should not overflow", operator),

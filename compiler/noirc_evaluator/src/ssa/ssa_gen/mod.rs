@@ -29,7 +29,7 @@ use super::{
     function_builder::data_bus::DataBus,
     ir::{
         function::RuntimeType,
-        instruction::{BinaryOp, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, SsaError, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -442,7 +442,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
             true_const,
-            Some("Index out of bounds".to_owned()),
+            Some(Box::new("Index out of bounds".to_owned().into())),
         );
     }
 
@@ -666,16 +666,45 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expr: &Expression,
         location: Location,
-        assert_message: &Expression,
+        assert_message: &Option<Box<Expression>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
 
-        self.codegen_expression(assert_message)?;
+        // self.codegen_expression(assert_message)?;
+
+        let assert_message = if let Some(assert_message_expr) = assert_message {
+            let expr = assert_message_expr.as_ref();
+            match expr {
+                ast::Expression::Call(call) => {
+                    let func = self.codegen_non_tuple_expression(&call.func)?;
+                    let mut arguments = Vec::with_capacity(call.arguments.len());
+
+                    for argument in &call.arguments {
+                        let mut values = self.codegen_expression(argument)?.into_value_list(self);
+                        arguments.append(&mut values);
+                    }
+
+                    // If an array is passed as an argument we increase its reference count
+                    for argument in &arguments {
+                        self.builder.increment_array_reference_count(*argument);
+                    }
+                    // let result_types = Self::convert_type(&call.return_type).flatten();
+                    // assert!(result_types.is_empty());
+                    let instr = Instruction::Call { func, arguments };
+                    Some(Box::new(SsaError::Dynamic(instr)))
+                }
+                _ => {
+                    panic!("ahh expected expression");
+                }
+            }
+        } else {
+            None
+        };
 
         // Assert messages from constrain statements specified by the user are codegen'd with a call expression,
         // thus the assert_message field here should always be `None`
-        self.builder.set_location(location).insert_constrain(expr, true_literal, None);
+        self.builder.set_location(location).insert_constrain(expr, true_literal, assert_message);
 
         Ok(Self::unit_value())
     }

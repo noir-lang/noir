@@ -18,7 +18,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{Endian, InstructionId, Intrinsic},
+        instruction::{Endian, InstructionId, Intrinsic, SsaError},
         types::NumericType,
     },
     ssa_gen::Ssa,
@@ -250,7 +250,7 @@ impl FunctionBuilder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        assert_message: Option<String>,
+        assert_message: Option<Box<SsaError>>,
     ) {
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
@@ -262,6 +262,7 @@ impl FunctionBuilder {
         max_bit_size: u32,
         assert_message: Option<String>,
     ) {
+        // let assert_message = assert_message.map(|msg_string| Box::new(SsaError::Static(msg_string)));
         self.insert_instruction(
             Instruction::RangeCheck { value, max_bit_size, assert_message },
             None,

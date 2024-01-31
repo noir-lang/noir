@@ -3,6 +3,7 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::instruction::SsaError;
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -264,6 +265,39 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                     condition,
                 );
+
+                let assert_message = if let Some(error) = assert_message {
+                    match error.as_ref() {
+                        SsaError::Static(string) => Some(string.clone()),
+                        SsaError::Dynamic(call_instruction) => {
+                            // self.convert_ssa_call(
+                            //     call_instruction,
+                            //     dfg,
+                            //     ssa,
+                            //     brillig,
+                            //     last_array_uses,
+                            //     &[],
+                            // );
+                            match call_instruction {
+                                Instruction::Call { func, arguments } => match &dfg[*func] {
+                                    Value::Function(func_id) => {
+                                        self.convert_ssa_function_call(
+                                            *func_id,
+                                            arguments,
+                                            dfg,
+                                            instruction_id,
+                                        );
+                                    }
+                                    _ => panic!("ahhh expected a func"),
+                                },
+                                _ => panic!("ahhhhhh should have a call"),
+                            }
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
 
                 self.brillig_context.constrain_instruction(condition, assert_message.clone());
                 self.brillig_context.deallocate_register(condition);
