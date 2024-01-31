@@ -45,20 +45,6 @@ impl Eq for GlobalVariables {
     }
 }
 
-// TODO(#3941) This is only used in Header.block_hash() --> Nuke it once that func is updated
-impl Hash for GlobalVariables {
-    fn hash(self) -> Field {
-        dep::std::hash::pedersen_hash_with_separator([
-            self.chain_id, 
-            self.version, 
-            self.block_number, 
-            self.timestamp
-            ],
-            GENERATOR_INDEX__GLOBAL_VARIABLES,
-            )
-    }
-}
-
 impl Empty for GlobalVariables {
     fn empty() -> Self {
         Self {

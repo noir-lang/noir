@@ -85,7 +85,7 @@ global ARGS_HASH_CHUNK_COUNT: u32 = 16;
 
 // NOIR CONSTANTS - constants used only in yarn-packages/noir-contracts
 // Some are defined here because Noir doesn't yet support globals referencing other globals yet.
-// Move these constants to a noir file once the issue bellow is resolved:
+// Move these constants to a noir file once the issue below is resolved:
 // https://github.com/noir-lang/noir/issues/1734
 global L1_TO_L2_MESSAGE_LENGTH: Field = 8;
 global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: Field = 25;

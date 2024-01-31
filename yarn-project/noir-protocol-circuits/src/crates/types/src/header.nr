@@ -19,7 +19,10 @@ use crate::{
         StateReference,
         STATE_REFERENCE_LENGTH,
     },
-    traits::Empty,
+    traits::{
+        Empty,
+        Hash,
+    },
     utils::{
         arr_copy_slice,
     },
@@ -68,19 +71,6 @@ impl Header {
             global_variables: GlobalVariables::deserialize(global_variables_fields),
         }
     }
-
-    // TODO(#3941) Rename this as hash() and make it hash the whole header
-    pub fn block_hash(self) -> Field {
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
-        pedersen_hash([
-            self.global_variables.hash(),
-            self.state.partial.note_hash_tree.root,
-            self.state.partial.nullifier_tree.root,
-            self.state.partial.contract_tree.root,
-            self.state.l1_to_l2_message_tree.root,
-            self.state.partial.public_data_tree.root,
-        ], GENERATOR_INDEX__BLOCK_HASH)
-    }
 }
 
 impl Empty for Header {
@@ -91,5 +81,11 @@ impl Empty for Header {
             state: StateReference::empty(),
             global_variables: GlobalVariables::empty(),
         }
+    }
+}
+
+impl Hash for Header {
+    fn hash(self) -> Field {
+        pedersen_hash(self.serialize(), GENERATOR_INDEX__BLOCK_HASH)
     }
 }

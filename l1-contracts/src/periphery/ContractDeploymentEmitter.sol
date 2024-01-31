@@ -23,7 +23,7 @@ contract ContractDeploymentEmitter is IContractDeploymentEmitter {
    * @param _saltedInitializationHash - Salted init hash
    * @param _publicKeyHash - Public key hash
    * @param _acir - The acir bytecode of the L2 contract
-   * @dev See the link bellow for more info on partial address and public key:
+   * @dev See the link below for more info on partial address and public key:
    * https://github.com/AztecProtocol/aztec-packages/blob/master/docs/docs/concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys
    * TODO: replace the link above with the link to deployed docs
    */

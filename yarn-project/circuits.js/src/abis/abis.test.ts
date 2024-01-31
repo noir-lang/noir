@@ -6,7 +6,6 @@ import {
   FunctionData,
   FunctionLeafPreimage,
   FunctionSelector,
-  GlobalVariables,
   NewContractData,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
@@ -22,14 +21,12 @@ import {
   makeVerificationKey,
 } from '../tests/factories.js';
 import {
-  computeBlockHashWithGlobals,
   computeCommitmentNonce,
   computeCommitmentsHash,
   computeContractLeaf,
   computeFunctionLeaf,
   computeFunctionSelector,
   computeFunctionTreeRoot,
-  computeGlobalsHash,
   computeNullifierHash,
   computePrivateCallStackItemHash,
   computePublicCallStackItemHash,
@@ -110,40 +107,6 @@ describe('abis', () => {
     const contractAddress = new AztecAddress(new Fr(123n).toBuffer());
     const innerNullifier = new Fr(456);
     const res = siloNullifier(contractAddress, innerNullifier);
-    expect(res).toMatchSnapshot();
-  });
-
-  it('computes block hash with globals', () => {
-    const globals = GlobalVariables.from({
-      chainId: new Fr(1n),
-      version: new Fr(2n),
-      blockNumber: new Fr(3n),
-      timestamp: new Fr(4n),
-    });
-    const noteHashTreeRoot = new Fr(5n);
-    const nullifierTreeRoot = new Fr(6n);
-    const contractTreeRoot = new Fr(7n);
-    const l1ToL2DataTreeRoot = new Fr(8n);
-    const publicDataTreeRoot = new Fr(9n);
-    const res = computeBlockHashWithGlobals(
-      globals,
-      noteHashTreeRoot,
-      nullifierTreeRoot,
-      contractTreeRoot,
-      l1ToL2DataTreeRoot,
-      publicDataTreeRoot,
-    );
-    expect(res).toMatchSnapshot();
-  });
-
-  it('compute globals hash', () => {
-    const globals = GlobalVariables.from({
-      chainId: new Fr(1n),
-      version: new Fr(2n),
-      blockNumber: new Fr(3n),
-      timestamp: new Fr(4n),
-    });
-    const res = computeGlobalsHash(globals);
     expect(res).toMatchSnapshot();
   });
 

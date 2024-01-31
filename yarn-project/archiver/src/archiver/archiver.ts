@@ -297,11 +297,7 @@ export class Archiver implements ArchiveSource {
       retrievedBlocks.retrievedData.map(block => {
         // Ensure we pad the L1 to L2 message array to the full size before storing.
         block.newL1ToL2Messages = padArrayEnd(block.newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
-        return L2Block.fromFields(
-          omit(block, ['newEncryptedLogs', 'newUnencryptedLogs']),
-          block.getBlockHash(),
-          block.getL1BlockNumber(),
-        );
+        return L2Block.fromFields(omit(block, ['newEncryptedLogs', 'newUnencryptedLogs']), block.getL1BlockNumber());
       }),
     );
   }

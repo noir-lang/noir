@@ -1,6 +1,5 @@
 import { L2Block, MerkleTreeId } from '@aztec/circuit-types';
-import { NullifierLeafPreimage, StateReference } from '@aztec/circuits.js';
-import { Fr } from '@aztec/foundation/fields';
+import { Header, NullifierLeafPreimage, StateReference } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult } from '@aztec/merkle-tree';
@@ -55,6 +54,11 @@ export interface MerkleTreeOperations {
    * Gets the current state reference.
    */
   getStateReference(): Promise<StateReference>;
+
+  /**
+   * Builds the initial header.
+   */
+  buildInitialHeader(): Promise<Header>;
 
   /**
    * Gets sibling path for a leaf.
@@ -115,22 +119,11 @@ export interface MerkleTreeOperations {
   getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined>;
 
   /**
-   * Inserts the new block hash into the archive.
+   * Inserts the block hash into the archive.
    * This includes all of the current roots of all of the data trees and the current blocks global vars.
-   * @param globalVariablesHash - The global variables hash to insert into the block hash.
+   * @param header - The header to insert into the archive.
    */
-  updateArchive(globalVariablesHash: Fr): Promise<void>;
-
-  /**
-   * Updates the latest global variables hash
-   * @param globalVariablesHash - The latest global variables hash
-   */
-  updateLatestGlobalVariablesHash(globalVariablesHash: Fr): Promise<void>;
-
-  /**
-   * Gets the global variables hash from the previous block
-   */
-  getLatestGlobalVariablesHash(): Promise<Fr>;
+  updateArchive(header: Header): Promise<void>;
 
   /**
    * Batch insert multiple leaves into the tree.

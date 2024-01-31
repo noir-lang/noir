@@ -15,6 +15,7 @@ import {
   BaseOrMergeRollupPublicInputs,
   Fr,
   GlobalVariables,
+  Header,
   KernelCircuitPublicInputs,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -33,7 +34,7 @@ import {
   SideEffectLinkedToNoteHash,
   StateReference,
 } from '@aztec/circuits.js';
-import { computeBlockHashWithGlobals, computeContractLeaf } from '@aztec/circuits.js/abis';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
   fr,
   makeBaseOrMergeRollupPublicInputs,
@@ -63,7 +64,6 @@ import {
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricalTreeRoots,
   makeProcessedTx,
 } from '../sequencer/processed_tx.js';
-import { buildInitialHeader } from '../sequencer/utils.js';
 import { RollupSimulator } from '../simulator/index.js';
 import { RealRollupCircuitSimulator } from '../simulator/rollup.js';
 import { SoloBlockBuilder } from './solo_block_builder.js';
@@ -122,7 +122,7 @@ describe('sequencer/solo_block_builder', () => {
   }, 20_000);
 
   const makeEmptyProcessedTx = async () => {
-    const header = await buildInitialHeader(builderDb);
+    const header = await builderDb.buildInitialHeader();
     return makeEmptyProcessedTxFromHistoricalTreeRoots(header, chainId, version);
   };
 
@@ -157,14 +157,7 @@ describe('sequencer/solo_block_builder', () => {
   };
 
   const updateArchive = async () => {
-    const blockHash = computeBlockHashWithGlobals(
-      globalVariables,
-      rootRollupOutput.header.state.partial.noteHashTree.root,
-      rootRollupOutput.header.state.partial.nullifierTree.root,
-      rootRollupOutput.header.state.partial.contractTree.root,
-      rootRollupOutput.header.state.l1ToL2MessageTree.root,
-      rootRollupOutput.header.state.partial.publicDataTree.root,
-    );
+    const blockHash = rootRollupOutput.header.hash();
     await expectsDb.appendLeaves(MerkleTreeId.ARCHIVE, [blockHash.toBuffer()]);
   };
 
@@ -191,7 +184,7 @@ describe('sequencer/solo_block_builder', () => {
 
   const buildMockSimulatorInputs = async () => {
     const kernelOutput = makePrivateKernelPublicInputsFinal();
-    kernelOutput.constants.historicalHeader = await buildInitialHeader(expectsDb);
+    kernelOutput.constants.historicalHeader = await expectsDb.buildInitialHeader();
 
     const tx = await makeProcessedTx(
       new Tx(
@@ -214,15 +207,8 @@ describe('sequencer/solo_block_builder', () => {
     await updateExpectedTreesFromTxs([txs[1]]);
     baseRollupOutputRight.end = await getPartialStateReference();
 
-    // Update l1 to l2 data tree
-    // And update the root trees now to create proper output to the root rollup circuit
+    // Update l1 to l2 message tree
     await updateL1ToL2MessageTree(mockL1ToL2Messages);
-    rootRollupOutput.header.state = await getStateReference();
-
-    // Calculate block hash
-    rootRollupOutput.header.globalVariables = globalVariables;
-    await updateArchive();
-    rootRollupOutput.archive = await getTreeSnapshot(MerkleTreeId.ARCHIVE);
 
     const newNullifiers = txs.flatMap(tx => tx.data.end.newNullifiers);
     const newCommitments = txs.flatMap(tx => tx.data.end.newCommitments);
@@ -237,9 +223,11 @@ describe('sequencer/solo_block_builder', () => {
     const newEncryptedLogs = new L2BlockL2Logs(txs.map(tx => tx.encryptedLogs || new TxL2Logs([])));
     const newUnencryptedLogs = new L2BlockL2Logs(txs.map(tx => tx.unencryptedLogs || new TxL2Logs([])));
 
+    // We are constructing the block here just to get body hash/calldata hash so we can pass in an empty archive and header
     const l2Block = L2Block.fromFields({
-      archive: rootRollupOutput.archive,
-      header: rootRollupOutput.header,
+      archive: AppendOnlyTreeSnapshot.zero(),
+      header: Header.empty(),
+      // Only the values below go to body hash/calldata hash
       newCommitments: newCommitments.map((sideEffect: SideEffect) => sideEffect.value),
       newNullifiers: newNullifiers.map((sideEffect: SideEffectLinkedToNoteHash) => sideEffect.value),
       newContracts,
@@ -251,7 +239,13 @@ describe('sequencer/solo_block_builder', () => {
       newUnencryptedLogs,
     });
 
+    // Now we update can make the final header, compute the block hash and update archive
+    rootRollupOutput.header.globalVariables = globalVariables;
     rootRollupOutput.header.bodyHash = l2Block.getCalldataHash();
+    rootRollupOutput.header.state = await getStateReference();
+
+    await updateArchive();
+    rootRollupOutput.archive = await getTreeSnapshot(MerkleTreeId.ARCHIVE);
 
     return txs;
   };
@@ -297,7 +291,7 @@ describe('sequencer/solo_block_builder', () => {
     const makeBloatedProcessedTx = async (seed = 0x1) => {
       const tx = mockTx(seed);
       const kernelOutput = KernelCircuitPublicInputs.empty();
-      kernelOutput.constants.historicalHeader = await buildInitialHeader(builderDb);
+      kernelOutput.constants.historicalHeader = await builderDb.buildInitialHeader();
       kernelOutput.end.publicDataUpdateRequests = makeTuple(
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),

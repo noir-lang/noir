@@ -10,49 +10,6 @@ exports[`abis Computes an empty public inputs hash  1`] = `"0x2e2b79cee62cb99e91
 
 exports[`abis Computes an empty sideeffect hash  1`] = `"0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed"`;
 
-exports[`abis compute globals hash 1`] = `
-Fr {
-  "asBigInt": 19996198784166720428914107076917074510032365849254400404611644441094528984289n,
-  "asBuffer": {
-    "data": [
-      44,
-      53,
-      114,
-      139,
-      52,
-      188,
-      28,
-      197,
-      40,
-      157,
-      117,
-      130,
-      246,
-      163,
-      68,
-      239,
-      11,
-      227,
-      228,
-      184,
-      250,
-      189,
-      231,
-      11,
-      41,
-      32,
-      78,
-      168,
-      174,
-      60,
-      100,
-      225,
-    ],
-    "type": "Buffer",
-  },
-}
-`;
-
 exports[`abis compute private call stack item hash 1`] = `
 Fr {
   "asBigInt": 12187345511405217717040217531423286257305914329376428594135414078733109256018n,
@@ -277,49 +234,6 @@ exports[`abis computes a function selector 1`] = `
     187,
   ],
   "type": "Buffer",
-}
-`;
-
-exports[`abis computes block hash with globals 1`] = `
-Fr {
-  "asBigInt": 7177915431153102916601456081755280584460785548870192083974540199919775120827n,
-  "asBuffer": {
-    "data": [
-      15,
-      222,
-      142,
-      96,
-      169,
-      217,
-      84,
-      90,
-      55,
-      110,
-      52,
-      172,
-      167,
-      236,
-      97,
-      56,
-      185,
-      98,
-      133,
-      50,
-      113,
-      88,
-      184,
-      54,
-      59,
-      75,
-      252,
-      181,
-      66,
-      59,
-      253,
-      187,
-    ],
-    "type": "Buffer",
-  },
 }
 `;
 

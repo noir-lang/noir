@@ -1,5 +1,5 @@
 import { MerkleTreeId } from '@aztec/circuit-types';
-import { AppendOnlyTreeSnapshot, Fr, PartialStateReference, StateReference } from '@aztec/circuits.js';
+import { AppendOnlyTreeSnapshot, Fr, Header, PartialStateReference, StateReference } from '@aztec/circuits.js';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
 import { SiblingPath } from '@aztec/types/membership';
@@ -32,10 +32,6 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
   async findLeafIndex(treeId: MerkleTreeId, value: Buffer): Promise<bigint | undefined> {
     const tree = await this.#getTreeSnapshot(treeId);
     return tree.findLeafIndex(value);
-  }
-
-  getLatestGlobalVariablesHash(): Promise<Fr> {
-    return Promise.reject(new Error('not implemented'));
   }
 
   async getLeafPreimage(
@@ -152,11 +148,11 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 
-  updateLatestGlobalVariablesHash(): Promise<void> {
+  updateLeaf(): Promise<void> {
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 
-  updateLeaf(): Promise<void> {
-    return Promise.reject(new Error('Tree snapshot operations are read-only'));
+  buildInitialHeader(): Promise<Header> {
+    throw new Error('Building initial header not supported on snapshot.');
   }
 }

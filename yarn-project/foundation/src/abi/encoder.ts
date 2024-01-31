@@ -92,7 +92,7 @@ class ArgumentEncoder {
           break;
         }
         for (const field of abiType.fields) {
-          // The ugly check bellow is here because of a `CompleteAddress`. Since it has `address` property but in ABI
+          // The ugly check below is here because of a `CompleteAddress`. Since it has `address` property but in ABI
           // it's called inner we set `field.name` here to `address` instead of using `field.name`. I know it's hacky
           // but using address.address in Noir looks stupid and renaming `address` param of `CompleteAddress`
           // to `inner` doesn't make sense.

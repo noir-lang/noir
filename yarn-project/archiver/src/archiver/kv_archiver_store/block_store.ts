@@ -9,7 +9,6 @@ type BlockContext = {
   blockNumber: number;
   l1BlockNumber: bigint;
   block: Buffer;
-  blockHash: Buffer;
 };
 
 /**
@@ -46,7 +45,6 @@ export class BlockStore {
           blockNumber: block.number,
           block: block.toBuffer(),
           l1BlockNumber: block.getL1BlockNumber(),
-          blockHash: block.getBlockHash(),
         });
 
         for (const [i, tx] of block.getTxs().entries()) {
@@ -77,7 +75,7 @@ export class BlockStore {
    */
   *getBlocks(start: number, limit: number): IterableIterator<L2Block> {
     for (const blockCtx of this.#blocks.values(this.#computeBlockRange(start, limit))) {
-      yield L2Block.fromBuffer(blockCtx.block, blockCtx.blockHash);
+      yield L2Block.fromBuffer(blockCtx.block);
     }
   }
 
@@ -92,9 +90,7 @@ export class BlockStore {
       return undefined;
     }
 
-    const block = L2Block.fromBuffer(blockCtx.block, blockCtx.blockHash);
-
-    return block;
+    return L2Block.fromBuffer(blockCtx.block);
   }
 
   /**

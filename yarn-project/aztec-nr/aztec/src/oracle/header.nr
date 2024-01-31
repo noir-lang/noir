@@ -40,7 +40,7 @@ pub fn get_header_at(block_number: u32, context: PrivateContext) -> Header {
         let header = get_header_at_internal(block_number);
 
         // 4) Compute the block hash from the block header
-        let block_hash = header.block_hash();
+        let block_hash = header.hash();
 
         // 5) Get the membership witness of the block in the archive
         let witness = get_archive_membership_witness(last_archive_block_number, block_hash);

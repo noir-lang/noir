@@ -445,7 +445,7 @@ export class PXEService implements PXE {
         txHash,
         TxStatus.MINED,
         '',
-        settledTx.blockHash,
+        settledTx.blockHash.toBuffer(),
         settledTx.blockNumber,
         deployedContractAddress,
       );

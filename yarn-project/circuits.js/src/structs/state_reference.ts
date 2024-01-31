@@ -30,10 +30,10 @@ export class StateReference {
   }
 
   static empty(): StateReference {
-    return new StateReference(AppendOnlyTreeSnapshot.empty(), PartialStateReference.empty());
+    return new StateReference(AppendOnlyTreeSnapshot.zero(), PartialStateReference.empty());
   }
 
   isEmpty(): boolean {
-    return this.l1ToL2MessageTree.isEmpty() && this.partial.isEmpty();
+    return this.l1ToL2MessageTree.isZero() && this.partial.isEmpty();
   }
 }

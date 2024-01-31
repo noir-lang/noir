@@ -36,7 +36,6 @@ import {
   L1Publisher,
   RealRollupCircuitSimulator,
   SoloBlockBuilder,
-  buildInitialHeader,
   getL1Publisher,
   getVerificationKeys,
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricalTreeRoots,
@@ -150,7 +149,7 @@ describe('L1Publisher integration', () => {
       l1BlockPublishRetryIntervalMS: 100,
     });
 
-    prevHeader = await buildInitialHeader(builderDb);
+    prevHeader = await builderDb.buildInitialHeader();
   }, 100_000);
 
   const makeEmptyProcessedTx = async () => {
@@ -256,7 +255,7 @@ describe('L1Publisher integration', () => {
         l2ToL1Messages: block.newL2ToL1Msgs.map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
       },
       block: {
-        // The json formatting in forge is a bit brittle, so we convert Fr to a number in the few values bellow.
+        // The json formatting in forge is a bit brittle, so we convert Fr to a number in the few values below.
         // This should not be a problem for testing as long as the values are not larger than u32.
         archive: `0x${block.archive.root.toBuffer().toString('hex').padStart(64, '0')}`,
         body: `0x${block.bodyToBuffer().toString('hex')}`,

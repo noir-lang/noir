@@ -18,4 +18,11 @@ describe('Header', () => {
     const res = Header.fromFieldArray(fieldArray);
     expect(res).toEqual(expected);
   });
+
+  it('computes hash', () => {
+    const seed = 9870243;
+    const header = makeHeader(seed, undefined);
+    const hash = header.hash();
+    expect(hash).toMatchSnapshot();
+  });
 });

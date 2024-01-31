@@ -11,8 +11,6 @@ mod root;
 
 mod components;
 
-mod hash;
-
 mod merkle_tree;
 
 mod tests;

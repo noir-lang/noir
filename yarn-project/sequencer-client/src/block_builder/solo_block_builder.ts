@@ -42,12 +42,7 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
 } from '@aztec/circuits.js';
-import {
-  computeBlockHash,
-  computeBlockHashWithGlobals,
-  computeContractLeaf,
-  computeGlobalsHash,
-} from '@aztec/circuits.js/abis';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { makeTuple } from '@aztec/foundation/array';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
@@ -158,19 +153,19 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected validateTxs(txs: ProcessedTx[]) {
     for (const tx of txs) {
       const txHeader = tx.data.constants.historicalHeader;
-      if (txHeader.state.l1ToL2MessageTree.isEmpty()) {
+      if (txHeader.state.l1ToL2MessageTree.isZero()) {
         throw new Error(`Empty L1 to L2 messages tree in tx: ${toFriendlyJSON(tx)}`);
       }
-      if (txHeader.state.partial.noteHashTree.isEmpty()) {
+      if (txHeader.state.partial.noteHashTree.isZero()) {
         throw new Error(`Empty note hash tree in tx: ${toFriendlyJSON(tx)}`);
       }
-      if (txHeader.state.partial.nullifierTree.isEmpty()) {
+      if (txHeader.state.partial.nullifierTree.isZero()) {
         throw new Error(`Empty nullifier tree in tx: ${toFriendlyJSON(tx)}`);
       }
-      if (txHeader.state.partial.contractTree.isEmpty()) {
+      if (txHeader.state.partial.contractTree.isZero()) {
         throw new Error(`Empty contract tree in tx: ${toFriendlyJSON(tx)}`);
       }
-      if (txHeader.state.partial.publicDataTree.isEmpty()) {
+      if (txHeader.state.partial.publicDataTree.isZero()) {
         throw new Error(`Empty public data tree in tx: ${toFriendlyJSON(tx)}`);
       }
     }
@@ -276,46 +271,13 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     const rootProof = await this.prover.getRootRollupProof(rootInput, rootOutput);
 
-    // Update the root trees with the latest data and contract tree roots,
-    // and validate them against the output of the root circuit simulation
+    // Update the archive with the latest block header
     this.debug(`Updating and validating root trees`);
-    const globalVariablesHash = computeGlobalsHash(left[0].constants.globalVariables);
-    await this.db.updateLatestGlobalVariablesHash(globalVariablesHash);
-    await this.db.updateArchive(globalVariablesHash);
+    await this.db.updateArchive(rootOutput.header);
 
     await this.validateRootOutput(rootOutput);
 
     return [rootOutput, rootProof];
-  }
-
-  async updateArchive(globalVariables: GlobalVariables) {
-    // Calculate the block hash and add it to the historical block hashes tree
-    const blockHash = await this.calculateBlockHash(globalVariables);
-    await this.db.appendLeaves(MerkleTreeId.ARCHIVE, [blockHash.toBuffer()]);
-  }
-
-  protected async calculateBlockHash(globals: GlobalVariables) {
-    const [noteHashTreeRoot, nullifierTreeRoot, contractTreeRoot, publicDataTreeRoot, l1ToL2MessageTreeRoot] = (
-      await Promise.all(
-        [
-          MerkleTreeId.NOTE_HASH_TREE,
-          MerkleTreeId.NULLIFIER_TREE,
-          MerkleTreeId.CONTRACT_TREE,
-          MerkleTreeId.PUBLIC_DATA_TREE,
-          MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
-        ].map(tree => this.getTreeSnapshot(tree)),
-      )
-    ).map(r => r.root);
-
-    const blockHash = computeBlockHashWithGlobals(
-      globals,
-      noteHashTreeRoot,
-      nullifierTreeRoot,
-      contractTreeRoot,
-      l1ToL2MessageTreeRoot,
-      publicDataTreeRoot,
-    );
-    return blockHash;
   }
 
   protected async validatePartialState(partialState: PartialStateReference) {
@@ -489,20 +451,6 @@ export class SoloBlockBuilder implements BlockBuilder {
     }
     const path = await this.db.getSiblingPath(treeId, index);
     return new MembershipWitness(height, index, assertLength(path.toFieldArray(), height));
-  }
-
-  protected getHistoricalTreesMembershipWitnessFor(tx: ProcessedTx) {
-    const header = tx.data.constants.historicalHeader;
-    // TODO(#3941)
-    const blockHash = computeBlockHash(
-      computeGlobalsHash(header.globalVariables),
-      header.state.partial.noteHashTree.root,
-      header.state.partial.nullifierTree.root,
-      header.state.partial.contractTree.root,
-      header.state.l1ToL2MessageTree.root,
-      header.state.partial.publicDataTree.root,
-    );
-    return this.getMembershipWitnessFor(blockHash, MerkleTreeId.ARCHIVE, ARCHIVE_HEIGHT);
   }
 
   protected async getConstantRollupData(globalVariables: GlobalVariables): Promise<ConstantRollupData> {
@@ -734,6 +682,13 @@ export class SoloBlockBuilder implements BlockBuilder {
       publicDataSiblingPath,
     });
 
+    const blockHash = tx.data.constants.historicalHeader.hash();
+    const archiveRootMembershipWitness = await this.getMembershipWitnessFor(
+      blockHash,
+      MerkleTreeId.ARCHIVE,
+      ARCHIVE_HEIGHT,
+    );
+
     return BaseRollupInputs.from({
       kernelData: this.getKernelDataFor(tx),
       start,
@@ -746,7 +701,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       publicDataReadsPreimages: txPublicDataReadsInfo.newPublicDataReadsPreimages,
       publicDataReadsMembershipWitnesses: txPublicDataReadsInfo.newPublicDataReadsWitnesses,
 
-      archiveRootMembershipWitness: await this.getHistoricalTreesMembershipWitnessFor(tx),
+      archiveRootMembershipWitness,
 
       constants,
     });

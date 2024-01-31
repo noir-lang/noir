@@ -97,7 +97,7 @@ contract InclusionProofs {
     fn test_note_inclusion_proof(
         owner: AztecAddress,
         block_number: u32, // The block at which we'll prove that the note exists
-        // Value bellow is only used when the note is not found --> used to test the note inclusion failure case (it
+        // Value below is only used when the note is not found --> used to test the note inclusion failure case (it
         // allows me to pass in random value of note nullifier - I cannot add and fetch a random note from PXE because
         // PXE performs note commitment inclusion check when you add a new note).
         spare_commitment: Field
@@ -126,7 +126,7 @@ contract InclusionProofs {
     fn test_nullifier_non_inclusion_proof(
         owner: AztecAddress,
         block_number: u32, // The block at which we'll prove that the nullifier does not exists
-        // Value bellow is only used when the note is not found --> used to test the nullifier non-inclusion failure
+        // Value below is only used when the note is not found --> used to test the nullifier non-inclusion failure
         // case (it allows me to pass in random value of note nullifier - I cannot add and fetch a random note from PXE
         // because PXE performs note commitment inclusion check when you add a new note).
         spare_nullifier: Field

@@ -47,11 +47,11 @@ export class AppendOnlyTreeSnapshot {
     return AppendOnlyTreeSnapshot.fromBuffer(Buffer.from(str, STRING_ENCODING));
   }
 
-  static empty() {
+  static zero() {
     return new AppendOnlyTreeSnapshot(Fr.ZERO, 0);
   }
 
-  isEmpty(): boolean {
+  isZero(): boolean {
     return this.root.isZero() && this.nextAvailableLeafIndex === 0;
   }
 }

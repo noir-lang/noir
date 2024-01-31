@@ -13,7 +13,7 @@ use dep::types::{
     state_reference::StateReference,
     utils::uint256::U256,
 };
-use crate::{components, hash::compute_block_hash_with_globals};
+use crate::components;
 use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 
 impl RootRollupInputs {
@@ -49,12 +49,15 @@ impl RootRollupInputs {
             partial: right.end,
         };
 
-        // Build the block hash for this iteration from the tree roots and global variables
-        // Then insert the block into the archive tree
-        let block_hash = compute_block_hash_with_globals(
-            left.constants.global_variables,
+        let header = Header {
+            last_archive: left.constants.last_archive,
+            body_hash: components::compute_calldata_hash(self.previous_rollup_data),
             state,
-        );
+            global_variables : left.constants.global_variables
+        };
+
+        // Build the block hash for this by hashing the header and then insert the new leaf to archive tree.
+        let block_hash = header.hash();
 
         // Update the archive
         let archive = components::insert_subtree_to_snapshot_tree(
@@ -64,13 +67,6 @@ impl RootRollupInputs {
             block_hash,
             0
         );
-
-        let header = Header {
-            last_archive: left.constants.last_archive,
-            body_hash: components::compute_calldata_hash(self.previous_rollup_data),
-            state,
-            global_variables : left.constants.global_variables
-        };
 
         RootRollupPublicInputs{
             aggregation_object,
