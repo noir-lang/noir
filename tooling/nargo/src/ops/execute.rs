@@ -65,7 +65,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
                     }
                     NargoForeignCallResult::ResolvedAssertMessage(message) => {
                         if assert_message.is_some() {
-                            panic!("ahhh we should not be resolving another assert message as the VM should have failed");
+                            unreachable!("Resolving an assert message should happen only once as the VM should have failed");
                         }
                         assert_message = Some(message);
 
