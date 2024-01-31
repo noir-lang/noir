@@ -1,7 +1,7 @@
 import { DebugLogger } from '@aztec/aztec.js';
+import { LogFn } from '@aztec/foundation/log';
 import { BootstrapNode, P2PConfig, getP2PConfigEnvVars } from '@aztec/p2p';
 
-import { LogFn } from '../../../../foundation/src/log/log_fn.js';
 import { mergeEnvVarsAndCliOptions, parseModuleOptions } from '../util.js';
 
 export const startP2PBootstrap = async (
