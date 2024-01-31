@@ -689,34 +689,34 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         assert_message: &Option<Box<Expression>>,
     ) -> Result<Option<Box<ConstrainError>>, RuntimeError> {
-        if let Some(assert_message_expr) = assert_message {
-            if let ast::Expression::Call(call) = assert_message_expr.as_ref() {
-                let func = self.codegen_non_tuple_expression(&call.func)?;
-                let mut arguments = Vec::with_capacity(call.arguments.len());
+        let Some(assert_message_expr) = assert_message else {
+            return Ok(None)
+        };
 
-                for argument in &call.arguments {
-                    let mut values = self.codegen_expression(argument)?.into_value_list(self);
-                    arguments.append(&mut values);
-                }
-
-                // If an array is passed as an argument we increase its reference count
-                for argument in &arguments {
-                    self.builder.increment_array_reference_count(*argument);
-                }
-
-                let instr = Instruction::Call { func, arguments };
-                Ok(Some(Box::new(ConstrainError::Dynamic(instr))))
-            } else {
-                Err(InternalError::Unexpected {
-                    expected: "Expected a call expression".to_owned(),
-                    found: "Instead found {expr:?}".to_owned(),
-                    call_stack: self.builder.get_call_stack(),
-                }
-                .into())
+        let ast::Expression::Call(call) = assert_message_expr.as_ref() else {
+            return Err(InternalError::Unexpected {
+                expected: "Expected a call expression".to_owned(),
+                found: "Instead found {expr:?}".to_owned(),
+                call_stack: self.builder.get_call_stack(),
             }
-        } else {
-            Ok(None)
+            .into());
+        };
+
+        let func = self.codegen_non_tuple_expression(&call.func)?;
+        let mut arguments = Vec::with_capacity(call.arguments.len());
+
+        for argument in &call.arguments {
+            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            arguments.append(&mut values);
         }
+
+        // If an array is passed as an argument we increase its reference count
+        for argument in &arguments {
+            self.builder.increment_array_reference_count(*argument);
+        }
+
+        let instr = Instruction::Call { func, arguments };
+        Ok(Some(Box::new(ConstrainError::Dynamic(instr))))
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

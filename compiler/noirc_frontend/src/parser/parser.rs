@@ -2074,7 +2074,7 @@ mod test {
                 let message = message.unwrap();
                 match message.kind {
                     ExpressionKind::Literal(Literal::Str(message_string)) => {
-                        assert_eq!(message_string, "assertion message".to_owned())
+                        assert_eq!(message_string, "assertion message".to_owned());
                     }
                     _ => unreachable!(),
                 }
@@ -2104,7 +2104,7 @@ mod test {
                 let message = message.unwrap();
                 match message.kind {
                     ExpressionKind::Literal(Literal::Str(message_string)) => {
-                        assert_eq!(message_string, "assertion message".to_owned())
+                        assert_eq!(message_string, "assertion message".to_owned());
                     }
                     _ => unreachable!(),
                 }

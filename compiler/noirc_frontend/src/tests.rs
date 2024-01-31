@@ -488,9 +488,8 @@ mod test {
             fn default(x: Field, y: NotAType) -> Field;
         }
         
-        fn main(x: Field, y: Field) -> pub bool {
-            // assert(y == x);
-            y == x
+        fn main(x: Field, y: Field) {
+            assert(y == x);
         }";
         let errors = get_program_errors(src);
         assert!(!has_parser_error(&errors));
@@ -821,9 +820,9 @@ mod test {
     #[test]
     fn resolve_basic_function() {
         let src = r#"
-            fn main(x : Field) -> pub bool {
+            fn main(x : Field) {
                 let y = x + x;
-                y == x
+                assert(y == x);
             }
         "#;
         assert!(get_program_errors(src).is_empty());
@@ -831,10 +830,9 @@ mod test {
     #[test]
     fn resolve_unused_var() {
         let src = r#"
-            fn main(x : Field) -> pub bool {
+            fn main(x : Field) {
                 let y = x + x;
-                // assert(x == x);
-                x == x
+                assert(x == x);
             }
         "#;
 
@@ -852,9 +850,9 @@ mod test {
     #[test]
     fn resolve_unresolved_var() {
         let src = r#"
-            fn main(x : Field) -> pub bool {
+            fn main(x : Field) {
                 let y = x + x;
-                y == z
+                assert(y == z);
             }
         "#;
         let errors = get_program_errors(src);
@@ -898,9 +896,9 @@ mod test {
     #[test]
     fn resolve_literal_expr() {
         let src = r#"
-            fn main(x : Field) -> pub bool {
+            fn main(x : Field) {
                 let y = 5;
-                y == x
+                assert(y == x);
             }
         "#;
         assert!(get_program_errors(src).is_empty());

@@ -92,17 +92,13 @@ impl DefunctionalizationContext {
                     }
                     // Constrain instruction potentially hold a call instruction themselves
                     // thus we need to account for them.
-                    Instruction::Constrain(_, _, constrain_error) => {
-                        if let Some(error) = constrain_error {
-                            if let ConstrainError::Dynamic(Instruction::Call {
-                                func: target_func_id,
-                                arguments,
-                            }) = error.as_ref()
-                            {
-                                (*target_func_id, arguments)
-                            } else {
-                                continue;
-                            }
+                    Instruction::Constrain(_, _, Some(constrain_error)) => {
+                        if let ConstrainError::Dynamic(Instruction::Call {
+                            func: target_func_id,
+                            arguments,
+                        }) = constrain_error.as_ref()
+                        {
+                            (*target_func_id, arguments)
                         } else {
                             continue;
                         }

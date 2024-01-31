@@ -76,7 +76,7 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub only_acir: bool,
 
-    /// Disables the builtin macros being used in the compiler
+    /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
 
@@ -191,7 +191,7 @@ pub fn check_crate(
     disable_macros: bool,
 ) -> CompilationResult<()> {
     let macros: Vec<&dyn MacroProcessor> = if disable_macros {
-        vec![]
+        vec![&noirc_macros::AssertMessageMacro as &dyn MacroProcessor]
     } else {
         vec![
             &aztec_macros::AztecMacro as &dyn MacroProcessor,
