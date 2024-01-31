@@ -124,10 +124,6 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
         "value": "production"
       },
       {
-        "name": "MODE",
-        "value": "p2p-bootstrap"
-      },
-      {
         "name": "P2P_TCP_LISTEN_PORT",
         "value": "${var.BOOTNODE_LISTEN_PORT + count.index}"
       },

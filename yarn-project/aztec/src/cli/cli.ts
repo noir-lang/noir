@@ -51,10 +51,10 @@ export function getProgram(userLog: LogFn, debugLogger: DebugLogger): Command {
         services = await startPXE(options, signalHandlers, userLog);
       } else if (options.archiver) {
         const { startArchiver } = await import('./cmds/start_archiver.js');
-        await startArchiver(options, signalHandlers);
+        services = await startArchiver(options, signalHandlers);
       } else if (options.p2pBootstrap) {
         const { startP2PBootstrap } = await import('./cmds/start_p2p_bootstrap.js');
-        await startP2PBootstrap(options, signalHandlers, debugLogger);
+        await startP2PBootstrap(options, signalHandlers, userLog, debugLogger);
       }
       if (services.length) {
         const rpcServer = createNamespacedJsonRpcServer(services, debugLogger);
