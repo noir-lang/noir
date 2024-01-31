@@ -242,7 +242,7 @@ impl DefinitionId {
 
 impl From<DefinitionId> for Index {
     fn from(id: DefinitionId) -> Self {
-        Index { index: id.0 }
+        Index(id.0)
     }
 }
 
@@ -254,7 +254,7 @@ impl StmtId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StmtId {
-        StmtId(Index { index: std::usize::MAX })
+        StmtId(Index(std::usize::MAX))
     }
 }
 
@@ -263,7 +263,7 @@ pub struct ExprId(Index);
 
 impl ExprId {
     pub fn empty_block_id() -> ExprId {
-        ExprId(Index { index: 0 })
+        ExprId(Index(0))
     }
 }
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -274,7 +274,7 @@ impl FuncId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index { index: std::usize::MAX })
+        FuncId(Index(std::usize::MAX))
     }
 }
 
@@ -352,7 +352,7 @@ macro_rules! partialeq {
     ($id_type:ty) => {
         impl PartialEq<usize> for &$id_type {
             fn eq(&self, other: &usize) -> bool {
-                let index = self.0.index;
+                let index = self.0 .0;
                 index == *other
             }
         }
