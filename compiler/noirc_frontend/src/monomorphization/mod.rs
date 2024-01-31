@@ -1038,10 +1038,10 @@ impl<'interner> Monomorphizer<'interner> {
         // since they cannot be passed from ACIR into Brillig
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
-                unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
+                unreachable!("println and format strings do not support slices. Convert the slice to an array before passing it to println");
             }
         } else if matches!(typ, HirType::MutableReference(_)) {
-            unreachable!("println does not support mutable references.");
+            unreachable!("println and format strings do not support mutable references.");
         }
 
         let printable_type: PrintableType = typ.into();

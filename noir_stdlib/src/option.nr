@@ -57,7 +57,7 @@ impl<T> Option<T> {
     }
 
     /// Asserts `self.is_some()` with a provided custom message and returns the contained `Some` value
-    fn expect<M>(self, message: M) -> T {
+    fn expect<N, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
         assert(self.is_some(), message);
         self._value
     }
