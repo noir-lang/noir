@@ -48,7 +48,7 @@ impl Deserialize<VALUE_NOTE_LEN> for ValueNote {
 
 impl NoteInterface for ValueNote {
 
-    fn compute_note_hash(self) -> Field {
+    fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash(self.serialize(),0)
     }

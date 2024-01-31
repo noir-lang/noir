@@ -18,11 +18,6 @@ use dep::protocol_types::{
     traits::{Deserialize, Serialize},
 };
 
-fn compute_inner_hash(storage_slot: Field, note_hash: Field) -> Field {
-    // TODO(#1205) Do we need a generator index here?
-    pedersen_hash([storage_slot, note_hash], 0)
-}
-
 fn compute_siloed_hash(contract_address: AztecAddress, inner_note_hash: Field) -> Field {
     let inputs = [contract_address.to_field(), inner_note_hash];
     pedersen_hash(inputs, GENERATOR_INDEX__SILOED_COMMITMENT)
@@ -35,9 +30,10 @@ fn compute_unique_hash(nonce: Field, siloed_note_hash: Field) -> Field {
 
 fn compute_inner_note_hash<Note, N>(note: Note) -> Field where Note: NoteInterface {
     let header = note.get_header();
-    let note_hash = note.compute_note_hash();
+    let note_hash = note.compute_note_content_hash();
 
-    compute_inner_hash(header.storage_slot, note_hash)
+    // TODO(#1205) Do we need a generator index here?
+    pedersen_hash([header.storage_slot, note_hash], 0)
 }
 
 fn compute_siloed_note_hash<Note>(note_with_header: Note) -> Field where Note: NoteInterface {
@@ -95,8 +91,7 @@ pub fn compute_note_hash_and_nullifier<T, N, S>(
     // TODO: change this to note.setHeader(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
     T::set_header((&mut note), note_header);
 
-    let note_hash = note.compute_note_hash();
-    let inner_note_hash = compute_inner_hash(note_header.storage_slot, note_hash);
+    let inner_note_hash = compute_inner_note_hash(note);
 
     let siloed_note_hash = compute_siloed_hash(note_header.contract_address, inner_note_hash);
 

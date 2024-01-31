@@ -42,12 +42,9 @@ impl Deserialize<TRANSPARENT_NOTE_LEN> for TransparentNote {
 
 impl NoteInterface for TransparentNote {
 
-    fn compute_note_hash(self) -> Field {
+    fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([
-            self.amount,
-            self.secret_hash,
-        ],0)
+        pedersen_hash(self.serialize(), 0)
     }
 
     fn compute_nullifier(self, _context: &mut PrivateContext) -> Field {

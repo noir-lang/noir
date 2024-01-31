@@ -3,7 +3,7 @@ use crate::note::note_header::NoteHeader;
 
 // docs:start:note_interface
 trait NoteInterface {
-    fn compute_note_hash(self) -> Field;
+    fn compute_note_content_hash(self) -> Field;
 
     fn get_header(self) -> NoteHeader;
 

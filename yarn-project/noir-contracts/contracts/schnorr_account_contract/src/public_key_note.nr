@@ -69,7 +69,7 @@ impl NoteInterface for PublicKeyNote {
         ],0)
     }
 
-    fn compute_note_hash(note: PublicKeyNote) -> Field {
+    fn compute_note_content_hash(note: PublicKeyNote) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash(note.serialize(), 0)
     }

@@ -54,13 +54,9 @@ impl Deserialize<TOKEN_NOTE_LEN> for TokenNote {
 }
 
 impl NoteInterface for TokenNote {
-      fn compute_note_hash(self) -> Field {
+      fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash([
-            self.amount.value as Field, 
-            self.owner.to_field(),
-            self.randomness,
-        ],0)
+        pedersen_hash(self.serialize(), 0)
     }
 
     // docs:start:nullifier

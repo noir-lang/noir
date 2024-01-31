@@ -59,12 +59,8 @@ impl Deserialize<CARD_NOTE_LEN> for CardNote {
 }
 
 impl NoteInterface for CardNote {
-    fn compute_note_hash(self) -> Field {
-        pedersen_hash([
-            self.points as Field, 
-            self.randomness,
-            self.owner.to_field(),
-        ],0)
+    fn compute_note_content_hash(self) -> Field {
+        pedersen_hash(self.serialize(), 0)
     }
 
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
