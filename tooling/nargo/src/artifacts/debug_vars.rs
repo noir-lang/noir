@@ -46,9 +46,8 @@ impl DebugVars {
         });
     }
 
-    pub fn assign(&mut self, var_id: u32, values: &[Value]) {
+    pub fn assign_var(&mut self, var_id: u32, values: &[Value]) {
         self.active.insert(var_id);
-        // TODO: assign values as PrintableValue
         let type_id = self.id_to_type.get(&var_id).unwrap();
         let ptype = self.types.get(type_id).unwrap();
         self.id_to_value
@@ -118,15 +117,11 @@ impl DebugVars {
         unimplemented![]
     }
 
-    pub fn get(&mut self, var_id: u32) -> Option<&PrintableValue> {
-        self.id_to_value.get(&var_id)
-    }
-
     pub fn get_type(&self, var_id: u32) -> Option<&PrintableType> {
         self.id_to_type.get(&var_id).and_then(|type_id| self.types.get(type_id))
     }
 
-    pub fn drop(&mut self, var_id: u32) {
+    pub fn drop_var(&mut self, var_id: u32) {
         self.active.remove(&var_id);
     }
 }

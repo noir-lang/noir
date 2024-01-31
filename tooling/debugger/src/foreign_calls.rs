@@ -105,7 +105,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                     let var_id = var_id_value.to_u128() as u32;
                     let values: Vec<Value> =
                         foreign_call.inputs[1..].iter().flat_map(|x| x.values()).collect();
-                    self.debug_vars.assign(var_id, &values);
+                    self.debug_vars.assign_var(var_id, &values);
                 }
                 Ok(ForeignCallResult { values: vec![] })
             }
@@ -113,7 +113,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                 let fcp_var_id = &foreign_call.inputs[0];
                 if let ForeignCallParam::Single(var_id_value) = fcp_var_id {
                     let var_id = var_id_value.to_u128() as u32;
-                    self.debug_vars.drop(var_id);
+                    self.debug_vars.drop_var(var_id);
                 }
                 Ok(ForeignCallResult { values: vec![] })
             }
