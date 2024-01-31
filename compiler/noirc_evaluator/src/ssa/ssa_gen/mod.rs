@@ -671,8 +671,6 @@ impl<'a> FunctionContext<'a> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
 
-        // self.codegen_expression(assert_message)?;
-
         let assert_message = if let Some(assert_message_expr) = assert_message {
             let expr = assert_message_expr.as_ref();
             match expr {
@@ -689,8 +687,7 @@ impl<'a> FunctionContext<'a> {
                     for argument in &arguments {
                         self.builder.increment_array_reference_count(*argument);
                     }
-                    // let result_types = Self::convert_type(&call.return_type).flatten();
-                    // assert!(result_types.is_empty());
+
                     let instr = Instruction::Call { func, arguments };
                     Some(Box::new(SsaError::Dynamic(instr)))
                 }
@@ -702,8 +699,6 @@ impl<'a> FunctionContext<'a> {
             None
         };
 
-        // Assert messages from constrain statements specified by the user are codegen'd with a call expression,
-        // thus the assert_message field here should always be `None`
         self.builder.set_location(location).insert_constrain(expr, true_literal, assert_message);
 
         Ok(Self::unit_value())

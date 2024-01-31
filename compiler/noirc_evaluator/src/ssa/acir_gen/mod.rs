@@ -402,8 +402,8 @@ impl Context {
         brillig: &Brillig,
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
-        self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
         let instruction = &dfg[instruction_id];
+        self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
         let mut warnings = Vec::new();
         match instruction {
             Instruction::Binary(binary) => {

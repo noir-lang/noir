@@ -270,14 +270,6 @@ impl<'block> BrilligBlock<'block> {
                     match error.as_ref() {
                         SsaError::Static(string) => Some(string.clone()),
                         SsaError::Dynamic(call_instruction) => {
-                            // self.convert_ssa_call(
-                            //     call_instruction,
-                            //     dfg,
-                            //     ssa,
-                            //     brillig,
-                            //     last_array_uses,
-                            //     &[],
-                            // );
                             match call_instruction {
                                 Instruction::Call { func, arguments } => match &dfg[*func] {
                                     Value::Function(func_id) => {
@@ -288,9 +280,9 @@ impl<'block> BrilligBlock<'block> {
                                             instruction_id,
                                         );
                                     }
-                                    _ => panic!("ahhh expected a func"),
+                                    _ => panic!("expected a function"),
                                 },
-                                _ => panic!("ahhhhhh should have a call"),
+                                _ => panic!("expected a call"),
                             }
                             None
                         }
