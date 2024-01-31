@@ -56,7 +56,7 @@ impl<T> Option<T> {
         }
     }
 
-    fn expect<N>(self, message: str<N>) -> T {
+    fn expect<M>(self, message: M) -> T {
         assert(self.is_some(), message);
         self._value
     }

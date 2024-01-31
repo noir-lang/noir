@@ -1,5 +1,3 @@
-use dep::std::option::Option;
-
 fn main() {
     let ten = 10; // giving this a name, to ensure that the Option functions work with closures
     let none = Option::none();
