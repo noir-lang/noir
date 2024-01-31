@@ -3,7 +3,7 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
-use crate::ssa::ir::instruction::SsaError;
+use crate::ssa::ir::instruction::ConstrainError;
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -268,8 +268,8 @@ impl<'block> BrilligBlock<'block> {
 
                 let assert_message = if let Some(error) = assert_message {
                     match error.as_ref() {
-                        SsaError::Static(string) => Some(string.clone()),
-                        SsaError::Dynamic(call_instruction) => {
+                        ConstrainError::Static(string) => Some(string.clone()),
+                        ConstrainError::Dynamic(call_instruction) => {
                             match call_instruction {
                                 Instruction::Call { func, arguments } => match &dfg[*func] {
                                     Value::Function(func_id) => {

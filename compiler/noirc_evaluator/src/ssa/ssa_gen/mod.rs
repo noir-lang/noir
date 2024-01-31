@@ -13,7 +13,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    errors::RuntimeError,
+    errors::{InternalError, RuntimeError},
     ssa::{
         function_builder::data_bus::DataBusBuilder,
         ir::{instruction::Intrinsic, types::NumericType},
@@ -29,7 +29,7 @@ use super::{
     function_builder::data_bus::DataBus,
     ir::{
         function::RuntimeType,
-        instruction::{BinaryOp, Instruction, SsaError, TerminatorInstruction},
+        instruction::{BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -671,37 +671,52 @@ impl<'a> FunctionContext<'a> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
 
-        let assert_message = if let Some(assert_message_expr) = assert_message {
-            let expr = assert_message_expr.as_ref();
-            match expr {
-                ast::Expression::Call(call) => {
-                    let func = self.codegen_non_tuple_expression(&call.func)?;
-                    let mut arguments = Vec::with_capacity(call.arguments.len());
+        // Set the location here for any errors that may occur when we codegen the assert message
+        self.builder.set_location(location);
 
-                    for argument in &call.arguments {
-                        let mut values = self.codegen_expression(argument)?.into_value_list(self);
-                        arguments.append(&mut values);
-                    }
+        let assert_message = self.codegen_constrain_error(assert_message)?;
 
-                    // If an array is passed as an argument we increase its reference count
-                    for argument in &arguments {
-                        self.builder.increment_array_reference_count(*argument);
-                    }
-
-                    let instr = Instruction::Call { func, arguments };
-                    Some(Box::new(SsaError::Dynamic(instr)))
-                }
-                _ => {
-                    panic!("ahh expected expression");
-                }
-            }
-        } else {
-            None
-        };
-
-        self.builder.set_location(location).insert_constrain(expr, true_literal, assert_message);
+        self.builder.insert_constrain(expr, true_literal, assert_message);
 
         Ok(Self::unit_value())
+    }
+
+    // This method does not necessary codegen the full assert message expression, thus it does not
+    // return a `Values` object. Instead we check the internals of the expression to make sure
+    // we have an `Expression::Call` as expected. An `Instruction::Call` is then constructed but not
+    // inserted to the SSA as we want that instruction to be atomic in SSA with a constrain instruction.
+    fn codegen_constrain_error(
+        &mut self,
+        assert_message: &Option<Box<Expression>>,
+    ) -> Result<Option<Box<ConstrainError>>, RuntimeError> {
+        if let Some(assert_message_expr) = assert_message {
+            if let ast::Expression::Call(call) = assert_message_expr.as_ref() {
+                let func = self.codegen_non_tuple_expression(&call.func)?;
+                let mut arguments = Vec::with_capacity(call.arguments.len());
+
+                for argument in &call.arguments {
+                    let mut values = self.codegen_expression(argument)?.into_value_list(self);
+                    arguments.append(&mut values);
+                }
+
+                // If an array is passed as an argument we increase its reference count
+                for argument in &arguments {
+                    self.builder.increment_array_reference_count(*argument);
+                }
+
+                let instr = Instruction::Call { func, arguments };
+                Ok(Some(Box::new(ConstrainError::Dynamic(instr))))
+            } else {
+                Err(InternalError::Unexpected {
+                    expected: "Expected a call expression".to_owned(),
+                    found: "Instead found {expr:?}".to_owned(),
+                    call_stack: self.builder.get_call_stack(),
+                }
+                .into())
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

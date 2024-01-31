@@ -18,7 +18,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{Endian, InstructionId, Intrinsic, SsaError},
+        instruction::{ConstrainError, Endian, InstructionId, Intrinsic},
         types::NumericType,
     },
     ssa_gen::Ssa,
@@ -250,7 +250,7 @@ impl FunctionBuilder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        assert_message: Option<Box<SsaError>>,
+        assert_message: Option<Box<ConstrainError>>,
     ) {
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }

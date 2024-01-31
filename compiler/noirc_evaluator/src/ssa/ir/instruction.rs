@@ -157,7 +157,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<Box<SsaError>>),
+    Constrain(ValueId, ValueId, Option<Box<ConstrainError>>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -330,9 +330,9 @@ impl Instruction {
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
-                    SsaError::Dynamic(call_instr) => {
+                    ConstrainError::Dynamic(call_instr) => {
                         let new_instr = call_instr.map_values(f);
-                        Box::new(SsaError::Dynamic(new_instr))
+                        Box::new(ConstrainError::Dynamic(new_instr))
                     }
                     _ => error.clone(),
                 });
@@ -390,7 +390,7 @@ impl Instruction {
                 f(*lhs);
                 f(*rhs);
                 if let Some(error) = assert_error.as_ref() {
-                    if let SsaError::Dynamic(call_instr) = error.as_ref() {
+                    if let ConstrainError::Dynamic(call_instr) = error.as_ref() {
                         call_instr.for_each_value(f);
                     }
                 }
@@ -567,22 +567,24 @@ impl Instruction {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub(crate) enum SsaError {
+pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
     Static(String),
     // These are errors which come from runtime expressions specified by a Noir program
+    // We store an `Instruction` as we want this Instruction to be atomic in SSA with
+    // a constrain instruction, and leave codegen of this instruction to lower level passes.
     Dynamic(Instruction),
 }
 
-impl From<String> for SsaError {
+impl From<String> for ConstrainError {
     fn from(value: String) -> Self {
-        SsaError::Static(value)
+        ConstrainError::Static(value)
     }
 }
 
-impl From<String> for Box<SsaError> {
+impl From<String> for Box<ConstrainError> {
     fn from(value: String) -> Self {
-        Box::new(SsaError::Static(value))
+        Box::new(ConstrainError::Static(value))
     }
 }
 

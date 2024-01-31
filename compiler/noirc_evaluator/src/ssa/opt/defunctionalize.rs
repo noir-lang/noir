@@ -14,7 +14,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, Instruction, SsaError},
+        instruction::{BinaryOp, ConstrainError, Instruction},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -92,7 +92,7 @@ impl DefunctionalizationContext {
                     }
                     Instruction::Constrain(_, _, constrain_error) => {
                         if let Some(error) = constrain_error {
-                            if let SsaError::Dynamic(Instruction::Call {
+                            if let ConstrainError::Dynamic(Instruction::Call {
                                 func: target_func_id,
                                 arguments,
                             }) = error.as_ref()
@@ -139,8 +139,8 @@ impl DefunctionalizationContext {
                     if let Instruction::Constrain(lhs, rhs, constrain_error_call) = instruction {
                         let new_error_call = if let Some(error) = constrain_error_call {
                             match error.as_ref() {
-                                SsaError::Dynamic(_) => {
-                                    Some(Box::new(SsaError::Dynamic(new_instruction)))
+                                ConstrainError::Dynamic(_) => {
+                                    Some(Box::new(ConstrainError::Dynamic(new_instruction)))
                                 }
                                 _ => None,
                             }
