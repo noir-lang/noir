@@ -42,7 +42,6 @@ use dep::types::{
             array_to_bounded_vec,
             validate_array,
         },
-        bounded_vec::BoundedVec,
     },
     traits::{is_empty, is_empty_array},
 };
@@ -50,7 +49,7 @@ use dep::types::{
 pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
     // Each of the following arrays is expected to be zero-padded.
     // In addition, some of the following arrays (new_commitments, etc...) are passed
-    // to push_array_to_array() routines which rely on the passed arrays to be well-formed.
+    // to extend_from_array_to_array() routines which rely on the passed arrays to be well-formed.
 
     validate_array(app_public_inputs.return_values);
     validate_array(app_public_inputs.read_requests);
@@ -197,7 +196,7 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
             )
         }
     }
-    public_inputs.end.read_requests.push_vec(siloed_read_requests);
+    public_inputs.end.read_requests.extend_from_bounded_vec(siloed_read_requests);
 
     // Nullifier key validation requests.
     for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL {
@@ -228,7 +227,7 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
             );
         }
     }
-    public_inputs.end.new_nullifiers.push_vec(siloed_new_nullifiers);
+    public_inputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
 
     // commitments
     let mut siloed_new_commitments: BoundedVec<SideEffect, MAX_NEW_COMMITMENTS_PER_CALL> = BoundedVec::new(SideEffect::empty());
@@ -240,7 +239,7 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
             );
         }
     }
-    public_inputs.end.new_commitments.push_vec(siloed_new_commitments);
+    public_inputs.end.new_commitments.extend_from_bounded_vec(siloed_new_commitments);
 
     // Call stacks
     // Private call stack.
@@ -250,7 +249,7 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
         private_call_public_inputs.private_call_stack_hashes,
         private_call
     );
-    public_inputs.end.private_call_stack.push_vec(private_call_stack);
+    public_inputs.end.private_call_stack.extend_from_bounded_vec(private_call_stack);
     // Public call stack.
     let public_call_stack = array_to_bounded_vec(private_call.public_call_stack);
     validate_call_requests(
@@ -258,7 +257,7 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
         private_call_public_inputs.public_call_stack_hashes,
         private_call
     );
-    public_inputs.end.public_call_stack.push_vec(public_call_stack);
+    public_inputs.end.public_call_stack.extend_from_bounded_vec(public_call_stack);
 
     // new l2 to l1 messages
     let portal_contract_address = private_call.portal_contract_address;
@@ -277,7 +276,7 @@ pub fn update_end_values(private_call: PrivateCallData, public_inputs: &mut Kern
             new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
         }
     }
-    public_inputs.end.new_l2_to_l1_msgs.push_vec(new_l2_to_l1_msgs_to_insert);
+    public_inputs.end.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
 
     // logs hashes
     // See the following thread if not clear:

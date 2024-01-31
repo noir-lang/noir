@@ -6,7 +6,6 @@ use crate::abis::new_contract_data::NewContractData as ContractLeafPreimage;
 use crate::abis::function_data::FunctionData;
 use crate::abis::side_effect::{SideEffect};
 use crate::utils::uint256::U256;
-use crate::utils::bounded_vec::BoundedVec;
 use crate::constants::{
         ARGS_HASH_CHUNK_COUNT,
         ARGS_HASH_CHUNK_LENGTH,

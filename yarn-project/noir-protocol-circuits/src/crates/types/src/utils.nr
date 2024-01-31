@@ -3,7 +3,6 @@
 // Reducing the size of this package would be welcome.
 
 mod arrays;
-mod bounded_vec;
 mod field;
 mod uint256;
 

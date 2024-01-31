@@ -85,7 +85,6 @@ mod tests {
                 array_eq,
                 array_length,
             },
-            bounded_vec::BoundedVec,
         },
     };
     use dep::types::constants::{
@@ -406,7 +405,7 @@ mod tests {
                 contract_class_id: 78
             }
         ];
-        builder.previous_kernel.end.new_contracts.push_array(new_contracts);
+        builder.previous_kernel.end.new_contracts.extend_from_array(new_contracts);
 
         builder.public_call.append_public_call_requests_for_regular_calls(2);
         let storage = builder.public_call.public_call_stack.storage;

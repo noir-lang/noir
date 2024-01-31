@@ -1,5 +1,4 @@
 use dep::std::option::Option;
-use crate::types::vec::BoundedVec;
 use dep::protocol_types::{
     constants::MAX_READ_REQUESTS_PER_CALL,
     traits::Deserialize,

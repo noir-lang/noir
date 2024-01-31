@@ -1,6 +1,5 @@
 use dep::std::array;
 use dep::std::cmp::Eq;
-use crate::utils::bounded_vec::BoundedVec;
 use crate::traits::{Empty, is_empty};
 
 pub fn array_to_bounded_vec<T, N>(array: [T; N]) -> BoundedVec<T, N> where T: Empty + Eq {

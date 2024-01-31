@@ -13,7 +13,6 @@ use crate::{
         fixtures,
         testing_harness::build_contract_deployment_data,
     },
-    utils::bounded_vec::BoundedVec,
 };
 use crate::constants::{
         MAX_READ_REQUESTS_PER_CALL,

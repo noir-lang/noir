@@ -180,7 +180,7 @@ mod tests {
             SideEffect { value: previous[1].value + 1, counter: 3 },
             SideEffect { value: previous[1].value + 2, counter: 4 }
         ];
-        builder.public_call.public_inputs.new_commitments.push_array(current);
+        builder.public_call.public_inputs.new_commitments.extend_from_array(current);
         let siloed = current.map(|c: SideEffect| silo_commitment(contract_address, c.value));
         let new_commitments = [
             previous[0], previous[1], SideEffect { value: siloed[0], counter: 3 }, SideEffect { value: siloed[1], counter: 4 }
@@ -247,7 +247,7 @@ mod tests {
         SideEffectLinkedToNoteHash { value: silo_nullifier(contract_address, current.value), note_hash: current.note_hash, counter: current.counter }
         );
 
-        builder.public_call.public_inputs.new_nullifiers.push_array(current);
+        builder.public_call.public_inputs.new_nullifiers.extend_from_array(current);
         // There are 3 nullifiers in the previous kernel. The first one is the tx nullifier.
         let new_nullifiers = [previous[0], previous[1], previous[2], siloed[0], siloed[1]];
 
@@ -265,10 +265,10 @@ mod tests {
         // Setup 1 new l2 to l1 message on the previous kernel.
         let previous = [12345];
 
-        builder.previous_kernel.end.new_l2_to_l1_msgs.push_array(previous);
+        builder.previous_kernel.end.new_l2_to_l1_msgs.extend_from_array(previous);
         // Setup 1 new l2 to l1 message on the current public inputs.
         let current = [67890];
-        builder.public_call.public_inputs.new_l2_to_l1_msgs.push_array(current);
+        builder.public_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(current);
         let tx_context = builder.previous_kernel.tx_context;
         let version = tx_context.version;
         let chain_id = tx_context.chain_id;

@@ -5,7 +5,6 @@ contract SchnorrHardcodedAccount {
     use dep::aztec::{
         abi::{ PrivateCircuitPublicInputs, PrivateContextInputs, Hasher },
         context::PrivateContext,
-        types::vec::BoundedVec,
     };
 
     use dep::authwit:: {

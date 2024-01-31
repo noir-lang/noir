@@ -3,7 +3,6 @@ use crate::abis::{
     side_effect::SideEffect,
 };
 use crate::tests::fixtures;
-use crate::utils::bounded_vec::BoundedVec;
 use crate::constants::{
         MAX_READ_REQUESTS_PER_CALL,
 };

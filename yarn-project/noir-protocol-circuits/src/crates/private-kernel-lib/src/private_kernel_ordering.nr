@@ -28,7 +28,6 @@ use dep::types::{
     },
     utils::{
         arrays::{array_length, array_eq},
-        bounded_vec::BoundedVec,
     },
     traits::{Empty, is_empty}
 };
@@ -236,7 +235,6 @@ mod tests {
         tests::previous_kernel_data_builder::PreviousKernelDataBuilder,
         utils::{
             arrays::{array_eq, array_length},
-            bounded_vec::BoundedVec,
         },
         traits::{Empty, is_empty, is_empty_array}
     };

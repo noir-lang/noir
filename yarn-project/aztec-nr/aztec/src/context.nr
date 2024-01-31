@@ -14,7 +14,6 @@ use crate::{
         header::get_header_at,
         nullifier_key::{get_nullifier_key_pair, NullifierKeyPair},
     },
-    types::vec::BoundedVec,
     utils::Reader,
 };
 use dep::protocol_types::{

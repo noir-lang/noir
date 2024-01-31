@@ -22,7 +22,6 @@ use crate::{
     traits::Empty,
     utils::{
         arr_copy_slice,
-        bounded_vec::BoundedVec,
     },
 };
 
@@ -40,10 +39,10 @@ impl Header {
     pub fn serialize(self) -> [Field; HEADER_LENGTH] {
         let mut fields: BoundedVec<Field, HEADER_LENGTH> = BoundedVec::new(0);
 
-        fields.push_array(self.last_archive.serialize());
-        fields.push_array(self.body_hash);
-        fields.push_array(self.state.serialize());
-        fields.push_array(self.global_variables.serialize());
+        fields.extend_from_array(self.last_archive.serialize());
+        fields.extend_from_array(self.body_hash);
+        fields.extend_from_array(self.state.serialize());
+        fields.extend_from_array(self.global_variables.serialize());
 
         fields.storage
     }

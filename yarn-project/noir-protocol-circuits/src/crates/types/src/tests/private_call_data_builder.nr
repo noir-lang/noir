@@ -21,9 +21,6 @@ use crate::{
     transaction::{
         request::TxRequest,
     },
-    utils::{
-        bounded_vec::BoundedVec,
-    },
 };
 use crate::constants::{
         MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
@@ -114,14 +111,14 @@ impl PrivateCallDataBuilder {
 
     pub fn append_private_call_requests(&mut self, num_requests: Field, is_delegate_call: bool) {
         let (hashes, call_requests) = self.generate_call_requests(self.private_call_stack, num_requests, is_delegate_call);
-        self.public_inputs.private_call_stack_hashes.push_vec(hashes);
-        self.private_call_stack.push_vec(call_requests);
+        self.public_inputs.private_call_stack_hashes.extend_from_bounded_vec(hashes);
+        self.private_call_stack.extend_from_bounded_vec(call_requests);
     }
 
     pub fn append_public_call_requests(&mut self, num_requests: Field, is_delegate_call: bool) {
         let (hashes, call_requests) = self.generate_call_requests(self.public_call_stack, num_requests, is_delegate_call);
-        self.public_inputs.public_call_stack_hashes.push_vec(hashes);
-        self.public_call_stack.push_vec(call_requests);
+        self.public_inputs.public_call_stack_hashes.extend_from_bounded_vec(hashes);
+        self.public_call_stack.extend_from_bounded_vec(call_requests);
     }
 
     fn generate_call_requests<N>(
@@ -162,14 +159,14 @@ impl PrivateCallDataBuilder {
 
     pub fn append_read_requests(&mut self, num_read_requests: Field) {
         let (read_requests, read_request_membership_witnesses) = fixtures::read_requests::generate_read_requests(num_read_requests);
-        self.public_inputs.read_requests.push_vec(read_requests);
-        self.read_request_membership_witnesses.push_vec(read_request_membership_witnesses);
+        self.public_inputs.read_requests.extend_from_bounded_vec(read_requests);
+        self.read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
     }
 
     pub fn append_transient_read_requests(&mut self, num_read_requests: Field) {
         let (read_requests, read_request_membership_witnesses) = fixtures::read_requests::generate_transient_read_requests(num_read_requests);
-        self.public_inputs.read_requests.push_vec(read_requests);
-        self.read_request_membership_witnesses.push_vec(read_request_membership_witnesses);
+        self.public_inputs.read_requests.extend_from_bounded_vec(read_requests);
+        self.read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
     }
 
     pub fn set_encrypted_logs(&mut self, hash: [Field; NUM_FIELDS_PER_SHA256], preimages_length: Field) {

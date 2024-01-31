@@ -8,8 +8,7 @@ use crate::{
         public_data_update_request::PublicDataUpdateRequest,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
-    mocked::AggregationObject,
-    utils::bounded_vec::BoundedVec
+    mocked::AggregationObject
 };
 use crate::constants::{
     MAX_READ_REQUESTS_PER_TX,

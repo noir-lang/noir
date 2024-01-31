@@ -1,6 +1,5 @@
 use dep::std::option::Option;
 use crate::note::note_getter_options::{Select, Sort, Comparator, NoteStatus};
-use crate::types::vec::BoundedVec;
 use dep::protocol_types::{
     constants::MAX_NOTES_PER_PAGE,
     traits::Deserialize,

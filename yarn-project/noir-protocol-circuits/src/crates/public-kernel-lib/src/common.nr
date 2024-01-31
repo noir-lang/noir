@@ -28,7 +28,6 @@ use dep::types::{
     hash::{silo_commitment, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
     utils::{
         arrays::{array_length, array_to_bounded_vec},
-        bounded_vec::BoundedVec,
     },
     traits::is_empty_array
 };
@@ -138,7 +137,7 @@ pub fn update_public_end_values(public_call: PublicCallData, circuit_outputs: &m
     let public_call_requests = array_to_bounded_vec(public_call.public_call_stack);
     let hashes = public_call.call_stack_item.public_inputs.public_call_stack_hashes;
     validate_call_requests(public_call_requests, hashes, public_call);
-    circuit_outputs.end.public_call_stack.push_vec(public_call_requests);
+    circuit_outputs.end.public_call_stack.extend_from_bounded_vec(public_call_requests);
 
     propagate_new_nullifiers(public_call, circuit_outputs);
     propagate_new_commitments(public_call, circuit_outputs);
@@ -171,7 +170,7 @@ fn propagate_valid_public_data_update_requests(
             public_data_update_requests.push(public_data_update_request);
         }
     }
-    circuit_outputs.end.public_data_update_requests.push_vec(public_data_update_requests);
+    circuit_outputs.end.public_data_update_requests.extend_from_bounded_vec(public_data_update_requests);
 }
 
 fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_outputs: &mut KernelCircuitPublicInputsBuilder) {
@@ -190,7 +189,7 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
             public_data_reads.push(public_data_read);
         }
     }
-    circuit_outputs.end.public_data_reads.push_vec(public_data_reads);
+    circuit_outputs.end.public_data_reads.extend_from_bounded_vec(public_data_reads);
 }
 
 fn propagate_new_commitments(public_call: PublicCallData, circuit_outputs: &mut KernelCircuitPublicInputsBuilder) {
@@ -207,7 +206,7 @@ fn propagate_new_commitments(public_call: PublicCallData, circuit_outputs: &mut 
             siloed_new_commitments.push(SideEffect { value: siloed_new_commitment, counter: new_commitments[i].counter });
         }
     }
-    circuit_outputs.end.new_commitments.push_vec(siloed_new_commitments);
+    circuit_outputs.end.new_commitments.extend_from_bounded_vec(siloed_new_commitments);
 }
 
 fn propagate_new_nullifiers(public_call: PublicCallData, circuit_outputs: &mut KernelCircuitPublicInputsBuilder) {
@@ -230,7 +229,7 @@ fn propagate_new_nullifiers(public_call: PublicCallData, circuit_outputs: &mut K
         }
     }
 
-    circuit_outputs.end.new_nullifiers.push_vec(siloed_new_nullifiers);
+    circuit_outputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
 }
 
 fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
@@ -254,7 +253,7 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
             new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
         }
     }
-    public_inputs.end.new_l2_to_l1_msgs.push_vec(new_l2_to_l1_msgs_to_insert);
+    public_inputs.end.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
 }
 
 /**

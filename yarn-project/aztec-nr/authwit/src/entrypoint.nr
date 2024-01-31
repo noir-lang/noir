@@ -1,5 +1,4 @@
 use dep::aztec::abi;
-use dep::aztec::types::vec::BoundedVec;
 use dep::aztec::context::PrivateContext;
 use dep::aztec::protocol_types::{
   abis::{
@@ -66,7 +65,7 @@ impl Serialize<ENTRYPOINT_PAYLOAD_SIZE> for EntrypointPayload {
   fn serialize(self) -> [Field; ENTRYPOINT_PAYLOAD_SIZE] {
     let mut fields: BoundedVec<Field, ENTRYPOINT_PAYLOAD_SIZE> = BoundedVec::new(0); 
     for call in self.function_calls {
-      fields.push_array(call.serialize());
+      fields.extend_from_array(call.serialize());
     }
     fields.push(self.nonce);
     fields.storage

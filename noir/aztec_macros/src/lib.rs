@@ -846,11 +846,11 @@ fn make_return_push(push_value: Expression) -> Statement {
 /// Make Return push array
 ///
 /// Translates to:
-/// `context.return_values.push_array({push_value})`
-fn make_return_push_array(push_value: Expression) -> Statement {
+/// `context.return_values.extend_from_array({push_value})`
+fn make_return_extend_from_array(push_value: Expression) -> Statement {
     make_statement(StatementKind::Semi(method_call(
         context_return_values(),
-        "push_array",
+        "extend_from_array",
         vec![push_value],
     )))
 }
@@ -859,14 +859,14 @@ fn make_return_push_array(push_value: Expression) -> Statement {
 ///
 /// Translates to:
 /// ```noir
-/// `context.return_values.push_array({push_value}.serialize())`
+/// `context.return_values.extend_from_array({push_value}.serialize())`
 fn make_struct_return_type(expression: Expression) -> Statement {
     let serialized_call = method_call(
         expression,  // variable
         "serialize", // method name
         vec![],      // args
     );
-    make_return_push_array(serialized_call)
+    make_return_extend_from_array(serialized_call)
 }
 
 /// Make array return type

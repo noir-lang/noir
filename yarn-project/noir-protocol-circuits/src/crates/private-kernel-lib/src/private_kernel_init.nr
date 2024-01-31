@@ -264,7 +264,7 @@ mod tests {
     fn input_validation_malformed_arrays_return_values() {
         let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
 
-        builder.private_call.public_inputs.return_values.push_array([0, 9123]);
+        builder.private_call.public_inputs.return_values.extend_from_array([0, 9123]);
 
         builder.failed();
     }
@@ -273,7 +273,7 @@ mod tests {
     fn input_validation_malformed_arrays_read_requests() {
         let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
 
-        builder.private_call.public_inputs.read_requests.push_array(
+        builder.private_call.public_inputs.read_requests.extend_from_array(
             [
             SideEffect { value: 0, counter: 0 },
             SideEffect { value: 9123, counter: 1 }
@@ -287,7 +287,7 @@ mod tests {
     fn input_validation_malformed_arrays_commitments() {
         let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
 
-        builder.private_call.public_inputs.new_commitments.push_array(
+        builder.private_call.public_inputs.new_commitments.extend_from_array(
             [
             SideEffect { value: 0, counter: 0 },
             SideEffect { value: 9123, counter: 1 }
@@ -301,7 +301,7 @@ mod tests {
     fn input_validation_malformed_arrays_nullifiers() {
         let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
 
-        builder.private_call.public_inputs.new_nullifiers.push_array(
+        builder.private_call.public_inputs.new_nullifiers.extend_from_array(
             [
             SideEffectLinkedToNoteHash { value: 0, note_hash: 0, counter: 0 },
             SideEffectLinkedToNoteHash { value: 9123, note_hash: 0, counter: 1 }
@@ -315,7 +315,7 @@ mod tests {
     fn input_validation_malformed_arrays_private_call_stack() {
         let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
 
-        builder.private_call.public_inputs.private_call_stack_hashes.push_array([0, 9123]);
+        builder.private_call.public_inputs.private_call_stack_hashes.extend_from_array([0, 9123]);
 
         builder.failed();
     }
@@ -324,7 +324,7 @@ mod tests {
     fn input_validation_malformed_arrays_public_call_stack() {
         let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
 
-        builder.private_call.public_inputs.public_call_stack_hashes.push_array([0, 9123]);
+        builder.private_call.public_inputs.public_call_stack_hashes.extend_from_array([0, 9123]);
 
         builder.failed();
     }
@@ -333,7 +333,7 @@ mod tests {
     fn input_validation_malformed_arrays_new_l2_to_l1_msgs() {
         let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
 
-        builder.private_call.public_inputs.new_l2_to_l1_msgs.push_array([0, 9123]);
+        builder.private_call.public_inputs.new_l2_to_l1_msgs.extend_from_array([0, 9123]);
 
         builder.failed();
     }

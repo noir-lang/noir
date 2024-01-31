@@ -22,7 +22,6 @@ use crate::{
         storage_update_request::StorageUpdateRequest,
     },
     header::Header,
-    utils::bounded_vec::BoundedVec,
 };
 
 struct PublicCircuitPublicInputs{
@@ -59,14 +58,14 @@ impl PublicCircuitPublicInputs{
         let mut inputs: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0);
         inputs.push(self.call_context.hash());
         inputs.push(self.args_hash);
-        inputs.push_array(self.return_values);
+        inputs.extend_from_array(self.return_values);
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
             inputs.push(self.contract_storage_update_requests[i].hash());
         }
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
             inputs.push(self.contract_storage_reads[i].hash());
         }
-        inputs.push_array(self.public_call_stack_hashes);
+        inputs.extend_from_array(self.public_call_stack_hashes);
 
         for i in 0..MAX_NEW_COMMITMENTS_PER_CALL{
             inputs.push(self.new_commitments[i].hash());
@@ -74,10 +73,10 @@ impl PublicCircuitPublicInputs{
         for i in 0..MAX_NEW_NULLIFIERS_PER_CALL{
             inputs.push(self.new_nullifiers[i].hash());
         }
-        inputs.push_array(self.new_l2_to_l1_msgs);
-        inputs.push_array(self.unencrypted_logs_hash);
+        inputs.extend_from_array(self.new_l2_to_l1_msgs);
+        inputs.extend_from_array(self.unencrypted_logs_hash);
         inputs.push(self.unencrypted_log_preimages_length);
-        inputs.push_array(self.historical_header.serialize());
+        inputs.extend_from_array(self.historical_header.serialize());
         inputs.push(self.prover_address.to_field());
 
         assert_eq(inputs.len(), PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PublicCircuitPublicInputs");
@@ -87,27 +86,27 @@ impl PublicCircuitPublicInputs{
 
     pub fn serialize(self) -> [Field; PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
-        fields.push_array(self.call_context.serialize());   
+        fields.extend_from_array(self.call_context.serialize());   
         fields.push(self.args_hash);
-        fields.push_array(self.return_values);
+        fields.extend_from_array(self.return_values);
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
-            fields.push_array(self.contract_storage_update_requests[i].serialize());
+            fields.extend_from_array(self.contract_storage_update_requests[i].serialize());
         }
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
-            fields.push_array(self.contract_storage_reads[i].serialize());
+            fields.extend_from_array(self.contract_storage_reads[i].serialize());
         }
-        fields.push_array(self.public_call_stack_hashes);
+        fields.extend_from_array(self.public_call_stack_hashes);
 
         for i in 0..MAX_NEW_COMMITMENTS_PER_CALL{
-            fields.push_array(self.new_commitments[i].serialize());
+            fields.extend_from_array(self.new_commitments[i].serialize());
         }
         for i in 0..MAX_NEW_NULLIFIERS_PER_CALL{
-            fields.push_array(self.new_nullifiers[i].serialize());
+            fields.extend_from_array(self.new_nullifiers[i].serialize());
         }
-        fields.push_array(self.new_l2_to_l1_msgs);
-        fields.push_array(self.unencrypted_logs_hash);
+        fields.extend_from_array(self.new_l2_to_l1_msgs);
+        fields.extend_from_array(self.unencrypted_logs_hash);
         fields.push(self.unencrypted_log_preimages_length);
-        fields.push_array(self.historical_header.serialize());
+        fields.extend_from_array(self.historical_header.serialize());
         fields.push(self.prover_address.to_field());
         fields.storage
     }

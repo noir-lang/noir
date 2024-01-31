@@ -11,7 +11,6 @@ use crate::{
     },
     header::Header,
     tests::fixtures,
-    utils::bounded_vec::BoundedVec,
 };
 use crate::constants::{
     MAX_NEW_COMMITMENTS_PER_CALL,
