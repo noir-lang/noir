@@ -258,7 +258,7 @@ impl Item for Param {
             Visibility::DataBus => "call_data",
         };
 
-        if self.typ.synthesized {
+        if self.typ.is_synthesized() {
             pattern.to_string()
         } else {
             let ty = rewrite::typ(visitor, shape, self.typ);

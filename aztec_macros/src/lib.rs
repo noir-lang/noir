@@ -196,7 +196,7 @@ fn cast(lhs: Expression, ty: UnresolvedTypeData) -> Expression {
 }
 
 fn make_type(typ: UnresolvedTypeData) -> UnresolvedType {
-    UnresolvedType { typ, span: None, synthesized: true }
+    UnresolvedType { typ, span: None }
 }
 
 fn index_array(array: Ident, index: &str) -> Expression {
@@ -294,7 +294,7 @@ fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -
         func.def.name.0.contents == "compute_note_hash_and_nullifier"
                 && func.def.parameters.len() == 4
                 && match &func.def.parameters[0].typ.typ {
-                    UnresolvedTypeData::Named(path, _) => path.segments.last().unwrap().0.contents == "AztecAddress",
+                    UnresolvedTypeData::Named(path, _, _) => path.segments.last().unwrap().0.contents == "AztecAddress",
                     _ => false,
                 }
                 && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
@@ -593,7 +593,8 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 /// The signature cannot be known at this point since types are not resolved yet, so we use a signature placeholder.
 /// It'll get resolved after by transforming the HIR.
 fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
-    let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
+    let struct_type =
+        make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![], true));
 
     let selector_path =
         chained_path!("aztec", "protocol_types", "abis", "function_selector", "FunctionSelector");
@@ -607,7 +608,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
 
     // Define `FunctionSelector` return type
     let return_type =
-        FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![])));
+        FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![], true)));
 
     let mut selector_fn_def = FunctionDefinition::normal(
         &ident("selector"),
@@ -650,7 +651,7 @@ fn create_inputs(ty: &str) -> Param {
     let context_ident = ident("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
     let type_path = chained_path!("aztec", "abi", ty);
-    let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![]));
+    let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![], true));
     let visibility = Visibility::Private;
 
     Param { pattern: context_pattern, typ: context_type, visibility, span: Span::default() }
@@ -723,7 +724,6 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
                             &UnresolvedType {
                                 typ: UnresolvedTypeData::Integer(Signedness::Unsigned, 32),
                                 span: None,
-                                synthesized: true,
                             },
                         )
                     }
@@ -971,7 +971,7 @@ fn make_castable_return_type(expression: Expression) -> Statement {
 fn create_return_type(ty: &str) -> FunctionReturnType {
     let return_path = chained_path!("aztec", "abi", ty);
 
-    let ty = make_type(UnresolvedTypeData::Named(return_path, vec![]));
+    let ty = make_type(UnresolvedTypeData::Named(return_path, vec![], true));
     FunctionReturnType::Ty(ty)
 }
 

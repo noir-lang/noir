@@ -45,7 +45,7 @@ pub enum UnresolvedTypeData {
     Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
-    Named(Path, Vec<UnresolvedType>),
+    Named(Path, Vec<UnresolvedType>, bool),
 
     /// A Trait as return type or parameter of function, including its generics
     TraitAsType(Path, Vec<UnresolvedType>),
@@ -74,14 +74,6 @@ pub struct UnresolvedType {
     //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
     //  let x = 100; --- type is UnresolvedType::Unspecified without a span
     pub span: Option<Span>,
-    pub synthesized: bool,
-}
-
-impl UnresolvedType {
-    pub fn synthesized(mut self) -> Self {
-        self.synthesized = true;
-        self
-    }
 }
 
 /// The precursor to TypeExpression, this is the type that the parser allows
@@ -101,7 +93,7 @@ pub enum UnresolvedTypeExpression {
 
 impl Recoverable for UnresolvedType {
     fn error(span: Span) -> Self {
-        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span), synthesized: true }
+        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span) }
     }
 }
 
@@ -118,7 +110,7 @@ impl std::fmt::Display for UnresolvedTypeData {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Named(s, args) => {
+            Named(s, args, _) => {
                 let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
                 if args.is_empty() {
                     write!(f, "{s}")
@@ -187,12 +179,20 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
+    pub fn is_synthesized(&self) -> bool {
+        match &self.typ {
+            UnresolvedTypeData::MutableReference(ty) => ty.is_synthesized(),
+            UnresolvedTypeData::Named(_, _, synthesized) => *synthesized,
+            _ => false,
+        }
+    }
+
     pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
-        UnresolvedType { typ, span: None, synthesized: true }
+        UnresolvedType { typ, span: None }
     }
 
     pub fn unspecified() -> UnresolvedType {
-        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None, synthesized: true }
+        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
     }
 }
 
@@ -206,7 +206,7 @@ impl UnresolvedTypeData {
     }
 
     pub fn with_span(&self, span: Span) -> UnresolvedType {
-        UnresolvedType { typ: self.clone(), span: Some(span), synthesized: false }
+        UnresolvedType { typ: self.clone(), span: Some(span) }
     }
 }
 

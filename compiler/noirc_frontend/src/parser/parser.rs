@@ -383,7 +383,7 @@ fn self_parameter() -> impl NoirParser<Param> {
         .map(|(pattern_keyword, span)| {
             let ident = Ident::new("self".to_string(), span);
             let path = Path::from_single("Self".to_owned(), span);
-            let mut self_type = UnresolvedTypeData::Named(path, vec![]).with_span(span);
+            let mut self_type = UnresolvedTypeData::Named(path, vec![], true).with_span(span);
             let mut pattern = Pattern::Identifier(ident);
 
             match pattern_keyword {
@@ -397,7 +397,7 @@ fn self_parameter() -> impl NoirParser<Param> {
                 _ => (),
             }
 
-            Param { pattern, typ: self_type.synthesized(), visibility: Visibility::Private, span }
+            Param { pattern, typ: self_type, visibility: Visibility::Private, span }
         })
 }
 
@@ -1037,7 +1037,6 @@ fn parenthesized_type(
         .map_with_span(|typ, span| UnresolvedType {
             typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
             span: span.into(),
-            synthesized: false,
         })
 }
 
@@ -1118,9 +1117,9 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
 }
 
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
-    path()
-        .then(generic_type_args(type_parser))
-        .map_with_span(|(path, args), span| UnresolvedTypeData::Named(path, args).with_span(span))
+    path().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
+        UnresolvedTypeData::Named(path, args, false).with_span(span)
+    })
 }
 
 fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {

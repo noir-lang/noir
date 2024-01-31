@@ -59,7 +59,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
         UnresolvedTypeData::FieldElement
         | UnresolvedTypeData::Integer(_, _)
         | UnresolvedTypeData::Bool
-        | UnresolvedTypeData::Named(_, _)
+        | UnresolvedTypeData::Named(_, _, _)
         | UnresolvedTypeData::Unit
         | UnresolvedTypeData::Expression(_)
         | UnresolvedTypeData::String(_)
