@@ -56,11 +56,6 @@ impl<T> Option<T> {
         }
     }
 
-    fn expect<N>(self, message: str<N>) -> T {
-        assert(self.is_some(), message);
-        self._value
-    }
-
     /// If self is `Some(x)`, this returns `Some(f(x))`. Otherwise, this returns `None`.
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> Option<U> {
         if self._is_some {

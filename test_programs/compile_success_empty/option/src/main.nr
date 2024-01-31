@@ -22,8 +22,6 @@ fn main() {
     assert(some.map(|x| x * 2).unwrap() == 6);
     assert(some.map(|x| x * ten).unwrap() == 30);
 
-    assert(some.expect("Should have a value") == 3);
-
     assert(none.map_or(0, |x| x * 2) == 0);
     assert(some.map_or(0, |x| x * 2) == 6);
     assert(none.map_or(0, |x| x * ten) == 0);
