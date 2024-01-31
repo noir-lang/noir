@@ -501,14 +501,15 @@ fn transform_event(
         })?;
     let selector_function = interner.function(&selector_id);
 
-    let compute_selector_statement =
-        interner.statement(selector_function.block(interner).statements().first().ok_or_else(|| {
+    let compute_selector_statement = interner.statement(
+        selector_function.block(interner).statements().first().ok_or_else(|| {
             let error = AztecMacroError::EventError {
                 span: struct_type.borrow().location.span,
                 message: "Compute selector statement not found".to_owned(),
             };
             (error, struct_type.borrow().location.file)
-        })?);
+        })?,
+    );
 
     let compute_selector_expression = match compute_selector_statement {
         HirStatement::Expression(expression_id) => match interner.expression(&expression_id) {
