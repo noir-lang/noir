@@ -82,14 +82,16 @@ You can create arrays of primitive types or structs. There is not yet support fo
 
 ## Methods
 
-For convenience, the STD provides some ready-to-use, common methods for arrays:
+For convenience, the STD provides some ready-to-use, common methods for arrays.
+Each of these functions are located within the generic impl `impl<T, N> [T; N] {`.
+So anywhere `self` appears, it refers to the variable `self: [T; N]`.
 
 ### len
 
 Returns the length of an array
 
 ```rust
-fn len<T, N>(_array: [T; N]) -> comptime Field
+fn len(self) -> Field
 ```
 
 example
@@ -109,7 +111,7 @@ logic it uses internally is optimized specifically for these values. If you need
 sort any type, you should use the function `sort_via` described below.
 
 ```rust
-fn sort<T, N>(_array: [T; N]) -> [T; N]
+fn sort(self) -> [T; N]
 ```
 
 example
@@ -127,7 +129,7 @@ fn main() {
 Sorts the array with a custom comparison function
 
 ```rust
-fn sort_via<T, N>(mut a: [T; N], ordering: fn(T, T) -> bool) -> [T; N]
+fn sort_via(self, ordering: fn(T, T) -> bool) -> [T; N]
 ```
 
 example
@@ -148,7 +150,7 @@ fn main() {
 Applies a function to each element of the array, returning a new array containing the mapped elements.
 
 ```rust
-fn map<U>(f: fn(T) -> U) -> [U; N]
+fn map<U>(self, f: fn(T) -> U) -> [U; N]
 ```
 
 example
@@ -164,7 +166,7 @@ Applies a function to each element of the array, returning the final accumulated
 parameter is the initial value.
 
 ```rust
-fn fold<U>(mut accumulator: U, f: fn(U, T) -> U) -> U
+fn fold<U>(self, mut accumulator: U, f: fn(U, T) -> U) -> U
 ```
 
 This is a left fold, so the given function will be applied to the accumulator and first element of
@@ -198,7 +200,7 @@ fn main() {
 Same as fold, but uses the first element as starting element.
 
 ```rust
-fn reduce<T, N>(f: fn(T, T) -> T) -> T
+fn reduce(self, f: fn(T, T) -> T) -> T
 ```
 
 example:
@@ -216,7 +218,7 @@ fn main() {
 Returns true if all the elements satisfy the given predicate
 
 ```rust
-fn all<T, N>(predicate: fn(T) -> bool) -> bool
+fn all(self, predicate: fn(T) -> bool) -> bool
 ```
 
 example:
@@ -234,7 +236,7 @@ fn main() {
 Returns true if any of the elements satisfy the given predicate
 
 ```rust
-fn any<T, N>(predicate: fn(T) -> bool) -> bool
+fn any(self, predicate: fn(T) -> bool) -> bool
 ```
 
 example:

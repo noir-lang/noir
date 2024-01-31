@@ -168,7 +168,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.registers.set(register_index, value);
     }
 
-    pub fn get_memory(&self) -> &Vec<Value> {
+    pub fn get_memory(&self) -> &[Value] {
         self.memory.values()
     }
 
@@ -460,13 +460,6 @@ impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         Ok((5_u128.into(), 6_u128.into()))
     }
-    fn ec_double(
-        &self,
-        _input1_x: &FieldElement,
-        _input1_y: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        Ok((7_u128.into(), 8_u128.into()))
-    }
 }
 
 #[cfg(test)]
@@ -748,7 +741,7 @@ mod tests {
 
             let opcodes = [&start[..], &loop_body[..]].concat();
             let vm = brillig_execute_and_get_vm(memory, &opcodes);
-            vm.get_memory().clone()
+            vm.get_memory().to_vec()
         }
 
         let memory = brillig_write_memory(vec![Value::from(0u128); 5]);
@@ -904,7 +897,7 @@ mod tests {
 
             let opcodes = [&start[..], &recursive_fn[..]].concat();
             let vm = brillig_execute_and_get_vm(memory, &opcodes);
-            vm.get_memory().clone()
+            vm.get_memory().to_vec()
         }
 
         let memory = brillig_recursive_write_memory(vec![Value::from(0u128); 5]);

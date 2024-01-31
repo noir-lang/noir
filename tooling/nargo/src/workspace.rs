@@ -20,6 +20,8 @@ pub struct Workspace {
     pub members: Vec<Package>,
     // If `Some()`, the `selected_package_index` is used to select the only `Package` when iterating a Workspace
     pub selected_package_index: Option<usize>,
+    /// If we could not resolve the workspace we would inform the user we have assumed it (ie. from lsp file path given)
+    pub is_assumed: bool,
 }
 
 impl Workspace {

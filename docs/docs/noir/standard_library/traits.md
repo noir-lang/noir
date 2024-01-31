@@ -8,11 +8,7 @@ keywords: [traits, trait, interface, protocol, default, add, eq]
 
 ### `std::default::Default`
 
-```rust
-trait Default {
-    fn default() -> Self;
-}
-```
+#include_code default-trait noir_stdlib/src/default.nr rust
 
 Constructs a default value of a type.
 
@@ -52,15 +48,47 @@ impl<A, B, C, D, E> Default for (A, B, C, D, E)
 For primitive integer types, the return value of `default` is `0`. Container
 types such as arrays are filled with default values of their element type.
 
+
+## `std::convert`
+
+### `std::convert::From`
+
+#include_code from-trait noir_stdlib/src/convert.nr rust
+
+The `From` trait defines how to convert from a given type `T` to the type on which the trait is implemented.
+
+The Noir standard library provides a number of implementations of `From` between primitive types.
+#include_code from-impls noir_stdlib/src/convert.nr rust
+
+#### When to implement `From`
+
+As a general rule of thumb, `From` may be implemented in the [situations where it would be suitable in Rust](https://doc.rust-lang.org/std/convert/trait.From.html#when-to-implement-from):
+
+- The conversion is *infallible*: Noir does not provide an equivalent to Rust's `TryFrom`, if the conversion can fail then provide a named method instead.
+- The conversion is *lossless*: semantically, it should not lose or discard information. For example, `u32: From<u16>` can losslessly convert any `u16` into a valid `u32` such that the original `u16` can be recovered. On the other hand, `u16: From<u32>` should not be implemented as `2**16` is a `u32` which cannot be losslessly converted into a `u16`.
+- The conversion is *value-preserving*: the conceptual kind and meaning of the resulting value is the same, even though the Noir type and technical representation might be different. While it's possible to infallibly and losslessly convert a `u8` into a `str<2>` hex representation, `4u8` and `"04"` are too different for `str<2>: From<u8>` to be implemented.
+- The conversion is *obvious*: it's the only reasonable conversion between the two types. If there's ambiguity on how to convert between them such that the same input could potentially map to two different values then a named method should be used. For instance rather than implementing `U128: From<[u8; 16]>`, the methods `U128::from_le_bytes` and `U128::from_be_bytes` are used as otherwise the endianness of the array would be ambiguous, resulting in two potential values of `U128` from the same byte array.
+
+One additional recommendation specific to Noir is:
+- The conversion is *efficient*: it's relatively cheap to convert between the two types. Due to being a ZK DSL, it's more important to avoid unnecessary computation compared to Rust. If the implementation of `From` would encourage users to perform unnecessary conversion, resulting in additional proving time, then it may be preferable to expose functionality such that this conversion may be avoided.
+
+### `std::convert::Into`
+
+The `Into` trait is defined as the reciprocal of `From`. It should be easy to convince yourself that if we can convert to type `A` from type `B`, then it's possible to convert type `B` into type `A`.
+
+For this reason, implementing `From` on a type will automatically generate a matching `Into` implementation. One should always prefer implementing `From` over `Into` as implementing `Into` will not generate a matching `From` implementation.
+
+#include_code into-trait noir_stdlib/src/convert.nr rust
+
+`Into` is most useful when passing function arguments where the types don't quite match up with what the function expects. In this case, the compiler has enough type information to perform the necessary conversion by just appending `.into()` onto the arguments in question.
+
+
 ## `std::cmp`
 
 ### `std::cmp::Eq`
 
-```rust
-trait Eq {
-    fn eq(self, other: Self) -> bool;
-}
-```
+#include_code eq-trait noir_stdlib/src/cmp.nr rust
+
 Returns `true` if `self` is equal to `other`. Implementing this trait on a type
 allows the type to be used with `==` and `!=`.
 
@@ -97,13 +125,9 @@ impl<A, B, C, D, E> Eq for (A, B, C, D, E)
     where A: Eq, B: Eq, C: Eq, D: Eq, E: Eq { .. }
 ```
 
-### `std::cmp::Cmp`
+### `std::cmp::Ord`
 
-```rust
-trait Cmp {
-    fn cmp(self, other: Self) -> Ordering;
-}
-```
+#include_code ord-trait noir_stdlib/src/cmp.nr rust
 
 `a.cmp(b)` compares two values returning `Ordering::less()` if `a < b`,
 `Ordering::equal()` if `a == b`, or `Ordering::greater()` if `a > b`.
@@ -151,23 +175,10 @@ These traits abstract over addition, subtraction, multiplication, and division r
 Implementing these traits for a given type will also allow that type to be used with the corresponding operator
 for that trait (`+` for Add, etc) in addition to the normal method names.
 
-```rust
-trait Add {
-    fn add(self, other: Self) -> Self;
-}
-
-trait Sub {
-    fn sub(self, other: Self) -> Self;
-}
-
-trait Mul {
-    fn mul(self, other: Self) -> Self;
-}
-
-trait Div {
-    fn div(self, other: Self) -> Self;
-}
-```
+#include_code add-trait noir_stdlib/src/ops.nr rust
+#include_code sub-trait noir_stdlib/src/ops.nr rust
+#include_code mul-trait noir_stdlib/src/ops.nr rust
+#include_code div-trait noir_stdlib/src/ops.nr rust
 
 The implementations block below is given for the `Add` trait, but the same types that implement
 `Add` also implement `Sub`, `Mul`, and `Div`.
@@ -189,11 +200,7 @@ impl Add for u64 { .. }
 
 ### `std::ops::Rem`
 
-```rust
-trait Rem {
-    fn rem(self, other: Self) -> Self;
-}
-```
+#include_code rem-trait noir_stdlib/src/ops.nr rust
 
 `Rem::rem(a, b)` is the remainder function returning the result of what is
 left after dividing `a` and `b`. Implementing `Rem` allows the `%` operator
@@ -216,19 +223,9 @@ impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
 
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 
-```rust
-trait BitOr {
-    fn bitor(self, other: Self) -> Self;
-}
-
-trait BitAnd {
-    fn bitand(self, other: Self) -> Self;
-}
-
-trait BitXor {
-    fn bitxor(self, other: Self) -> Self;
-}
-```
+#include_code bitor-trait noir_stdlib/src/ops.nr rust
+#include_code bitand-trait noir_stdlib/src/ops.nr rust
+#include_code bitxor-trait noir_stdlib/src/ops.nr rust
 
 Traits for the bitwise operations `|`, `&`, and `^`.
 
@@ -255,15 +252,8 @@ impl BitOr for i64 { fn bitor(self, other: i64) -> i64 { self | other } }
 
 ### `std::ops::{ Shl, Shr }`
 
-```rust
-trait Shl {
-    fn shl(self, other: Self) -> Self;
-}
-
-trait Shr {
-    fn shr(self, other: Self) -> Self;
-}
-```
+#include_code shl-trait noir_stdlib/src/ops.nr rust
+#include_code shr-trait noir_stdlib/src/ops.nr rust
 
 Traits for a bit shift left and bit shift right.
 

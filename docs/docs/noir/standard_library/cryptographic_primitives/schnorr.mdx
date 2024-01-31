@@ -11,9 +11,7 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 
 Verifier for Schnorr signatures over the embedded curve (for BN254 it is Grumpkin).
 
-```rust
-fn verify_signature(_public_key_x: Field, _public_key_y: Field, _signature: [u8; 64], _message: [u8]) -> bool
-```
+#include_code schnorr_verify noir_stdlib/src/schnorr.nr rust
 
 where `_signature` can be generated like so using the npm package
 [@noir-lang/barretenberg](https://www.npmjs.com/package/@noir-lang/barretenberg)

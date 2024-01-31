@@ -1,3 +1,4 @@
+// docs:start:poseidon
 use dep::std::hash::poseidon;
 
 fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field) {
@@ -7,3 +8,4 @@ fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field) {
     let hash2 = poseidon::bn254::hash_4(x2);
     assert(hash2 == y2);
 }
+// docs:end:poseidon
