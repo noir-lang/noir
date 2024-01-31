@@ -5,7 +5,15 @@ impl Type<A> {}
 impl Type<A, B> {}
 
 impl Type {
-    fn type(self) {}
+    fn method(self) {}
 
-    fn type(&mut self) {}
+    fn method(&mut self) {}
+}
+
+impl Type {
+fn method(self) {}
+}
+
+impl Type {
+            fn method(self) {}
 }
