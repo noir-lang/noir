@@ -12,7 +12,7 @@ Aztec.nr contains abstractions which remove the need to understand the low-level
 - Public and private [state variable types](./storage/main.md)
 - Some pre-designed notes
 - Functions for [emitting](./events.md) encrypted and unencrypted logs
-- [Oracle functions](./functions.md#oracle-functions) for accessing:
+- [Oracle functions](./functions/oracles.md) for accessing:
   - private state
   - secrets
 - Functions for communicating with [Ethereum L1](../portals/main.md)

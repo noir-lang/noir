@@ -62,7 +62,7 @@ The keystore is a secure storage for private and public keys.
 
 ## Oracles
 
-Oracles are pieces of data that are injected into a smart contract function from the client side. You can read more about why and how they work in the [functions section](../../../developers/contracts/syntax/functions.md#oracle-functions).
+Oracles are pieces of data that are injected into a smart contract function from the client side. You can read more about why and how they work in the [functions section](../../../developers/contracts/syntax/functions/oracles.md).
 
 ## For developers
 To learn how to develop on top of the PXE, refer to these guides:

@@ -10,6 +10,7 @@ import { ExecutionError } from '../common/errors.js';
 import { AcirSimulator } from '../index.js';
 import { ViewDataOracle } from './view_data_oracle.js';
 
+// docs:start:execute_unconstrained_function
 /**
  * Execute an unconstrained function and return the decoded values.
  */
@@ -45,3 +46,4 @@ export async function executeUnconstrainedFunction(
 
   return decodeReturnValues(artifact, extractReturnWitness(acir, partialWitness));
 }
+// docs:end:execute_unconstrained_function

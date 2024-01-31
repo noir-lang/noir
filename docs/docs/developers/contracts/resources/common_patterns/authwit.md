@@ -11,7 +11,7 @@ description: Developer Documentation to use Authentication Witness for authentic
 
 Authentication Witness is a scheme for authentication actions on Aztec, so users can allow third-parties (eg protocols or other users) to execute an action on their behalf.
 
-How it works logically is explained in the [foundational concepts](./../../../../learn/concepts/accounts/authwit.md) but we will do a short recap here.
+How it works logically is explained in the [concepts](./../../../../learn/concepts/accounts/authwit.md) but we will do a short recap here.
 
 An authentication witness is defined for a specific action, such as allowing a Defi protocol to transfer funds on behalf of the user. An action is here something that could be explained as `A is allowed to perform X operation on behalf of B` and we define it as a hash computed as such:
 

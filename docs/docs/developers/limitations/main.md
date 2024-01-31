@@ -29,13 +29,13 @@ Help shape and define:
 
 - It is a testing environment, it is insecure, unaudited and does not generate any proofs, its only for testing purposes;
 - Constructors can not call nor alter public state
-  - The constructor is executed exclusively in private domain, WITHOUT the ability to call public functions or alter public state. This means to set initial storage values, you need to follow a pattern similar to [proxies in Ethereum](https://blog.openzeppelin.com/proxy-patterns), where you `initialize` the contract with values after it have been deployed, see [constructor](../contracts/syntax/functions.md#constructor).
-- No static nor delegate calls (see [mutability](../contracts/syntax/functions.md#mutability)).
+  - The constructor is executed exclusively in private domain, WITHOUT the ability to call public functions or alter public state. This means to set initial storage values, you need to follow a pattern similar to [proxies in Ethereum](https://blog.openzeppelin.com/proxy-patterns), where you `initialize` the contract with values after it have been deployed, see [constructor](../contracts/syntax/functions/constructor.md).
+- No static nor delegate calls (see [mutability](../contracts/syntax/functions/main.md)).
   - These values are unused in the call-context.
   - Beware that what you think of as a `view` could alter state ATM! Notably the account could alter state or re-enter whenever the account contract's `is_valid` function is called.
 - `msg_sender` is currently leaking when doing private -> public calls
   - The `msg_sender` will always be set, if you call a public function from the private world, the `msg_sender` will be set to the private caller's address. See [function context](../contracts/syntax/context.mdx).
-- The initial `msg_sender` is 0, which can be problematic for some contracts, see [function visibility](../contracts/syntax/functions.md#function-visibility).
+- The initial `msg_sender` is 0, which can be problematic for some contracts, see [function visibility](../contracts/syntax/functions/visibility.md).
 - Unencrypted logs don't link to the contract that emitted it, so essentially just a `debug_log`` that you can match values against.
 - A note that is created and nullified in the same transaction will still emit an encrypted log.
 - A limited amount of new commitments, nullifiers and calls that are supported by a transaction, see [circuit limitations](#circuit-limitations).
@@ -193,7 +193,7 @@ Here are the current constants:
 
 #### What are the consequences?
 
-When you write an [Aztec.nr](../contracts/main.md) [function](../contracts/syntax/functions.md), there will be upper bounds on the following:
+When you write an [Aztec.nr](../contracts/main.md) [function](../contracts/syntax/functions/main.md), there will be upper bounds on the following:
 
 - The number of public state reads and writes;
 - The number of note reads and nullifications;

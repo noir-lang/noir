@@ -32,7 +32,7 @@ const sidebars = {
     "learn/about_aztec/what_is_aztec",
     "learn/about_aztec/vision",
     "learn/about_aztec/technical_overview",
-  
+
     {
       type: "html",
       value: '<span clasuns="sidebar-divider" />',
@@ -55,9 +55,7 @@ const sidebars = {
             type: "doc",
             id: "learn/concepts/hybrid_state/main",
           },
-          items: [
-            "learn/concepts/hybrid_state/public_vm",
-          ],
+          items: ["learn/concepts/hybrid_state/public_vm"],
         },
         {
           label: "Storage",
@@ -70,9 +68,7 @@ const sidebars = {
                 type: "doc",
                 id: "learn/concepts/storage/trees/main",
               },
-              items: [
-                "learn/concepts/storage/trees/indexed_merkle_tree",
-              ],
+              items: ["learn/concepts/storage/trees/indexed_merkle_tree"],
             },
             "learn/concepts/storage/storage_slots",
           ],
@@ -97,9 +93,7 @@ const sidebars = {
             type: "doc",
             id: "learn/concepts/smart_contracts/main",
           },
-          items: [
-            "learn/concepts/smart_contracts/contract_creation",
-          ],
+          items: ["learn/concepts/smart_contracts/contract_creation"],
         },
         {
           label: "Communication",
@@ -126,9 +120,7 @@ const sidebars = {
             type: "doc",
             id: "learn/concepts/pxe/main",
           },
-          items: [
-            "learn/concepts/pxe/acir_simulator",
-          ],
+          items: ["learn/concepts/pxe/acir_simulator"],
         },
         {
           label: "Circuits",
@@ -267,7 +259,7 @@ const sidebars = {
       items: [
         "developers/cli/cli-commands",
         "developers/cli/sandbox-reference",
-        "developers/cli/run_more_than_one_pxe_sandbox"
+        "developers/cli/run_more_than_one_pxe_sandbox",
       ],
     },
     {
@@ -297,13 +289,28 @@ const sidebars = {
                 id: "developers/contracts/syntax/storage/main",
               },
               items: [
-              "developers/contracts/syntax/storage/private_state",
-              "developers/contracts/syntax/storage/public_state",
-              "developers/contracts/syntax/storage/storage_slots",
-            ],
+                "developers/contracts/syntax/storage/private_state",
+                "developers/contracts/syntax/storage/public_state",
+                "developers/contracts/syntax/storage/storage_slots",
+              ],
             },
             "developers/contracts/syntax/events",
-            "developers/contracts/syntax/functions",
+            {
+              label: "Functions",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "developers/contracts/syntax/functions/main",
+              },
+              items: [
+                "developers/contracts/syntax/functions/public_private_unconstrained",
+                "developers/contracts/syntax/functions/visibility",
+                "developers/contracts/syntax/functions/constructor",
+                "developers/contracts/syntax/functions/calling_functions",
+                "developers/contracts/syntax/functions/oracles",
+                "developers/contracts/syntax/functions/inner_workings",
+              ],
+            },
             "developers/contracts/syntax/oracles",
             {
               label: "Proving Historical Blockchain Data",
@@ -311,10 +318,10 @@ const sidebars = {
               items: [
                 "developers/contracts/syntax/historical_access/how_to_prove_history",
                 "developers/contracts/syntax/historical_access/history_lib_reference",
-            ],
+              ],
             },
             "developers/contracts/syntax/slow_updates_tree",
-            
+
             "developers/contracts/syntax/context",
             "developers/contracts/syntax/globals",
           ],
