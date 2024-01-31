@@ -53,7 +53,7 @@ Once these have been installed, to start the sandbox, run:
 aztec-sandbox
 ```
 
-This will attempt to run the Sandbox on ` localhost:8080`, so you will have to make sure nothing else is running on that port or change the port defined in `./.aztec/docker-compose.yml`. Running the command again will overwrite any changes made to the `docker-compose.yml`.
+This will attempt to run the Sandbox on ` localhost:8080`, so you will have to make sure nothing else is running on that port or change the port defined in `./.aztec/docker-compose.yml`. Running the installation again will overwrite any changes made to the `docker-compose.yml`.
 
 This command will also install the CLI if a node package version of the CLI isn't found locally.
 
@@ -70,6 +70,10 @@ The default accounts that come with sandbox will likely change over time. Save t
 Start by deploying a token contract. After it is deployed, we check that the deployment succeeded, and export the deployment address to use in future commands. For more detail on how the token contract works, see the [token contract tutorial](../tutorials/writing_token_contract.md).
 
 #include_code deploy yarn-project/end-to-end/src/guides/up_quick_start.sh bash
+
+:::note
+If you're not using the default port for the Sandbox, make sure to pass the `--rpc-url` parameter, e.g.: `--rpc-url http://localhost:8000`.
+:::
 
 Note that the deployed contract address is exported, so we can use it as `$CONTRACT` later on.
 
