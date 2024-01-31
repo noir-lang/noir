@@ -720,9 +720,11 @@ impl Display for FunctionDefinition {
 impl FunctionReturnType {
     pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
-            FunctionReturnType::Default(span) => {
-                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) })
-            }
+            FunctionReturnType::Default(span) => Cow::Owned(UnresolvedType {
+                typ: UnresolvedTypeData::Unit,
+                span: Some(*span),
+                synthesized: true,
+            }),
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }
     }

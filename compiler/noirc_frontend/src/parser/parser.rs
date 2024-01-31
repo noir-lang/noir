@@ -397,7 +397,7 @@ fn self_parameter() -> impl NoirParser<Param> {
                 _ => (),
             }
 
-            Param { pattern, typ: self_type, visibility: Visibility::Private, span }
+            Param { pattern, typ: self_type.synthesized(), visibility: Visibility::Private, span }
         })
 }
 
@@ -557,7 +557,7 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .ignore_then(generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then_ignore(just(Token::LeftBrace))
-        .then(function_definition(true).repeated())
+        .then(spanned(function_definition(true)).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|((generics, (object_type, type_span)), methods)| {
             TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
@@ -1037,6 +1037,7 @@ fn parenthesized_type(
         .map_with_span(|typ, span| UnresolvedType {
             typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
             span: span.into(),
+            synthesized: false,
         })
 }
 

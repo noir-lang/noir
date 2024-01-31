@@ -186,7 +186,7 @@ fn cast(lhs: Expression, ty: UnresolvedTypeData) -> Expression {
 }
 
 fn make_type(typ: UnresolvedTypeData) -> UnresolvedType {
-    UnresolvedType { typ, span: None }
+    UnresolvedType { typ, span: None, synthesized: true }
 }
 
 fn index_array(array: Ident, index: &str) -> Expression {
@@ -583,7 +583,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         object_type: struct_type,
         type_span: structure.span,
         generics: vec![],
-        methods: vec![NoirFunction::normal(selector_fn_def)],
+        methods: vec![(NoirFunction::normal(selector_fn_def), Span::default())],
     }
 }
 
@@ -679,6 +679,7 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
                             &UnresolvedType {
                                 typ: UnresolvedTypeData::Integer(Signedness::Unsigned, 32),
                                 span: None,
+                                synthesized: true,
                             },
                         )
                     }

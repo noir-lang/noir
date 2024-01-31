@@ -251,15 +251,19 @@ impl Item for Param {
     }
 
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
+        let pattern = visitor.slice(self.pattern.span());
         let visibility = match self.visibility {
             Visibility::Public => "pub ",
             Visibility::Private => "",
             Visibility::DataBus => "call_data",
         };
-        let pattern = visitor.slice(self.pattern.span());
-        let ty = rewrite::typ(visitor, shape, self.typ);
 
-        format!("{pattern}: {visibility}{ty}")
+        if self.typ.synthesized {
+            pattern.to_string()
+        } else {
+            let ty = rewrite::typ(visitor, shape, self.typ);
+            format!("{pattern}: {visibility}{ty}")
+        }
     }
 }
 

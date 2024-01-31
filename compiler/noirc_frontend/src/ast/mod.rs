@@ -74,6 +74,14 @@ pub struct UnresolvedType {
     //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
     //  let x = 100; --- type is UnresolvedType::Unspecified without a span
     pub span: Option<Span>,
+    pub synthesized: bool,
+}
+
+impl UnresolvedType {
+    pub fn synthesized(mut self) -> Self {
+        self.synthesized = true;
+        self
+    }
 }
 
 /// The precursor to TypeExpression, this is the type that the parser allows
@@ -93,7 +101,7 @@ pub enum UnresolvedTypeExpression {
 
 impl Recoverable for UnresolvedType {
     fn error(span: Span) -> Self {
-        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span) }
+        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span), synthesized: true }
     }
 }
 
@@ -180,11 +188,11 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 
 impl UnresolvedType {
     pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
-        UnresolvedType { typ, span: None }
+        UnresolvedType { typ, span: None, synthesized: true }
     }
 
     pub fn unspecified() -> UnresolvedType {
-        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
+        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None, synthesized: true }
     }
 }
 
@@ -198,7 +206,7 @@ impl UnresolvedTypeData {
     }
 
     pub fn with_span(&self, span: Span) -> UnresolvedType {
-        UnresolvedType { typ: self.clone(), span: Some(span) }
+        UnresolvedType { typ: self.clone(), span: Some(span), synthesized: false }
     }
 }
 
