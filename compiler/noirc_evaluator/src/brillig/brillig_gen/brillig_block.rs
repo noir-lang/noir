@@ -277,12 +277,12 @@ impl<'block> BrilligBlock<'block> {
                                             *func_id,
                                             arguments,
                                             dfg,
-                                            instruction_id,
+                                            &[],
                                         );
                                     }
-                                    _ => panic!("expected a function"),
+                                    _ => unreachable!("expected a function value"),
                                 },
-                                _ => panic!("expected a call"),
+                                _ => unreachable!("expected a call instruction"),
                             }
                             None
                         }
@@ -395,7 +395,8 @@ impl<'block> BrilligBlock<'block> {
                     }
                 }
                 Value::Function(func_id) => {
-                    self.convert_ssa_function_call(*func_id, arguments, dfg, instruction_id);
+                    let result_ids = dfg.instruction_results(instruction_id);
+                    self.convert_ssa_function_call(*func_id, arguments, dfg, result_ids);
                 }
                 Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
                     // Slices are represented as a tuple of (length, slice contents).
@@ -664,15 +665,13 @@ impl<'block> BrilligBlock<'block> {
         func_id: FunctionId,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
-        instruction_id: InstructionId,
+        result_ids: &[ValueId],
     ) {
         // Convert the arguments to registers casting those to the types of the receiving function
         let argument_registers: Vec<RegisterIndex> = arguments
             .iter()
             .flat_map(|argument_id| self.convert_ssa_value(*argument_id, dfg).extract_registers())
             .collect();
-
-        let result_ids = dfg.instruction_results(instruction_id);
 
         // Create label for the function that will be called
         let label_of_function_to_call = FunctionContext::function_id_to_function_label(func_id);
