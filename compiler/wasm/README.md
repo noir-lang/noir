@@ -7,7 +7,6 @@ The package also handles dependency management like how Nargo (Noir's CLI tool) 
 ## Usage
 
 ```typescript
-
 // Node.js
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
@@ -17,7 +16,6 @@ const myCompiledCode = await compile(fm);
 ```
 
 ```typescript
-
 // Browser
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
