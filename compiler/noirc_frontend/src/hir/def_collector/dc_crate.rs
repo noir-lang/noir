@@ -371,7 +371,6 @@ impl DefCollector {
                 },
             );
         }
-
         errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
         // Type check all of the functions in the crate
