@@ -640,30 +640,6 @@ fn decompose_constrain(
 ) -> Vec<Instruction> {
     let lhs = dfg.resolve(lhs);
     let rhs = dfg.resolve(rhs);
-    let msg = msg.clone();
-    // let msg = if let Some(msg) = msg {
-    //     match msg.as_ref() {
-    //         SsaError::Dynamic(call_instruction) => {
-
-    //         }
-    //         _ => {
-    //             Some(*msg)
-    //         }
-    //     }
-    // } else {
-    //     None
-    // };
-    // dbg!(msg.clone());
-    // let msg = msg.as_ref().map(|error| {
-    //     match error.as_ref() {
-    //         SsaError::Dynamic(call_instr) => {
-    //             let new_instr = call_instr.map_values(|value| dfg.resolve(value));
-    //             Box::new(SsaError::Dynamic(new_instr))
-    //         }
-    //         _ => error.clone()
-    //     }
-    // });
-    // dbg!(msg.clone());
 
     if lhs == rhs {
         // Remove trivial case `assert_eq(x, x)`
@@ -691,7 +667,7 @@ fn decompose_constrain(
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
 
-                        vec![Instruction::Constrain(lhs, rhs, msg)]
+                        vec![Instruction::Constrain(lhs, rhs, msg.clone())]
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul })
@@ -768,11 +744,11 @@ fn decompose_constrain(
                         decompose_constrain(value, reversed_constant, &msg, dfg)
                     }
 
-                    _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
                 }
             }
 
-            _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+            _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
         }
     }
 }
