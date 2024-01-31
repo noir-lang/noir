@@ -192,7 +192,7 @@ class GoblinMockCircuits {
         verifier1.verify_proof(function_accum.proof);
 
         // Execute recursive aggregation of previous kernel proof if one exists
-        if (!prev_kernel_accum.proof.proof_data.empty()) {
+        if (!prev_kernel_accum.proof.empty()) {
             RecursiveVerifier verifier2{ &builder, prev_kernel_accum.verification_key };
             verifier2.verify_proof(prev_kernel_accum.proof);
         }
