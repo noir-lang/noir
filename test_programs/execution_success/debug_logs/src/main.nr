@@ -11,7 +11,7 @@ fn main(x: Field, y: pub Field) {
 
     // A `fmtstr` lets you easily perform string interpolation.
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
-    
+
     let fmt_str = string_identity(fmt_str);
     std::println(fmt_str);
 
@@ -45,7 +45,7 @@ fn main(x: Field, y: pub Field) {
 
     let struct_string = if x != 5 { f"{foo}" } else { f"{bar}" };
     std::println(struct_string);
-    
+
     let one_tuple = (1, 2, 3);
     let another_tuple = (4, 5, 6);
     std::println(f"one_tuple: {one_tuple}, another_tuple: {another_tuple}");

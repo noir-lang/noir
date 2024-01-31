@@ -251,6 +251,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
 
     pub fn solve_opcode(&mut self) -> ACVMStatus {
         let opcode = &self.opcodes[self.instruction_pointer];
+
         let resolution = match opcode {
             Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
             Opcode::BlackBoxFuncCall(bb_func) => {
