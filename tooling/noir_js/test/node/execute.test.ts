@@ -25,9 +25,7 @@ it('circuit with a dynamic assert message should fail on an assert failure not t
   try {
     await new Noir(assert_msg_runtime).execute(inputs);
   } catch (error) {
-    const knownError = error as Error;    
-    expect(knownError.message).to.equal(
-      'Circuit execution failed: Error: Cannot satisfy constraint'
-    )
+    const knownError = error as Error;
+    expect(knownError.message).to.equal('Circuit execution failed: Error: Cannot satisfy constraint');
   }
 });
