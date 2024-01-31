@@ -1,0 +1,21 @@
+[package]
+name = "avm-transpiler"
+version = "0.1.0"
+authors = ["The Aztec Team <hello@aztecprotocol.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# local
+acvm = { path = "../noir/acvm-repo/acvm" }
+noirc_driver = { path = "../noir/compiler/noirc_driver" }
+
+# external
+base64 = "0.21"
+regex = "1.10"
+env_logger = "0.11"
+log = "0.4"
+serde_json = "1.0"
+serde = { version = "1.0.136", features = ["derive"]}

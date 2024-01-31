@@ -47,6 +47,7 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js as bb.js
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir as noir
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-packages as noir-packages
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/boxes-files as boxes-files
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/avm-transpiler as transpiler
 
 FROM node:18.19.0
 RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
@@ -61,6 +62,8 @@ COPY --from=noir /usr/src/noir/target/release/nargo /usr/src/noir/target/release
 COPY --from=noir-packages /usr/src/noir/packages /usr/src/noir/packages
 # Copy in boxes
 COPY --from=boxes-files /usr/src/boxes /usr/src/boxes
+# Copy in transpiler
+COPY --from=transpiler /usr/src/avm-transpiler/target/release/avm-transpiler /usr/src/avm-transpiler/target/release/avm-transpiler
 
 # We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
 # walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution

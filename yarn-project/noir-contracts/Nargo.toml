@@ -1,8 +1,9 @@
 [workspace]
 members = [
-    "contracts/benchmarking_contract", 
-    "contracts/card_game_contract", 
-    "contracts/child_contract", 
+    "contracts/avm_test_contract",
+    "contracts/benchmarking_contract",
+    "contracts/card_game_contract",
+    "contracts/child_contract",
     "contracts/counter_contract",
     "contracts/docs_example_contract",
     "contracts/easy_private_token_contract",

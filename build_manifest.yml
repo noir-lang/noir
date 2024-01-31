@@ -133,6 +133,7 @@ yarn-project-base:
     - noir
     - noir-packages
     - boxes-files
+    - avm-transpiler
 
 yarn-project:
   buildDir: yarn-project
@@ -209,3 +210,9 @@ yellow-paper:
   buildDir: yellow-paper
   rebuildPatterns:
     - ^yellow-paper/
+
+avm-transpiler:
+  buildDir: .
+  dockerfile: avm-transpiler/Dockerfile
+  rebuildPatterns:
+    - ^avm-transpiler/

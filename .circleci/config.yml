@@ -125,6 +125,17 @@ jobs:
           name: "Build"
           command: cond_spot_run_build noir-compile-acir-tests 32
 
+  avm-transpiler:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build avm-transpiler 32
+
   # Barretenberg
   barretenberg-wasm-linux-clang:
     docker:
@@ -1137,6 +1148,9 @@ workflows:
             - noir-ecr-manifest
           <<: *defaults
 
+      # Transpiler
+      - avm-transpiler: *defaults
+
       # Barretenberg
       - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
@@ -1185,6 +1199,7 @@ workflows:
       # Yarn Project
       - yarn-project-base:
           requires:
+            - avm-transpiler
             - l1-contracts
             - bb-js
             - noir-ecr-manifest
