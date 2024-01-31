@@ -29,7 +29,7 @@ describe('journal', () => {
       journal.writeStorage(contractAddress, key, value);
 
       const journalUpdates: JournalData = journal.flush();
-      expect(journalUpdates.storageWrites.get(contractAddress.toBigInt())?.get(key.toBigInt())).toEqual(value);
+      expect(journalUpdates.currentStorageValue.get(contractAddress.toBigInt())?.get(key.toBigInt())).toEqual(value);
     });
 
     it('When reading from storage, should check the parent first', async () => {
@@ -61,7 +61,7 @@ describe('journal', () => {
       expect(cachedResult).toEqual(cachedValue);
     });
 
-    it('When reading from storage, should check the cache first', async () => {
+    it('When reading from storage, should check the cache first, and be appended to read/write journal', async () => {
       // Store a different value in storage vs the cache, and make sure the cache is returned
       const contractAddress = new Fr(1);
       const key = new Fr(2);
@@ -80,6 +80,16 @@ describe('journal', () => {
       // Get the storage value
       const cachedResult = await journal.readStorage(contractAddress, key);
       expect(cachedResult).toEqual(cachedValue);
+
+      // We expect the journal to store the access in [storedVal, cachedVal] - [time0, time1]
+      const { storageReads, storageWrites }: JournalData = journal.flush();
+      const contractReads = storageReads.get(contractAddress.toBigInt());
+      const keyReads = contractReads?.get(key.toBigInt());
+      expect(keyReads).toEqual([storedValue, cachedValue]);
+
+      const contractWrites = storageWrites.get(contractAddress.toBigInt());
+      const keyWrites = contractWrites?.get(key.toBigInt());
+      expect(keyWrites).toEqual([cachedValue]);
     });
   });
 
@@ -127,17 +137,19 @@ describe('journal', () => {
     const logsT1 = [new Fr(3), new Fr(4)];
 
     journal.writeStorage(contractAddress, key, value);
+    await journal.readStorage(contractAddress, key);
     journal.writeNoteHash(commitment);
     journal.writeLog(logs);
     journal.writeL1Message(logs);
     journal.writeNullifier(commitment);
 
     const journal1 = new AvmJournal(journal.hostStorage, journal);
-    journal.writeStorage(contractAddress, key, valueT1);
-    journal.writeNoteHash(commitmentT1);
-    journal.writeLog(logsT1);
-    journal.writeL1Message(logsT1);
-    journal.writeNullifier(commitmentT1);
+    journal1.writeStorage(contractAddress, key, valueT1);
+    await journal1.readStorage(contractAddress, key);
+    journal1.writeNoteHash(commitmentT1);
+    journal1.writeLog(logsT1);
+    journal1.writeL1Message(logsT1);
+    journal1.writeNullifier(commitmentT1);
 
     journal1.mergeWithParent();
 
@@ -147,6 +159,18 @@ describe('journal', () => {
 
     // Check that the UTXOs are merged
     const journalUpdates: JournalData = journal.flush();
+
+    // Check storage reads order is preserved upon merge
+    // We first read value from t0, then value from t1
+    const contractReads = journalUpdates.storageReads.get(contractAddress.toBigInt());
+    const slotReads = contractReads?.get(key.toBigInt());
+    expect(slotReads).toEqual([value, valueT1]);
+
+    // We first write value from t0, then value from t1
+    const contractWrites = journalUpdates.storageReads.get(contractAddress.toBigInt());
+    const slotWrites = contractWrites?.get(key.toBigInt());
+    expect(slotWrites).toEqual([value, valueT1]);
+
     expect(journalUpdates.newNoteHashes).toEqual([commitment, commitmentT1]);
     expect(journalUpdates.newLogs).toEqual([logs, logsT1]);
     expect(journalUpdates.newL1Messages).toEqual([logs, logsT1]);
