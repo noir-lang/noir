@@ -108,7 +108,32 @@ The VM circuit's **Memory Controller** processes loads and stores between interm
 When decoded, instructions that operate on memory map to some Memory Controller sub-operations. A memory read maps to a `LOAD` sub-operation which loads a word from memory into an intermediate register. The memory offset for this sub-operation is generally specified by an instruction argument. Similarly, a memory write maps to a `STORE` sub-operation which stores a word from an intermediate register to memory.
 
 ### User Memory
-**TODO**
+
+This table tracks all memory `Read` or `Write` operations. As introduced in the ["Memory State Model"](./state-model.md), a memory cell is indexed by a 32-bit unsigned integer (`u32`), i.e., the memory capacity is of $2^{32}$ words. Each word is associated with a tag defining its type (`uninitialized`, `u8`, `u16`, `u32`, `u64`, `u128`, `field`). At the beginning of a new call, each memory cell is of type `uninitialized` and has value 0.
+
+The main property enforcement of this table concerns read/write consistency of every memory cell. This must ensure:
+
+- Each initial read on a memory cell must have value 0 (`uninitialized` is compatible with any other type).
+- Each read on a memory cell must have the same value and the same tag as those set by the last write on this memory cell.
+
+In addition, this table ensures that the instruction tag corresponding to a memory operation is the same as the memory cell tag. The instruction tag is passed to the memory controller and added to the pertaining row(s) of this table. Note that this is common for an instruction to generate several memory operations and thus several rows in this table.
+
+The user memory table essentially consists of the following colums:
+
+- `CALL_PTR`: call pointer uniquely identifying the contract call
+- `CLK`: clock value of the memory operation
+- `ADDR`: address (type `u32`) pertaining to the memory operation
+- `VAL`: value which is read (resp. written) from (resp. to) the memory address
+- `TAG`: tag associated to this memory address
+- `IN_TAG`: tag of the pertaining instruction
+- `RW`: boolean indicating whether memory operation is read or write
+- `TAG_ERR`: boolean set to true if there is a mismatch between `TAG` and `IN_TAG`
+
+To facilitate consistency check, the rows are sorted by `CALL_PTR` then by `ADDR` and then by `CLK` in ascending (arrow of time) order. Any (non-initial) read operation row is constrained to have the same `VAL` and `TAG` than the previous row. A write operation does not need to be constrained.
+
+The tag consistency check can be performed within every row (order of rows does not matter).
+
+Note that `CLK` also plays the role of a foreign key to point to the corresponding sub-operation. This is crucial to enforce consistency of copied values between the sub-operations and memory table.
 
 ### Calldata
 **TODO**
