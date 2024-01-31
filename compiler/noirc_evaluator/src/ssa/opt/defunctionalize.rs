@@ -86,9 +86,9 @@ impl DefunctionalizationContext {
                 let instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
                 // Operate on call instructions
-                let (target_func_id, mut arguments) = match &instruction {
+                let (target_func_id, arguments) = match &instruction {
                     Instruction::Call { func: target_func_id, arguments } => {
-                        (*target_func_id, arguments.clone())
+                        (*target_func_id, arguments)
                     }
                     Instruction::Constrain(_, _, constrain_error) => {
                         if let Some(error) = constrain_error {
@@ -97,7 +97,7 @@ impl DefunctionalizationContext {
                                 arguments,
                             }) = error.as_ref()
                             {
-                                (*target_func_id, arguments.clone())
+                                (*target_func_id, arguments)
                             } else {
                                 continue;
                             }
@@ -111,6 +111,7 @@ impl DefunctionalizationContext {
                 match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
+                        let mut arguments = arguments.clone();
                         let results = func.dfg.instruction_results(instruction_id);
                         let signature = Signature {
                             params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),

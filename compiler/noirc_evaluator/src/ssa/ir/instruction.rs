@@ -326,7 +326,7 @@ impl Instruction {
                 max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                // Must do this as the value is moved with the closure
+                // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
                 let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
@@ -584,7 +584,7 @@ impl From<String> for ConstrainError {
 
 impl From<String> for Box<ConstrainError> {
     fn from(value: String) -> Self {
-        Box::new(ConstrainError::Static(value))
+        Box::new(value.into())
     }
 }
 

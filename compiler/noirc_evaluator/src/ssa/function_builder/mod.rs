@@ -262,7 +262,6 @@ impl FunctionBuilder {
         max_bit_size: u32,
         assert_message: Option<String>,
     ) {
-        // let assert_message = assert_message.map(|msg_string| Box::new(SsaError::Static(msg_string)));
         self.insert_instruction(
             Instruction::RangeCheck { value, max_bit_size, assert_message },
             None,

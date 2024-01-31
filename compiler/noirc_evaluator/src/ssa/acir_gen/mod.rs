@@ -500,9 +500,9 @@ impl Context {
 
         match instruction {
             Instruction::Call { func, arguments } => {
-                match &dfg[*func] {
+                let function_value = &dfg[*func];
+                match function_value {
                     Value::Function(id) => {
-                        dbg!("got here");
                         let func = &ssa.functions[id];
                         match func.runtime() {
                             RuntimeType::Acir => unimplemented!(
@@ -575,10 +575,7 @@ impl Context {
                     Value::ForeignFunction(_) => unreachable!(
                         "All `oracle` methods should be wrapped in an unconstrained fn"
                     ),
-                    _ => {
-                        dbg!(&dfg[*func]);
-                        unreachable!("expected calling a function")
-                    }
+                    _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }
             }
             _ => unreachable!("expected calling a call instruction"),
@@ -1375,11 +1372,7 @@ impl Context {
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
-            Value::Instruction { instruction, .. } => {
-                dbg!(&dfg[*instruction]);
-                unreachable!("ICE: Should have been in cache {value_id} {value:?}")
-            }
-            Value::Param { .. } => {
+            Value::Instruction { .. } | Value::Param { .. } => {
                 unreachable!("ICE: Should have been in cache {value_id} {value:?}")
             }
         };
