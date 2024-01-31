@@ -19,7 +19,13 @@ impl MacroProcessor for AssertMessageMacro {
     }
 
     // This macro does not need to process any information after name resolution
-    fn process_typed_ast(&self, _crate_id: &CrateId, _context: &mut HirContext) {}
+    fn process_typed_ast(
+        &self,
+        _crate_id: &CrateId,
+        _context: &mut HirContext,
+    ) -> Result<(), (MacroError, FileId)> {
+        Ok(())
+    }
 }
 
 fn transform(ast: SortedModule, crate_id: &CrateId) -> Result<SortedModule, (MacroError, FileId)> {
