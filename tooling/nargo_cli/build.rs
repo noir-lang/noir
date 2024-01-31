@@ -162,10 +162,6 @@ fn noir_test_failure_{test_name}() {{
     }
 }
 
-/// TODO: Certain tests may have foreign calls leftover (such as assert message resolution)
-/// TODO: even though all assertion and other logic has been optimized away.
-/// TODO: We should determine a way to tie certain foreign calls to a constraint so they can be optimized away
-/// TODO: with the constraint.
 fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "compile_success_empty";
     let test_data_dir = test_data_dir.join(test_sub_dir);
@@ -285,7 +281,7 @@ fn compile_failure_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
-    cmd.arg("--program-dir").arg(test_program_dir.clone());
+    cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
