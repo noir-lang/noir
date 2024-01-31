@@ -270,20 +270,18 @@ impl<'block> BrilligBlock<'block> {
                     match error.as_ref() {
                         ConstrainError::Static(string) => Some(string.clone()),
                         ConstrainError::Dynamic(call_instruction) => {
-                            match call_instruction {
-                                Instruction::Call { func, arguments } => match &dfg[*func] {
-                                    Value::Function(func_id) => {
-                                        self.convert_ssa_function_call(
-                                            *func_id,
-                                            arguments,
-                                            dfg,
-                                            &[],
-                                        );
-                                    }
-                                    _ => unreachable!("expected a function value"),
-                                },
-                                _ => unreachable!("expected a call instruction"),
-                            }
+                            let Instruction::Call { func, arguments } = call_instruction else {
+                                unreachable!("expected a call instruction")
+                            };
+
+                            let Value::Function(func_id) =  &dfg[*func]  else {
+                                unreachable!("expected a function value")
+                            };
+
+                            self.convert_ssa_function_call(*func_id, arguments, dfg, &[]);
+
+                            // Dynamic assert message is handled in the generated function call.
+                            // We then don't need to attach one to the constrain instruction.
                             None
                         }
                     }
@@ -291,7 +289,7 @@ impl<'block> BrilligBlock<'block> {
                     None
                 };
 
-                self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                self.brillig_context.constrain_instruction(condition, assert_message);
                 self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {
