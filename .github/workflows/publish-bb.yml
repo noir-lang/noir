@@ -139,12 +139,9 @@ jobs:
             ./barretenberg/cpp/build-wasm/bin/barretenberg.wasm.tar.gz
             ./barretenberg/cpp/build-wasm/bin/acvm_backend.wasm.tar.gz
 
-  build-mac:
-    name: Build on Mac (${{ matrix.target }})
+  build-mac-intel:
+    name: Build on Mac x86_64-apple-darwin
     runs-on: macos-13
-    strategy:
-      matrix:
-        target: [x86_64-apple-darwin, aarch64-apple-darwin]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -154,18 +151,10 @@ jobs:
       - name: Create Mac Build Environment
         run: brew install cmake ninja
 
-      - name: Compile Barretenberg (x86_64)
-        if: matrix.target == 'x86_64-apple-darwin'
+      - name: Compile Barretenberg
         working-directory: barretenberg/cpp
         run: |
           cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
-          cmake --build --preset default --target bb
-
-      - name: Compile Barretenberg (ARM)
-        if: matrix.target == 'aarch64-apple-darwin'
-        working-directory: barretenberg/cpp
-        run: |
-          cmake --toolchain ./cmake/toolchains/aarch64-darwin.cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
           cmake --build --preset default --target bb
 
       - name: Package barretenberg artifact
@@ -173,18 +162,50 @@ jobs:
         run: |
           mkdir dist
           cp ./bb ./dist/bb
-          7z a -ttar -so -an ./dist/* | 7z a -si ./barretenberg-${{ matrix.target }}.tar.gz
+          7z a -ttar -so -an ./dist/* | 7z a -si ./barretenberg-x86_64-apple-darwin.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: barretenberg-${{ matrix.target }}
-          path: ./barretenberg/cpp/build/bin/barretenberg-${{ matrix.target }}.tar.gz
+          name: barretenberg-x86_64-apple-darwin
+          path: ./barretenberg/cpp/build/bin/barretenberg-x86_64-apple-darwin.tar.gz
+          retention-days: 3
+
+  build-mac-m1:
+    name: Build on Mac aarch64-apple-darwin 
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      - name: Create Mac Build Environment
+        run: brew install cmake ninja
+
+      - name: Compile Barretenberg
+        working-directory: barretenberg/cpp
+        run: |
+          cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
+          cmake --build --preset default --target bb
+
+      - name: Package barretenberg artifact
+        working-directory: barretenberg/cpp/build/bin
+        run: |
+          mkdir dist
+          cp ./bb ./dist/bb
+          7z a -ttar -so -an ./dist/* | 7z a -si ./barretenberg-aarch64-apple-darwin.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: barretenberg-aarch64-apple-darwin
+          path: ./barretenberg/cpp/build/bin/barretenberg-aarch64-apple-darwin.tar.gz
           retention-days: 3
 
   release:
     name: Publish
-    needs: [build-x86_64-linux-gnu, build-mac, build-wasm-ts]
+    needs: [build-x86_64-linux-gnu, build-mac-intel, build-mac-m1,build-wasm-ts]
     runs-on: ubuntu-latest
     steps:
       - name: Download files from Linux Runner
