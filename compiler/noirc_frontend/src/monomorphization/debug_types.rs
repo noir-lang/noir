@@ -31,11 +31,7 @@ impl DebugTypes {
         });
         let existing_var_id = self.fe_to_vars.get(&fe_var_id).and_then(|var_id| {
             let (_, existing_type_id) = self.variables.get(var_id).unwrap();
-            if *existing_type_id == type_id {
-                Some(var_id)
-            } else {
-                None
-            }
+            (*existing_type_id == type_id).then_some(var_id)
         });
         if let Some(var_id) = existing_var_id {
             *var_id

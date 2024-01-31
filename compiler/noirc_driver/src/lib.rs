@@ -418,11 +418,8 @@ pub fn compile_no_check(
     force_compile: bool,
 ) -> Result<CompiledProgram, RuntimeError> {
     let program = if options.instrument_debug {
-        monomorphize_debug(
-            main_function,
-            &mut context.def_interner,
-            &context.debug_state.field_names,
-        )
+        let field_names = context.debug_state.field_names.clone();
+        monomorphize_debug(main_function, &mut context.def_interner, field_names)
     } else {
         monomorphize(main_function, &mut context.def_interner)
     };

@@ -1332,10 +1332,8 @@ impl Context {
                 // This conversion is for debugging support only, to allow the
                 // debugging instrumentation code to work. Taking the reference
                 // of a function in ACIR is useless.
-                AcirValue::Var(
-                    self.acir_context.add_constant(function_id.to_usize()),
-                    AcirType::field(),
-                )
+                let id = self.acir_context.add_constant(function_id.to_usize());
+                AcirValue::Var(id, AcirType::field())
             }
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."

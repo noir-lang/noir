@@ -101,28 +101,16 @@ type HirType = crate::Type;
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 #[tracing::instrument(level = "trace", skip(main, interner))]
 pub fn monomorphize(main: node_interner::FuncId, interner: &mut NodeInterner) -> Program {
-    monomorphize_option_debug(main, interner, None)
+    monomorphize_debug(main, interner, HashMap::default())
 }
 
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
-    field_names: &HashMap<u32, String>,
+    field_names: HashMap<u32, String>,
 ) -> Program {
-    monomorphize_option_debug(main, interner, Some(field_names))
-}
-
-fn monomorphize_option_debug(
-    main: node_interner::FuncId,
-    interner: &mut NodeInterner,
-    option_field_names: Option<&HashMap<u32, String>>,
-) -> Program {
-    let mut monomorphizer = Monomorphizer::new(interner);
-    let function_sig = if let Some(field_names) = option_field_names {
-        monomorphizer.compile_main_debug(main, field_names)
-    } else {
-        monomorphizer.compile_main(main)
-    };
+    let mut monomorphizer = Monomorphizer::new(interner, field_names);
+    let function_sig = monomorphizer.compile_main(main);
 
     while !monomorphizer.queue.is_empty() {
         let (next_fn_id, new_id, bindings, trait_method) = monomorphizer.queue.pop_front().unwrap();
@@ -144,13 +132,13 @@ fn monomorphize_option_debug(
         function_sig,
         *return_distinctness,
         monomorphizer.return_location,
-        monomorphizer.debug_types.into(),
         *return_visibility,
+        monomorphizer.debug_types.into(),
     )
 }
 
 impl<'interner> Monomorphizer<'interner> {
-    fn new(interner: &'interner mut NodeInterner) -> Self {
+    fn new(interner: &'interner mut NodeInterner, debug_field_names: HashMap<u32, String>) -> Self {
         Monomorphizer {
             globals: HashMap::new(),
             locals: HashMap::new(),
@@ -163,7 +151,7 @@ impl<'interner> Monomorphizer<'interner> {
             is_range_loop: false,
             return_location: None,
             debug_types: DebugTypes::default(),
-            debug_field_names: HashMap::default(),
+            debug_field_names,
         }
     }
 
@@ -255,42 +243,28 @@ impl<'interner> Monomorphizer<'interner> {
         main_meta.function_signature()
     }
 
-    fn compile_main_debug(
-        &mut self,
-        main_id: node_interner::FuncId,
-        field_names: &HashMap<u32, String>,
-    ) -> FunctionSignature {
-        self.debug_field_names = field_names.clone();
-        self.compile_main(main_id)
-    }
-
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
             the_trait.self_type_typevar.force_bind(self_type);
         }
 
-        let (meta_parameters, unconstrained, body_expr_id, name, return_type) = {
-            let meta = self.interner.function_meta(&f).clone();
-            let modifiers = self.interner.function_modifiers(&f).clone();
-            let name = self.interner.function_name(&f).to_string();
+        let meta = self.interner.function_meta(&f).clone();
+        let modifiers = self.interner.function_modifiers(&f);
+        let name = self.interner.function_name(&f).to_owned();
 
-            let body_expr_id = *self.interner.function(&f).as_expr();
-            let body_return_type = self.interner.id_type(body_expr_id);
-            let return_type = self.convert_type(match meta.return_type() {
-                Type::TraitAsType(_, _, _) => &body_return_type,
-                _ => meta.return_type(),
-            });
-            let unconstrained = modifiers.is_unconstrained
-                || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
-            (meta.parameters, unconstrained, body_expr_id, name, return_type)
-        };
+        let body_expr_id = *self.interner.function(&f).as_expr();
+        let body_return_type = self.interner.id_type(body_expr_id);
+        let return_type = self.convert_type(match meta.return_type() {
+            Type::TraitAsType(_, _, _) => &body_return_type,
+            _ => meta.return_type(),
+        });
+        let unconstrained = modifiers.is_unconstrained
+            || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
 
-        let function = {
-            let parameters = self.parameters(&meta_parameters).clone();
-            let body = self.expr(body_expr_id).clone();
-            ast::Function { id, name, parameters, body, return_type, unconstrained }
-        };
+        let parameters = self.parameters(&meta.parameters);
+        let body = self.expr(body_expr_id);
+        let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
 
         self.push_function(id, function);
     }

@@ -246,8 +246,8 @@ pub struct Program {
     /// forwarding to the next phase.
     pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
-    pub debug_var_types: debug_types::VariableTypes,
     pub return_visibility: Visibility,
+    pub debug_var_types: debug_types::VariableTypes,
 }
 
 impl Program {
@@ -256,16 +256,16 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
         return_location: Option<Location>,
-        debug_var_types: debug_types::VariableTypes,
         return_visibility: Visibility,
+        debug_var_types: debug_types::VariableTypes,
     ) -> Program {
         Program {
             functions,
             main_function_signature,
             return_distinctness,
             return_location,
-            debug_var_types,
             return_visibility,
+            debug_var_types,
         }
     }
 

@@ -44,8 +44,6 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 }
 
-pub type StorageSlot = u32;
-
 #[derive(Debug, Copy, Clone)]
 pub enum FunctionNameMatch<'a> {
     Anything,
