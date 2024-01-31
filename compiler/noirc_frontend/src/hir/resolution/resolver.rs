@@ -191,10 +191,18 @@ impl<'a> Resolver<'a> {
         self.add_generics(&func.def.generics);
         self.trait_bounds = func.def.where_clause.clone();
 
+        let is_low_level_or_oracle = func
+            .attributes()
+            .function
+            .as_ref()
+            .map_or(false, |func| func.is_low_level() || func.is_oracle());
         let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
 
-        self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+        // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
+        if !is_low_level_or_oracle {
+            self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+        }
 
         self.trait_bounds.clear();
         (hir_func, func_meta, self.errors)
@@ -900,6 +908,13 @@ impl<'a> Resolver<'a> {
                 position: PubPosition::ReturnType,
             });
         }
+        let is_low_level_function =
+            func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+        if !self.path_resolver.module_id().krate.is_stdlib() && is_low_level_function {
+            let error =
+                ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
+            self.push_err(error);
+        }
 
         // 'pub' is required on return types for entry point functions
         if self.is_entry_point_function(func)
@@ -1492,6 +1507,8 @@ impl<'a> Resolver<'a> {
                 HirExpression::MemberAccess(HirMemberAccess {
                     lhs: self.resolve_expression(access.lhs),
                     rhs: access.rhs,
+                    // This is only used when lhs is a reference and we want to return a reference to rhs
+                    is_offset: false,
                 })
             }
             ExpressionKind::Error => HirExpression::Error,
