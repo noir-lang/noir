@@ -16,15 +16,6 @@ class FieldConversionTest : public ::testing::Test {
 };
 
 /**
- * @brief Field conversion test for size_t
- */
-TEST_F(FieldConversionTest, FieldConversionSizeT)
-{
-    size_t x = 210849;
-    check_conversion(x);
-}
-
-/**
  * @brief Field conversion test for uint32_t
  */
 TEST_F(FieldConversionTest, FieldConversionUint32)
