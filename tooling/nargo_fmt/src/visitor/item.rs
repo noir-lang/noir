@@ -1,5 +1,3 @@
-use std::ops::ControlFlow;
-
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
@@ -148,9 +146,7 @@ impl super::FmtVisitor<'_> {
         for Item { kind, span } in module.items {
             match kind {
                 ItemKind::Function(func) => {
-                    if let ControlFlow::Break(_) = self.visit_function(span, func) {
-                        continue;
-                    }
+                    self.visit_function(span, func);
                 }
                 ItemKind::Submodules(module) => {
                     self.format_missing_indent(span.start(), true);
@@ -226,19 +222,17 @@ impl super::FmtVisitor<'_> {
         }
     }
 
-    fn visit_function(&mut self, span: Span, func: NoirFunction) -> ControlFlow<()> {
+    fn visit_function(&mut self, span: Span, func: NoirFunction) {
         self.format_missing_indent(span.start(), true);
         if std::mem::take(&mut self.ignore_next_node) {
             self.push_str(self.slice(span));
             self.last_position = span.end();
-            return ControlFlow::Break(());
+            return;
         }
         let (fn_before_block, force_brace_newline) =
             self.format_fn_before_block(func.clone(), span.start());
         self.push_str(&fn_before_block);
         self.push_str(if force_brace_newline { "\n" } else { " " });
         self.visit_block(func.def.body, func.def.span);
-
-        ControlFlow::Continue(())
     }
 }
