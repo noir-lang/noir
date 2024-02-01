@@ -18,6 +18,7 @@ use std::{
 };
 
 use crate::{
+    debug::DebugState,
     hir_def::{
         expr::*,
         function::{FuncMeta, FunctionSignature, Parameters},
@@ -82,7 +83,6 @@ struct Monomorphizer<'interner> {
     return_location: Option<Location>,
 
     debug_types: DebugTypes,
-    debug_field_names: HashMap<u32, String>,
 }
 
 type HirType = crate::Type;
@@ -100,15 +100,16 @@ type HirType = crate::Type;
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 #[tracing::instrument(level = "trace", skip(main, interner))]
 pub fn monomorphize(main: node_interner::FuncId, interner: &mut NodeInterner) -> Program {
-    monomorphize_debug(main, interner, HashMap::default())
+    monomorphize_debug(main, interner, &DebugState::default())
 }
 
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
-    field_names: HashMap<u32, String>,
+    debug_state: &DebugState,
 ) -> Program {
-    let mut monomorphizer = Monomorphizer::new(interner, field_names);
+    let debug_types = DebugTypes::build_from_debug_state(debug_state);
+    let mut monomorphizer = Monomorphizer::new(interner, debug_types);
     let function_sig = monomorphizer.compile_main(main);
 
     while !monomorphizer.queue.is_empty() {
@@ -137,7 +138,7 @@ pub fn monomorphize_debug(
 }
 
 impl<'interner> Monomorphizer<'interner> {
-    fn new(interner: &'interner mut NodeInterner, debug_field_names: HashMap<u32, String>) -> Self {
+    fn new(interner: &'interner mut NodeInterner, debug_types: DebugTypes) -> Self {
         Monomorphizer {
             globals: HashMap::new(),
             locals: HashMap::new(),
@@ -149,8 +150,7 @@ impl<'interner> Monomorphizer<'interner> {
             lambda_envs_stack: Vec::new(),
             is_range_loop: false,
             return_location: None,
-            debug_types: DebugTypes::default(),
-            debug_field_names,
+            debug_types,
         }
     }
 

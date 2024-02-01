@@ -1,4 +1,4 @@
-use crate::hir_def::types::Type;
+use crate::{debug::DebugState, hir_def::types::Type};
 pub use noirc_errors::debug_info::{Types, VariableTypes, Variables};
 use noirc_printable_type::PrintableType;
 use std::collections::HashMap;
@@ -11,6 +11,8 @@ use std::collections::HashMap;
 /// will have a valid type.
 #[derive(Debug, Clone, Default)]
 pub struct DebugTypes {
+    debug_variables: HashMap<u32, String>,
+    debug_field_names: HashMap<u32, String>,
     fe_to_vars: HashMap<u32, u32>,          // fe_var_id => var_id
     variables: HashMap<u32, (String, u32)>, // var_id => (var_name, type_id)
     types: HashMap<PrintableType, u32>,
@@ -20,7 +22,26 @@ pub struct DebugTypes {
 }
 
 impl DebugTypes {
-    pub fn insert_var(&mut self, fe_var_id: u32, var_name: &str, var_type: Type) -> u32 {
+    pub fn build_from_debug_state(debug_state: &DebugState) -> Self {
+        DebugTypes {
+            debug_variables: debug_state.variables.clone(),
+            debug_field_names: debug_state.field_names.clone(),
+            ..DebugTypes::default()
+        }
+    }
+
+    pub fn resolve_field_index(&self, field_id: u32, cursor_type: &PrintableType) -> Option<usize> {
+        self.debug_field_names
+            .get(&field_id)
+            .and_then(|field_name| get_field(cursor_type, field_name))
+    }
+
+    pub fn insert_var(&mut self, fe_var_id: u32, var_type: Type) -> u32 {
+        let var_name = self
+            .debug_variables
+            .get(&fe_var_id)
+            .unwrap_or_else(|| unreachable!("cannot find name for debug variable {fe_var_id}"));
+
         let ptype: PrintableType = var_type.follow_bindings().into();
         let type_id = self.types.get(&ptype).cloned().unwrap_or_else(|| {
             let type_id = self.next_type_id;
@@ -53,6 +74,18 @@ impl DebugTypes {
             .get(&fe_var_id)
             .and_then(|var_id| self.variables.get(var_id))
             .and_then(|(_, type_id)| self.id_to_type.get(type_id))
+    }
+}
+
+fn get_field(ptype: &PrintableType, field_name: &str) -> Option<usize> {
+    match ptype {
+        PrintableType::Struct { fields, .. } => {
+            fields.iter().position(|(name, _)| name == field_name)
+        }
+        PrintableType::Tuple { .. } | PrintableType::Array { .. } => {
+            field_name.parse::<usize>().ok()
+        }
+        _ => None,
     }
 }
 

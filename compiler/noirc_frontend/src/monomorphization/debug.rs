@@ -12,9 +12,13 @@ const DEBUG_VALUE_ARG_SLOT: usize = 1;
 const DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT: usize = 2;
 
 impl<'interner> Monomorphizer<'interner> {
-    /// Try to patch instrumentation code inserted for debugging. This will
-    /// record tracked variables and their types, and assign them an ID to use
-    /// at runtime.
+    /// Patch instrumentation calls inserted for debugging. This will record
+    /// tracked variables and their types, and assign them an ID to use at
+    /// runtime. This ID is different from the ID assigned at instrumentation
+    /// time because at that point we haven't fully resolved the types for
+    /// generic functions. So a single generic function may be instantiated
+    /// multiple times with its tracked variables being of different types for
+    /// each instance at runtime.
     pub(super) fn patch_debug_instrumentation_call(
         &mut self,
         call: &HirCallExpression,
@@ -41,22 +45,17 @@ impl<'interner> Monomorphizer<'interner> {
     /// multiple IDs at runtime.
     fn patch_debug_var_assign(&mut self, call: &HirCallExpression, arguments: &mut [Expression]) {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
-        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT) else {
+        let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
+        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = var_id_arg else {
             unreachable!("Missing FE var ID in __debug_var_assign call");
         };
-        let Some(HirExpression::Ident(HirIdent { id, .. })) = hir_arguments.get(DEBUG_VALUE_ARG_SLOT) else {
-            unreachable!("Missing value identifier in __debug_var_assign call");
-        };
 
-        // update variable assignments
-        let var_def = self.interner.definition(*id);
+        // instantiate tracked variable for the value type and associate it with
+        // the ID used by the injected instrumentation code
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
         let fe_var_id = fe_var_id.to_u128() as u32;
-        let var_id = if var_def.name != "__debug_expr" {
-            self.debug_types.insert_var(fe_var_id, &var_def.name, var_type)
-        } else {
-            self.debug_types.get_var_id(fe_var_id).unwrap()
-        };
+        // then update the ID used for tracking at runtime
+        let var_id = self.debug_types.insert_var(fe_var_id, var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
         arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
     }
@@ -66,15 +65,18 @@ impl<'interner> Monomorphizer<'interner> {
     /// and replace it instead.
     fn patch_debug_var_drop(&mut self, call: &HirCallExpression, arguments: &mut [Expression]) {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
-        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT) else {
+        let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
+        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = var_id_arg else {
             unreachable!("Missing FE var ID in __debug_var_drop call");
         };
-        // update variable drops (ie. when the var goes out of scope)
+        // update variable ID for tracked drops (ie. when the var goes out of scope)
         let fe_var_id = fe_var_id.to_u128() as u32;
-        if let Some(var_id) = self.debug_types.get_var_id(fe_var_id) {
-            let interned_var_id = self.intern_var_id(var_id, &call.location);
-            arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
-        }
+        let var_id = self
+            .debug_types
+            .get_var_id(fe_var_id)
+            .unwrap_or_else(|| unreachable!("failed to find debug variable"));
+        let interned_var_id = self.intern_var_id(var_id, &call.location);
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
     }
 
     /// Update instrumentation code inserted when assigning to a member of an
@@ -90,43 +92,39 @@ impl<'interner> Monomorphizer<'interner> {
         arity: usize,
     ) {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
-        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT) else {
+        let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
+        let Some(HirExpression::Literal(HirLiteral::Integer(fe_var_id, _))) = var_id_arg else {
             unreachable!("Missing FE var ID in __debug_member_assign call");
         };
-        let Some(HirExpression::Ident(HirIdent { id, .. })) = hir_arguments.get(DEBUG_VALUE_ARG_SLOT) else {
-            unreachable!("Missing value identifier in __debug_member_assign call");
-        };
         // update variable member assignments
-        let var_def_name = self.interner.definition(*id).name.clone();
-        let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
         let fe_var_id = fe_var_id.to_u128() as u32;
 
-        let mut cursor_type = self
+        let var_type = self
             .debug_types
             .get_type(fe_var_id)
             .unwrap_or_else(|| panic!("type not found for fe_var_id={fe_var_id}"))
             .clone();
+        let mut cursor_type = &var_type;
         for i in 0..arity {
             if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i, i_neg))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                let mut index = fe_i.to_i128();
+                let index = fe_i.to_i128().unsigned_abs();
                 if *i_neg {
-                    index = -index;
-                }
-                if index < 0 {
-                    let index = index.unsigned_abs();
-                    let field_name = self
-                        .debug_field_names
-                        .get(&(index as u32))
-                        .unwrap_or_else(|| panic!("field name not available for {i:?}"));
-                    let field_i = (get_field(&cursor_type, field_name)
-                        .unwrap_or_else(|| panic!("failed to find field_name: {field_name}"))
-                        as i128)
-                        .unsigned_abs();
-                    cursor_type = element_type_at_index(&cursor_type, field_i as usize);
+                    // We use negative indices at instrumentation time to indicate
+                    // and reference member accesses by name which cannot be
+                    // resolved until we have a type. This code path is also used
+                    // for tuple member access.
+                    let field_index = self
+                        .debug_types
+                        .resolve_field_index(index as u32, cursor_type)
+                        .unwrap_or_else(|| {
+                            unreachable!("failed to resolve {i}-th member indirection on type {cursor_type:?}")
+                        });
+
+                    cursor_type = element_type_at_index(cursor_type, field_index);
                     let index_id = self.interner.push_expr(HirExpression::Literal(
-                        HirLiteral::Integer(field_i.into(), false),
+                        HirLiteral::Integer(field_index.into(), false),
                     ));
                     self.interner.push_expr_type(&index_id, crate::Type::FieldElement);
                     self.interner.push_expr_location(
@@ -136,41 +134,30 @@ impl<'interner> Monomorphizer<'interner> {
                     );
                     arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id);
                 } else {
-                    cursor_type = element_type_at_index(&cursor_type, 0);
+                    // array/string element using constant index
+                    cursor_type = element_type_at_index(cursor_type, index as usize);
                 }
             } else {
-                cursor_type = element_type_at_index(&cursor_type, 0);
+                // array element using non-constant index
+                cursor_type = element_type_at_index(cursor_type, 0);
             }
         }
 
-        let var_id = if &var_def_name != "__debug_expr" {
-            self.debug_types.insert_var(fe_var_id, &var_def_name, var_type)
-        } else {
-            self.debug_types.get_var_id(fe_var_id).unwrap()
-        };
+        let var_id = self
+            .debug_types
+            .get_var_id(fe_var_id)
+            .unwrap_or_else(|| unreachable!("failed to find debug variable"));
         let interned_var_id = self.intern_var_id(var_id, &call.location);
         arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
     }
 }
 
-fn get_field(ptype: &PrintableType, field_name: &str) -> Option<usize> {
+fn element_type_at_index(ptype: &PrintableType, i: usize) -> &PrintableType {
     match ptype {
-        PrintableType::Struct { fields, .. } => {
-            fields.iter().position(|(name, _)| name == field_name)
-        }
-        PrintableType::Tuple { .. } | PrintableType::Array { .. } => {
-            field_name.parse::<usize>().ok()
-        }
-        _ => None,
-    }
-}
-
-fn element_type_at_index(ptype: &PrintableType, i: usize) -> PrintableType {
-    match ptype {
-        PrintableType::Array { length: _length, typ } => (**typ).clone(),
-        PrintableType::Tuple { types } => types[i].clone(),
-        PrintableType::Struct { name: _name, fields } => fields[i].1.clone(),
-        PrintableType::String { length: _length } => PrintableType::UnsignedInteger { width: 8 },
+        PrintableType::Array { length: _length, typ } => typ.as_ref(),
+        PrintableType::Tuple { types } => &types[i],
+        PrintableType::Struct { name: _name, fields } => &fields[i].1,
+        PrintableType::String { length: _length } => &PrintableType::UnsignedInteger { width: 8 },
         _ => {
             panic!["expected type with sub-fields, found terminal type"]
         }
