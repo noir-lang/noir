@@ -1,5 +1,5 @@
 [package]
-name = "short"
+name = "method_call_regression"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.19.4"
