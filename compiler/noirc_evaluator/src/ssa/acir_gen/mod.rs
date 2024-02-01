@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
+use super::ir::instruction::ConstrainError;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -413,15 +414,94 @@ impl Context {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
 
-                self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
+                let assert_message = if let Some(error) = assert_message {
+                    match error.as_ref() {
+                        ConstrainError::Static(string) => Some(string.clone()),
+                        ConstrainError::Dynamic(call_instruction) => {
+                            self.convert_ssa_call(call_instruction, dfg, ssa, brillig, &[])?;
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.acir_context.assert_eq_var(lhs, rhs, assert_message)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
                 self.define_result_var(dfg, instruction_id, acir_var);
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                match &dfg[*func] {
+                warnings.extend(self.convert_ssa_call(
+                    instruction,
+                    dfg,
+                    ssa,
+                    brillig,
+                    result_ids,
+                )?);
+            }
+            Instruction::Not(value_id) => {
+                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
+                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
+                    _ => unreachable!("NOT is only applied to numerics"),
+                };
+                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
+                self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let result_acir_var =
+                    self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
+                self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                let acir_var = self.convert_numeric_value(*condition, dfg)?;
+                self.current_side_effects_enabled_var = acir_var;
+            }
+            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
+                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
+            }
+            Instruction::Allocate => {
+                unreachable!("Expected all allocate instructions to be removed before acir_gen")
+            }
+            Instruction::Store { .. } => {
+                unreachable!("Expected all store instructions to be removed before acir_gen")
+            }
+            Instruction::Load { .. } => {
+                unreachable!("Expected all load instructions to be removed before acir_gen")
+            }
+            Instruction::IncrementRc { .. } => {
+                // Do nothing. Only Brillig needs to worry about reference counted arrays
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                let acir_var = self.convert_numeric_value(*value, dfg)?;
+                self.acir_context.range_constrain_var(
+                    acir_var,
+                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    assert_message.clone(),
+                )?;
+            }
+        }
+
+        self.acir_context.set_call_stack(CallStack::new());
+        Ok(warnings)
+    }
+
+    fn convert_ssa_call(
+        &mut self,
+        instruction: &Instruction,
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+        brillig: &Brillig,
+        result_ids: &[ValueId],
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
+        let mut warnings = Vec::new();
+
+        match instruction {
+            Instruction::Call { func, arguments } => {
+                let function_value = &dfg[*func];
+                match function_value {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
                         match func.runtime() {
@@ -495,51 +575,11 @@ impl Context {
                     Value::ForeignFunction(_) => unreachable!(
                         "All `oracle` methods should be wrapped in an unconstrained fn"
                     ),
-                    _ => unreachable!("expected calling a function"),
+                    _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }
             }
-            Instruction::Not(value_id) => {
-                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
-                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
-                    _ => unreachable!("NOT is only applied to numerics"),
-                };
-                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
-            }
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
-                let result_acir_var =
-                    self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
-            }
-            Instruction::EnableSideEffects { condition } => {
-                let acir_var = self.convert_numeric_value(*condition, dfg)?;
-                self.current_side_effects_enabled_var = acir_var;
-            }
-            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
-                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
-            }
-            Instruction::Allocate => {
-                unreachable!("Expected all allocate instructions to be removed before acir_gen")
-            }
-            Instruction::Store { .. } => {
-                unreachable!("Expected all store instructions to be removed before acir_gen")
-            }
-            Instruction::Load { .. } => {
-                unreachable!("Expected all load instructions to be removed before acir_gen")
-            }
-            Instruction::IncrementRc { .. } => {
-                // Do nothing. Only Brillig needs to worry about reference counted arrays
-            }
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                let acir_var = self.convert_numeric_value(*value, dfg)?;
-                self.acir_context.range_constrain_var(
-                    acir_var,
-                    &NumericType::Unsigned { bit_size: *max_bit_size },
-                    assert_message.clone(),
-                )?;
-            }
+            _ => unreachable!("expected calling a call instruction"),
         }
-        self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
     }
 
@@ -1541,7 +1581,7 @@ impl Context {
 
                 let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
 
-                Ok(Self::convert_vars_to_values(vars, dfg, result_ids))
+                Ok(self.convert_vars_to_values(vars, dfg, result_ids))
             }
             Intrinsic::ApplyRangeConstraint => {
                 unreachable!("ICE: `Intrinsic::ApplyRangeConstraint` calls should be transformed into an `Instruction::RangeCheck`");
@@ -1588,7 +1628,7 @@ impl Context {
                     .sort(input_vars, bit_size, self.current_side_effects_enabled_var)
                     .expect("Could not sort");
 
-                Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
+                Ok(self.convert_vars_to_values(out_vars, dfg, result_ids))
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
@@ -2101,16 +2141,35 @@ impl Context {
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
+    /// If the type of a result id is a slice, the slice length must precede it and we can
+    /// convert to an AcirValue::Array when the length is known (constant).
     fn convert_vars_to_values(
+        &self,
         vars: Vec<AcirVar>,
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Vec<AcirValue> {
         let mut vars = vars.into_iter();
-        vecmap(result_ids, |result| {
+        let mut values: Vec<AcirValue> = Vec::new();
+        for result in result_ids {
             let result_type = dfg.type_of_value(*result);
-            Self::convert_var_type_to_values(&result_type, &mut vars)
-        })
+            if let Type::Slice(elements_type) = result_type {
+                let error = "ICE - cannot get slice length when converting slice to AcirValue";
+                let len = values.last().expect(error).borrow_var().expect(error);
+                let len = self.acir_context.constant(len).to_u128();
+                let mut element_values = im::Vector::new();
+                for _ in 0..len {
+                    for element_type in elements_type.iter() {
+                        let element = Self::convert_var_type_to_values(element_type, &mut vars);
+                        element_values.push_back(element);
+                    }
+                }
+                values.push(AcirValue::Array(element_values));
+            } else {
+                values.push(Self::convert_var_type_to_values(&result_type, &mut vars));
+            }
+        }
+        values
     }
 
     /// Recursive helper for convert_vars_to_values.
