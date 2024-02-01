@@ -454,7 +454,7 @@ mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId(arena::Index { ix: 0 })
+            LocalModuleId(arena::Index(0))
         }
 
         fn module_id(&self) -> ModuleId {
