@@ -56,7 +56,7 @@ import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { getFunctionSelector } from 'viem';
 
-import { KeyPair } from '../acvm/index.js';
+import { KeyPair, MessageLoadOracleInputs } from '../acvm/index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
@@ -544,11 +544,13 @@ describe('Private Execution test suite', () => {
       const mockOracles = async () => {
         const tree = await insertLeaves([messageKey ?? preimage.hash()], 'l1ToL2Messages');
         oracle.getL1ToL2Message.mockImplementation(async () => {
-          return Promise.resolve({
-            message: preimage.toFieldArray(),
-            index: 0n,
-            siblingPath: (await tree.getSiblingPath(0n, false)).toFieldArray(),
-          });
+          return Promise.resolve(
+            new MessageLoadOracleInputs(
+              preimage.toFieldArray(),
+              0n,
+              (await tree.getSiblingPath(0n, false)).toFieldArray(),
+            ),
+          );
         });
       };
 

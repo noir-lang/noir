@@ -48,23 +48,22 @@ export interface NoteData {
   index?: bigint;
 }
 
-/**
- * The data for L1 to L2 Messages provided by other data sources.
- */
-export interface MessageLoadOracleInputs {
-  /**
-   * An collapsed array of fields containing all of the l1 to l2 message components.
-   * `l1ToL2Message.toFieldArray()` -\> [sender, chainId, recipient, version, content, secretHash, deadline, fee]
-   */
-  message: Fr[];
-  /**
-   * The path in the merkle tree to the message.
-   */
-  siblingPath: Fr[];
-  /**
-   * The index of the message commitment in the merkle tree.
-   */
-  index: bigint;
+export class MessageLoadOracleInputs {
+  constructor(
+    /**
+     * An collapsed array of fields containing all of the l1 to l2 message components.
+     * `l1ToL2Message.toFieldArray()` -\> [sender, chainId, recipient, version, content, secretHash, deadline, fee]
+     */
+    public message: Fr[],
+    /** The index of the message commitment in the merkle tree. */
+    public index: bigint,
+    /** The path in the merkle tree to the message. */
+    public siblingPath: Fr[],
+  ) {}
+
+  toFields(): Fr[] {
+    return [...this.message, new Fr(this.index), ...this.siblingPath];
+  }
 }
 
 /**

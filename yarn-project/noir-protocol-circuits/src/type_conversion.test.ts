@@ -59,7 +59,7 @@ describe('Noir<>Circuits.js type conversion test suite', () => {
       new Fr(29n),
       new Fr(30n),
       new Fr(31n),
-      AztecAddress.random(),
+      EthAddress.random(),
     );
 
     it('should map contract deployment data', () => {

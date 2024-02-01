@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer, serializeToFieldArray } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import { Fr, FunctionSelector } from './index.js';
@@ -105,6 +105,10 @@ export class CallContext {
    */
   toBuffer() {
     return serializeToBuffer(...CallContext.getFields(this));
+  }
+
+  toFields(): Fr[] {
+    return serializeToFieldArray(...CallContext.getFields(this));
   }
 
   /**

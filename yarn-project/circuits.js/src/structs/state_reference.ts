@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { PartialStateReference } from './partial_state_reference.js';
 import { AppendOnlyTreeSnapshot } from './rollup/append_only_tree_snapshot.js';
@@ -21,12 +21,21 @@ export class StateReference {
   }
 
   toFieldArray(): Fr[] {
-    return [...this.l1ToL2MessageTree.toFieldArray(), ...this.partial.toFieldArray()];
+    return [...this.l1ToL2MessageTree.toFields(), ...this.partial.toFields()];
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): StateReference {
     const reader = BufferReader.asReader(buffer);
     return new StateReference(reader.readObject(AppendOnlyTreeSnapshot), reader.readObject(PartialStateReference));
+  }
+
+  static fromFields(fields: Fr[] | FieldReader): StateReference {
+    const reader = FieldReader.asReader(fields);
+
+    const l1ToL2MessageTree = AppendOnlyTreeSnapshot.fromFields(reader);
+    const partial = PartialStateReference.fromFields(reader);
+
+    return new StateReference(l1ToL2MessageTree, partial);
   }
 
   static empty(): StateReference {

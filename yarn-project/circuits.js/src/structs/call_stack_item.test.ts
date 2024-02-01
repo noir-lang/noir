@@ -1,28 +1,28 @@
-import { makeHeader } from '../tests/factories.js';
-import { Header } from './header.js';
+import { makePrivateCallStackItem } from '../tests/factories.js';
+import { PrivateCallStackItem } from './call_stack_item.js';
 
-describe('Header', () => {
+describe('PrivateCallStackItem', () => {
   it('serializes to buffer and deserializes it back', () => {
     const randomInt = Math.floor(Math.random() * 1000);
-    const expected = makeHeader(randomInt, undefined);
+    const expected = makePrivateCallStackItem(randomInt);
     const buffer = expected.toBuffer();
-    const res = Header.fromBuffer(buffer);
+    const res = PrivateCallStackItem.fromBuffer(buffer);
     expect(res).toEqual(expected);
   });
 
   it('serializes to field array and deserializes it back', () => {
     const randomInt = Math.floor(Math.random() * 1000);
-    const expected = makeHeader(randomInt, undefined);
+    const expected = makePrivateCallStackItem(randomInt);
 
     const fieldArray = expected.toFields();
-    const res = Header.fromFields(fieldArray);
+    const res = PrivateCallStackItem.fromFields(fieldArray);
     expect(res).toEqual(expected);
   });
 
   it('computes hash', () => {
     const seed = 9870243;
-    const header = makeHeader(seed, undefined);
-    const hash = header.hash();
+    const PrivateCallStackItem = makePrivateCallStackItem(seed);
+    const hash = PrivateCallStackItem.hash();
     expect(hash).toMatchSnapshot();
   });
 });

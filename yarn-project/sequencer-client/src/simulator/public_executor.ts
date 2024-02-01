@@ -150,11 +150,7 @@ export class WorldStateDB implements CommitmentsDB {
     const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageKey.toBuffer()))!;
     const siblingPath = await this.db.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, index);
 
-    return {
-      message: message.toFieldArray(),
-      siblingPath: siblingPath.toFieldArray(),
-      index,
-    };
+    return new MessageLoadOracleInputs(message.toFieldArray(), index, siblingPath.toFieldArray());
   }
 
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {

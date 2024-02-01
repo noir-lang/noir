@@ -101,7 +101,7 @@ export function extractPrivateCircuitPublicInputs(
   const encryptedLogPreimagesLength = witnessReader.readField();
   const unencryptedLogPreimagesLength = witnessReader.readField();
 
-  const header = Header.fromFieldArray(witnessReader.readFieldArray(HEADER_LENGTH));
+  const header = Header.fromFields(witnessReader.readFieldArray(HEADER_LENGTH));
 
   const contractDeploymentData = new ContractDeploymentData(
     new Point(witnessReader.readField(), witnessReader.readField()),
@@ -176,7 +176,7 @@ export function extractPublicCircuitPublicInputs(partialWitness: ACVMWitness, ac
   const unencryptedLogsHash = witnessReader.readFieldArray(NUM_FIELDS_PER_SHA256);
   const unencryptedLogPreimagesLength = witnessReader.readField();
 
-  const header = Header.fromFieldArray(witnessReader.readFieldArray(HEADER_LENGTH));
+  const header = Header.fromFields(witnessReader.readFieldArray(HEADER_LENGTH));
 
   const proverAddress = AztecAddress.fromField(witnessReader.readField());
 

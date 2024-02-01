@@ -397,7 +397,7 @@ function computePrivateInputsHash(input: PrivateCircuitPublicInputs) {
     ...input.unencryptedLogsHash.map(fr => fr.toBuffer()),
     input.encryptedLogPreimagesLength.toBuffer(),
     input.unencryptedLogPreimagesLength.toBuffer(),
-    ...(input.historicalHeader.toFieldArray().map(fr => fr.toBuffer()) as Buffer[]),
+    ...(input.historicalHeader.toFields().map(fr => fr.toBuffer()) as Buffer[]),
     computeContractDeploymentDataHash(input.contractDeploymentData).toBuffer(),
     input.chainId.toBuffer(),
     input.version.toBuffer(),
@@ -463,7 +463,7 @@ export function computePublicInputsHash(input: PublicCircuitPublicInputs) {
     ...input.newL2ToL1Msgs.map(fr => fr.toBuffer()),
     ...input.unencryptedLogsHash.map(fr => fr.toBuffer()),
     input.unencryptedLogPreimagesLength.toBuffer(),
-    ...input.historicalHeader.toFieldArray().map(fr => fr.toBuffer()),
+    ...input.historicalHeader.toFields().map(fr => fr.toBuffer()),
     input.proverAddress.toBuffer(),
   ];
   if (toHash.length != PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH) {

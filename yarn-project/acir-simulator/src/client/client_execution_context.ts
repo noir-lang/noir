@@ -17,13 +17,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import {
-  NoteData,
-  toACVMCallContext,
-  toACVMContractDeploymentData,
-  toACVMHeader,
-  toACVMWitness,
-} from '../acvm/index.js';
+import { NoteData, toACVMWitness } from '../acvm/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { DBOracle } from './db_oracle.js';
 import { ExecutionNoteCache } from './execution_note_cache.js';
@@ -96,9 +90,9 @@ export class ClientExecutionContext extends ViewDataOracle {
     }
 
     const fields = [
-      ...toACVMCallContext(this.callContext),
-      ...toACVMHeader(this.historicalHeader),
-      ...toACVMContractDeploymentData(contractDeploymentData),
+      ...this.callContext.toFields(),
+      ...this.historicalHeader.toFields(),
+      ...contractDeploymentData.toFields(),
 
       this.txContext.chainId,
       this.txContext.version,

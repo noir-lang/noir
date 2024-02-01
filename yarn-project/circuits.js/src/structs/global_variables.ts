@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 /**
@@ -52,6 +52,12 @@ export class GlobalVariables {
     );
   }
 
+  static fromFields(fields: Fr[] | FieldReader): GlobalVariables {
+    const reader = FieldReader.asReader(fields);
+
+    return new GlobalVariables(reader.readField(), reader.readField(), reader.readField(), reader.readField());
+  }
+
   static getFields(fields: FieldsOf<GlobalVariables>) {
     // Note: The order here must match the order in the HeaderLib solidity library.
     return [fields.chainId, fields.version, fields.blockNumber, fields.timestamp] as const;
@@ -61,7 +67,7 @@ export class GlobalVariables {
     return serializeToBuffer(...GlobalVariables.getFields(this));
   }
 
-  toFieldArray() {
+  toFields() {
     return GlobalVariables.getFields(this);
   }
 

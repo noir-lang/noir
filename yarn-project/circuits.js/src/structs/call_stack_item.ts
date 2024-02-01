@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { computePrivateCallStackItemHash, computePublicCallStackItemHash } from '../abis/abis.js';
 import { CallRequest, CallerContext } from './call_request.js';
@@ -10,7 +10,6 @@ import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
 
 /**
  * Call stack item on a private call.
- * @see cpp/src/aztec3/circuits/abis/call_stack_item.hpp.
  */
 export class PrivateCallStackItem {
   constructor(
@@ -40,6 +39,15 @@ export class PrivateCallStackItem {
     return serializeToBuffer(this.contractAddress, this.functionData, this.publicInputs, this.isExecutionRequest);
   }
 
+  toFields(): Fr[] {
+    return [
+      this.contractAddress.toField(),
+      ...this.functionData.toFields(),
+      ...this.publicInputs.toFields(),
+      new Fr(this.isExecutionRequest),
+    ];
+  }
+
   /**
    * Deserializes from a buffer or reader.
    * @param buffer - Buffer or reader to read from.
@@ -53,6 +61,17 @@ export class PrivateCallStackItem {
       reader.readObject(PrivateCircuitPublicInputs),
       reader.readBoolean(),
     );
+  }
+
+  static fromFields(fields: Fr[] | FieldReader): PrivateCallStackItem {
+    const reader = FieldReader.asReader(fields);
+
+    const contractAddress = AztecAddress.fromFields(reader);
+    const functionData = FunctionData.fromFields(reader);
+    const publicInputs = PrivateCircuitPublicInputs.fromFields(reader);
+    const isExecutionRequest = reader.readBoolean();
+
+    return new PrivateCallStackItem(contractAddress, functionData, publicInputs, isExecutionRequest);
   }
 
   /**

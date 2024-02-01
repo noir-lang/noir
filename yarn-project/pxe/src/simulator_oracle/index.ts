@@ -123,11 +123,7 @@ export class SimulatorOracle implements DBOracle {
     const message = messageAndIndex.message.toFieldArray();
     const index = messageAndIndex.index;
     const siblingPath = await this.stateInfoProvider.getL1ToL2MessageSiblingPath('latest', index);
-    return {
-      message,
-      siblingPath: siblingPath.toFieldArray(),
-      index,
-    };
+    return new MessageLoadOracleInputs(message, index, siblingPath.toFieldArray());
   }
 
   /**

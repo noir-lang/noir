@@ -21,6 +21,7 @@ import { MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
 import { getFunctionSelector } from 'viem';
 
+import { MessageLoadOracleInputs } from '../index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
@@ -459,12 +460,8 @@ describe('ACIR public execution simulator', () => {
         for (const sibling of siblingPath) {
           root = Fr.fromBuffer(pedersenHash([root.toBuffer(), sibling.toBuffer()]));
         }
-        commitmentsDb.getL1ToL2Message.mockImplementation(async () => {
-          return await Promise.resolve({
-            message: preimage.toFieldArray(),
-            index: 0n,
-            siblingPath,
-          });
+        commitmentsDb.getL1ToL2Message.mockImplementation(() => {
+          return Promise.resolve(new MessageLoadOracleInputs(preimage.toFieldArray(), 0n, siblingPath));
         });
 
         return new AppendOnlyTreeSnapshot(
