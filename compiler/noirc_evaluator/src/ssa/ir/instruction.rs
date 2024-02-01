@@ -440,9 +440,10 @@ impl Instruction {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
-                    Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
-                        let value = constant.is_zero() as u128;
-                        SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
+                    Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
+                        // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
+                        let value = !constant.to_u128() % (1 << typ.bit_size());
+                        SimplifiedTo(dfg.make_constant(value.into(), typ.clone()))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
