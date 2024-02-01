@@ -16,7 +16,9 @@ pub(crate) struct ValueMerger<'a> {
     block: BasicBlockId,
     store_values: Option<&'a HashMap<ValueId, Store>>,
     outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
-    slice_sizes: HashMap<ValueId, usize>,
+    old_slice_sizes: HashMap<ValueId, usize>,
+    // Maps SSA array values to their size and any respective nested slice children it may have
+    slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -25,13 +27,15 @@ impl<'a> ValueMerger<'a> {
         block: BasicBlockId,
         store_values: Option<&'a HashMap<ValueId, Store>>,
         outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
+        slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
     ) -> Self {
         ValueMerger {
             dfg,
             block,
             store_values,
             outer_block_stores,
-            slice_sizes: HashMap::default(),
+            slice_sizes: slice_sizes,
+            old_slice_sizes: HashMap::default(),
         }
     }
 
@@ -185,13 +189,21 @@ impl<'a> ValueMerger<'a> {
         };
 
         let then_len = self.get_slice_length(then_value_id);
-        self.slice_sizes.insert(then_value_id, then_len);
+        self.old_slice_sizes.insert(then_value_id, then_len);
 
         let else_len = self.get_slice_length(else_value_id);
-        self.slice_sizes.insert(else_value_id, else_len);
+        self.old_slice_sizes.insert(else_value_id, else_len);
+
+        // let then_len = self.slice_sizes.get(&then_value_id).unwrap_or_else(|| {
+        //     panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
+        // }).0;
+
+        // let else_len = self.slice_sizes.get(&else_value_id).unwrap_or_else(|| {
+        //     panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
+        // }).0;
 
         let len = then_len.max(else_len);
-
+        
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index_usize = i * element_types.len() + element_index;
@@ -221,6 +233,11 @@ impl<'a> ValueMerger<'a> {
                 let then_element = get_element(then_value_id, typevars.clone(), then_len);
                 let else_element = get_element(else_value_id, typevars, else_len);
 
+                // let then_element =
+                //     get_element(then_value_id, typevars.clone(), then_len * element_types.len());
+                // let else_element =
+                //     get_element(else_value_id, typevars, else_len * element_types.len());
+
                 merged.push_back(self.merge_values(
                     then_condition,
                     else_condition,
@@ -230,7 +247,9 @@ impl<'a> ValueMerger<'a> {
             }
         }
 
-        self.dfg.make_array(merged, typ)
+        let merged = self.dfg.make_array(merged, typ);
+        println!("Merged value ID: {merged}");
+        merged
     }
 
     fn get_slice_length(&mut self, value_id: ValueId) -> usize {
@@ -248,7 +267,7 @@ impl<'a> ValueMerger<'a> {
                     Instruction::ArraySet { array, .. } => {
                         let array = *array;
                         let len = self.get_slice_length(array);
-                        self.slice_sizes.insert(array, len);
+                        self.old_slice_sizes.insert(array, len);
                         len
                     }
                     Instruction::Load { address } => {
@@ -257,21 +276,17 @@ impl<'a> ValueMerger<'a> {
                         let store_value = outer_block_stores
                             .get(address)
                             .expect("ICE: load in merger should have store from outer block");
-
-                        if let Some(len) = self.slice_sizes.get(store_value) {
+                        if let Some(len) = self.old_slice_sizes.get(store_value) {
                             return *len;
                         }
-
                         let store_value = if let Some(store) = store_values.get(address) {
-                            if let Some(len) = self.slice_sizes.get(&store.new_value) {
+                            if let Some(len) = self.old_slice_sizes.get(&store.new_value) {
                                 return *len;
                             }
-
                             store.new_value
                         } else {
                             *store_value
                         };
-
                         self.get_slice_length(store_value)
                     }
                     Instruction::Call { func, arguments } => {
@@ -284,7 +299,7 @@ impl<'a> ValueMerger<'a> {
                                 | Intrinsic::SliceInsert => {
                                     // `get_slice_length` needs to be called here as it is borrows self as mutable
                                     let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
+                                    self.old_slice_sizes.insert(slice_contents, initial_len);
                                     initial_len + 1
                                 }
                                 Intrinsic::SlicePopBack
@@ -292,7 +307,7 @@ impl<'a> ValueMerger<'a> {
                                 | Intrinsic::SliceRemove => {
                                     // `get_slice_length` needs to be called here as it is borrows self as mutable
                                     let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
+                                    self.old_slice_sizes.insert(slice_contents, initial_len);
                                     initial_len - 1
                                 }
                                 _ => {

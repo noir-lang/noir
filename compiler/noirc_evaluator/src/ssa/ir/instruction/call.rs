@@ -1,3 +1,4 @@
+use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
@@ -319,7 +320,11 @@ fn simplify_slice_push_back(
     for elem in &arguments[2..] {
         slice.push_back(*elem);
     }
+    let slice_size = slice.len();
+    let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
+    // dbg!(slice_size);
+    // dbg!(element_size);
 
     let set_last_slice_value_instr =
         Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2] };
@@ -327,7 +332,11 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
 
-    let mut value_merger = ValueMerger::new(dfg, block, None, None);
+    let mut slice_sizes = HashMap::default();
+    slice_sizes.insert(set_last_slice_value, (slice_size / element_size, vec![]));
+    slice_sizes.insert(new_slice, (slice_size / element_size, vec![]));
+
+    let mut value_merger = ValueMerger::new(dfg, block, None, None, &mut slice_sizes);
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,

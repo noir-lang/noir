@@ -120,7 +120,8 @@ impl Type {
             }
             Type::Slice(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference(_) => false,
+            Type::Reference(element) => element.contains_slice_element(),
+            // Type::Reference(_) => false,
             Type::Function => false,
         }
     }

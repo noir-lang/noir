@@ -246,6 +246,10 @@ impl Instruction {
                 bin.operator != BinaryOp::Div
             }
             Cast(_, _) | Truncate { .. } | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+            // Cast(_, _) | Truncate { .. } | Not(_) => true,
+
+            // These are not pure when working with nested slices based upon witness conditions
+            // ArrayGet { .. } | ArraySet { .. } => false,
 
             // These either have side-effects or interact with memory
             Constrain(..)

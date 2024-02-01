@@ -152,8 +152,10 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
+mod capacity_tracker;
 pub(crate) mod value_merger;
 
+use capacity_tracker::SliceCapacityTracker;
 use value_merger::ValueMerger;
 
 impl Ssa {
@@ -209,6 +211,8 @@ struct Context<'f> {
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
+
+    slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
 pub(crate) struct Store {
@@ -240,6 +244,7 @@ fn flatten_function_cfg(function: &mut Function) {
         branch_ends,
         conditions: Vec::new(),
         outer_block_stores: HashMap::default(),
+        slice_sizes: HashMap::default(),
     };
     context.flatten();
 }
@@ -277,6 +282,20 @@ impl<'f> Context<'f> {
                     self.outer_block_stores.insert(address, value);
                 }
             }
+        }
+
+        // As we recursively flatten inner blocks, we need to track the slice information
+        // for the outer block before we start recursively inlining
+        let outer_block_instructions = self.inserter.function.dfg[block].instructions();
+        let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        for instruction in outer_block_instructions {
+            let results = self.inserter.function.dfg.instruction_results(*instruction);
+            let instruction = &self.inserter.function.dfg[*instruction];
+            capacity_tracker.collect_slice_information(
+                instruction,
+                &mut self.slice_sizes,
+                results.to_vec(),
+            );
         }
 
         match self.inserter.function.dfg[block].unwrap_terminator() {
@@ -494,11 +513,20 @@ impl<'f> Context<'f> {
         });
 
         let block = self.inserter.function.entry_block();
+
+        // Make sure we have tracked the slice sizes of any block arguments
+        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        for (then_arg, else_arg) in args.iter() {
+            capacity_tracker.compute_slice_sizes(*then_arg, &mut self.slice_sizes);
+            capacity_tracker.compute_slice_sizes(*else_arg, &mut self.slice_sizes);
+        }
+
         let mut value_merger = ValueMerger::new(
             &mut self.inserter.function.dfg,
             block,
             Some(&self.store_values),
             Some(&self.outer_block_stores),
+            &mut self.slice_sizes,
         );
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -548,6 +576,7 @@ impl<'f> Context<'f> {
             block,
             Some(&self.store_values),
             Some(&self.outer_block_stores),
+            &mut self.slice_sizes,
         );
 
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
@@ -571,6 +600,16 @@ impl<'f> Context<'f> {
                     .insert(address, Store { old_value: *old_value, new_value: value });
             }
         }
+
+        // Collect any potential slice information on the stores we are merging
+        for (address, (_, _, _)) in &new_map {
+            let value = new_values[address];
+            let address = *address;
+            let instruction = Instruction::Store { address, value };
+
+            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+            capacity_tracker.collect_slice_information(&instruction, &mut self.slice_sizes, vec![]);
+        }
     }
 
     fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
@@ -581,6 +620,11 @@ impl<'f> Context<'f> {
                 let load = Instruction::Load { address };
                 let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
                 let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+
+                let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+                // Need this or else we will be missing slice stores that we wish to merge
+                let store = Instruction::Store { address: old_value, value: new_value };
+                capacity_tracker.collect_slice_information(&store, &mut self.slice_sizes, vec![]);
 
                 self.store_values.insert(address, Store { old_value, new_value });
             }
@@ -602,8 +646,16 @@ impl<'f> Context<'f> {
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
 
-        for instruction in instructions {
-            self.push_instruction(instruction);
+        for instruction in instructions.iter() {
+            // self.push_instruction(instruction);
+            let results = self.push_instruction(*instruction);
+            let (instruction, _) = self.inserter.map_instruction(*instruction);
+            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+            capacity_tracker.collect_slice_information(
+                &instruction,
+                &mut self.slice_sizes,
+                results,
+            );
         }
 
         self.handle_terminator(destination)
@@ -615,7 +667,7 @@ impl<'f> Context<'f> {
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    fn push_instruction(&mut self, id: InstructionId) {
+    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId>  {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
@@ -628,6 +680,8 @@ impl<'f> Context<'f> {
         if is_allocate {
             self.local_allocations.insert(results.first());
         }
+
+        results.results().into_owned()
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions
