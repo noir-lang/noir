@@ -1,4 +1,4 @@
-fn main(x: u8) {
+fn main() {
     let four: u8 = 4;
     let not_four: u8 = !four;
 
