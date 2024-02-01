@@ -14,7 +14,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, Instruction},
+        instruction::{BinaryOp, ConstrainError, Instruction},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -86,9 +86,22 @@ impl DefunctionalizationContext {
                 let instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
                 // Operate on call instructions
-                let (target_func_id, mut arguments) = match instruction {
+                let (target_func_id, arguments) = match &instruction {
                     Instruction::Call { func: target_func_id, arguments } => {
-                        (target_func_id, arguments)
+                        (*target_func_id, arguments)
+                    }
+                    // Constrain instruction potentially hold a call instruction themselves
+                    // thus we need to account for them.
+                    Instruction::Constrain(_, _, Some(constrain_error)) => {
+                        if let ConstrainError::Dynamic(Instruction::Call {
+                            func: target_func_id,
+                            arguments,
+                        }) = constrain_error.as_ref()
+                        {
+                            (*target_func_id, arguments)
+                        } else {
+                            continue;
+                        }
                     }
                     _ => continue,
                 };
@@ -96,6 +109,7 @@ impl DefunctionalizationContext {
                 match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
+                        let mut arguments = arguments.clone();
                         let results = func.dfg.instruction_results(instruction_id);
                         let signature = Signature {
                             params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
@@ -120,7 +134,20 @@ impl DefunctionalizationContext {
                     }
                     _ => {}
                 }
-                if let Some(new_instruction) = replacement_instruction {
+                if let Some(mut new_instruction) = replacement_instruction {
+                    if let Instruction::Constrain(lhs, rhs, constrain_error_call) = instruction {
+                        let new_error_call = if let Some(error) = constrain_error_call {
+                            match error.as_ref() {
+                                ConstrainError::Dynamic(_) => {
+                                    Some(Box::new(ConstrainError::Dynamic(new_instruction)))
+                                }
+                                _ => None,
+                            }
+                        } else {
+                            None
+                        };
+                        new_instruction = Instruction::Constrain(lhs, rhs, new_error_call);
+                    }
                     func.dfg[instruction_id] = new_instruction;
                 }
             }
