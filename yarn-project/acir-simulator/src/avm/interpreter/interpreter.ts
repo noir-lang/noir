@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { AvmMessageCallResult } from '../avm_message_call_result.js';
 import { AvmJournal } from '../journal/index.js';
-import { Instruction } from '../opcodes/index.js';
+import { Instruction, InstructionExecutionError } from '../opcodes/instruction.js';
 
 /**
  * Run the avm
@@ -36,14 +36,13 @@ export async function executeAvm(
     }
 
     return AvmMessageCallResult.success(returnData);
-  } catch (_e) {
-    if (!(_e instanceof AvmInterpreterError)) {
-      throw _e;
+  } catch (e) {
+    if (!(e instanceof AvmInterpreterError || e instanceof InstructionExecutionError)) {
+      throw e;
     }
 
-    const revertReason: AvmInterpreterError = _e;
     const revertData = machineState.getReturnData();
-    return AvmMessageCallResult.revert(revertData, revertReason);
+    return AvmMessageCallResult.revert(revertData, /*revertReason=*/ e);
   }
 }
 

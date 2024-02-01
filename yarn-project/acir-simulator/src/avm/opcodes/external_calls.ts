@@ -4,17 +4,31 @@ import { AvmContext } from '../avm_context.js';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field } from '../avm_memory_types.js';
 import { AvmJournal } from '../journal/journal.js';
+import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 
 export class Call extends Instruction {
   static type: string = 'CALL';
-  static numberOfOperands = 7;
+  static readonly opcode: Opcode = Opcode.CALL;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat: OperandType[] = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
 
   constructor(
-    private /* Unused due to no formal gas implementation at this moment */ _gasOffset: number,
+    private indirect: number,
+    private _gasOffset: number /* Unused due to no formal gas implementation at this moment */,
     private addrOffset: number,
     private argsOffset: number,
-    private argSize: number,
+    private argsSize: number,
     private retOffset: number,
     private retSize: number,
     private successOffset: number,
@@ -25,7 +39,7 @@ export class Call extends Instruction {
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3992): there is no concept of remaining / available gas at this moment
   async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
     const callAddress = machineState.memory.getAs<Field>(this.addrOffset);
-    const calldata = machineState.memory.getSlice(this.argsOffset, this.argSize).map(f => new Fr(f.toBigInt()));
+    const calldata = machineState.memory.getSlice(this.argsOffset, this.argsSize).map(f => new Fr(f.toBigInt()));
 
     const avmContext = AvmContext.prepExternalCallContext(
       new Fr(callAddress.toBigInt()),
@@ -55,13 +69,26 @@ export class Call extends Instruction {
 
 export class StaticCall extends Instruction {
   static type: string = 'STATICCALL';
-  static numberOfOperands = 7;
+  static readonly opcode: Opcode = Opcode.STATICCALL;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat: OperandType[] = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
 
   constructor(
-    private /* Unused due to no formal gas implementation at this moment */ _gasOffset: number,
+    private indirect: number,
+    private _gasOffset: number /* Unused due to no formal gas implementation at this moment */,
     private addrOffset: number,
     private argsOffset: number,
-    private argSize: number,
+    private argsSize: number,
     private retOffset: number,
     private retSize: number,
     private successOffset: number,
@@ -71,7 +98,7 @@ export class StaticCall extends Instruction {
 
   async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
     const callAddress = machineState.memory.get(this.addrOffset);
-    const calldata = machineState.memory.getSlice(this.argsOffset, this.argSize).map(f => new Fr(f.toBigInt()));
+    const calldata = machineState.memory.getSlice(this.argsOffset, this.argsSize).map(f => new Fr(f.toBigInt()));
 
     const avmContext = AvmContext.prepExternalStaticCallContext(
       new Fr(callAddress.toBigInt()),

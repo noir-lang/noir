@@ -15,45 +15,153 @@ describe('Bitwise instructions', () => {
     journal = mock<AvmJournal>();
   });
 
-  it('Should AND correctly over integral types', async () => {
-    machineState.memory.set(0, new Uint32(0b11111110010011100100n));
-    machineState.memory.set(1, new Uint32(0b11100100111001001111n));
+  describe('AND', () => {
+    it('Should deserialize correctly', () => {
+      const buf = Buffer.from([
+        And.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT64, // inTag
+        ...Buffer.from('12345678', 'hex'), // aOffset
+        ...Buffer.from('23456789', 'hex'), // bOffset
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new And(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT64,
+        /*aOffset=*/ 0x12345678,
+        /*bOffset=*/ 0x23456789,
+        /*dstOffset=*/ 0x3456789a,
+      );
 
-    await new And(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+      expect(And.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    const actual = machineState.memory.get(2);
-    expect(actual).toEqual(new Uint32(0b11100100010001000100n));
+    it('Should AND correctly over integral types', async () => {
+      machineState.memory.set(0, new Uint32(0b11111110010011100100n));
+      machineState.memory.set(1, new Uint32(0b11100100111001001111n));
+
+      await new And(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
+
+      const actual = machineState.memory.get(2);
+      expect(actual).toEqual(new Uint32(0b11100100010001000100n));
+    });
   });
 
-  it('Should OR correctly over integral types', async () => {
-    const a = new Uint32(0b11111110010011100100n);
-    const b = new Uint32(0b11100100111001001111n);
+  describe('OR', () => {
+    it('Should deserialize correctly', () => {
+      const buf = Buffer.from([
+        Or.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT64, // inTag
+        ...Buffer.from('12345678', 'hex'), // aOffset
+        ...Buffer.from('23456789', 'hex'), // bOffset
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Or(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT64,
+        /*aOffset=*/ 0x12345678,
+        /*bOffset=*/ 0x23456789,
+        /*dstOffset=*/ 0x3456789a,
+      );
 
-    machineState.memory.set(0, a);
-    machineState.memory.set(1, b);
+      expect(Or.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    await new Or(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+    it('Should OR correctly over integral types', async () => {
+      const a = new Uint32(0b11111110010011100100n);
+      const b = new Uint32(0b11100100111001001111n);
 
-    const expected = new Uint32(0b11111110111011101111n);
-    const actual = machineState.memory.get(2);
-    expect(actual).toEqual(expected);
+      machineState.memory.set(0, a);
+      machineState.memory.set(1, b);
+
+      await new Or(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
+
+      const expected = new Uint32(0b11111110111011101111n);
+      const actual = machineState.memory.get(2);
+      expect(actual).toEqual(expected);
+    });
   });
 
-  it('Should XOR correctly over integral types', async () => {
-    const a = new Uint32(0b11111110010011100100n);
-    const b = new Uint32(0b11100100111001001111n);
+  describe('XOR', () => {
+    it('Should deserialize correctly', () => {
+      const buf = Buffer.from([
+        Xor.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT64, // inTag
+        ...Buffer.from('12345678', 'hex'), // aOffset
+        ...Buffer.from('23456789', 'hex'), // bOffset
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Xor(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT64,
+        /*aOffset=*/ 0x12345678,
+        /*bOffset=*/ 0x23456789,
+        /*dstOffset=*/ 0x3456789a,
+      );
 
-    machineState.memory.set(0, a);
-    machineState.memory.set(1, b);
+      expect(Xor.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    await new Xor(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+    it('Should XOR correctly over integral types', async () => {
+      const a = new Uint32(0b11111110010011100100n);
+      const b = new Uint32(0b11100100111001001111n);
 
-    const expected = new Uint32(0b00011010101010101011n);
-    const actual = machineState.memory.get(2);
-    expect(actual).toEqual(expected);
+      machineState.memory.set(0, a);
+      machineState.memory.set(1, b);
+
+      await new Xor(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
+
+      const expected = new Uint32(0b00011010101010101011n);
+      const actual = machineState.memory.get(2);
+      expect(actual).toEqual(expected);
+    });
   });
 
   describe('SHR', () => {
+    it('Should deserialize correctly', () => {
+      const buf = Buffer.from([
+        Shr.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT64, // inTag
+        ...Buffer.from('12345678', 'hex'), // aOffset
+        ...Buffer.from('23456789', 'hex'), // bOffset
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Shr(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT64,
+        /*aOffset=*/ 0x12345678,
+        /*bOffset=*/ 0x23456789,
+        /*dstOffset=*/ 0x3456789a,
+      );
+
+      expect(Shr.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
     it('Should shift correctly 0 positions over integral types', async () => {
       const a = new Uint32(0b11111110010011100100n);
       const b = new Uint32(0n);
@@ -61,7 +169,13 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shr(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+      await new Shr(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
 
       const expected = a;
       const actual = machineState.memory.get(2);
@@ -75,7 +189,13 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shr(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+      await new Shr(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
 
       const expected = new Uint32(0b00111111100100111001n);
       const actual = machineState.memory.get(2);
@@ -89,7 +209,13 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shr(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+      await new Shr(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
 
       const expected = new Uint32(0b01n);
       const actual = machineState.memory.get(2);
@@ -98,6 +224,27 @@ describe('Bitwise instructions', () => {
   });
 
   describe('SHL', () => {
+    it('Should deserialize correctly', () => {
+      const buf = Buffer.from([
+        Shl.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT64, // inTag
+        ...Buffer.from('12345678', 'hex'), // aOffset
+        ...Buffer.from('23456789', 'hex'), // bOffset
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Shl(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT64,
+        /*aOffset=*/ 0x12345678,
+        /*bOffset=*/ 0x23456789,
+        /*dstOffset=*/ 0x3456789a,
+      );
+
+      expect(Shl.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
     it('Should shift correctly 0 positions over integral types', async () => {
       const a = new Uint32(0b11111110010011100100n);
       const b = new Uint32(0n);
@@ -105,7 +252,13 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+      await new Shl(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
 
       const expected = a;
       const actual = machineState.memory.get(2);
@@ -119,7 +272,13 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(TypeTag.UINT32, 0, 1, 2).execute(machineState, journal);
+      await new Shl(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT32,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
 
       const expected = new Uint32(0b1111111001001110010000n);
       const actual = machineState.memory.get(2);
@@ -133,7 +292,13 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(TypeTag.UINT16, 0, 1, 2).execute(machineState, journal);
+      await new Shl(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT16,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
 
       const expected = new Uint16(0n);
       const actual = machineState.memory.get(2);
@@ -147,7 +312,13 @@ describe('Bitwise instructions', () => {
       machineState.memory.set(0, a);
       machineState.memory.set(1, b);
 
-      await new Shl(TypeTag.UINT16, 0, 1, 2).execute(machineState, journal);
+      await new Shl(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.UINT16,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(machineState, journal);
 
       const expected = new Uint16(0b1001001110011100n);
       const actual = machineState.memory.get(2);
@@ -155,15 +326,39 @@ describe('Bitwise instructions', () => {
     });
   });
 
-  it('Should NOT correctly over integral types', async () => {
-    const a = new Uint16(0b0110010011100100n);
+  describe('NOT', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        Not.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT64, // inTag
+        ...Buffer.from('12345678', 'hex'), // aOffset
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Not(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT64,
+        /*aOffset=*/ 0x12345678,
+        /*dstOffset=*/ 0x3456789a,
+      );
 
-    machineState.memory.set(0, a);
+      expect(Not.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    await new Not(TypeTag.UINT16, 0, 1).execute(machineState, journal);
+    it('Should NOT correctly over integral types', async () => {
+      const a = new Uint16(0b0110010011100100n);
 
-    const expected = new Uint16(0b1001101100011011n); // high bits!
-    const actual = machineState.memory.get(1);
-    expect(actual).toEqual(expected);
+      machineState.memory.set(0, a);
+
+      await new Not(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT16, /*aOffset=*/ 0, /*dstOffset=*/ 1).execute(
+        machineState,
+        journal,
+      );
+
+      const expected = new Uint16(0b1001101100011011n); // high bits!
+      const actual = machineState.memory.get(1);
+      expect(actual).toEqual(expected);
+    });
   });
 });

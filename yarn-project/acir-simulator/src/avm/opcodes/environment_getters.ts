@@ -1,211 +1,136 @@
+import { AvmExecutionEnvironment } from '../avm_execution_environment.js';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field } from '../avm_memory_types.js';
 import { AvmJournal } from '../journal/journal.js';
+import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 
-export class Address extends Instruction {
+abstract class GetterInstruction extends Instruction {
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat: OperandType[] = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32];
+
+  constructor(protected indirect: number, protected dstOffset: number) {
+    super();
+  }
+
+  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
+    const res = new Field(this.getIt(machineState.executionEnvironment));
+    machineState.memory.set(this.dstOffset, res);
+    this.incrementPc(machineState);
+  }
+
+  protected abstract getIt(env: AvmExecutionEnvironment): any;
+}
+
+export class Address extends GetterInstruction {
   static type: string = 'ADDRESS';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.ADDRESS;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { address } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(address));
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.address;
   }
 }
 
-export class StorageAddress extends Instruction {
+export class StorageAddress extends GetterInstruction {
   static type: string = 'STORAGEADDRESS';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.STORAGEADDRESS;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { storageAddress } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(storageAddress));
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.storageAddress;
   }
 }
 
-export class Sender extends Instruction {
+export class Sender extends GetterInstruction {
   static type: string = 'SENDER';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.SENDER;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { sender } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(sender));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.sender;
   }
 }
 
-export class Origin extends Instruction {
+export class Origin extends GetterInstruction {
   static type: string = 'ORIGIN';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.ORIGIN;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { origin } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(origin));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.origin;
   }
 }
 
-export class FeePerL1Gas extends Instruction {
+export class FeePerL1Gas extends GetterInstruction {
   static type: string = 'FEEPERL1GAS';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.FEEPERL1GAS;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { feePerL1Gas } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(feePerL1Gas));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.feePerL1Gas;
   }
 }
 
-export class FeePerL2Gas extends Instruction {
+export class FeePerL2Gas extends GetterInstruction {
   static type: string = 'FEEPERL2GAS';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.FEEPERL2GAS;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { feePerL2Gas } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(feePerL2Gas));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.feePerL2Gas;
   }
 }
 
-export class FeePerDAGas extends Instruction {
+export class FeePerDAGas extends GetterInstruction {
   static type: string = 'FEEPERDAGAS';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.FEEPERDAGAS;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { feePerDaGas } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(feePerDaGas));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.feePerDaGas;
   }
 }
 
-export class Portal extends Instruction {
+export class Portal extends GetterInstruction {
   static type: string = 'PORTAL';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.PORTAL;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { portal } = machineState.executionEnvironment;
-
-    machineState.memory.set(this.destOffset, new Field(portal.toField()));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.portal.toField();
   }
 }
 
-export class ChainId extends Instruction {
+export class ChainId extends GetterInstruction {
   static type: string = 'CHAINID';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.CHAINID;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { chainId } = machineState.executionEnvironment.globals;
-
-    machineState.memory.set(this.destOffset, new Field(chainId));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.globals.chainId;
   }
 }
 
-export class Version extends Instruction {
+export class Version extends GetterInstruction {
   static type: string = 'VERSION';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.VERSION;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { version } = machineState.executionEnvironment.globals;
-
-    machineState.memory.set(this.destOffset, new Field(version));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.globals.version;
   }
 }
 
-export class BlockNumber extends Instruction {
+export class BlockNumber extends GetterInstruction {
   static type: string = 'BLOCKNUMBER';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.BLOCKNUMBER;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { blockNumber } = machineState.executionEnvironment.globals;
-
-    machineState.memory.set(this.destOffset, new Field(blockNumber));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.globals.blockNumber;
   }
 }
 
-export class Timestamp extends Instruction {
+export class Timestamp extends GetterInstruction {
   static type: string = 'TIMESTAMP';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.TIMESTAMP;
 
-  constructor(private destOffset: number) {
-    super();
-  }
-
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const { timestamp } = machineState.executionEnvironment.globals;
-
-    machineState.memory.set(this.destOffset, new Field(timestamp));
-
-    this.incrementPc(machineState);
+  protected getIt(env: AvmExecutionEnvironment): any {
+    return env.globals.timestamp;
   }
 }
 
-// export class Coinbase extends Instruction {
+// export class Coinbase extends GetterInstruction {
 //     static type: string = 'COINBASE';
 //     static numberOfOperands = 1;
 
@@ -223,7 +148,7 @@ export class Timestamp extends Instruction {
 // }
 
 // // TODO: are these even needed within the block? (both block gas limit variables - why does the execution env care?)
-// export class BlockL1GasLimit extends Instruction {
+// export class BlockL1GasLimit extends GetterInstruction {
 //     static type: string = 'BLOCKL1GASLIMIT';
 //     static numberOfOperands = 1;
 
@@ -240,7 +165,7 @@ export class Timestamp extends Instruction {
 //     }
 // }
 
-// export class BlockL2GasLimit extends Instruction {
+// export class BlockL2GasLimit extends GetterInstruction {
 //     static type: string = 'BLOCKL2GASLIMIT';
 //     static numberOfOperands = 1;
 
@@ -257,7 +182,7 @@ export class Timestamp extends Instruction {
 //     }
 // }
 
-// export class BlockDAGasLimit extends Instruction {
+// export class BlockDAGasLimit extends GetterInstruction {
 //     static type: string = 'BLOCKDAGASLIMIT';
 //     static numberOfOperands = 1;
 

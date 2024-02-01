@@ -18,56 +18,114 @@ describe('Accrued Substate', () => {
     machineState = new AvmMachineState(initExecutionEnvironment());
   });
 
-  it('Should append a new note hash correctly', async () => {
-    const value = new Field(69n);
-    machineState.memory.set(0, value);
+  describe('EmitNoteHash', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        EmitNoteHash.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // dstOffset
+      ]);
+      const inst = new EmitNoteHash(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678);
 
-    await new EmitNoteHash(0).execute(machineState, journal);
+      expect(EmitNoteHash.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    const journalState = journal.flush();
-    const expected = [value.toFr()];
-    expect(journalState.newNoteHashes).toEqual(expected);
+    it('Should append a new note hash correctly', async () => {
+      const value = new Field(69n);
+      machineState.memory.set(0, value);
+
+      await new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0).execute(machineState, journal);
+
+      const journalState = journal.flush();
+      const expected = [value.toFr()];
+      expect(journalState.newNoteHashes).toEqual(expected);
+    });
   });
 
-  it('Should append a new nullifier correctly', async () => {
-    const value = new Field(69n);
-    machineState.memory.set(0, value);
+  describe('EmitNullifier', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        EmitNullifier.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // dstOffset
+      ]);
+      const inst = new EmitNullifier(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678);
 
-    await new EmitNullifier(0).execute(machineState, journal);
+      expect(EmitNullifier.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    const journalState = journal.flush();
-    const expected = [value.toFr()];
-    expect(journalState.newNullifiers).toEqual(expected);
+    it('Should append a new nullifier correctly', async () => {
+      const value = new Field(69n);
+      machineState.memory.set(0, value);
+
+      await new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(machineState, journal);
+
+      const journalState = journal.flush();
+      const expected = [value.toFr()];
+      expect(journalState.newNullifiers).toEqual(expected);
+    });
   });
 
-  it('Should append unencrypted logs correctly', async () => {
-    const startOffset = 0;
+  describe('EmitUnencryptedLog', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        EmitUnencryptedLog.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // offset
+        ...Buffer.from('a2345678', 'hex'), // length
+      ]);
+      const inst = new EmitUnencryptedLog(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678, /*length=*/ 0xa2345678);
 
-    const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
-    machineState.memory.setSlice(0, values);
+      expect(EmitUnencryptedLog.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    const length = values.length;
+    it('Should append unencrypted logs correctly', async () => {
+      const startOffset = 0;
 
-    await new EmitUnencryptedLog(startOffset, length).execute(machineState, journal);
+      const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
+      machineState.memory.setSlice(0, values);
 
-    const journalState = journal.flush();
-    const expected = values.map(v => v.toFr());
-    expect(journalState.newLogs).toEqual([expected]);
+      const length = values.length;
+
+      await new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(machineState, journal);
+
+      const journalState = journal.flush();
+      const expected = values.map(v => v.toFr());
+      expect(journalState.newLogs).toEqual([expected]);
+    });
   });
 
-  it('Should append l1 to l2 messages correctly', async () => {
-    const startOffset = 0;
+  describe('SendL2ToL1Message', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        SendL2ToL1Message.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // offset
+        ...Buffer.from('a2345678', 'hex'), // length
+      ]);
+      const inst = new SendL2ToL1Message(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678, /*length=*/ 0xa2345678);
 
-    const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
-    machineState.memory.setSlice(0, values);
+      expect(SendL2ToL1Message.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
 
-    const length = values.length;
+    it('Should append l1 to l2 messages correctly', async () => {
+      const startOffset = 0;
 
-    await new SendL2ToL1Message(startOffset, length).execute(machineState, journal);
+      const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
+      machineState.memory.setSlice(0, values);
 
-    const journalState = journal.flush();
-    const expected = values.map(v => v.toFr());
-    expect(journalState.newLogs).toEqual([expected]);
+      const length = values.length;
+
+      await new SendL2ToL1Message(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(machineState, journal);
+
+      const journalState = journal.flush();
+      const expected = values.map(v => v.toFr());
+      expect(journalState.newLogs).toEqual([expected]);
+    });
   });
 
   it('All substate instructions should fail within a static call', async () => {
@@ -75,15 +133,14 @@ describe('Accrued Substate', () => {
     machineState = new AvmMachineState(executionEnvironment);
 
     const instructions = [
-      new EmitNoteHash(0),
-      new EmitNullifier(0),
-      new EmitUnencryptedLog(0, 1),
-      new SendL2ToL1Message(0, 1),
+      new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0),
+      new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0),
+      new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ 0, 1),
+      new SendL2ToL1Message(/*indirect=*/ 0, /*offset=*/ 0, 1),
     ];
 
     for (const instruction of instructions) {
-      const inst = () => instruction.execute(machineState, journal);
-      await expect(inst()).rejects.toThrowError(StaticCallStorageAlterError);
+      await expect(instruction.execute(machineState, journal)).rejects.toThrow(StaticCallStorageAlterError);
     }
   });
 });

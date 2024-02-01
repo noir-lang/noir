@@ -9,9 +9,12 @@ import { Field } from '../avm_memory_types.js';
 import { initExecutionEnvironment } from '../fixtures/index.js';
 import { HostStorage } from '../journal/host_storage.js';
 import { AvmJournal } from '../journal/journal.js';
-import { encodeToBytecode } from './encode_to_bytecode.js';
-import { Call } from './external_calls.js';
-import { Opcode } from './opcodes.js';
+import { encodeToBytecode } from '../serialization/bytecode_serialization.js';
+import { Return } from './control_flow.js';
+import { Call, StaticCall } from './external_calls.js';
+import { Instruction } from './instruction.js';
+import { CalldataCopy } from './memory.js';
+import { SStore } from './storage.js';
 
 describe('External Calls', () => {
   let machineState: AvmMachineState;
@@ -31,44 +34,68 @@ describe('External Calls', () => {
   });
 
   describe('Call', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        Call.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // gasOffset
+        ...Buffer.from('a2345678', 'hex'), // addrOffset
+        ...Buffer.from('b2345678', 'hex'), // argsOffset
+        ...Buffer.from('c2345678', 'hex'), // argsSize
+        ...Buffer.from('d2345678', 'hex'), // retOffset
+        ...Buffer.from('e2345678', 'hex'), // retSize
+        ...Buffer.from('f2345678', 'hex'), // successOffset
+      ]);
+      const inst = new Call(
+        /*indirect=*/ 0x01,
+        /*gasOffset=*/ 0x12345678,
+        /*addrOffset=*/ 0xa2345678,
+        /*argsOffset=*/ 0xb2345678,
+        /*argsSize=*/ 0xc2345678,
+        /*retOffset=*/ 0xd2345678,
+        /*retSize=*/ 0xe2345678,
+        /*successOffset=*/ 0xf2345678,
+      );
+
+      expect(Call.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3992): gas not implemented
     it('Should execute a call correctly', async () => {
       const gasOffset = 0;
       const gas = Fr.zero();
-
       const addrOffset = 1;
       const addr = new Fr(123456n);
-
       const argsOffset = 2;
       const args = [new Field(1n), new Field(2n), new Field(3n)];
       const argsSize = args.length;
-
       const retOffset = 8;
       const retSize = 2;
-
       const successOffset = 7;
+      const otherContextInstructionsBytecode = encodeToBytecode([
+        new CalldataCopy(/*indirect=*/ 0, /*csOffset=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0),
+        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 0),
+        new Return(/*indirect=*/ 0, /*retOffset=*/ 0, /*size=*/ 2),
+      ]);
 
       machineState.memory.set(0, new Field(gas));
       machineState.memory.set(1, new Field(addr));
       machineState.memory.setSlice(2, args);
-
-      const otherContextInstructions: [Opcode, any[]][] = [
-        // Place [1,2,3] into memory
-        [Opcode.CALLDATACOPY, [/*value=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0]],
-        // Store 1 into slot 1
-        [Opcode.SSTORE, [/*slotOffset=*/ 0, /*dataOffset=*/ 0]],
-        // Return [1,2] from memory
-        [Opcode.RETURN, [/*retOffset=*/ 0, /*size=*/ 2]],
-      ];
-
-      const otherContextInstructionsBytecode = Buffer.concat(
-        otherContextInstructions.map(([opcode, args]) => encodeToBytecode(opcode, args)),
-      );
       jest
         .spyOn(journal.hostStorage.contractsDb, 'getBytecode')
         .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
-      const instruction = new Call(gasOffset, addrOffset, argsOffset, argsSize, retOffset, retSize, successOffset);
+      const instruction = new Call(
+        /*indirect=*/ 0,
+        gasOffset,
+        addrOffset,
+        argsOffset,
+        argsSize,
+        retOffset,
+        retSize,
+        successOffset,
+      );
       await instruction.execute(machineState, journal);
 
       const successValue = machineState.memory.get(successOffset);
@@ -91,6 +118,33 @@ describe('External Calls', () => {
   });
 
   describe('Static Call', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        StaticCall.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // gasOffset
+        ...Buffer.from('a2345678', 'hex'), // addrOffset
+        ...Buffer.from('b2345678', 'hex'), // argsOffset
+        ...Buffer.from('c2345678', 'hex'), // argsSize
+        ...Buffer.from('d2345678', 'hex'), // retOffset
+        ...Buffer.from('e2345678', 'hex'), // retSize
+        ...Buffer.from('f2345678', 'hex'), // successOffset
+      ]);
+      const inst = new StaticCall(
+        /*indirect=*/ 0x01,
+        /*gasOffset=*/ 0x12345678,
+        /*addrOffset=*/ 0xa2345678,
+        /*argsOffset=*/ 0xb2345678,
+        /*argsSize=*/ 0xc2345678,
+        /*retOffset=*/ 0xd2345678,
+        /*retSize=*/ 0xe2345678,
+        /*successOffset=*/ 0xf2345678,
+      );
+
+      expect(StaticCall.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
     it('Should fail if a static call attempts to touch storage', async () => {
       const gasOffset = 0;
       const gas = new Field(0);
@@ -108,20 +162,27 @@ describe('External Calls', () => {
       machineState.memory.set(1, addr);
       machineState.memory.setSlice(2, args);
 
-      const otherContextInstructions: [Opcode, any[]][] = [
-        // Place [1,2,3] into memory
-        [Opcode.CALLDATACOPY, [/*value=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0]],
-        [Opcode.SSTORE, [/*slotOffset*/ 1, /*dataOffset=*/ 0]],
+      const otherContextInstructions: Instruction[] = [
+        new CalldataCopy(/*indirect=*/ 0, /*csOffset=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0),
+        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 1, /*slotOffset=*/ 0),
       ];
 
-      const otherContextInstructionsBytecode = Buffer.concat(
-        otherContextInstructions.map(([opcode, args]) => encodeToBytecode(opcode, args)),
-      );
+      const otherContextInstructionsBytecode = encodeToBytecode(otherContextInstructions);
+
       jest
         .spyOn(journal.hostStorage.contractsDb, 'getBytecode')
         .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
-      const instruction = new Call(gasOffset, addrOffset, argsOffset, argsSize, retOffset, retSize, successOffset);
+      const instruction = new StaticCall(
+        /*indirect=*/ 0,
+        gasOffset,
+        addrOffset,
+        argsOffset,
+        argsSize,
+        retOffset,
+        retSize,
+        successOffset,
+      );
       await instruction.execute(machineState, journal);
 
       // No revert has occurred, but the nested execution has failed

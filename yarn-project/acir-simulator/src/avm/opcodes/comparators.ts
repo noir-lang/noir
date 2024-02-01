@@ -1,14 +1,15 @@
 import { AvmMachineState } from '../avm_machine_state.js';
-import { TypeTag } from '../avm_memory_types.js';
 import { AvmJournal } from '../journal/index.js';
+import { Opcode } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
+import { ThreeOperandInstruction } from './instruction_impl.js';
 
-export class Eq extends Instruction {
-  static type: string = 'EQ';
-  static numberOfOperands = 3;
+export class Eq extends ThreeOperandInstruction {
+  static readonly type: string = 'EQ';
+  static readonly opcode = Opcode.EQ;
 
-  constructor(private inTag: TypeTag, private aOffset: number, private bOffset: number, private dstOffset: number) {
-    super();
+  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
+    super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
@@ -25,12 +26,12 @@ export class Eq extends Instruction {
   }
 }
 
-export class Lt extends Instruction {
-  static type: string = 'Lt';
-  static numberOfOperands = 3;
+export class Lt extends ThreeOperandInstruction {
+  static readonly type: string = 'LT';
+  static readonly opcode = Opcode.LT;
 
-  constructor(private inTag: TypeTag, private aOffset: number, private bOffset: number, private dstOffset: number) {
-    super();
+  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
+    super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
@@ -47,12 +48,12 @@ export class Lt extends Instruction {
   }
 }
 
-export class Lte extends Instruction {
-  static type: string = 'LTE';
-  static numberOfOperands = 3;
+export class Lte extends ThreeOperandInstruction {
+  static readonly type: string = 'LTE';
+  static readonly opcode = Opcode.LTE;
 
-  constructor(private inTag: TypeTag, private aOffset: number, private bOffset: number, private dstOffset: number) {
-    super();
+  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
+    super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {

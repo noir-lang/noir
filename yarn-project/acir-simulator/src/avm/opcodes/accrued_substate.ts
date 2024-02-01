@@ -1,13 +1,16 @@
 import { AvmMachineState } from '../avm_machine_state.js';
 import { AvmJournal } from '../journal/journal.js';
+import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 import { StaticCallStorageAlterError } from './storage.js';
 
 export class EmitNoteHash extends Instruction {
   static type: string = 'EMITNOTEHASH';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.EMITNOTEHASH;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32];
 
-  constructor(private noteHashOffset: number) {
+  constructor(private indirect: number, private noteHashOffset: number) {
     super();
   }
 
@@ -25,9 +28,11 @@ export class EmitNoteHash extends Instruction {
 
 export class EmitNullifier extends Instruction {
   static type: string = 'EMITNULLIFIER';
-  static numberOfOperands = 1;
+  static readonly opcode: Opcode = Opcode.EMITNULLIFIER;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32];
 
-  constructor(private nullifierOffset: number) {
+  constructor(private indirect: number, private nullifierOffset: number) {
     super();
   }
 
@@ -45,9 +50,11 @@ export class EmitNullifier extends Instruction {
 
 export class EmitUnencryptedLog extends Instruction {
   static type: string = 'EMITUNENCRYPTEDLOG';
-  static numberOfOperands = 2;
+  static readonly opcode: Opcode = Opcode.EMITUNENCRYPTEDLOG;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32, OperandType.UINT32];
 
-  constructor(private logOffset: number, private logSize: number) {
+  constructor(private indirect: number, private logOffset: number, private logSize: number) {
     super();
   }
 
@@ -65,9 +72,11 @@ export class EmitUnencryptedLog extends Instruction {
 
 export class SendL2ToL1Message extends Instruction {
   static type: string = 'EMITUNENCRYPTEDLOG';
-  static numberOfOperands = 2;
+  static readonly opcode: Opcode = Opcode.SENDL2TOL1MSG;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32, OperandType.UINT32];
 
-  constructor(private msgOffset: number, private msgSize: number) {
+  constructor(private indirect: number, private msgOffset: number, private msgSize: number) {
     super();
   }
 

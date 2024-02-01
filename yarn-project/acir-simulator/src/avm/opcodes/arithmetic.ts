@@ -1,13 +1,14 @@
 import { AvmMachineState } from '../avm_machine_state.js';
 import { AvmJournal } from '../journal/index.js';
-import { Instruction } from './instruction.js';
+import { Opcode } from '../serialization/instruction_serialization.js';
+import { ThreeOperandInstruction } from './instruction_impl.js';
 
-export class Add extends Instruction {
-  static type: string = 'ADD';
-  static numberOfOperands = 3;
+export class Add extends ThreeOperandInstruction {
+  static readonly type: string = 'ADD';
+  static readonly opcode = Opcode.ADD;
 
-  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
-    super();
+  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
+    super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
@@ -21,12 +22,12 @@ export class Add extends Instruction {
   }
 }
 
-export class Sub extends Instruction {
-  static type: string = 'SUB';
-  static numberOfOperands = 3;
+export class Sub extends ThreeOperandInstruction {
+  static readonly type: string = 'SUB';
+  static readonly opcode = Opcode.SUB;
 
-  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
-    super();
+  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
+    super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
@@ -40,12 +41,12 @@ export class Sub extends Instruction {
   }
 }
 
-export class Mul extends Instruction {
+export class Mul extends ThreeOperandInstruction {
   static type: string = 'MUL';
-  static numberOfOperands = 3;
+  static readonly opcode = Opcode.MUL;
 
-  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
-    super();
+  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
+    super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
@@ -59,12 +60,12 @@ export class Mul extends Instruction {
   }
 }
 
-export class Div extends Instruction {
+export class Div extends ThreeOperandInstruction {
   static type: string = 'DIV';
-  static numberOfOperands = 3;
+  static readonly opcode = Opcode.DIV;
 
-  constructor(private aOffset: number, private bOffset: number, private dstOffset: number) {
-    super();
+  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
+    super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {

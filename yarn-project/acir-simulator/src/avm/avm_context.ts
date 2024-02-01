@@ -6,8 +6,10 @@ import { AvmMachineState } from './avm_machine_state.js';
 import { AvmMessageCallResult } from './avm_message_call_result.js';
 import { AvmInterpreterError, executeAvm } from './interpreter/index.js';
 import { AvmJournal } from './journal/journal.js';
-import { decodeBytecode } from './opcodes/decode_bytecode.js';
-import { Instruction } from './opcodes/index.js';
+import { Instruction } from './opcodes/instruction.js';
+import { decodeFromBytecode } from './serialization/bytecode_serialization.js';
+
+// FIXME: dependency cycle.
 
 /**
  * Avm Executor manages the execution of the AVM
@@ -47,7 +49,7 @@ export class AvmContext {
       throw new NoBytecodeFoundInterpreterError(this.executionEnvironment.address);
     }
 
-    const instructions: Instruction[] = decodeBytecode(bytecode);
+    const instructions: Instruction[] = decodeFromBytecode(bytecode);
 
     const machineState = new AvmMachineState(this.executionEnvironment);
     return executeAvm(machineState, this.journal, instructions);
