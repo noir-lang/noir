@@ -1,6 +1,6 @@
 #include "protogalaxy_verifier.hpp"
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
-namespace bb::honk {
+namespace bb {
 
 template <class VerifierInstances>
 void ProtoGalaxyVerifier_<VerifierInstances>::receive_accumulator(const std::shared_ptr<Instance>& inst,
@@ -288,6 +288,6 @@ bool ProtoGalaxyVerifier_<VerifierInstances>::verify_folding_proof(const std::ve
     return verified;
 }
 
-template class ProtoGalaxyVerifier_<VerifierInstances_<honk::flavor::Ultra, 2>>;
-template class ProtoGalaxyVerifier_<VerifierInstances_<honk::flavor::GoblinUltra, 2>>;
-} // namespace bb::honk
+template class ProtoGalaxyVerifier_<VerifierInstances_<UltraFlavor, 2>>;
+template class ProtoGalaxyVerifier_<VerifierInstances_<GoblinUltraFlavor, 2>>;
+} // namespace bb

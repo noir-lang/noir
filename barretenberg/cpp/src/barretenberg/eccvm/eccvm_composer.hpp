@@ -7,8 +7,8 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/srs/global_crs.hpp"
 
-namespace bb::honk {
-template <ECCVMFlavor Flavor> class ECCVMComposer_ {
+namespace bb {
+template <IsECCVMFlavor Flavor> class ECCVMComposer_ {
   public:
     using FF = typename Flavor::FF;
     using CircuitConstructor = ECCVMCircuitBuilder<Flavor>;
@@ -35,7 +35,7 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
     bool contains_recursive_proof = false;
     bool computed_witness = false;
     ECCVMComposer_()
-        requires(std::same_as<Flavor, honk::flavor::ECCVM>)
+        requires(std::same_as<Flavor, ECCVMFlavor>)
     {
         crs_factory_ = bb::srs::get_grumpkin_crs_factory();
     };
@@ -75,6 +75,6 @@ template <ECCVMFlavor Flavor> class ECCVMComposer_ {
 };
 
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
-using ECCVMComposer = ECCVMComposer_<honk::flavor::ECCVM>;
+using ECCVMComposer = ECCVMComposer_<ECCVMFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

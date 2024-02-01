@@ -11,19 +11,19 @@ template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::Element;
     using GroupElement = typename Curve::Element;
-    using KZG = ::bb::honk::pcs::kzg::KZG<Curve>;
-    using OpeningClaim = ::bb::honk::pcs::OpeningClaim<Curve>;
+    using KZG = ::bb::KZG<Curve>;
+    using OpeningClaim = ::bb::OpeningClaim<Curve>;
     using PairingPoints = std::array<GroupElement, 2>;
     using Transcript = honk::Transcript<CircuitBuilder>;
 
     CircuitBuilder* builder;
     std::shared_ptr<Transcript> transcript;
 
-    static constexpr size_t NUM_WIRES = arithmetization::UltraHonk<FF>::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = UltraHonkArith<FF>::NUM_WIRES;
 
     explicit MergeRecursiveVerifier_(CircuitBuilder* builder);
 
-    PairingPoints verify_proof(const bb::honk::proof& proof);
+    PairingPoints verify_proof(const HonkProof& proof);
 };
 
 } // namespace bb::stdlib::recursion::goblin

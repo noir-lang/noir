@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <tuple>
 
-namespace bb::honk::sumcheck {
+namespace bb {
 
 /**
  * @brief This class contains an example of how to set LookupSettings classes used by the
@@ -19,7 +19,7 @@ namespace bb::honk::sumcheck {
  * 3) Update "DECLARE_LOOKUP_IMPLEMENTATIONS_FOR_ALL_SETTINGS" and "DEFINE_LOOKUP_IMPLEMENTATIONS_FOR_ALL_SETTINGS" to
  * include the new settings
  * 4) Add the relation with the chosen settings to Relations in the flavor (for example,"`
- *   using Relations = std::tuple<sumcheck::GenericLookupRelation<sumcheck::ExampleXorLookupSettings,
+ *   using Relations = std::tuple<GenericLookupRelation<ExampleXorLookupSettings,
  * FF>>;)`
  *
  */
@@ -171,4 +171,4 @@ class lookup_xor_lookup_settings {
 template <typename FF_> using lookup_xor_relation = GenericLookupRelation<lookup_xor_lookup_settings, FF_>;
 template <typename FF_> using lookup_xor = GenericLookup<lookup_xor_lookup_settings, FF_>;
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

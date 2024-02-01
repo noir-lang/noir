@@ -617,6 +617,6 @@ void GoblinTranslatorDecompositionRelationImpl<FF>::accumulate(ContainerOverSubr
 };
 
 template class GoblinTranslatorDecompositionRelationImpl<bb::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorDecompositionRelationImpl, honk::flavor::GoblinTranslator);
+DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorDecompositionRelationImpl, GoblinTranslatorFlavor);
 
 } // namespace bb

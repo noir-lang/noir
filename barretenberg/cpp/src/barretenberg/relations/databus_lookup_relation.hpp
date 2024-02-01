@@ -175,9 +175,9 @@ template <typename FF_> class DatabusLookupRelationImpl {
                            const Parameters& params,
                            const FF& scaling_factor)
     {
-        honk::logderivative_library::
-            accumulate_logderivative_lookup_subrelation_contributions<FF, DatabusLookupRelationImpl<FF>>(
-                accumulator, in, params, scaling_factor);
+
+        accumulate_logderivative_lookup_subrelation_contributions<FF, DatabusLookupRelationImpl<FF>>(
+            accumulator, in, params, scaling_factor);
     }
 };
 

@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+using namespace bb;
 namespace {
 void gen_proof_and_validate(std::vector<uint8_t> const& bytecode,
                             std::vector<Row>&& trace,
@@ -19,7 +20,7 @@ void gen_proof_and_validate(std::vector<uint8_t> const& bytecode,
     circuit_builder.set_trace(std::move(trace));
     EXPECT_TRUE(circuit_builder.check_circuit());
 
-    auto composer = honk::AvmMiniComposer();
+    auto composer = AvmMiniComposer();
     auto verifier = composer.create_verifier(circuit_builder);
 
     auto proof = avm_trace::Execution::run_and_prove(bytecode, calldata);

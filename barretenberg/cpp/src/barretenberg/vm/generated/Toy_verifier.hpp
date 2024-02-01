@@ -5,9 +5,9 @@
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace bb::honk {
+namespace bb {
 class ToyVerifier {
-    using Flavor = honk::flavor::ToyFlavor;
+    using Flavor = ToyFlavor;
     using FF = Flavor::FF;
     using Commitment = Flavor::Commitment;
     using VerificationKey = Flavor::VerificationKey;
@@ -22,7 +22,7 @@ class ToyVerifier {
     ToyVerifier& operator=(const ToyVerifier& other) = delete;
     ToyVerifier& operator=(ToyVerifier&& other) noexcept;
 
-    bool verify_proof(const honk::proof& proof);
+    bool verify_proof(const HonkProof& proof);
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
@@ -30,4 +30,4 @@ class ToyVerifier {
     std::shared_ptr<Transcript> transcript;
 };
 
-} // namespace bb::honk
+} // namespace bb

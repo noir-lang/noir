@@ -4,13 +4,13 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 
-namespace bb::honk {
+namespace bb {
 
-// We won't compile this class with honk::flavor::Standard, but we will like want to compile it (at least for testing)
+// We won't compile this class with Standard, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
 class GoblinTranslatorProver {
 
-    using Flavor = honk::flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
     using BF = typename Flavor::BF;
     using Commitment = typename Flavor::Commitment;
@@ -32,8 +32,8 @@ class GoblinTranslatorProver {
     BBERG_PROFILE void execute_grand_product_computation_round();
     BBERG_PROFILE void execute_relation_check_rounds();
     BBERG_PROFILE void execute_zeromorph_rounds();
-    honk::proof& export_proof();
-    honk::proof& construct_proof();
+    HonkProof& export_proof();
+    HonkProof& construct_proof();
 
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
 
@@ -48,10 +48,10 @@ class GoblinTranslatorProver {
 
     std::shared_ptr<CommitmentKey> commitment_key;
 
-    sumcheck::SumcheckOutput<Flavor> sumcheck_output;
+    SumcheckOutput<Flavor> sumcheck_output;
 
   private:
-    honk::proof proof;
+    HonkProof proof;
 };
 
-} // namespace bb::honk
+} // namespace bb

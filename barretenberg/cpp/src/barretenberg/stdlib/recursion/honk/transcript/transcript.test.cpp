@@ -11,10 +11,9 @@
 namespace bb::stdlib::recursion::honk {
 
 using Builder = UltraCircuitBuilder;
-using UltraFlavor = ::bb::honk::flavor::Ultra;
-using UltraRecursiveFlavor = ::bb::honk::flavor::UltraRecursive_<Builder>;
+using UltraRecursiveFlavor = UltraRecursiveFlavor_<Builder>;
 using FF = fr;
-using BaseTranscript = ::bb::honk::BaseTranscript;
+using BaseTranscript = BaseTranscript;
 
 /**
  * @brief Create some mock data; add it to the provided prover transcript in various mock rounds

@@ -7,7 +7,6 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <gtest/gtest.h>
 using namespace bb;
-using namespace bb::honk;
 
 template <class FF> class GrandProductTests : public testing::Test {
 
@@ -101,8 +100,7 @@ template <class FF> class GrandProductTests : public testing::Test {
         ASSERT(Flavor::NUM_WIRES == 4);
         using RHS = typename bb::UltraPermutationRelation<FF>;
         static_assert(std::same_as<LHS, RHS>);
-        grand_product_library::compute_grand_product<Flavor, RHS>(
-            proving_key->circuit_size, prover_polynomials, params);
+        compute_grand_product<Flavor, RHS>(proving_key->circuit_size, prover_polynomials, params);
 
         // Method 2: Compute z_perm locally using the simplest non-optimized syntax possible. The comment below,
         // which describes the computation in 4 steps, is adapted from a similar comment in
@@ -184,7 +182,7 @@ template <class FF> class GrandProductTests : public testing::Test {
         static const size_t num_public_inputs = 0;
 
         // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
-        using Flavor = flavor::Ultra;
+        using Flavor = UltraFlavor;
         auto proving_key = std::make_shared<typename Flavor::ProvingKey>(circuit_size, num_public_inputs);
 
         // Construct mock wire and permutation polynomials.
@@ -259,8 +257,7 @@ template <class FF> class GrandProductTests : public testing::Test {
         using LHS = typename std::tuple_element<LOOKUP_RELATION_INDEX, typename Flavor::GrandProductRelations>::type;
         using RHS = LookupRelation<FF>;
         static_assert(std::same_as<LHS, RHS>);
-        grand_product_library::compute_grand_product<Flavor, RHS>(
-            proving_key->circuit_size, prover_polynomials, params);
+        compute_grand_product<Flavor, RHS>(proving_key->circuit_size, prover_polynomials, params);
 
         // Method 2: Compute the lookup grand product polynomial Z_lookup:
         //
@@ -341,7 +338,7 @@ TYPED_TEST_SUITE(GrandProductTests, FieldTypes);
 
 TYPED_TEST(GrandProductTests, GrandProductPermutation)
 {
-    TestFixture::template test_permutation_grand_product_construction<flavor::Ultra>();
+    TestFixture::template test_permutation_grand_product_construction<UltraFlavor>();
 }
 
 TYPED_TEST(GrandProductTests, GrandProductLookup)

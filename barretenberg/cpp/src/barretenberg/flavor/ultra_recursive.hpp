@@ -30,7 +30,7 @@
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
-namespace bb::honk::flavor {
+namespace bb {
 
 /**
  * @brief The recursive counterpart to the "native" Ultra flavor.
@@ -46,7 +46,7 @@ namespace bb::honk::flavor {
  *
  * @tparam BuilderType Determines the arithmetization of the verifier circuit defined based on this flavor.
  */
-template <typename BuilderType> class UltraRecursive_ {
+template <typename BuilderType> class UltraRecursiveFlavor_ {
   public:
     using CircuitBuilder = BuilderType; // Determines arithmetization of circuit instantiated with this flavor
     using Curve = stdlib::bn254<CircuitBuilder>;
@@ -54,12 +54,12 @@ template <typename BuilderType> class UltraRecursive_ {
     using Commitment = typename Curve::Element;
     using CommitmentHandle = typename Curve::Element;
     using FF = typename Curve::ScalarField;
-    using NativeVerificationKey = flavor::Ultra::VerificationKey;
+    using NativeVerificationKey = UltraFlavor::VerificationKey;
 
     // Note(luke): Eventually this may not be needed at all
-    using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
 
-    static constexpr size_t NUM_WIRES = flavor::Ultra::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = UltraFlavor::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
     // Note: this number does not include the individual sorted list polynomials.
@@ -421,4 +421,4 @@ template <typename BuilderType> class UltraRecursive_ {
     using Transcript = bb::stdlib::recursion::honk::Transcript<CircuitBuilder>;
 };
 
-} // namespace bb::honk::flavor
+} // namespace bb

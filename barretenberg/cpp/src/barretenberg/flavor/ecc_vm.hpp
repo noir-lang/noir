@@ -26,7 +26,7 @@
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
 
-namespace bb::honk::flavor {
+namespace bb {
 
 template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBase {
   public:
@@ -42,8 +42,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     using GroupElement = typename G1::element;
     using Commitment = typename G1::affine_element;
     using CommitmentHandle = typename G1::affine_element;
-    using CommitmentKey = pcs::CommitmentKey<Curve>;
-    using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
+    using CommitmentKey = bb::CommitmentKey<Curve>;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_WIRES = 74;
@@ -58,16 +58,16 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 76;
 
-    using GrandProductRelations = std::tuple<sumcheck::ECCVMSetRelation<FF>>;
+    using GrandProductRelations = std::tuple<ECCVMSetRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
-    using Relations = std::tuple<sumcheck::ECCVMTranscriptRelation<FF>,
-                                 sumcheck::ECCVMPointTableRelation<FF>,
-                                 sumcheck::ECCVMWnafRelation<FF>,
-                                 sumcheck::ECCVMMSMRelation<FF>,
-                                 sumcheck::ECCVMSetRelation<FF>,
-                                 sumcheck::ECCVMLookupRelation<FF>>;
+    using Relations = std::tuple<ECCVMTranscriptRelation<FF>,
+                                 ECCVMPointTableRelation<FF>,
+                                 ECCVMWnafRelation<FF>,
+                                 ECCVMMSMRelation<FF>,
+                                 ECCVMSetRelation<FF>,
+                                 ECCVMLookupRelation<FF>>;
 
-    using LookupRelation = sumcheck::ECCVMLookupRelation<FF>;
+    using LookupRelation = ECCVMLookupRelation<FF>;
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
     // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
@@ -613,7 +613,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
 
         Transcript() = default;
 
-        Transcript(const honk::proof& proof)
+        Transcript(const HonkProof& proof)
             : BaseTranscript(proof)
         {}
 
@@ -793,10 +793,10 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
             }
             shplonk_q_comm =
                 BaseTranscript::template deserialize_from_buffer<Commitment>(BaseTranscript::proof_data, num_frs_read);
-            if (std::is_same<PCS, pcs::kzg::KZG<curve::BN254>>::value) {
+            if (std::is_same<PCS, KZG<curve::BN254>>::value) {
                 kzg_w_comm = BaseTranscript::template deserialize_from_buffer<Commitment>(BaseTranscript::proof_data,
                                                                                           num_frs_read);
-            } else if (std::is_same<PCS, pcs::ipa::IPA<curve::Grumpkin>>::value) {
+            } else if (std::is_same<PCS, IPA<curve::Grumpkin>>::value) {
                 ipa_poly_degree = BaseTranscript::template deserialize_from_buffer<uint64_t>(BaseTranscript::proof_data,
                                                                                              num_frs_read);
                 auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
@@ -907,9 +907,9 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                 BaseTranscript::template serialize_to_buffer(gemini_a_evals[i], BaseTranscript::proof_data);
             }
             BaseTranscript::template serialize_to_buffer(shplonk_q_comm, BaseTranscript::proof_data);
-            if (std::is_same<PCS, pcs::kzg::KZG<curve::BN254>>::value) {
+            if (std::is_same<PCS, KZG<curve::BN254>>::value) {
                 BaseTranscript::template serialize_to_buffer(kzg_w_comm, BaseTranscript::proof_data);
-            } else if (std::is_same<PCS, pcs::ipa::IPA<curve::Grumpkin>>::value) {
+            } else if (std::is_same<PCS, IPA<curve::Grumpkin>>::value) {
                 BaseTranscript::template serialize_to_buffer(ipa_poly_degree, BaseTranscript::proof_data);
                 auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
                 for (size_t i = 0; i < log_poly_degree; ++i) {
@@ -924,8 +924,8 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
     };
 };
 
-class ECCVM : public ECCVMBase<bb::g1, curve::Grumpkin, pcs::ipa::IPA<curve::Grumpkin>> {};
+class ECCVMFlavor : public ECCVMBase<bb::g1, curve::Grumpkin, IPA<curve::Grumpkin>> {};
 
 // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
-} // namespace bb::honk::flavor
+} // namespace bb

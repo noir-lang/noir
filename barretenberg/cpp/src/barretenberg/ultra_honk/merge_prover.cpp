@@ -1,6 +1,6 @@
 #include "merge_prover.hpp"
 
-namespace bb::honk {
+namespace bb {
 
 /**
  * Create MergeProver_
@@ -27,9 +27,9 @@ MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<CommitmentKey>& commitm
  * for details (https://github.com/AztecProtocol/barretenberg/issues/746).
  *
  * @tparam Flavor
- * @return honk::proof&
+ * @return HonkProof&
  */
-template <typename Flavor> honk::proof& MergeProver_<Flavor>::construct_proof()
+template <typename Flavor> HonkProof& MergeProver_<Flavor>::construct_proof()
 {
     size_t N = op_queue->get_current_size();
 
@@ -116,7 +116,7 @@ template <typename Flavor> honk::proof& MergeProver_<Flavor>::construct_proof()
     return proof;
 }
 
-template class MergeProver_<honk::flavor::Ultra>;
-template class MergeProver_<honk::flavor::GoblinUltra>;
+template class MergeProver_<UltraFlavor>;
+template class MergeProver_<GoblinUltraFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

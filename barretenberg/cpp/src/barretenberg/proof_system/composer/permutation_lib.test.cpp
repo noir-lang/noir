@@ -10,7 +10,7 @@ using namespace bb;
 
 class PermutationHelperTests : public ::testing::Test {
   protected:
-    using Flavor = honk::flavor::Ultra;
+    using Flavor = UltraFlavor;
     using FF = typename Flavor::FF;
     using ProvingKey = Flavor::ProvingKey;
     Flavor::CircuitBuilder circuit_constructor;

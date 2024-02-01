@@ -6,7 +6,7 @@ using namespace bb;
 using FF = fr;
 using Fr = fr;
 using Fq = fq;
-using Transcript = honk::BaseTranscript;
+using Transcript = BaseTranscript;
 
 /**
  * @brief Test sending, receiving, and exporting proofs

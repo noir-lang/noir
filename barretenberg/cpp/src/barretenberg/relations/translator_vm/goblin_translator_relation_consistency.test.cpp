@@ -16,7 +16,7 @@
 
 using namespace bb;
 
-using Flavor = honk::flavor::GoblinTranslator;
+using Flavor = GoblinTranslatorFlavor;
 using FF = typename Flavor::FF;
 using InputElements = typename Flavor::AllValues;
 

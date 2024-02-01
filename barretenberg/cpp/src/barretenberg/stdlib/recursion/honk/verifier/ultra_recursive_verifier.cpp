@@ -18,11 +18,11 @@ UltraRecursiveVerifier_<Flavor>::UltraRecursiveVerifier_(
  *
  */
 template <typename Flavor>
-std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::verify_proof(const bb::honk::proof& proof)
+std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
-    using Sumcheck = ::bb::honk::sumcheck::SumcheckVerifier<Flavor>;
+    using Sumcheck = ::bb::SumcheckVerifier<Flavor>;
     using Curve = typename Flavor::Curve;
-    using ZeroMorph = ::bb::honk::pcs::zeromorph::ZeroMorphVerifier_<Curve>;
+    using ZeroMorph = ::bb::ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using RelationParams = ::bb::RelationParameters<FF>;
@@ -86,9 +86,9 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
             transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_inverses);
     }
 
-    const FF public_input_delta = bb::honk::compute_public_input_delta<Flavor>(
+    const FF public_input_delta = compute_public_input_delta<Flavor>(
         public_inputs, beta, gamma, circuit_size, static_cast<uint32_t>(pub_inputs_offset.get_value()));
-    const FF lookup_grand_product_delta = bb::honk::compute_lookup_grand_product_delta<FF>(beta, gamma, circuit_size);
+    const FF lookup_grand_product_delta = compute_lookup_grand_product_delta<FF>(beta, gamma, circuit_size);
 
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
@@ -124,8 +124,8 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     return pairing_points;
 }
 
-template class UltraRecursiveVerifier_<bb::honk::flavor::UltraRecursive_<UltraCircuitBuilder>>;
-template class UltraRecursiveVerifier_<bb::honk::flavor::UltraRecursive_<GoblinUltraCircuitBuilder>>;
-template class UltraRecursiveVerifier_<bb::honk::flavor::GoblinUltraRecursive_<UltraCircuitBuilder>>;
-template class UltraRecursiveVerifier_<bb::honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>>;
+template class UltraRecursiveVerifier_<bb::UltraRecursiveFlavor_<UltraCircuitBuilder>>;
+template class UltraRecursiveVerifier_<bb::UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
+template class UltraRecursiveVerifier_<bb::GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>>;
+template class UltraRecursiveVerifier_<bb::GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
 } // namespace bb::stdlib::recursion::honk

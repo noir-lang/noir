@@ -2,7 +2,7 @@
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 
-namespace bb::honk {
+namespace bb {
 template <class Flavor> class VerifierInstance_ {
   public:
     using FF = typename Flavor::FF;
@@ -28,4 +28,4 @@ template <class Flavor> class VerifierInstance_ {
     WitnessCommitments witness_commitments;
     CommitmentLabels commitment_labels;
 };
-} // namespace bb::honk
+} // namespace bb

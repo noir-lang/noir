@@ -5,10 +5,7 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace bb;
-using namespace bb::honk::sumcheck;
-
-namespace bb::honk {
+namespace bb {
 AvmMiniVerifier::AvmMiniVerifier(std::shared_ptr<Flavor::VerificationKey> verifier_key)
     : key(verifier_key)
 {}
@@ -30,13 +27,13 @@ AvmMiniVerifier& AvmMiniVerifier::operator=(AvmMiniVerifier&& other) noexcept
  * @brief This function verifies an AvmMini Honk proof for given program settings.
  *
  */
-bool AvmMiniVerifier::verify_proof(const honk::proof& proof)
+bool AvmMiniVerifier::verify_proof(const HonkProof& proof)
 {
-    using Flavor = honk::flavor::AvmMiniFlavor;
+    using Flavor = AvmMiniFlavor;
     using FF = Flavor::FF;
     using Commitment = Flavor::Commitment;
     // using Curve = Flavor::Curve;
-    // using ZeroMorph = pcs::zeromorph::ZeroMorphVerifier_<Curve>;
+    // using ZeroMorph = ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = Flavor::VerifierCommitments;
     using CommitmentLabels = Flavor::CommitmentLabels;
 
@@ -198,4 +195,4 @@ bool AvmMiniVerifier::verify_proof(const honk::proof& proof)
     return sumcheck_verified.value();
 }
 
-} // namespace bb::honk
+} // namespace bb

@@ -2,7 +2,7 @@
 #include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/flavor/relation_definitions.hpp"
 
-namespace bb::honk::sumcheck {
+namespace bb {
 
 /**
  * @brief MSM relations that evaluate the Strauss multiscalar multiplication algorithm.
@@ -392,6 +392,6 @@ void ECCVMMSMRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulator
 }
 
 template class ECCVMMSMRelationImpl<grumpkin::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, flavor::ECCVM);
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMMSMRelationImpl, ECCVMFlavor);
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

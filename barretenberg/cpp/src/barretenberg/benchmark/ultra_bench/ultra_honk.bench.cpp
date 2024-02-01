@@ -14,7 +14,7 @@ static void construct_proof_ultrahonk(State& state,
                                       void (*test_circuit_function)(UltraCircuitBuilder&, size_t)) noexcept
 {
     size_t num_iterations = 10; // 10x the circuit
-    bb::mock_proofs::construct_proof_with_specified_num_iterations<honk::UltraComposer>(
+    bb::mock_proofs::construct_proof_with_specified_num_iterations<UltraComposer>(
         state, test_circuit_function, num_iterations);
 }
 
@@ -24,7 +24,7 @@ static void construct_proof_ultrahonk(State& state,
 static void construct_proof_ultrahonk_power_of_2(State& state) noexcept
 {
     auto log2_of_gates = static_cast<size_t>(state.range(0));
-    bb::mock_proofs::construct_proof_with_specified_num_iterations<honk::UltraComposer>(
+    bb::mock_proofs::construct_proof_with_specified_num_iterations<UltraComposer>(
         state, &bb::mock_proofs::generate_basic_arithmetic_circuit<UltraCircuitBuilder>, log2_of_gates);
 }
 

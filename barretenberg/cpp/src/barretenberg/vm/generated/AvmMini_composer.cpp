@@ -6,9 +6,9 @@
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
 #include "barretenberg/vm/generated/AvmMini_verifier.hpp"
 
-namespace bb::honk {
+namespace bb {
 
-using Flavor = honk::flavor::AvmMiniFlavor;
+using Flavor = AvmMiniFlavor;
 void AvmMiniComposer::compute_witness(CircuitConstructor& circuit)
 {
     if (computed_witness) {
@@ -83,4 +83,4 @@ std::shared_ptr<Flavor::VerificationKey> AvmMiniComposer::compute_verification_k
     return verification_key;
 }
 
-} // namespace bb::honk
+} // namespace bb

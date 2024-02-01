@@ -1,7 +1,7 @@
 #include "decider_prover.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace bb::honk {
+namespace bb {
 
 /**
  * Create DeciderProver_ from an accumulator.
@@ -11,7 +11,7 @@ namespace bb::honk {
  *
  * @tparam a type of UltraFlavor
  * */
-template <UltraFlavor Flavor>
+template <IsUltraFlavor Flavor>
 DeciderProver_<Flavor>::DeciderProver_(const std::shared_ptr<Instance>& inst,
                                        const std::shared_ptr<CommitmentKey>& commitment_key,
                                        const std::shared_ptr<Transcript>& transcript)
@@ -24,7 +24,7 @@ DeciderProver_<Flavor>::DeciderProver_(const std::shared_ptr<Instance>& inst,
  * @brief Add  ϕ, \vec{β}, e to the transcript. These are produced in the last round of folding that was carried out
  * before deciding.
  */
-template <UltraFlavor Flavor> void DeciderProver_<Flavor>::execute_preamble_round()
+template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_preamble_round()
 {
     const auto accumulator_size = static_cast<uint32_t>(accumulator->instance_size);
     const auto num_public_inputs = static_cast<uint32_t>(accumulator->public_inputs.size());
@@ -70,9 +70,9 @@ template <UltraFlavor Flavor> void DeciderProver_<Flavor>::execute_preamble_roun
  * challenges and all evaluations at u being calculated.
  *
  */
-template <UltraFlavor Flavor> void DeciderProver_<Flavor>::execute_relation_check_rounds()
+template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_relation_check_rounds()
 {
-    using Sumcheck = sumcheck::SumcheckProver<Flavor>;
+    using Sumcheck = SumcheckProver<Flavor>;
     auto instance_size = accumulator->instance_size;
     auto sumcheck = Sumcheck(instance_size, transcript);
     sumcheck_output = sumcheck.prove(accumulator);
@@ -83,7 +83,7 @@ template <UltraFlavor Flavor> void DeciderProver_<Flavor>::execute_relation_chec
  * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
  *
  * */
-template <UltraFlavor Flavor> void DeciderProver_<Flavor>::execute_zeromorph_rounds()
+template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_zeromorph_rounds()
 {
     ZeroMorph::prove(accumulator->prover_polynomials.get_unshifted(),
                      accumulator->prover_polynomials.get_to_be_shifted(),
@@ -94,13 +94,13 @@ template <UltraFlavor Flavor> void DeciderProver_<Flavor>::execute_zeromorph_rou
                      transcript);
 }
 
-template <UltraFlavor Flavor> honk::proof& DeciderProver_<Flavor>::export_proof()
+template <IsUltraFlavor Flavor> HonkProof& DeciderProver_<Flavor>::export_proof()
 {
     proof = transcript->proof_data;
     return proof;
 }
 
-template <UltraFlavor Flavor> honk::proof& DeciderProver_<Flavor>::construct_proof()
+template <IsUltraFlavor Flavor> HonkProof& DeciderProver_<Flavor>::construct_proof()
 {
     // Add ϕ, \vec{β*}, e* to transcript
     execute_preamble_round();
@@ -115,7 +115,7 @@ template <UltraFlavor Flavor> honk::proof& DeciderProver_<Flavor>::construct_pro
     return export_proof();
 }
 
-template class DeciderProver_<honk::flavor::Ultra>;
-template class DeciderProver_<honk::flavor::GoblinUltra>;
+template class DeciderProver_<UltraFlavor>;
+template class DeciderProver_<GoblinUltraFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

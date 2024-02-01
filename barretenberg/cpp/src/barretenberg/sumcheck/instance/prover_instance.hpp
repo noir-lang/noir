@@ -5,7 +5,7 @@
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 
-namespace bb::honk {
+namespace bb {
 /**
  * @brief  An Instance is normally constructed from a finalized circuit and it's role is to compute all the polynomials
  * involved in creating a proof and, if requested, the verification key.
@@ -107,4 +107,4 @@ template <class Flavor> class ProverInstance_ {
     void add_plookup_memory_records_to_wire_4(FF);
 };
 
-} // namespace bb::honk
+} // namespace bb

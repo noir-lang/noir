@@ -7,7 +7,7 @@
 #include "barretenberg/relations/relation_types.hpp"
 #include "barretenberg/relations/utils.hpp"
 
-namespace bb::honk::sumcheck {
+namespace bb {
 
 /*
  Notation: The polynomial P(X0, X1) that is the low-degree extension of its values vij = P(i,j)
@@ -335,4 +335,4 @@ template <typename Flavor> class SumcheckVerifierRound {
         return output;
     }
 };
-} // namespace bb::honk::sumcheck
+} // namespace bb

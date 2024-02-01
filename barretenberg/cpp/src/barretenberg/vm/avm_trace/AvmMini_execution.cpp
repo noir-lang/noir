@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+using namespace bb;
+
 namespace avm_trace {
 
 /**
@@ -22,14 +24,14 @@ namespace avm_trace {
  * @throws runtime_error exception when the bytecode is invalid.
  * @return A zk proof of the execution.
  */
-honk::proof Execution::run_and_prove(std::vector<uint8_t> const& bytecode, std::vector<FF> const& calldata)
+HonkProof Execution::run_and_prove(std::vector<uint8_t> const& bytecode, std::vector<FF> const& calldata)
 {
     auto instructions = parse(bytecode);
     auto trace = gen_trace(instructions, calldata);
     auto circuit_builder = bb::AvmMiniCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
-    auto composer = bb::honk::AvmMiniComposer();
+    auto composer = AvmMiniComposer();
     auto prover = composer.create_prover(circuit_builder);
     return prover.construct_proof();
 }

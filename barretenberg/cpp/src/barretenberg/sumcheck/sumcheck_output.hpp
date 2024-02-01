@@ -4,7 +4,7 @@
 #include <optional>
 #include <vector>
 
-namespace bb::honk::sumcheck {
+namespace bb {
 
 /**
  * @brief Contains the multi-linear evaluations of the polynomials at the challenge point 'u'.
@@ -20,4 +20,4 @@ template <typename Flavor> struct SumcheckOutput {
     // Whether or not the claimed multilinear evaluations and final sumcheck evaluation have been confirmed
     std::optional<bool> verified = false; // optional b/c this struct is shared by the Prover/Verifier
 };
-} // namespace bb::honk::sumcheck
+} // namespace bb

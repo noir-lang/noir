@@ -10,8 +10,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-using namespace bb;
-
 namespace bb {
 
 template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::finalize_circuit()
@@ -2887,8 +2885,8 @@ inline typename Arithmetization::FF UltraCircuitBuilder_<Arithmetization>::compu
     const FF y_3 = w_3_shifted_value;
     const FF q_sign = q_1_value;
     const FF q_is_double = q_m_value;
-    constexpr FF curve_b = CircuitBuilderBase<arithmetization::Ultra<FF>>::EmbeddedCurve::Group::curve_b;
-    static_assert(CircuitBuilderBase<arithmetization::Ultra<FF>>::EmbeddedCurve::Group::curve_a == 0);
+    constexpr FF curve_b = CircuitBuilderBase<UltraArith<FF>>::EmbeddedCurve::Group::curve_b;
+    static_assert(CircuitBuilderBase<UltraArith<FF>>::EmbeddedCurve::Group::curve_a == 0);
 
     FF x_diff = x_2 - x_1;
     FF y1_sqr = y_1.sqr();
@@ -3484,8 +3482,8 @@ template <typename Arithmetization> bool UltraCircuitBuilder_<Arithmetization>::
     circuit_backup.restore_prefinilized_state(this);
     return result;
 }
-template class UltraCircuitBuilder_<arithmetization::Ultra<bb::fr>>;
-template class UltraCircuitBuilder_<arithmetization::UltraHonk<bb::fr>>;
+template class UltraCircuitBuilder_<UltraArith<bb::fr>>;
+template class UltraCircuitBuilder_<UltraHonkArith<bb::fr>>;
 // To enable this we need to template plookup
 // template class UltraCircuitBuilder_<grumpkin::fr>;
 

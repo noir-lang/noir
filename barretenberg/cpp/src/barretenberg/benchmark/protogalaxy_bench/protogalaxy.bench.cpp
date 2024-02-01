@@ -6,8 +6,8 @@
 
 using namespace benchmark;
 
-namespace bb::honk {
-using Flavor = flavor::Ultra;
+namespace bb {
+using Flavor = UltraFlavor;
 using Instance = ProverInstance_<Flavor>;
 using Instances = ProverInstances_<Flavor, 2>;
 using ProtoGalaxyProver = ProtoGalaxyProver_<Instances>;
@@ -38,6 +38,6 @@ void fold_one(State& state) noexcept
 }
 
 BENCHMARK(fold_one)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
-} // namespace bb::honk
+} // namespace bb
 
 BENCHMARK_MAIN();

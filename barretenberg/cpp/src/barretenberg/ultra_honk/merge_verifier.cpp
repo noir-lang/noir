@@ -1,6 +1,6 @@
 #include "merge_verifier.hpp"
 
-namespace bb::honk {
+namespace bb {
 
 template <typename Flavor>
 MergeVerifier_<Flavor>::MergeVerifier_()
@@ -16,9 +16,9 @@ MergeVerifier_<Flavor>::MergeVerifier_()
  * queue has been constructed correctly via a simple Schwartz-Zippel check. Evaluations are checked via batched KZG.
  *
  * @tparam Flavor
- * @return honk::proof&
+ * @return HonkProof&
  */
-template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const honk::proof& proof)
+template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     transcript = std::make_shared<Transcript>(proof);
 
@@ -41,16 +41,16 @@ template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const honk:
     std::vector<OpeningClaim> opening_claims;
     for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
         T_prev_evals[idx] = transcript->template receive_from_prover<FF>("T_prev_eval_" + std::to_string(idx + 1));
-        opening_claims.emplace_back(pcs::OpeningClaim<Curve>{ { kappa, T_prev_evals[idx] }, C_T_prev[idx] });
+        opening_claims.emplace_back(OpeningClaim{ { kappa, T_prev_evals[idx] }, C_T_prev[idx] });
     }
     for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
         t_shift_evals[idx] = transcript->template receive_from_prover<FF>("t_shift_eval_" + std::to_string(idx + 1));
-        opening_claims.emplace_back(pcs::OpeningClaim<Curve>{ { kappa, t_shift_evals[idx] }, C_t_shift[idx] });
+        opening_claims.emplace_back(OpeningClaim{ { kappa, t_shift_evals[idx] }, C_t_shift[idx] });
     }
     for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
         T_current_evals[idx] =
             transcript->template receive_from_prover<FF>("T_current_eval_" + std::to_string(idx + 1));
-        opening_claims.emplace_back(pcs::OpeningClaim<Curve>{ { kappa, T_current_evals[idx] }, C_T_current[idx] });
+        opening_claims.emplace_back(OpeningClaim{ { kappa, T_current_evals[idx] }, C_T_current[idx] });
     }
 
     // Check the identity T_i(\kappa) = T_{i-1}(\kappa) + t_i^{shift}(\kappa). If it fails, return false
@@ -79,7 +79,7 @@ template <typename Flavor> bool MergeVerifier_<Flavor>::verify_proof(const honk:
     return identity_checked && verified;
 }
 
-template class MergeVerifier_<honk::flavor::Ultra>;
-template class MergeVerifier_<honk::flavor::GoblinUltra>;
+template class MergeVerifier_<UltraFlavor>;
+template class MergeVerifier_<GoblinUltraFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

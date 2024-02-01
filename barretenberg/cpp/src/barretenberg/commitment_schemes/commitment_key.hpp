@@ -19,7 +19,7 @@
 #include <memory>
 #include <string_view>
 
-namespace bb::honk::pcs {
+namespace bb {
 
 /**
  * @brief CommitmentKey object over a pairing group 𝔾₁.
@@ -74,4 +74,4 @@ template <class Curve> class CommitmentKey {
     std::shared_ptr<bb::srs::factories::ProverCrs<Curve>> srs;
 };
 
-} // namespace bb::honk::pcs
+} // namespace bb

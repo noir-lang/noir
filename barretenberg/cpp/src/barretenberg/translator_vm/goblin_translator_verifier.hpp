@@ -3,10 +3,10 @@
 #include "barretenberg/goblin/translation_evaluations.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 
-namespace bb::honk {
+namespace bb {
 class GoblinTranslatorVerifier {
   public:
-    using Flavor = honk::flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
     using BF = typename Flavor::BF;
     using Commitment = typename Flavor::Commitment;
@@ -35,7 +35,7 @@ class GoblinTranslatorVerifier {
     void put_translation_data_in_relation_parameters(const uint256_t& evaluation_input_x,
                                                      const BF& batching_challenge_v,
                                                      const uint256_t& accumulated_result);
-    bool verify_proof(const honk::proof& proof);
+    bool verify_proof(const HonkProof& proof);
     bool verify_translation(const TranslationEvaluations& translation_evaluations);
 };
-} // namespace bb::honk
+} // namespace bb

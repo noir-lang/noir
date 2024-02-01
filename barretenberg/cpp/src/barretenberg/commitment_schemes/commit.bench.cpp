@@ -5,8 +5,7 @@
 
 namespace bb {
 
-template <typename Curve>
-std::shared_ptr<honk::pcs::CommitmentKey<Curve>> create_commitment_key(const size_t num_points)
+template <typename Curve> std::shared_ptr<CommitmentKey<Curve>> create_commitment_key(const size_t num_points)
 {
     std::string srs_path;
     if constexpr (std::same_as<Curve, curve::BN254>) {
@@ -16,7 +15,7 @@ std::shared_ptr<honk::pcs::CommitmentKey<Curve>> create_commitment_key(const siz
         srs_path = "../srs_db/grumpkin";
     }
     auto crs_factory = std::make_shared<bb::srs::factories::FileCrsFactory<Curve>>(srs_path, num_points);
-    return std::make_shared<honk::pcs::CommitmentKey<Curve>>(num_points, crs_factory);
+    return std::make_shared<CommitmentKey<Curve>>(num_points, crs_factory);
 }
 
 constexpr size_t MAX_LOG_NUM_POINTS = 24;

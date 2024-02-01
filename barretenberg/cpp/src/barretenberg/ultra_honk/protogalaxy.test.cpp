@@ -2,10 +2,11 @@
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include <gtest/gtest.h>
-using namespace bb;
-using namespace bb::honk;
 
-using Flavor = flavor::Ultra;
+using namespace bb;
+
+namespace {
+using Flavor = UltraFlavor;
 using VerificationKey = Flavor::VerificationKey;
 using Instance = ProverInstance_<Flavor>;
 using Instances = ProverInstances_<Flavor, 2>;
@@ -20,9 +21,7 @@ using CommitmentKey = Flavor::CommitmentKey;
 
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
-namespace {
 auto& engine = numeric::get_debug_randomness();
-}
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/744): make testing utility with functionality shared
 // amongst test files in the proof system
 Polynomial<FF> get_random_polynomial(size_t size)
@@ -87,6 +86,7 @@ class ProtoGalaxyTests : public ::testing::Test {
   public:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
+} // namespace
 
 TEST_F(ProtoGalaxyTests, FullHonkEvaluationsValidCircuit)
 {

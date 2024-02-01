@@ -27,7 +27,7 @@ enum {
  * @param prover - The ultrahonk prover.
  * @param index - The pass to measure.
  **/
-BBERG_PROFILE static void test_round_inner(State& state, honk::UltraProver& prover, size_t index) noexcept
+BBERG_PROFILE static void test_round_inner(State& state, UltraProver& prover, size_t index) noexcept
 {
     auto time_if_index = [&](size_t target_index, auto&& func) -> void {
         if (index == target_index) {
@@ -53,9 +53,9 @@ BBERG_PROFILE static void test_round(State& state, size_t index) noexcept
 
     for (auto _ : state) {
         state.PauseTiming();
-        honk::UltraComposer composer;
+        UltraComposer composer;
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/761) benchmark both sparse and dense circuits
-        honk::UltraProver prover = bb::mock_proofs::get_prover(
+        UltraProver prover = bb::mock_proofs::get_prover(
             composer, &bb::stdlib::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>, 10);
         test_round_inner(state, prover, index);
         state.ResumeTiming();

@@ -11,9 +11,9 @@
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace bb::honk {
+namespace bb {
 
-using Flavor = honk::flavor::ToyFlavor;
+using Flavor = ToyFlavor;
 
 /**
  * Create ToyProver from proving key, witness and manifest.
@@ -68,7 +68,7 @@ void ToyProver::execute_wire_commitments_round()
  */
 void ToyProver::execute_relation_check_rounds()
 {
-    using Sumcheck = sumcheck::SumcheckProver<Flavor>;
+    using Sumcheck = SumcheckProver<Flavor>;
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
     FF alpha = transcript->get_challenge("Sumcheck:alpha");
     std::vector<FF> gate_challenges(numeric::get_msb(key->circuit_size));
@@ -94,13 +94,13 @@ void ToyProver::execute_zeromorph_rounds()
                      transcript);
 }
 
-honk::proof& ToyProver::export_proof()
+HonkProof& ToyProver::export_proof()
 {
     proof = transcript->proof_data;
     return proof;
 }
 
-honk::proof& ToyProver::construct_proof()
+HonkProof& ToyProver::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();
@@ -127,4 +127,4 @@ honk::proof& ToyProver::construct_proof()
     return export_proof();
 }
 
-} // namespace bb::honk
+} // namespace bb

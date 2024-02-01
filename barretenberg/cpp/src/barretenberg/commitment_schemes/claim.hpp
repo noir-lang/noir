@@ -3,7 +3,7 @@
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
-namespace bb::honk::pcs {
+namespace bb {
 /**
  * @brief Opening pair (r,v) for some witness polynomial p(X) such that p(r) = v
  *
@@ -72,4 +72,4 @@ template <typename Curve> class OpeningClaim {
 
     bool operator==(const OpeningClaim& other) const = default;
 };
-} // namespace bb::honk::pcs
+} // namespace bb

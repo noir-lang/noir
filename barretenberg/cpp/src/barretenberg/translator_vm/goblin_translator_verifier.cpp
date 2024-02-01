@@ -3,10 +3,7 @@
 #include "barretenberg/sumcheck/sumcheck.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace bb;
-using namespace bb::honk::sumcheck;
-
-namespace bb::honk {
+namespace bb {
 
 GoblinTranslatorVerifier::GoblinTranslatorVerifier(
     const std::shared_ptr<typename Flavor::VerificationKey>& verifier_key,
@@ -63,9 +60,9 @@ void GoblinTranslatorVerifier::put_translation_data_in_relation_parameters(const
 };
 
 /**
- * @brief This function verifies an GoblinTranslator Honk proof for given program settings.
+ * @brief This function verifies an GoblinTranslatorFlavor Honk proof for given program settings.
  */
-bool GoblinTranslatorVerifier::verify_proof(const honk::proof& proof)
+bool GoblinTranslatorVerifier::verify_proof(const HonkProof& proof)
 {
     batching_challenge_v = transcript->get_challenge("Translation:batching_challenge");
     transcript->load_proof(proof);
@@ -262,15 +259,14 @@ bool GoblinTranslatorVerifier::verify_proof(const honk::proof& proof)
 
     // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description ofthe
     // unrolled protocol.
-    auto pairing_points =
-        pcs::zeromorph::ZeroMorphVerifier_<Flavor::Curve>::verify(commitments.get_unshifted(),
-                                                                  commitments.get_to_be_shifted(),
-                                                                  claimed_evaluations.get_unshifted(),
-                                                                  claimed_evaluations.get_shifted(),
-                                                                  multivariate_challenge,
-                                                                  transcript,
-                                                                  commitments.get_concatenation_groups(),
-                                                                  claimed_evaluations.get_concatenated_constraints());
+    auto pairing_points = ZeroMorphVerifier_<Flavor::Curve>::verify(commitments.get_unshifted(),
+                                                                    commitments.get_to_be_shifted(),
+                                                                    claimed_evaluations.get_unshifted(),
+                                                                    claimed_evaluations.get_shifted(),
+                                                                    multivariate_challenge,
+                                                                    transcript,
+                                                                    commitments.get_concatenation_groups(),
+                                                                    claimed_evaluations.get_concatenated_constraints());
 
     auto verified = pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
 
@@ -312,4 +308,4 @@ bool GoblinTranslatorVerifier::verify_translation(const TranslationEvaluations& 
     return is_value_reconstructed;
 }
 
-} // namespace bb::honk
+} // namespace bb

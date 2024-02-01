@@ -2,7 +2,8 @@
 
 #include "barretenberg/numeric/uint128/uint128.hpp"
 
-using namespace numeric;
+using namespace bb;
+using namespace bb::numeric;
 namespace {
 using namespace tests_avm;
 

@@ -10,7 +10,7 @@ using namespace bb;
 
 class ComposerLibTests : public ::testing::Test {
   protected:
-    using Flavor = honk::flavor::Ultra;
+    using Flavor = UltraFlavor;
     using FF = typename Flavor::FF;
     Flavor::CircuitBuilder circuit_constructor;
     Flavor::ProvingKey proving_key = []() {

@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace bb::honk::sumcheck {
+namespace bb {
 /**
  * @brief ECCVMWnafRelationImpl evaluates relations that convert scalar multipliers into 4-bit WNAF slices
  * @details Each WNAF slice is a 4-bit slice representing one of 16 integers { -15, -13, ..., 15 }
@@ -48,4 +48,4 @@ template <typename FF_> class ECCVMWnafRelationImpl {
 
 template <typename FF> using ECCVMWnafRelation = Relation<ECCVMWnafRelationImpl<FF>>;
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

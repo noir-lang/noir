@@ -1171,5 +1171,5 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
 
     bool check_circuit();
 };
-using UltraCircuitBuilder = UltraCircuitBuilder_<arithmetization::Ultra<bb::fr>>;
+using UltraCircuitBuilder = UltraCircuitBuilder_<UltraArith<bb::fr>>;
 } // namespace bb

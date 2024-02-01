@@ -2,13 +2,13 @@
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
 
-namespace bb::honk {
+namespace bb {
 
 /**
  * @brief Compute witness polynomials
  *
  */
-template <ECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(CircuitConstructor& circuit_constructor)
+template <IsECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(CircuitConstructor& circuit_constructor)
 {
     if (computed_witness) {
         return;
@@ -26,7 +26,7 @@ template <ECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(Circu
     computed_witness = true;
 }
 
-template <ECCVMFlavor Flavor>
+template <IsECCVMFlavor Flavor>
 ECCVMProver_<Flavor> ECCVMComposer_<Flavor>::create_prover(CircuitConstructor& circuit_constructor,
                                                            const std::shared_ptr<Transcript>& transcript)
 {
@@ -45,7 +45,7 @@ ECCVMProver_<Flavor> ECCVMComposer_<Flavor>::create_prover(CircuitConstructor& c
  *
  * @return The verifier.
  * */
-template <ECCVMFlavor Flavor>
+template <IsECCVMFlavor Flavor>
 ECCVMVerifier_<Flavor> ECCVMComposer_<Flavor>::create_verifier(CircuitConstructor& circuit_constructor,
                                                                const std::shared_ptr<Transcript>& transcript)
 {
@@ -61,7 +61,7 @@ ECCVMVerifier_<Flavor> ECCVMComposer_<Flavor>::create_verifier(CircuitConstructo
     return output_state;
 }
 
-template <ECCVMFlavor Flavor>
+template <IsECCVMFlavor Flavor>
 std::shared_ptr<typename Flavor::ProvingKey> ECCVMComposer_<Flavor>::compute_proving_key(
     CircuitConstructor& circuit_constructor)
 {
@@ -97,7 +97,7 @@ std::shared_ptr<typename Flavor::ProvingKey> ECCVMComposer_<Flavor>::compute_pro
  *
  * @return Pointer to created circuit verification key.
  * */
-template <ECCVMFlavor Flavor>
+template <IsECCVMFlavor Flavor>
 std::shared_ptr<typename Flavor::VerificationKey> ECCVMComposer_<Flavor>::compute_verification_key(
     CircuitConstructor& circuit_constructor)
 {
@@ -117,6 +117,6 @@ std::shared_ptr<typename Flavor::VerificationKey> ECCVMComposer_<Flavor>::comput
     verification_key->lagrange_last = commitment_key->commit(proving_key->lagrange_last);
     return verification_key;
 }
-template class ECCVMComposer_<honk::flavor::ECCVM>;
+template class ECCVMComposer_<ECCVMFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

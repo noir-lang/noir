@@ -2,7 +2,7 @@
 #include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/flavor/relation_definitions.hpp"
 
-namespace bb::honk::sumcheck {
+namespace bb {
 
 /**
  * @brief ECCVMPointTableRelationImpl
@@ -173,6 +173,6 @@ void ECCVMPointTableRelationImpl<FF>::accumulate(ContainerOverSubrelations& accu
 }
 
 template class ECCVMPointTableRelationImpl<grumpkin::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, flavor::ECCVM);
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMPointTableRelationImpl, ECCVMFlavor);
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

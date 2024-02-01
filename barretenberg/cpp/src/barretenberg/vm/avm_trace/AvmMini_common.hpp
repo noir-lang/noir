@@ -4,7 +4,7 @@
 #include "barretenberg/proof_system/circuit_builder/generated/AvmMini_circuit_builder.hpp"
 #include <cstdint>
 
-using Flavor = bb::honk::flavor::AvmMiniFlavor;
+using Flavor = bb::AvmMiniFlavor;
 using FF = Flavor::FF;
 using Row = bb::AvmMiniFullRow<bb::fr>;
 

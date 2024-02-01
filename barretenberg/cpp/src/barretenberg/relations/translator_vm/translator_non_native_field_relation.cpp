@@ -278,6 +278,6 @@ void GoblinTranslatorNonNativeFieldRelationImpl<FF>::accumulate(ContainerOverSub
 };
 
 template class GoblinTranslatorNonNativeFieldRelationImpl<bb::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorNonNativeFieldRelationImpl, honk::flavor::GoblinTranslator);
+DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorNonNativeFieldRelationImpl, GoblinTranslatorFlavor);
 
 } // namespace bb

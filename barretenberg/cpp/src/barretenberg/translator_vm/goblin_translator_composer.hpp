@@ -7,10 +7,10 @@
 #include "barretenberg/translator_vm/goblin_translator_prover.hpp"
 #include "barretenberg/translator_vm/goblin_translator_verifier.hpp"
 
-namespace bb::honk {
+namespace bb {
 class GoblinTranslatorComposer {
   public:
-    using Flavor = honk::flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using Curve = typename Flavor::Curve;
     using CircuitBuilder = typename Flavor::CircuitBuilder;
     using ProvingKey = typename Flavor::ProvingKey;
@@ -39,7 +39,7 @@ class GoblinTranslatorComposer {
     size_t dyadic_circuit_size = 0;      // final power-of-2 circuit size
     size_t mini_circuit_dyadic_size = 0; // The size of the small circuit that contains non-range constraint relations
 
-    // We only need the standard crs factory. GoblinTranslator is not supposed to be used with Grumpkin
+    // We only need the standard crs factory. GoblinTranslatorFlavor is not supposed to be used with Grumpkin
     GoblinTranslatorComposer() { crs_factory_ = bb::srs::get_crs_factory(); }
 
     GoblinTranslatorComposer(std::shared_ptr<ProvingKey> p_key, std::shared_ptr<VerificationKey> v_key)
@@ -71,4 +71,4 @@ class GoblinTranslatorComposer {
         return commitment_key;
     };
 };
-} // namespace bb::honk
+} // namespace bb

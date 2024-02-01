@@ -7,8 +7,6 @@
 #include "barretenberg/serialize/cbind.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 
-using namespace bb;
-
 namespace bb {
 
 /**

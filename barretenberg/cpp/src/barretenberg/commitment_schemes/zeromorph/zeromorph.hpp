@@ -5,7 +5,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace bb::honk::pcs::zeromorph {
+namespace bb {
 
 /**
  * @brief Compute powers of a given challenge
@@ -728,4 +728,4 @@ template <typename Curve> class ZeroMorphVerifier_ {
     }
 };
 
-} // namespace bb::honk::pcs::zeromorph
+} // namespace bb

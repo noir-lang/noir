@@ -7,13 +7,12 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::honk;
 
 template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
   public:
     void SetUp() override
     {
-        if constexpr (std::is_same<Flavor, flavor::ECCVM>::value) {
+        if constexpr (std::is_same<Flavor, ECCVMFlavor>::value) {
             srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
         } else {
             srs::init_crs_factory("../srs_db/ignition");
@@ -222,7 +221,7 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
 
 numeric::RNG& engine = numeric::get_debug_randomness();
 
-using FlavorTypes = testing::Types<flavor::ECCVM>;
+using FlavorTypes = testing::Types<ECCVMFlavor>;
 
 TYPED_TEST_SUITE(ECCVMTranscriptTests, FlavorTypes);
 /**

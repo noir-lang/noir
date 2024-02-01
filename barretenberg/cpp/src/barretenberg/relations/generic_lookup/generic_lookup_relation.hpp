@@ -24,7 +24,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace bb::honk::sumcheck {
+namespace bb {
 /**
  * @brief Specifies positions of elements in the tuple of entities received from methods in the Settings class
  *
@@ -468,9 +468,8 @@ template <typename Settings, typename FF_> class GenericLookupRelationImpl {
                            const Parameters& params,
                            const FF& scaling_factor)
     {
-        logderivative_library::
-            accumulate_logderivative_lookup_subrelation_contributions<FF, GenericLookupRelationImpl<Settings, FF>>(
-                accumulator, in, params, scaling_factor);
+        accumulate_logderivative_lookup_subrelation_contributions<FF, GenericLookupRelationImpl<Settings, FF>>(
+            accumulator, in, params, scaling_factor);
     }
 };
 
@@ -479,4 +478,4 @@ using GenericLookupRelation = Relation<GenericLookupRelationImpl<Settings, FF>>;
 
 template <typename Settings, typename FF> using GenericLookup = GenericLookupRelationImpl<Settings, FF>;
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

@@ -10,10 +10,8 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::honk;
-using namespace bb::honk::pcs;
-using namespace bb::honk::pcs::ipa;
 
+namespace {
 using Curve = curve::Grumpkin;
 
 class IPATest : public CommitmentTest<Curve> {
@@ -24,6 +22,7 @@ class IPATest : public CommitmentTest<Curve> {
     using VK = VerifierCommitmentKey<Curve>;
     using Polynomial = bb::Polynomial<Fr>;
 };
+} // namespace
 
 TEST_F(IPATest, CommitOnManyZeroCoeffPolyWorks)
 {
@@ -88,10 +87,10 @@ TEST_F(IPATest, Open)
 TEST_F(IPATest, GeminiShplonkIPAWithShift)
 {
     using IPA = IPA<Curve>;
-    using ShplonkProver = shplonk::ShplonkProver_<Curve>;
-    using ShplonkVerifier = shplonk::ShplonkVerifier_<Curve>;
-    using GeminiProver = gemini::GeminiProver_<Curve>;
-    using GeminiVerifier = gemini::GeminiVerifier_<Curve>;
+    using ShplonkProver = ShplonkProver_<Curve>;
+    using ShplonkVerifier = ShplonkVerifier_<Curve>;
+    using GeminiProver = GeminiProver_<Curve>;
+    using GeminiVerifier = GeminiVerifier_<Curve>;
 
     const size_t n = 8;
     const size_t log_n = 3;

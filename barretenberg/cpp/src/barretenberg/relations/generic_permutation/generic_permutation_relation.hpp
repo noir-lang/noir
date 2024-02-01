@@ -15,7 +15,7 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/relations/relation_types.hpp"
 
-namespace bb::honk::sumcheck {
+namespace bb {
 /**
  * @brief Specifies positions of elements in the tuple of entities received from methods in the Settings class
  *
@@ -202,9 +202,9 @@ template <typename Settings, typename FF_> class GenericPermutationRelationImpl 
                            const Parameters& params,
                            const FF& scaling_factor)
     {
-        logderivative_library::accumulate_logderivative_permutation_subrelation_contributions<
-            FF,
-            GenericPermutationRelationImpl<Settings, FF>>(accumulator, in, params, scaling_factor);
+        accumulate_logderivative_permutation_subrelation_contributions<FF,
+                                                                       GenericPermutationRelationImpl<Settings, FF>>(
+            accumulator, in, params, scaling_factor);
     }
 };
 
@@ -213,4 +213,4 @@ using GenericPermutationRelation = Relation<GenericPermutationRelationImpl<Setti
 
 template <typename Settings, typename FF> using GenericPermutation = GenericPermutationRelationImpl<Settings, FF>;
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

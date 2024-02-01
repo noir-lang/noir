@@ -10,7 +10,7 @@
 #include "../commitment_key.test.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-namespace bb::honk::pcs::shplonk {
+namespace bb {
 template <class Params> class ShplonkTest : public CommitmentTest<Params> {};
 
 using CurveTypes = ::testing::Types<curve::BN254, curve::Grumpkin>;
@@ -23,7 +23,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     using ShplonkVerifier = ShplonkVerifier_<TypeParam>;
     using Fr = typename TypeParam::ScalarField;
     using Polynomial = typename bb::Polynomial<Fr>;
-    using OpeningPair = OpeningPair<TypeParam>;
+    using OpeningPair = bb::OpeningPair<TypeParam>;
     using OpeningClaim = OpeningClaim<TypeParam>;
 
     const size_t n = 16;
@@ -71,4 +71,4 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
 
     this->verify_opening_claim(verifier_claim, shplonk_prover_witness);
 }
-} // namespace bb::honk::pcs::shplonk
+} // namespace bb

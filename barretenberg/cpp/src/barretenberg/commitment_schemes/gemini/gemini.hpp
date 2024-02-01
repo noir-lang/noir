@@ -42,7 +42,7 @@
  * The verifier is able to computed the simulated commitments to A₀₊(X) and A₀₋(X)
  * since they are linear-combinations of the commitments [fⱼ] and [gⱼ].
  */
-namespace bb::honk::pcs::gemini {
+namespace bb {
 
 /**
  * @brief Prover output (evalutation pair, witness) that can be passed on to Shplonk batch opening.
@@ -57,11 +57,12 @@ namespace bb::honk::pcs::gemini {
  * ]
  * @tparam Curve CommitmentScheme parameters
  */
-template <typename Curve> struct ProverOutput {
+template <typename Curve> struct GeminiProverOutput {
     std::vector<OpeningPair<Curve>> opening_pairs;
     std::vector<bb::Polynomial<typename Curve::ScalarField>> witnesses;
 };
 
+namespace gemini {
 /**
  * @brief Compute powers of challenge ρ
  *
@@ -96,6 +97,7 @@ template <class Fr> inline std::vector<Fr> squares_of_r(const Fr r, const size_t
     }
     return squares;
 };
+} // namespace gemini
 
 template <typename Curve> class GeminiProver_ {
     using Fr = typename Curve::ScalarField;
@@ -106,10 +108,10 @@ template <typename Curve> class GeminiProver_ {
                                                               Polynomial&& batched_unshifted,
                                                               Polynomial&& batched_to_be_shifted);
 
-    static ProverOutput<Curve> compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
-                                                                   std::vector<Polynomial>&& gemini_polynomials,
-                                                                   const Fr& r_challenge);
-}; // namespace bb::honk::pcs::gemini
+    static GeminiProverOutput<Curve> compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
+                                                                         std::vector<Polynomial>&& gemini_polynomials,
+                                                                         const Fr& r_challenge);
+}; // namespace bb
 
 template <typename Curve> class GeminiVerifier_ {
     using Fr = typename Curve::ScalarField;
@@ -148,7 +150,7 @@ template <typename Curve> class GeminiVerifier_ {
 
         // compute vector of powers of random evaluation point r
         const Fr r = transcript->get_challenge("Gemini:r");
-        std::vector<Fr> r_squares = squares_of_r(r, num_variables);
+        std::vector<Fr> r_squares = gemini::squares_of_r(r, num_variables);
 
         // Get evaluations a_i, i = 0,...,m-1 from transcript
         std::vector<Fr> evaluations;
@@ -261,7 +263,6 @@ template <typename Curve> class GeminiVerifier_ {
 
         return { C0_r_pos, C0_r_neg };
     }
+};
 
-}; // namespace bb::honk::pcs::gemini
-
-} // namespace bb::honk::pcs::gemini
+} // namespace bb

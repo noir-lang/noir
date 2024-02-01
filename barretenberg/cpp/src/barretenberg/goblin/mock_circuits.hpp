@@ -22,11 +22,11 @@ class GoblinMockCircuits {
     using FF = Curve::ScalarField;
     using Fbase = Curve::BaseField;
     using Point = Curve::AffineElement;
-    using CommitmentKey = bb::honk::pcs::CommitmentKey<Curve>;
+    using CommitmentKey = bb::CommitmentKey<Curve>;
     using OpQueue = bb::ECCOpQueue;
     using GoblinUltraBuilder = bb::GoblinUltraCircuitBuilder;
-    using Flavor = bb::honk::flavor::GoblinUltra;
-    using RecursiveFlavor = bb::honk::flavor::GoblinUltraRecursive_<GoblinUltraBuilder>;
+    using Flavor = bb::GoblinUltraFlavor;
+    using RecursiveFlavor = bb::GoblinUltraRecursiveFlavor_<GoblinUltraBuilder>;
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<RecursiveFlavor>;
     using KernelInput = Goblin::AccumulationOutput;
     static constexpr size_t NUM_OP_QUEUE_COLUMNS = Flavor::NUM_WIRES;

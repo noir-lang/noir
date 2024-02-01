@@ -11,18 +11,11 @@
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/proof_system/composer/permutation_lib.hpp"
 
-namespace bb::honk {
-using Flavor = honk::flavor::GoblinTranslator;
-using Curve = typename Flavor::Curve;
-using FF = typename Flavor::FF;
-using CircuitBuilder = typename Flavor::CircuitBuilder;
-using ProvingKey = typename Flavor::ProvingKey;
-using VerificationKey = typename Flavor::VerificationKey;
-using PCS = typename Flavor::PCS;
-using CommitmentKey = typename Flavor::CommitmentKey;
-using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
-using Polynomial = typename Flavor::Polynomial;
-using Transcript = typename Flavor::Transcript;
+namespace {
+using Flavor = bb::GoblinTranslatorFlavor;
+} // namespace
+
+namespace bb {
 
 /**
  * @brief Helper method to compute quantities like total number of gates and dyadic circuit size
@@ -56,16 +49,16 @@ void GoblinTranslatorComposer::compute_circuit_size_parameters(CircuitBuilder& c
  * @return std::vector<Polynomial>
  * */
 
-std::vector<Polynomial> construct_wire_polynomials_base_goblin_translator(const CircuitBuilder& circuit_builder,
-                                                                          const size_t dyadic_circuit_size)
+std::vector<typename Flavor::Polynomial> construct_wire_polynomials_base_goblin_translator(
+    const typename Flavor::CircuitBuilder& circuit_builder, const size_t dyadic_circuit_size)
 {
     const size_t num_gates = circuit_builder.num_gates;
 
-    std::vector<Polynomial> wire_polynomials;
+    std::vector<typename Flavor::Polynomial> wire_polynomials;
     // Populate the wire polynomials with values from conventional wires
     for (size_t wire_idx = 0; wire_idx < Flavor::NUM_WIRES; ++wire_idx) {
         // Expect all values to be set to 0 initially
-        Polynomial w_lagrange(dyadic_circuit_size);
+        typename Flavor::Polynomial w_lagrange(dyadic_circuit_size);
 
         // Insert conventional gate wire values into the wire polynomial
         for (size_t i = 0; i < num_gates; ++i) {
@@ -176,12 +169,12 @@ void GoblinTranslatorComposer::compute_witness(CircuitBuilder& circuit_builder)
 
     // We construct concatenated versions of range constraint polynomials, where several polynomials are concatenated
     // into one. These polynomials are not commited to.
-    bb::honk::permutation_library::compute_concatenated_polynomials<Flavor>(proving_key.get());
+    bb::compute_concatenated_polynomials<Flavor>(proving_key.get());
 
     // We also contruct ordered polynomials, which have the same values as concatenated ones + enough values to bridge
     // the range from 0 to maximum range defined by the range constraint.
-    bb::honk::permutation_library::compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(
-        proving_key.get(), mini_circuit_dyadic_size);
+    bb::compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(proving_key.get(),
+                                                                               mini_circuit_dyadic_size);
 
     computed_witness = true;
 }
@@ -265,13 +258,11 @@ std::shared_ptr<typename Flavor::ProvingKey> GoblinTranslatorComposer::compute_p
 
     // Compute polynomials with odd and even indices set to 1 up to the minicircuit margin + lagrange polynomials at
     // second and second to last indices in the minicircuit
-    bb::honk::permutation_library::compute_lagrange_polynomials_for_goblin_translator<Flavor>(proving_key.get(),
-                                                                                              mini_circuit_dyadic_size);
+    bb::compute_lagrange_polynomials_for_goblin_translator<Flavor>(proving_key.get(), mini_circuit_dyadic_size);
 
     // Compute the numerator for the permutation argument with several repetitions of steps bridging 0 and maximum range
     // constraint
-    bb::honk::permutation_library::compute_extra_range_constraint_numerator<Flavor>(proving_key.get(),
-                                                                                    dyadic_circuit_size);
+    bb::compute_extra_range_constraint_numerator<Flavor>(proving_key.get(), dyadic_circuit_size);
 
     return proving_key;
 }
@@ -282,7 +273,7 @@ std::shared_ptr<typename Flavor::ProvingKey> GoblinTranslatorComposer::compute_p
  * @return Pointer to created circuit verification key.
  * */
 
-std::shared_ptr<VerificationKey> GoblinTranslatorComposer::compute_verification_key(
+std::shared_ptr<typename Flavor::VerificationKey> GoblinTranslatorComposer::compute_verification_key(
     const CircuitBuilder& circuit_builder)
 {
     if (verification_key) {
@@ -307,4 +298,4 @@ std::shared_ptr<VerificationKey> GoblinTranslatorComposer::compute_verification_
 
     return verification_key;
 }
-} // namespace bb::honk
+} // namespace bb

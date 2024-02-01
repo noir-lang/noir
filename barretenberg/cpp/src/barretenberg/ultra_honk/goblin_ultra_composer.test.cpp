@@ -7,12 +7,11 @@
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
+
 using namespace bb;
-using namespace bb::honk;
 
 namespace {
 auto& engine = numeric::get_debug_randomness();
-}
 
 class GoblinUltraHonkComposerTests : public ::testing::Test {
   protected:
@@ -21,7 +20,7 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
     using Point = Curve::AffineElement;
-    using CommitmentKey = pcs::CommitmentKey<Curve>;
+    using CommitmentKey = bb::CommitmentKey<Curve>;
 
     /**
      * @brief Generate a simple test circuit with some ECC op gates and conventional arithmetic gates
@@ -82,6 +81,7 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
         return verified;
     }
 };
+} // namespace
 
 /**
  * @brief Test proof construction/verification for a circuit with ECC op gates, public inputs, and basic arithmetic

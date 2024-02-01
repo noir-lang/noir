@@ -17,13 +17,13 @@
 #include "barretenberg/relations/generated/Toy/two_column_perm.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace bb::honk::flavor {
+namespace bb {
 
 class ToyFlavor {
   public:
     using Curve = curve::BN254;
     using G1 = Curve::Group;
-    using PCS = pcs::kzg::KZG<Curve>;
+    using PCS = KZG<Curve>;
 
     using FF = G1::subgroup_field;
     using Polynomial = bb::Polynomial<FF>;
@@ -31,8 +31,8 @@ class ToyFlavor {
     using GroupElement = G1::element;
     using Commitment = G1::affine_element;
     using CommitmentHandle = G1::affine_element;
-    using CommitmentKey = pcs::CommitmentKey<Curve>;
-    using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
+    using CommitmentKey = bb::CommitmentKey<Curve>;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 1;
@@ -42,7 +42,7 @@ class ToyFlavor {
     // the unshifted and one for the shifted
     static constexpr size_t NUM_ALL_ENTITIES = 17;
 
-    using Relations = std::tuple<Toy_vm::toy_avm<FF>, sumcheck::two_column_perm_relation<FF>>;
+    using Relations = std::tuple<Toy_vm::toy_avm<FF>, two_column_perm_relation<FF>>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -367,4 +367,4 @@ class ToyFlavor {
     };
 };
 
-} // namespace bb::honk::flavor
+} // namespace bb

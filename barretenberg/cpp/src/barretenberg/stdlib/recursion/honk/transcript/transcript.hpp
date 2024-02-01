@@ -18,7 +18,7 @@ template <typename Builder> class Transcript {
   public:
     using field_ct = field_t<Builder>;
     using FF = bb::fr;
-    using NativeTranscript = bb::honk::BaseTranscript;
+    using NativeTranscript = BaseTranscript;
     using StdlibTypes = utility::StdlibTypesUtility<Builder>;
 
     static constexpr size_t HASH_OUTPUT_SIZE = NativeTranscript::HASH_OUTPUT_SIZE;
@@ -28,7 +28,7 @@ template <typename Builder> class Transcript {
 
     Transcript() = default;
 
-    Transcript(Builder* builder, const bb::honk::proof& proof_data)
+    Transcript(Builder* builder, const bb::HonkProof& proof_data)
         : native_transcript(proof_data)
         , builder(builder){};
 

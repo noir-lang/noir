@@ -3,7 +3,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include <typeinfo>
 
-namespace bb::honk::permutation_library {
+namespace bb {
 
 /**
  * @brief Compute a permutation grand product polynomial Z_perm(X)
@@ -221,8 +221,8 @@ template <typename Flavor, typename StorageHandle> void compute_concatenated_pol
  * changed ∈  [0 , 2¹⁴ - 1]. To do this, we use several virtual concatenated wires, each of which represents a subset
  * or original wires (concatenated_range_constraints_<i>). We also generate several new polynomials of the same length
  * as concatenated ones. These polynomials have values within range, but they are also constrained by the
- * GoblinTranslator's GenPermSort relation, which ensures that sequential values differ by not more than 3, the last
- * value is the maximum and the first value is zero (zero at the start allows us not to dance around shifts).
+ * GoblinTranslatorFlavor's GenPermSort relation, which ensures that sequential values differ by not more than 3, the
+ * last value is the maximum and the first value is zero (zero at the start allows us not to dance around shifts).
  *
  * Ideally, we could simply rearrange the values in concatenated_.._0 ,..., concatenated_.._3 and get denominator
  * polynomials (ordered_constraints), but we could get the worst case scenario: each value in the polynomials is
@@ -435,4 +435,4 @@ inline void compute_lagrange_polynomials_for_goblin_translator(auto proving_key,
     proving_key->lagrange_second = lagrange_polynomial_second.share();
 }
 
-} // namespace bb::honk::permutation_library
+} // namespace bb

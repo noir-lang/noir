@@ -5,10 +5,7 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace bb;
-using namespace bb::honk::sumcheck;
-
-namespace bb::honk {
+namespace bb {
 ToyVerifier::ToyVerifier(std::shared_ptr<Flavor::VerificationKey> verifier_key)
     : key(verifier_key)
 {}
@@ -30,13 +27,13 @@ ToyVerifier& ToyVerifier::operator=(ToyVerifier&& other) noexcept
  * @brief This function verifies an Toy Honk proof for given program settings.
  *
  */
-bool ToyVerifier::verify_proof(const honk::proof& proof)
+bool ToyVerifier::verify_proof(const HonkProof& proof)
 {
-    using Flavor = honk::flavor::ToyFlavor;
+    using Flavor = ToyFlavor;
     using FF = Flavor::FF;
     using Commitment = Flavor::Commitment;
     // using Curve = Flavor::Curve;
-    // using ZeroMorph = pcs::zeromorph::ZeroMorphVerifier_<Curve>;
+    // using ZeroMorph = ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = Flavor::VerifierCommitments;
     using CommitmentLabels = Flavor::CommitmentLabels;
 
@@ -113,4 +110,4 @@ bool ToyVerifier::verify_proof(const honk::proof& proof)
     return sumcheck_verified.value();
 }
 
-} // namespace bb::honk
+} // namespace bb

@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <tuple>
 
-namespace bb::honk::sumcheck {
+namespace bb {
 
 class two_column_perm_permutation_settings {
   public:
@@ -91,4 +91,4 @@ template <typename FF_>
 using two_column_perm_relation = GenericPermutationRelation<two_column_perm_permutation_settings, FF_>;
 template <typename FF_> using two_column_perm = GenericPermutation<two_column_perm_permutation_settings, FF_>;
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

@@ -20,8 +20,7 @@ class RecursiveMergeVerifierTest : public testing::Test {
     using RecursiveMergeVerifier = MergeRecursiveVerifier_<RecursiveBuilder>;
 
     // Define types relevant for inner circuit
-    using GoblinUltraFlavor = ::bb::honk::flavor::GoblinUltra;
-    using GoblinUltraComposer = ::bb::honk::UltraComposer_<GoblinUltraFlavor>;
+    using GoblinUltraComposer = UltraComposer_<GoblinUltraFlavor>;
     using InnerFlavor = GoblinUltraFlavor;
     using InnerComposer = GoblinUltraComposer;
     using InnerBuilder = typename InnerComposer::CircuitBuilder;
@@ -29,7 +28,7 @@ class RecursiveMergeVerifierTest : public testing::Test {
     // Define additional types for testing purposes
     using Commitment = InnerFlavor::Commitment;
     using FF = InnerFlavor::FF;
-    using VerifierCommitmentKey = ::bb::honk::pcs::VerifierCommitmentKey<curve::BN254>;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<curve::BN254>;
 
   public:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }

@@ -505,11 +505,8 @@ template <typename Flavor> class ECCVMCircuitBuilder {
 
         auto polynomials = compute_polynomials();
         const size_t num_rows = polynomials.get_polynomial_size();
-        bb::honk::logderivative_library::compute_logderivative_inverse<Flavor, honk::sumcheck::ECCVMLookupRelation<FF>>(
-            polynomials, params, num_rows);
-
-        honk::permutation_library::compute_permutation_grand_product<Flavor, honk::sumcheck::ECCVMSetRelation<FF>>(
-            num_rows, polynomials, params);
+        compute_logderivative_inverse<Flavor, ECCVMLookupRelation<FF>>(polynomials, params, num_rows);
+        compute_permutation_grand_product<Flavor, ECCVMSetRelation<FF>>(num_rows, polynomials, params);
 
         polynomials.z_perm_shift = Polynomial(polynomials.z_perm.shifted());
 
@@ -538,20 +535,16 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         };
 
         bool result = true;
-        result = result && evaluate_relation.template operator()<honk::sumcheck::ECCVMTranscriptRelation<FF>>(
-                               "ECCVMTranscriptRelation");
-        result = result && evaluate_relation.template operator()<honk::sumcheck::ECCVMPointTableRelation<FF>>(
-                               "ECCVMPointTableRelation");
         result =
-            result && evaluate_relation.template operator()<honk::sumcheck::ECCVMWnafRelation<FF>>("ECCVMWnafRelation");
+            result && evaluate_relation.template operator()<ECCVMTranscriptRelation<FF>>("ECCVMTranscriptRelation");
         result =
-            result && evaluate_relation.template operator()<honk::sumcheck::ECCVMMSMRelation<FF>>("ECCVMMSMRelation");
-        result =
-            result && evaluate_relation.template operator()<honk::sumcheck::ECCVMSetRelation<FF>>("ECCVMSetRelation");
+            result && evaluate_relation.template operator()<ECCVMPointTableRelation<FF>>("ECCVMPointTableRelation");
+        result = result && evaluate_relation.template operator()<ECCVMWnafRelation<FF>>("ECCVMWnafRelation");
+        result = result && evaluate_relation.template operator()<ECCVMMSMRelation<FF>>("ECCVMMSMRelation");
+        result = result && evaluate_relation.template operator()<ECCVMSetRelation<FF>>("ECCVMSetRelation");
 
-        using LookupRelation = honk::sumcheck::ECCVMLookupRelation<FF>;
-        typename honk::sumcheck::ECCVMLookupRelation<typename Flavor::FF>::SumcheckArrayOfValuesOverSubrelations
-            lookup_result;
+        using LookupRelation = ECCVMLookupRelation<FF>;
+        typename ECCVMLookupRelation<typename Flavor::FF>::SumcheckArrayOfValuesOverSubrelations lookup_result;
         for (auto& r : lookup_result) {
             r = 0;
         }

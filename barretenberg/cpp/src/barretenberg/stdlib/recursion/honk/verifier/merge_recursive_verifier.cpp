@@ -16,7 +16,7 @@ MergeRecursiveVerifier_<CircuitBuilder>::MergeRecursiveVerifier_(CircuitBuilder*
  */
 template <typename CircuitBuilder>
 std::array<typename bn254<CircuitBuilder>::Element, 2> MergeRecursiveVerifier_<CircuitBuilder>::verify_proof(
-    const bb::honk::proof& proof)
+    const HonkProof& proof)
 {
     transcript = std::make_shared<Transcript>(builder, proof);
 

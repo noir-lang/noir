@@ -4,10 +4,7 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace bb;
-using namespace bb::honk::sumcheck;
-
-namespace bb::honk {
+namespace bb {
 template <typename Flavor>
 ECCVMVerifier_<Flavor>::ECCVMVerifier_(const std::shared_ptr<typename Flavor::VerificationKey>& verifier_key)
     : key(verifier_key)
@@ -32,19 +29,18 @@ template <typename Flavor> ECCVMVerifier_<Flavor>& ECCVMVerifier_<Flavor>::opera
  * @brief This function verifies an ECCVM Honk proof for given program settings.
  *
  */
-template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const honk::proof& proof)
+template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     using FF = typename Flavor::FF;
     using GroupElement = typename Flavor::GroupElement;
     using Commitment = typename Flavor::Commitment;
     using PCS = typename Flavor::PCS;
     using Curve = typename Flavor::Curve;
-    using Gemini = pcs::gemini::GeminiVerifier_<Curve>;
-    using Shplonk = pcs::shplonk::ShplonkVerifier_<Curve>;
+    using Gemini = GeminiVerifier_<Curve>;
+    using Shplonk = ShplonkVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Transcript = typename Flavor::Transcript;
-    using OpeningClaim = typename pcs::OpeningClaim<Curve>;
 
     RelationParameters<FF> relation_parameters;
 
@@ -183,7 +179,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const honk:
     const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
     // Compute powers of batching challenge rho
     FF rho = transcript->get_challenge("rho");
-    std::vector<FF> rhos = pcs::gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
+    std::vector<FF> rhos = gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
 
     // Compute batched multivariate evaluation
     FF batched_evaluation = FF::zero();
@@ -273,14 +269,14 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const honk:
         }
 
         // Construct and verify batched opening claim
-        OpeningClaim batched_univariate_claim = { { evaluation_challenge_x, batched_transcript_eval },
-                                                  batched_commitment };
+        OpeningClaim<Curve> batched_univariate_claim = { { evaluation_challenge_x, batched_transcript_eval },
+                                                         batched_commitment };
         univariate_opening_verified = PCS::verify(pcs_verification_key, batched_univariate_claim, transcript);
     }
 
     return sumcheck_verified.value() && multivariate_opening_verified && univariate_opening_verified;
 }
 
-template class ECCVMVerifier_<honk::flavor::ECCVM>;
+template class ECCVMVerifier_<ECCVMFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

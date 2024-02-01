@@ -3,28 +3,22 @@
 
 using namespace benchmark;
 using namespace bb;
-using namespace bb::honk::pcs::ipa;
+
 namespace {
 using Curve = curve::Grumpkin;
 using Fr = Curve::ScalarField;
-using IPA = IPA<Curve>;
-using OpeningPair = honk::pcs::OpeningPair<Curve>;
-using OpeningClaim = honk::pcs::OpeningClaim<Curve>;
-using Polynomial = Polynomial<Curve::ScalarField>;
-using CommitmentKey = honk::pcs::CommitmentKey<Curve>;
-using VerifierCommitmentKey = honk::pcs::VerifierCommitmentKey<Curve>;
 
 constexpr size_t MIN_POLYNOMIAL_DEGREE_LOG2 = 10;
 constexpr size_t MAX_POLYNOMIAL_DEGREE_LOG2 = 16;
 std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
     new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 1 << 16));
 
-auto ck = std::make_shared<CommitmentKey>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
-auto vk = std::make_shared<VerifierCommitmentKey>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
+auto ck = std::make_shared<CommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
+auto vk = std::make_shared<VerifierCommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
 
-std::vector<std::shared_ptr<honk::BaseTranscript>> prover_transcripts(MAX_POLYNOMIAL_DEGREE_LOG2 -
-                                                                      MIN_POLYNOMIAL_DEGREE_LOG2 + 1);
-std::vector<OpeningClaim> opening_claims(MAX_POLYNOMIAL_DEGREE_LOG2 - MIN_POLYNOMIAL_DEGREE_LOG2 + 1);
+std::vector<std::shared_ptr<BaseTranscript>> prover_transcripts(MAX_POLYNOMIAL_DEGREE_LOG2 -
+                                                                MIN_POLYNOMIAL_DEGREE_LOG2 + 1);
+std::vector<OpeningClaim<Curve>> opening_claims(MAX_POLYNOMIAL_DEGREE_LOG2 - MIN_POLYNOMIAL_DEGREE_LOG2 + 1);
 
 void ipa_open(State& state) noexcept
 {
@@ -33,19 +27,19 @@ void ipa_open(State& state) noexcept
         state.PauseTiming();
         size_t n = 1 << static_cast<size_t>(state.range(0));
         // Construct the polynomial
-        Polynomial poly(n);
+        Polynomial<Fr> poly(n);
         for (size_t i = 0; i < n; ++i) {
             poly[i] = Fr::random_element(&engine);
         }
         auto x = Fr::random_element(&engine);
         auto eval = poly.evaluate(x);
-        const OpeningPair opening_pair = { x, eval };
-        const OpeningClaim opening_claim{ opening_pair, ck->commit(poly) };
+        const OpeningPair<Curve> opening_pair = { x, eval };
+        const OpeningClaim<Curve> opening_claim{ opening_pair, ck->commit(poly) };
         // initialize empty prover transcript
-        auto prover_transcript = std::make_shared<honk::BaseTranscript>();
+        auto prover_transcript = std::make_shared<BaseTranscript>();
         state.ResumeTiming();
         // Compute proof
-        IPA::compute_opening_proof(ck, opening_pair, poly, prover_transcript);
+        IPA<Curve>::compute_opening_proof(ck, opening_pair, poly, prover_transcript);
         // Store info for verifier
         prover_transcripts[static_cast<size_t>(state.range(0)) - MIN_POLYNOMIAL_DEGREE_LOG2] = prover_transcript;
         opening_claims[static_cast<size_t>(state.range(0)) - MIN_POLYNOMIAL_DEGREE_LOG2] = opening_claim;
@@ -59,10 +53,10 @@ void ipa_verify(State& state) noexcept
         auto prover_transcript = prover_transcripts[static_cast<size_t>(state.range(0)) - MIN_POLYNOMIAL_DEGREE_LOG2];
         auto opening_claim = opening_claims[static_cast<size_t>(state.range(0)) - MIN_POLYNOMIAL_DEGREE_LOG2];
         // initialize verifier transcript from proof data
-        auto verifier_transcript = std::make_shared<honk::BaseTranscript>(prover_transcript->proof_data);
+        auto verifier_transcript = std::make_shared<BaseTranscript>(prover_transcript->proof_data);
 
         state.ResumeTiming();
-        auto result = IPA::verify(vk, opening_claim, verifier_transcript);
+        auto result = IPA<Curve>::verify(vk, opening_claim, verifier_transcript);
         ASSERT(result);
     }
 }

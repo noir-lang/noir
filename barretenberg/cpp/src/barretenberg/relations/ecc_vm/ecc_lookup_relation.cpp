@@ -3,7 +3,7 @@
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "ecc_msm_relation.hpp"
 
-namespace bb::honk::sumcheck {
+namespace bb {
 
 /**
  * @brief Expression for ECCVM lookup tables.
@@ -25,11 +25,11 @@ void ECCVMLookupRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumula
                                              const Parameters& params,
                                              const FF& scaling_factor)
 {
-    logderivative_library::accumulate_logderivative_lookup_subrelation_contributions<FF, ECCVMLookupRelationImpl<FF>>(
+    accumulate_logderivative_lookup_subrelation_contributions<FF, ECCVMLookupRelationImpl<FF>>(
         accumulator, in, params, scaling_factor);
 }
 
 template class ECCVMLookupRelationImpl<grumpkin::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationImpl, flavor::ECCVM);
+DEFINE_SUMCHECK_RELATION_CLASS(ECCVMLookupRelationImpl, ECCVMFlavor);
 
-} // namespace bb::honk::sumcheck
+} // namespace bb

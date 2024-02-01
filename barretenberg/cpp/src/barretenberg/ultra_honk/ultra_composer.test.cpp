@@ -17,7 +17,6 @@
 #include <vector>
 
 using namespace bb;
-using namespace bb::honk;
 
 namespace {
 auto& engine = numeric::get_debug_randomness();

@@ -3,10 +3,7 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace bb;
-using namespace bb::honk::sumcheck;
-
-namespace bb::honk {
+namespace bb {
 template <typename Flavor>
 UltraVerifier_<Flavor>::UltraVerifier_(const std::shared_ptr<Transcript>& transcript,
                                        const std::shared_ptr<VerificationKey>& verifier_key)
@@ -45,12 +42,12 @@ template <typename Flavor> UltraVerifier_<Flavor>& UltraVerifier_<Flavor>::opera
  * @brief This function verifies an Ultra Honk proof for a given Flavor.
  *
  */
-template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const honk::proof& proof)
+template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
     using Curve = typename Flavor::Curve;
-    using ZeroMorph = pcs::zeromorph::ZeroMorphVerifier_<Curve>;
+    using ZeroMorph = ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
 
@@ -163,7 +160,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const honk:
     return sumcheck_verified.value() && verified;
 }
 
-template class UltraVerifier_<honk::flavor::Ultra>;
-template class UltraVerifier_<honk::flavor::GoblinUltra>;
+template class UltraVerifier_<UltraFlavor>;
+template class UltraVerifier_<GoblinUltraFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

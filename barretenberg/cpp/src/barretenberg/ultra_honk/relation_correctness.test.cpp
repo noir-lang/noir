@@ -12,7 +12,6 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include <gtest/gtest.h>
 using namespace bb;
-using namespace bb::honk;
 
 void ensure_non_zero(auto& polynomial)
 {
@@ -253,7 +252,7 @@ class RelationCorrectnessTests : public ::testing::Test {
 // TODO(luke): Add a gate that sets q_arith = 3 to check secondary arithmetic relation
 TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 {
-    using Flavor = flavor::Ultra;
+    using Flavor = UltraFlavor;
     using FF = typename Flavor::FF;
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
@@ -305,7 +304,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 
 TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
 {
-    using Flavor = flavor::GoblinUltra;
+    using Flavor = GoblinUltraFlavor;
     using FF = typename Flavor::FF;
 
     // Create a composer and then add an assortment of gates designed to ensure that the constraint(s) represented
@@ -373,11 +372,10 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
  */
 TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
 {
-    using Flavor = flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = bb::Polynomial<FF>;
-    using namespace bb::honk::permutation_library;
     auto& engine = numeric::get_debug_randomness();
     const size_t mini_circuit_size = 2048;
     auto full_circuit_size = mini_circuit_size * Flavor::CONCATENATION_GROUP_SIZE;
@@ -480,7 +478,7 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
     compute_concatenated_polynomials<Flavor>(&prover_polynomials);
 
     // Compute the grand product polynomial
-    grand_product_library::compute_grand_product<Flavor, bb::GoblinTranslatorPermutationRelation<FF>>(
+    compute_grand_product<Flavor, bb::GoblinTranslatorPermutationRelation<FF>>(
         full_circuit_size, prover_polynomials, params);
     prover_polynomials.z_perm_shift = prover_polynomials.z_perm.shifted();
 
@@ -492,7 +490,7 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
 
 TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
 {
-    using Flavor = flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = bb::Polynomial<FF>;
@@ -566,13 +564,13 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
 }
 
 /**
- * @brief Test the correctness of GoblinTranslator's  extra relations (GoblinTranslatorOpcodeConstraintRelation and
- * GoblinTranslatorAccumulatorTransferRelation)
+ * @brief Test the correctness of GoblinTranslatorFlavor's  extra relations (GoblinTranslatorOpcodeConstraintRelation
+ * and GoblinTranslatorAccumulatorTransferRelation)
  *
  */
 TEST_F(RelationCorrectnessTests, GoblinTranslatorExtraRelationsCorrectness)
 {
-    using Flavor = flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using ProverPolynomialIds = typename Flavor::ProverPolynomialIds;
@@ -669,12 +667,12 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorExtraRelationsCorrectness)
     check_relation<Flavor, std::tuple_element_t<3, Relations>>(circuit_size, prover_polynomials, params);
 }
 /**
- * @brief Test the correctness of GoblinTranslator's Decomposition Relation
+ * @brief Test the correctness of GoblinTranslatorFlavor's Decomposition Relation
  *
  */
 TEST_F(RelationCorrectnessTests, GoblinTranslatorDecompositionRelationCorrectness)
 {
-    using Flavor = flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
     using BF = typename Flavor::BF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
@@ -1043,12 +1041,12 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorDecompositionRelationCorrectnes
 }
 
 /**
- * @brief Test the correctness of GoblinTranslator's  NonNativeField Relation
+ * @brief Test the correctness of GoblinTranslatorFlavor's  NonNativeField Relation
  *
  */
 TEST_F(RelationCorrectnessTests, GoblinTranslatorNonNativeRelationCorrectness)
 {
-    using Flavor = flavor::GoblinTranslator;
+    using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
     using BF = typename Flavor::BF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;

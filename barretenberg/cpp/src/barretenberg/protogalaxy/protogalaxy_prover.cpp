@@ -1,6 +1,6 @@
 #include "protogalaxy_prover.hpp"
 #include "barretenberg/flavor/flavor.hpp"
-namespace bb::honk {
+namespace bb {
 template <class ProverInstances>
 void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared_ptr<Instance> instance,
                                                                      const std::string& domain_separator)
@@ -307,6 +307,6 @@ FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstanc
     return res;
 }
 
-template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::Ultra, 2>>;
-template class ProtoGalaxyProver_<ProverInstances_<honk::flavor::GoblinUltra, 2>>;
-} // namespace bb::honk
+template class ProtoGalaxyProver_<ProverInstances_<UltraFlavor, 2>>;
+template class ProtoGalaxyProver_<ProverInstances_<GoblinUltraFlavor, 2>>;
+} // namespace bb

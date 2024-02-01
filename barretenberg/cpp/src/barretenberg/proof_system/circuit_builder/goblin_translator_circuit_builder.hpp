@@ -77,7 +77,7 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     // We don't need templating for Goblin
     using Fr = bb::fr;
     using Fq = bb::fq;
-    using Arithmetization = arithmetization::GoblinTranslator;
+    using Arithmetization = GoblinTranslatorArith;
 
   public:
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;

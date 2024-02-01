@@ -108,10 +108,9 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
         transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.z_lookup);
 
     // Compute correction terms for grand products
-    const FF public_input_delta = bb::honk::compute_public_input_delta<Flavor>(
+    const FF public_input_delta = compute_public_input_delta<Flavor>(
         inst->public_inputs, beta, gamma, inst->instance_size, inst->pub_inputs_offset);
-    const FF lookup_grand_product_delta =
-        bb::honk::compute_lookup_grand_product_delta<FF>(beta, gamma, inst->instance_size);
+    const FF lookup_grand_product_delta = compute_lookup_grand_product_delta<FF>(beta, gamma, inst->instance_size);
     inst->relation_parameters =
         RelationParameters<FF>{ eta, beta, gamma, public_input_delta, lookup_grand_product_delta };
 
@@ -164,7 +163,7 @@ template <class VerifierInstances> void ProtoGalaxyRecursiveVerifier_<VerifierIn
 }
 
 template <class VerifierInstances>
-void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::verify_folding_proof(const bb::honk::proof& proof)
+void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::verify_folding_proof(const HonkProof& proof)
 {
     using Transcript = typename Flavor::Transcript;
     using ElementNative = typename Flavor::Curve::ElementNative;
@@ -313,8 +312,7 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::verify_folding_proof(cons
     }
 }
 
+template class ProtoGalaxyRecursiveVerifier_<VerifierInstances_<UltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 2>>;
 template class ProtoGalaxyRecursiveVerifier_<
-    bb::honk::VerifierInstances_<bb::honk::flavor::UltraRecursive_<GoblinUltraCircuitBuilder>, 2>>;
-template class ProtoGalaxyRecursiveVerifier_<
-    bb::honk::VerifierInstances_<bb::honk::flavor::GoblinUltraRecursive_<GoblinUltraCircuitBuilder>, 2>>;
+    VerifierInstances_<GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>, 2>>;
 } // namespace bb::stdlib::recursion::honk

@@ -16,8 +16,6 @@
 #include "barretenberg/relations/generated/AvmMini/avm_mini.hpp"
 #include "barretenberg/relations/generated/AvmMini/mem_trace.hpp"
 
-using namespace bb;
-
 namespace bb {
 
 template <typename FF> struct AvmMiniFullRow {
@@ -105,7 +103,7 @@ template <typename FF> struct AvmMiniFullRow {
 
 class AvmMiniCircuitBuilder {
   public:
-    using Flavor = bb::honk::flavor::AvmMiniFlavor;
+    using Flavor = bb::AvmMiniFlavor;
     using FF = Flavor::FF;
     using Row = AvmMiniFullRow<FF>;
 

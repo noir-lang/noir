@@ -11,7 +11,7 @@
 #include "barretenberg/relations/utils.hpp"
 #include "barretenberg/sumcheck/instance/instances.hpp"
 
-namespace bb::honk {
+namespace bb {
 template <class ProverInstances_> class ProtoGalaxyProver_ {
   public:
     using ProverInstances = ProverInstances_;
@@ -434,4 +434,4 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         const FF& compressed_perturbator);
 };
 
-} // namespace bb::honk
+} // namespace bb

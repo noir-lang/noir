@@ -13,14 +13,13 @@
 #include "barretenberg/sumcheck/sumcheck_round.hpp"
 
 using namespace bb;
-using namespace bb::honk;
 
 template <typename Flavor> class ECCVMComposerTests : public ::testing::Test {
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialized for every test.
     void SetUp() override
     {
-        if constexpr (std::is_same<Flavor, flavor::ECCVM>::value) {
+        if constexpr (std::is_same<Flavor, ECCVMFlavor>::value) {
             srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
         } else {
             srs::init_crs_factory("../srs_db/ignition");
@@ -28,7 +27,7 @@ template <typename Flavor> class ECCVMComposerTests : public ::testing::Test {
     };
 };
 
-using FlavorTypes = ::testing::Types<flavor::ECCVM>;
+using FlavorTypes = ::testing::Types<ECCVMFlavor>;
 TYPED_TEST_SUITE(ECCVMComposerTests, FlavorTypes);
 
 namespace {

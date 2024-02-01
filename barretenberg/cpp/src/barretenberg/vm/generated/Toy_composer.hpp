@@ -8,10 +8,10 @@
 #include "barretenberg/vm/generated/Toy_prover.hpp"
 #include "barretenberg/vm/generated/Toy_verifier.hpp"
 
-namespace bb::honk {
+namespace bb {
 class ToyComposer {
   public:
-    using Flavor = honk::flavor::ToyFlavor;
+    using Flavor = ToyFlavor;
     using CircuitConstructor = ToyCircuitBuilder;
     using ProvingKey = Flavor::ProvingKey;
     using VerificationKey = Flavor::VerificationKey;
@@ -66,4 +66,4 @@ class ToyComposer {
     };
 };
 
-} // namespace bb::honk
+} // namespace bb

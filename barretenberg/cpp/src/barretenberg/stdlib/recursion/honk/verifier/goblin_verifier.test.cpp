@@ -18,11 +18,8 @@ namespace bb::stdlib::recursion::honk {
  */
 template <typename BuilderType> class GoblinRecursiveVerifierTest : public testing::Test {
 
-    // Define types relevant for testing
-    using UltraFlavor = ::bb::honk::flavor::Ultra;
-    using GoblinUltraFlavor = ::bb::honk::flavor::GoblinUltra;
-    using UltraComposer = ::bb::honk::UltraComposer_<UltraFlavor>;
-    using GoblinUltraComposer = ::bb::honk::UltraComposer_<GoblinUltraFlavor>;
+    using UltraComposer = UltraComposer_<UltraFlavor>;
+    using GoblinUltraComposer = UltraComposer_<GoblinUltraFlavor>;
 
     // Define types for the inner circuit, i.e. the circuit whose proof will be recursively verified
     using InnerFlavor = GoblinUltraFlavor;
@@ -34,7 +31,7 @@ template <typename BuilderType> class GoblinRecursiveVerifierTest : public testi
 
     // Types for recursive verifier circuit
     using OuterBuilder = BuilderType;
-    using RecursiveFlavor = ::bb::honk::flavor::GoblinUltraRecursive_<OuterBuilder>;
+    using RecursiveFlavor = GoblinUltraRecursiveFlavor_<OuterBuilder>;
     using RecursiveVerifier = UltraRecursiveVerifier_<RecursiveFlavor>;
     using VerificationKey = typename RecursiveVerifier::VerificationKey;
 

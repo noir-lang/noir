@@ -3,7 +3,7 @@
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace bb::honk {
+namespace bb {
 template <typename Flavor> class ECCVMVerifier_ {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
@@ -30,7 +30,7 @@ template <typename Flavor> class ECCVMVerifier_ {
     ECCVMVerifier_& operator=(ECCVMVerifier_&& other) noexcept;
     ~ECCVMVerifier_() = default;
 
-    bool verify_proof(const honk::proof& proof);
+    bool verify_proof(const HonkProof& proof);
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
@@ -39,6 +39,6 @@ template <typename Flavor> class ECCVMVerifier_ {
     std::shared_ptr<Transcript> transcript;
 };
 
-using ECCVMVerifierGrumpkin = ECCVMVerifier_<honk::flavor::ECCVM>;
+using ECCVMVerifierGrumpkin = ECCVMVerifier_<ECCVMFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

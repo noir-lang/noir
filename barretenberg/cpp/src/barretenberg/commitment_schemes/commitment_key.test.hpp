@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-namespace bb::honk::pcs {
+namespace bb {
 
 template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 
@@ -202,8 +202,5 @@ typename std::shared_ptr<VerifierCommitmentKey<Curve>> CommitmentTest<Curve>::ve
 
 using CommitmentSchemeParams = ::testing::Types<curve::BN254>;
 using IpaCommitmentSchemeParams = ::testing::Types<curve::Grumpkin>;
-// IMPROVEMENT: reinstate typed-tests for multiple field types, i.e.:
-// using CommitmentSchemeParams =
-//     ::testing::Types<fake::Params<bb::g1>, fake::Params<grumpkin::g1>, kzg::Params>;
 
-} // namespace bb::honk::pcs
+} // namespace bb

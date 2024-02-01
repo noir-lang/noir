@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-namespace bb::honk::pcs::zeromorph {
+namespace bb {
 
 template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
   public:
@@ -532,4 +532,4 @@ TYPED_TEST(ZeroMorphWithConcatenationTest, ProveAndVerify)
     auto verified = this->execute_zeromorph_protocol(num_unshifted, num_shifted, num_concatenated);
     EXPECT_TRUE(verified);
 }
-} // namespace bb::honk::pcs::zeromorph
+} // namespace bb

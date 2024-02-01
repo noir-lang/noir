@@ -12,8 +12,8 @@
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
-namespace bb::honk {
-template <UltraFlavor Flavor> class UltraComposer_ {
+namespace bb {
+template <IsUltraFlavor Flavor> class UltraComposer_ {
   public:
     using CircuitBuilder = typename Flavor::CircuitBuilder;
     using ProvingKey = typename Flavor::ProvingKey;
@@ -134,6 +134,6 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 };
 
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
-using UltraComposer = UltraComposer_<honk::flavor::Ultra>;
-using GoblinUltraComposer = UltraComposer_<honk::flavor::GoblinUltra>;
-} // namespace bb::honk
+using UltraComposer = UltraComposer_<UltraFlavor>;
+using GoblinUltraComposer = UltraComposer_<GoblinUltraFlavor>;
+} // namespace bb

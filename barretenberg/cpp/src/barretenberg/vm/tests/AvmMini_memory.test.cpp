@@ -1,4 +1,7 @@
 #include "AvmMini_common.test.hpp"
+
+using namespace bb;
+
 namespace tests_avm {
 using namespace avm_trace;
 

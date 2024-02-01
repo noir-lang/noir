@@ -16,9 +16,9 @@
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace bb::honk::flavor {
+namespace bb {
 
-class Ultra {
+class UltraFlavor {
   public:
     using CircuitBuilder = UltraCircuitBuilder;
     using Curve = curve::BN254;
@@ -26,11 +26,11 @@ class Ultra {
     using GroupElement = Curve::Element;
     using Commitment = Curve::AffineElement;
     using CommitmentHandle = Curve::AffineElement;
-    using PCS = pcs::kzg::KZG<Curve>;
+    using PCS = KZG<Curve>;
     using Polynomial = bb::Polynomial<FF>;
     using PolynomialHandle = std::span<FF>;
-    using CommitmentKey = pcs::CommitmentKey<Curve>;
-    using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
+    using CommitmentKey = bb::CommitmentKey<Curve>;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
 
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
@@ -575,4 +575,4 @@ class Ultra {
     };
 };
 
-} // namespace bb::honk::flavor
+} // namespace bb

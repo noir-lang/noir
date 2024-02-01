@@ -8,11 +8,11 @@
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-namespace bb::honk {
+namespace bb {
 
-// We won't compile this class with honk::flavor::Standard, but we will like want to compile it (at least for testing)
+// We won't compile this class with Standard, but we will like want to compile it (at least for testing)
 // with a flavor that uses the curve Grumpkin, or a flavor that does/does not have zk, etc.
-template <ECCVMFlavor Flavor> class ECCVMProver_ {
+template <IsECCVMFlavor Flavor> class ECCVMProver_ {
 
     using FF = typename Flavor::FF;
     using PCS = typename Flavor::PCS;
@@ -42,8 +42,8 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     BBERG_PROFILE void execute_final_pcs_round();
     BBERG_PROFILE void execute_transcript_consistency_univariate_opening_round();
 
-    honk::proof& export_proof();
-    honk::proof& construct_proof();
+    HonkProof& export_proof();
+    HonkProof& construct_proof();
 
     std::shared_ptr<Transcript> transcript;
 
@@ -71,16 +71,16 @@ template <ECCVMFlavor Flavor> class ECCVMProver_ {
     FF evaluation_challenge_x;
     FF translation_batching_challenge_v; // to be rederived by the translator verifier
 
-    sumcheck::SumcheckOutput<Flavor> sumcheck_output;
-    pcs::gemini::ProverOutput<Curve> gemini_output;
-    pcs::shplonk::ProverOutput<Curve> shplonk_output;
+    SumcheckOutput<Flavor> sumcheck_output;
+    GeminiProverOutput<Curve> gemini_output;
+    ShplonkProverOutput<Curve> shplonk_output;
     std::shared_ptr<PCSCommitmentKey> commitment_key;
 
-    using Gemini = pcs::gemini::GeminiProver_<Curve>;
-    using Shplonk = pcs::shplonk::ShplonkProver_<Curve>;
+    using Gemini = GeminiProver_<Curve>;
+    using Shplonk = ShplonkProver_<Curve>;
 
   private:
-    honk::proof proof;
+    HonkProof proof;
 };
 
-} // namespace bb::honk
+} // namespace bb

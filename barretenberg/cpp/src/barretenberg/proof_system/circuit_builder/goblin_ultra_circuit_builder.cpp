@@ -12,7 +12,7 @@ namespace bb {
 
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::finalize_circuit()
 {
-    UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>::finalize_circuit();
+    UltraCircuitBuilder_<UltraHonkArith<FF>>::finalize_circuit();
 }
 
 /**
@@ -26,7 +26,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::finalize_circuit()
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
 {
     // Most polynomials are handled via the conventional Ultra method
-    UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>::add_gates_to_ensure_all_polys_are_non_zero();
+    UltraCircuitBuilder_<UltraHonkArith<FF>>::add_gates_to_ensure_all_polys_are_non_zero();
 
     // All that remains is to handle databus related and poseidon2 related polynomials. In what follows we populate the
     // calldata with some mock data then constuct a single calldata read gate
@@ -448,7 +448,7 @@ inline FF GoblinUltraCircuitBuilder_<FF>::compute_poseidon2_internal_identity(FF
 template <typename FF> bool GoblinUltraCircuitBuilder_<FF>::check_circuit()
 {
     bool result = true;
-    if (!UltraCircuitBuilder_<arithmetization::UltraHonk<FF>>::check_circuit()) {
+    if (!UltraCircuitBuilder_<UltraHonkArith<FF>>::check_circuit()) {
         return false;
     }
 

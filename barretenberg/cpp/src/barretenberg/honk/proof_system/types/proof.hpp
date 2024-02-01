@@ -2,8 +2,8 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <vector>
 
-namespace bb::honk {
+namespace bb {
 
-using proof = std::vector<bb::fr>;
+using HonkProof = std::vector<bb::fr>;
 
-} // namespace bb::honk
+} // namespace bb

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <span>
-namespace bb::honk {
+namespace bb {
 
 /**
  * @brief Compute the correction term for the permutation argument.
@@ -83,4 +83,4 @@ Field compute_lookup_grand_product_delta(const Field& beta, const Field& gamma, 
     return gamma_by_one_plus_beta.pow(domain_size);           // (γ(1 + β))^n
 }
 
-} // namespace bb::honk
+} // namespace bb

@@ -9,7 +9,7 @@
 #include <memory>
 #include <utility>
 
-namespace bb::honk::pcs::kzg {
+namespace bb {
 
 template <typename Curve> class KZG {
     using CK = CommitmentKey<Curve>;
@@ -101,4 +101,4 @@ template <typename Curve> class KZG {
         return { P_0, P_1 };
     };
 };
-} // namespace bb::honk::pcs::kzg
+} // namespace bb

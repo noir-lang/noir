@@ -8,9 +8,6 @@
 #include <span>
 
 using namespace bb;
-using namespace bb::honk;
-using namespace bb::honk::pcs;
-using namespace bb::honk::pcs::gemini;
 
 template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
     using GeminiProver = GeminiProver_<Curve>;
@@ -32,7 +29,7 @@ template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
 
         const Fr rho = Fr::random_element();
 
-        std::vector<Fr> rhos = pcs::gemini::powers_of_rho(rho, multilinear_evaluations.size());
+        std::vector<Fr> rhos = gemini::powers_of_rho(rho, multilinear_evaluations.size());
 
         // Compute batched multivariate evaluation
         Fr batched_evaluation = Fr::zero();

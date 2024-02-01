@@ -1,7 +1,7 @@
 #include "ultra_prover.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
-namespace bb::honk {
+namespace bb {
 
 /**
  * Create UltraProver_ from an instance.
@@ -10,7 +10,7 @@ namespace bb::honk {
  *
  * @tparam a type of UltraFlavor
  * */
-template <UltraFlavor Flavor>
+template <IsUltraFlavor Flavor>
 UltraProver_<Flavor>::UltraProver_(const std::shared_ptr<Instance>& inst,
                                    const std::shared_ptr<CommitmentKey>& commitment_key,
                                    const std::shared_ptr<Transcript>& transcript)
@@ -25,7 +25,7 @@ UltraProver_<Flavor>::UltraProver_(const std::shared_ptr<Instance>& inst,
  * @brief Add circuit size, public input size, and public inputs to transcript
  *
  */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_round()
+template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_round()
 {
     auto proving_key = instance->proving_key;
     const auto circuit_size = static_cast<uint32_t>(proving_key->circuit_size);
@@ -46,7 +46,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_round(
  * only commited to after adding memory records. In the Goblin Flavor, we also commit to the ECC OP wires and the
  * DataBus columns.
  */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitments_round()
+template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitments_round()
 {
     auto& witness_commitments = instance->witness_commitments;
     auto& proving_key = instance->proving_key;
@@ -89,7 +89,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitment
  * @brief Compute sorted witness-table accumulator and commit to the resulting polynomials.
  *
  */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_accumulator_round()
+template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_accumulator_round()
 {
     FF eta = transcript->get_challenge("eta");
 
@@ -109,7 +109,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_acc
  * @brief Compute log derivative inverse polynomial and its commitment, if required
  *
  */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_inverse_round()
+template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_inverse_round()
 {
     // Compute and store challenges beta and gamma
     auto [beta, gamma] = challenges_to_field_elements<FF>(transcript->get_challenges("beta", "gamma"));
@@ -128,7 +128,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_
  * @brief Compute permutation and lookup grand product polynomials and their commitments
  *
  */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_computation_round()
+template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_computation_round()
 {
 
     instance->compute_grand_product_polynomials(relation_parameters.beta, relation_parameters.gamma);
@@ -144,9 +144,9 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_c
  * @brief Run Sumcheck resulting in u = (u_1,...,u_d) challenges and all evaluations at u being calculated.
  *
  */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_check_rounds()
+template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_check_rounds()
 {
-    using Sumcheck = sumcheck::SumcheckProver<Flavor>;
+    using Sumcheck = SumcheckProver<Flavor>;
     auto circuit_size = instance->proving_key->circuit_size;
     auto sumcheck = Sumcheck(circuit_size, transcript);
     RelationSeparator alphas;
@@ -167,7 +167,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_check_
  * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
  *
  * */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_zeromorph_rounds()
+template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_zeromorph_rounds()
 {
     ZeroMorph::prove(instance->prover_polynomials.get_unshifted(),
                      instance->prover_polynomials.get_to_be_shifted(),
@@ -178,13 +178,13 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_zeromorph_round
                      transcript);
 }
 
-template <UltraFlavor Flavor> honk::proof& UltraProver_<Flavor>::export_proof()
+template <IsUltraFlavor Flavor> HonkProof& UltraProver_<Flavor>::export_proof()
 {
     proof = transcript->proof_data;
     return proof;
 }
 
-template <UltraFlavor Flavor> honk::proof& UltraProver_<Flavor>::construct_proof()
+template <IsUltraFlavor Flavor> HonkProof& UltraProver_<Flavor>::construct_proof()
 {
     // Add circuit size public input size and public inputs to transcript->
     execute_preamble_round();
@@ -212,7 +212,7 @@ template <UltraFlavor Flavor> honk::proof& UltraProver_<Flavor>::construct_proof
     return export_proof();
 }
 
-template class UltraProver_<honk::flavor::Ultra>;
-template class UltraProver_<honk::flavor::GoblinUltra>;
+template class UltraProver_<UltraFlavor>;
+template class UltraProver_<GoblinUltraFlavor>;
 
-} // namespace bb::honk
+} // namespace bb

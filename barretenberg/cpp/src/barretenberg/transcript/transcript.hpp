@@ -10,7 +10,7 @@
 // #define LOG_CHALLENGES
 // #define LOG_INTERACTIONS
 
-namespace bb::honk {
+namespace bb {
 
 template <typename T, typename... U>
 concept Loggable = (std::same_as<T, bb::fr> || std::same_as<T, grumpkin::fr> ||
@@ -66,7 +66,7 @@ class BaseTranscript {
   public:
     using Fr = bb::fr;
     using Poseidon2Params = crypto::Poseidon2Bn254ScalarFieldParams;
-    using Proof = honk::proof;
+    using Proof = HonkProof;
 
     BaseTranscript() = default;
 
@@ -368,4 +368,4 @@ template <typename Fr, typename T, size_t N> std::array<Fr, N> challenges_to_fie
     std::move(arr.begin(), arr.end(), result.begin());
     return result;
 }
-} // namespace bb::honk
+} // namespace bb

@@ -11,10 +11,11 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 #include <gtest/gtest.h>
+
 using namespace bb;
-using namespace bb::honk;
-using namespace bb::honk::sumcheck;
-using Flavor = honk::flavor::Ultra;
+
+namespace {
+using Flavor = UltraFlavor;
 using FF = typename Flavor::FF;
 using ProverPolynomials = typename Flavor::ProverPolynomials;
 using RelationSeparator = Flavor::RelationSeparator;
@@ -37,6 +38,7 @@ ProverPolynomials construct_ultra_full_polynomials(auto& input_polynomials)
     }
     return full_polynomials;
 }
+} // namespace
 
 class SumcheckTests : public ::testing::Test {
   protected:

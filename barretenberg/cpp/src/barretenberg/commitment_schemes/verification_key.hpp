@@ -20,7 +20,7 @@
 #include <memory>
 #include <string_view>
 
-namespace bb::honk::pcs {
+namespace bb {
 
 template <class Curve> class VerifierCommitmentKey;
 
@@ -98,4 +98,4 @@ template <> class VerifierCommitmentKey<curve::Grumpkin> {
     std::shared_ptr<bb::srs::factories::VerifierCrs<Curve>> srs;
 };
 
-} // namespace bb::honk::pcs
+} // namespace bb

@@ -7,7 +7,7 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 #include <typeinfo>
 
-namespace bb::honk::grand_product_library {
+namespace bb {
 
 // TODO(luke): This contains utilities for grand product computation and is not specific to the permutation grand
 // product. Update comments accordingly.
@@ -167,4 +167,4 @@ void compute_grand_products(std::shared_ptr<typename Flavor::ProvingKey>& key,
     });
 }
 
-} // namespace bb::honk::grand_product_library
+} // namespace bb

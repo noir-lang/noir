@@ -60,6 +60,6 @@ void GoblinTranslatorPermutationRelationImpl<FF>::accumulate(ContainerOverSubrel
 };
 
 template class GoblinTranslatorPermutationRelationImpl<bb::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorPermutationRelationImpl, honk::flavor::GoblinTranslator);
+DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorPermutationRelationImpl, GoblinTranslatorFlavor);
 
 } // namespace bb

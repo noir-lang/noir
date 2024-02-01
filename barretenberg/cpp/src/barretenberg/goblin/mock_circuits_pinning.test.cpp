@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 using namespace bb;
-using namespace bb::honk;
 
 /**
  * @brief For benchmarking, we want to be sure that our mocking functions create circuits of a known size. We control

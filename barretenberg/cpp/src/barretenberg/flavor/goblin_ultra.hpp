@@ -20,9 +20,9 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include "relation_definitions.hpp"
 
-namespace bb::honk::flavor {
+namespace bb {
 
-class GoblinUltra {
+class GoblinUltraFlavor {
   public:
     using CircuitBuilder = GoblinUltraCircuitBuilder;
     using Curve = curve::BN254;
@@ -30,11 +30,11 @@ class GoblinUltra {
     using GroupElement = Curve::Element;
     using Commitment = Curve::AffineElement;
     using CommitmentHandle = Curve::AffineElement;
-    using PCS = pcs::kzg::KZG<Curve>;
+    using PCS = KZG<Curve>;
     using Polynomial = bb::Polynomial<FF>;
     using PolynomialHandle = std::span<FF>;
-    using CommitmentKey = pcs::CommitmentKey<Curve>;
-    using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
+    using CommitmentKey = bb::CommitmentKey<Curve>;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
 
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
@@ -506,7 +506,7 @@ class GoblinUltra {
 
         Transcript_() = default;
 
-        Transcript_(const honk::proof& proof)
+        Transcript_(const HonkProof& proof)
             : BaseTranscript(proof)
         {}
 
@@ -591,4 +591,4 @@ class GoblinUltra {
     using Transcript = Transcript_<Commitment>;
 };
 
-} // namespace bb::honk::flavor
+} // namespace bb

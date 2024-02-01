@@ -10,7 +10,6 @@
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 using namespace bb;
-using namespace bb::honk;
 
 namespace {
 auto& engine = numeric::get_debug_randomness();
@@ -23,7 +22,7 @@ class DataBusComposerTests : public ::testing::Test {
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
     using Point = Curve::AffineElement;
-    using CommitmentKey = pcs::CommitmentKey<Curve>;
+    using CommitmentKey = bb::CommitmentKey<Curve>;
 
     /**
      * @brief Generate a simple test circuit that includes arithmetic and goblin ecc op gates
