@@ -73,10 +73,10 @@ library Constants {
   uint256 internal constant HEADER_LENGTH = 18;
   uint256 internal constant FUNCTION_DATA_LENGTH = 4;
   uint256 internal constant CONTRACT_DEPLOYMENT_DATA_LENGTH = 6;
-  uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 200;
+  uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 204;
   uint256 internal constant CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH = 3;
   uint256 internal constant CONTRACT_STORAGE_READ_LENGTH = 2;
-  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 190;
+  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 201;
   uint256 internal constant GET_NOTES_ORACLE_RETURN_LENGTH = 674;
   uint256 internal constant CALL_PRIVATE_FUNCTION_RETURN_SIZE = 210;
   uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH = 98;

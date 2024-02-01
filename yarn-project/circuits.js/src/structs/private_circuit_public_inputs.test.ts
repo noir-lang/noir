@@ -1,23 +1,34 @@
+import { PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH } from '../constants.gen.js';
 import { makePrivateCircuitPublicInputs } from '../tests/factories.js';
 import { PrivateCircuitPublicInputs } from './private_circuit_public_inputs.js';
 
 describe('PrivateCircuitPublicInputs', () => {
+  let inputs: PrivateCircuitPublicInputs;
+
+  beforeAll(() => {
+    const randomInt = Math.floor(Math.random() * 1000);
+    inputs = makePrivateCircuitPublicInputs(randomInt);
+  });
+
   it('serializes to buffer and back', () => {
-    const target = makePrivateCircuitPublicInputs(100);
-    const buffer = target.toBuffer();
+    const buffer = inputs.toBuffer();
     const result = PrivateCircuitPublicInputs.fromBuffer(buffer);
-    expect(result).toEqual(target);
+    expect(result).toEqual(inputs);
   });
 
   it('serializes to fields and back', () => {
-    const target = makePrivateCircuitPublicInputs(100);
-    const fields = target.toFields();
+    const fields = inputs.toFields();
     const result = PrivateCircuitPublicInputs.fromFields(fields);
-    expect(result).toEqual(target);
+    expect(result).toEqual(inputs);
   });
 
   it(`initializes an empty PrivateCircuitPublicInputs`, () => {
     const target = PrivateCircuitPublicInputs.empty();
     expect(target.isEmpty()).toBe(true);
+  });
+
+  it('number of fields matches constant', () => {
+    const fields = inputs.toFields();
+    expect(fields.length).toBe(PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH);
   });
 });
