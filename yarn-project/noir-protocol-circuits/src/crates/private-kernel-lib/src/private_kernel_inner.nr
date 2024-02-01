@@ -32,7 +32,6 @@ impl PrivateKernelInputsInner {
         let this_call_stack_item = self.private_call.call_stack_item;
         let function_data = this_call_stack_item.function_data;
         assert(function_data.is_private, "Private kernel circuit can only execute a private function");
-        assert(function_data.is_constructor == false, "A constructor must be executed as the first tx in the recursion");
         assert(self.previous_kernel.public_inputs.is_private, "Can only verify a private kernel snark in the private kernel circuit");
     }
 
@@ -538,15 +537,6 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         builder.private_call.function_data.is_private = false;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="A constructor must be executed as the first tx in the recursion")]
-    fn private_function_is_constructor_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.private_call.function_data.is_constructor = true;
 
         builder.failed();
     }

@@ -43,7 +43,7 @@ export class PrivateFunctionsTree {
     if (!artifact) {
       throw new Error(
         `Unknown function. Selector ${selector.toString()} not found in the artifact of contract ${this.contract.instance.address.toString()}. Expected one of: ${this.contract.functions
-          .map(f => f.selector.toString())
+          .map(f => `${f.name} (${f.selector.toString()})`)
           .join(', ')}`,
       );
     }

@@ -1,6 +1,9 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract StatefulTest {
-    use dep::aztec::protocol_types::address::AztecAddress;
+    use dep::aztec::protocol_types::{
+        address::AztecAddress,
+        abis::function_selector::FunctionSelector,
+    };
     use dep::std::option::Option;
     use dep::value_note::{
         balance_utils,
@@ -47,8 +50,8 @@ contract StatefulTest {
 
     #[aztec(private)]
     fn constructor(owner: AztecAddress, value: Field) {
-        let loc = storage.notes.at(owner);
-        increment(loc, value, owner);
+        let selector = FunctionSelector::from_signature("create_note((Field),Field)");
+        let _res = context.call_private_function(context.this_address(), selector, [owner.to_field(), value]);
     }
 
     #[aztec(private)]

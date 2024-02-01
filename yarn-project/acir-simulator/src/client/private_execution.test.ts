@@ -277,11 +277,18 @@ describe('Private Execution test suite', () => {
       oracle.getFunctionArtifactByName.mockImplementation((_, functionName: string) =>
         Promise.resolve(getFunctionArtifact(StatefulTestContractArtifact, functionName)),
       );
+
+      oracle.getFunctionArtifact.mockImplementation((_, selector: FunctionSelector) =>
+        Promise.resolve(getFunctionArtifact(StatefulTestContractArtifact, selector)),
+      );
+
+      oracle.getPortalContractAddress.mockResolvedValue(EthAddress.ZERO);
     });
 
     it('should have a constructor with arguments that inserts notes', async () => {
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'constructor');
-      const result = await runSimulator({ args: [owner, 140], artifact });
+      const topLevelResult = await runSimulator({ args: [owner, 140], artifact });
+      const result = topLevelResult.nestedExecutions[0];
 
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];

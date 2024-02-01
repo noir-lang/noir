@@ -1,18 +1,23 @@
 import {
   AztecAddress,
+  BatchCall,
   CompleteAddress,
   Contract,
+  ContractArtifact,
   ContractDeployer,
   DebugLogger,
   EthAddress,
   Fr,
   PXE,
+  SignerlessWallet,
   TxStatus,
   Wallet,
   getContractInstanceFromDeployParams,
   isContractDeployed,
 } from '@aztec/aztec.js';
-import { TestContractArtifact } from '@aztec/noir-contracts/Test';
+import { siloNullifier } from '@aztec/circuits.js/abis';
+import { StatefulTestContract } from '@aztec/noir-contracts';
+import { TestContract, TestContractArtifact } from '@aztec/noir-contracts/Test';
 import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 import { SequencerClient } from '@aztec/sequencer-client';
 
@@ -195,4 +200,63 @@ describe('e2e_deploy_contract', () => {
       });
     }
   }, 60_000);
+
+  // Tests calling a private function in an uninitialized and undeployed contract. Note that
+  // it still requires registering the contract artifact and instance locally in the pxe.
+  test.each(['as entrypoint', 'from an account contract'] as const)(
+    'executes a function in an undeployed contract %s',
+    async kind => {
+      const testWallet = kind === 'as entrypoint' ? new SignerlessWallet(pxe) : wallet;
+      const contract = await registerContract(testWallet, TestContract);
+      const receipt = await contract.methods.emit_nullifier(10).send().wait({ debug: true });
+      const expected = siloNullifier(contract.address, new Fr(10));
+      expect(receipt.debugInfo?.newNullifiers[1]).toEqual(expected);
+    },
+  );
+
+  // Tests privately initializing an undeployed contract. Also requires pxe registration in advance.
+  test.each(['as entrypoint', 'from an account contract'] as const)(
+    'privately initializes an undeployed contract contract %s',
+    async kind => {
+      const testWallet = kind === 'as entrypoint' ? new SignerlessWallet(pxe) : wallet;
+      const owner = await registerRandomAccount(pxe);
+      const initArgs: StatefulContractCtorArgs = [owner, 42];
+      const contract = await registerContract(testWallet, StatefulTestContract, initArgs);
+      await contract.methods
+        .constructor(...initArgs)
+        .send()
+        .wait();
+      expect(await contract.methods.summed_values(owner).view()).toEqual(42n);
+    },
+  );
+
+  // Tests privately initializing multiple undeployed contracts on the same tx through an account contract.
+  it('initializes multiple undeployed contracts in a single tx', async () => {
+    const owner = await registerRandomAccount(pxe);
+    const initArgs: StatefulContractCtorArgs[] = [42, 52].map(value => [owner, value]);
+    const contracts = await Promise.all(initArgs.map(args => registerContract(wallet, StatefulTestContract, args)));
+    const calls = contracts.map((c, i) => c.methods.constructor(...initArgs[i]).request());
+    await new BatchCall(wallet, calls).send().wait();
+    expect(await contracts[0].methods.summed_values(owner).view()).toEqual(42n);
+    expect(await contracts[1].methods.summed_values(owner).view()).toEqual(52n);
+  });
 });
+
+type StatefulContractCtorArgs = Parameters<StatefulTestContract['methods']['constructor']>;
+
+async function registerRandomAccount(pxe: PXE): Promise<AztecAddress> {
+  const { completeAddress: owner, privateKey } = CompleteAddress.fromRandomPrivateKey();
+  await pxe.registerAccount(privateKey, owner.partialAddress);
+  return owner.address;
+}
+
+type ContractArtifactClass = {
+  at(address: AztecAddress, wallet: Wallet): Promise<Contract>;
+  artifact: ContractArtifact;
+};
+
+async function registerContract(wallet: Wallet, contractArtifact: ContractArtifactClass, args: any[] = []) {
+  const instance = getContractInstanceFromDeployParams(contractArtifact.artifact, args);
+  await wallet.addContracts([{ artifact: contractArtifact.artifact, instance }]);
+  return contractArtifact.at(instance.address, wallet);
+}

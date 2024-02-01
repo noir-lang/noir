@@ -1,5 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 import { Grumpkin } from '../barretenberg/index.js';
@@ -46,6 +46,12 @@ export class CompleteAddress {
     const publicKey = Point.random();
     const address = computeContractAddressFromPartial({ publicKey, partialAddress });
     return new CompleteAddress(address, publicKey, partialAddress);
+  }
+
+  static fromRandomPrivateKey() {
+    const privateKey = GrumpkinScalar.random();
+    const partialAddress = Fr.random();
+    return { privateKey, completeAddress: CompleteAddress.fromPrivateKeyAndPartialAddress(privateKey, partialAddress) };
   }
 
   static fromPrivateKeyAndPartialAddress(privateKey: GrumpkinPrivateKey, partialAddress: Fr): CompleteAddress {

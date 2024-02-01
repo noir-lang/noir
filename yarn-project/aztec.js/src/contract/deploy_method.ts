@@ -4,7 +4,6 @@ import {
   ContractDeploymentData,
   FunctionData,
   TxContext,
-  computeContractAddressFromInstance,
   computePartialAddress,
   getContractInstanceFromDeployParams,
 } from '@aztec/circuits.js';
@@ -77,7 +76,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
 
     const deployParams = [this.artifact, this.args, contractAddressSalt, this.publicKey, portalContract] as const;
     const instance = getContractInstanceFromDeployParams(...deployParams);
-    const address = computeContractAddressFromInstance(instance);
+    const address = instance.address;
 
     const contractDeploymentData = new ContractDeploymentData(
       this.publicKey,
