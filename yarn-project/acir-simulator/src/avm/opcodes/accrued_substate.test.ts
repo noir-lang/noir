@@ -124,7 +124,7 @@ describe('Accrued Substate', () => {
 
       const journalState = journal.flush();
       const expected = values.map(v => v.toFr());
-      expect(journalState.newLogs).toEqual([expected]);
+      expect(journalState.newL1Messages).toEqual([expected]);
     });
   });
 

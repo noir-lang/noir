@@ -71,7 +71,7 @@ export class EmitUnencryptedLog extends Instruction {
 }
 
 export class SendL2ToL1Message extends Instruction {
-  static type: string = 'EMITUNENCRYPTEDLOG';
+  static type: string = 'SENDL2TOL1MSG';
   static readonly opcode: Opcode = Opcode.SENDL2TOL1MSG;
   // Informs (de)serialization. See Instruction.deserialize.
   static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32, OperandType.UINT32];
@@ -86,7 +86,7 @@ export class SendL2ToL1Message extends Instruction {
     }
 
     const msg = machineState.memory.getSlice(this.msgOffset, this.msgSize).map(f => f.toFr());
-    journal.writeLog(msg);
+    journal.writeL1Message(msg);
 
     this.incrementPc(machineState);
   }
