@@ -41,6 +41,7 @@ export {
   CheatCodes,
   AztecAddressLike,
   FunctionSelectorLike,
+  WrappedFieldLike,
   isContractDeployed,
   EthCheatCodes,
   computeAuthWitMessageHash,

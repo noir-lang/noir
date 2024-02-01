@@ -3,7 +3,6 @@ import {
   ContractDeploymentData,
   EthAddress,
   FunctionData,
-  FunctionLeafPreimage,
   FunctionSelector,
   Point,
   PrivateKernelInputsInit,
@@ -18,7 +17,7 @@ import {
   computeContractAddressFromPartial,
   computePublicKeysHash,
 } from '@aztec/circuits.js';
-import { computeFunctionLeaf, computeTxHash } from '@aztec/circuits.js/abis';
+import { computeTxHash } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
@@ -161,12 +160,6 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
     const hash = computeTxHash(txRequest);
 
     expect(hash.toString()).toMatchSnapshot();
-  });
-
-  it('Function leaf matches noir', () => {
-    const fnLeafPreimage = new FunctionLeafPreimage(new FunctionSelector(27), false, true, new Fr(1), new Fr(2));
-    const fnLeaf = computeFunctionLeaf(fnLeafPreimage);
-    expect(fnLeaf.toString()).toMatchSnapshot();
   });
 
   it('Public call stack item matches noir', () => {

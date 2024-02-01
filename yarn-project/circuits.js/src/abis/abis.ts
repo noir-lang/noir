@@ -14,6 +14,7 @@ import {
   PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
   PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
 } from '../constants.gen.js';
+import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
 import {
   CallContext,
   ContractDeploymentData,
@@ -32,7 +33,6 @@ import {
   TxRequest,
   VerificationKey,
 } from '../structs/index.js';
-import { MerkleTreeCalculator } from './merkle_tree_calculator.js';
 
 /**
  * Computes a hash of a transaction request.
@@ -136,7 +136,7 @@ export function computeFunctionTree(fnLeaves: Fr[]) {
   const leaves = fnLeaves.map(fr => fr.toBuffer());
   return getFunctionTreeRootCalculator()
     .computeTree(leaves)
-    .map(b => Fr.fromBuffer(b));
+    .nodes.map(b => Fr.fromBuffer(b));
 }
 
 /**

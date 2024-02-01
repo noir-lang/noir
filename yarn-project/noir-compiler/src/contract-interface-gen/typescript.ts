@@ -5,6 +5,7 @@ import {
   isAztecAddressStruct,
   isEthAddressStruct,
   isFunctionSelectorStruct,
+  isWrappedFieldStruct,
 } from '@aztec/foundation/abi';
 
 /**
@@ -33,6 +34,9 @@ function abiTypeToTypescript(type: ABIParameter['type']): string {
       }
       if (isFunctionSelectorStruct(type)) {
         return 'FunctionSelectorLike';
+      }
+      if (isWrappedFieldStruct(type)) {
+        return 'WrappedFieldLike';
       }
       return `{ ${type.fields.map(f => `${f.name}: ${abiTypeToTypescript(f.type)}`).join(', ')} }`;
     default:
@@ -197,6 +201,7 @@ import {
   Point,
   PublicKey,
   Wallet,
+  WrappedFieldLike,
 } from '@aztec/aztec.js';
 ${artifactStatement}
 

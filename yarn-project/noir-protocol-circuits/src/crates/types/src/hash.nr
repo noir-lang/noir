@@ -1,7 +1,8 @@
 use crate::address::{AztecAddress, EthAddress};
 use crate::mocked::VerificationKey;
 use crate::abis::function_selector::FunctionSelector;
-use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
+use crate::abis::function_leaf_preimage::{ContractClassFunctionLeafPreimage, FunctionLeafPreimage};
+use crate::contract_class::ContractClassId;
 use crate::abis::new_contract_data::NewContractData as ContractLeafPreimage;
 use crate::abis::function_data::FunctionData;
 use crate::abis::side_effect::{SideEffect};
@@ -128,7 +129,7 @@ pub fn function_tree_root_from_siblings(
 
 // Calculate the contract tree root from the sibling path and leaf preimage.
 pub fn contract_tree_root_from_siblings(
-    contract_class_id: Field,
+    contract_class_id: ContractClassId,
     storage_contract_address: AztecAddress,
     portal_contract_address: EthAddress,
     contract_leaf_index: Field,
@@ -143,6 +144,17 @@ pub fn contract_tree_root_from_siblings(
     let computed_contract_tree_root = root_from_sibling_path(contract_leaf, contract_leaf_index, contract_leaf_sibling_path);
 
     computed_contract_tree_root
+}
+
+pub fn private_functions_root_from_siblings(
+    selector: FunctionSelector,
+    vk_hash: Field,
+    function_leaf_index: Field,
+    function_leaf_sibling_path: [Field; FUNCTION_TREE_HEIGHT]
+) -> Field {
+    let function_leaf_preimage = ContractClassFunctionLeafPreimage { selector, vk_hash };
+    let function_leaf = function_leaf_preimage.hash();
+    root_from_sibling_path(function_leaf, function_leaf_index, function_leaf_sibling_path)
 }
 
 pub fn read_request_root_from_siblings(

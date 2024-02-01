@@ -1,91 +1,93 @@
 import { MerkleTreeId } from '@aztec/circuit-types';
 import {
-  AztecAddress,
-  CONTRACT_TREE_HEIGHT,
   EthAddress,
-  FunctionLeafPreimage,
   FunctionSelector,
   NOTE_HASH_TREE_HEIGHT,
-  NewContractData,
-  computeFunctionTreeData,
+  computeContractAddressFromInstance,
+  computeContractClassId,
+  computeContractClassIdPreimage,
+  computeInitializationHashFromEncodedArgs,
+  computePartialAddress,
+  computePrivateFunctionsTree,
+  computeSaltedInitializationHash,
 } from '@aztec/circuits.js';
-import {
-  computeContractLeaf,
-  computeFunctionLeaf,
-  computeFunctionTree,
-  computeFunctionTreeRoot,
-} from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { AztecLmdbStore } from '@aztec/kv-store';
 import { Pedersen, StandardTree } from '@aztec/merkle-tree';
+import { ContractClass, ContractInstance } from '@aztec/types/contracts';
 
 describe('Data generation for noir tests', () => {
-  const defaultContract = {
-    address: AztecAddress.fromField(new Fr(12345)),
+  type FixtureContractData = Omit<ContractClass, 'version' | 'publicFunctions'> &
+    Pick<ContractInstance, 'publicKeysHash' | 'portalContractAddress' | 'salt'> &
+    Pick<ContractClass, 'privateFunctions'> & { toString: () => string };
+
+  const defaultContract: FixtureContractData = {
+    artifactHash: new Fr(12345),
     portalContractAddress: EthAddress.fromField(new Fr(23456)),
-    functions: [
-      new FunctionLeafPreimage(FunctionSelector.fromField(new Fr(1010101)), false, true, Fr.ZERO, new Fr(1111)),
-      new FunctionLeafPreimage(FunctionSelector.fromField(new Fr(2020202)), true, true, Fr.ZERO, new Fr(2222)),
-      new FunctionLeafPreimage(FunctionSelector.fromField(new Fr(3030303)), false, false, Fr.ZERO, new Fr(3333)),
-      new FunctionLeafPreimage(FunctionSelector.fromField(new Fr(4040404)), true, false, Fr.ZERO, new Fr(4444)),
+    packedBytecode: Buffer.from([3, 4, 5, 6, 7]),
+    publicKeysHash: new Fr(45678),
+    salt: new Fr(56789),
+    privateFunctions: [
+      { selector: FunctionSelector.fromField(new Fr(1010101)), isInternal: false, vkHash: new Fr(0) },
+      { selector: FunctionSelector.fromField(new Fr(2020202)), isInternal: true, vkHash: new Fr(0) },
     ],
     toString: () => 'defaultContract',
-    functionTreeRoot: Fr.ZERO,
   };
 
-  const parentContract = {
-    address: AztecAddress.fromField(new Fr(667788)),
-    portalContractAddress: EthAddress.fromField(new Fr(990011)),
-    functions: [
-      new FunctionLeafPreimage(FunctionSelector.fromField(new Fr(334455)), false, true, Fr.ZERO, new Fr(345345)),
-    ],
+  const parentContract: FixtureContractData = {
+    artifactHash: new Fr(1212),
+    portalContractAddress: EthAddress.fromField(new Fr(2323)),
+    packedBytecode: Buffer.from([3, 4, 3, 4]),
+    publicKeysHash: new Fr(4545),
+    salt: new Fr(5656),
+    privateFunctions: [{ selector: FunctionSelector.fromField(new Fr(334455)), isInternal: false, vkHash: new Fr(0) }],
     toString: () => 'parentContract',
-    functionTreeRoot: Fr.ZERO,
   };
+
+  const constructorSelector = new FunctionSelector(999);
 
   const contracts = [[defaultContract], [parentContract]];
 
-  test.each(contracts)('Computes function tree data for %s', contract => {
-    const leaves = contract.functions.map(f => computeFunctionLeaf(f));
+  const format = (obj: object) => JSON.stringify(obj, null, 2).replaceAll('"', '');
 
-    const tree = computeFunctionTree(leaves);
-    contract.functionTreeRoot = computeFunctionTreeRoot(tree);
+  test.each(contracts)('Computes contract info for %s', contract => {
+    const contractClass: ContractClass = { ...contract, publicFunctions: [], version: 1 };
+    const contractClassId = computeContractClassId(contractClass);
+    const initializationHash = computeInitializationHashFromEncodedArgs(constructorSelector, []);
+    const { artifactHash, privateFunctionsRoot, publicBytecodeCommitment } =
+      computeContractClassIdPreimage(contractClass);
+    const instance: ContractInstance = { ...contract, version: 1, initializationHash, contractClassId };
+    const address = computeContractAddressFromInstance(instance);
+    const saltedInitializationHash = computeSaltedInitializationHash(instance);
+    const partialAddress = computePartialAddress(instance);
 
-    leaves.forEach((leaf, index) => {
-      const functionTreeData = computeFunctionTreeData(tree, index);
-      expect(functionTreeData.root).toEqual(contract.functionTreeRoot);
-      expect({
-        index,
-        leaf: leaf.toString(),
-        siblingPath: functionTreeData.siblingPath.map(fr => fr.toString()),
-        root: functionTreeData.root.toString(),
-      }).toMatchSnapshot();
-    });
+    /* eslint-disable camelcase */
+    expect(
+      format({
+        contract_address_salt: contract.salt.toString(),
+        artifact_hash: artifactHash.toString(),
+        public_bytecode_commitment: publicBytecodeCommitment.toString(),
+        private_functions_root: privateFunctionsRoot.toString(),
+        address: `AztecAddress { inner: ${address.toString()} }`,
+        partial_address: `PartialAddress { inner: ${partialAddress.toString()} }`,
+        portal_contract_address: `EthAddress { inner: ${contract.portalContractAddress.toString()} }`,
+        contract_class_id: `ContractClassId { inner: ${contractClassId.toString()} }`,
+        public_keys_hash: `PublicKeysHash { inner: ${contract.publicKeysHash.toString()} }`,
+        salted_initialization_hash: `SaltedInitializationHash { inner: ${saltedInitializationHash.toString()} }`,
+      }),
+    ).toMatchSnapshot();
+    /* eslint-enable camelcase */
   });
 
-  test('Computes contract tree data', async () => {
-    const leaves = contracts.map(([contract]) => {
-      const contractLeaf = computeContractLeaf(
-        new NewContractData(contract.address, contract.portalContractAddress, contract.functionTreeRoot),
-      );
-      return contractLeaf.toBuffer();
-    });
-
-    const db = await AztecLmdbStore.openTmp();
-    const tree = new StandardTree(
-      db,
-      new Pedersen(),
-      `${MerkleTreeId[MerkleTreeId.CONTRACT_TREE]}`,
-      CONTRACT_TREE_HEIGHT,
-    );
-
-    await tree.appendLeaves(leaves);
-    const siblingPaths = await Promise.all(contracts.map((_, index) => tree.getSiblingPath(BigInt(index), true)));
-
-    expect({
-      siblingPaths: siblingPaths.map(siblingPath => siblingPath.toFieldArray().map(field => field.toString())),
-      root: Fr.fromBuffer(tree.getRoot(true)).toString(),
-    }).toMatchSnapshot();
+  test.each(contracts)('Computes function tree for %s', contract => {
+    const tree = computePrivateFunctionsTree(contract.privateFunctions);
+    expect(
+      tree.leaves.map((leaf, index) => ({
+        index,
+        leaf: leaf.toString('hex'),
+        siblingPath: tree.getSiblingPath(index).map(b => b.toString('hex')),
+      })),
+    ).toMatchSnapshot();
   });
 
   it('Computes a note hash tree', async () => {

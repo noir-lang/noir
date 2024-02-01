@@ -3,7 +3,6 @@ import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serial
 import { FieldsOf } from '@aztec/foundation/types';
 
 import {
-  CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
@@ -50,14 +49,25 @@ export class PrivateCallData {
      */
     public vk: VerificationKey,
     /**
+     * Artifact hash of the contract class for this private call.
+     */
+    public contractClassArtifactHash: Fr,
+    /**
+     * Public bytecode commitment for the contract class for this private call.
+     */
+    public contractClassPublicBytecodeCommitment: Fr,
+    /**
+     * Public keys hash of the contract instance.
+     */
+    public publicKeysHash: Fr,
+    /**
+     * Salted initialization hash of the contract instance.
+     */
+    public saltedInitializationHash: Fr,
+    /**
      * The membership witness for the function leaf corresponding to the function being invoked.
      */
     public functionLeafMembershipWitness: MembershipWitness<typeof FUNCTION_TREE_HEIGHT>,
-    /**
-     * The membership witness for the contract leaf corresponding to the contract on which the function is being
-     * invoked.
-     */
-    public contractLeafMembershipWitness: MembershipWitness<typeof CONTRACT_TREE_HEIGHT>,
     /**
      * The membership witnesses for read requests created by the function being invoked.
      */
@@ -84,8 +94,11 @@ export class PrivateCallData {
       fields.publicCallStack,
       fields.proof,
       fields.vk,
+      fields.contractClassArtifactHash,
+      fields.contractClassPublicBytecodeCommitment,
+      fields.publicKeysHash,
+      fields.saltedInitializationHash,
       fields.functionLeafMembershipWitness,
-      fields.contractLeafMembershipWitness,
       fields.readRequestMembershipWitnesses,
       fields.portalContractAddress,
       fields.acirHash,
@@ -117,8 +130,11 @@ export class PrivateCallData {
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, CallRequest),
       reader.readObject(Proof),
       reader.readObject(VerificationKey),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
       reader.readObject(MembershipWitness.deserializer(FUNCTION_TREE_HEIGHT)),
-      reader.readObject(MembershipWitness.deserializer(CONTRACT_TREE_HEIGHT)),
       reader.readArray(MAX_READ_REQUESTS_PER_CALL, ReadRequestMembershipWitness),
       reader.readObject(Fr),
       reader.readObject(Fr),

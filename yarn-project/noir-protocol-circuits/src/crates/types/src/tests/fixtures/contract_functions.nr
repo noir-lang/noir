@@ -36,11 +36,11 @@ global default_private_function = ContractFunction {
     membership_witness: FunctionLeafMembershipWitness {
         leaf_index: 0,
         sibling_path: [
-            0x04d0ae2ba130cedb690c9c9fc41fa1594bac32bfb57b9a7734528295c680b3fa,
-            0x02996203377fc96b38fd41a1f65ddce2b26247fee321a12e58b457ee08621a14,
-            0x0837a67313f4dbbd8d6971c0672f961f0a3b9e218c1395d327915209292acbbf,
-            0x2e0ef36ddc5db29acb6ef904999046f835ce7c78a40c3f7a0edb03b2f917a765,
-            0x1a9fdb505152f9c2baaffe4a30ee80775b58ebf8c2dde76435835b085c6f70ca,
+            0x1e5cebe7a50c5c8fd1ebe19ed6bbf80f77819b12a2a28f334e895501e1cda574,
+            0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550,
+            0x0bcd1f91cf7bdd471d0a30c58c4706f3fdab3807a954b8f5b5e3bfec87d001bb,
+            0x06e62084ee7b602fe9abc15632dda3269f56fb0c6e12519a2eb2ec897091919d,
+            0x03c9e2e67178ac638746f068907e6677b4cc7a9592ef234ab6ab518f17efffa0,
         ],
     },
 };
@@ -52,16 +52,16 @@ global default_internal_private_function = ContractFunction {
         is_private: true,
         is_constructor: false,
     },
-    vk_hash: 0,
+    vk_hash: 2222,
     acir_hash: 2222,
     membership_witness: FunctionLeafMembershipWitness {
         leaf_index: 1,
         sibling_path: [
-            0x23590e7237ce1163ade1adba49bf434066481a3bc9098e6751fd1d73e160ca95,
-            0x02996203377fc96b38fd41a1f65ddce2b26247fee321a12e58b457ee08621a14,
-            0x0837a67313f4dbbd8d6971c0672f961f0a3b9e218c1395d327915209292acbbf,
-            0x2e0ef36ddc5db29acb6ef904999046f835ce7c78a40c3f7a0edb03b2f917a765,
-            0x1a9fdb505152f9c2baaffe4a30ee80775b58ebf8c2dde76435835b085c6f70ca,
+            0x1b208d72e8313fab273c9508bb07b497f2b433360250b3db2c9e20e238e2cff0,
+            0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550,
+            0x0bcd1f91cf7bdd471d0a30c58c4706f3fdab3807a954b8f5b5e3bfec87d001bb,
+            0x06e62084ee7b602fe9abc15632dda3269f56fb0c6e12519a2eb2ec897091919d,
+            0x03c9e2e67178ac638746f068907e6677b4cc7a9592ef234ab6ab518f17efffa0,
         ],
     },
 };

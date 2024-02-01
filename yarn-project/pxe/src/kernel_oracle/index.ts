@@ -6,6 +6,8 @@ import {
   MembershipWitness,
   NOTE_HASH_TREE_HEIGHT,
   Point,
+  computeContractClassIdPreimage,
+  computeSaltedInitializationHash,
 } from '@aztec/circuits.js';
 import { Tuple } from '@aztec/foundation/serialize';
 
@@ -18,8 +20,17 @@ import { ProvingDataOracle } from './../kernel_prover/proving_data_oracle.js';
 export class KernelOracle implements ProvingDataOracle {
   constructor(private contractDataOracle: ContractDataOracle, private keyStore: KeyStore, private node: AztecNode) {}
 
-  public async getContractMembershipWitness(contractAddress: AztecAddress) {
-    return await this.contractDataOracle.getContractMembershipWitness(contractAddress);
+  public async getContractAddressPreimage(address: AztecAddress) {
+    const instance = await this.contractDataOracle.getContractInstance(address);
+    return {
+      saltedInitializationHash: computeSaltedInitializationHash(instance),
+      ...instance,
+    };
+  }
+
+  public async getContractClassIdPreimage(contractClassId: Fr) {
+    const contractClass = await this.contractDataOracle.getContractClass(contractClassId);
+    return computeContractClassIdPreimage(contractClass);
   }
 
   public async getFunctionMembershipWitness(contractAddress: AztecAddress, selector: FunctionSelector) {

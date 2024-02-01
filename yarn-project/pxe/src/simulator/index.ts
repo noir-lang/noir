@@ -15,7 +15,7 @@ export function getAcirSimulator(
   contractDataOracle?: ContractDataOracle,
 ) {
   const simulatorOracle = new SimulatorOracle(
-    contractDataOracle ?? new ContractDataOracle(db, stateInfoProvider),
+    contractDataOracle ?? new ContractDataOracle(db),
     db,
     keyStore,
     stateInfoProvider,

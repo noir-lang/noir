@@ -1,5 +1,4 @@
 import {
-  CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
   Fr,
   FunctionSelector,
@@ -17,17 +16,15 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
  * contract addresses, and function selectors in their respective merkle trees.
  */
 export interface ProvingDataOracle {
-  /**
-   * Retrieves the contract membership witness for a given contract address.
-   * A contract membership witness is a cryptographic proof that the contract exists in the Aztec network.
-   * This function will search for an existing contract tree associated with the contract address and obtain its
-   * membership witness. If no such contract tree exists, it will throw an error.
-   *
-   * @param contractAddress - The contract address.
-   * @returns A promise that resolves to a MembershipWitness instance representing the contract membership witness.
-   * @throws Error if the contract address is unknown or not found.
-   */
-  getContractMembershipWitness(contractAddress: AztecAddress): Promise<MembershipWitness<typeof CONTRACT_TREE_HEIGHT>>;
+  /** Retrieves the preimage of a contract address from the registered contract instances db. */
+  getContractAddressPreimage(
+    address: AztecAddress,
+  ): Promise<{ saltedInitializationHash: Fr; publicKeysHash: Fr; contractClassId: Fr }>;
+
+  /** Retrieves the preimage of a contract class id from the contract classes db. */
+  getContractClassIdPreimage(
+    contractClassId: Fr,
+  ): Promise<{ artifactHash: Fr; publicBytecodeCommitment: Fr; privateFunctionsRoot: Fr }>;
 
   /**
    * Retrieve the function membership witness for the given contract address and function selector.

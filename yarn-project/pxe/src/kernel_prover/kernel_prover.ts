@@ -1,7 +1,6 @@
 import { ExecutionResult, NoteAndSlot } from '@aztec/acir-simulator';
 import {
   AztecAddress,
-  CONTRACT_TREE_HEIGHT,
   CallRequest,
   Fr,
   GrumpkinScalar,
@@ -12,7 +11,6 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
-  MembershipWitness,
   NullifierKeyValidationRequestContext,
   PreviousKernelData,
   PrivateCallData,
@@ -251,14 +249,15 @@ export class KernelProver {
     );
     const publicCallStack = padArrayEnd(publicCallRequests, CallRequest.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
 
-    const contractLeafMembershipWitness = functionData.isConstructor
-      ? MembershipWitness.random(CONTRACT_TREE_HEIGHT)
-      : await this.oracle.getContractMembershipWitness(contractAddress);
-
     const functionLeafMembershipWitness = await this.oracle.getFunctionMembershipWitness(
       contractAddress,
       functionData.selector,
     );
+    const { contractClassId, publicKeysHash, saltedInitializationHash } = await this.oracle.getContractAddressPreimage(
+      contractAddress,
+    );
+    const { artifactHash: contractClassArtifactHash, publicBytecodeCommitment: contractClassPublicBytecodeCommitment } =
+      await this.oracle.getContractClassIdPreimage(contractClassId);
 
     // TODO(#262): Use real acir hash
     // const acirHash = keccak(Buffer.from(bytecode, 'hex'));
@@ -267,18 +266,21 @@ export class KernelProver {
     // TODO
     const proof = makeEmptyProof();
 
-    return new PrivateCallData(
+    return PrivateCallData.from({
       callStackItem,
       privateCallStack,
       publicCallStack,
       proof,
-      VerificationKey.fromBuffer(vk),
+      vk: VerificationKey.fromBuffer(vk),
+      publicKeysHash,
+      contractClassArtifactHash,
+      contractClassPublicBytecodeCommitment,
+      saltedInitializationHash,
       functionLeafMembershipWitness,
-      contractLeafMembershipWitness,
-      makeTuple(MAX_READ_REQUESTS_PER_CALL, i => readRequestMembershipWitnesses[i], 0),
-      portalContractAddress.toField(),
+      readRequestMembershipWitnesses: makeTuple(MAX_READ_REQUESTS_PER_CALL, i => readRequestMembershipWitnesses[i], 0),
+      portalContractAddress: portalContractAddress.toField(),
       acirHash,
-    );
+    });
   }
 
   /**

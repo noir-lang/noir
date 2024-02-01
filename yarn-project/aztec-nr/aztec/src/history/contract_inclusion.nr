@@ -3,6 +3,7 @@ use dep::protocol_types::{
         new_contract_data::NewContractData as ContractLeafPreimage,
     },
     address::{AztecAddress, EthAddress},
+    contract_class::ContractClassId,
     grumpkin_point::GrumpkinPoint,
 };
 use dep::std::merkle::compute_merkle_root;
@@ -23,7 +24,7 @@ use crate::{
 pub fn prove_contract_inclusion(
     public_key: GrumpkinPoint,
     contract_address_salt: Field,
-    contract_class_id: Field,
+    contract_class_id: ContractClassId,
     initialization_hash: Field,
     portal_contract_address: EthAddress,
     block_number: u32, // The block at which we'll prove that the public value exists

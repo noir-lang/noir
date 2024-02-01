@@ -123,6 +123,17 @@ describe('Kernel Prover', () => {
     // TODO(dbanks12): will need to mock oracle.getNoteMembershipWitness() to test non-transient reads
     oracle.getVkMembershipWitness.mockResolvedValue(MembershipWitness.random(VK_TREE_HEIGHT));
 
+    oracle.getContractAddressPreimage.mockResolvedValue({
+      contractClassId: Fr.random(),
+      publicKeysHash: Fr.random(),
+      saltedInitializationHash: Fr.random(),
+    });
+    oracle.getContractClassIdPreimage.mockResolvedValue({
+      artifactHash: Fr.random(),
+      publicBytecodeCommitment: Fr.random(),
+      privateFunctionsRoot: Fr.random(),
+    });
+
     proofCreator = mock<ProofCreator>();
     proofCreator.getSiloedCommitments.mockImplementation(publicInputs =>
       Promise.resolve(publicInputs.newCommitments.map(com => createFakeSiloedCommitment(com.value))),

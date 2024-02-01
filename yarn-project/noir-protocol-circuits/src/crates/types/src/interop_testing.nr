@@ -10,12 +10,13 @@ use crate::hash::{compute_l2_to_l1_hash, sha256_to_field};
 use crate::abis::call_stack_item::PublicCallStackItem;
 use crate::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
 use crate::abis::side_effect::SideEffect;
+use crate::contract_class::ContractClassId;
 
 #[test]
 fn compute_address() {
     let point = GrumpkinPoint { x: 1, y: 2 };
     let contract_address_salt = 3;
-    let contract_class_id = 4;
+    let contract_class_id = ContractClassId::from_field(4);
     let initialization_hash = 5;
     let portal_contract_address = EthAddress::from_field(6);
 
@@ -58,7 +59,7 @@ fn compute_tx_request_hash() {
             contract_deployment_data: ContractDeploymentData {
                 public_key: GrumpkinPoint { x: 1, y: 2 },
                 initialization_hash: 1,
-                contract_class_id: 2,
+                contract_class_id: ContractClassId::from_field(2),
                 contract_address_salt: 3,
                 portal_contract_address: EthAddress::from_field(1)
             },

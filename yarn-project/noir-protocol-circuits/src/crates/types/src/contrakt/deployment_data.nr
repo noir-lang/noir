@@ -1,4 +1,5 @@
 use crate::address::EthAddress;
+use crate::contract_class::ContractClassId;
 use crate::constants::{
     CONTRACT_DEPLOYMENT_DATA_LENGTH,
     GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA,
@@ -11,7 +12,7 @@ use crate::traits::{Hash, Serialize};
 struct ContractDeploymentData {
     public_key : GrumpkinPoint,
     initialization_hash : Field,
-    contract_class_id : Field,
+    contract_class_id : ContractClassId,
     contract_address_salt : Field,
     portal_contract_address : EthAddress,
 }
@@ -29,7 +30,7 @@ impl Serialize<CONTRACT_DEPLOYMENT_DATA_LENGTH> for ContractDeploymentData {
             self.public_key.x,
             self.public_key.y,
             self.initialization_hash,
-            self.contract_class_id,
+            self.contract_class_id.to_field(),
             self.contract_address_salt,
             self.portal_contract_address.to_field(),
         ]
@@ -41,7 +42,7 @@ impl ContractDeploymentData {
     fn assert_is_zero(self) {
         self.public_key.assert_is_zero();
         assert(self.initialization_hash == 0);
-        assert(self.contract_class_id == 0);
+        self.contract_class_id.assert_is_zero();
         assert(self.contract_address_salt == 0);
         self.portal_contract_address.assert_is_zero();
     }

@@ -34,7 +34,7 @@ describe('merkle tree root calculator', () => {
     const leaves = Array.from({ length: 5 }).map((_, i) => new Fr(i).toBuffer());
     const expectedRoot = calculator.computeTreeRoot(leaves);
     const result = calculator.computeTree(leaves);
-    expect(result.length).toEqual(31);
-    expect(result[result.length - 1]).toEqual(expectedRoot);
+    expect(result.nodes.length).toEqual(31);
+    expect(result.root).toEqual(expectedRoot);
   });
 });

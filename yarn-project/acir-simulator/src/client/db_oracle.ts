@@ -18,6 +18,15 @@ export class ContractNotFoundError extends Error {
 }
 
 /**
+ * Error thrown when a contract class is not found in the database.
+ */
+export class ContractClassNotFoundError extends Error {
+  constructor(contractClassId: string) {
+    super(`DB has no contract class with id ${contractClassId}`);
+  }
+}
+
+/**
  * The database oracle interface.
  */
 export interface DBOracle extends CommitmentsDB {

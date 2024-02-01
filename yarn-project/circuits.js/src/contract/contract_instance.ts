@@ -1,7 +1,7 @@
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { ContractInstance, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { EthAddress, Fr, PublicKey, getContractClassFromArtifact, getContractClassId } from '../index.js';
+import { EthAddress, Fr, PublicKey, computeContractClassId, getContractClassFromArtifact } from '../index.js';
 import {
   computeContractAddressFromInstance,
   computeInitializationHash,
@@ -34,7 +34,7 @@ export function getContractInstanceFromDeployParams(
   }
 
   const contractClass = getContractClassFromArtifact(artifact);
-  const contractClassId = getContractClassId(contractClass);
+  const contractClassId = computeContractClassId(contractClass);
   const initializationHash = computeInitializationHash(constructorArtifact, args);
   const publicKeysHash = computePublicKeysHash(publicKey);
 

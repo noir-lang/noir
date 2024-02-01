@@ -10,7 +10,8 @@
     "./utils": "./dest/utils/index.js",
     "./types": "./dest/types/index.js",
     "./constants": "./dest/constants.gen.js",
-    "./contract": "./dest/contract/index.js"
+    "./contract": "./dest/contract/index.js",
+    "./merkle": "./dest/merkle/index.js"
   },
   "typedocOptions": {
     "entryPoints": [

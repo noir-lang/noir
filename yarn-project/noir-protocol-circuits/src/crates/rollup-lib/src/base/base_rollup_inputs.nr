@@ -597,6 +597,7 @@ mod tests {
         abis::side_effect::SideEffect,
         tests::previous_kernel_data_builder::PreviousKernelDataBuilder,
         address::{AztecAddress, EthAddress},
+        contract_class::ContractClassId,
         utils::uint256::U256,
         partial_state_reference::PartialStateReference,
     };
@@ -948,7 +949,7 @@ mod tests {
         let new_contract = NewContractData {
             contract_address: AztecAddress::from_field(1),
             portal_contract_address: EthAddress::from_field(2),
-            contract_class_id: 3
+            contract_class_id: ContractClassId::from_field(3)
         };
 
         let mut builder = BaseRollupInputsBuilder::new();
@@ -977,7 +978,7 @@ mod tests {
         let new_contract = NewContractData {
             contract_address: AztecAddress::from_field(1),
             portal_contract_address: EthAddress::from_field(2),
-            contract_class_id: 3
+            contract_class_id: ContractClassId::from_field(3)
         };
 
         let mut builder = BaseRollupInputsBuilder::new();

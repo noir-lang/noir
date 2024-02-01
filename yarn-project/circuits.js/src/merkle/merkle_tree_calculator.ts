@@ -1,5 +1,7 @@
 import { pedersenHash } from '@aztec/foundation/crypto';
 
+import { MerkleTree } from './merkle_tree.js';
+
 /**
  * Merkle tree calculator.
  */
@@ -19,9 +21,9 @@ export class MerkleTreeCalculator {
     );
   }
 
-  computeTree(leaves: Buffer[] = []) {
+  computeTree(leaves: Buffer[] = []): MerkleTree {
     if (leaves.length === 0) {
-      return [this.zeroHashes[this.zeroHashes.length - 1]];
+      return new MerkleTree(this.height, [this.zeroHashes[this.zeroHashes.length - 1]]);
     }
 
     let result = leaves.slice();
@@ -38,10 +40,10 @@ export class MerkleTreeCalculator {
       leaves = newLeaves;
     }
 
-    return result;
+    return new MerkleTree(this.height, result);
   }
 
-  computeTreeRoot(leaves: Buffer[] = []) {
+  computeTreeRoot(leaves: Buffer[] = []): Buffer {
     if (leaves.length === 0) {
       return this.zeroHashes[this.zeroHashes.length - 1];
     }

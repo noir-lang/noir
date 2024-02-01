@@ -11,3 +11,6 @@ export type AztecAddressLike = { /** Wrapped address */ address: FieldLike } | A
 
 /** Any type that can be converted into an FunctionSelector Aztec.nr struct. */
 export type FunctionSelectorLike = FieldLike | FunctionSelector;
+
+/** Any type that can be converted into a struct with a single `inner` field. */
+export type WrappedFieldLike = { /** Wrapped value */ inner: FieldLike } | FieldLike;

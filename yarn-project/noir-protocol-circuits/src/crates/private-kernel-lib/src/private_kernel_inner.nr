@@ -181,8 +181,8 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // Set the leaf index of the contract leaf to a wrong value (the correct value + 1).
-        let leaf_index = builder.private_call.contract_leaf_membership_witness.leaf_index;
-        builder.private_call.contract_leaf_membership_witness.leaf_index = leaf_index + 1;
+        // let leaf_index = builder.private_call.contract_leaf_membership_witness.leaf_index;
+        // builder.private_call.contract_leaf_membership_witness.leaf_index = leaf_index + 1;
 
         builder.failed();
     }
@@ -192,8 +192,8 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // Set the first value of the sibling path to a wrong value (the correct value + 1).
-        let sibling_path_0 = builder.private_call.contract_leaf_membership_witness.sibling_path[0];
-        builder.private_call.contract_leaf_membership_witness.sibling_path[0] = sibling_path_0 + 1;
+        // let sibling_path_0 = builder.private_call.contract_leaf_membership_witness.sibling_path[0];
+        // builder.private_call.contract_leaf_membership_witness.sibling_path[0] = sibling_path_0 + 1;
 
         builder.failed();
     }

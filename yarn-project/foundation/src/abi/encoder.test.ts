@@ -1,5 +1,6 @@
 import { AztecAddress } from '../aztec-address/index.js';
 import { Fr } from '../fields/fields.js';
+import { Point } from '../fields/point.js';
 import { ABIParameterVisibility, FunctionAbi, FunctionType } from './abi.js';
 import { encodeArguments } from './encoder.js';
 
@@ -85,7 +86,7 @@ describe('abi/encoder', () => {
             path: `types::address::${structType}`,
             fields: [
               {
-                name: 'address',
+                name: 'inner',
                 type: { kind: 'field' },
               },
             ],
@@ -101,6 +102,39 @@ describe('abi/encoder', () => {
     expect(encodeArguments(abi, [address])).toEqual([address.toField()]);
     expect(encodeArguments(abi, [{ address }])).toEqual([address.toField()]);
     expect(encodeArguments(abi, [{ address: address.toField() }])).toEqual([address.toField()]);
+
+    const completeAddressLike = { address, publicKey: Point.random(), partialAddress: Fr.random() };
+    expect(encodeArguments(abi, [completeAddressLike])).toEqual([address.toField()]);
+  });
+
+  it('accepts a field for a wrapped field', () => {
+    const abi: FunctionAbi = {
+      name: 'constructor',
+      functionType: FunctionType.SECRET,
+      isInternal: false,
+      parameters: [
+        {
+          name: 'contract_class',
+          type: {
+            kind: 'struct',
+            path: `types::contract_class::ContractClassId`,
+            fields: [
+              {
+                name: 'inner',
+                type: { kind: 'field' },
+              },
+            ],
+          },
+          visibility: ABIParameterVisibility.SECRET,
+        },
+      ],
+      returnTypes: [],
+    };
+
+    const value = Fr.random();
+
+    expect(encodeArguments(abi, [value])).toEqual([value]);
+    expect(encodeArguments(abi, [{ inner: value }])).toEqual([value]);
   });
 
   it('throws when passing string argument as field', () => {

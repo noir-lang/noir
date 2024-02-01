@@ -21,3 +21,17 @@ impl Hash for FunctionLeafPreimage {
         ], GENERATOR_INDEX__FUNCTION_LEAF)
     }
 }
+
+struct ContractClassFunctionLeafPreimage {
+    selector : FunctionSelector,
+    vk_hash : Field,
+}
+
+impl Hash for ContractClassFunctionLeafPreimage {
+    fn hash(self) -> Field {
+        dep::std::hash::pedersen_hash_with_separator([
+            self.selector.to_field(),
+            self.vk_hash,
+        ], GENERATOR_INDEX__FUNCTION_LEAF)
+    }
+}

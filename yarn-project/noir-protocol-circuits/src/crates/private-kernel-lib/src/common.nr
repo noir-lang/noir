@@ -1,3 +1,4 @@
+use dep::std;
 use dep::types::{
     abis::{
         call_request::CallRequest,
@@ -12,7 +13,8 @@ use dep::types::{
         previous_kernel_data::PreviousKernelData,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
-    address::{AztecAddress, EthAddress, compute_initialization_hash},
+    address::{AztecAddress, EthAddress, PartialAddress, compute_initialization_hash},
+    contract_class::ContractClassId,
     contrakt::deployment_data::ContractDeploymentData,
     constants::{
         MAX_NEW_NULLIFIERS_PER_CALL,
@@ -31,6 +33,7 @@ use dep::types::{
         contract_tree_root_from_siblings,
         function_tree_root_from_siblings,
         pedersen_hash,
+        private_functions_root_from_siblings,
         read_request_root_from_siblings,
         silo_commitment,
         silo_nullifier,
@@ -350,43 +353,38 @@ pub fn contract_logic(
     } else {
         // non-contract deployments must specify contract address being interacted with
         assert(!contract_address.is_zero(), "contract address cannot be zero");
+        // std::println(f"contract_address={contract_address}");
+        // std::println(f"private_call_vk_hash={private_call_vk_hash}");
 
-        /* We need to compute the root of the contract tree, starting from the function's VK:
-         * - Compute the vk_hash (done above)
-         * - Compute the function_leaf: hash(function_selector, is_internal, is_private, vk_hash, acir_hash)
-         * - Hash the function_leaf with the function_leaf's sibling_path to get the function_tree_root
-         * - Compute the contract_leaf: hash(contract_address, portal_contract_address, function_tree_root)
-         * - Hash the contract_leaf with the contract_leaf's sibling_path to get the contract_tree_root
-         */
-
-        // The logic below ensures that the contract exists in the contracts tree
-        let computed_function_tree_root = function_tree_root_from_siblings(
+        // Recompute the contract class id
+        let computed_private_functions_root = private_functions_root_from_siblings(
             private_call.call_stack_item.function_data.selector,
-            private_call.call_stack_item.function_data.is_internal,
-            true, // is_private
             private_call_vk_hash,
-            private_call.acir_hash,
             private_call.function_leaf_membership_witness.leaf_index,
             private_call.function_leaf_membership_witness.sibling_path
         );
+        // std::println(f"computed_private_functions_root={computed_private_functions_root}");
 
-        let computed_contract_tree_root = contract_tree_root_from_siblings(
-            computed_function_tree_root,
-            contract_address,
-            portal_contract_address,
-            private_call.contract_leaf_membership_witness.leaf_index,
-            private_call.contract_leaf_membership_witness.sibling_path
+        let computed_contract_class_id = ContractClassId::compute(
+            private_call.contract_class_artifact_hash,
+            computed_private_functions_root,
+            private_call.contract_class_public_bytecode_commitment
         );
+        // std::println(f"computed_contract_class_id={computed_contract_class_id}");
 
-        let purported_contract_tree_root = private_call.call_stack_item.public_inputs.historical_header.state.partial.contract_tree.root;
-        // TODO(@spalladino): Re-enable this check using contract classes:
-        // - Compute the function_leaf
-        // - Compute the function_tree_root using the sibling path
-        // - Compute the contract_class_id (needs injecting artifact_hash and bytecode_commitment into kernel)
-        // - Compute the address using the class_id (needs injecting salted_initialization_hash and public_keys_hash)
-        // assert_eq(
-        //     computed_contract_tree_root, purported_contract_tree_root, "computed_contract_tree_root does not match purported_contract_tree_root"
-        // );
+        // Recompute contract address using the preimage which includes the class_id
+        let computed_partial_address = PartialAddress::compute_from_salted_initialization_hash(
+            computed_contract_class_id,
+            private_call.salted_initialization_hash
+        );
+        // std::println(f"computed_partial_address={computed_partial_address}");
+
+        let computed_address = AztecAddress::compute(private_call.public_keys_hash, computed_partial_address);
+        // std::println(f"computed_address={computed_address}");
+
+        assert(
+            computed_address.eq(contract_address), "computed contract address does not match expected one"
+        );
     }
 }
 

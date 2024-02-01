@@ -5,7 +5,6 @@ import {
   AztecAddress,
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
-  CONTRACT_TREE_HEIGHT,
   CallContext,
   CallRequest,
   CallerContext,
@@ -85,7 +84,6 @@ import {
   CombinedAccumulatedData as CombinedAccumulatedDataNoir,
   CombinedConstantData as CombinedConstantDataNoir,
   ContractDeploymentData as ContractDeploymentDataNoir,
-  ContractLeafMembershipWitness as ContractLeafMembershipWitnessNoir,
   FunctionData as FunctionDataNoir,
   FunctionLeafMembershipWitness as FunctionLeafMembershipWitnessNoir,
   FunctionSelector as FunctionSelectorNoir,
@@ -93,6 +91,7 @@ import {
   KernelCircuitPublicInputs as KernelCircuitPublicInputsNoir,
   NewContractData as NewContractDataNoir,
   AztecAddress as NoirAztecAddress,
+  ContractClassId as NoirContractClassId,
   EthAddress as NoirEthAddress,
   Field as NoirField,
   GrumpkinPoint as NoirPoint,
@@ -172,6 +171,16 @@ export function mapFieldToNoir(field: Fr): NoirField {
  */
 export function mapFieldFromNoir(field: NoirField): Fr {
   return Fr.fromString(field);
+}
+
+/** Maps a field to a noir wrapped field type (ie any type implemented as struct with an inner Field). */
+export function mapWrappedFieldToNoir(field: Fr): { inner: NoirField } {
+  return { inner: mapFieldToNoir(field) };
+}
+
+/** Maps a noir wrapped field type (ie any type implemented as struct with an inner Field) to a typescript field. */
+export function mapWrappedFieldFromNoir(wrappedField: { inner: NoirField }): Fr {
+  return mapFieldFromNoir(wrappedField.inner);
 }
 
 /**
@@ -269,6 +278,16 @@ export function mapEthAddressFromNoir(address: NoirEthAddress): EthAddress {
   return EthAddress.fromField(mapFieldFromNoir(address.inner));
 }
 
+/** Maps a field to a contract class id in Noir. */
+export function mapContractClassIdToNoir(contractClassId: Fr): NoirContractClassId {
+  return { inner: mapFieldToNoir(contractClassId) };
+}
+
+/** Maps a noir contract class id to typescript. */
+export function mapContractClassIdFromNoir(contractClassId: NoirContractClassId): Fr {
+  return mapFieldFromNoir(contractClassId.inner);
+}
+
 /**
  * Maps a contract deployment data to a noir contract deployment data.
  * @param data - The data.
@@ -278,7 +297,7 @@ export function mapContractDeploymentDataToNoir(data: ContractDeploymentData): C
   return {
     public_key: mapPointToNoir(data.publicKey),
     initialization_hash: mapFieldToNoir(data.initializationHash),
-    contract_class_id: mapFieldToNoir(data.contractClassId),
+    contract_class_id: mapContractClassIdToNoir(data.contractClassId),
     contract_address_salt: mapFieldToNoir(data.contractAddressSalt),
     portal_contract_address: mapEthAddressToNoir(data.portalContractAddress),
   };
@@ -293,7 +312,7 @@ export function mapContractDeploymentDataFromNoir(data: ContractDeploymentDataNo
   return new ContractDeploymentData(
     mapPointFromNoir(data.public_key),
     mapFieldFromNoir(data.initialization_hash),
-    mapFieldFromNoir(data.contract_class_id),
+    mapContractClassIdFromNoir(data.contract_class_id),
     mapFieldFromNoir(data.contract_address_salt),
     mapEthAddressFromNoir(data.portal_contract_address),
   );
@@ -655,20 +674,6 @@ function mapFunctionLeafMembershipWitnessToNoir(
 }
 
 /**
- * Maps a contract leaf membership witness to a noir contract leaf membership witness.
- * @param membershipWitness - The membership witness.
- * @returns The noir contract leaf membership witness.
- */
-function mapContractLeafMembershipWitnessToNoir(
-  membershipWitness: MembershipWitness<typeof CONTRACT_TREE_HEIGHT>,
-): ContractLeafMembershipWitnessNoir {
-  return {
-    leaf_index: membershipWitness.leafIndex.toString(),
-    sibling_path: mapTuple(membershipWitness.siblingPath, mapFieldToNoir),
-  };
-}
-
-/**
  * Maps a read request membership witness to a noir read request membership witness.
  * @param readRequestMembershipWitness - The read request membership witness.
  * @returns The noir read request membership witness.
@@ -699,13 +704,14 @@ export function mapPrivateCallDataToNoir(privateCallData: PrivateCallData): Priv
     function_leaf_membership_witness: mapFunctionLeafMembershipWitnessToNoir(
       privateCallData.functionLeafMembershipWitness,
     ),
-    contract_leaf_membership_witness: mapContractLeafMembershipWitnessToNoir(
-      privateCallData.contractLeafMembershipWitness,
-    ),
     read_request_membership_witnesses: mapTuple(
       privateCallData.readRequestMembershipWitnesses,
       mapReadRequestMembershipWitnessToNoir,
     ),
+    contract_class_artifact_hash: mapFieldToNoir(privateCallData.contractClassArtifactHash),
+    contract_class_public_bytecode_commitment: mapFieldToNoir(privateCallData.contractClassPublicBytecodeCommitment),
+    public_keys_hash: mapWrappedFieldToNoir(privateCallData.publicKeysHash),
+    salted_initialization_hash: mapWrappedFieldToNoir(privateCallData.saltedInitializationHash),
     //TODO this seems like the wrong type in circuits.js
     portal_contract_address: mapEthAddressToNoir(EthAddress.fromField(privateCallData.portalContractAddress)),
     acir_hash: mapFieldToNoir(privateCallData.acirHash),
@@ -797,7 +803,7 @@ export function mapNewContractDataFromNoir(newContractData: NewContractDataNoir)
   return new NewContractData(
     mapAztecAddressFromNoir(newContractData.contract_address),
     mapEthAddressFromNoir(newContractData.portal_contract_address),
-    mapFieldFromNoir(newContractData.contract_class_id),
+    mapContractClassIdFromNoir(newContractData.contract_class_id),
   );
 }
 
@@ -810,7 +816,7 @@ export function mapNewContractDataToNoir(newContractData: NewContractData): NewC
   return {
     contract_address: mapAztecAddressToNoir(newContractData.contractAddress),
     portal_contract_address: mapEthAddressToNoir(newContractData.portalContractAddress),
-    contract_class_id: mapFieldToNoir(newContractData.contractClassId),
+    contract_class_id: mapContractClassIdToNoir(newContractData.contractClassId),
   };
 }
 

@@ -9,6 +9,7 @@ mod contrakt;
 mod transaction;
 mod abis;
 mod constants;
+mod contract_class;
 
 mod mocked;
 mod hash;

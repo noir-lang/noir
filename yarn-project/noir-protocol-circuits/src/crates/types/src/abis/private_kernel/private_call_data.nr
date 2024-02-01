@@ -5,9 +5,10 @@ use crate::abis::{
         ContractLeafMembershipWitness,
         FunctionLeafMembershipWitness,
         ReadRequestMembershipWitness,
-    },
+    }
 };
-use crate::address::EthAddress;
+use crate::address::{ SaltedInitializationHash, PublicKeysHash, EthAddress };
+use crate::contract_class::{ ContractClassId };
 use crate::mocked::{Proof, VerificationKey};
 use crate::constants::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
@@ -24,9 +25,12 @@ struct PrivateCallData {
     proof: Proof,
     vk: VerificationKey,
 
+    salted_initialization_hash: SaltedInitializationHash,
+    public_keys_hash: PublicKeysHash,
+    contract_class_artifact_hash: Field,
+    contract_class_public_bytecode_commitment: Field,
     function_leaf_membership_witness: FunctionLeafMembershipWitness,
-    contract_leaf_membership_witness: ContractLeafMembershipWitness,
-
+    
     read_request_membership_witnesses: [ReadRequestMembershipWitness; MAX_READ_REQUESTS_PER_CALL],
 
     portal_contract_address: EthAddress,

@@ -5,6 +5,7 @@ use crate::{
         GENERATOR_INDEX__CONSTRUCTOR
     },
     hash::pedersen_hash,
+    contract_class::ContractClassId,
     utils,
     grumpkin_point::GrumpkinPoint,
 };
@@ -62,7 +63,7 @@ impl AztecAddress {
         }
     }
 
-    pub fn compute_from_public_key(pub_key: GrumpkinPoint, contract_class_id : Field, salt : Field, initialization_hash: Field, portal_contract_address: EthAddress) -> AztecAddress {
+    pub fn compute_from_public_key(pub_key: GrumpkinPoint, contract_class_id: ContractClassId, salt: Field, initialization_hash: Field, portal_contract_address: EthAddress) -> AztecAddress {
         AztecAddress::compute(PublicKeysHash::compute(pub_key), PartialAddress::compute(contract_class_id, salt, initialization_hash, portal_contract_address))
     }
 
@@ -176,14 +177,14 @@ impl PartialAddress {
         }
     }
 
-    pub fn compute(contract_class_id : Field, salt : Field, initialization_hash: Field, portal_contract_address: EthAddress) -> Self {
+    pub fn compute(contract_class_id: ContractClassId, salt: Field, initialization_hash: Field, portal_contract_address: EthAddress) -> Self {
         PartialAddress::compute_from_salted_initialization_hash(contract_class_id, SaltedInitializationHash::compute(salt, initialization_hash, portal_contract_address))
     }
 
-    pub fn compute_from_salted_initialization_hash(contract_class_id : Field, salted_initialization_hash : SaltedInitializationHash) -> Self {
+    pub fn compute_from_salted_initialization_hash(contract_class_id: ContractClassId, salted_initialization_hash: SaltedInitializationHash) -> Self {
         PartialAddress::from_field(
             pedersen_hash([
-                contract_class_id,
+                contract_class_id.to_field(),
                 salted_initialization_hash.to_field()
             ], GENERATOR_INDEX__PARTIAL_ADDRESS)
         )

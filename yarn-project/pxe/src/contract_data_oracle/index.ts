@@ -1,9 +1,19 @@
-import { ContractNotFoundError } from '@aztec/acir-simulator';
-import { ContractDatabase, StateInfoProvider } from '@aztec/circuit-types';
-import { AztecAddress, ContractFunctionDao, MembershipWitness, VK_TREE_HEIGHT } from '@aztec/circuits.js';
+import { ContractClassNotFoundError, ContractNotFoundError } from '@aztec/acir-simulator';
+import { ContractDatabase } from '@aztec/circuit-types';
+import {
+  AztecAddress,
+  ContractFunctionDao,
+  MembershipWitness,
+  VK_TREE_HEIGHT,
+  getContractClassFromArtifact,
+} from '@aztec/circuits.js';
 import { FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/foundation/fields';
+import { ContractClass, ContractInstance } from '@aztec/types/contracts';
 
-import { ContractTree } from '../contract_tree/index.js';
+import { ContractArtifactDatabase } from '../database/contracts/contract_artifact_db.js';
+import { ContractInstanceDatabase } from '../database/contracts/contract_instance_db.js';
+import { PrivateFunctionsTree } from './private_functions_tree.js';
 
 /**
  * ContractDataOracle serves as a data manager and retriever for Aztec.nr contracts.
@@ -13,9 +23,28 @@ import { ContractTree } from '../contract_tree/index.js';
  * the required information and facilitate cryptographic proof generation.
  */
 export class ContractDataOracle {
-  private trees: ContractTree[] = [];
+  private trees: PrivateFunctionsTree[] = [];
 
-  constructor(private db: ContractDatabase, private stateProvider: StateInfoProvider) {}
+  constructor(private db: ContractDatabase & ContractArtifactDatabase & ContractInstanceDatabase) {}
+
+  /** Returns a contract instance for a given address. Throws if not found. */
+  public async getContractInstance(contractAddress: AztecAddress): Promise<ContractInstance> {
+    const instance = await this.db.getContractInstance(contractAddress);
+    if (!instance) {
+      throw new ContractNotFoundError(contractAddress.toString());
+    }
+    return instance;
+  }
+
+  /** Returns a contract class for a given id. Throws if not found. */
+  public async getContractClass(contractClassId: Fr): Promise<ContractClass> {
+    const contractArtifact = await this.db.getContractArtifact(contractClassId);
+    if (!contractArtifact) {
+      throw new ContractClassNotFoundError(contractClassId.toString());
+    }
+    // TODO(@spalladino): Cache this computation using the trees.
+    return getContractClassFromArtifact(contractArtifact);
+  }
 
   /**
    * Retrieve the portal contract address associated with the given contract address.
@@ -102,21 +131,6 @@ export class ContractDataOracle {
   }
 
   /**
-   * Retrieves the contract membership witness for a given contract address.
-   * A contract membership witness is a cryptographic proof that the contract exists in the Aztec network.
-   * This function will search for an existing contract tree associated with the contract address and obtain its
-   * membership witness. If no such contract tree exists, it will throw an error.
-   *
-   * @param contractAddress - The contract address.
-   * @returns A promise that resolves to a MembershipWitness instance representing the contract membership witness.
-   * @throws Error if the contract address is unknown or not found.
-   */
-  public async getContractMembershipWitness(contractAddress: AztecAddress) {
-    const tree = await this.getTree(contractAddress);
-    return tree.getContractMembershipWitness();
-  }
-
-  /**
    * Retrieve the function membership witness for the given contract address and function selector.
    * The function membership witness represents a proof that the function belongs to the specified contract.
    * Throws an error if the contract address or function selector is unknown.
@@ -154,7 +168,8 @@ export class ContractDataOracle {
    * @returns A ContractTree instance associated with the specified contract address.
    * @throws An Error if the contract is not found in the ContractDatabase.
    */
-  private async getTree(contractAddress: AztecAddress): Promise<ContractTree> {
+  private async getTree(contractAddress: AztecAddress): Promise<PrivateFunctionsTree> {
+    // TODO(@spalladino): ContractTree should refer to a class, not an instance!
     let tree = this.trees.find(t => t.contract.instance.address.equals(contractAddress));
     if (!tree) {
       const contract = await this.db.getContract(contractAddress);
@@ -162,7 +177,7 @@ export class ContractDataOracle {
         throw new ContractNotFoundError(contractAddress.toString());
       }
 
-      tree = new ContractTree(contract, this.stateProvider);
+      tree = new PrivateFunctionsTree(contract);
       this.trees.push(tree);
     }
     return tree;

@@ -3,7 +3,7 @@ import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { numToUInt8 } from '@aztec/foundation/serialize';
 
-import { MerkleTreeCalculator } from '../abis/merkle_tree_calculator.js';
+import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
 
 const VERSION = 1;
 
