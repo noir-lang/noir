@@ -490,10 +490,10 @@ impl Instruction {
                 None
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
+                if bit_size == max_bit_size {
+                    return SimplifiedTo(*value);
+                }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    if bit_size == max_bit_size {
-                        return SimplifiedTo(*value);
-                    }
                     let integer_modulus = 2_u128.pow(*bit_size);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
                     SimplifiedTo(dfg.make_constant(truncated.into(), typ))
