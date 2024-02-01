@@ -189,7 +189,6 @@ fn compile_success_empty_{test_name}() {{
     // but we must call a backend as part of querying the number of opcodes in the circuit.
 
     let test_program_dir = PathBuf::from("{test_dir}");
-
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);

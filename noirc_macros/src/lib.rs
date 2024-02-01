@@ -1,5 +1,3 @@
-// use noirc_frontend::macros_api::{parse_program, SortedModule, CrateId
-
 use noirc_frontend::macros_api::parse_program;
 use noirc_frontend::macros_api::HirContext;
 use noirc_frontend::macros_api::SortedModule;
