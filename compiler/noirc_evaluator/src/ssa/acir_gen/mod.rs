@@ -722,7 +722,7 @@ impl Context {
                         }
                     };
 
-                    if index >= len {
+                    if index >= len && matches!(value_type, Type::Slice(_)) {
                         let value = self.construct_dummy_slice_value(instruction, dfg);
 
                         self.define_result(dfg, instruction, value);

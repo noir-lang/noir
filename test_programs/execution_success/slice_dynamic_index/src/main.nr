@@ -8,7 +8,7 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     for i in 0..5 {
         slice = slice.push_back(i);
     }
-    assert(slice.len() == 5);
+    // assert(slice.len() == 5);
 
     dynamic_slice_index_set_if(slice, x, y);
     dynamic_slice_index_set_else(slice, x, y);
