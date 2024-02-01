@@ -176,29 +176,7 @@ mod tests {
         builder.failed();
     }
 
-    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
-    fn private_function_incorrect_contract_leaf_index_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set the leaf index of the contract leaf to a wrong value (the correct value + 1).
-        // let leaf_index = builder.private_call.contract_leaf_membership_witness.leaf_index;
-        // builder.private_call.contract_leaf_membership_witness.leaf_index = leaf_index + 1;
-
-        builder.failed();
-    }
-
-    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
-    fn private_function_incorrect_contract_leaf_sibling_path_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set the first value of the sibling path to a wrong value (the correct value + 1).
-        // let sibling_path_0 = builder.private_call.contract_leaf_membership_witness.sibling_path[0];
-        // builder.private_call.contract_leaf_membership_witness.sibling_path[0] = sibling_path_0 + 1;
-
-        builder.failed();
-    }
-
-    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
+    #[test(should_fail_with="computed contract address does not match expected one")]
     fn private_function_incorrect_function_leaf_index_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -209,7 +187,7 @@ mod tests {
         builder.failed();
     }
 
-    // #[test(should_fail_with = "computed_contract_tree_root does not match purported_contract_tree_root")]
+    #[test(should_fail_with="computed contract address does not match expected one")]
     fn private_function_incorrect_function_leaf_sibling_path_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
@@ -217,6 +195,27 @@ mod tests {
         let sibling_path_0 = builder.private_call.function_leaf_membership_witness.sibling_path[0];
         builder.private_call.function_leaf_membership_witness.sibling_path[0] = sibling_path_0 + 1;
 
+        builder.failed();
+    }
+
+    #[test(should_fail_with="computed contract address does not match expected one")]
+    fn private_function_incorrect_contract_class_preimage_fails() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+        builder.private_call.contract_class_artifact_hash = builder.private_call.contract_class_artifact_hash + 1;
+        builder.failed();
+    }
+
+    #[test(should_fail_with="computed contract address does not match expected one")]
+    fn private_function_incorrect_partial_address_preimage_fails() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+        builder.private_call.salted_initialization_hash.inner = builder.private_call.salted_initialization_hash.inner + 1;
+        builder.failed();
+    }
+
+    #[test(should_fail_with="computed contract address does not match expected one")]
+    fn private_function_incorrect_address_preimage_fails() {
+        let mut builder = PrivateKernelInnerInputsBuilder::new();
+        builder.private_call.public_keys_hash.inner = builder.private_call.public_keys_hash.inner + 1;
         builder.failed();
     }
 
