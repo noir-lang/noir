@@ -1,4 +1,4 @@
-fn main() {
+fn main(x: Field) {
     let x1 = &mut 42;
     let set_x1 = |y| { *x1 = y; };
 
@@ -7,9 +7,10 @@ fn main() {
     assert(*x1 == 44);
     set_x1(*x1);
     assert(*x1 == 44);
+    assert(x == x);
 }
 
 #[test]
 fn test_main() {
-    main();
+    main(42);
 }
