@@ -257,6 +257,7 @@ impl<'a> ValueMerger<'a> {
                         let store_value = outer_block_stores
                             .get(address)
                             .expect("ICE: load in merger should have store from outer block");
+
                         if let Some(len) = self.slice_sizes.get(store_value) {
                             return *len;
                         }
@@ -268,10 +269,6 @@ impl<'a> ValueMerger<'a> {
 
                             store.new_value
                         } else {
-                            // Still panics here
-                            // let store_value = outer_block_stores
-                            //     .get(address)
-                            //     .expect("ICE: load in merger should have store from outer block");
                             *store_value
                         };
 
