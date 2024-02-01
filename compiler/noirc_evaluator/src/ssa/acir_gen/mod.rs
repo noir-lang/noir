@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
 use super::function_builder::data_bus::DataBus;
 use super::ir::dfg::CallStack;
+use super::ir::instruction::ConstrainError;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -413,15 +414,94 @@ impl Context {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
 
-                self.acir_context.assert_eq_var(lhs, rhs, assert_message.clone())?;
+                let assert_message = if let Some(error) = assert_message {
+                    match error.as_ref() {
+                        ConstrainError::Static(string) => Some(string.clone()),
+                        ConstrainError::Dynamic(call_instruction) => {
+                            self.convert_ssa_call(call_instruction, dfg, ssa, brillig, &[])?;
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.acir_context.assert_eq_var(lhs, rhs, assert_message)?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
                 self.define_result_var(dfg, instruction_id, acir_var);
             }
-            Instruction::Call { func, arguments } => {
+            Instruction::Call { .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                match &dfg[*func] {
+                warnings.extend(self.convert_ssa_call(
+                    instruction,
+                    dfg,
+                    ssa,
+                    brillig,
+                    result_ids,
+                )?);
+            }
+            Instruction::Not(value_id) => {
+                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
+                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
+                    _ => unreachable!("NOT is only applied to numerics"),
+                };
+                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
+                self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::Truncate { value, bit_size, max_bit_size } => {
+                let result_acir_var =
+                    self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
+                self.define_result_var(dfg, instruction_id, result_acir_var);
+            }
+            Instruction::EnableSideEffects { condition } => {
+                let acir_var = self.convert_numeric_value(*condition, dfg)?;
+                self.current_side_effects_enabled_var = acir_var;
+            }
+            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
+                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
+            }
+            Instruction::Allocate => {
+                unreachable!("Expected all allocate instructions to be removed before acir_gen")
+            }
+            Instruction::Store { .. } => {
+                unreachable!("Expected all store instructions to be removed before acir_gen")
+            }
+            Instruction::Load { .. } => {
+                unreachable!("Expected all load instructions to be removed before acir_gen")
+            }
+            Instruction::IncrementRc { .. } => {
+                // Do nothing. Only Brillig needs to worry about reference counted arrays
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                let acir_var = self.convert_numeric_value(*value, dfg)?;
+                self.acir_context.range_constrain_var(
+                    acir_var,
+                    &NumericType::Unsigned { bit_size: *max_bit_size },
+                    assert_message.clone(),
+                )?;
+            }
+        }
+
+        self.acir_context.set_call_stack(CallStack::new());
+        Ok(warnings)
+    }
+
+    fn convert_ssa_call(
+        &mut self,
+        instruction: &Instruction,
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+        brillig: &Brillig,
+        result_ids: &[ValueId],
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
+        let mut warnings = Vec::new();
+
+        match instruction {
+            Instruction::Call { func, arguments } => {
+                let function_value = &dfg[*func];
+                match function_value {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
                         match func.runtime() {
@@ -495,51 +575,11 @@ impl Context {
                     Value::ForeignFunction(_) => unreachable!(
                         "All `oracle` methods should be wrapped in an unconstrained fn"
                     ),
-                    _ => unreachable!("expected calling a function"),
+                    _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }
             }
-            Instruction::Not(value_id) => {
-                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
-                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
-                    _ => unreachable!("NOT is only applied to numerics"),
-                };
-                let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
-            }
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
-                let result_acir_var =
-                    self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
-                self.define_result_var(dfg, instruction_id, result_acir_var);
-            }
-            Instruction::EnableSideEffects { condition } => {
-                let acir_var = self.convert_numeric_value(*condition, dfg)?;
-                self.current_side_effects_enabled_var = acir_var;
-            }
-            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
-                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
-            }
-            Instruction::Allocate => {
-                unreachable!("Expected all allocate instructions to be removed before acir_gen")
-            }
-            Instruction::Store { .. } => {
-                unreachable!("Expected all store instructions to be removed before acir_gen")
-            }
-            Instruction::Load { .. } => {
-                unreachable!("Expected all load instructions to be removed before acir_gen")
-            }
-            Instruction::IncrementRc { .. } => {
-                // Do nothing. Only Brillig needs to worry about reference counted arrays
-            }
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                let acir_var = self.convert_numeric_value(*value, dfg)?;
-                self.acir_context.range_constrain_var(
-                    acir_var,
-                    &NumericType::Unsigned { bit_size: *max_bit_size },
-                    assert_message.clone(),
-                )?;
-            }
+            _ => unreachable!("expected calling a call instruction"),
         }
-        self.acir_context.set_call_stack(CallStack::new());
         Ok(warnings)
     }
 
@@ -673,8 +713,12 @@ impl Context {
                                     AcirValue::Array(array.update(index, store_value))
                                 }
                                 None => {
+                                    // If the index is out of range for a slice we should directly create dummy data.
+                                    // This situation should only happen during flattening of slices when the same slice after an if statement
+                                    // would have different lengths depending upon the predicate.
+                                    // Otherwise, we can potentially hit an index out of bounds error.
                                     if index >= array_size {
-                                        self.construct_dummy_slice_value(instruction, dfg, array_id)
+                                        self.construct_dummy_slice_value(instruction, dfg)
                                     } else {
                                         array[index].clone()
                                     }
@@ -690,16 +734,16 @@ impl Context {
                         self.define_result(dfg, instruction, array[index].clone());
                         return Ok(true);
                     }
-                    // If there is a non constant predicate and the index is out of range for a slice we should still directly create dummy data
-                    // These situations should only happen during flattening of slices when the same slice after an if statement
-                    // would have different lengths depending upon the condition
+                    // If there is a non constant predicate and the index is out of range for a slice, we should directly create dummy data.
+                    // This situation should only happen during flattening of slices when the same slice after an if statement
+                    // would have different lengths depending upon the predicate.
+                    // Otherwise, we can potentially hit an index out of bounds error.
                     else if index >= array_size
                         && value_type.contains_slice_element()
                         && store_value.is_none()
                     {
                         if index >= array_size {
-                            let value =
-                                self.construct_dummy_slice_value(instruction, dfg, array_id);
+                            let value = self.construct_dummy_slice_value(instruction, dfg);
 
                             self.define_result(dfg, instruction, value);
                             return Ok(true);
@@ -723,8 +767,8 @@ impl Context {
                         }
                     };
 
-                    if index >= len {
-                        let value = self.construct_dummy_slice_value(instruction, dfg, array_id);
+                    if index >= len && matches!(value_type, Type::Slice(_)) {
+                        let value = self.construct_dummy_slice_value(instruction, dfg);
 
                         self.define_result(dfg, instruction, value);
                         return Ok(true);
@@ -733,7 +777,6 @@ impl Context {
 
                 return Ok(false);
             }
-            // AcirValue::DynamicArray(_) => (),
         };
 
         Ok(false)
@@ -743,14 +786,13 @@ impl Context {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        array_id: ValueId,
     ) -> AcirValue {
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-        self.construct_dummy_array_value(&res_typ)
+        self.construct_dummy_slice_value_inner(&res_typ)
     }
 
-    fn construct_dummy_array_value(&mut self, ssa_type: &Type) -> AcirValue {
+    fn construct_dummy_slice_value_inner(&mut self, ssa_type: &Type) -> AcirValue {
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 let zero = self.acir_context.add_constant(FieldElement::zero());
@@ -761,7 +803,7 @@ impl Context {
                 let mut values = Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
-                        values.push_back(self.construct_dummy_array_value(typ));
+                        values.push_back(self.construct_dummy_slice_value_inner(typ));
                     }
                 }
                 AcirValue::Array(values)

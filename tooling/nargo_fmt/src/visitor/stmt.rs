@@ -38,8 +38,7 @@ impl super::FmtVisitor<'_> {
 
                     nested_shape.indent.block_indent(self.config);
 
-                    let message =
-                        message.map_or(String::new(), |message| format!(", \"{message}\""));
+                    let message = message.map_or(String::new(), |message| format!(", {message}"));
 
                     let (callee, args) = match kind {
                         ConstrainKind::Assert => {
