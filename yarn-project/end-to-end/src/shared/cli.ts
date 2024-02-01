@@ -118,86 +118,93 @@ export const cliTestSuite = (
       expect(fetchedAddress).toEqual(newCompleteAddress.publicKey.toString());
     });
 
-    it('deploys a contract & sends transactions', async () => {
-      // generate a private key
-      debug('Create an account using a private key');
-      await run('generate-private-key', false);
-      const privKey = findInLogs(/Private\sKey:\s+0x(?<privKey>[a-fA-F0-9]+)/)?.groups?.privKey;
-      expect(privKey).toHaveLength(64);
-      await run(`create-account --private-key ${privKey}`);
-      const foundAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
-      expect(foundAddress).toBeDefined();
-      const ownerAddress = AztecAddress.fromString(foundAddress!);
+    it.each([
+      ['an example Token contract', 'TokenContractArtifact', '0'],
+      ['a Nargo artifact', '../noir-contracts/target/token_contract-Token.json', '1'],
+    ])(
+      'deploys %s & sends transactions',
+      async (_, artifact, salt) => {
+        // generate a private key
+        debug('Create an account using a private key');
+        await run('generate-private-key', false);
+        const privKey = findInLogs(/Private\sKey:\s+0x(?<privKey>[a-fA-F0-9]+)/)?.groups?.privKey;
+        expect(privKey).toHaveLength(64);
+        await run(`create-account --private-key ${privKey}`);
+        const foundAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+        expect(foundAddress).toBeDefined();
+        const ownerAddress = AztecAddress.fromString(foundAddress!);
 
-      debug('Deploy Token Contract using created account.');
-      await run(`deploy TokenContractArtifact --salt 0 --args ${ownerAddress} 'TokenName' 'TKN' 18`);
-      const loggedAddress = findInLogs(/Contract\sdeployed\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
-      expect(loggedAddress).toBeDefined();
-      contractAddress = AztecAddress.fromString(loggedAddress!);
+        debug('Deploy Token Contract using created account.');
+        await run(`deploy ${artifact} --salt ${salt} --args ${ownerAddress} 'TokenName' 'TKN' 18`);
+        const loggedAddress = findInLogs(/Contract\sdeployed\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+        expect(loggedAddress).toBeDefined();
+        contractAddress = AztecAddress.fromString(loggedAddress!);
 
-      const deployedContract = await pxe.getContractData(contractAddress);
-      expect(deployedContract?.contractAddress).toEqual(contractAddress);
+        const deployedContract = await pxe.getContractData(contractAddress);
+        expect(deployedContract?.contractAddress).toEqual(contractAddress);
 
-      debug('Check contract can be found in returned address');
-      await run(`check-deploy -ca ${loggedAddress}`);
-      const checkResult = findInLogs(/Contract\sfound\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
-      expect(checkResult).toEqual(deployedContract?.contractAddress.toString());
+        debug('Check contract can be found in returned address');
+        await run(`check-deploy -ca ${loggedAddress}`);
+        const checkResult = findInLogs(/Contract\sfound\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+        expect(checkResult).toEqual(deployedContract?.contractAddress.toString());
 
-      const secret = Fr.random();
-      const secretHash = computeMessageSecretHash(secret);
+        const secret = Fr.random();
+        const secretHash = computeMessageSecretHash(secret);
 
-      debug('Mint initial tokens.');
-      await run(
-        `send mint_private --args ${INITIAL_BALANCE} ${secretHash} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
-      );
+        debug('Mint initial tokens.');
+        await run(
+          `send mint_private --args ${INITIAL_BALANCE} ${secretHash} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
+        );
 
-      debug('Add note to the PXE.');
-      const txHashes = findMultipleInLogs(/Transaction Hash: ([0-9a-f]{64})/i);
-      const mintPrivateTxHash = txHashes[txHashes.length - 1][1];
-      await run(
-        `add-note ${ownerAddress} ${contractAddress} 5 ${mintPrivateTxHash} --note ${INITIAL_BALANCE} ${secretHash}`,
-      );
+        debug('Add note to the PXE.');
+        const txHashes = findMultipleInLogs(/Transaction Hash: ([0-9a-f]{64})/i);
+        const mintPrivateTxHash = txHashes[txHashes.length - 1][1];
+        await run(
+          `add-note ${ownerAddress} ${contractAddress} 5 ${mintPrivateTxHash} --note ${INITIAL_BALANCE} ${secretHash}`,
+        );
 
-      debug('Redeem tokens.');
-      await run(
-        `send redeem_shield --args ${ownerAddress} ${INITIAL_BALANCE} ${secret} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
-      );
+        debug('Redeem tokens.');
+        await run(
+          `send redeem_shield --args ${ownerAddress} ${INITIAL_BALANCE} ${secret} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
+        );
 
-      // clear logs
-      clearLogs();
-      await run(`get-contract-data ${loggedAddress}`);
-      const contractDataAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
-      expect(contractDataAddress).toEqual(deployedContract?.contractAddress.toString());
+        // clear logs
+        clearLogs();
+        await run(`get-contract-data ${loggedAddress}`);
+        const contractDataAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+        expect(contractDataAddress).toEqual(deployedContract?.contractAddress.toString());
 
-      debug("Check owner's balance");
-      await run(
-        `call balance_of_private --args ${ownerAddress} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()}`,
-      );
-      const balance = findInLogs(/View\sresult:\s+(?<data>\S+)/)?.groups?.data;
-      expect(balance!).toEqual(`${BigInt(INITIAL_BALANCE).toString()}n`);
+        debug("Check owner's balance");
+        await run(
+          `call balance_of_private --args ${ownerAddress} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()}`,
+        );
+        const balance = findInLogs(/View\sresult:\s+(?<data>\S+)/)?.groups?.data;
+        expect(balance!).toEqual(`${BigInt(INITIAL_BALANCE).toString()}n`);
 
-      debug('Transfer some tokens');
-      const existingAccounts = await pxe.getRegisteredAccounts();
-      // ensure we pick a different acc
-      const receiver = existingAccounts.find(acc => acc.address.toString() !== ownerAddress.toString());
+        debug('Transfer some tokens');
+        const existingAccounts = await pxe.getRegisteredAccounts();
+        // ensure we pick a different acc
+        const receiver = existingAccounts.find(acc => acc.address.toString() !== ownerAddress.toString());
 
-      await run(
-        `send transfer --args ${ownerAddress.toString()} ${receiver?.address.toString()}  ${TRANSFER_BALANCE} 0 --contract-address ${contractAddress.toString()} --contract-artifact TokenContractArtifact --private-key ${privKey}`,
-      );
-      const txHash = findInLogs(/Transaction\shash:\s+(?<txHash>\S+)/)?.groups?.txHash;
+        await run(
+          `send transfer --args ${ownerAddress.toString()} ${receiver?.address.toString()}  ${TRANSFER_BALANCE} 0 --contract-address ${contractAddress.toString()} --contract-artifact TokenContractArtifact --private-key ${privKey}`,
+        );
+        const txHash = findInLogs(/Transaction\shash:\s+(?<txHash>\S+)/)?.groups?.txHash;
 
-      debug('Check the transfer receipt');
-      await run(`get-tx-receipt ${txHash}`);
-      const txResult = findInLogs(/Transaction receipt:\s*(?<txHash>[\s\S]*?\})/)?.groups?.txHash;
-      const parsedResult = JSON.parse(txResult!);
-      expect(parsedResult.txHash).toEqual(txHash);
-      expect(parsedResult.status).toEqual('mined');
-      debug("Check Receiver's balance");
-      clearLogs();
-      await run(
-        `call balance_of_private --args ${receiver?.address.toString()} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()}`,
-      );
-      const receiverBalance = findInLogs(/View\sresult:\s+(?<data>\S+)/)?.groups?.data;
-      expect(receiverBalance).toEqual(`${BigInt(TRANSFER_BALANCE).toString()}n`);
-    }, 100_000);
+        debug('Check the transfer receipt');
+        await run(`get-tx-receipt ${txHash}`);
+        const txResult = findInLogs(/Transaction receipt:\s*(?<txHash>[\s\S]*?\})/)?.groups?.txHash;
+        const parsedResult = JSON.parse(txResult!);
+        expect(parsedResult.txHash).toEqual(txHash);
+        expect(parsedResult.status).toEqual('mined');
+        debug("Check Receiver's balance");
+        clearLogs();
+        await run(
+          `call balance_of_private --args ${receiver?.address.toString()} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()}`,
+        );
+        const receiverBalance = findInLogs(/View\sresult:\s+(?<data>\S+)/)?.groups?.data;
+        expect(receiverBalance).toEqual(`${BigInt(TRANSFER_BALANCE).toString()}n`);
+      },
+      100_000,
+    );
   });
