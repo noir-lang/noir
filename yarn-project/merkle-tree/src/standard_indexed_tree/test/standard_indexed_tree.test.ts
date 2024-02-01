@@ -1,3 +1,4 @@
+import { SiblingPath } from '@aztec/circuit-types';
 import {
   Fr,
   NullifierLeaf,
@@ -8,7 +9,6 @@ import {
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
-import { SiblingPath } from '@aztec/types/membership';
 
 import { INITIAL_LEAF, MerkleTree, Pedersen, loadTree, newTree } from '../../index.js';
 import { treeTestSuite } from '../../test/test_suite.js';

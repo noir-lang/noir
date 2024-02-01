@@ -1,6 +1,13 @@
 import { CommitmentsDB, MessageLoadOracleInputs, PublicContractsDB, PublicStateDB } from '@aztec/acir-simulator';
 import { ContractDataSource, ExtendedContractData, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/circuit-types';
-import { AztecAddress, EthAddress, Fr, FunctionSelector, PublicDataTreeLeafPreimage } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  EthAddress,
+  Fr,
+  FunctionSelector,
+  L1_TO_L2_MSG_TREE_HEIGHT,
+  PublicDataTreeLeafPreimage,
+} from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/abis';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
@@ -144,13 +151,16 @@ export class WorldStatePublicDB implements PublicStateDB {
 export class WorldStateDB implements CommitmentsDB {
   constructor(private db: MerkleTreeOperations, private l1ToL2MessageSource: L1ToL2MessageSource) {}
 
-  public async getL1ToL2Message(messageKey: Fr): Promise<MessageLoadOracleInputs> {
+  public async getL1ToL2Message(messageKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     // todo: #697 - make this one lookup.
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
     const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageKey.toBuffer()))!;
-    const siblingPath = await this.db.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, index);
+    const siblingPath = await this.db.getSiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>(
+      MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
+      index,
+    );
 
-    return new MessageLoadOracleInputs(message.toFieldArray(), index, siblingPath.toFieldArray());
+    return new MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>(message, index, siblingPath);
   }
 
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {

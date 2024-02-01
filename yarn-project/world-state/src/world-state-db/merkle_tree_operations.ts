@@ -1,9 +1,8 @@
-import { L2Block, MerkleTreeId } from '@aztec/circuit-types';
+import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
 import { Header, NullifierLeafPreimage, StateReference } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult } from '@aztec/merkle-tree';
-import { SiblingPath } from '@aztec/types/membership';
 
 /**
  * Type alias for the nullifier tree ID.

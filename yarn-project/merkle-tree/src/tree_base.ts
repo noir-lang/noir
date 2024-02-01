@@ -1,8 +1,8 @@
+import { SiblingPath } from '@aztec/circuit-types';
 import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore, AztecMap, AztecSingleton } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
-import { SiblingPath } from '@aztec/types/membership';
 
 import { HasherWithStats } from './hasher_with_stats.js';
 import { MerkleTree } from './interfaces/merkle_tree.js';

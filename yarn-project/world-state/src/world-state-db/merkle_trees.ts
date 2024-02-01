@@ -1,4 +1,4 @@
-import { L2Block, MerkleTreeId } from '@aztec/circuit-types';
+import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
@@ -37,7 +37,6 @@ import {
   newTree,
 } from '@aztec/merkle-tree';
 import { Hasher } from '@aztec/types/interfaces';
-import { SiblingPath } from '@aztec/types/membership';
 
 import { INITIAL_NULLIFIER_TREE_SIZE, INITIAL_PUBLIC_DATA_TREE_SIZE, MerkleTreeDb } from './merkle_tree_db.js';
 import { HandleL2BlockResult, IndexedTreeId, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';

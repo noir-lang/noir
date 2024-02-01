@@ -8,7 +8,15 @@ import {
   PublicDataWitness,
   StateInfoProvider,
 } from '@aztec/circuit-types';
-import { AztecAddress, CompleteAddress, EthAddress, Fr, FunctionSelector, Header } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CompleteAddress,
+  EthAddress,
+  Fr,
+  FunctionSelector,
+  Header,
+  L1_TO_L2_MSG_TREE_HEIGHT,
+} from '@aztec/circuits.js';
 import { FunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 
@@ -118,12 +126,12 @@ export class SimulatorOracle implements DBOracle {
    * @returns A promise that resolves to the message data, a sibling path and the
    *          index of the message in the l1ToL2MessageTree
    */
-  async getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs> {
+  async getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     const messageAndIndex = await this.stateInfoProvider.getL1ToL2MessageAndIndex(msgKey);
-    const message = messageAndIndex.message.toFieldArray();
+    const message = messageAndIndex.message;
     const index = messageAndIndex.index;
     const siblingPath = await this.stateInfoProvider.getL1ToL2MessageSiblingPath('latest', index);
-    return new MessageLoadOracleInputs(message, index, siblingPath.toFieldArray());
+    return new MessageLoadOracleInputs(message, index, siblingPath);
   }
 
   /**

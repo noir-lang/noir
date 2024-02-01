@@ -1,6 +1,6 @@
+import { SiblingPath } from '@aztec/circuit-types';
 import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
-import { SiblingPath } from '@aztec/types/membership';
 
 import { randomBytes } from 'crypto';
 

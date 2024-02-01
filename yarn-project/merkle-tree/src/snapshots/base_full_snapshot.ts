@@ -1,5 +1,5 @@
+import { SiblingPath } from '@aztec/circuit-types';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
-import { SiblingPath } from '@aztec/types/membership';
 
 import { TreeBase } from '../tree_base.js';
 import { TreeSnapshot, TreeSnapshotBuilder } from './snapshot_builder.js';

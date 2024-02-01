@@ -1,6 +1,6 @@
+import { SiblingPath } from '@aztec/circuit-types';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
-import { SiblingPath } from '@aztec/types/membership';
 
 import { AppendOnlyTree } from '../interfaces/append_only_tree.js';
 import { TreeBase } from '../tree_base.js';

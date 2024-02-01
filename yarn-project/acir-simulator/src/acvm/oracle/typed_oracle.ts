@@ -1,14 +1,22 @@
 import {
   CompleteAddress,
+  L1ToL2Message,
   MerkleTreeId,
   Note,
   NoteStatus,
   NullifierMembershipWitness,
   PublicDataWitness,
   PublicKey,
+  SiblingPath,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
-import { GrumpkinPrivateKey, Header, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import {
+  GrumpkinPrivateKey,
+  Header,
+  L1_TO_L2_MSG_TREE_HEIGHT,
+  PrivateCallStackItem,
+  PublicCallRequest,
+} from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -48,21 +56,18 @@ export interface NoteData {
   index?: bigint;
 }
 
-export class MessageLoadOracleInputs {
+export class MessageLoadOracleInputs<N extends number> {
   constructor(
-    /**
-     * An collapsed array of fields containing all of the l1 to l2 message components.
-     * `l1ToL2Message.toFieldArray()` -\> [sender, chainId, recipient, version, content, secretHash, deadline, fee]
-     */
-    public message: Fr[],
+    /** The message. */
+    public message: L1ToL2Message,
     /** The index of the message commitment in the merkle tree. */
     public index: bigint,
     /** The path in the merkle tree to the message. */
-    public siblingPath: Fr[],
+    public siblingPath: SiblingPath<N>,
   ) {}
 
   toFields(): Fr[] {
-    return [...this.message, new Fr(this.index), ...this.siblingPath];
+    return [...this.message.toFieldArray(), new Fr(this.index), ...this.siblingPath.toFieldArray()];
   }
 }
 
@@ -154,7 +159,7 @@ export abstract class TypedOracle {
     throw new Error('Not available.');
   }
 
-  getL1ToL2Message(_msgKey: Fr): Promise<MessageLoadOracleInputs> {
+  getL1ToL2Message(_msgKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     throw new Error('Not available.');
   }
 

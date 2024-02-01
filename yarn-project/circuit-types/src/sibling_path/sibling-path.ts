@@ -6,8 +6,7 @@ import {
   deserializeArrayFromVector,
   serializeBufferArrayToVector,
 } from '@aztec/foundation/serialize';
-
-import { Hasher } from '../interfaces/index.js';
+import { Hasher } from '@aztec/types/interfaces';
 
 /**
  * Contains functionality to compute and serialize/deserialize a sibling path.

@@ -1,5 +1,6 @@
 import { Fr, PUBLIC_DATA_TREE_HEIGHT, PublicDataTreeLeafPreimage } from '@aztec/circuits.js';
-import { SiblingPath } from '@aztec/types/membership';
+
+import { SiblingPath } from '../sibling_path/index.js';
 
 /**
  * Public data witness.
