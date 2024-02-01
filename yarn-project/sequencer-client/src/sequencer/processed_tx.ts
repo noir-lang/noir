@@ -42,24 +42,6 @@ export type FailedTx = {
 };
 
 /**
- * Makes a processed tx out of a private only tx that has its proof already set.
- * @param tx - Source tx that doesn't need further processing.
- */
-export async function makeProcessedTx(tx: Tx): Promise<ProcessedTx>;
-
-/**
- * Makes a processed tx out of a tx with a public component that needs processing.
- * @param tx - Source tx.
- * @param kernelOutput - Output of the public kernel circuit simulation for this tx.
- * @param proof - Proof of the public kernel circuit for this tx.
- */
-export async function makeProcessedTx(
-  tx: Tx,
-  kernelOutput: PublicKernelPublicInputs,
-  proof: Proof,
-): Promise<ProcessedTx>;
-
-/**
  * Makes a processed tx out of source tx.
  * @param tx - Source tx.
  * @param kernelOutput - Output of the kernel circuit simulation for this tx.
