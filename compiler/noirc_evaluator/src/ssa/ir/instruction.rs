@@ -157,7 +157,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<String>),
+    Constrain(ValueId, ValueId, Option<Box<ConstrainError>>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -326,7 +326,17 @@ impl Instruction {
                 max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                Instruction::Constrain(f(*lhs), f(*rhs), assert_message.clone())
+                // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
+                let lhs = f(*lhs);
+                let rhs = f(*rhs);
+                let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
+                    ConstrainError::Dynamic(call_instr) => {
+                        let new_instr = call_instr.map_values(f);
+                        Box::new(ConstrainError::Dynamic(new_instr))
+                    }
+                    _ => error.clone(),
+                });
+                Instruction::Constrain(lhs, rhs, assert_message)
             }
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
@@ -376,9 +386,14 @@ impl Instruction {
             | Instruction::Load { address: value } => {
                 f(*value);
             }
-            Instruction::Constrain(lhs, rhs, _) => {
+            Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
+                if let Some(error) = assert_error.as_ref() {
+                    if let ConstrainError::Dynamic(call_instr) = error.as_ref() {
+                        call_instr.for_each_value(f);
+                    }
+                }
             }
 
             Instruction::Store { address, value } => {
@@ -441,7 +456,7 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                let constraints = decompose_constrain(*lhs, *rhs, msg.clone(), dfg);
+                let constraints = decompose_constrain(*lhs, *rhs, msg, dfg);
                 if constraints.is_empty() {
                     Remove
                 } else {
@@ -551,6 +566,28 @@ impl Instruction {
                 None
             }
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub(crate) enum ConstrainError {
+    // These are errors which have been hardcoded during SSA gen
+    Static(String),
+    // These are errors which come from runtime expressions specified by a Noir program
+    // We store an `Instruction` as we want this Instruction to be atomic in SSA with
+    // a constrain instruction, and leave codegen of this instruction to lower level passes.
+    Dynamic(Instruction),
+}
+
+impl From<String> for ConstrainError {
+    fn from(value: String) -> Self {
+        ConstrainError::Static(value)
+    }
+}
+
+impl From<String> for Box<ConstrainError> {
+    fn from(value: String) -> Self {
+        Box::new(value.into())
     }
 }
 
