@@ -1,7 +1,7 @@
-import { GlobalVariables, Header } from '@aztec/circuits.js';
+import { GlobalVariables, Header, PublicCircuitPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { Oracle, acvm, extractCallStack, extractPublicCircuitPublicInputs } from '../acvm/index.js';
+import { Oracle, acvm, extractCallStack, extractReturnWitness } from '../acvm/index.js';
 import { ExecutionError, createSimulationError } from '../common/errors.js';
 import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
@@ -39,12 +39,13 @@ export async function executePublicFunction(
     },
   );
 
+  const returnWitness = extractReturnWitness(acir, partialWitness);
   const {
     returnValues,
     newL2ToL1Msgs,
     newCommitments: newCommitmentsPadded,
     newNullifiers: newNullifiersPadded,
-  } = extractPublicCircuitPublicInputs(partialWitness, acir);
+  } = PublicCircuitPublicInputs.fromFields(returnWitness);
 
   const newL2ToL1Messages = newL2ToL1Msgs.filter(v => !v.isZero());
   const newCommitments = newCommitmentsPadded.filter(v => !v.isEmpty());

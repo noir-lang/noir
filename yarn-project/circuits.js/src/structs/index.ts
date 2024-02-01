@@ -5,6 +5,8 @@ export * from './call_request.js';
 export * from './call_stack_item.js';
 export * from './complete_address.js';
 export * from './contract_deployment_data.js';
+export * from './contract_storage_read.js';
+export * from './contract_storage_update_request.js';
 export * from './function_data.js';
 export * from './function_leaf_preimage.js';
 export * from './global_variables.js';

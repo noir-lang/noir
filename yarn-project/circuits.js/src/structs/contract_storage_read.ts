@@ -1,0 +1,77 @@
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
+
+/**
+ * Contract storage read operation on a specific contract.
+ *
+ * Note: Similar to `PublicDataRead` but it's from the POV of contract storage so we are not working with public data
+ * tree leaf index but storage slot index.
+ */
+export class ContractStorageRead {
+  constructor(
+    /**
+     * Storage slot we are reading from.
+     */
+    public readonly storageSlot: Fr,
+    /**
+     * Value read from the storage slot.
+     */
+    public readonly currentValue: Fr,
+    /**
+     * Optional side effect counter tracking position of this event in tx execution.
+     * Note: Not serialized
+     */
+    public readonly sideEffectCounter?: number,
+  ) {}
+
+  static from(args: {
+    /**
+     * Storage slot we are reading from.
+     */
+    storageSlot: Fr;
+    /**
+     * Value read from the storage slot.
+     */
+    currentValue: Fr;
+    /**
+     * Optional side effect counter tracking position of this event in tx execution.
+     */
+    sideEffectCounter?: number;
+  }) {
+    return new ContractStorageRead(args.storageSlot, args.currentValue, args.sideEffectCounter);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(this.storageSlot, this.currentValue);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new ContractStorageRead(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
+  }
+
+  static empty() {
+    return new ContractStorageRead(Fr.ZERO, Fr.ZERO);
+  }
+
+  isEmpty() {
+    return this.storageSlot.isZero() && this.currentValue.isZero();
+  }
+
+  toFriendlyJSON() {
+    return `Slot=${this.storageSlot.toFriendlyJSON()}: ${this.currentValue.toFriendlyJSON()}`;
+  }
+
+  toFields(): Fr[] {
+    return [this.storageSlot, this.currentValue];
+  }
+
+  static fromFields(fields: Fr[] | FieldReader): ContractStorageRead {
+    const reader = FieldReader.asReader(fields);
+
+    const storageSlot = reader.readField();
+    const currentValue = reader.readField();
+
+    return new ContractStorageRead(storageSlot, currentValue);
+  }
+}
