@@ -1,5 +1,3 @@
-use dep::std::option::Option;
-
 fn main() {
     let ten = 10; // giving this a name, to ensure that the Option functions work with closures
     let none = Option::none();
@@ -21,6 +19,8 @@ fn main() {
     assert(none.map(|x| x * 2).is_none());
     assert(some.map(|x| x * 2).unwrap() == 6);
     assert(some.map(|x| x * ten).unwrap() == 30);
+
+    assert(some.expect(f"Should have a value") == 3);
 
     assert(none.map_or(0, |x| x * 2) == 0);
     assert(some.map_or(0, |x| x * 2) == 6);
