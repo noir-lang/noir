@@ -1,4 +1,4 @@
-import { type ContractArtifact, type FunctionArtifact } from '@aztec/aztec.js/abi';
+import { type ContractArtifact, type FunctionArtifact, loadContractArtifact } from '@aztec/aztec.js/abi';
 import { AztecAddress } from '@aztec/aztec.js/aztec_address';
 import { type L1ContractArtifactsForDeployment } from '@aztec/aztec.js/ethereum';
 import { type PXE } from '@aztec/aztec.js/interfaces/pxe';
@@ -111,27 +111,24 @@ export async function getExampleContractArtifacts(): Promise<ArtifactsType> {
  */
 export async function getContractArtifact(fileDir: string, log: LogFn) {
   // first check if it's a noir-contracts example
-  let contents: string;
   const artifacts = await getExampleContractArtifacts();
   if (artifacts[fileDir]) {
     return artifacts[fileDir] as ContractArtifact;
   }
 
+  let contents: string;
   try {
     contents = await readFile(fileDir, 'utf8');
   } catch {
     throw Error(`Contract ${fileDir} not found`);
   }
 
-  // if not found, try reading as path directly
-  let contractArtifact: ContractArtifact;
   try {
-    contractArtifact = JSON.parse(contents) as ContractArtifact;
+    return loadContractArtifact(JSON.parse(contents));
   } catch (err) {
     log('Invalid file used. Please try again.');
     throw err;
   }
-  return contractArtifact;
 }
 
 /**
