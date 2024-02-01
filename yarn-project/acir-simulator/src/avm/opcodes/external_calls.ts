@@ -60,9 +60,10 @@ export class Call extends Instruction {
     machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
-      avmContext.mergeJournal();
+      avmContext.mergeJournalSuccess();
+    } else {
+      avmContext.mergeJournalFailure();
     }
-
     this.incrementPc(machineState);
   }
 }
@@ -119,7 +120,9 @@ export class StaticCall extends Instruction {
     machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
-      avmContext.mergeJournal();
+      avmContext.mergeJournalSuccess();
+    } else {
+      avmContext.mergeJournalFailure();
     }
 
     this.incrementPc(machineState);

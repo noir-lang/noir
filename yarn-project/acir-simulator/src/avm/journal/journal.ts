@@ -162,11 +162,12 @@ export class AvmJournal {
   }
 
   /**
-   * Merge Journal into parent
+   * Merge Journal from successful call into parent
    * - Utxo objects are concatenated
-   * - Public state is merged, with the value in the incoming journal taking precedent
+   * - Public state changes are merged, with the value in the incoming journal taking precedent
+   * - Public state journals (r/w logs), with the accessing being appended in chronological order
    */
-  public mergeWithParent() {
+  public mergeSuccessWithParent() {
     if (!this.parentJournal) {
       throw new RootJournalCannotBeMerged();
     }
@@ -179,6 +180,22 @@ export class AvmJournal {
 
     // Merge Public State
     mergeCurrentValueMaps(this.parentJournal.currentStorageValue, this.currentStorageValue);
+
+    // Merge storage read and write journals
+    mergeContractJournalMaps(this.parentJournal.storageReads, this.storageReads);
+    mergeContractJournalMaps(this.parentJournal.storageWrites, this.storageWrites);
+  }
+
+  /**
+   * Merge Journal for failed call into parent
+   * - Utxo objects are concatenated
+   * - Public state changes are dropped
+   * - Public state journals (r/w logs) are maintained, with the accessing being appended in chronological order
+   */
+  public mergeFailureWithParent() {
+    if (!this.parentJournal) {
+      throw new RootJournalCannotBeMerged();
+    }
 
     // Merge storage read and write journals
     mergeContractJournalMaps(this.parentJournal.storageReads, this.storageReads);
@@ -261,7 +278,7 @@ function mergeStorageJournalMaps(hostMap: Map<bigint, Fr[]>, childMap: Map<bigin
     if (!readArr) {
       hostMap.set(key, value);
     } else {
-      readArr?.concat(value);
+      hostMap.set(key, readArr?.concat(...value));
     }
   }
 }

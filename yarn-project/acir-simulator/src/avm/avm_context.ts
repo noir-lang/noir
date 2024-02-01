@@ -119,8 +119,16 @@ export class AvmContext {
    * Merge the journal of this call with it's parent
    * NOTE: this should never be called on a root context - only from within a nested call
    */
-  public mergeJournal() {
-    this.journal.mergeWithParent();
+  public mergeJournalSuccess() {
+    this.journal.mergeSuccessWithParent();
+  }
+
+  /**
+   * Merge the journal of this call with it's parent
+   * For when the child call fails ( we still must track state accesses )
+   */
+  public mergeJournalFailure() {
+    this.journal.mergeFailureWithParent();
   }
 }
 
