@@ -713,6 +713,10 @@ impl Context {
                                     AcirValue::Array(array.update(index, store_value))
                                 }
                                 None => {
+                                    // If the index is out of range for a slice we should directly create dummy data.
+                                    // This situation should only happen during flattening of slices when the same slice after an if statement
+                                    // would have different lengths depending upon the predicate.
+                                    // Otherwise, we can potentially hit an index out of bounds error.
                                     if index >= array_size {
                                         self.construct_dummy_slice_value(instruction, dfg)
                                     } else {
@@ -730,9 +734,10 @@ impl Context {
                         self.define_result(dfg, instruction, array[index].clone());
                         return Ok(true);
                     }
-                    // If there is a non constant predicate and the index is out of range for a slice we should still directly create dummy data
-                    // These situations should only happen during flattening of slices when the same slice after an if statement
-                    // would have different lengths depending upon the condition
+                    // If there is a non constant predicate and the index is out of range for a slice, we should directly create dummy data.
+                    // This situation should only happen during flattening of slices when the same slice after an if statement
+                    // would have different lengths depending upon the predicate.
+                    // Otherwise, we can potentially hit an index out of bounds error.
                     else if index >= array_size
                         && value_type.contains_slice_element()
                         && store_value.is_none()
@@ -784,10 +789,10 @@ impl Context {
     ) -> AcirValue {
         let results = dfg.instruction_results(instruction);
         let res_typ = dfg.type_of_value(results[0]);
-        self.construct_dummy_array_value(&res_typ)
+        self.construct_dummy_slice_value_inner(&res_typ)
     }
 
-    fn construct_dummy_array_value(&mut self, ssa_type: &Type) -> AcirValue {
+    fn construct_dummy_slice_value_inner(&mut self, ssa_type: &Type) -> AcirValue {
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 let zero = self.acir_context.add_constant(FieldElement::zero());
@@ -798,7 +803,7 @@ impl Context {
                 let mut values = Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
-                        values.push_back(self.construct_dummy_array_value(typ));
+                        values.push_back(self.construct_dummy_slice_value_inner(typ));
                     }
                 }
                 AcirValue::Array(values)
