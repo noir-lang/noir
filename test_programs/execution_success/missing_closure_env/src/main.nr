@@ -7,7 +7,7 @@ fn main(x: Field) {
     assert(*x1 == 44);
     set_x1(*x1);
     assert(*x1 == 44);
-    assert(x == x);
+    assert(x == 42);
 }
 
 #[test]
