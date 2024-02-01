@@ -497,6 +497,8 @@ std::shared_ptr<plonk::verification_key> UltraComposer::compute_verification_key
 
     circuit_verification_key->contains_recursive_proof = circuit_constructor.contains_recursive_proof;
 
+    circuit_verification_key->is_recursive_circuit = circuit_constructor.is_recursive_circuit;
+
     return circuit_verification_key;
 }
 

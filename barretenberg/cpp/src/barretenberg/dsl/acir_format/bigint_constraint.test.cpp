@@ -48,6 +48,7 @@ TEST_F(BigIntTests, TestBigIntConstraintDummy)
 
     AcirFormat constraint_system{
         .varnum = 4,
+        .recursive = false,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},

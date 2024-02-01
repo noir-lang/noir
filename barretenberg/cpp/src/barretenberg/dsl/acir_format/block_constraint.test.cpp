@@ -110,6 +110,7 @@ TEST_F(UltraPlonkRAM, TestBlockConstraint)
     size_t num_variables = generate_block_constraint(block, witness_values);
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
+        .recursive = false,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},

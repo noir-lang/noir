@@ -102,7 +102,7 @@ fn verify_package(
 
     let proof = load_hex_data(&proof_path)?;
 
-    let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.circuit, false)?;
+    let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.circuit)?;
 
     if valid_proof {
         Ok(())

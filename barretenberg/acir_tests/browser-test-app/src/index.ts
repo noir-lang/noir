@@ -31,10 +31,9 @@ async function runTest(
     acirComposer,
     bytecode,
     witness,
-    true
   );
   debug(`verifying...`);
-  const verified = await api.acirVerifyProof(acirComposer, proof, true);
+  const verified = await api.acirVerifyProof(acirComposer, proof);
   debug(`verified: ${verified}`);
 
   await api.destroy();

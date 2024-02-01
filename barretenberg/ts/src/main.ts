@@ -99,7 +99,7 @@ async function initLite() {
   return { api, acirComposer };
 }
 
-export async function proveAndVerify(bytecodePath: string, witnessPath: string, crsPath: string, isRecursive: boolean) {
+export async function proveAndVerify(bytecodePath: string, witnessPath: string, crsPath: string) {
   /* eslint-disable camelcase */
   const acir_test = path.basename(process.cwd());
 
@@ -116,11 +116,11 @@ export async function proveAndVerify(bytecodePath: string, witnessPath: string, 
     writeBenchmark('subgroup_size', subgroupSize, { acir_test, threads });
 
     const proofTimer = new Timer();
-    const proof = await api.acirCreateProof(acirComposer, bytecode, witness, isRecursive);
+    const proof = await api.acirCreateProof(acirComposer, bytecode, witness);
     writeBenchmark('proof_construction_time', proofTimer.ms(), { acir_test, threads });
 
     debug(`verifying...`);
-    const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
+    const verified = await api.acirVerifyProof(acirComposer, proof);
     debug(`verified: ${verified}`);
     return verified;
   } finally {
@@ -186,19 +186,13 @@ export async function proveAndVerifyGoblin(bytecodePath: string, witnessPath: st
   /* eslint-enable camelcase */
 }
 
-export async function prove(
-  bytecodePath: string,
-  witnessPath: string,
-  crsPath: string,
-  isRecursive: boolean,
-  outputPath: string,
-) {
+export async function prove(bytecodePath: string, witnessPath: string, crsPath: string, outputPath: string) {
   const { api, acirComposer } = await init(bytecodePath, crsPath);
   try {
     debug(`creating proof...`);
     const bytecode = getBytecode(bytecodePath);
     const witness = getWitness(witnessPath);
-    const proof = await api.acirCreateProof(acirComposer, bytecode, witness, isRecursive);
+    const proof = await api.acirCreateProof(acirComposer, bytecode, witness);
     debug(`done.`);
 
     if (outputPath === '-') {
@@ -241,11 +235,11 @@ export function acvmInfo(outputPath: string) {
   }
 }
 
-export async function verify(proofPath: string, isRecursive: boolean, vkPath: string) {
+export async function verify(proofPath: string, vkPath: string) {
   const { api, acirComposer } = await initLite();
   try {
     await api.acirLoadVerificationKey(acirComposer, new RawBuffer(readFileSync(vkPath)));
-    const verified = await api.acirVerifyProof(acirComposer, readFileSync(proofPath), isRecursive);
+    const verified = await api.acirVerifyProof(acirComposer, readFileSync(proofPath));
     debug(`verified: ${verified}`);
     return verified;
   } finally {
@@ -379,10 +373,9 @@ program
   .description('Generate a proof and verify it. Process exits with success or failure code.')
   .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
   .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
-  .option('-r, --recursive', 'prove and verify using recursive prover and verifier', false)
-  .action(async ({ bytecodePath, witnessPath, recursive, crsPath }) => {
+  .action(async ({ bytecodePath, witnessPath, crsPath }) => {
     handleGlobalOptions();
-    const result = await proveAndVerify(bytecodePath, witnessPath, crsPath, recursive);
+    const result = await proveAndVerify(bytecodePath, witnessPath, crsPath);
     process.exit(result ? 0 : 1);
   });
 
@@ -413,11 +406,10 @@ program
   .description('Generate a proof and write it to a file.')
   .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
   .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
-  .option('-r, --recursive', 'prove using recursive prover', false)
   .option('-o, --output-path <path>', 'Specify the proof output path', './proofs/proof')
-  .action(async ({ bytecodePath, witnessPath, recursive, outputPath, crsPath }) => {
+  .action(async ({ bytecodePath, witnessPath, outputPath, crsPath }) => {
     handleGlobalOptions();
-    await prove(bytecodePath, witnessPath, crsPath, recursive, outputPath);
+    await prove(bytecodePath, witnessPath, crsPath, outputPath);
   });
 
 program
@@ -433,11 +425,10 @@ program
   .command('verify')
   .description('Verify a proof. Process exists with success or failure code.')
   .requiredOption('-p, --proof-path <path>', 'Specify the path to the proof')
-  .option('-r, --recursive', 'prove using recursive prover', false)
   .requiredOption('-k, --vk <path>', 'path to a verification key. avoids recomputation.')
-  .action(async ({ proofPath, recursive, vk }) => {
+  .action(async ({ proofPath, vk }) => {
     handleGlobalOptions();
-    const result = await verify(proofPath, recursive, vk);
+    const result = await verify(proofPath, vk);
     process.exit(result ? 0 : 1);
   });
 

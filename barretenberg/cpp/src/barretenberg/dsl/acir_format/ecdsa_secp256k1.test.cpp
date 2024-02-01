@@ -89,6 +89,7 @@ TEST_F(ECDSASecp256k1, TestECDSAConstraintSucceed)
     size_t num_variables = generate_ecdsa_constraint(ecdsa_k1_constraint, witness_values);
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
+        .recursive = false,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},
@@ -134,6 +135,7 @@ TEST_F(ECDSASecp256k1, TestECDSACompilesForVerifier)
     size_t num_variables = generate_ecdsa_constraint(ecdsa_k1_constraint, witness_values);
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
+        .recursive = false,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},
@@ -174,6 +176,7 @@ TEST_F(ECDSASecp256k1, TestECDSAConstraintFail)
 
     AcirFormat constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
+        .recursive = false,
         .public_inputs = {},
         .logic_constraints = {},
         .range_constraints = {},

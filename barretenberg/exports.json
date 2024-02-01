@@ -536,10 +536,6 @@
       {
         "name": "witness_buf",
         "type": "const uint8_t *"
-      },
-      {
-        "name": "is_recursive",
-        "type": "const bool *"
       }
     ],
     "outArgs": [
@@ -670,10 +666,6 @@
       {
         "name": "proof_buf",
         "type": "const uint8_t *"
-      },
-      {
-        "name": "is_recursive",
-        "type": "const bool *"
       }
     ],
     "outArgs": [

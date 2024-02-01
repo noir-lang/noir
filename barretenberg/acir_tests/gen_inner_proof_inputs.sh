@@ -20,7 +20,7 @@ export BRANCH
 
 ./clone_test_vectors.sh
 
-cd acir_tests/assert_statement
+cd acir_tests/assert_statement_recursive
 
 PROOF_DIR=$PWD/proofs
 PROOF_PATH=$PROOF_DIR/$PROOF_NAME

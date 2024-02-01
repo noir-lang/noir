@@ -193,7 +193,9 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
 template <typename Builder>
 Builder create_circuit(const AcirFormat& constraint_system, size_t size_hint, WitnessVector const& witness)
 {
-    Builder builder{ size_hint, witness, constraint_system.public_inputs, constraint_system.varnum };
+    Builder builder{
+        size_hint, witness, constraint_system.public_inputs, constraint_system.varnum, constraint_system.recursive
+    };
 
     bool has_valid_witness_assignments = !witness.empty();
     build_constraints(builder, constraint_system, has_valid_witness_assignments);

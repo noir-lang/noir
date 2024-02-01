@@ -35,9 +35,16 @@ template <typename FF_> class CircuitBuilderBase {
     // DOCTODO(#231): replace with the relevant wiki link.
     std::map<uint32_t, uint32_t> tau;
 
-    // Publicin put indices which contain recursive proof information
+    // Public input indices which contain recursive proof information
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
+
+    // We only know from the circuit description whether a circuit should use a prover which produces
+    // proofs that are friendly to verify in a circuit themselves. However, a verifier does not need a full circuit
+    // description and should be able to verify a proof with just the verification key and the proof.
+    // This field exists to later set the same field in the verification key, and make sure
+    // that we are using the correct prover/verifier.
+    bool is_recursive_circuit = false;
 
     bool _failed = false;
     std::string _err;

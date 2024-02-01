@@ -18,6 +18,7 @@ struct verification_key_data {
     std::map<std::string, bb::g1::affine_element> commitments;
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
+    bool is_recursive_circuit = false;
 
     // for serialization: update with any new fields
     MSGPACK_FIELDS(circuit_type,
@@ -25,7 +26,8 @@ struct verification_key_data {
                    num_public_inputs,
                    commitments,
                    contains_recursive_proof,
-                   recursive_proof_public_input_indices);
+                   recursive_proof_public_input_indices,
+                   is_recursive_circuit);
     [[nodiscard]] bb::fr hash_native(size_t hash_index = 0) const;
 };
 
@@ -36,7 +38,8 @@ inline std::ostream& operator<<(std::ostream& os, verification_key_data const& k
               << "key.num_public_inputs: " << static_cast<uint32_t>(key.num_public_inputs) << "\n"
               << "key.commitments: " << key.commitments << "\n"
               << "key.contains_recursive_proof: " << key.contains_recursive_proof << "\n"
-              << "key.recursive_proof_public_input_indices: " << key.recursive_proof_public_input_indices << "\n";
+              << "key.recursive_proof_public_input_indices: " << key.recursive_proof_public_input_indices << "\n"
+              << "key.is_recursive_circuit: " << key.is_recursive_circuit << "\n";
 };
 
 inline bool operator==(verification_key_data const& lhs, verification_key_data const& rhs)
@@ -72,6 +75,7 @@ struct verification_key {
             .commitments = commitments,
             .contains_recursive_proof = contains_recursive_proof,
             .recursive_proof_public_input_indices = recursive_proof_public_input_indices,
+            .is_recursive_circuit = is_recursive_circuit,
         };
     }
 
@@ -94,17 +98,23 @@ struct verification_key {
 
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
+
+    bool is_recursive_circuit = false;
+
     size_t program_width = 3;
 
     // for serialization: update with new fields
     void msgpack_pack(auto& packer) const
     {
-        verification_key_data data = { static_cast<uint32_t>(circuit_type),
-                                       static_cast<uint32_t>(circuit_size),
-                                       static_cast<uint32_t>(num_public_inputs),
-                                       commitments,
-                                       contains_recursive_proof,
-                                       recursive_proof_public_input_indices };
+        verification_key_data data = {
+            static_cast<uint32_t>(circuit_type),
+            static_cast<uint32_t>(circuit_size),
+            static_cast<uint32_t>(num_public_inputs),
+            commitments,
+            contains_recursive_proof,
+            recursive_proof_public_input_indices,
+            is_recursive_circuit,
+        };
         packer.pack(data);
     }
     void msgpack_unpack(auto obj)

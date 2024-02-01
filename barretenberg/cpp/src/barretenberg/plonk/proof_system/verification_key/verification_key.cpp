@@ -92,6 +92,7 @@ verification_key::verification_key(verification_key_data&& data,
     , polynomial_manifest(static_cast<CircuitType>(data.circuit_type))
     , contains_recursive_proof(data.contains_recursive_proof)
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
+    , is_recursive_circuit(data.is_recursive_circuit)
 {}
 
 verification_key::verification_key(const verification_key& other)

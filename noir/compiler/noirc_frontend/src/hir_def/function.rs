@@ -127,7 +127,7 @@ impl FuncMeta {
     pub fn can_ignore_return_type(&self) -> bool {
         match self.kind {
             FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal => false,
+            FunctionKind::Normal | FunctionKind::Recursive => false,
         }
     }
 

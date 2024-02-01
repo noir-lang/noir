@@ -49,7 +49,6 @@ WASM_EXPORT void acir_init_proving_key(in_ptr acir_composer_ptr, uint8_t const* 
 WASM_EXPORT void acir_create_proof(in_ptr acir_composer_ptr,
                                    uint8_t const* acir_vec,
                                    uint8_t const* witness_vec,
-                                   bool const* is_recursive,
                                    uint8_t** out)
 {
     auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
@@ -59,8 +58,8 @@ WASM_EXPORT void acir_create_proof(in_ptr acir_composer_ptr,
     acir_composer->create_circuit(constraint_system, witness);
 
     acir_composer->init_proving_key();
-    auto proof = acir_composer->create_proof(*is_recursive);
-    *out = to_heap_buffer(proof);
+    auto proof_data = acir_composer->create_proof();
+    *out = to_heap_buffer(proof_data);
 }
 
 WASM_EXPORT void acir_goblin_accumulate(in_ptr acir_composer_ptr,
@@ -144,14 +143,11 @@ WASM_EXPORT void acir_goblin_verify(in_ptr acir_composer_ptr, uint8_t const* pro
     *result = acir_composer->verify(proof);
 }
 
-WASM_EXPORT void acir_verify_proof(in_ptr acir_composer_ptr,
-                                   uint8_t const* proof_buf,
-                                   bool const* is_recursive,
-                                   bool* result)
+WASM_EXPORT void acir_verify_proof(in_ptr acir_composer_ptr, uint8_t const* proof_buf, bool* result)
 {
     auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
     auto proof = from_buffer<std::vector<uint8_t>>(proof_buf);
-    *result = acir_composer->verify_proof(proof, *is_recursive);
+    *result = acir_composer->verify_proof(proof);
 }
 
 WASM_EXPORT void acir_get_solidity_verifier(in_ptr acir_composer_ptr, out_str_buf out)
