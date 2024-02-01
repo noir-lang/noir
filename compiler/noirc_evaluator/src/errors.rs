@@ -163,7 +163,7 @@ impl RuntimeError {
             _ => {
                 let message = self.to_string();
                 let location =
-                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+                    self.call_stack().back().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }

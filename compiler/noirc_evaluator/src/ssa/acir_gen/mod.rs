@@ -621,11 +621,11 @@ impl Context {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         index: ValueId,
-        array: ValueId,
+        array_id: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
-        let value_type = dfg.type_of_value(array);
+        let value_type = dfg.type_of_value(array_id);
         // Compiler sanity checks
         assert!(
             !value_type.is_nested_slice(),
@@ -635,7 +635,7 @@ impl Context {
             unreachable!("ICE: expected array or slice type");
         };
 
-        match self.convert_value(array, dfg) {
+        match self.convert_value(array_id, dfg) {
             AcirValue::Var(acir_var, _) => {
                 return Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
@@ -659,7 +659,7 @@ impl Context {
                     };
                     if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                         // Report the error if side effects are enabled.
-                        if index >= array_size {
+                        if index >= array_size && !matches!(value_type, Type::Slice(_)) {
                             let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::IndexOutOfBounds {
                                 index,
@@ -672,7 +672,13 @@ impl Context {
                                     let store_value = self.convert_value(store_value, dfg);
                                     AcirValue::Array(array.update(index, store_value))
                                 }
-                                None => array[index].clone(),
+                                None => {
+                                    if index >= array_size {
+                                        self.construct_dummy_slice_value(instruction, dfg)
+                                    } else {
+                                        array[index].clone()
+                                    }
+                                }
                             };
 
                             self.define_result(dfg, instruction, value);
@@ -684,12 +690,81 @@ impl Context {
                         self.define_result(dfg, instruction, array[index].clone());
                         return Ok(true);
                     }
+                    // If there is a non constant predicate and the index is out of range for a slice we should still directly create dummy data
+                    // These situations should only happen during flattening of slices when the same slice after an if statement
+                    // would have different lengths depending upon the condition
+                    else if index >= array_size
+                        && value_type.contains_slice_element()
+                        && store_value.is_none()
+                    {
+                        if index >= array_size {
+                            let value = self.construct_dummy_slice_value(instruction, dfg);
+
+                            self.define_result(dfg, instruction, value);
+                            return Ok(true);
+                        } else {
+                            return Ok(false);
+                        }
+                    }
                 }
             }
-            AcirValue::DynamicArray(_) => (),
+            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                if let Some(index_const) = index_const {
+                    let index = match index_const.try_to_u64() {
+                        Some(index_const) => index_const as usize,
+                        None => {
+                            let call_stack = self.acir_context.get_call_stack();
+                            return Err(RuntimeError::TypeConversion {
+                                from: "array index".to_string(),
+                                into: "u64".to_string(),
+                                call_stack,
+                            });
+                        }
+                    };
+
+                    if index >= len {
+                        let value = self.construct_dummy_slice_value(instruction, dfg);
+
+                        self.define_result(dfg, instruction, value);
+                        return Ok(true);
+                    }
+                }
+
+                return Ok(false);
+            }
         };
 
         Ok(false)
+    }
+
+    fn construct_dummy_slice_value(
+        &mut self,
+        instruction: InstructionId,
+        dfg: &DataFlowGraph,
+    ) -> AcirValue {
+        let results = dfg.instruction_results(instruction);
+        let res_typ = dfg.type_of_value(results[0]);
+        self.construct_dummy_array_value(&res_typ)
+    }
+
+    fn construct_dummy_array_value(&mut self, ssa_type: &Type) -> AcirValue {
+        match ssa_type.clone() {
+            Type::Numeric(numeric_type) => {
+                let zero = self.acir_context.add_constant(FieldElement::zero());
+                let typ = AcirType::NumericType(numeric_type);
+                AcirValue::Var(zero, typ)
+            }
+            Type::Array(element_types, len) => {
+                let mut values = Vector::new();
+                for _ in 0..len {
+                    for typ in element_types.as_ref() {
+                        values.push_back(self.construct_dummy_array_value(typ));
+                    }
+                }
+                AcirValue::Array(values)
+            }
+            _ => unreachable!("ICE - expected an array or numeric type"),
+        }
     }
 
     /// We need to properly setup the inputs for array operations in ACIR.
