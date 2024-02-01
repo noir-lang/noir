@@ -34,7 +34,7 @@ export class BarretenbergBackend implements Backend {
   async instantiate(): Promise<void> {
     if (!this.api) {
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-      const api = await Barretenberg.new({ threads: this.options.threads });
+      const api = await Barretenberg.new(this.options);
 
       const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);
