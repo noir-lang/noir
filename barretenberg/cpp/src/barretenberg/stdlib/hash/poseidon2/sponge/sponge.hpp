@@ -135,7 +135,7 @@ template <size_t rate, size_t capacity, size_t t, typename Permutation, typename
      * @return std::array<field_t, out_len>
      */
     template <size_t out_len, bool is_variable_length>
-    static std::array<field_t, out_len> hash_internal(Builder& builder, std::span<field_t> input)
+    static std::array<field_t, out_len> hash_internal(Builder& builder, std::span<const field_t> input)
     {
         size_t in_len = input.size();
         const uint256_t iv = (static_cast<uint256_t>(in_len) << 64) + out_len - 1;
@@ -160,11 +160,11 @@ template <size_t rate, size_t capacity, size_t t, typename Permutation, typename
     }
 
     template <size_t out_len>
-    static std::array<field_t, out_len> hash_fixed_length(Builder& builder, std::span<field_t> input)
+    static std::array<field_t, out_len> hash_fixed_length(Builder& builder, std::span<const field_t> input)
     {
         return hash_internal<out_len, false>(builder, input);
     }
-    static field_t hash_fixed_length(Builder& builder, std::span<field_t> input)
+    static field_t hash_fixed_length(Builder& builder, std::span<const field_t> input)
     {
         return hash_fixed_length<1>(builder, input)[0];
     }

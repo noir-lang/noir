@@ -129,7 +129,8 @@ template <typename FF, size_t rate, size_t capacity, size_t t, typename Permutat
      * @param input
      * @return std::array<FF, out_len>
      */
-    template <size_t out_len, bool is_variable_length> static std::array<FF, out_len> hash_internal(std::span<FF> input)
+    template <size_t out_len, bool is_variable_length>
+    static std::array<FF, out_len> hash_internal(std::span<const FF> input)
     {
         size_t in_len = input.size();
         const uint256_t iv = (static_cast<uint256_t>(in_len) << 64) + out_len - 1;
@@ -153,11 +154,11 @@ template <typename FF, size_t rate, size_t capacity, size_t t, typename Permutat
         return output;
     }
 
-    template <size_t out_len> static std::array<FF, out_len> hash_fixed_length(std::span<FF> input)
+    template <size_t out_len> static std::array<FF, out_len> hash_fixed_length(std::span<const FF> input)
     {
         return hash_internal<out_len, false>(input);
     }
-    static FF hash_fixed_length(std::span<FF> input) { return hash_fixed_length<1>(input)[0]; }
+    static FF hash_fixed_length(std::span<const FF> input) { return hash_fixed_length<1>(input)[0]; }
 
     template <size_t out_len> static std::array<FF, out_len> hash_variable_length(std::span<FF> input)
     {

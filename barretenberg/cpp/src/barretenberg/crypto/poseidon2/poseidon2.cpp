@@ -7,8 +7,7 @@ namespace bb::crypto {
 template <typename Params>
 typename Poseidon2<Params>::FF Poseidon2<Params>::hash(const std::vector<typename Poseidon2<Params>::FF>& input)
 {
-    auto input_span = input;
-    return Sponge::hash_fixed_length(input_span);
+    return Sponge::hash_fixed_length(input);
 }
 
 /**

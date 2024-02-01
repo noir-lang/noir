@@ -52,12 +52,15 @@ TEST(Poseidon2, HashBufferConsistencyCheck)
     // element
     fr a(std::string("00000b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789"));
 
-    auto input_vec = to_buffer(a);      // takes field element and converts it to 32 bytes
+    // takes field element and converts it to 32 bytes
+    auto input_vec = to_buffer(a);
+    bb::fr result1 = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash_buffer(input_vec);
     input_vec.erase(input_vec.begin()); // erase first byte since we want 31 bytes
+    fr result2 = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash_buffer(input_vec);
+
     std::vector<fr> input{ a };
     auto expected = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(input);
 
-    fr result = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash_buffer(input_vec);
-
-    EXPECT_EQ(result, expected);
+    EXPECT_NE(result1, expected);
+    EXPECT_EQ(result2, expected);
 }
