@@ -216,3 +216,4 @@ avm-transpiler:
   dockerfile: avm-transpiler/Dockerfile
   rebuildPatterns:
     - ^avm-transpiler/
+    - ^noir/

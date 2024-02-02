@@ -14,7 +14,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "build:contracts": "./scripts/compile.sh && ./scripts/generate-types.sh"
+    "build:contracts": "./scripts/compile.sh && ./scripts/transpile.sh && ./scripts/generate-types.sh"
   },
   "inherits": [
     "../package.common.json",
