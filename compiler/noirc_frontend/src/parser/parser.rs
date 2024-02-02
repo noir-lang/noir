@@ -23,7 +23,6 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use super::errors::ALLOWED_INTEGER_BIT_SIZES;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -36,7 +35,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, IntType, Keyword, SecondaryAttribute, Token, TokenKind};
+use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
@@ -1093,19 +1092,14 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
                 Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
-        .validate(|int_type, span, emit| {
-            let bit_size = match int_type.1 {
-                IntType::Signed(bit_size) | IntType::Unsigned(bit_size) => bit_size,
-            };
-            if !ALLOWED_INTEGER_BIT_SIZES.contains(&bit_size) {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::DeprecatedBitSize(bit_size),
-                    span,
-                ));
-            }
-            int_type
+        .validate(|(_, token), span, emit| {
+            UnresolvedTypeData::from_int_token(token)
+                .map(|data| data.with_span(span))
+                .unwrap_or_else(|err| {
+                    emit(ParserError::with_reason(ParserErrorReason::InvalidBitSize(err.0), span));
+                    UnresolvedType::error(span)
+                })
         })
-        .map_with_span(|(_, token), span| UnresolvedTypeData::from_int_token(token).with_span(span))
 }
 
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {

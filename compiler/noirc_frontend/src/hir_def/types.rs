@@ -8,6 +8,7 @@ use std::{
 use crate::{
     hir::type_check::TypeCheckError,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
+    IntegerBitSize,
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -27,8 +28,8 @@ pub enum Type {
     Array(Box<Type>, Box<Type>),
 
     /// A primitive integer type with the given sign and bit count.
-    /// E.g. `u32` would be `Integer(Unsigned, 32)`
-    Integer(Signedness, u32),
+    /// E.g. `u32` would be `Integer(Unsigned, ThirtyTwo)`
+    Integer(Signedness, IntegerBitSize),
 
     /// The primitive `bool` type.
     Bool,
@@ -538,7 +539,7 @@ impl Type {
     }
 
     pub fn default_range_loop_type() -> Type {
-        Type::Integer(Signedness::Unsigned, 64)
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {
@@ -1622,8 +1623,10 @@ impl From<&Type> for PrintableType {
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
             Type::Integer(sign, bit_width) => match sign {
-                Signedness::Unsigned => PrintableType::UnsignedInteger { width: *bit_width },
-                Signedness::Signed => PrintableType::SignedInteger { width: *bit_width },
+                Signedness::Unsigned => {
+                    PrintableType::UnsignedInteger { width: (*bit_width).into() }
+                }
+                Signedness::Signed => PrintableType::SignedInteger { width: (*bit_width).into() },
             },
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 match &*binding.borrow() {
