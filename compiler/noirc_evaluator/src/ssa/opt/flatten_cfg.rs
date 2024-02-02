@@ -201,9 +201,9 @@ struct Context<'f> {
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
 
-    /// Maps SSA array values to their size and any respective nested slice children it may have
+    /// Maps SSA array values to their size
     /// This is maintained by appropriate calls to the `SliceCapacityTracker`
-    slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
+    slice_sizes: HashMap<ValueId, usize>,
 }
 
 pub(crate) struct Store {
@@ -490,8 +490,8 @@ impl<'f> Context<'f> {
         // Make sure we have tracked the slice sizes of any block arguments
         let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
         for (then_arg, else_arg) in args.iter() {
-            capacity_tracker.compute_slice_sizes(*then_arg, &mut self.slice_sizes);
-            capacity_tracker.compute_slice_sizes(*else_arg, &mut self.slice_sizes);
+            capacity_tracker.compute_slice_capacity(*then_arg, &mut self.slice_sizes);
+            capacity_tracker.compute_slice_capacity(*else_arg, &mut self.slice_sizes);
         }
 
         let mut value_merger =

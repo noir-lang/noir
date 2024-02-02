@@ -9,89 +9,49 @@ use fxhash::FxHashMap as HashMap;
 
 pub(crate) struct SliceCapacityTracker<'a> {
     dfg: &'a DataFlowGraph,
-
-    // Values containing nested slices to be replaced
-    slice_values: Vec<ValueId>,
 }
 
 impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn new(dfg: &'a DataFlowGraph) -> Self {
-        SliceCapacityTracker { dfg, slice_values: Vec::new() }
+        SliceCapacityTracker { dfg }
     }
 
     /// Determine how the slice sizes map needs to be updated according to the provided instruction.
     pub(crate) fn collect_slice_information(
         &mut self,
         instruction: &Instruction,
-        slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        slice_sizes: &mut HashMap<ValueId, usize>,
         results: Vec<ValueId>,
     ) {
         match instruction {
             Instruction::ArrayGet { array, .. } => {
                 let array_typ = self.dfg.type_of_value(*array);
                 let array_value = &self.dfg[*array];
-                // If we have an SSA value containing nested slices we should mark it
-                // as a slice that potentially requires to be filled with dummy data.
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
-                    self.slice_values.push(*array);
                     // Initial insertion into the slice sizes map
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
-                    self.compute_slice_sizes(*array, slice_sizes);
-                }
-
-                let res_typ = self.dfg.type_of_value(results[0]);
-                if res_typ.contains_slice_element() {
-                    if let Some(inner_sizes) = slice_sizes.get_mut(array) {
-                        // Include the result in the parent array potential children
-                        // If the result has internal slices and is called in an array set
-                        // we could potentially have a new larger slice which we need to account for
-                        inner_sizes.1.push(results[0]);
-
-                        let inner_sizes_iter = inner_sizes.1.clone();
-                        for slice_value in inner_sizes_iter {
-                            let inner_slice = slice_sizes.get(&slice_value).unwrap_or_else(|| {
-                                panic!("ICE: should have inner slice set for {slice_value}")
-                            });
-                            let previous_res_size = slice_sizes.get(&results[0]);
-                            if let Some(previous_res_size) = previous_res_size {
-                                if inner_slice.0 > previous_res_size.0 {
-                                    slice_sizes.insert(results[0], inner_slice.clone());
-                                }
-                            } else {
-                                slice_sizes.insert(results[0], inner_slice.clone());
-                            }
-                        }
-                    }
+                    self.compute_slice_capacity(*array, slice_sizes);
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
                 let array_typ = self.dfg.type_of_value(*array);
                 let array_value = &self.dfg[*array];
-                // If we have an SSA value containing nested slices we should mark it
-                // as a slice that potentially requires to be filled with dummy data.
                 if matches!(array_value, Value::Array { .. }) && array_typ.contains_slice_element()
                 {
-                    self.slice_values.push(*array);
                     // Initial insertion into the slice sizes map
                     // Any other insertions should only occur if the value is already
                     // a part of the map.
-                    self.compute_slice_sizes(*array, slice_sizes);
+                    self.compute_slice_capacity(*array, slice_sizes);
                 }
 
                 let value_typ = self.dfg.type_of_value(*value);
-                if value_typ.contains_slice_element() {
-                    self.compute_slice_sizes(*value, slice_sizes);
+                // Compiler sanity check
+                assert!(!value_typ.contains_slice_element(), "ICE: Nested slices are not allowed and should not have reached the flattening pass of SSA");
 
-                    let inner_sizes = slice_sizes.get_mut(array).expect("ICE expected slice sizes");
-                    inner_sizes.1.push(*value);
-                }
-
-                if let Some(inner_sizes) = slice_sizes.get_mut(array) {
-                    let inner_sizes = inner_sizes.clone();
-
-                    slice_sizes.insert(results[0], inner_sizes);
+                if let Some(capacity) = slice_sizes.get(array) {
+                    slice_sizes.insert(results[0], *capacity);
                 }
             }
             Instruction::Call { func, arguments } => {
@@ -120,15 +80,12 @@ impl<'a> SliceCapacityTracker<'a> {
                             for arg in &arguments[(argument_index + 1)..] {
                                 let element_typ = self.dfg.type_of_value(*arg);
                                 if element_typ.contains_slice_element() {
-                                    self.slice_values.push(*arg);
-                                    self.compute_slice_sizes(*arg, slice_sizes);
+                                    self.compute_slice_capacity(*arg, slice_sizes);
                                 }
                             }
-                            if let Some(inner_sizes) = slice_sizes.get_mut(&slice_contents) {
-                                inner_sizes.0 += 1;
-
-                                let inner_sizes = inner_sizes.clone();
-                                slice_sizes.insert(results[result_index], inner_sizes);
+                            if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
+                                let new_capacity = *contents_capacity + 1;
+                                slice_sizes.insert(results[result_index], new_capacity);
                             }
                         }
                         Intrinsic::SlicePopBack
@@ -137,9 +94,8 @@ impl<'a> SliceCapacityTracker<'a> {
                             // We do not decrement the size on intrinsics that could remove values from a slice.
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
-                            if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {
-                                let inner_sizes = inner_sizes.clone();
-                                slice_sizes.insert(results[result_index], inner_sizes);
+                            if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
+                                slice_sizes.insert(results[result_index], *contents_capacity);
                             }
                         }
                         _ => {}
@@ -149,76 +105,43 @@ impl<'a> SliceCapacityTracker<'a> {
             Instruction::Store { address, value } => {
                 let value_typ = self.dfg.type_of_value(*value);
                 if value_typ.contains_slice_element() {
-                    self.compute_slice_sizes(*value, slice_sizes);
+                    self.compute_slice_capacity(*value, slice_sizes);
 
-                    let mut inner_sizes = slice_sizes.get(value).unwrap_or_else(|| {
-                        panic!("ICE: should have inner slice set for value {value} being stored at {address}")
-                    }).clone();
+                    let value_capacity = slice_sizes.get(value).unwrap_or_else(|| {
+                        panic!("ICE: should have slice capacity set for value {value} being stored at {address}")
+                    });
 
-                    if let Some(previous_store) = slice_sizes.get(address) {
-                        inner_sizes.1.append(&mut previous_store.1.clone());
-                    }
-
-                    slice_sizes.insert(*address, inner_sizes);
+                    slice_sizes.insert(*address, *value_capacity);
                 }
             }
             Instruction::Load { address } => {
                 let load_typ = self.dfg.type_of_value(*address);
                 if load_typ.contains_slice_element() {
                     let result = results[0];
-                    let mut inner_sizes = slice_sizes.get(address).unwrap_or_else(|| {
-                        panic!("ICE: should have inner slice set at addres {address} being loaded into {result}")
-                    }).clone();
+                    let address_capacity = slice_sizes.get(address).unwrap_or_else(|| {
+                        panic!("ICE: should have slice capacity set at address {address} being loaded into {result}")
+                    });
 
-                    if let Some(previous_load_value) = slice_sizes.get(&result) {
-                        inner_sizes.1.append(&mut previous_load_value.1.clone());
-                    }
-
-                    slice_sizes.insert(result, inner_sizes);
+                    slice_sizes.insert(result, *address_capacity);
                 }
             }
             _ => {}
         }
     }
 
-    // This methods computes a map representing a nested slice.
-    // The method also automatically computes the given max slice size
-    // at each depth of the recursive type.
-    // For example if we had a next slice
-    pub(crate) fn compute_slice_sizes(
+    /// Computes the starting capacity of a slice which is still a `Value::Array`
+    pub(crate) fn compute_slice_capacity(
         &self,
         array_id: ValueId,
-        slice_sizes: &mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        slice_sizes: &mut HashMap<ValueId, usize>,
     ) {
-        if let Value::Array { array, typ } = &self.dfg[array_id].clone() {
+        if let Value::Array { array, typ } = &self.dfg[array_id] {
+            // Compiler sanity check
+            assert!(!typ.is_nested_slice(), "ICE: Nested slices are not allowed and should not have reached the flattening pass of SSA");
             if let Type::Slice(_) = typ {
                 let element_size = typ.element_size();
                 let len = array.len() / element_size;
-                let mut slice_value = (len, vec![]);
-                for value in array {
-                    let typ = self.dfg.type_of_value(*value);
-                    if let Type::Slice(_) = typ {
-                        slice_value.1.push(*value);
-                        self.compute_slice_sizes(*value, slice_sizes);
-                    }
-                }
-                // Mark the correct max size based upon an array values internal structure
-                let mut max_size = 0;
-                for inner_value in slice_value.1.iter() {
-                    let inner_slice =
-                        slice_sizes.get(inner_value).expect("ICE: should have inner slice set");
-                    if inner_slice.0 > max_size {
-                        max_size = inner_slice.0;
-                    }
-                }
-                for inner_value in slice_value.1.iter() {
-                    let inner_slice =
-                        slice_sizes.get_mut(inner_value).expect("ICE: should have inner slice set");
-                    if inner_slice.0 < max_size {
-                        inner_slice.0 = max_size;
-                    }
-                }
-                slice_sizes.insert(array_id, slice_value);
+                slice_sizes.insert(array_id, len);
             }
         }
     }

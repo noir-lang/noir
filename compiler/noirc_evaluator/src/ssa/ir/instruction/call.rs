@@ -333,8 +333,8 @@ fn simplify_slice_push_back(
         .first();
 
     let mut slice_sizes = HashMap::default();
-    slice_sizes.insert(set_last_slice_value, (slice_size / element_size, vec![]));
-    slice_sizes.insert(new_slice, (slice_size / element_size, vec![]));
+    slice_sizes.insert(set_last_slice_value, slice_size / element_size);
+    slice_sizes.insert(new_slice, slice_size / element_size);
 
     let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes);
     let new_slice = value_merger.merge_values(

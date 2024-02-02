@@ -13,14 +13,14 @@ pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
     // Maps SSA array values to their size and any respective nested slice children it may have
-    slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+    slice_sizes: &'a mut HashMap<ValueId, usize>,
 }
 
 impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: &'a mut HashMap<ValueId, (usize, Vec<ValueId>)>,
+        slice_sizes: &'a mut HashMap<ValueId, usize>,
     ) -> Self {
         ValueMerger { dfg, block, slice_sizes }
     }
@@ -174,13 +174,13 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_len = self.slice_sizes.get(&then_value_id).unwrap_or_else(|| {
+        let then_len = *self.slice_sizes.get(&then_value_id).unwrap_or_else(|| {
             panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
-        }).0;
+        });
 
-        let else_len = self.slice_sizes.get(&else_value_id).unwrap_or_else(|| {
+        let else_len = *self.slice_sizes.get(&else_value_id).unwrap_or_else(|| {
             panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
-        }).0;
+        });
 
         let len = then_len.max(else_len);
 
