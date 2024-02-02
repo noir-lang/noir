@@ -3,8 +3,10 @@ set -eu
 
 cd $(dirname "$0")/..
 
-NARGO_REFERENCE="processed-docs/reference/nargo_commands.md"
+REFERENCE_DIR="./processed-docs/reference"
+NARGO_REFERENCE="$REFERENCE_DIR/nargo_commands.md"
 rm -f $NARGO_REFERENCE
+mkdir -p $REFERENCE_DIR
 
 echo "---
 title: Nargo
