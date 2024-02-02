@@ -4,7 +4,7 @@ use acvm::{
 };
 use nargo::{
     artifacts::debug::{DebugArtifact, DebugVars},
-    ops::{DefaultForeignCallExecutor, ForeignCallExecutor},
+    ops::{DefaultForeignCallExecutor, ForeignCallExecutor, NargoForeignCallResult},
 };
 use noirc_errors::debug_info::DebugVarId;
 use noirc_printable_type::{ForeignCallError, PrintableType, PrintableValue};
@@ -78,7 +78,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError> {
+    ) -> Result<NargoForeignCallResult, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match DebugForeignCall::lookup(foreign_call_name) {
             Some(DebugForeignCall::VarAssign) => {
@@ -89,7 +89,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                         foreign_call.inputs[1..].iter().flat_map(|x| x.values()).collect();
                     self.debug_vars.assign_var(var_id, &values);
                 }
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             Some(DebugForeignCall::VarDrop) => {
                 let fcp_var_id = &foreign_call.inputs[0];
@@ -97,7 +97,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                     let var_id = debug_var_id(var_id_value);
                     self.debug_vars.drop_var(var_id);
                 }
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             Some(DebugForeignCall::MemberAssign(arity)) => {
                 if let Some(ForeignCallParam::Single(var_id_value)) = foreign_call.inputs.get(0) {
@@ -121,7 +121,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                         .collect();
                     self.debug_vars.assign_field(var_id, indexes, &values);
                 }
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             Some(DebugForeignCall::DerefAssign) => {
                 let fcp_var_id = &foreign_call.inputs[0];
@@ -130,7 +130,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                     let var_id = debug_var_id(var_id_value);
                     self.debug_vars.assign_deref(var_id, &fcp_value.values());
                 }
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             None => self.executor.execute(foreign_call),
         }

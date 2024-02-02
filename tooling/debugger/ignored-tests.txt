@@ -12,6 +12,7 @@ nested_array_dynamic
 nested_array_in_slice
 nested_arrays_from_brillig
 references
+scalar_mul
 signed_comparison
 simple_2d_array
 to_bytes_integration
