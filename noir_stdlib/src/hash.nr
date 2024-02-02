@@ -78,17 +78,14 @@ pub fn poseidon2_permutation<N>(_input: [u8; N], _state_length: u32) -> [u8; N] 
 #[foreign(sha256_compression)]
 pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
 
-// Generic hashing support.
+// Generic hashing support. 
 // Partially ported and impacted by rust.
 
 // Hash trait shall be implemented per type.
-// We use HasherWrapper since we desire to have `&mut Hasher` in `Hash` trait functions prototype,
-// but Noir can not correctly infer generic into pointer receiver, ergo such a hack is utilized
-// and shall be removed upon generics improvement.
 trait Hash{
-    fn hash<H>(self, state: &mut HasherWrapper<H>) where H: Hasher;
+    fn hash<H>(self, state: &mut H) where H: Hasher;
 
-    fn hash_slice<H>(data: [Self], state: &mut HasherWrapper<H>) where H: Hasher{
+    fn hash_slice<H>(data: [Self], state: &mut H) where H: Hasher{
         for piece in data{
             piece.hash(state);
         }
@@ -98,88 +95,38 @@ trait Hash{
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
 trait Hasher{
     fn finish(self) -> Field;
-
-    fn write(self, input: [Field]) -> Self;
+    
+    fn write(&mut self, input: [Field]);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
 trait BuildHasher<H> where H: Hasher{
     fn build_hasher(self) -> H;
-
-    fn build_wrapper(self) -> HasherWrapper<H>{
-        let hasher = self.build_hasher();
-        HasherWrapper::new(hasher)
-    }
-}
-
-struct HasherWrapper<H>{
-    _inner: H
-}
-
-impl<H> HasherWrapper<H>
-{
-    pub fn new(_inner: H) -> Self{
-        HasherWrapper{_inner}
-    }
-
-    pub fn unwrap(self) -> H{
-        self._inner
-    }
-
-    pub fn finish(self) -> Field
-    where
-        H: Hasher
-    {
-        self._inner.finish()
-    }
-
-    pub fn write(&mut self, input: [Field])
-    where
-        H: Hasher
-    {
-        self._inner = self._inner.write(input);
-    }
-}
-
-impl<H> Default for HasherWrapper<H>
-where
-    H: Hasher + Default
-{
-    fn default() -> Self{
-        HasherWrapper{
-            _inner: H::default()
-        }
-    }
 }
 
 struct BuildHasherDefault<H>;
 
 impl<H> BuildHasher<H> for BuildHasherDefault<H>
-where
+where 
     H: Hasher + Default
 {
     fn build_hasher(self) -> H{
         H::default()
     }
-
-    fn build_wrapper(self) -> HasherWrapper<H>{
-        let wrapper: HasherWrapper<H> = HasherWrapper::default();
-        wrapper
-    }
 }
 
 impl<H> Default for BuildHasherDefault<H>
-where
+where 
     H: Hasher + Default
 {
     fn default() -> Self{
         BuildHasherDefault{}
-    }
+    }    
 }
 
 impl Hash for Field{
-    fn hash<H>(self, state: &mut HasherWrapper<H>) where H: Hasher{
+    fn hash<H>(self, state: &mut H) where H: Hasher{
         let input: [Field] = [self];
-        state.write(input);
+        H::write(state, input);
     }
 }

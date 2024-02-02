@@ -149,7 +149,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         B: BuildHasher<H>,
         H: Hasher
     {
-        let mut hasher = self._build_hasher.build_wrapper();
+        let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
         hasher.finish() as u64
     }

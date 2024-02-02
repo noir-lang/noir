@@ -10,9 +10,8 @@ impl Hasher for PedersenHasher {
        pedersen_hash(self._state)
     }
 
-    fn write(self, input: [Field]) -> Self{
-        let _state = self._state.append(input);
-        PedersenHasher{_state}
+    fn write(&mut self, input: [Field]){
+        self._state = self._state.append(input);
     }
 }
 
