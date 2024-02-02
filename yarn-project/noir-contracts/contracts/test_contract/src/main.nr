@@ -233,6 +233,11 @@ contract Test {
         emit_unencrypted_log_from_private(&mut context, context.msg_sender());
     }
 
+    #[aztec(private)]
+    fn emit_array_as_unencrypted_log(fields: [Field; 5]) {
+        emit_unencrypted_log_from_private(&mut context, fields);
+    }
+
     // docs:start:is-time-equal
     #[aztec(public)]
     fn is_time_equal(time: Field) -> Field {
