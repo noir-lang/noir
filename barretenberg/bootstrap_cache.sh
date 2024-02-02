@@ -10,4 +10,4 @@ extract_repo bb.js \
   /usr/src/barretenberg/cpp/build-wasm-threads/bin ./cpp/build-wasm-threads
 
 echo -e "\033[1mBuilding ESM bb.ts...\033[0m"
-(cd ts && ./bootstrap.sh esm)
+(cd ts && SKIP_CPP_BUILD=1 ./scripts/build_wasm.sh && ./bootstrap.sh esm)
