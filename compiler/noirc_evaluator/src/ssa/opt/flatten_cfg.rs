@@ -186,17 +186,6 @@ struct Context<'f> {
     /// between inlining of branches.
     store_values: HashMap<ValueId, Store>,
 
-    /// Maps an address to the old and new value of the element at that address
-    /// The difference between this map and store_values is that this stores
-    /// the old and new value of an element from the outer block whose jmpif
-    /// terminator is being flattened.
-    ///
-    /// This map persists throughout the flattening process, where addresses
-    /// are overwritten as new stores are found. This overwriting is the desired behavior,
-    /// as we want the most update to date value to be stored at a given address as
-    /// we walk through blocks to flatten.
-    outer_block_stores: HashMap<ValueId, ValueId>,
-
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
     /// an if expression), they should not be merged with their previous value or stored value in
@@ -212,6 +201,8 @@ struct Context<'f> {
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
 
+    /// Maps SSA array values to their size and any respective nested slice children it may have
+    /// This is maintained by appropriate calls to the `SliceCapacityTracker`
     slice_sizes: HashMap<ValueId, (usize, Vec<ValueId>)>,
 }
 
@@ -243,7 +234,6 @@ fn flatten_function_cfg(function: &mut Function) {
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
-        outer_block_stores: HashMap::default(),
         slice_sizes: HashMap::default(),
     };
     context.flatten();
@@ -267,23 +257,6 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        if let TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } =
-            self.inserter.function.dfg[block].unwrap_terminator()
-        {
-            // Find stores in the outer block and insert into the `outer_block_stores` map.
-            // Not using this map can lead to issues when attempting to merge slices.
-            // When inlining a branch end, only the then branch and the else branch are checked for stores.
-            // However, there are cases where we want to load a value that comes from the outer block
-            // that we are handling the terminator for here.
-            let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-            for instruction in instructions {
-                let (instruction, _) = self.inserter.map_instruction(instruction);
-                if let Instruction::Store { address, value } = instruction {
-                    self.outer_block_stores.insert(address, value);
-                }
-            }
-        }
-
         // As we recursively flatten inner blocks, we need to track the slice information
         // for the outer block before we start recursively inlining
         let outer_block_instructions = self.inserter.function.dfg[block].instructions();
@@ -521,13 +494,8 @@ impl<'f> Context<'f> {
             capacity_tracker.compute_slice_sizes(*else_arg, &mut self.slice_sizes);
         }
 
-        let mut value_merger = ValueMerger::new(
-            &mut self.inserter.function.dfg,
-            block,
-            Some(&self.store_values),
-            Some(&self.outer_block_stores),
-            &mut self.slice_sizes,
-        );
+        let mut value_merger =
+            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
@@ -571,13 +539,8 @@ impl<'f> Context<'f> {
 
         let block = self.inserter.function.entry_block();
 
-        let mut value_merger = ValueMerger::new(
-            &mut self.inserter.function.dfg,
-            block,
-            Some(&self.store_values),
-            Some(&self.outer_block_stores),
-            &mut self.slice_sizes,
-        );
+        let mut value_merger =
+            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
 
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();
@@ -667,7 +630,7 @@ impl<'f> Context<'f> {
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId>  {
+    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId> {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
