@@ -31,3 +31,13 @@ pub enum ExpressionWidth {
     Unbounded,
     Bounded { width: usize },
 }
+
+impl From<usize> for ExpressionWidth {
+    fn from(width: usize) -> ExpressionWidth {
+        if width == 0 {
+            ExpressionWidth::Unbounded
+        } else {
+            ExpressionWidth::Bounded { width }
+        }
+    }
+}

@@ -413,15 +413,6 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::EmbeddedCurveDouble { input1_x, input1_y, result } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  EMBEDDED_CURVE_DOUBLE ({} {}) -> {}",
-                    input1_x,
-                    input1_y,
-                    result
-                );
-            }
             BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
                 debug_println!(
                     self.enable_debug_trace,
@@ -455,6 +446,77 @@ impl DebugShow {
                     message,
                     signature,
                     result
+                );
+            }
+            BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_ADD {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntNeg { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_NEG {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntMul { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_MUL {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_DIV {} {} -> {}",
+                    lhs,
+                    rhs,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_FROM_LE_BYTES {} {} -> {}",
+                    inputs,
+                    modulus,
+                    output
+                );
+            }
+            BlackBoxOp::BigIntToLeBytes { input, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  BIGINT_TO_LE_BYTES {} -> {}",
+                    input,
+                    output
+                );
+            }
+            BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  POSEIDON2_PERMUTATION {} {} -> {}",
+                    message,
+                    len,
+                    output
+                );
+            }
+            BlackBoxOp::Sha256Compression { input, hash_values, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  SHA256COMPRESSION {} {} -> {}",
+                    input,
+                    hash_values,
+                    output
                 );
             }
         }

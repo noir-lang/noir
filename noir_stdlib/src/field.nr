@@ -13,13 +13,13 @@ impl Field {
     }
 
     #[builtin(to_le_bits)]
-    fn __to_le_bits(_self: Self, _bit_size: u32) -> [u1] {}
+    fn __to_le_bits(self, _bit_size: u32) -> [u1] {}
     
     #[builtin(to_be_bits)]
-    fn __to_be_bits(_self: Self, _bit_size: u32) -> [u1] {}
+    fn __to_be_bits(self, bit_size: u32) -> [u1] {}
 
     #[builtin(apply_range_constraint)]
-    fn __assert_max_bit_size(_self: Self, _bit_size: u32) {}
+    fn __assert_max_bit_size(self, bit_size: u32) {}
 
     pub fn assert_max_bit_size(self: Self, bit_size: u32) {
         crate::assert_constant(bit_size);
@@ -53,10 +53,10 @@ impl Field {
     // decompose `_self` into a `_result_len` vector over the `_radix` basis
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
-    fn __to_le_radix(_self: Self, _radix: u32, _result_len: u32) -> [u8] {}
+    fn __to_le_radix(self, radix: u32, result_len: u32) -> [u8] {}
     
     #[builtin(to_be_radix)]
-    fn __to_be_radix(_self: Self, _radix: u32, _result_len: u32) -> [u8] {}
+    fn __to_be_radix(self, radix: u32, result_len: u32) -> [u8] {}
 
 
     // Returns self to the power of the given exponent value.

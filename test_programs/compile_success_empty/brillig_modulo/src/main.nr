@@ -7,9 +7,9 @@ fn main() {
     assert(signed_modulo(5, 3) == 2);
     assert(signed_modulo(2, 3) == 2);
 
-    let minus_two: i4 = -2; // 14
-    let minus_three: i4 = -3; // 13
-    let minus_five: i4 = -5; // 11
+    let minus_two: i8 = -2; // 254
+    let minus_three: i8 = -3; // 253
+    let minus_five: i8 = -5; // 251
     // (5 / -3) * -3 + 2 = -1 * -3 + 2 = 3 + 2 = 5
     assert(signed_modulo(5, minus_three) == 2);
     // (-5 / 3) * 3 - 2 = -1 * 3 - 2 = -3 - 2 = -5
@@ -22,6 +22,6 @@ unconstrained fn modulo(x: u32, y: u32) -> u32 {
     x % y
 }
 
-unconstrained fn signed_modulo(x: i4, y: i4) -> i4 {
+unconstrained fn signed_modulo(x: i8, y: i8) -> i8 {
     x % y
 }

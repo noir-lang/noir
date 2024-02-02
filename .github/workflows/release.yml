@@ -11,7 +11,6 @@ jobs:
     outputs:
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
-      pending-release-semver: v${{ steps.release.outputs.major }}.${{steps.release.outputs.minor}}.${{steps.release.outputs.patch}}
     runs-on: ubuntu-latest
     steps:
       - name: Run release-please
@@ -80,9 +79,15 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Query new noir version
+        id: noir-version
+        run: |
+          NOIR_VERSION=$(grep '^version =' ./Cargo.toml | sed -E 's/version = "([^"]+)"/v\1/')
+          echo "semver=$NOIR_VERSION" >> $GITHUB_OUTPUT
+
       - name: Cut a new version
         working-directory: ./docs
-        run: yarn docusaurus docs:version ${{ needs.release-please.outputs.pending-release-semver }}
+        run: yarn version ${{ steps.noir-version.outputs.semver }}
 
       - name: Configure git
         run: |
@@ -92,7 +97,7 @@ jobs:
       - name: Commit new documentation version
         run: |
           git add .
-          git commit -m "chore(docs): cut new docs version for tag ${{ needs.release-please.outputs.pending-release-semver }}"
+          git commit -m "chore(docs): cut new docs version for tag ${{ steps.noir-version.outputs.semver }}"
           git push
 
   build-binaries:

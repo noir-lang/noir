@@ -144,9 +144,9 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -683,6 +683,28 @@ impl<'f> Context<'f> {
                     );
                     Instruction::RangeCheck { value, max_bit_size, assert_message }
                 }
+                Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
+                {
+                    Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
+                        let field = arguments[0];
+                        let argument_type = self.inserter.function.dfg.type_of_value(field);
+
+                        let casted_condition = self.insert_instruction(
+                            Instruction::Cast(condition, argument_type),
+                            call_stack.clone(),
+                        );
+                        let field = self.insert_instruction(
+                            Instruction::binary(BinaryOp::Mul, field, casted_condition),
+                            call_stack.clone(),
+                        );
+
+                        arguments[0] = field;
+
+                        Instruction::Call { func, arguments }
+                    }
+
+                    _ => Instruction::Call { func, arguments },
+                },
                 other => other,
             }
         } else {
