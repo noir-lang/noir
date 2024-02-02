@@ -95,7 +95,8 @@ impl<'a> SliceCapacityTracker<'a> {
                             // This is because we could potentially go back to the smaller slice and not fill in dummies.
                             // This pass should be tracking the potential max that a slice ***could be***
                             if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
-                                slice_sizes.insert(results[result_index], *contents_capacity);
+                                let new_capacity = *contents_capacity - 1;
+                                slice_sizes.insert(results[result_index], new_capacity);
                             }
                         }
                         _ => {}
@@ -118,6 +119,7 @@ impl<'a> SliceCapacityTracker<'a> {
                 let load_typ = self.dfg.type_of_value(*address);
                 if load_typ.contains_slice_element() {
                     let result = results[0];
+
                     let address_capacity = slice_sizes.get(address).unwrap_or_else(|| {
                         panic!("ICE: should have slice capacity set at address {address} being loaded into {result}")
                     });

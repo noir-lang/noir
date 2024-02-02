@@ -487,7 +487,7 @@ impl<'f> Context<'f> {
 
         let block = self.inserter.function.entry_block();
 
-        // Make sure we have tracked the slice sizes of any block arguments
+        // Make sure we have tracked the slice capacities of any block arguments
         let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
         for (then_arg, else_arg) in args.iter() {
             capacity_tracker.compute_slice_capacity(*then_arg, &mut self.slice_sizes);
@@ -534,6 +534,15 @@ impl<'f> Context<'f> {
             }
         }
 
+        // Most slice information is collected when instructions are inlined.
+        // We need to collect information on slice values here as we may possibly merge stores
+        // before any inlining occurs.
+        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        for (then_case, else_case, _) in new_map.values() {
+            capacity_tracker.compute_slice_capacity(*then_case, &mut self.slice_sizes);
+            capacity_tracker.compute_slice_capacity(*else_case, &mut self.slice_sizes);
+        }
+
         let then_condition = then_branch.condition;
         let else_condition = else_branch.condition;
 
@@ -541,7 +550,6 @@ impl<'f> Context<'f> {
 
         let mut value_merger =
             ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
-
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();
         for (address, (then_case, else_case, _)) in &new_map {
@@ -581,13 +589,18 @@ impl<'f> Context<'f> {
                 store_value.new_value = new_value;
             } else {
                 let load = Instruction::Load { address };
-                let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
-                let old_value = self.insert_instruction_with_typevars(load, load_type).first();
 
+                let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
+                let old_value =
+                    self.insert_instruction_with_typevars(load.clone(), load_type).first();
+
+                // Need this or else we will be missing a the previous value of a slice that we wish to merge
                 let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-                // Need this or else we will be missing slice stores that we wish to merge
-                let store = Instruction::Store { address: old_value, value: new_value };
-                capacity_tracker.collect_slice_information(&store, &mut self.slice_sizes, vec![]);
+                capacity_tracker.collect_slice_information(
+                    &load,
+                    &mut self.slice_sizes,
+                    vec![old_value],
+                );
 
                 self.store_values.insert(address, Store { old_value, new_value });
             }

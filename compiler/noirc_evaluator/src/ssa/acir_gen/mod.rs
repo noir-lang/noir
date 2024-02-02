@@ -699,7 +699,7 @@ impl Context {
                     };
                     if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                         // Report the error if side effects are enabled.
-                        if index >= array_size && !matches!(value_type, Type::Slice(_)) {
+                        if index >= array_size {
                             let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::IndexOutOfBounds {
                                 index,
@@ -712,17 +712,7 @@ impl Context {
                                     let store_value = self.convert_value(store_value, dfg);
                                     AcirValue::Array(array.update(index, store_value))
                                 }
-                                None => {
-                                    // If the index is out of range for a slice we should directly create dummy data.
-                                    // This situation should only happen during flattening of slices when the same slice after an if statement
-                                    // would have different lengths depending upon the predicate.
-                                    // Otherwise, we can potentially hit an index out of bounds error.
-                                    if index >= array_size {
-                                        self.construct_dummy_slice_value(instruction, dfg)
-                                    } else {
-                                        array[index].clone()
-                                    }
-                                }
+                                None => array[index].clone(),
                             };
 
                             self.define_result(dfg, instruction, value);
@@ -734,82 +724,12 @@ impl Context {
                         self.define_result(dfg, instruction, array[index].clone());
                         return Ok(true);
                     }
-                    // If there is a non constant predicate and the index is out of range for a slice, we should directly create dummy data.
-                    // This situation should only happen during flattening of slices when the same slice after an if statement
-                    // would have different lengths depending upon the predicate.
-                    // Otherwise, we can potentially hit an index out of bounds error.
-                    else if index >= array_size
-                        && value_type.contains_slice_element()
-                        && store_value.is_none()
-                    {
-                        if index >= array_size {
-                            let value = self.construct_dummy_slice_value(instruction, dfg);
-
-                            self.define_result(dfg, instruction, value);
-                            return Ok(true);
-                        } else {
-                            return Ok(false);
-                        }
-                    }
                 }
             }
-            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
-                if let Some(index_const) = index_const {
-                    let index = match index_const.try_to_u64() {
-                        Some(index_const) => index_const as usize,
-                        None => {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::TypeConversion {
-                                from: "array index".to_string(),
-                                into: "u64".to_string(),
-                                call_stack,
-                            });
-                        }
-                    };
-
-                    if index >= len && matches!(value_type, Type::Slice(_)) {
-                        let value = self.construct_dummy_slice_value(instruction, dfg);
-
-                        self.define_result(dfg, instruction, value);
-                        return Ok(true);
-                    }
-                }
-
-                return Ok(false);
-            }
+            AcirValue::DynamicArray(_) => {}
         };
 
         Ok(false)
-    }
-
-    fn construct_dummy_slice_value(
-        &mut self,
-        instruction: InstructionId,
-        dfg: &DataFlowGraph,
-    ) -> AcirValue {
-        let results = dfg.instruction_results(instruction);
-        let res_typ = dfg.type_of_value(results[0]);
-        self.construct_dummy_slice_value_inner(&res_typ)
-    }
-
-    fn construct_dummy_slice_value_inner(&mut self, ssa_type: &Type) -> AcirValue {
-        match ssa_type.clone() {
-            Type::Numeric(numeric_type) => {
-                let zero = self.acir_context.add_constant(FieldElement::zero());
-                let typ = AcirType::NumericType(numeric_type);
-                AcirValue::Var(zero, typ)
-            }
-            Type::Array(element_types, len) => {
-                let mut values = Vector::new();
-                for _ in 0..len {
-                    for typ in element_types.as_ref() {
-                        values.push_back(self.construct_dummy_slice_value_inner(typ));
-                    }
-                }
-                AcirValue::Array(values)
-            }
-            _ => unreachable!("ICE - expected an array or numeric type"),
-        }
     }
 
     /// We need to properly setup the inputs for array operations in ACIR.
