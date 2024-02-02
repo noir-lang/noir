@@ -86,7 +86,8 @@ pub fn create_circuit(
     enable_brillig_logging: bool,
     force_brillig_output: bool,
 ) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
-    let debug_var_types = program.debug_var_types.clone();
+    let debug_variables = program.debug_variables.clone();
+    let debug_types = program.debug_types.clone();
     let func_sig = program.main_function_signature.clone();
     let mut generated_acir = optimize_into_acir(
         program,
@@ -126,7 +127,7 @@ pub fn create_circuit(
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let mut debug_info = DebugInfo::new(locations, debug_var_types);
+    let mut debug_info = DebugInfo::new(locations, debug_variables, debug_types);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);

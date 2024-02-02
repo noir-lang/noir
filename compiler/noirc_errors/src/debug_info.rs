@@ -21,9 +21,20 @@ use serde::{
     de::Error as DeserializationError, ser::Error as SerializationError, Deserialize, Serialize,
 };
 
-pub type Variables = Vec<(u32, (String, u32))>;
-pub type Types = Vec<(u32, PrintableType)>;
-pub type VariableTypes = (Variables, Types);
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugVarId(pub u32);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugTypeId(pub u32);
+
+#[derive(Debug, Clone, Hash, Deserialize, Serialize)]
+pub struct DebugVariable {
+    pub name: String,
+    pub debug_type_id: DebugTypeId,
+}
+
+pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
+pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
 
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -33,8 +44,8 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-    pub variables: HashMap<u32, (String, u32)>, // var_id => (name, type_id)
-    pub types: HashMap<u32, PrintableType>,     // type_id => printable type
+    pub variables: DebugVariables,
+    pub types: DebugTypes,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -48,13 +59,10 @@ pub struct OpCodesCount {
 impl DebugInfo {
     pub fn new(
         locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-        var_types: VariableTypes,
+        variables: DebugVariables,
+        types: DebugTypes,
     ) -> Self {
-        Self {
-            locations,
-            variables: var_types.0.into_iter().collect(),
-            types: var_types.1.into_iter().collect(),
-        }
+        Self { locations, variables, types }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.

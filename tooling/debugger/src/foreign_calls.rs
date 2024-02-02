@@ -6,6 +6,7 @@ use nargo::{
     artifacts::debug::{DebugArtifact, DebugVars},
     ops::{DefaultForeignCallExecutor, ForeignCallExecutor},
 };
+use noirc_errors::debug_info::DebugVarId;
 use noirc_printable_type::{ForeignCallError, PrintableType, PrintableValue};
 
 pub(crate) enum DebugForeignCall {
@@ -92,6 +93,10 @@ impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
     }
 }
 
+fn debug_var_id(value: &Value) -> DebugVarId {
+    DebugVarId(value.to_u128() as u32)
+}
+
 impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
     fn execute(
         &mut self,
@@ -102,7 +107,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
             Some(DebugForeignCall::VarAssign) => {
                 let fcp_var_id = &foreign_call.inputs[0];
                 if let ForeignCallParam::Single(var_id_value) = fcp_var_id {
-                    let var_id = var_id_value.to_u128() as u32;
+                    let var_id = debug_var_id(var_id_value);
                     let values: Vec<Value> =
                         foreign_call.inputs[1..].iter().flat_map(|x| x.values()).collect();
                     self.debug_vars.assign_var(var_id, &values);
@@ -112,7 +117,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
             Some(DebugForeignCall::VarDrop) => {
                 let fcp_var_id = &foreign_call.inputs[0];
                 if let ForeignCallParam::Single(var_id_value) = fcp_var_id {
-                    let var_id = var_id_value.to_u128() as u32;
+                    let var_id = debug_var_id(var_id_value);
                     self.debug_vars.drop_var(var_id);
                 }
                 Ok(ForeignCallResult { values: vec![] })
@@ -120,7 +125,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
             Some(DebugForeignCall::MemberAssign(arity)) => {
                 if let Some(ForeignCallParam::Single(var_id_value)) = foreign_call.inputs.get(0) {
                     let arity = arity as usize;
-                    let var_id = var_id_value.to_u128() as u32;
+                    let var_id = debug_var_id(var_id_value);
                     let n = foreign_call.inputs.len();
                     let indexes: Vec<u32> = foreign_call.inputs[(n - arity)..n]
                         .iter()
@@ -145,7 +150,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                 let fcp_var_id = &foreign_call.inputs[0];
                 let fcp_value = &foreign_call.inputs[1];
                 if let ForeignCallParam::Single(var_id_value) = fcp_var_id {
-                    let var_id = var_id_value.to_u128() as u32;
+                    let var_id = debug_var_id(var_id_value);
                     self.debug_vars.assign_deref(var_id, &fcp_value.values());
                 }
                 Ok(ForeignCallResult { values: vec![] })

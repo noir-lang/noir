@@ -18,7 +18,7 @@ use std::{
 };
 
 use crate::{
-    debug::DebugState,
+    debug::DebugInstrumenter,
     hir_def::{
         expr::*,
         function::{FuncMeta, FunctionSignature, Parameters},
@@ -32,7 +32,7 @@ use crate::{
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
-use self::debug_types::DebugTypes;
+use self::debug_types::DebugTypeTracker;
 
 pub mod ast;
 mod debug;
@@ -82,7 +82,7 @@ struct Monomorphizer<'interner> {
 
     return_location: Option<Location>,
 
-    debug_types: DebugTypes,
+    debug_type_tracker: DebugTypeTracker,
 }
 
 type HirType = crate::Type;
@@ -100,16 +100,16 @@ type HirType = crate::Type;
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 #[tracing::instrument(level = "trace", skip(main, interner))]
 pub fn monomorphize(main: node_interner::FuncId, interner: &mut NodeInterner) -> Program {
-    monomorphize_debug(main, interner, &DebugState::default())
+    monomorphize_debug(main, interner, &DebugInstrumenter::default())
 }
 
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
-    debug_state: &DebugState,
+    debug_instrumenter: &DebugInstrumenter,
 ) -> Program {
-    let debug_types = DebugTypes::build_from_debug_state(debug_state);
-    let mut monomorphizer = Monomorphizer::new(interner, debug_types);
+    let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
+    let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker);
     let function_sig = monomorphizer.compile_main(main);
 
     while !monomorphizer.queue.is_empty() {
@@ -127,18 +127,20 @@ pub fn monomorphize_debug(
     let FuncMeta { return_distinctness, return_visibility, .. } =
         monomorphizer.interner.function_meta(&main);
 
+    let (debug_variables, debug_types) = monomorphizer.debug_type_tracker.extract_vars_and_types();
     Program::new(
         functions,
         function_sig,
         *return_distinctness,
         monomorphizer.return_location,
         *return_visibility,
-        monomorphizer.debug_types.into(),
+        debug_variables,
+        debug_types,
     )
 }
 
 impl<'interner> Monomorphizer<'interner> {
-    fn new(interner: &'interner mut NodeInterner, debug_types: DebugTypes) -> Self {
+    fn new(interner: &'interner mut NodeInterner, debug_type_tracker: DebugTypeTracker) -> Self {
         Monomorphizer {
             globals: HashMap::new(),
             locals: HashMap::new(),
@@ -150,7 +152,7 @@ impl<'interner> Monomorphizer<'interner> {
             lambda_envs_stack: Vec::new(),
             is_range_loop: false,
             return_location: None,
-            debug_types,
+            debug_type_tracker,
         }
     }
 
@@ -924,15 +926,6 @@ impl<'interner> Monomorphizer<'interner> {
             name: the_trait.methods[method.method_index].name.0.contents.clone(),
             typ: self.convert_type(&function_type),
         })
-    }
-
-    fn intern_var_id(&mut self, var_id: u32, location: &Location) -> node_interner::ExprId {
-        let expr_id = self
-            .interner
-            .push_expr(HirExpression::Literal(HirLiteral::Integer((var_id as u128).into(), false)));
-        self.interner.push_expr_type(&expr_id, Type::FieldElement);
-        self.interner.push_expr_location(expr_id, location.span, location.file);
-        expr_id
     }
 
     fn function_call(

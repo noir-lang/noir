@@ -4,7 +4,7 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::debug::DebugState;
+use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
@@ -32,7 +32,7 @@ pub struct Context<'file_manager, 'parsed_files> {
     // is read-only however, once it has been passed to the Context.
     pub file_manager: Cow<'file_manager, FileManager>,
 
-    pub debug_state: DebugState,
+    pub debug_state: DebugInstrumenter,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
@@ -59,7 +59,7 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
-            debug_state: DebugState::default(),
+            debug_state: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
         }
     }
@@ -74,7 +74,7 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
-            debug_state: DebugState::default(),
+            debug_state: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
         }
     }

@@ -1,5 +1,10 @@
-use crate::{debug::DebugState, hir_def::types::Type};
-pub use noirc_errors::debug_info::{Types, VariableTypes, Variables};
+use crate::{
+    debug::{DebugInstrumenter, SourceFieldId, SourceVarId},
+    hir_def::types::Type,
+};
+use noirc_errors::debug_info::{
+    DebugTypeId, DebugTypes, DebugVarId, DebugVariable, DebugVariables,
+};
 use noirc_printable_type::PrintableType;
 use std::collections::HashMap;
 
@@ -10,70 +15,112 @@ use std::collections::HashMap;
 /// variable. The var_id refers to the ID of the instantiated variable which
 /// will have a valid type.
 #[derive(Debug, Clone, Default)]
-pub struct DebugTypes {
-    debug_variables: HashMap<u32, String>,
-    debug_field_names: HashMap<u32, String>,
-    fe_to_vars: HashMap<u32, u32>,          // fe_var_id => var_id
-    variables: HashMap<u32, (String, u32)>, // var_id => (var_name, type_id)
-    types: HashMap<PrintableType, u32>,
-    id_to_type: HashMap<u32, PrintableType>,
-    next_type_id: u32,
+pub struct DebugTypeTracker {
+    // Variable names collected during instrumentation injection
+    source_variables: HashMap<SourceVarId, String>,
+
+    // Field names used for member access collected during instrumentation injection
+    source_field_names: HashMap<SourceFieldId, String>,
+
+    // Current instances of tracked variables from the ID given during
+    // instrumentation. The tracked var_id will change for each source_var_id
+    // when compiling generic functions.
+    source_to_debug_vars: HashMap<SourceVarId, DebugVarId>,
+
+    // All instances of tracked variables
+    variables: HashMap<DebugVarId, (SourceVarId, DebugTypeId)>,
+
+    // Types of tracked variables
+    types: HashMap<DebugTypeId, PrintableType>,
+    types_reverse: HashMap<PrintableType, DebugTypeId>,
+
     next_var_id: u32,
+    next_type_id: u32,
 }
 
-impl DebugTypes {
-    pub fn build_from_debug_state(debug_state: &DebugState) -> Self {
-        DebugTypes {
-            debug_variables: debug_state.variables.clone(),
-            debug_field_names: debug_state.field_names.clone(),
-            ..DebugTypes::default()
+impl DebugTypeTracker {
+    pub fn build_from_debug_instrumenter(instrumenter: &DebugInstrumenter) -> Self {
+        DebugTypeTracker {
+            source_variables: instrumenter.variables.clone(),
+            source_field_names: instrumenter.field_names.clone(),
+            ..DebugTypeTracker::default()
         }
     }
 
-    pub fn resolve_field_index(&self, field_id: u32, cursor_type: &PrintableType) -> Option<usize> {
-        self.debug_field_names
+    pub fn extract_vars_and_types(&self) -> (DebugVariables, DebugTypes) {
+        let debug_variables = self
+            .variables
+            .clone()
+            .into_iter()
+            .map(|(var_id, (source_var_id, type_id))| {
+                (
+                    var_id,
+                    DebugVariable {
+                        name: self.source_variables.get(&source_var_id).cloned().unwrap_or_else(
+                            || {
+                                unreachable!(
+                                    "failed to retrieve variable name for {source_var_id:?}"
+                                );
+                            },
+                        ),
+                        debug_type_id: type_id,
+                    },
+                )
+            })
+            .collect();
+        let debug_types = self.types.clone().into_iter().collect();
+
+        (debug_variables, debug_types)
+    }
+
+    pub fn resolve_field_index(
+        &self,
+        field_id: SourceFieldId,
+        cursor_type: &PrintableType,
+    ) -> Option<usize> {
+        self.source_field_names
             .get(&field_id)
             .and_then(|field_name| get_field(cursor_type, field_name))
     }
 
-    pub fn insert_var(&mut self, fe_var_id: u32, var_type: Type) -> u32 {
-        let var_name = self
-            .debug_variables
-            .get(&fe_var_id)
-            .unwrap_or_else(|| unreachable!("cannot find name for debug variable {fe_var_id}"));
+    pub fn insert_var(&mut self, source_var_id: SourceVarId, var_type: Type) -> DebugVarId {
+        if !self.source_variables.contains_key(&source_var_id) {
+            unreachable!("cannot find source debug variable {source_var_id:?}");
+        }
 
         let ptype: PrintableType = var_type.follow_bindings().into();
-        let type_id = self.types.get(&ptype).cloned().unwrap_or_else(|| {
-            let type_id = self.next_type_id;
+        let type_id = self.types_reverse.get(&ptype).copied().unwrap_or_else(|| {
+            let type_id = DebugTypeId(self.next_type_id);
             self.next_type_id += 1;
-            self.types.insert(ptype.clone(), type_id);
-            self.id_to_type.insert(type_id, ptype);
+            self.types_reverse.insert(ptype.clone(), type_id);
+            self.types.insert(type_id, ptype);
             type_id
         });
-        let existing_var_id = self.fe_to_vars.get(&fe_var_id).and_then(|var_id| {
+        // check if we need to instantiate the var with a new type
+        let existing_var_id = self.source_to_debug_vars.get(&source_var_id).and_then(|var_id| {
             let (_, existing_type_id) = self.variables.get(var_id).unwrap();
             (*existing_type_id == type_id).then_some(var_id)
         });
         if let Some(var_id) = existing_var_id {
             *var_id
         } else {
-            let var_id = self.next_var_id;
+            let var_id = DebugVarId(self.next_var_id);
             self.next_var_id += 1;
-            self.variables.insert(var_id, (var_name.to_string(), type_id));
-            self.fe_to_vars.insert(fe_var_id, var_id);
+            self.variables.insert(var_id, (source_var_id, type_id));
+            self.source_to_debug_vars.insert(source_var_id, var_id);
             var_id
         }
     }
 
-    pub fn get_var_id(&self, fe_var_id: u32) -> Option<u32> {
-        self.fe_to_vars.get(&fe_var_id).copied()
+    pub fn get_var_id(&self, source_var_id: SourceVarId) -> Option<DebugVarId> {
+        self.source_to_debug_vars.get(&source_var_id).copied()
     }
 
-    pub fn get_type(&self, fe_var_id: u32) -> Option<&PrintableType> {
-        self.fe_to_vars
-            .get(&fe_var_id)
+    pub fn get_type(&self, source_var_id: SourceVarId) -> Option<&PrintableType> {
+        self.source_to_debug_vars
+            .get(&source_var_id)
             .and_then(|var_id| self.variables.get(var_id))
-            .and_then(|(_, type_id)| self.id_to_type.get(type_id))
+            .and_then(|(_, type_id)| self.types.get(type_id))
     }
 }
 
@@ -86,14 +133,5 @@ fn get_field(ptype: &PrintableType, field_name: &str) -> Option<usize> {
             field_name.parse::<usize>().ok()
         }
         _ => None,
-    }
-}
-
-impl From<DebugTypes> for VariableTypes {
-    fn from(val: DebugTypes) -> Self {
-        (
-            val.variables.into_iter().collect(),
-            val.types.into_iter().map(|(ptype, type_id)| (type_id, ptype)).collect(),
-        )
     }
 }

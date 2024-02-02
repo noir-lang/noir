@@ -16,7 +16,7 @@ use noirc_abi::InputMap;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::debug::DebugState;
+use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::ParsedFiles;
 
@@ -103,7 +103,7 @@ pub(crate) fn instrument_package_files(
     parsed_files: &mut ParsedFiles,
     file_manager: &FileManager,
     package: &Package,
-) -> DebugState {
+) -> DebugInstrumenter {
     // Start off at the entry path and read all files in the parent directory.
     let entry_path_parent = package
         .entry_path
@@ -111,7 +111,7 @@ pub(crate) fn instrument_package_files(
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path))
         .clone();
 
-    let mut debug_state = DebugState::default();
+    let mut debug_instrumenter = DebugInstrumenter::default();
 
     for (file_id, parsed_file) in parsed_files.iter_mut() {
         let file_path =
@@ -119,12 +119,12 @@ pub(crate) fn instrument_package_files(
         for ancestor in file_path.ancestors() {
             if ancestor == entry_path_parent {
                 // file is in package
-                debug_state.insert_symbols(&mut parsed_file.0);
+                debug_instrumenter.instrument_module(&mut parsed_file.0);
             }
         }
     }
 
-    debug_state
+    debug_instrumenter
 }
 
 fn run_async(

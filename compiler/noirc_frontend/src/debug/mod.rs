@@ -10,16 +10,30 @@ use std::collections::VecDeque;
 
 const MAX_MEMBER_ASSIGN_DEPTH: usize = 8;
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub struct SourceVarId(pub u32);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub struct SourceFieldId(pub u32);
+
+/// This structure is used to collect information about variables to track
+/// for debugging during the instrumentation injection phase.
 #[derive(Debug, Clone)]
-pub struct DebugState {
-    pub variables: HashMap<u32, String>, // var_id => var_name
-    pub field_names: HashMap<u32, String>,
+pub struct DebugInstrumenter {
+    // all collected variable names while instrumenting the source for variable tracking
+    pub variables: HashMap<SourceVarId, String>,
+
+    // all field names referenced when assigning to a member of a variable
+    pub field_names: HashMap<SourceFieldId, String>,
+
     next_var_id: u32,
     next_field_name_id: u32,
-    scope: Vec<HashMap<String, u32>>, // var_name => var_id
+
+    // last seen variable names and their IDs grouped by scope
+    scope: Vec<HashMap<String, SourceVarId>>,
 }
 
-impl Default for DebugState {
+impl Default for DebugInstrumenter {
     fn default() -> Self {
         Self {
             variables: HashMap::default(),
@@ -31,21 +45,32 @@ impl Default for DebugState {
     }
 }
 
-impl DebugState {
-    fn insert_var(&mut self, var_name: &str) -> u32 {
-        let var_id = self.next_var_id;
+impl DebugInstrumenter {
+    pub fn instrument_module(&mut self, module: &mut ParsedModule) {
+        module.items.iter_mut().for_each(|item| {
+            if let Item { kind: ItemKind::Function(f), .. } = item {
+                self.walk_fn(&mut f.def);
+            }
+        });
+        // this part absolutely must happen after ast traversal above
+        // so that oracle functions don't get wrapped, resulting in infinite recursion:
+        self.insert_state_set_oracle(module, 8);
+    }
+
+    fn insert_var(&mut self, var_name: &str) -> SourceVarId {
+        let var_id = SourceVarId(self.next_var_id);
         self.next_var_id += 1;
         self.variables.insert(var_id, var_name.to_string());
         self.scope.last_mut().unwrap().insert(var_name.to_string(), var_id);
         var_id
     }
 
-    fn lookup_var(&self, var_name: &str) -> Option<u32> {
+    fn lookup_var(&self, var_name: &str) -> Option<SourceVarId> {
         self.scope.iter().rev().find_map(|vars| vars.get(var_name).copied())
     }
 
-    fn insert_field_name(&mut self, field_name: &str) -> u32 {
-        let field_name_id = self.next_field_name_id;
+    fn insert_field_name(&mut self, field_name: &str) -> SourceFieldId {
+        let field_name_id = SourceFieldId(self.next_field_name_id);
         self.next_field_name_id += 1;
         self.field_names.insert(field_name_id, field_name.to_string());
         field_name_id
@@ -132,17 +157,6 @@ impl DebugState {
             }
         };
         statements.push(last_stmt);
-    }
-
-    pub fn insert_symbols(&mut self, module: &mut ParsedModule) {
-        module.items.iter_mut().for_each(|item| {
-            if let Item { kind: ItemKind::Function(f), .. } = item {
-                self.walk_fn(&mut f.def);
-            }
-        });
-        // this part absolutely must happen after ast traversal above
-        // so that oracle functions don't get wrapped, resulting in infinite recursion:
-        self.insert_state_set_oracle(module, 8);
     }
 
     fn walk_let_statement(&mut self, let_stmt: &ast::LetStatement, span: &Span) -> ast::Statement {
@@ -255,7 +269,7 @@ impl DebugState {
                         ast::LValue::MemberAccess { object, field_name } => {
                             cursor = object;
                             let field_name_id = self.insert_field_name(&field_name.0.contents);
-                            indexes.push(sint_expr(-(field_name_id as i128), expression_span));
+                            indexes.push(sint_expr(-(field_name_id.0 as i128), expression_span));
                         }
                         ast::LValue::Index { index, array } => {
                             cursor = array;
@@ -479,7 +493,7 @@ pub fn build_debug_crate_file() -> String {
     .join("\n")
 }
 
-fn build_assign_var_stmt(var_id: u32, expr: ast::Expression) -> ast::Statement {
+fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Statement {
     let span = expr.span;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
@@ -490,12 +504,12 @@ fn build_assign_var_stmt(var_id: u32, expr: ast::Expression) -> ast::Statement {
             }),
             span,
         }),
-        arguments: vec![uint_expr(var_id as u128, span), expr],
+        arguments: vec![uint_expr(var_id.0 as u128, span), expr],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
 }
 
-fn build_drop_var_stmt(var_id: u32, span: Span) -> ast::Statement {
+fn build_drop_var_stmt(var_id: SourceVarId, span: Span) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(ast::Path {
@@ -505,13 +519,13 @@ fn build_drop_var_stmt(var_id: u32, span: Span) -> ast::Statement {
             }),
             span,
         }),
-        arguments: vec![uint_expr(var_id as u128, span)],
+        arguments: vec![uint_expr(var_id.0 as u128, span)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
 }
 
 fn build_assign_member_stmt(
-    var_id: u32,
+    var_id: SourceVarId,
     indexes: &[ast::Expression],
     expr: &ast::Expression,
 ) -> ast::Statement {
@@ -530,7 +544,7 @@ fn build_assign_member_stmt(
             span,
         }),
         arguments: [
-            vec![uint_expr(var_id as u128, span)],
+            vec![uint_expr(var_id.0 as u128, span)],
             vec![expr.clone()],
             indexes.iter().rev().cloned().collect(),
         ]
