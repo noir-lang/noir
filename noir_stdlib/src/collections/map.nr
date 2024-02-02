@@ -83,6 +83,66 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         Self{_table, _len, _build_hasher}
     }
 
+    // Clears the map, removing all key-value pairs.
+    pub fn clear(&mut self){
+        self._table = [Slot::default(); N];
+        self._len = 0;
+    }
+
+    // Returns true if the map contains a value for the specified key.
+    pub fn contains_key(self, key: K) -> bool
+    where
+        K: Hash + Eq,
+        B: BuildHasher<H>,
+        H: Hasher
+    {
+        self.get(key).is_some()
+    }
+
+    // Returns true if the map contains no elements.
+    pub fn is_empty(self) -> bool{
+        self._len == 0
+    }
+
+    // Returns a vector of all active keys.
+    pub fn keys(self) -> Vec<K>{
+        let mut keys = Vec::new();
+        for slot in self._table{
+            if slot.is_valid(){
+                let (key, _) = slot.key_value_unchecked();
+                keys.push(key);
+            }
+        }
+        keys
+    }
+
+    // Returns a vector of all active values. Not necessarily unique.
+    pub fn values(self) -> Vec<V>{
+        let mut values = Vec::new();
+        for slot in self._table{
+            if slot.is_valid(){
+                let (_, value) = slot.key_value_unchecked();
+                values.push(value);
+            }
+        }
+        values
+    }
+
+    // Retains only the elements specified by the predicate.
+    pub fn retain(&mut self, f: fn(K, V) -> bool){
+        for index in 0..N{
+            let mut slot = self._table[index];
+            if slot.is_valid(){
+                let (key, value) = slot.key_value_unchecked();
+                if !f(key, value){
+                    slot.mark_deleted();
+                    self._len -= 1;
+                    self._table[index] = slot;
+                }
+            }
+        }
+    }
+
     fn hash(self, key: K) -> u64
     where
         K: Hash,
