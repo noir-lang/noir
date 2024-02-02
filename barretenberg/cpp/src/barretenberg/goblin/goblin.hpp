@@ -8,6 +8,8 @@
 #include "barretenberg/proof_system/instance_inspector.hpp"
 #include "barretenberg/stdlib/recursion/honk/verifier/merge_recursive_verifier.hpp"
 #include "barretenberg/translator_vm/goblin_translator_composer.hpp"
+#include "barretenberg/ultra_honk/merge_prover.hpp"
+#include "barretenberg/ultra_honk/merge_verifier.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 namespace bb {
@@ -33,7 +35,8 @@ class Goblin {
     using TranslatorBuilder = bb::GoblinTranslatorCircuitBuilder;
     using TranslatorComposer = bb::GoblinTranslatorComposer;
     using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
-    using MergeVerifier = bb::MergeVerifier_<GoblinUltraFlavor>;
+    using MergeProver = bb::MergeProver;
+    using MergeVerifier = bb::MergeVerifier;
     /**
      * @brief Output of goblin::accumulate; an Ultra proof and the corresponding verification key
      *
@@ -107,7 +110,7 @@ class Goblin {
         auto ultra_proof = prover.construct_proof();
 
         // Construct and store the merge proof to be recursively verified on the next call to accumulate
-        auto merge_prover = composer.create_merge_prover(op_queue);
+        MergeProver merge_prover{ op_queue };
         merge_proof = merge_prover.construct_proof();
 
         if (!merge_proof_exists) {
@@ -211,7 +214,7 @@ class Goblin {
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): no merge prover for now since we're not
         // mocking the first set of ecc ops
         // // Construct and store the merge proof to be recursively verified on the next call to accumulate
-        // auto merge_prover = composer.create_merge_prover(op_queue);
+        // MergeProver merge_prover{ op_queue };
         // merge_proof = merge_prover.construct_proof();
 
         // if (!merge_proof_exists) {

@@ -48,7 +48,7 @@ class RecursiveMergeVerifierTest : public testing::Test {
 
         // Generate a proof over the inner circuit
         InnerComposer inner_composer;
-        auto merge_prover = inner_composer.create_merge_prover(op_queue);
+        MergeProver merge_prover{ op_queue };
         auto merge_proof = merge_prover.construct_proof();
 
         // Create a recursive merge verification circuit for the merge proof
@@ -61,7 +61,7 @@ class RecursiveMergeVerifierTest : public testing::Test {
 
         // Check 1: Perform native merge verification then perform the pairing on the outputs of the recursive merge
         // verifier and check that the result agrees.
-        auto native_verifier = inner_composer.create_merge_verifier();
+        MergeVerifier native_verifier;
         bool verified_native = native_verifier.verify_proof(merge_proof);
         VerifierCommitmentKey pcs_verification_key(0, srs::get_crs_factory());
         auto verified_recursive =

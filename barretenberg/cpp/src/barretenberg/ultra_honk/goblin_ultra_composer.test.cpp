@@ -5,6 +5,8 @@
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/ultra_honk/merge_prover.hpp"
+#include "barretenberg/ultra_honk/merge_verifier.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
@@ -71,10 +73,10 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
      * @brief Construct and verify a Goblin ECC op queue merge proof
      *
      */
-    bool construct_and_verify_merge_proof(auto& composer, auto& op_queue)
+    bool construct_and_verify_merge_proof(auto& op_queue)
     {
-        auto merge_prover = composer.create_merge_prover(op_queue);
-        auto merge_verifier = composer.create_merge_verifier();
+        MergeProver merge_prover{ op_queue };
+        MergeVerifier merge_verifier;
         auto merge_proof = merge_prover.construct_proof();
         bool verified = merge_verifier.verify_proof(merge_proof);
 
@@ -108,7 +110,7 @@ TEST_F(GoblinUltraHonkComposerTests, SingleCircuit)
     EXPECT_TRUE(honk_verified);
 
     // Construct and verify Goblin ECC op queue Merge proof
-    auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
+    auto merge_verified = construct_and_verify_merge_proof(op_queue);
     EXPECT_TRUE(merge_verified);
 }
 
@@ -135,7 +137,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
         auto composer = GoblinUltraComposer();
 
         // Construct and verify Goblin ECC op queue Merge proof
-        auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
+        auto merge_verified = construct_and_verify_merge_proof(op_queue);
         EXPECT_TRUE(merge_verified);
     }
 }
@@ -195,7 +197,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkAndMerge)
         EXPECT_TRUE(honk_verified);
 
         // Construct and verify Goblin ECC op queue Merge proof
-        auto merge_verified = construct_and_verify_merge_proof(composer, op_queue);
+        auto merge_verified = construct_and_verify_merge_proof(op_queue);
         EXPECT_TRUE(merge_verified);
     }
 

@@ -7,8 +7,6 @@
 #include "barretenberg/protogalaxy/protogalaxy_verifier.hpp"
 #include "barretenberg/srs/global_crs.hpp"
 #include "barretenberg/sumcheck/instance/prover_instance.hpp"
-#include "barretenberg/ultra_honk/merge_prover.hpp"
-#include "barretenberg/ultra_honk/merge_verifier.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
@@ -82,33 +80,6 @@ template <IsUltraFlavor Flavor> class UltraComposer_ {
     UltraVerifier_<Flavor> create_verifier(CircuitBuilder& circuit);
 
     UltraVerifier_<Flavor> create_ultra_with_keccak_verifier(CircuitBuilder& circuit);
-
-    /**
-     * @brief Create Prover for Goblin ECC op queue merge protocol
-     *
-     * @param op_queue
-     * @return MergeProver_<Flavor>
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/804): Goblin should be responsible for constructing
-     * merge prover/verifier.
-     */
-    MergeProver_<Flavor> create_merge_prover(
-        const std::shared_ptr<ECCOpQueue>& op_queue,
-        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>())
-    {
-        // Store the previous aggregate op queue size and update the current one
-        op_queue->set_size_data();
-        // Merge requires a commitment key with size equal to that of the current op queue transcript T_i since the
-        // shift of the current contribution t_i will be of degree equal to deg(T_i)
-        auto commitment_key = compute_commitment_key(op_queue->get_current_size());
-        return MergeProver_<Flavor>(commitment_key, op_queue, transcript);
-    }
-
-    /**
-     * @brief Create Verifier for Goblin ECC op queue merge protocol
-     *
-     * @return MergeVerifier_<Flavor>
-     */
-    MergeVerifier_<Flavor> create_merge_verifier() { return MergeVerifier_<Flavor>(); }
 
     ProtoGalaxyProver_<ProverInstances> create_folding_prover(const std::vector<std::shared_ptr<Instance>>& instances)
     {

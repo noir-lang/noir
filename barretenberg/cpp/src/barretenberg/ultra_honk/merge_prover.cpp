@@ -3,17 +3,18 @@
 namespace bb {
 
 /**
- * Create MergeProver_
+ * @brief Create MergeProver
+ * @details We require an SRS at least as large as the current op queue size in order to commit to the shifted
+ * per-circuit contribution t_i^{shift}
  *
  */
-template <typename Flavor>
-MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<CommitmentKey>& commitment_key,
-                                   const std::shared_ptr<ECCOpQueue>& op_queue,
-                                   const std::shared_ptr<Transcript>& transcript)
-    : transcript(transcript)
-    , op_queue(op_queue)
-    , pcs_commitment_key(commitment_key)
-{}
+MergeProver::MergeProver(const std::shared_ptr<ECCOpQueue>& op_queue)
+    : op_queue(op_queue)
+    , pcs_commitment_key(std::make_shared<CommitmentKey>(op_queue->ultra_ops[0].size()))
+{
+    // Update internal size data in the op queue that allows for extraction of e.g. previous aggregate transcript
+    op_queue->set_size_data();
+}
 
 /**
  * @brief Prove proper construction of the aggregate Goblin ECC op queue polynomials T_i^(j), j = 1,2,3,4.
@@ -26,11 +27,12 @@ MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<CommitmentKey>& commitm
  * TODO(#746): Prove connection between t_i^{shift}, committed to herein, and t_i, used in the main protocol. See issue
  * for details (https://github.com/AztecProtocol/barretenberg/issues/746).
  *
- * @tparam Flavor
- * @return HonkProof&
+ * @return honk::proof
  */
-template <typename Flavor> HonkProof& MergeProver_<Flavor>::construct_proof()
+HonkProof MergeProver::construct_proof()
 {
+    transcript = std::make_shared<Transcript>();
+
     size_t N = op_queue->get_current_size();
 
     // Extract T_i, T_{i-1}
@@ -40,14 +42,14 @@ template <typename Flavor> HonkProof& MergeProver_<Flavor>::construct_proof()
     ASSERT(T_prev[0].size() > 0);
 
     // Construct t_i^{shift} as T_i - T_{i-1}
-    std::array<Polynomial, Flavor::NUM_WIRES> t_shift;
-    for (size_t i = 0; i < Flavor::NUM_WIRES; ++i) {
+    std::array<Polynomial, NUM_WIRES> t_shift;
+    for (size_t i = 0; i < NUM_WIRES; ++i) {
         t_shift[i] = Polynomial(T_current[i]);
         t_shift[i] -= T_prev[i];
     }
 
     // Compute/get commitments [t_i^{shift}], [T_{i-1}], and [T_i] and add to transcript
-    std::array<Commitment, Flavor::NUM_WIRES> C_T_current;
+    std::array<Commitment, NUM_WIRES> C_T_current;
     for (size_t idx = 0; idx < t_shift.size(); ++idx) {
         // Get previous transcript commitment [T_{i-1}] from op queue
         auto C_T_prev = op_queue->ultra_ops_commitments[idx];
@@ -72,20 +74,20 @@ template <typename Flavor> HonkProof& MergeProver_<Flavor>::construct_proof()
     // Add univariate opening claims for each polynomial.
     std::vector<OpeningClaim> opening_claims;
     // Compute evaluation T_{i-1}(\kappa)
-    for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+    for (size_t idx = 0; idx < NUM_WIRES; ++idx) {
         auto polynomial = Polynomial(T_prev[idx]);
         auto evaluation = polynomial.evaluate(kappa);
         transcript->send_to_verifier("T_prev_eval_" + std::to_string(idx + 1), evaluation);
         opening_claims.emplace_back(OpeningClaim{ polynomial, { kappa, evaluation } });
     }
     // Compute evaluation t_i^{shift}(\kappa)
-    for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+    for (size_t idx = 0; idx < NUM_WIRES; ++idx) {
         auto evaluation = t_shift[idx].evaluate(kappa);
         transcript->send_to_verifier("t_shift_eval_" + std::to_string(idx + 1), evaluation);
         opening_claims.emplace_back(OpeningClaim{ t_shift[idx], { kappa, evaluation } });
     }
     // Compute evaluation T_i(\kappa)
-    for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+    for (size_t idx = 0; idx < NUM_WIRES; ++idx) {
         auto polynomial = Polynomial(T_current[idx]);
         auto evaluation = polynomial.evaluate(kappa);
         transcript->send_to_verifier("T_current_eval_" + std::to_string(idx + 1), evaluation);
@@ -112,11 +114,7 @@ template <typename Flavor> HonkProof& MergeProver_<Flavor>::construct_proof()
     auto quotient_commitment = pcs_commitment_key->commit(quotient);
     transcript->send_to_verifier("KZG:W", quotient_commitment);
 
-    proof = transcript->proof_data;
-    return proof;
+    return transcript->proof_data;
 }
-
-template class MergeProver_<UltraFlavor>;
-template class MergeProver_<GoblinUltraFlavor>;
 
 } // namespace bb
