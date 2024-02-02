@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use acvm::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -17,7 +18,6 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug};
 use noirc_frontend::node_interner::FuncId;
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tracing::info;
 
@@ -45,8 +45,12 @@ pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const NOIR_ARTIFACT_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
 
-#[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
+    /// Override the expression width requested by the backend.
+    #[arg(long, value_parser = parse_expression_width)]
+    pub expression_width: Option<ExpressionWidth>,
+
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -74,7 +78,7 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub only_acir: bool,
 
-    /// Disables the builtin macros being used in the compiler
+    /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
 
@@ -89,6 +93,16 @@ pub struct CompileOptions {
     /// Force Brillig output (for step debugging)
     #[arg(long, hide = true)]
     pub force_brillig: bool,
+}
+
+fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
+    use std::io::{Error, ErrorKind};
+
+    let width = input
+        .parse::<usize>()
+        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
+
+    Ok(ExpressionWidth::from(width))
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -203,9 +217,12 @@ pub fn check_crate(
     disable_macros: bool,
 ) -> CompilationResult<()> {
     let macros: Vec<&dyn MacroProcessor> = if disable_macros {
-        vec![]
+        vec![&noirc_macros::AssertMessageMacro as &dyn MacroProcessor]
     } else {
-        vec![&aztec_macros::AztecMacro as &dyn MacroProcessor]
+        vec![
+            &aztec_macros::AztecMacro as &dyn MacroProcessor,
+            &noirc_macros::AssertMessageMacro as &dyn MacroProcessor,
+        ]
     };
 
     let mut errors = vec![];
@@ -256,6 +273,7 @@ pub fn compile_main(
     let compiled_program =
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(FileDiagnostic::from)?;
+
     let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);

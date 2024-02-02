@@ -86,11 +86,6 @@ pub enum BlackBoxFuncCall {
         input2_y: FunctionInput,
         outputs: (Witness, Witness),
     },
-    EmbeddedCurveDouble {
-        input_x: FunctionInput,
-        input_y: FunctionInput,
-        outputs: (Witness, Witness),
-    },
     Keccak256 {
         inputs: Vec<FunctionInput>,
         outputs: Vec<Witness>,
@@ -120,6 +115,61 @@ pub enum BlackBoxFuncCall {
         /// key provided to the circuit matches the key produced by the circuit creator
         key_hash: FunctionInput,
     },
+    BigIntAdd {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntNeg {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntMul {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntDiv {
+        lhs: u32,
+        rhs: u32,
+        output: u32,
+    },
+    BigIntFromLeBytes {
+        inputs: Vec<FunctionInput>,
+        modulus: Vec<u8>,
+        output: u32,
+    },
+    BigIntToLeBytes {
+        input: u32,
+        outputs: Vec<Witness>,
+    },
+    /// Applies the Poseidon2 permutation function to the given state,
+    /// outputting the permuted state.
+    Poseidon2Permutation {
+        /// Input state for the permutation of Poseidon2
+        inputs: Vec<FunctionInput>,
+        /// Permuted state
+        outputs: Vec<Witness>,
+        /// State length (in number of field elements)
+        /// It is the length of inputs and outputs vectors
+        len: u32,
+    },
+    /// Applies the SHA-256 compression function to the input message
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - input message block
+    /// * `hash_values` - state from the previous compression
+    /// * `outputs` - result of the input compressed into 256 bits
+    Sha256Compression {
+        /// 512 bits of the input message, represented by 16 u32s
+        inputs: Vec<FunctionInput>,
+        /// Vector of 8 u32s used to compress the input
+        hash_values: Vec<FunctionInput>,
+        /// Output of the compression, represented by 8 u32s
+        outputs: Vec<Witness>,
+    },
 }
 
 impl BlackBoxFuncCall {
@@ -138,11 +188,18 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
             BlackBoxFuncCall::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
             BlackBoxFuncCall::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
-            BlackBoxFuncCall::EmbeddedCurveDouble { .. } => BlackBoxFunc::EmbeddedCurveDouble,
             BlackBoxFuncCall::Keccak256 { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccak256VariableLength { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } => BlackBoxFunc::RecursiveAggregation,
+            BlackBoxFuncCall::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
+            BlackBoxFuncCall::BigIntNeg { .. } => BlackBoxFunc::BigIntNeg,
+            BlackBoxFuncCall::BigIntMul { .. } => BlackBoxFunc::BigIntMul,
+            BlackBoxFuncCall::BigIntDiv { .. } => BlackBoxFunc::BigIntDiv,
+            BlackBoxFuncCall::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
+            BlackBoxFuncCall::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
+            BlackBoxFuncCall::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
+            BlackBoxFuncCall::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
         }
     }
 
@@ -158,17 +215,22 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Keccak256 { inputs, .. }
             | BlackBoxFuncCall::Keccakf1600 { inputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
-            | BlackBoxFuncCall::PedersenHash { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::PedersenHash { inputs, .. }
+            | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. }
+            | BlackBoxFuncCall::Sha256Compression { inputs, .. } => inputs.to_vec(),
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
+            BlackBoxFuncCall::BigIntAdd { .. }
+            | BlackBoxFuncCall::BigIntNeg { .. }
+            | BlackBoxFuncCall::BigIntMul { .. }
+            | BlackBoxFuncCall::BigIntDiv { .. }
+            | BlackBoxFuncCall::BigIntToLeBytes { .. } => Vec::new(),
             BlackBoxFuncCall::FixedBaseScalarMul { low, high, .. } => vec![*low, *high],
             BlackBoxFuncCall::EmbeddedCurveAdd {
                 input1_x, input1_y, input2_x, input2_y, ..
             } => vec![*input1_x, *input1_y, *input2_x, *input2_y],
-            BlackBoxFuncCall::EmbeddedCurveDouble { input_x, input_y, .. } => {
-                vec![*input_x, *input_y]
-            }
             BlackBoxFuncCall::RANGE { input } => vec![*input],
             BlackBoxFuncCall::SchnorrVerify {
                 public_key_x,
@@ -249,7 +311,10 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Blake2s { outputs, .. }
             | BlackBoxFuncCall::Blake3 { outputs, .. }
             | BlackBoxFuncCall::Keccak256 { outputs, .. }
-            | BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
+            | BlackBoxFuncCall::Keccakf1600 { outputs, .. }
+            | BlackBoxFuncCall::Keccak256VariableLength { outputs, .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. }
+            | BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
@@ -258,12 +323,17 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveDouble { outputs, .. } => vec![outputs.0, outputs.1],
-            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => {
+            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => vec![outputs.0, outputs.1],
+            BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::RecursiveAggregation { .. }
+            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
+            | BlackBoxFuncCall::BigIntAdd { .. }
+            | BlackBoxFuncCall::BigIntNeg { .. }
+            | BlackBoxFuncCall::BigIntMul { .. }
+            | BlackBoxFuncCall::BigIntDiv { .. } => {
                 vec![]
             }
-            BlackBoxFuncCall::Keccak256VariableLength { outputs, .. } => outputs.to_vec(),
+            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
         }
     }
 }

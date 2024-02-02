@@ -13,9 +13,7 @@ Noir supports ECDSA signatures verification over the secp256k1 and secp256r1 cur
 
 Verifier for ECDSA Secp256k1 signatures
 
-```rust
-fn verify_signature(_public_key_x : [u8; 32], _public_key_y : [u8; 32], _signature: [u8; 64], _message: [u8]) -> bool
-```
+#include_code ecdsa_secp256k1 noir_stdlib/src/ecdsa_secp256k1.nr rust
 
 example:
 
@@ -30,9 +28,7 @@ fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], sign
 
 Verifier for ECDSA Secp256r1 signatures
 
-```rust
-fn verify_signature(_public_key_x : [u8; 32], _public_key_y : [u8; 32], _signature: [u8; 64], _message: [u8]) -> bool
-```
+#include_code ecdsa_secp256r1 noir_stdlib/src/ecdsa_secp256r1.nr rust
 
 example:
 

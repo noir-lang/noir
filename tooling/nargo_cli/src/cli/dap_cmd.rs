@@ -1,4 +1,5 @@
 use acvm::acir::native_types::WitnessMap;
+use acvm::ExpressionWidth;
 use backend_interface::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
@@ -30,7 +31,21 @@ use crate::errors::CliError;
 use super::NargoConfig;
 
 #[derive(Debug, Clone, Args)]
-pub(crate) struct DapCommand;
+pub(crate) struct DapCommand {
+    /// Override the expression width requested by the backend.
+    #[arg(long, value_parser = parse_expression_width)]
+    expression_width: Option<ExpressionWidth>,
+}
+
+fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
+    use std::io::{Error, ErrorKind};
+
+    let width = input
+        .parse::<usize>()
+        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
+
+    Ok(ExpressionWidth::from(width))
+}
 
 struct LoadError(&'static str);
 
@@ -55,16 +70,14 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
 }
 
 fn load_and_compile_project(
-    backend: &Backend,
     project_folder: &str,
     package: Option<&str>,
     prover_name: &str,
+    expression_width: ExpressionWidth,
 ) -> Result<(CompiledProgram, WitnessMap), LoadError> {
     let workspace =
         find_workspace(project_folder, package).ok_or(LoadError("Cannot open workspace"))?;
 
-    let expression_width =
-        backend.get_backend_info().map_err(|_| LoadError("Failed to get backend info"))?;
     let package = workspace
         .into_iter()
         .find(|p| p.is_binary())
@@ -111,7 +124,7 @@ fn load_and_compile_project(
 
 fn loop_uninitialized_dap<R: Read, W: Write>(
     mut server: Server<R, W>,
-    backend: &Backend,
+    expression_width: ExpressionWidth,
 ) -> Result<(), ServerError> {
     loop {
         let req = match server.poll_request()? {
@@ -151,7 +164,12 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                 eprintln!("Package: {}", package.unwrap_or("(default)"));
                 eprintln!("Prover name: {}", prover_name);
 
-                match load_and_compile_project(backend, project_folder, package, prover_name) {
+                match load_and_compile_project(
+                    project_folder,
+                    package,
+                    prover_name,
+                    expression_width,
+                ) {
                     Ok((compiled_program, initial_witness)) => {
                         server.respond(req.ack()?)?;
 
@@ -187,12 +205,15 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
 
 pub(crate) fn run(
     backend: &Backend,
-    _args: DapCommand,
+    args: DapCommand,
     _config: NargoConfig,
 ) -> Result<(), CliError> {
     let output = BufWriter::new(std::io::stdout());
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, backend).map_err(CliError::DapError)
+    let expression_width =
+        args.expression_width.unwrap_or_else(|| backend.get_backend_info_or_default());
+
+    loop_uninitialized_dap(server, expression_width).map_err(CliError::DapError)
 }

@@ -1,0 +1,54 @@
+name: Feature Request
+description: Suggest an idea for this project.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Description
+        Thanks for taking the time to create the Issue, and welcome to the Noirot family!
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe what you feel lacking. Supply code / step-by-step examples if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Happy Case
+      description: Describe how you think it should work. Supply pseudocode / step-by-step examples if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe less-happy cases you have considered, if any.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Supplement further information if applicable.
+  - type: markdown
+    attributes:
+      value: |
+        ## Pull Request
+  - type: dropdown
+    id: pr-preference
+    attributes:
+      label: Would you like to submit a PR for this Issue?
+      description: Fellow contributors are happy to provide support where applicable.
+      multiple: false
+      options:
+        - "No"
+        - "Maybe"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: pr-support
+    attributes:
+      label: Support Needs
+      description: Support from other contributors you are looking for to create a PR for this Issue.
