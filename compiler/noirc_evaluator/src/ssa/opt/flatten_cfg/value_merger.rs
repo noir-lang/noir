@@ -12,7 +12,8 @@ use crate::ssa::ir::{
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
-    // Maps SSA array values to their size and any respective nested slice children it may have
+    // Maps SSA array values with a slice type to their size.
+    // This must be computed before merging values.
     slice_sizes: &'a mut HashMap<ValueId, usize>,
 }
 

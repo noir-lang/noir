@@ -610,7 +610,6 @@ impl<'f> Context<'f> {
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
 
         for instruction in instructions.iter() {
-            // self.push_instruction(instruction);
             let results = self.push_instruction(*instruction);
             let (instruction, _) = self.inserter.map_instruction(*instruction);
             let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
