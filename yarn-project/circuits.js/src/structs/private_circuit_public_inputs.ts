@@ -2,13 +2,7 @@ import { makeTuple } from '@aztec/foundation/array';
 import { isArrayEmpty } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import {
-  BufferReader,
-  FieldReader,
-  Tuple,
-  serializeToBuffer,
-  serializeToFieldArray,
-} from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, Tuple, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import {
@@ -282,7 +276,7 @@ export class PrivateCircuitPublicInputs {
    * Serialize this as a field array.
    */
   toFields(): Fr[] {
-    return serializeToFieldArray(...PrivateCircuitPublicInputs.getFields(this));
+    return serializeToFields(...PrivateCircuitPublicInputs.getFields(this));
   }
 
   hash(): Fr {

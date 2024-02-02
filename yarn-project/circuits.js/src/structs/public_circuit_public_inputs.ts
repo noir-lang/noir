@@ -3,7 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { isArrayEmpty } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { FieldReader, Tuple, serializeToBuffer, serializeToFieldArray } from '@aztec/foundation/serialize';
+import { FieldReader, Tuple, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import {
@@ -175,7 +175,7 @@ export class PublicCircuitPublicInputs {
   }
 
   toFields(): Fr[] {
-    return serializeToFieldArray(...PublicCircuitPublicInputs.getFields(this));
+    return serializeToFields(...PublicCircuitPublicInputs.getFields(this));
   }
 
   static fromFields(fields: Fr[] | FieldReader): PublicCircuitPublicInputs {

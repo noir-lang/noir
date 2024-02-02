@@ -67,7 +67,7 @@ export class MessageLoadOracleInputs<N extends number> {
   ) {}
 
   toFields(): Fr[] {
-    return [...this.message.toFieldArray(), new Fr(this.index), ...this.siblingPath.toFieldArray()];
+    return [...this.message.toFields(), new Fr(this.index), ...this.siblingPath.toFields()];
   }
 }
 

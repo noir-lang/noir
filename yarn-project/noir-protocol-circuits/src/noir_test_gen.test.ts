@@ -107,7 +107,7 @@ describe('Data generation for noir tests', () => {
 
     const root = noteHashTree.getRoot(true);
     const siblingPaths = await Promise.all(
-      indexes.map(async index => (await noteHashTree.getSiblingPath(index, true)).toFieldArray()),
+      indexes.map(async index => (await noteHashTree.getSiblingPath(index, true)).toFields()),
     );
 
     expect({

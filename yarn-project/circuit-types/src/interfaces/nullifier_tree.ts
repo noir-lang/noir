@@ -28,7 +28,7 @@ export class NullifierMembershipWitness {
    * Returns a field array representation of a nullifier witness.
    * @returns A field array representation of a nullifier witness.
    */
-  public toFieldArray(): Fr[] {
-    return [new Fr(this.index), ...this.leafPreimage.toFieldArray(), ...this.siblingPath.toFieldArray()];
+  public toFields(): Fr[] {
+    return [new Fr(this.index), ...this.leafPreimage.toFields(), ...this.siblingPath.toFields()];
   }
 }

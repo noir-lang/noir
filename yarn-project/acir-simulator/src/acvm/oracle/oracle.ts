@@ -89,7 +89,7 @@ export class Oracle {
         `Low nullifier witness not found for nullifier ${parsedNullifier} at block ${parsedBlockNumber}.`,
       );
     }
-    return witness.toFieldArray().map(toACVMField);
+    return witness.toFields().map(toACVMField);
   }
 
   async getLowNullifierMembershipWitness(
@@ -105,7 +105,7 @@ export class Oracle {
         `Low nullifier witness not found for nullifier ${parsedNullifier} at block ${parsedBlockNumber}.`,
       );
     }
-    return witness.toFieldArray().map(toACVMField);
+    return witness.toFields().map(toACVMField);
   }
 
   async getPublicDataTreeWitness([blockNumber]: ACVMField[], [leafSlot]: ACVMField[]): Promise<ACVMField[]> {
@@ -116,7 +116,7 @@ export class Oracle {
     if (!witness) {
       throw new Error(`Public data witness not found for slot ${parsedLeafSlot} at block ${parsedBlockNumber}.`);
     }
-    return witness.toFieldArray().map(toACVMField);
+    return witness.toFields().map(toACVMField);
   }
 
   async getHeader([blockNumber]: ACVMField[]): Promise<ACVMField[]> {

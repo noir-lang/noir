@@ -47,7 +47,7 @@ describe('e2e_blacklist_token_contract', () => {
       index,
       value: Fr.fromBuffer(slowUpdateTreeSimulator.getLeafValue(index, includeUncommitted)!),
       // eslint-disable-next-line camelcase
-      sibling_path: (await slowUpdateTreeSimulator.getSiblingPath(index, includeUncommitted)).toFieldArray(),
+      sibling_path: (await slowUpdateTreeSimulator.getSiblingPath(index, includeUncommitted)).toFields(),
     };
   };
 

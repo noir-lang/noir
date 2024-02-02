@@ -102,10 +102,10 @@ export class L1ToL2Message {
    * Returns each element within its own field so that it can be consumed by an acvm oracle call.
    * @returns The message as an array of fields (in order).
    */
-  toFieldArray(): Fr[] {
+  toFields(): Fr[] {
     return [
-      ...this.sender.toFieldArray(),
-      ...this.recipient.toFieldArray(),
+      ...this.sender.toFields(),
+      ...this.recipient.toFields(),
       this.content,
       this.secretHash,
       new Fr(BigInt(this.deadline)),
@@ -118,7 +118,7 @@ export class L1ToL2Message {
   }
 
   hash(): Fr {
-    return Fr.fromBufferReduce(sha256(serializeToBuffer(...this.toFieldArray())));
+    return Fr.fromBufferReduce(sha256(serializeToBuffer(...this.toFields())));
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): L1ToL2Message {
@@ -177,7 +177,7 @@ export class L1Actor {
     return new L1Actor(EthAddress.ZERO, 0);
   }
 
-  toFieldArray(): Fr[] {
+  toFields(): Fr[] {
     return [this.sender.toField(), new Fr(BigInt(this.chainId))];
   }
 
@@ -216,7 +216,7 @@ export class L2Actor {
     return new L2Actor(AztecAddress.ZERO, 0);
   }
 
-  toFieldArray(): Fr[] {
+  toFields(): Fr[] {
     return [this.recipient.toField(), new Fr(BigInt(this.version))];
   }
 

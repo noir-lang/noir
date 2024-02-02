@@ -46,7 +46,7 @@ export class KernelOracle implements ProvingDataOracle {
     return new MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>(
       path.pathSize,
       leafIndex,
-      path.toFieldArray() as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
+      path.toFields() as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
     );
   }
 

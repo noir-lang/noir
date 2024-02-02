@@ -362,7 +362,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       const { size } = await this.db.getTreeInfo(treeId);
       // TODO: Check for off-by-one errors
       const path = await this.db.getSiblingPath(treeId, size);
-      return path.toFieldArray();
+      return path.toFields();
     };
 
     const newL1ToL2MessageTreeRootSiblingPathArray = await this.getSubtreeSiblingPath(
@@ -450,7 +450,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       throw new Error(`Leaf with value ${value} not found in tree ${MerkleTreeId[treeId]}`);
     }
     const path = await this.db.getSiblingPath(treeId, index);
-    return new MembershipWitness(height, index, assertLength(path.toFieldArray(), height));
+    return new MembershipWitness(height, index, assertLength(path.toFields(), height));
   }
 
   protected async getConstantRollupData(globalVariables: GlobalVariables): Promise<ConstantRollupData> {
@@ -489,7 +489,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       witness: new MembershipWitness(
         NULLIFIER_TREE_HEIGHT,
         BigInt(prevValueIndex.index),
-        assertLength(prevValueSiblingPath.toFieldArray(), NULLIFIER_TREE_HEIGHT),
+        assertLength(prevValueSiblingPath.toFields(), NULLIFIER_TREE_HEIGHT),
       ),
     };
   }
@@ -499,7 +499,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const fullSiblingPath = await this.db.getSiblingPath(treeId, nextAvailableLeafIndex);
 
     // Drop the first subtreeHeight items since we only care about the path to the subtree root
-    return fullSiblingPath.getSubtreeSiblingPath(subtreeHeight).toFieldArray();
+    return fullSiblingPath.getSubtreeSiblingPath(subtreeHeight).toFields();
   }
 
   protected async processPublicDataUpdateRequests(tx: ProcessedTx) {
@@ -525,7 +525,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       return sortedNewLeavesIndexes[i];
     });
 
-    const subtreeSiblingPathAsFields = newSubtreeSiblingPath.toFieldArray();
+    const subtreeSiblingPathAsFields = newSubtreeSiblingPath.toFields();
     const newPublicDataSubtreeSiblingPath = makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, i => {
       return subtreeSiblingPathAsFields[i];
     });
@@ -655,7 +655,7 @@ export class SoloBlockBuilder implements BlockBuilder {
         MembershipWitness.fromBufferArray(l.index, assertLength(l.siblingPath.toBufferArray(), NULLIFIER_TREE_HEIGHT)),
       );
 
-    const nullifierSubtreeSiblingPathArray = newNullifiersSubtreeSiblingPath.toFieldArray();
+    const nullifierSubtreeSiblingPathArray = newNullifiersSubtreeSiblingPath.toFields();
 
     const nullifierSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, i =>
       i < nullifierSubtreeSiblingPathArray.length ? nullifierSubtreeSiblingPathArray[i] : Fr.ZERO,

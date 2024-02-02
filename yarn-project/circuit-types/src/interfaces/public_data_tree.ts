@@ -29,14 +29,14 @@ export class PublicDataWitness {
    * Returns a field array representation of a public data witness.
    * @returns A field array representation of a public data witness.
    */
-  public toFieldArray(): Fr[] {
+  public toFields(): Fr[] {
     return [
       new Fr(this.index),
       new Fr(this.leafPreimage.slot),
       new Fr(this.leafPreimage.value),
       new Fr(this.leafPreimage.nextIndex),
       new Fr(this.leafPreimage.nextSlot),
-      ...this.siblingPath.toFieldArray(),
+      ...this.siblingPath.toFields(),
     ];
   }
 }

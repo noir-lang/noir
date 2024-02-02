@@ -190,11 +190,11 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
  * @param objs - Objects to serialize.
  * @returns An array of fields with the concatenation of all fields.
  */
-export function serializeToFieldArray(...objs: Fieldeable[]): Fr[] {
+export function serializeToFields(...objs: Fieldeable[]): Fr[] {
   let ret: Fr[] = [];
   for (const obj of objs) {
     if (Array.isArray(obj)) {
-      ret = [...ret, ...serializeToFieldArray(...obj)];
+      ret = [...ret, ...serializeToFields(...obj)];
     } else if (obj instanceof Fr) {
       ret.push(obj);
     } else if (typeof obj === 'boolean' || typeof obj === 'number' || typeof obj === 'bigint') {

@@ -94,6 +94,6 @@ export class MembershipWitness<N extends number> {
 
   // import { SiblingPath } from '@aztec/merkle-tree';
   //   static fromSiblingPath<N extends number>(leafIndex: bigint, siblingPath: SiblingPath<N>): MembershipWitness<N> {
-  //     return new MembershipWitness<N>(siblingPath.pathSize, leafIndex, siblingPath.toFieldArray() as Tuple<Fr, N>);
+  //     return new MembershipWitness<N>(siblingPath.pathSize, leafIndex, siblingPath.toFields() as Tuple<Fr, N>);
   //   }
 }

@@ -50,7 +50,7 @@ export class NullifierLeafPreimage implements IndexedTreeLeafPreimage {
     ];
   }
 
-  toFieldArray(): Fr[] {
+  toFields(): Fr[] {
     return this.toHashInputs().map(buf => Fr.fromBuffer(buf));
   }
 

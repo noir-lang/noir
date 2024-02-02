@@ -155,15 +155,15 @@ export class SimulatorOracle implements DBOracle {
     // @todo Doing a nasty workaround here because of https://github.com/AztecProtocol/aztec-packages/issues/3414
     switch (treeId) {
       case MerkleTreeId.CONTRACT_TREE:
-        return (await this.stateInfoProvider.getContractSiblingPath(blockNumber, leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getContractSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.NULLIFIER_TREE:
-        return (await this.stateInfoProvider.getNullifierSiblingPath(blockNumber, leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getNullifierSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.NOTE_HASH_TREE:
-        return (await this.stateInfoProvider.getNoteHashSiblingPath(blockNumber, leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getNoteHashSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.PUBLIC_DATA_TREE:
-        return (await this.stateInfoProvider.getPublicDataSiblingPath(blockNumber, leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getPublicDataSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.ARCHIVE:
-        return (await this.stateInfoProvider.getArchiveSiblingPath(blockNumber, leafIndex)).toFieldArray();
+        return (await this.stateInfoProvider.getArchiveSiblingPath(blockNumber, leafIndex)).toFields();
       default:
         throw new Error('Not implemented');
     }
