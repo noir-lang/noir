@@ -1,30 +1,28 @@
 ---
 title: Alternative Install Methods
-description:
-  There are different ways to install Nargo, the one-stop shop and command-line tool for developing Noir programs. This guide explains other methods that don't rely on noirup, such as compiling from source, installing from binaries, and using WSL for windows
+description: There are different ways to install Nargo, the one-stop shop and command-line tool for developing Noir programs. This guide explains other methods that don't rely on noirup, such as compiling from source, installing from binaries, and using WSL for windows
 keywords: [
-   Installation
-   Nargo
-   Noirup
-   Binaries
-   Compiling from Source
-   WSL for Windows
-   macOS
-   Linux
-   Nix
-   Direnv
-   Shell & editor experience
-   Building and testing
-   Uninstalling Nargo
-   Noir vs code extension
-]
+    Installation
+    Nargo
+    Noirup
+    Binaries
+    Compiling from Source
+    WSL for Windows
+    macOS
+    Linux
+    Nix
+    Direnv
+    Shell & editor experience
+    Building and testing
+    Uninstalling Nargo
+    Noir vs code extension,
+  ]
 sidebar_position: 1
 ---
 
 ## Encouraged Installation Method: Noirup
 
 Noirup is the endorsed method for installing Nargo, streamlining the process of fetching binaries or compiling from source. It supports a range of options to cater to your specific needs, from nightly builds and specific versions to compiling from various sources.
-
 
 ### Installing Noirup
 
@@ -39,6 +37,7 @@ curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 With `noirup`, you can easily switch between different Nargo versions, including nightly builds:
 
 - **Nightly Version**: Install the latest nightly build.
+
   ```sh
   noirup --version nightly
   ```
@@ -53,26 +52,31 @@ With `noirup`, you can easily switch between different Nargo versions, including
 `noirup` also enables compiling Nargo from various sources:
 
 - **From a Specific Branch**: Install from the latest commit on a branch.
+
   ```sh
   noirup --branch <branch-name>
   ```
 
 - **From a Fork**: Install from the main branch of a fork.
+
   ```sh
   noirup --repo <username/repo>
   ```
 
 - **From a Specific Branch in a Fork**: Install from a specific branch in a fork.
+
   ```sh
   noirup --repo <username/repo> --branch <branch-name>
   ```
 
 - **From a Specific Pull Request**: Install from a specific PR.
+
   ```sh
   noirup --pr <pr-number>
   ```
 
 - **From a Specific Commit**: Install from a specific commit.
+
   ```sh
   noirup -C <commit-hash>
   ```
@@ -87,7 +91,6 @@ With `noirup`, you can easily switch between different Nargo versions, including
 While the following methods are available, they are no longer recommended. We advise using noirup for a more efficient and flexible installation experience.
 
 However, there are other methods for installing Nargo:
-
 
 - [Binaries](#option-1-installing-from-binaries)
 - [Compiling from Source](#option-2-compile-from-source)
