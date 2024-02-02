@@ -201,8 +201,8 @@ struct Context<'f> {
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
 
-    /// Maps SSA array values to their size
-    /// This is maintained by appropriate calls to the `SliceCapacityTracker`
+    /// Maps SSA array values with a slice type to their size.
+    /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
     slice_sizes: HashMap<ValueId, usize>,
 }
 
