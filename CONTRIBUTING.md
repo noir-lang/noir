@@ -2,6 +2,8 @@
 
 There are many ways to contribute to Aztec Monorepo.
 
+Please read our [disclaimer](./DISCLAIMER.md) first
+
 ## Opening an issue
 
 You can [open an issue] to suggest a feature or report a minor bug.
