@@ -199,6 +199,11 @@ fn lambda(parameters: Vec<(Pattern, UnresolvedType)>, body: Expression) -> Expre
 }
 
 macro_rules! chained_path {
+    ( $base:expr ) => {
+        {
+            ident_path($base)
+        }
+    };
     ( $base:expr $(, $tail:expr)* ) => {
         {
             let mut base_path = ident_path($base);
