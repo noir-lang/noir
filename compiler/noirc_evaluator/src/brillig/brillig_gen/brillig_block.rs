@@ -3,6 +3,7 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::instruction::ConstrainError;
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -265,7 +266,30 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                 );
 
-                self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                let assert_message = if let Some(error) = assert_message {
+                    match error.as_ref() {
+                        ConstrainError::Static(string) => Some(string.clone()),
+                        ConstrainError::Dynamic(call_instruction) => {
+                            let Instruction::Call { func, arguments } = call_instruction else {
+                                unreachable!("expected a call instruction")
+                            };
+
+                            let Value::Function(func_id) =  &dfg[*func]  else {
+                                unreachable!("expected a function value")
+                            };
+
+                            self.convert_ssa_function_call(*func_id, arguments, dfg, &[]);
+
+                            // Dynamic assert messages are handled in the generated function call.
+                            // We then don't need to attach one to the constrain instruction.
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.brillig_context.constrain_instruction(condition, assert_message);
                 self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {
@@ -369,7 +393,8 @@ impl<'block> BrilligBlock<'block> {
                     }
                 }
                 Value::Function(func_id) => {
-                    self.convert_ssa_function_call(*func_id, arguments, dfg, instruction_id);
+                    let result_ids = dfg.instruction_results(instruction_id);
+                    self.convert_ssa_function_call(*func_id, arguments, dfg, result_ids);
                 }
                 Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
                     // Slices are represented as a tuple of (length, slice contents).
@@ -564,6 +589,7 @@ impl<'block> BrilligBlock<'block> {
                 };
 
                 let index_register = self.convert_ssa_register_value(*index, dfg);
+                self.validate_array_index(array_variable, index_register);
                 self.retrieve_variable_from_array(
                     array_pointer,
                     index_register,
@@ -582,6 +608,7 @@ impl<'block> BrilligBlock<'block> {
                     result_ids[0],
                     dfg,
                 );
+                self.validate_array_index(source_variable, index_register);
 
                 self.convert_ssa_array_set(
                     source_variable,
@@ -636,15 +663,13 @@ impl<'block> BrilligBlock<'block> {
         func_id: FunctionId,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
-        instruction_id: InstructionId,
+        result_ids: &[ValueId],
     ) {
         // Convert the arguments to registers casting those to the types of the receiving function
         let argument_registers: Vec<RegisterIndex> = arguments
             .iter()
             .flat_map(|argument_id| self.convert_ssa_value(*argument_id, dfg).extract_registers())
             .collect();
-
-        let result_ids = dfg.instruction_results(instruction_id);
 
         // Create label for the function that will be called
         let label_of_function_to_call = FunctionContext::function_id_to_function_label(func_id);
@@ -688,6 +713,37 @@ impl<'block> BrilligBlock<'block> {
         // puts the returns into the returned_registers and restores saved_registers
         self.brillig_context
             .post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
+    }
+
+    fn validate_array_index(
+        &mut self,
+        array_variable: BrilligVariable,
+        index_register: RegisterIndex,
+    ) {
+        let (size_as_register, should_deallocate_size) = match array_variable {
+            BrilligVariable::BrilligArray(BrilligArray { size, .. }) => {
+                (self.brillig_context.make_constant(size.into()), true)
+            }
+            BrilligVariable::BrilligVector(BrilligVector { size, .. }) => (size, false),
+            _ => unreachable!("ICE: validate array index on non-array"),
+        };
+
+        let condition = self.brillig_context.allocate_register();
+
+        self.brillig_context.memory_op(
+            index_register,
+            size_as_register,
+            condition,
+            BinaryIntOp::LessThan,
+        );
+
+        self.brillig_context
+            .constrain_instruction(condition, Some("Array index out of bounds".to_owned()));
+
+        if should_deallocate_size {
+            self.brillig_context.deallocate_register(size_as_register);
+        }
+        self.brillig_context.deallocate_register(condition);
     }
 
     pub(crate) fn retrieve_variable_from_array(

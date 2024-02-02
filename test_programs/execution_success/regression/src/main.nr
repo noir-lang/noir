@@ -1,29 +1,49 @@
 global NIBBLE_LENGTH: Field = 16;
 
-fn compact_decode<N>(input: [u8; N], length: Field) -> ([u4; NIBBLE_LENGTH], Field) {
+struct U4 {
+    inner: u8,
+}
+
+impl U4 {
+    fn zero() -> U4 {
+        U4 { inner: 0 }
+    }
+
+    fn from_u8(x: u8) -> U4 {
+        U4 { inner: x % 16 }
+    }
+}
+
+impl Eq for U4 {
+    fn eq(self, other: Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+fn compact_decode<N>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Field) {
     assert(2 * input.len() as u64 <= NIBBLE_LENGTH as u64);
     assert(length as u64 <= input.len() as u64);
 
-    let mut nibble = [0 as u4; NIBBLE_LENGTH];
+    let mut nibble = [U4::zero(); NIBBLE_LENGTH];
 
-    let first_nibble = (input[0] >> 4) as u4;
-    let parity = first_nibble as u1;
+    let first_nibble = U4::from_u8(input[0] >> 4);
+    let parity = first_nibble.inner as u1;
 
     if parity == 1 {
-        nibble[0] = (input[0] & 0x0f) as u4;
+        nibble[0] = U4::from_u8(input[0] & 0x0f);
         for i in 1..input.len() {
             if i as u64 < length as u64 {
                 let x = input[i];
-                nibble[2*i - 1] = (x >> 4) as u4;
-                nibble[2*i] = (x & 0x0f) as u4;
+                nibble[2*i - 1] = U4::from_u8(x >> 4);
+                nibble[2*i] = U4::from_u8(x & 0x0f);
             }
         }
     } else {
         for i in 0..2 {
             if (i as u64) < length as u64 - 1 {
                 let x = input[i + 1];
-                nibble[2*i] = (x >> 4) as u4;
-                nibble[2*i + 1] = (x & 0x0f) as u4;
+                nibble[2*i] = U4::from_u8(x >> 4);
+                nibble[2*i + 1] = U4::from_u8(x & 0x0f);
             }
         }
     }
@@ -78,7 +98,10 @@ fn main(x: [u8; 5], z: Field) {
     //Issue 1144
     let (nib, len) = compact_decode(x, z);
     assert(len == 5);
-    assert([nib[0], nib[1], nib[2], nib[3], nib[4]] == [15, 1, 12, 11, 8]);
+    assert(
+        [nib[0], nib[1], nib[2], nib[3], nib[4]]
+        == [U4::from_u8(15), U4::from_u8(1), U4::from_u8(12), U4::from_u8(11), U4::from_u8(8)]
+    );
     // Issue 1169
     let val1 = [
         0xb8, 0x8f, 0x61, 0xe6, 0xfb, 0xda, 0x83, 0xfb, 0xff, 0xfa, 0xbe, 0x36, 0x41, 0x12, 0x13,

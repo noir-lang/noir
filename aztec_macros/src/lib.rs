@@ -26,8 +26,12 @@ impl MacroProcessor for AztecMacro {
         transform(ast, crate_id, context)
     }
 
-    fn process_typed_ast(&self, crate_id: &CrateId, context: &mut HirContext) {
-        transform_hir(crate_id, context)
+    fn process_typed_ast(
+        &self,
+        crate_id: &CrateId,
+        context: &mut HirContext,
+    ) -> Result<(), (MacroError, FileId)> {
+        transform_hir(crate_id, context).map_err(|(err, file_id)| (err.into(), file_id))
     }
 }
 
@@ -36,38 +40,44 @@ const MAX_CONTRACT_FUNCTIONS: usize = 2_usize.pow(FUNCTION_TREE_HEIGHT);
 
 #[derive(Debug, Clone)]
 pub enum AztecMacroError {
-    AztecNotFound,
-    AztecComputeNoteHashAndNullifierNotFound { span: Span },
-    AztecContractHasTooManyFunctions { span: Span },
-    AztecContractConstructorMissing { span: Span },
+    AztecDepNotFound,
+    ComputeNoteHashAndNullifierNotFound { span: Span },
+    ContractHasTooManyFunctions { span: Span },
+    ContractConstructorMissing { span: Span },
     UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
+    EventError { span: Span, message: String },
 }
 
 impl From<AztecMacroError> for MacroError {
     fn from(err: AztecMacroError) -> Self {
         match err {
-            AztecMacroError::AztecNotFound {} => MacroError {
+            AztecMacroError::AztecDepNotFound {} => MacroError {
                 primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml".to_owned(),
                 secondary_message: None,
                 span: None,
             },
-            AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span } => MacroError {
+            AztecMacroError::ComputeNoteHashAndNullifierNotFound { span } => MacroError {
                 primary_message: "compute_note_hash_and_nullifier function not found. Define it in your contract. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#compute_note_hash_and_nullifier-function-not-found-define-it-in-your-contract".to_owned(),
                 secondary_message: None,
                 span: Some(span),
             },
-            AztecMacroError::AztecContractHasTooManyFunctions { span } => MacroError {
+            AztecMacroError::ContractHasTooManyFunctions { span } => MacroError {
                 primary_message: format!("Contract can only have a maximum of {} functions", MAX_CONTRACT_FUNCTIONS),
                 secondary_message: None,
                 span: Some(span),
             },
-            AztecMacroError::AztecContractConstructorMissing { span } => MacroError {
+            AztecMacroError::ContractConstructorMissing { span } => MacroError {
                 primary_message: "Contract must have a constructor function".to_owned(),
                 secondary_message: None,
                 span: Some(span),
             },
             AztecMacroError::UnsupportedFunctionArgumentType { span, typ } => MacroError {
                 primary_message: format!("Provided parameter type `{typ:?}` is not supported in Aztec contract interface"),
+                secondary_message: None,
+                span: Some(span),
+            },
+            AztecMacroError::EventError { span, message } => MacroError {
+                primary_message: message,
                 secondary_message: None,
                 span: Some(span),
             },
@@ -222,7 +232,9 @@ fn transform(
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(&mut submodule.contents, crate_id, context)? {
+        if transform_module(&mut submodule.contents, crate_id, context)
+            .map_err(|(err, file_id)| (err.into(), file_id))?
+        {
             check_for_aztec_dependency(crate_id, context)?;
             include_relevant_imports(&mut submodule.contents);
         }
@@ -235,8 +247,11 @@ fn transform(
 //
 
 /// Completes the Hir with data gathered from type resolution
-fn transform_hir(crate_id: &CrateId, context: &mut HirContext) {
-    transform_events(crate_id, context);
+fn transform_hir(
+    crate_id: &CrateId,
+    context: &mut HirContext,
+) -> Result<(), (AztecMacroError, FileId)> {
+    transform_events(crate_id, context)
 }
 
 /// Includes an import to the aztec library if it has not been included yet
@@ -264,7 +279,7 @@ fn check_for_aztec_dependency(
     if has_aztec_dependency {
         Ok(())
     } else {
-        Err((AztecMacroError::AztecNotFound.into(), crate_graph.root_file_id))
+        Err((AztecMacroError::AztecDepNotFound.into(), crate_graph.root_file_id))
     }
 }
 
@@ -323,7 +338,7 @@ fn transform_module(
     module: &mut SortedModule,
     crate_id: &CrateId,
     context: &HirContext,
-) -> Result<bool, (MacroError, FileId)> {
+) -> Result<bool, (AztecMacroError, FileId)> {
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct
@@ -332,8 +347,7 @@ fn transform_module(
     if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(module) {
         let crate_graph = &context.crate_graph[crate_id];
         return Err((
-            AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span: Span::default() }
-                .into(),
+            AztecMacroError::ComputeNoteHashAndNullifierNotFound { span: Span::default() },
             crate_graph.root_file_id,
         ));
     }
@@ -350,11 +364,11 @@ fn transform_module(
             let crate_graph = &context.crate_graph[crate_id];
             if is_custom_attribute(&secondary_attribute, "aztec(private)") {
                 transform_function("Private", func, storage_defined)
-                    .map_err(|err| (err.into(), crate_graph.root_file_id))?;
+                    .map_err(|err| (err, crate_graph.root_file_id))?;
                 has_transformed_module = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
                 transform_function("Public", func, storage_defined)
-                    .map_err(|err| (err.into(), crate_graph.root_file_id))?;
+                    .map_err(|err| (err, crate_graph.root_file_id))?;
                 has_transformed_module = true;
             }
         }
@@ -371,7 +385,7 @@ fn transform_module(
         if module.functions.len() > MAX_CONTRACT_FUNCTIONS {
             let crate_graph = &context.crate_graph[crate_id];
             return Err((
-                AztecMacroError::AztecContractHasTooManyFunctions { span: Span::default() }.into(),
+                AztecMacroError::ContractHasTooManyFunctions { span: Span::default() },
                 crate_graph.root_file_id,
             ));
         }
@@ -380,7 +394,7 @@ fn transform_module(
         if !constructor_defined {
             let crate_graph = &context.crate_graph[crate_id];
             return Err((
-                AztecMacroError::AztecContractConstructorMissing { span: Span::default() }.into(),
+                AztecMacroError::ContractConstructorMissing { span: Span::default() },
                 crate_graph.root_file_id,
             ));
         }
@@ -471,19 +485,30 @@ fn collect_crate_structs(crate_id: &CrateId, context: &HirContext) -> Vec<Struct
 }
 
 /// Substitutes the signature literal that was introduced in the selector method previously with the actual signature.
-fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
+fn transform_event(
+    struct_id: StructId,
+    interner: &mut NodeInterner,
+) -> Result<(), (AztecMacroError, FileId)> {
     let struct_type = interner.get_struct(struct_id);
     let selector_id = interner
-        .lookup_method(&Type::Struct(struct_type, vec![]), struct_id, "selector", false)
-        .expect("Selector method not found");
+        .lookup_method(&Type::Struct(struct_type.clone(), vec![]), struct_id, "selector", false)
+        .ok_or_else(|| {
+            let error = AztecMacroError::EventError {
+                span: struct_type.borrow().location.span,
+                message: "Selector method not found".to_owned(),
+            };
+            (error, struct_type.borrow().location.file)
+        })?;
     let selector_function = interner.function(&selector_id);
 
     let compute_selector_statement = interner.statement(
-        selector_function
-            .block(interner)
-            .statements()
-            .first()
-            .expect("Compute selector statement not found"),
+        selector_function.block(interner).statements().first().ok_or_else(|| {
+            let error = AztecMacroError::EventError {
+                span: struct_type.borrow().location.span,
+                message: "Compute selector statement not found".to_owned(),
+            };
+            (error, struct_type.borrow().location.file)
+        })?,
     );
 
     let compute_selector_expression = match compute_selector_statement {
@@ -493,12 +518,21 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
         },
         _ => None,
     }
-    .expect("Compute selector statement is not a call expression");
+    .ok_or_else(|| {
+        let error = AztecMacroError::EventError {
+            span: struct_type.borrow().location.span,
+            message: "Compute selector statement is not a call expression".to_owned(),
+        };
+        (error, struct_type.borrow().location.file)
+    })?;
 
-    let first_arg_id = compute_selector_expression
-        .arguments
-        .first()
-        .expect("Missing argument for compute selector");
+    let first_arg_id = compute_selector_expression.arguments.first().ok_or_else(|| {
+        let error = AztecMacroError::EventError {
+            span: struct_type.borrow().location.span,
+            message: "Compute selector statement is not a call expression".to_owned(),
+        };
+        (error, struct_type.borrow().location.file)
+    })?;
 
     match interner.expression(first_arg_id) {
         HirExpression::Literal(HirLiteral::Str(signature))
@@ -517,18 +551,29 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
                 selector_literal_id,
                 Type::String(Box::new(Type::Constant(signature.len() as u64))),
             );
+            Ok(())
         }
-        _ => unreachable!("Signature placeholder literal does not match"),
+        _ => Err((
+            AztecMacroError::EventError {
+                span: struct_type.borrow().location.span,
+                message: "Signature placeholder literal does not match".to_owned(),
+            },
+            struct_type.borrow().location.file,
+        )),
     }
 }
 
-fn transform_events(crate_id: &CrateId, context: &mut HirContext) {
+fn transform_events(
+    crate_id: &CrateId,
+    context: &mut HirContext,
+) -> Result<(), (AztecMacroError, FileId)> {
     for struct_id in collect_crate_structs(crate_id, context) {
         let attributes = context.def_interner.struct_attributes(&struct_id);
         if attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
-            transform_event(struct_id, &mut context.def_interner);
+            transform_event(struct_id, &mut context.def_interner)?;
         }
     }
+    Ok(())
 }
 
 const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";

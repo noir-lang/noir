@@ -270,11 +270,12 @@ impl<'a> FunctionContext<'a> {
     /// helper function which add instructions to the block computing the absolute value of the
     /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
     fn absolute_value_helper(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
+        assert_eq!(self.builder.type_of_value(sign), Type::bool());
+
         // We compute the absolute value of lhs
-        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
         let bit_width =
             self.builder.numeric_constant(FieldElement::from(2_i128.pow(bit_size)), Type::field());
-        let sign_not = self.builder.insert_binary(one, BinaryOp::Sub, sign);
+        let sign_not = self.builder.insert_not(sign);
 
         // We use unsafe casts here, this is fine as we're casting to a `field` type.
         let as_field = self.builder.insert_cast(input, Type::field());
@@ -434,7 +435,7 @@ impl<'a> FunctionContext<'a> {
             self.builder.set_location(location).insert_constrain(
                 sign,
                 one,
-                Some("attempt to bit-shift with overflow".to_string()),
+                Some("attempt to bit-shift with overflow".to_owned().into()),
             );
         }
 
@@ -445,7 +446,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.set_location(location).insert_constrain(
             overflow,
             one,
-            Some("attempt to bit-shift with overflow".to_owned()),
+            Some("attempt to bit-shift with overflow".to_owned().into()),
         );
         self.builder.insert_truncate(result, bit_size, bit_size + 1)
     }
@@ -472,7 +473,6 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) {
         let is_sub = operator == BinaryOpKind::Subtract;
-        let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
         let half_width = self.builder.numeric_constant(
             FieldElement::from(2_i128.pow(bit_size - 1)),
             Type::unsigned(bit_size),
@@ -484,7 +484,7 @@ impl<'a> FunctionContext<'a> {
         let mut rhs_sign = self.builder.insert_binary(rhs_as_unsigned, BinaryOp::Lt, half_width);
         let message = if is_sub {
             // lhs - rhs = lhs + (-rhs)
-            rhs_sign = self.builder.insert_binary(one, BinaryOp::Sub, rhs_sign);
+            rhs_sign = self.builder.insert_not(rhs_sign);
             "attempt to subtract with overflow".to_string()
         } else {
             "attempt to add with overflow".to_string()
@@ -498,8 +498,11 @@ impl<'a> FunctionContext<'a> {
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
                 let sign_diff_with_predicate =
                     self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
-                let overflow_check =
-                    Instruction::Constrain(sign_diff_with_predicate, same_sign, Some(message));
+                let overflow_check = Instruction::Constrain(
+                    sign_diff_with_predicate,
+                    same_sign,
+                    Some(message.into()),
+                );
                 self.builder.set_location(location).insert_instruction(overflow_check, None);
             }
             BinaryOpKind::Multiply => {
@@ -509,26 +512,27 @@ impl<'a> FunctionContext<'a> {
                 let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
                 let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
                 // It must not already overflow the bit_size
-                let message = "attempt to multiply with overflow".to_string();
                 self.builder.set_location(location).insert_range_check(
                     product_field,
                     bit_size,
-                    Some(message.clone()),
+                    Some("attempt to multiply with overflow".to_string()),
                 );
                 let product = self.builder.insert_cast(product_field, Type::unsigned(bit_size));
 
                 // Then we check the signed product fits in a signed integer of bit_size-bits
-                let not_same = self.builder.insert_binary(one, BinaryOp::Sub, same_sign);
+                let not_same = self.builder.insert_not(same_sign);
                 let not_same_sign_field =
                     self.insert_safe_cast(not_same, Type::unsigned(bit_size), location);
                 let positive_maximum_with_offset =
                     self.builder.insert_binary(half_width, BinaryOp::Add, not_same_sign_field);
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
+
+                let one = self.builder.numeric_constant(FieldElement::one(), Type::bool());
                 self.builder.set_location(location).insert_constrain(
                     product_overflow_check,
                     one,
-                    Some(message),
+                    Some(message.into()),
                 );
             }
             _ => unreachable!("operator {} should not overflow", operator),

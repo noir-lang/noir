@@ -14,9 +14,7 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 
 Given an array of bytes, returns the resulting sha256 hash.
 
-```rust
-fn sha256(_input : [u8]) -> [u8; 32]
-```
+#include_code sha256 noir_stdlib/src/hash.nr rust
 
 example:
 
@@ -33,9 +31,7 @@ fn main() {
 
 Given an array of bytes, returns an array with the Blake2 hash
 
-```rust
-fn blake2s(_input : [u8]) -> [u8; 32]
-```
+#include_code blake2s noir_stdlib/src/hash.nr rust
 
 example:
 
@@ -48,43 +44,45 @@ fn main() {
 
 <BlackBoxInfo />
 
-## pedersen_hash
+## blake3
 
-Given an array of Fields, returns the Pedersen hash.
+Given an array of bytes, returns an array with the Blake3 hash
 
-```rust
-fn pedersen_hash(_input : [Field]) -> Field
-```
+#include_code blake3 noir_stdlib/src/hash.nr rust
 
 example:
 
 ```rust
 fn main() {
     let x = [163, 117, 178, 149]; // some random bytes
-    let hash = std::hash::pedersen_hash(x);
+    let hash = std::hash::blake3(x);
 }
 ```
 
 <BlackBoxInfo />
 
+## pedersen_hash
+
+Given an array of Fields, returns the Pedersen hash.
+
+#include_code pedersen_hash noir_stdlib/src/hash.nr rust
+
+example:
+
+#include_code pedersen-hash test_programs/execution_success/pedersen_hash/src/main.nr rust
+
 <BlackBoxInfo />
+
 
 ## pedersen_commitment
 
 Given an array of Fields, returns the Pedersen commitment.
 
-```rust
-fn pedersen_commitment(_input : [Field]) -> [Field; 2]
-```
+#include_code pedersen_commitment noir_stdlib/src/hash.nr rust
 
 example:
 
-```rust
-fn main() {
-    let x = [163, 117, 178, 149]; // some random bytes
-    let commitment = std::hash::pedersen_commitment(x);
-}
-```
+#include_code pedersen-commitment test_programs/execution_success/pedersen_commitment/src/main.nr rust
 
 <BlackBoxInfo />
 
@@ -94,19 +92,11 @@ Given an array of bytes (`u8`), returns the resulting keccak hash as an array of
 (`[u8; 32]`). Specify a message_size to hash only the first `message_size` bytes
 of the input.
 
-```rust
-fn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32]
-```
+#include_code keccak256 noir_stdlib/src/hash.nr rust
 
 example:
 
-```rust
-fn main() {
-    let x = [163, 117, 178, 149]; // some random bytes
-    let message_size = 4;
-    let hash = std::hash::keccak256(x, message_size);
-}
-```
+#include_code keccak256 test_programs/execution_success/keccak256/src/main.nr rust
 
 <BlackBoxInfo />
 
@@ -122,13 +112,7 @@ fn hash_1(input: [Field; 1]) -> Field
 
 example:
 
-```rust
-fn main()
-{
-  let hash_2 = std::hash::poseidon::bn254::hash_2([1, 2]);
-  assert(hash2 == 0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a);
-}
-```
+#include_code poseidon test_programs/execution_success/poseidon_bn254_hash/src/main.nr rust
 
 ## mimc_bn254 and mimc
 

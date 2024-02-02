@@ -13,7 +13,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    errors::RuntimeError,
+    errors::{InternalError, RuntimeError},
     ssa::{
         function_builder::data_bus::DataBusBuilder,
         ir::{instruction::Intrinsic, types::NumericType},
@@ -29,7 +29,7 @@ use super::{
     function_builder::data_bus::DataBus,
     ir::{
         function::RuntimeType,
-        instruction::{BinaryOp, TerminatorInstruction},
+        instruction::{BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -96,6 +96,9 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
             _ => unreachable!("ICE - expect return on the last block"),
         }
     }
+    // we save the data bus inside the dfg
+    function_context.builder.current_function.dfg.data_bus =
+        DataBus::get_data_bus(call_data, return_data);
 
     // Main has now been compiled and any other functions referenced within have been added to the
     // function queue as they were found in codegen_ident. This queueing will happen each time a
@@ -106,9 +109,6 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body)?;
     }
-    // we save the data bus inside the dfg
-    function_context.builder.current_function.dfg.data_bus =
-        DataBus::get_data_bus(call_data, return_data);
 
     Ok(function_context.builder.finish())
 }
@@ -141,7 +141,7 @@ impl<'a> FunctionContext<'a> {
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
             Expression::Constrain(expr, location, assert_message) => {
-                self.codegen_constrain(expr, *location, assert_message.clone())
+                self.codegen_constrain(expr, *location, assert_message)
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
@@ -438,10 +438,11 @@ impl<'a> FunctionContext<'a> {
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
+
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
             true_const,
-            Some("Index out of bounds".to_owned()),
+            Some(Box::new("Index out of bounds".to_owned().into())),
         );
     }
 
@@ -665,13 +666,57 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expr: &Expression,
         location: Location,
-        assert_message: Option<String>,
+        assert_message: &Option<Box<Expression>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
-        self.builder.set_location(location).insert_constrain(expr, true_literal, assert_message);
+
+        // Set the location here for any errors that may occur when we codegen the assert message
+        self.builder.set_location(location);
+
+        let assert_message = self.codegen_constrain_error(assert_message)?;
+
+        self.builder.insert_constrain(expr, true_literal, assert_message);
 
         Ok(Self::unit_value())
+    }
+
+    // This method does not necessary codegen the full assert message expression, thus it does not
+    // return a `Values` object. Instead we check the internals of the expression to make sure
+    // we have an `Expression::Call` as expected. An `Instruction::Call` is then constructed but not
+    // inserted to the SSA as we want that instruction to be atomic in SSA with a constrain instruction.
+    fn codegen_constrain_error(
+        &mut self,
+        assert_message: &Option<Box<Expression>>,
+    ) -> Result<Option<Box<ConstrainError>>, RuntimeError> {
+        let Some(assert_message_expr) = assert_message else {
+            return Ok(None)
+        };
+
+        let ast::Expression::Call(call) = assert_message_expr.as_ref() else {
+            return Err(InternalError::Unexpected {
+                expected: "Expected a call expression".to_owned(),
+                found: "Instead found {expr:?}".to_owned(),
+                call_stack: self.builder.get_call_stack(),
+            }
+            .into());
+        };
+
+        let func = self.codegen_non_tuple_expression(&call.func)?;
+        let mut arguments = Vec::with_capacity(call.arguments.len());
+
+        for argument in &call.arguments {
+            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            arguments.append(&mut values);
+        }
+
+        // If an array is passed as an argument we increase its reference count
+        for argument in &arguments {
+            self.builder.increment_array_reference_count(*argument);
+        }
+
+        let instr = Instruction::Call { func, arguments };
+        Ok(Some(Box::new(ConstrainError::Dynamic(instr))))
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

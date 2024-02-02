@@ -89,10 +89,22 @@ html[data-theme='dark'] {
   text-align: center;
 }
 
+.homepage_h2 {
+  display: flex;
+  margin-top: 40px;
+  justify-content: center;
+  width: 100%;
+}
+
 .homepage_p {
   display: block;
   margin: 0 auto;
   text-align: center;
+}
+
+.homepage_cta_header_container {
+  display: flex;
+  justify-content: center;
 }
 
 .homepage_cta_container {
@@ -101,13 +113,79 @@ html[data-theme='dark'] {
   margin: 0 auto;
   text-align: center;
   border: none;
-  width: 50%;
+  flex-wrap: wrap;
+  margin-right: 20px;
+  width: 100%;
 }
 
+[data-theme='dark'] .homepage_cta_container a button {
+  color: var(--ifm-font-color-base-inverse);
+}
+
+.homepage_cta_container a {
+  flex: 1 1;
+  display: flex;
+  color: var(--ifm-font-color-base-inverse);
+}
+
+@media screen and (min-width: 584px) {
+  .homepage_cta_container a:first-child {
+    margin-right: 20px;
+  } 
+  .homepage_cta_container:last-child {
+    margin-right: 0;
+  } 
+}
+
+
 .homepage_cta {
-  display: block;
-  margin: 50px auto;
+  display: flex;
+  margin: 20px auto;
   text-align: center;
+  flex: 1 auto;
+  justify-content: center;
+}
+
+
+.homepage_cta_lj_container {
+  display: flex;
+  justify-content: center;
+}
+
+@media screen and (max-width: 584px) {
+  .homepage_cta_container {
+    margin: 20px auto;
+    padding: 0.5rem 2rem;
+  }
+
+  .homepage_cta_lj_container {
+    flex-wrap: wrap;
+  }
+
+  .homepage_cta_lj_container .homepage_cta_container {
+    border: var(--ifm-global-border-width) solid #BEC2C3;
+  } 
+
+  .homepage_cta_lj_container .homepage_cta_container a {
+    width: 100%;
+    flex: auto;
+  }
+  
+}
+
+.homepage_cta_lj_container .homepage_cta_container a button {
+  background-color: var(--ifm-color-primary-lightest);
+  border-color: var(--ifm-color-primary-lightest);
+}
+
+[data-theme='dark'] .homepage_cta_lj_container .homepage_cta_container a button {
+  background-color: var(--ifm-color-primary-light);
+  border-color: var(--ifm-color-primary-light);
+}
+
+.homepage_cta_lj_container .homepage_cta_container a:last-of-type button {
+  background-color: var(--ifm-color-secondary-dark);
+  border-color: var(--ifm-color-secondary-dark);
 }
 
 .cards__container {

@@ -42,12 +42,12 @@ In short:
 
 :::
 
-In a standard recursive app, you're also dealing with at least two circuits. For the purpose of this guide, we will assume these two:
+In a standard recursive app, you're also dealing with at least two circuits. For the purpose of this guide, we will assume the following:
 
-- `main`: a circuit of type `assert(x != y)`
+- `main`: a circuit of type `assert(x != y)`, where `main` is marked with a `#[recursive]` attribute. This attribute states that the backend should generate proofs that are friendly for verification within another circuit.
 - `recursive`: a circuit that verifies `main`
 
-For a full example on how recursive proofs work, please refer to the [noir-examples](https://github.com/noir/noir-examples) repository. We will *not* be using it as a reference for this guide.
+For a full example on how recursive proofs work, please refer to the [noir-examples](https://github.com/noir-lang/noir-examples) repository. We will *not* be using it as a reference for this guide.
 
 ## Step 1: Setup
 
@@ -77,7 +77,7 @@ const { witness } = noir.execute(input)
 With this witness, you are now able to generate the intermediate proof for the main circuit:
 
 ```js
-const { proof, publicInputs } = await backend.generateIntermediateProof(witness)
+const { proof, publicInputs } = await backend.generateProof(witness)
 ```
 
 :::warning
@@ -95,24 +95,20 @@ With this in mind, it becomes clear that our intermediate proof is the one *mean
 Optionally, you are able to verify the intermediate proof:
 
 ```js
-const verified = await backend.verifyIntermediateProof({ proof, publicInputs })
+const verified = await backend.verifyProof({ proof, publicInputs })
 ```
 
-This can be useful to make sure our intermediate proof was correctly generated. But the real goal is to do it within another circuit. For that, we need to generate the intermediate artifacts:
+This can be useful to make sure our intermediate proof was correctly generated. But the real goal is to do it within another circuit. For that, we need to generate  recursive proof artifacts that will be passed to the circuit that is verifying the proof we just generated. Instead of passing the proof and verification key as a byte array, we pass them as fields which makes it cheaper to verify in a circuit:
 
 ```js
-const { proofAsFields, vkAsFields, vkHash } = await backend.generateIntermediateProofArtifacts( { publicInputs, proof }, publicInputsCount)
+const { proofAsFields, vkAsFields, vkHash } = await backend.generateRecursiveProofArtifacts( { publicInputs, proof }, publicInputsCount)
 ```
 
 This call takes the public inputs and the proof, but also the public inputs count. While this is easily retrievable by simply counting the `publicInputs` length, the backend interface doesn't currently abstract it away.
 
 :::info
 
-The `proofAsFields` has a constant size `[Field; 93]`. However, currently the backend doesn't remove the public inputs from the proof when converting it.
-
-This means that if your `main` circuit has two public inputs, then you should also modify the recursive circuit to accept a proof with the public inputs appended. This means that in our example, since `y` is a public input, our `proofAsFields` is of type `[Field; 94]`.
-
-Verification keys in Barretenberg are always of size 114.
+The `proofAsFields` has a constant size `[Field; 93]` and verification keys in Barretenberg are always `[Field; 114]`.
 
 :::
 
@@ -136,15 +132,14 @@ const recursiveInputs = {
     proof: proofAsFields, // array of length 93 + size of public inputs
     publicInputs: [mainInput.y], // using the example above, where `y` is the only public input
     key_hash: vkHash,
-    input_aggregation_object: Array(16).fill(0) // this circuit is verifying a non-recursive proof, so there's no input aggregation object: just use zero
 }
 
 const { witness, returnValue } = noir.execute(recursiveInputs) // we're executing the recursive circuit now!
-const { proof, publicInputs } = backend.generateFinalProof(witness)
-const verified = backend.verifyFinalProof({ proof, publicInputs })
+const { proof, publicInputs } = backend.generateProof(witness)
+const verified = backend.verifyProof({ proof, publicInputs })
 ```
 
-You can obviously chain this proof into another proof. In fact, if you're using recursive proofs, you're probably interested of using them this way! In that case, you should keep in mind the `returnValue`, as it will contain the `input_aggregation_object` for the next proof.
+You can obviously chain this proof into another proof. In fact, if you're using recursive proofs, you're probably interested of using them this way!
 
 :::tip
 
@@ -152,16 +147,16 @@ Managing circuits and "who does what" can be confusing. To make sure your naming
 
 ```js
 const circuits = {
-main: mainJSON, 
-recursive: recursiveJSON
+  main: mainJSON, 
+  recursive: recursiveJSON
 }
 const backends = {
-main: new BarretenbergBackend(circuits.main),
-recursive: new BarretenbergBackend(circuits.recursive)
+  main: new BarretenbergBackend(circuits.main),
+  recursive: new BarretenbergBackend(circuits.recursive)
 }
 const noir_programs = {
-main: new Noir(circuits.main, backends.main),
-recursive: new Noir(circuits.recursive, backends.recursive)
+  main: new Noir(circuits.main, backends.main),
+  recursive: new Noir(circuits.recursive, backends.recursive)
 }
 ```
 
@@ -170,15 +165,15 @@ This allows you to neatly call exactly the method you want without conflicting n
 ```js
 // Alice runs this 👇
 const { witness: mainWitness } = await noir_programs.main.execute(input)
-const proof = await backends.main.generateIntermediateProof(mainWitness)
+const proof = await backends.main.generateProof(mainWitness)
 
 // Bob runs this 👇
-const verified = await backends.main.verifyIntermediateProof(proof)
-const { proofAsFields, vkAsFields, vkHash } = await backends.main.generateIntermediateProofArtifacts(
+const verified = await backends.main.verifyProof(proof)
+const { proofAsFields, vkAsFields, vkHash } = await backends.main.generateRecursiveProofArtifacts(
     proof,
     numPublicInputs,
 );
-const recursiveProof = await noir_programs.recursive.generateFinalProof(recursiveInputs)
+const recursiveProof = await noir_programs.recursive.generateProof(recursiveInputs)
 ```
 
 :::

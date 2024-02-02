@@ -26,6 +26,7 @@ export default {
       '@docusaurus/preset-classic',
       {
         docs: {
+          path: "processed-docs",
           sidebarPath: './sidebars.js',
           routeBasePath: '/docs',
           remarkPlugins: [math],
@@ -154,7 +155,7 @@ export default {
         entryPoints: ['../tooling/noir_js/src/index.ts'],
         tsconfig: '../tooling/noir_js/tsconfig.json',
         entryPointStrategy: 'resolve',
-        out: 'docs/reference/NoirJS/noir_js',
+        out: 'processed-docs/reference/NoirJS/noir_js',
         plugin: ['typedoc-plugin-markdown'],
         name: 'noir_js',
         disableSources: true,
@@ -185,7 +186,7 @@ export default {
         entryPoints: ['../tooling/noir_js_backend_barretenberg/src/index.ts'],
         tsconfig: '../tooling/noir_js_backend_barretenberg/tsconfig.json',
         entryPointStrategy: 'resolve',
-        out: 'docs/reference/NoirJS/backend_barretenberg',
+        out: 'processed-docs/reference/NoirJS/backend_barretenberg',
         plugin: ['typedoc-plugin-markdown'],
         name: 'backend_barretenberg',
         disableSources: true,

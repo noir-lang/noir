@@ -479,7 +479,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0);
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(expr), location, constrain.2)
+                let assert_message =
+                    constrain.2.map(|assert_msg_expr| Box::new(self.expr(assert_msg_expr)));
+                ast::Expression::Constrain(Box::new(expr), location, assert_message)
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
@@ -929,6 +931,9 @@ impl<'interner> Monomorphizer<'interner> {
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident
                     self.append_printable_type_info(&hir_arguments[1], &mut arguments);
+                } else if name.as_str() == "assert_message" {
+                    // The first argument to the `assert_message` oracle is the expression passed as a mesage to an `assert` or `assert_eq` statement
+                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -1024,7 +1029,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // The caller needs information as to whether it is handling a format string or a single type
                 arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
             }
-            _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
+            _ => unreachable!("logging expr {:?} is not supported", hir_argument),
         }
     }
 
@@ -1033,10 +1038,10 @@ impl<'interner> Monomorphizer<'interner> {
         // since they cannot be passed from ACIR into Brillig
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
-                unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
+                unreachable!("println and format strings do not support slices. Convert the slice to an array before passing it to println");
             }
         } else if matches!(typ, HirType::MutableReference(_)) {
-            unreachable!("println does not support mutable references.");
+            unreachable!("println and format strings do not support mutable references.");
         }
 
         let printable_type: PrintableType = typ.into();

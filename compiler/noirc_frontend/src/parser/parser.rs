@@ -23,6 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use super::errors::ALLOWED_INTEGER_BIT_SIZES;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -35,7 +36,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
+use crate::token::{Attribute, Attributes, IntType, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
@@ -61,12 +62,12 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
 
-    (module.unwrap(), parsing_errors)
+    (module.unwrap_or(ParsedModule { items: vec![] }), parsing_errors)
 }
 
 /// program: module EOF
 fn program() -> impl NoirParser<ParsedModule> {
-    module().then_ignore(force(just(Token::EOF)))
+    module().then_ignore(just(Token::EOF))
 }
 
 /// module: top_level_statement module
@@ -74,7 +75,7 @@ fn program() -> impl NoirParser<ParsedModule> {
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
         empty()
-            .map(|_| ParsedModule::default())
+            .to(ParsedModule::default())
             .then(spanned(top_level_statement(module_parser)).repeated())
             .foldl(|mut program, (statement, span)| {
                 let mut push_item = |kind| program.items.push(Item { kind, span });
@@ -164,7 +165,6 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attributes()
-        .or_not()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
@@ -224,6 +224,7 @@ fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
             )
         })
 }
+
 fn is_pub_crate() -> impl NoirParser<bool> {
     (keyword(Keyword::Pub)
         .then_ignore(just(Token::LeftParen))
@@ -260,18 +261,14 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
         ))
-        .or(just(Semicolon).map(|_| Vec::new()));
+        .or(just(Semicolon).to(Vec::new()));
 
-    attributes()
-        .or_not()
-        .then_ignore(keyword(Struct))
-        .then(ident())
-        .then(generics())
-        .then(fields)
-        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
+    attributes().then_ignore(keyword(Struct)).then(ident()).then(generics()).then(fields).validate(
+        |(((raw_attributes, name), generics), fields), span, emit| {
             let attributes = validate_struct_attributes(raw_attributes, span, emit);
             TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
-        })
+        },
+    )
 }
 
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
@@ -448,7 +445,7 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
 fn trait_function_declaration() -> impl NoirParser<TraitItem> {
     let trait_function_body_or_semicolon =
-        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).map(|_| Option::None));
+        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).to(Option::None));
 
     keyword(Keyword::Fn)
         .ignore_then(ident())
@@ -463,20 +460,14 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
 }
 
 fn validate_attributes(
-    attributes: Option<Vec<Attribute>>,
+    attributes: Vec<Attribute>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Attributes {
-    if attributes.is_none() {
-        return Attributes::empty();
-    }
-
-    let attrs = attributes.unwrap();
-
     let mut primary = None;
     let mut secondary = Vec::new();
 
-    for attribute in attrs {
+    for attribute in attributes {
         match attribute {
             Attribute::Function(attr) => {
                 if primary.is_some() {
@@ -495,14 +486,13 @@ fn validate_attributes(
 }
 
 fn validate_struct_attributes(
-    attributes: Option<Vec<Attribute>>,
+    attributes: Vec<Attribute>,
     span: Span,
     emit: &mut dyn FnMut(ParserError),
 ) -> Vec<SecondaryAttribute> {
-    let attrs = attributes.unwrap_or_default();
     let mut struct_attributes = vec![];
 
-    for attribute in attrs {
+    for attribute in attributes {
         match attribute {
             Attribute::Function(..) => {
                 emit(ParserError::with_reason(
@@ -843,23 +833,10 @@ where
 
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|expressions, span, emit| {
+        .validate(|expressions, span, _| {
             let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
-            let mut message_str = None;
-
-            if let Some(message) = expressions.get(1) {
-                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
-                    message_str = Some(message.clone());
-                } else {
-                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
-                }
-            }
-
-            StatementKind::Constrain(ConstrainStatement(
-                condition,
-                message_str,
-                ConstrainKind::Assert,
-            ))
+            let message = expressions.get(1).cloned();
+            StatementKind::Constrain(ConstrainStatement(condition, message, ConstrainKind::Assert))
         })
 }
 
@@ -872,7 +849,7 @@ where
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|exprs: Vec<Expression>, span, emit| {
+        .validate(|exprs: Vec<Expression>, span, _| {
             let predicate = Expression::new(
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
@@ -881,18 +858,10 @@ where
                 })),
                 span,
             );
-            let mut message_str = None;
-
-            if let Some(message) = exprs.get(2) {
-                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
-                    message_str = Some(message.clone());
-                } else {
-                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
-                }
-            }
+            let message = exprs.get(2).cloned();
             StatementKind::Constrain(ConstrainStatement(
                 predicate,
-                message_str,
+                message,
                 ConstrainKind::AssertEq,
             ))
         })
@@ -976,7 +945,7 @@ fn assign_operator() -> impl NoirParser<Token> {
     // Since >> is lexed as two separate "greater-than"s, >>= is lexed as > >=, so
     // we need to account for that case here as well.
     let right_shift_fix =
-        just(Token::Greater).then(just(Token::GreaterEqual)).map(|_| Token::ShiftRight);
+        just(Token::Greater).then(just(Token::GreaterEqual)).to(Token::ShiftRight);
 
     let shorthand_syntax = shorthand_syntax.or(right_shift_fix);
     just(Token::Assign).or(shorthand_syntax)
@@ -1124,6 +1093,18 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
                 Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
+        .validate(|int_type, span, emit| {
+            let bit_size = match int_type.1 {
+                IntType::Signed(bit_size) | IntType::Unsigned(bit_size) => bit_size,
+            };
+            if !ALLOWED_INTEGER_BIT_SIZES.contains(&bit_size) {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::DeprecatedBitSize(bit_size),
+                    span,
+                ));
+            }
+            int_type
+        })
         .map_with_span(|(_, token), span| UnresolvedTypeData::from_int_token(token).with_span(span))
 }
 
@@ -1337,7 +1318,7 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
 // to parse nested generic types. For normal expressions however, it means we have to manually
 // parse two greater-than tokens as a single right-shift here.
 fn right_shift_operator() -> impl NoirParser<Token> {
-    just(Token::Greater).then(just(Token::Greater)).map(|_| Token::ShiftRight)
+    just(Token::Greater).then(just(Token::Greater)).to(Token::ShiftRight)
 }
 
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
@@ -2103,7 +2084,13 @@ mod test {
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
             StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                assert_eq!(message, Some("assertion message".to_owned()));
+                let message = message.unwrap();
+                match message.kind {
+                    ExpressionKind::Literal(Literal::Str(message_string)) => {
+                        assert_eq!(message_string, "assertion message".to_owned());
+                    }
+                    _ => unreachable!(),
+                }
             }
             _ => unreachable!(),
         }
@@ -2127,7 +2114,13 @@ mod test {
             .unwrap()
         {
             StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                assert_eq!(message, Some("assertion message".to_owned()));
+                let message = message.unwrap();
+                match message.kind {
+                    ExpressionKind::Literal(Literal::Str(message_string)) => {
+                        assert_eq!(message_string, "assertion message".to_owned());
+                    }
+                    _ => unreachable!(),
+                }
             }
             _ => unreachable!(),
         }
@@ -2494,7 +2487,7 @@ mod test {
             Case {
                 source: "assert(x == x, x)",
                 expect: "constrain (plain::x == plain::x)",
-                errors: 1,
+                errors: 0,
             },
             Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
             Case {
@@ -2505,7 +2498,7 @@ mod test {
             Case {
                 source: "assert_eq(x, x, x)",
                 expect: "constrain (plain::x == plain::x)",
-                errors: 1,
+                errors: 0,
             },
         ];
 
