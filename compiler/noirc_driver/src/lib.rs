@@ -76,7 +76,7 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub only_acir: bool,
 
-    /// Disables the builtin macros being used in the compiler
+    /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
 
@@ -191,9 +191,12 @@ pub fn check_crate(
     disable_macros: bool,
 ) -> CompilationResult<()> {
     let macros: Vec<&dyn MacroProcessor> = if disable_macros {
-        vec![]
+        vec![&noirc_macros::AssertMessageMacro as &dyn MacroProcessor]
     } else {
-        vec![&aztec_macros::AztecMacro as &dyn MacroProcessor]
+        vec![
+            &aztec_macros::AztecMacro as &dyn MacroProcessor,
+            &noirc_macros::AssertMessageMacro as &dyn MacroProcessor,
+        ]
     };
 
     let mut errors = vec![];
@@ -244,6 +247,7 @@ pub fn compile_main(
     let compiled_program =
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(FileDiagnostic::from)?;
+
     let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);

@@ -16,12 +16,13 @@ keywords:
     "Optimizing Computational Resources",
     "Improving Efficiency",
     "Verification Key",
-    "Aggregation Objects",
+    "Aggregation",
     "Recursive zkSNARK schemes",
     "PLONK",
     "Proving and Verification Keys"
   ]
 sidebar_position: 1
+pagination_next: how_to/how-to-recursion
 ---
 
 In programming, we tend to think of recursion as something calling itself. A classic example would be the calculation of the factorial of a number:
@@ -64,7 +65,7 @@ So, they use zero-knowledge proofs. Alice tries to guess Bob's number, and Bob w
 
 This ZK proof can go on a smart contract, revealing the winner and even giving prizes. However, this means every turn needs to be verified on-chain. This incurs some cost and waiting time that may simply make the game too expensive or time-consuming to be worth it.
 
-As a solution, Alice proposes the following: "what if Bob generates his proof, and instead of sending it on-chain, I verify it *within* my own proof before playing my own turn?". 
+As a solution, Alice proposes the following: "what if Bob generates his proof, and instead of sending it on-chain, I verify it *within* my own proof before playing my own turn?".
 
 She can then generate a proof that she verified his proof, and so on.
 
@@ -116,25 +117,19 @@ As you can see in the [recursion reference](noir/standard_library/recursion.md),
 - The Verification Key of the circuit that generated the proof
 - A hash of this verification key, as it's needed for some backends
 - The public inputs for the proof
-- The input aggregation object
 
-It also returns the `output aggregation object`. These aggregation objects can be confusing at times, so let's dive in a little bit.
-
-### Aggregation objects
+:::info
 
 Recursive zkSNARK schemes do not necessarily "verify a proof" in the sense that you expect a true or false to be spit out by the verifier. Rather an aggregation object is built over the public inputs.
-
-In the case of PLONK the recursive aggregation object is two G1 points (expressed as 16 witness values). The final verifier (in our case this is most often the smart contract verifier) has to be aware of this aggregation object to execute a pairing and check the validity of these points.
 
 So, taking the example of Alice and Bob and their guessing game:
 
 - Alice makes her guess. Her proof is *not* recursive: it doesn't verify any proof within it! It's just a standard `assert(x != y)` circuit
-- Bob verifies Alice's proof and makes his own guess. In this circuit, he is verifying a proof, so it needs to output an `aggregation object`: he is generating a recursive proof!
-- Alice verifies Bob's *recursive proof*, and uses Bob's `output aggregation object` as the `input aggregation object` in her proof... Which in turn, generates another `output aggregation object`.
+- Bob verifies Alice's proof and makes his own guess. In this circuit, he doesn't exactly *prove* the verification of Alice's proof. Instead, he *aggregates* his proof to Alice's proof. The actual verification is done when the full proof is verified, for example when using `nargo verify` or through the verifier smart contract.
 
-One should notice that when Bob generates his first proof, he has no input aggregation object. Because he is not verifying an recursive proof, he has no `input aggregation object`. In this case, he may use zeros instead.
+We can imagine recursive proofs a [relay race](https://en.wikipedia.org/wiki/Relay_race). The first runner doesn't have to receive the baton from anyone else, as he/she already starts with it. But when his/her turn is over, the next runner needs to receive it, run a bit more, and pass it along. Even though every runner could theoretically verify the baton mid-run (why not? 🏃🔍), only at the end of the race does the referee verify that the whole race is valid.
 
-We can imagine the `aggregation object` as the baton in a [relay race](https://en.wikipedia.org/wiki/Relay_race). The first runner doesn't have to receive the baton from anyone else, as he/she already starts with it. But when his/her turn is over, the next runner needs to receive it, run a bit more, and pass it along. Even though every runner could theoretically verify the baton mid-run (why not? 🏃🔍), only at the end of the race does the referee verify that the whole race is valid.
+:::
 
 ## Some architecture
 
@@ -175,3 +170,7 @@ In this example, a regulator could verify that taxes were paid for a specific pu
 At the time of writing, verifying recursive proofs is surprisingly fast. This is because most of the time is spent on generating the verification key that will be used to generate the next proof. So you are able to cache the verification key and reuse it later.
 
 Currently, Noir JS packages don't expose the functionality of loading proving and verification keys, but that feature exists in the underlying `bb.js` package.
+
+## How can I try it
+
+Learn more about using recursion in Nargo and NoirJS in the [how-to guide](../how_to/how-to-recursion.md) and see a full example in [noir-examples](https://github.com/noir-lang/noir-examples).

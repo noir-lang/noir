@@ -37,7 +37,7 @@ impl ForeignCallParam {
 }
 
 /// Represents the full output of a [foreign call][crate::Opcode::ForeignCall].
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
 pub struct ForeignCallResult {
     /// Resolved output values of the foreign call.
     pub values: Vec<ForeignCallParam>,
