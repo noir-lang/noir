@@ -116,14 +116,6 @@ impl DebugArtifact {
         let source = self.source(location.file)?;
         self.line_index(location.file, source.len())
     }
-
-    pub fn from_program(program: &CompiledProgram) -> Self {
-        Self {
-            debug_symbols: vec![program.debug.clone()],
-            file_map: program.file_map.clone(),
-            warnings: program.warnings.clone(),
-        }
-    }
 }
 
 impl From<CompiledProgram> for DebugArtifact {

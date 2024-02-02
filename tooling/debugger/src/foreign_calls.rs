@@ -16,30 +16,7 @@ pub(crate) enum DebugForeignCall {
     DerefAssign,
 }
 
-impl std::fmt::Display for DebugForeignCall {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name())
-    }
-}
-
 impl DebugForeignCall {
-    pub(crate) fn name(&self) -> &'static str {
-        match self {
-            DebugForeignCall::VarAssign => "__debug_var_assign",
-            DebugForeignCall::VarDrop => "__debug_var_drop",
-            DebugForeignCall::MemberAssign(1) => "__debug_member_assign_1",
-            DebugForeignCall::MemberAssign(2) => "__debug_member_assign_2",
-            DebugForeignCall::MemberAssign(3) => "__debug_member_assign_3",
-            DebugForeignCall::MemberAssign(4) => "__debug_member_assign_4",
-            DebugForeignCall::MemberAssign(5) => "__debug_member_assign_5",
-            DebugForeignCall::MemberAssign(6) => "__debug_member_assign_6",
-            DebugForeignCall::MemberAssign(7) => "__debug_member_assign_7",
-            DebugForeignCall::MemberAssign(8) => "__debug_member_assign_8",
-            DebugForeignCall::MemberAssign(_) => panic!("unsupported member assignment arity"),
-            DebugForeignCall::DerefAssign => "__debug_deref_assign",
-        }
-    }
-
     pub(crate) fn lookup(op_name: &str) -> Option<DebugForeignCall> {
         let member_pre = "__debug_member_assign_";
         if let Some(op_suffix) = op_name.strip_prefix(member_pre) {
