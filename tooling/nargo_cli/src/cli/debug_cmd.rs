@@ -74,7 +74,8 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let debug_state = instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
+    let debug_instrumenter =
+        instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
 
     let compilation_result = compile_program_with_debug_instrumenter(
         &workspace_file_manager,
@@ -82,7 +83,7 @@ pub(crate) fn run(
         package,
         &args.compile_options,
         None,
-        debug_state,
+        debug_instrumenter,
     );
 
     let compiled_program = report_errors(
