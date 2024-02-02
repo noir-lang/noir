@@ -7,7 +7,7 @@ use clap::Args;
 use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::ops::compile_program_with_debug_state;
+use nargo::ops::compile_program_with_debug_instrumenter;
 use nargo::package::Package;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -76,7 +76,7 @@ pub(crate) fn run(
 
     let debug_state = instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
 
-    let compilation_result = compile_program_with_debug_state(
+    let compilation_result = compile_program_with_debug_instrumenter(
         &workspace_file_manager,
         &parsed_files,
         package,

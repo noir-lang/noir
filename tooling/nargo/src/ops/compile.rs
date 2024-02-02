@@ -72,7 +72,7 @@ pub fn compile_program(
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    compile_program_with_debug_state(
+    compile_program_with_debug_instrumenter(
         file_manager,
         parsed_files,
         package,
@@ -82,17 +82,17 @@ pub fn compile_program(
     )
 }
 
-pub fn compile_program_with_debug_state(
+pub fn compile_program_with_debug_instrumenter(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
-    debug_state: DebugInstrumenter,
+    debug_instrumenter: DebugInstrumenter,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     link_to_debug_crate(&mut context, crate_id);
-    context.debug_state = debug_state;
+    context.debug_instrumenter = debug_instrumenter;
 
     noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)
 }
