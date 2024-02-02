@@ -726,7 +726,7 @@ impl Context {
                     }
                 }
             }
-            AcirValue::DynamicArray(_) => {}
+            AcirValue::DynamicArray(_) => (),
         };
 
         Ok(false)
