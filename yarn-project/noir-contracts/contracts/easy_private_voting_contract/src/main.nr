@@ -16,31 +16,7 @@ contract EasyPrivateVoting {
         voteEnded: PublicState<bool>, // voteEnded is boolean
     }
     // docs:end:storage_struct
-    // docs:start:storage_impl
-    impl Storage {
-	fn init(context: Context) -> Self {
-	    Storage {
-		 admin: PublicState::new(
-		    context, 
-            1, // storage slot. this can be anything except 0. it is hashed, and hash on 0 = 0
-		), 
-        tally: Map::new(
-		    context, 
-            2, 
-            |context, slot| {
-			PublicState::new(
-			    context,
-                slot,
-			)
-		    },
-		 ),
-		  voteEnded: PublicState::new(
-		    context, 
-            3
-		)
-	    } }
-	}
-    // docs:end:storage_impl
+
     // docs:start:constructor
     #[aztec(private)] // annotation to mark function as private and expose private context
     fn constructor(admin: AztecAddress) { // called when contract is deployed

@@ -28,16 +28,6 @@ contract SchnorrAccount {
         // docs:end:storage
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                // docs:start:storage_init
-                signing_public_key: ImmutableSingleton::new(context, 1),
-                // docs:end:storage_init
-            }
-        }
-    }
-
     global ACCOUNT_ACTIONS_STORAGE_SLOT = 2;
 
     // Constructs the contract
@@ -111,7 +101,7 @@ contract SchnorrAccount {
         storage_slot: Field,
         serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]
     ) -> pub [Field; 4] {
-        assert(storage_slot == 1);
+        assert(storage_slot == storage.signing_public_key.get_storage_slot());
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         note_utils::compute_note_hash_and_nullifier(PublicKeyNote::deserialize, note_header, serialized_note)
     }

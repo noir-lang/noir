@@ -46,23 +46,6 @@ contract SlowTree {
     }
     // docs:end:constants_and_storage
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                trees: Map::new(
-                    context,
-                    1,
-                    |context, slot| {
-                        SlowMap::new(
-                            context,
-                            slot,
-                        )
-                    }
-                ),
-            }
-        }
-    }
-
     #[aztec(private)]
     fn constructor() {}
     // docs:start:initialize

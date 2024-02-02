@@ -55,14 +55,6 @@ contract Test {
         example_constant: ImmutableSingleton<FieldNote>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                example_constant: ImmutableSingleton::new(context, 1),
-            }
-        }
-    }
-
     #[aztec(private)]
     // docs:start:empty-constructor
     fn constructor() {}
@@ -333,7 +325,7 @@ contract Test {
         storage_slot: Field,
         serialized_note: [Field; VALUE_NOTE_LEN] // must fit either a FieldNote or a ValueNote
     ) -> pub [Field; 4] {
-        if (storage_slot == 1) {
+        if (storage_slot == storage.example_constant.get_storage_slot()) {
             let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
             note_utils::compute_note_hash_and_nullifier(FieldNote::deserialize, note_header, serialized_note)
         } else {

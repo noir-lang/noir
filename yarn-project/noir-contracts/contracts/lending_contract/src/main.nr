@@ -38,51 +38,6 @@ contract Lending {
         static_debt: Map<AztecAddress, PublicState<Field>>, // abusing keys very heavily
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                collateral_asset: PublicState::new(
-                    context,
-                    1
-                ),
-                stable_coin: PublicState::new(
-                    context,
-                    2
-                ),
-                assets: Map::new(
-                    context,
-                    3,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot
-                        )
-                    },
-                ),
-                collateral: Map::new(
-                    context,
-                    4,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot
-                        )
-                    },
-                ),
-                static_debt: Map::new(
-                    context,
-                    5,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot
-                        )
-                    },
-                ),
-            }
-        }
-    }
-
     struct Position {
         collateral: Field,
         static_debt: Field,

@@ -34,6 +34,7 @@ jobs:
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/include/* /usr/local/include/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
+          rm -rf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04
 
       - uses: actions/cache@v3
         with:

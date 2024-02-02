@@ -80,11 +80,7 @@ We are using various utils within the Aztec library:
 
 ## Set up storage
 
-Under these imports, we need to set up our contract storage. This is done in two steps:
-
-1. Storage struct
-2. Storage impl block with init function
-
+Under these imports, we need to set up our contract storage. 
 Define the storage struct like so:
 
 #include_code storage_struct yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
@@ -94,14 +90,6 @@ In this contract, we will store three vars:
 1. admin, as an Aztec address held in public state
 2. tally, as a map with key as the persona and value as the number (in Field) held in public state
 3. voteEnded, as a boolean held in public state
-
-Under the struct, define the impl block like this:
-
-#include_code storage_impl yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
-
-The `impl` block must define one function `init` that explains how to access and manipulate our variables. We pass context, a storage slot, and serialization methods we imported earlier.
-
-This `init` function will be called every time we access `storage` in our functions.
 
 ## Constructor
 

@@ -462,7 +462,7 @@ The baseSlot is specified in the Aztec.nr contract.
 
 ```rust
 struct Storage {
-    balances: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
+    balances: Map<AztecAddress, PublicState<Field>>,
 }
 
 impl Storage {

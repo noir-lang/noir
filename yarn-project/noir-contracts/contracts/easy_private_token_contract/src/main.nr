@@ -23,20 +23,6 @@ contract EasyPrivateToken {
         balances: Map<AztecAddress, EasyPrivateUint>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                balances: Map::new(
-                    context,
-                    1,
-                    |context, slot| {
-                        EasyPrivateUint::new(context, slot)
-                    },
-                ),
-            }
-        }
-    }
-
     /**
      * initialize the contract's initial state variables.
      */

@@ -27,6 +27,12 @@ use dep::aztec::oracle::{
 use dep::safe_math::SafeU120;
 use dep::std::option::Option;
 
+trait OwnedNote {
+    fn new(amount: SafeU120, owner: AztecAddress) -> Self;
+    fn get_amount(self) -> SafeU120;
+    fn get_owner(self) -> AztecAddress;
+}
+
 global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
 
 struct TokenNote {
@@ -114,8 +120,8 @@ impl NoteInterface for TokenNote {
   }
 }
 
-impl TokenNote {
-    pub fn new(amount: SafeU120, owner: AztecAddress) -> Self {
+impl OwnedNote for TokenNote {
+    fn new(amount: SafeU120, owner: AztecAddress) -> Self {
         Self {
             amount,
             owner,
@@ -124,5 +130,12 @@ impl TokenNote {
         }
     }
 
+    fn get_amount(self) -> SafeU120 {
+        self.amount
+    }
+
+    fn get_owner(self) -> AztecAddress {
+        self.owner
+    }
    
 }

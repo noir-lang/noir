@@ -87,7 +87,7 @@ describe('e2e_blacklist_token_contract', () => {
   };
 
   const addPendingShieldNoteToPXE = async (accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) => {
-    const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
+    const storageSlot = new Fr(4); // The storage slot of `pending_shields` is 4.
     const note = new Note([new Fr(amount), secretHash]);
     const extendedNote = new ExtendedNote(note, accounts[accountIndex].address, asset.address, storageSlot, txHash);
     await wallets[accountIndex].addNote(extendedNote);
@@ -112,7 +112,7 @@ describe('e2e_blacklist_token_contract', () => {
 
     // Add the note
     const note = new Note([slowTree.address.toField()]);
-    const storageSlot = new Fr(7);
+    const storageSlot = new Fr(6);
 
     for (const wallet of wallets) {
       const extendedNote = new ExtendedNote(

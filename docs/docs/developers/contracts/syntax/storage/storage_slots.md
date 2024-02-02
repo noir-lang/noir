@@ -49,10 +49,6 @@ siloed_note_hash = H(contract_address, H(H(map_slot, to), note_hash))
 siloed_note_hash = H(contract_address, H(H(map_slot, to), H(amount, to, randomness)))
 ```
 
-Where the `map_slot` is the slot specified in `Storage::init`, recall:
-
-#include_code storage_balances_init yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
-
 And `to` is the actor who receives the note, `amount` of the note and `randomness` is the randomness used to make the note hiding. Without the `randomness` the note could just as well be plaintext (computational cost of a preimage attack would be trivial in such a case).
 
 :::info

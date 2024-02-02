@@ -17,23 +17,6 @@ contract PriceFeed {
         assets: Map<Field, PublicState<Asset>>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> pub Self {
-            Storage {
-                assets: Map::new(
-                    context,
-                    1,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot,
-                        )
-                    },
-                ),
-            }
-        }
-    }
-
     #[aztec(private)]
     fn constructor() {}
 

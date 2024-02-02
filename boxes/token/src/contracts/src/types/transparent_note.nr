@@ -7,7 +7,7 @@ use dep::aztec::{
     },
     hash::{compute_secret_hash, pedersen_hash},
     context::PrivateContext,
-    protocol_types::traits::{Serialize, Deserialize}
+    protocol_types::traits::{Serialize, Deserialize, Empty}
 };
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
@@ -40,6 +40,12 @@ impl Deserialize<TRANSPARENT_NOTE_LEN> for TransparentNote {
     }
 }
 
+impl Empty for TransparentNote {
+    fn empty() -> Self {
+        TransparentNote::new(0, 0)
+    }
+}
+
 impl NoteInterface for TransparentNote {
 
     fn compute_note_content_hash(self) -> Field {
@@ -57,12 +63,13 @@ impl NoteInterface for TransparentNote {
         pedersen_hash([self.secret, siloed_note_hash],0)
     }
 
+
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 
-    fn get_header(self) -> NoteHeader {
-        self.header
+    fn get_header(note: TransparentNote) -> NoteHeader {
+        note.header
     }
 
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
@@ -82,7 +89,6 @@ impl TransparentNote {
             header: NoteHeader::empty(),
         }
     }
-
     // new oracle call primitive
     // get me the secret corresponding to this hash
     pub fn new_from_secret(amount: Field, secret: Field) -> Self {

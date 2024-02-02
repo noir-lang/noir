@@ -3,6 +3,7 @@ use crate::oracle::storage::storage_read;
 use crate::oracle::storage::storage_write;
 use dep::std::option::Option;
 use dep::protocol_types::traits::{Deserialize, Serialize};
+use crate::state_vars::storage::Storage;
 
 // docs:start:public_state_struct
 struct PublicState<T> {
@@ -10,6 +11,8 @@ struct PublicState<T> {
     storage_slot: Field,
 }
 // docs:end:public_state_struct
+
+impl<T> Storage<T> for PublicState<T> {}
 
 impl<T> PublicState<T> {
     // docs:start:public_state_struct_new

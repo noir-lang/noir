@@ -244,12 +244,6 @@ Reading through the storage variables:
 
 You can read more about it [here](../contracts/syntax/storage/main.md).
 
-### Initializing Storage
-
-Once we have Storage defined, we need to specify how to initialize it. The `init` method creates and initializes an instance of `Storage`. We define an initialization method for each of the storage variables defined above. Storage initialization is generic and can largely be reused for similar types, across different contracts, but it is important to note that each storage variable specifies it's storage slot, starting at 1.
-
-#include_code storage_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
-
 ## Functions
 
 Copy and paste the body of each function into the appropriate place in your project if you are following along.

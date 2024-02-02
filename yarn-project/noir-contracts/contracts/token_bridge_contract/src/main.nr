@@ -32,17 +32,6 @@ contract TokenBridge {
         token: PublicState<AztecAddress>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> pub Self {
-            Storage {
-                token: PublicState::new(
-                    context,
-                    1
-                ),
-            }
-        }
-    }
-
     // Constructs the contract.
     #[aztec(private)]
     fn constructor(token: AztecAddress) {

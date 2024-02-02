@@ -87,27 +87,6 @@ struct Storage {
     test: Set<CardNote>,
     imm_singleton: ImmutableSingleton<CardNote>,
 }
-
-impl Storage {
-    fn init(context: Context) -> Self {
-        Storage {
-            leader: PublicState::new(
-                context,
-                1
-            ),
-            legendary_card: Singleton::new(context, 2),
-            profiles: Map::new(
-                context,
-                3,
-                |context, slot| {
-                    Singleton::new(context, slot)
-                },
-            ),
-            test: Set::new(context, 4),
-            imm_singleton: ImmutableSingleton::new(context, 4),
-        }
-    }
-}
 ```
 
 For this to work, Notes must implement Serialize, Deserialize and NoteInterface Traits. Previously:
@@ -335,7 +314,32 @@ impl NoteInterface for CardNote {
 }
 ```
 
-Public state must implement Serialize and Deserialize traits.
+Public state must implement Serialize and Deserialize traits. 
+
+It is still possible to manually implement the storage initialization (for custom storage wrappers or internal types that don't implement the required traits). For the above example, the `impl Storage` section would look like this:
+
+```rust
+impl Storage {
+    fn init(context: Context) -> Self {
+        Storage {
+            leader: PublicState::new(
+                context,
+                1
+            ),
+            legendary_card: Singleton::new(context, 2),
+            profiles: Map::new(
+                context,
+                3,
+                |context, slot| {
+                    Singleton::new(context, slot)
+                },
+            ),
+            test: Set::new(context, 4),
+            imm_singleton: ImmutableSingleton::new(context, 4),
+        }
+    }
+}
+```
 
 ## 0.20.0
 

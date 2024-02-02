@@ -29,20 +29,6 @@ contract PendingCommitments {
         balances: Map<AztecAddress, Set<ValueNote>>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                balances: Map::new(
-                    context,
-                    1, // Storage slot
-                    |context, slot| {
-                        Set::new(context, slot)
-                    },
-                ),
-            }
-        }
-    }
-
     // TODO(dbanks12): consolidate code into internal helper functions
     // (once Noir's support for this is more robust)
 

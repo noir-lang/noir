@@ -29,11 +29,11 @@ When declaring the storage for `T` as a persistent public storage variable, we u
 
 Say that we wish to add `admin` public state variable into our storage struct. In the struct we can define it as:
 
-#include_code storage_admin /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-leader-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 And then when initializing it in the `Storage::init` function we can do:
 
-#include_code storage_admin_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-leader-init /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 We have specified that we are storing a `Field` that should be placed in storage slot `1`. This is just a single value, and is similar to the following in solidity:
 
@@ -41,19 +41,15 @@ We have specified that we are storing a `Field` that should be placed in storage
 address internal admin;
 ```
 
-:::info
-We know its verbose, and are working on making it less so.
-:::
-
 #### Mapping example
 
 Say we want to have a group of `minters` that are able to mint assets in our contract, and we want them in public storage, because [access control in private is quite cumbersome](../../../../learn/concepts/communication/cross_chain_calls.md#a-note-on-l2-access-control). In the `Storage` struct we can add it as follows:
 
-#include_code storage_minters /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-minters-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 And then when initializing it in the `Storage::init` function we can do it as follows:
 
-#include_code storage_minters_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-minters-init /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 In this case, specifying that we are dealing with a map of Fields, and that it should be put at slot 2.
 
@@ -108,9 +104,9 @@ You can find the details of `StablePublicState` in the implementation [here](htt
 ### `new`
 Is done exactly like the `PublicState` struct, but with the `StablePublicState` struct.
 
-#include_code storage_decimals /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-stable-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
-#include_code storage_decimals_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-stable-init /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `initialize`
 

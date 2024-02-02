@@ -52,50 +52,15 @@ contract TokenBlacklist {
     // docs:end:interface
 
     struct Storage {
-        admin: PublicState<AztecAddress>,
-        balances: BalancesMap,
-        total_supply: PublicState<SafeU120>,
-        pending_shields: Set<TransparentNote>,
-        public_balances: Map<AztecAddress, PublicState<SafeU120>>,
+        admin: PublicState<AztecAddress>, 
+        balances: BalancesMap<TokenNote>, 
+        total_supply: PublicState<SafeU120>, 
+        pending_shields: Set<TransparentNote>, 
+        public_balances: Map<AztecAddress, PublicState<SafeU120>>, 
         slow_update: ImmutableSingleton<FieldNote>,
         public_slow_update: PublicState<AztecAddress>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> pub Self {
-            Storage {
-                admin: PublicState::new(
-                    context,
-                    1,
-                ),
-                balances: BalancesMap::new(context, 3),
-                total_supply: PublicState::new(
-                    context,
-                    4,
-                ),
-                pending_shields: Set::new(context, 5),
-                public_balances: Map::new(
-                    context,
-                    6,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot
-                        )
-                    },
-                ),
-                // Below is an abomination to have same value in private and public (immutable in solidity).
-                // docs:start:slow_updates_storage
-                slow_update: ImmutableSingleton::new(context, 7),
-                public_slow_update: PublicState::new(
-                    context,
-                    8
-                ),
-                // docs:end:slow_updates_storage
-
-            }
-        }
-    }
     // docs:start:constructor
     #[aztec(private)]
     fn constructor(admin: AztecAddress, slow_updates_contract: AztecAddress) {
@@ -278,7 +243,7 @@ contract TokenBlacklist {
         pending_shields.remove(note);
 
         // Add the token note to user's balances set
-        storage.balances.at(to).add(SafeU120::new(amount));
+        storage.balances.add(to, SafeU120::new(amount));
     }
 
     #[aztec(private)]
@@ -295,7 +260,7 @@ contract TokenBlacklist {
             assert(nonce == 0, "invalid nonce");
         }
 
-        storage.balances.at(from).sub(SafeU120::new(amount));
+        storage.balances.sub(from, SafeU120::new(amount));
 
         let selector = FunctionSelector::from_signature("_increase_public_balance((Field),Field)");
         context.call_public_function(context.this_address(), selector, [to.to_field(), amount]);
@@ -318,8 +283,8 @@ contract TokenBlacklist {
         }
 
         let amount = SafeU120::new(amount);
-        storage.balances.at(from).sub(amount);
-        storage.balances.at(to).add(amount);
+        storage.balances.sub(from, amount);
+        storage.balances.add(to, amount);
     }
 
     #[aztec(private)]
@@ -334,7 +299,7 @@ contract TokenBlacklist {
             assert(nonce == 0, "invalid nonce");
         }
 
-        storage.balances.at(from).sub(SafeU120::new(amount));
+        storage.balances.sub(from, SafeU120::new(amount));
 
         let selector = FunctionSelector::from_signature("_reduce_total_supply(Field)");
         context.call_public_function(context.this_address(), selector, [amount]);
@@ -362,7 +327,7 @@ contract TokenBlacklist {
     }
 
     unconstrained fn balance_of_private(owner: AztecAddress) -> pub u120 {
-        storage.balances.at(owner).balance_of().value
+        storage.balances.balance_of(owner).value
     }
 
     unconstrained fn balance_of_public(owner: AztecAddress) -> pub u120 {
@@ -382,9 +347,9 @@ contract TokenBlacklist {
         preimage: [Field; TOKEN_NOTE_LEN]
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        if (storage_slot == 5) {
+        if (storage_slot == storage.pending_shields.get_storage_slot()) {
             note_utils::compute_note_hash_and_nullifier(TransparentNote::deserialize, note_header, preimage)
-        } else if (storage_slot == 7) {
+        } else if (storage_slot == storage.slow_update.get_storage_slot()) {
             note_utils::compute_note_hash_and_nullifier(FieldNote::deserialize, note_header, preimage)
         } else {
             note_utils::compute_note_hash_and_nullifier(TokenNote::deserialize, note_header, preimage)

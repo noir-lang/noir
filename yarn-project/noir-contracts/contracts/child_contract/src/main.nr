@@ -17,17 +17,6 @@ contract Child {
         current_value: PublicState<Field>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                current_value: PublicState::new(
-                    context,
-                    1,
-                ),
-            }
-        }
-    }
-
     #[aztec(private)]
     fn constructor() {}
 

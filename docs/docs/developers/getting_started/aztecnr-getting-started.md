@@ -92,18 +92,6 @@ We are also using `balance_utils` from this import, a useful library that allows
 
 This allows us to store our counter in a way that acts as an integer, abstracting the note logic.
 
-## Implement a Storage struct
-
-In this step, we will initiate a `Storage` struct to store balances in a private way. The vast majority Aztec.nr smart contracts will need this.
-
-#include_code storage_struct /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
-
-We are only storing one variable - `counts` as a `Map` of `EasyPrivateUint`. This means our `count` will act as a private integer, and we can map it to an address.
-
-#include_code storage_init /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
-
-This `init` method is creating and initializing a `Storage` instance. This instance includes a `Map` named `counters`. Each entry in this `Map` represents an account's counter.
-
 ## Keep the counter private
 
 Now we’ve got a mechanism for storing our private state, we can start using it to ensure the privacy of balances.

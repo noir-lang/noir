@@ -35,8 +35,10 @@ contract DocsExample {
     };
 
     struct Storage {
-        // Shows how to create a custom struct in Public
+        // Shows how to create a custom struct in PublicState
+        // docs:start:storage-leader-declaration
         leader: PublicState<Leader>,
+        // docs:end:storage-leader-declaration
         // docs:start:storage-singleton-declaration
         legendary_card: Singleton<CardNote>,
         // docs:end:storage-singleton-declaration
@@ -44,20 +46,29 @@ contract DocsExample {
         // docs:start:storage-map-singleton-declaration
         profiles: Map<AztecAddress, Singleton<CardNote>>,
         // docs:end:storage-map-singleton-declaration
-        test: Set<CardNote>,
+        // docs:start:storage-set-declaration
+        set: Set<CardNote>,
+        // docs:end:storage-set-declaration
+        // docs:start:storage-immutable-singleton-declaration
         imm_singleton: ImmutableSingleton<CardNote>,
-        // docs:start:start_vars_stable
+        // docs:end:storage-immutable-singleton-declaration
+        // docs:start:storage-stable-declaration
         stable_value: StablePublicState<Leader>,
-        // docs:end:start_vars_stable
+        // docs:end:storage-stable-declaration
+        // docs:start:storage-minters-declaration
+        minters: Map<AztecAddress, PublicState<bool>>, 
+        // docs:end:storage-minters-declaration
     }
 
     impl Storage {
         fn init(context: Context) -> Self {
             Storage {
+                // docs:start:storage-leader-init
                 leader: PublicState::new(
                     context,
                     1
                 ),
+                // docs:end:storage-leader-init
                 // docs:start:start_vars_singleton
                 legendary_card: Singleton::new(context, 3),
                 // docs:end:start_vars_singleton
@@ -71,9 +82,22 @@ contract DocsExample {
                     },
                 ),
                 // docs:end:state_vars-MapSingleton
-                test: Set::new(context, 5),
+                // docs:start:storage-set-init
+                set: Set::new(context, 5),
+                // docs:end:storage-set-init
                 imm_singleton: ImmutableSingleton::new(context, 6),
+                // docs:start:storage-stable-init
                 stable_value: StablePublicState::new(context, 7),
+                // docs:end:storage-stable-init
+                // docs:start:storage-minters-init
+                minters: Map::new(
+                    context,
+                    8,
+                    |context, slot| {
+                        PublicState::new(context, slot)
+                    },
+                ),
+                // docs:end:storage-minters-init
             }
         }
     }
@@ -100,11 +124,13 @@ contract DocsExample {
         storage.stable_value.read_public()
     }
 
+    // docs:start:initialize-immutable-singleton
     #[aztec(private)]
     fn initialize_immutable_singleton(randomness: Field, points: u8) {
         let mut new_card = CardNote::new(points, randomness, context.msg_sender());
         storage.imm_singleton.initialize(&mut new_card, true);
     }
+    // docs:end:initialize-immutable-singleton
 
     #[aztec(private)]
     // msg_sender() is 0 at deploy time. So created another function
@@ -118,20 +144,20 @@ contract DocsExample {
     fn insert_notes(amounts: [u8; 10]) {
         for i in 0..amounts.len() {
             let mut note = CardNote::new(amounts[i], 1, context.msg_sender());
-            storage.test.insert(&mut note, true);
+            storage.set.insert(&mut note, true);
         }
     }
 
     #[aztec(private)]
     fn insert_note(amount: u8, randomness: Field) {
         let mut note = CardNote::new(amount, randomness, context.msg_sender());
-        storage.test.insert(&mut note, true);
+        storage.set.insert(&mut note, true);
     }
 
     // docs:start:state_vars-NoteGetterOptionsComparatorExampleNoir
     unconstrained fn read_note(amount: Field, comparator: u3) -> pub [Option<CardNote>; 10] {
         let options = NoteViewerOptions::new().select(0, amount, Option::some(comparator));
-        let notes = storage.test.view_notes(options);
+        let notes = storage.set.view_notes(options);
 
         notes
     }
@@ -192,7 +218,13 @@ contract DocsExample {
     }
     // docs:end:singleton_is_initialized
 
+    // docs:start:get_note-immutable-singleton
     unconstrained fn get_imm_card() -> pub CardNote {
+        storage.imm_singleton.get_note()
+    }
+    // docs:end:get_note-immutable-singleton
+
+    unconstrained fn view_imm_card() -> pub CardNote {
         storage.imm_singleton.view_note()
     }
 

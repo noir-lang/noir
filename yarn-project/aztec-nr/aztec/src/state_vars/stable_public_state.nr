@@ -5,11 +5,14 @@ use crate::oracle::{
 use crate::history::public_value_inclusion::prove_public_value_inclusion;
 use dep::std::option::Option;
 use dep::protocol_types::traits::{Deserialize, Serialize};
+use crate::state_vars::storage::Storage;
 
 struct StablePublicState<T>{
     context: Context,
     storage_slot: Field,
 }
+
+impl<T> Storage<T> for StablePublicState<T> {}
 
 impl<T> StablePublicState<T> {
     pub fn new(

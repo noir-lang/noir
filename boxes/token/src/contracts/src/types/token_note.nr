@@ -1,10 +1,10 @@
-use dep::aztec::{
-    protocol_types::{
-        address::AztecAddress,
-        constants::{
-            MAX_READ_REQUESTS_PER_CALL
-        },
+use dep::aztec::protocol_types::{
+    address::AztecAddress,
+    constants::{
+        MAX_READ_REQUESTS_PER_CALL
     },
+};
+use dep::aztec::{
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
@@ -14,7 +14,10 @@ use dep::aztec::{
     state_vars::set::Set,
     log::emit_encrypted_log,
     hash::pedersen_hash,
-    protocol_types::traits::{Serialize, Deserialize},
+    protocol_types::traits::{
+        Serialize,
+        Deserialize
+    },
 };
 use dep::aztec::oracle::{
     rand::rand,
@@ -23,6 +26,12 @@ use dep::aztec::oracle::{
 };
 use dep::safe_math::SafeU120;
 use dep::std::option::Option;
+
+trait OwnedNote {
+    fn new(amount: SafeU120, owner: AztecAddress) -> Self;
+    fn get_amount(self) -> SafeU120;
+    fn get_owner(self) -> AztecAddress;
+}
 
 global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
 
@@ -58,7 +67,7 @@ impl Deserialize<TOKEN_NOTE_LEN> for TokenNote {
 }
 
 impl NoteInterface for TokenNote {
-      fn compute_note_content_hash(self) -> Field {
+    fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
         pedersen_hash(self.serialize(), 0)
     }
@@ -91,8 +100,8 @@ impl NoteInterface for TokenNote {
         self.header = header;
     }
 
-    fn get_header(self) -> NoteHeader {
-        self.header
+    fn get_header(note: TokenNote) -> NoteHeader {
+        note.header
     }
 
     // Broadcasts the note as an encrypted log on L1.
@@ -111,8 +120,8 @@ impl NoteInterface for TokenNote {
   }
 }
 
-impl TokenNote {
-    pub fn new(amount: SafeU120, owner: AztecAddress) -> Self {
+impl OwnedNote for TokenNote {
+    fn new(amount: SafeU120, owner: AztecAddress) -> Self {
         Self {
             amount,
             owner,
@@ -120,4 +129,13 @@ impl TokenNote {
             header: NoteHeader::empty(),
         }
     }
+
+    fn get_amount(self) -> SafeU120 {
+        self.amount
+    }
+
+    fn get_owner(self) -> AztecAddress {
+        self.owner
+    }
+   
 }

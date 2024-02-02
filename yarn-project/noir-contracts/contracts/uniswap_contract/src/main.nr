@@ -32,21 +32,6 @@ contract Uniswap {
         nonce_for_burn_approval: PublicState<Field>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                approved_action: Map::new(
-                    context,
-                    1,
-                    |context, slot| {
-                        PublicState::new(context, slot)
-                    },
-                ),
-                nonce_for_burn_approval: PublicState::new(context, 2),
-            }
-        }
-    }
-
     #[aztec(private)]
     fn constructor() {}
     // docs:end:uniswap_setup

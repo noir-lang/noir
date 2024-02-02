@@ -253,9 +253,9 @@ __metadata:
   dependencies:
     "@aztec/bb.js": "portal:../../barretenberg/ts"
     "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
     eslint: "npm:^8.35.0"
     lodash.chunk: "npm:^4.2.0"
-    lodash.times: "npm:^4.3.2"
     tslib: "npm:^2.4.0"
   languageName: node
   linkType: soft

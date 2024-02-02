@@ -4,6 +4,7 @@ use dep::protocol_types::{
     hash::pedersen_hash,
     traits::{ToField}
 };
+use crate::state_vars::storage::Storage;
 
 // docs:start:map
 struct Map<K, V> {
@@ -12,6 +13,8 @@ struct Map<K, V> {
     state_var_constructor: fn(Context, Field) -> V,
 }
 // docs:end:map
+
+impl<K, T> Storage<T> for Map<K, T> {}
 
 impl<K, V> Map<K, V> {
     // docs:start:new

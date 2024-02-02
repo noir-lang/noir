@@ -138,9 +138,9 @@ Functionally similar to [`get_note`](#get_note), but executed in unconstrained f
 
 ### `new`
 
-As part of the initialization of the `Storage` struct, the `Singleton` is created as follows, here at storage slot 1 and with the `NoteInterface` for `PublicKeyNote`.
+As part of the initialization of the `Storage` struct, the `Singleton` is created as follows, here at storage slot 1.
 
-#include_code storage_init /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
+#include_code storage-immutable-singleton-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `initialize`
 
@@ -154,7 +154,7 @@ For example, if the storage slot depends on the an address then it is possible t
 
 Set the value of an ImmutableSingleton by calling the `initialize` method:
 
-#include_code initialize /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
+#include_code initialize-immutable-singleton /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 Once initialized, an ImmutableSingleton's value remains unchangeable. This method can only be called once.
 
@@ -168,7 +168,7 @@ Similar to the `Singleton`, we can use the `get_note` method to read the value o
 
 Use this method to retrieve the value of an initialized ImmutableSingleton.
 
-#include_code get_note /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
+#include_code get_note-immutable-singleton /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 Unlike a `Singleton`, the `get_note` function for an ImmutableSingleton doesn't nullify the current note in the background. This means that multiple accounts can concurrently call this function to read the value.
 
@@ -186,7 +186,7 @@ You can view the implementation [here](https://github.com/AztecProtocol/aztec-pa
 
 And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](../functions/calling_functions.md#public---private)).
 
-#include_code storage_pending_shields /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-set-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `new`
 
@@ -194,7 +194,7 @@ The `new` method tells the contract how to operate on the underlying storage.
 
 We can initialize the set as follows:
 
-#include_code storage_pending_shields_init /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code storage-set-init /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `insert`
 

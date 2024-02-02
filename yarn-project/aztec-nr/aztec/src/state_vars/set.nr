@@ -15,6 +15,7 @@ use crate::note::{
     note_viewer_options::NoteViewerOptions,
     utils::compute_note_hash_for_consumption,
 };
+use crate::state_vars::storage::Storage;
 
 // docs:start:struct
 struct Set<Note> {
@@ -22,6 +23,8 @@ struct Set<Note> {
     storage_slot: Field,
 }
 // docs:end:struct
+
+impl<T> Storage<T> for Set<T> {}
 
 impl<Note> Set<Note> {
     // docs:start:new
@@ -36,7 +39,6 @@ impl<Note> Set<Note> {
         }
     }
     // docs:end:new
-
     // docs:start:insert
     pub fn insert<N>(self,
         note: &mut Note,

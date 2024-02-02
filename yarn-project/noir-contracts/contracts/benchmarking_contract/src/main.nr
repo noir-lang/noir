@@ -14,7 +14,6 @@ contract Benchmarking {
         protocol_types::{
             abis::function_selector::FunctionSelector,
             address::AztecAddress,
-            type_serialization::FIELD_SERIALIZED_LEN
         },
         context::{Context},
         note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
@@ -25,15 +24,6 @@ contract Benchmarking {
     struct Storage {
         notes: Map<AztecAddress, Set<ValueNote>>,
         balances: Map<AztecAddress, PublicState<Field>>,
-    }
-
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                notes: Map::new(context, 1, |context, slot| { Set::new(context, slot) }),
-                balances: Map::new(context, 2, |context, slot| { PublicState::new(context, slot) }),
-            }
-        }
     }
 
     #[aztec(private)]

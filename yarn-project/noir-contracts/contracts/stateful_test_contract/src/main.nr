@@ -24,30 +24,6 @@ contract StatefulTest {
         public_values: Map<AztecAddress, PublicState<Field>>,
     }
 
-    impl Storage {
-        fn init(context: Context) -> Self {
-            Storage {
-                notes: Map::new(
-                    context,
-                    1, // Storage slot
-                    |context, slot| {
-                        Set::new(context, slot)
-                    },
-                ),
-                public_values: Map::new(
-                    context,
-                    2,
-                    |context, slot| {
-                        PublicState::new(
-                            context,
-                            slot,
-                        )
-                    },
-                ),
-            }
-        }
-    }
-
     #[aztec(private)]
     fn constructor(owner: AztecAddress, value: Field) {
         let selector = FunctionSelector::from_signature("create_note((Field),Field)");

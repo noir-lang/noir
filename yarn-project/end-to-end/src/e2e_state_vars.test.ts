@@ -127,7 +127,7 @@ describe('e2e_state_vars', () => {
   describe('Immutable Singleton', () => {
     it('fail to read uninitialized singleton', async () => {
       expect(await contract.methods.is_imm_initialized().view()).toEqual(false);
-      await expect(contract.methods.get_imm_card().view()).rejects.toThrowError();
+      await expect(contract.methods.view_imm_card().view()).rejects.toThrowError();
     });
 
     it('initialize singleton', async () => {
@@ -152,7 +152,7 @@ describe('e2e_state_vars', () => {
 
     it('read initialized singleton', async () => {
       expect(await contract.methods.is_imm_initialized().view()).toEqual(true);
-      const { points, randomness } = await contract.methods.get_imm_card().view();
+      const { points, randomness } = await contract.methods.view_imm_card().view();
       expect(points).toEqual(POINTS);
       expect(randomness).toEqual(RANDOMNESS);
     });
