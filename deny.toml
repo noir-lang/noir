@@ -95,5 +95,6 @@ unknown-registry = "warn"
 unknown-git = "deny"
 allow-git = [
     "https://github.com/noir-lang/grumpkin",
+    "https://github.com/noir-lang/clap-markdown",
     "https://github.com/jfecher/chumsky"
 ]
