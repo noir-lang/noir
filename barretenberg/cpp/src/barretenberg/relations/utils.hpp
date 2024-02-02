@@ -184,7 +184,7 @@ template <typename Flavor> class RelationUtils {
     };
 
     /**
-     * @brief Scale elements, which in sumcheck represent evaluations of subrelations, by different challenges then sum
+     * @brief Scale elements, representing evaluations of subrelations, by separate challenges then sum them
      * @param challenges Array of NUM_SUBRELATIONS - 1 challenges (because the first subrelation does not need to be
      * scaled)
      * @param result Batched result
@@ -208,7 +208,49 @@ template <typename Flavor> class RelationUtils {
     }
 
     /**
-     * @brief Scale elements by consecutive powers of the challenge then sum
+     * @brief Scales elements, representing evaluations of polynomials in subrelations, by separate challenges and then
+     * sum them together. This function has identical functionality with the one above with the caveat that one such
+     * evaluation is part of a linearly dependent subrelation and hence needs to be accumulated separately.
+     *
+     * @details Such functionality is needed when computing the evaluation of the full relation at a specific row in
+     * the execution trace because a linearly dependent subrelation does not act on a specific row but rather on the
+     * entire execution trace.
+     *
+     * @param tuple
+     * @param challenges
+     * @param current_scalar
+     * @param result
+     * @param linearly_dependent_contribution
+     */
+    static void scale_and_batch_elements(auto& tuple,
+                                         const RelationSeparator& challenges,
+                                         FF current_scalar,
+                                         FF& result,
+                                         FF& linearly_dependent_contribution)
+        requires bb::IsFoldingFlavor<Flavor>
+    {
+        size_t idx = 0;
+        std::array<FF, NUM_SUBRELATIONS> tmp{ current_scalar };
+
+        std::copy(challenges.begin(), challenges.end(), tmp.begin() + 1);
+
+        auto scale_by_challenge_and_accumulate =
+            [&]<size_t relation_idx, size_t subrelation_idx, typename Element>(Element& element) {
+                using Relation = typename std::tuple_element_t<relation_idx, Relations>;
+                const bool is_subrelation_linearly_independent =
+                    bb::subrelation_is_linearly_independent<Relation, subrelation_idx>();
+                if (is_subrelation_linearly_independent) {
+                    result += element * tmp[idx];
+                } else {
+                    linearly_dependent_contribution += element * tmp[idx];
+                }
+                idx++;
+            };
+        apply_to_tuple_of_arrays_elements(scale_by_challenge_and_accumulate, tuple);
+    }
+
+    /**
+     * @brief Scale elements by consecutive powers of a given challenge then sum the result
      * @param result Batched result
      */
     static void scale_and_batch_elements(auto& tuple, const RelationSeparator& challenge, FF current_scalar, FF& result)
@@ -238,6 +280,34 @@ template <typename Flavor> class RelationUtils {
 
         if constexpr (idx + 1 < sizeof...(Ts)) {
             apply_to_tuple_of_arrays<idx + 1, Operation>(operation, tuple);
+        }
+    }
+
+    /**
+     * @brief Recursive template function to apply a specific operation on each element of several arrays in a tuple
+     *
+     * @details We need this method in addition to the apply_to_tuple_of_arrays when we aim to perform different
+     * operations depending on the array element. More explicitly, in our codebase this method is used when the elements
+     * of array are values of subrelations and we want to accumulate some of these values separately (the linearly
+     * dependent contribution when we compute the evaluation of full rel_U(G)H at particular row.)
+     */
+    template <size_t outer_idx = 0, size_t inner_idx = 0, typename Operation, typename... Ts>
+    static void apply_to_tuple_of_arrays_elements(Operation&& operation, std::tuple<Ts...>& tuple)
+    {
+        using Relation = typename std::tuple_element_t<outer_idx, Relations>;
+        const auto subrelation_length = Relation::SUBRELATION_PARTIAL_LENGTHS.size();
+        auto& element = std::get<outer_idx>(tuple);
+
+        // Invoke the operation with outer_idx (array index) and inner_idx (element index) as template arguments
+        operation.template operator()<outer_idx, inner_idx>(element[inner_idx]);
+
+        if constexpr (inner_idx + 1 < subrelation_length) {
+            // Recursively call for the next element within the same array
+            apply_to_tuple_of_arrays_elements<outer_idx, inner_idx + 1, Operation>(std::forward<Operation>(operation),
+                                                                                   tuple);
+        } else if constexpr (outer_idx + 1 < sizeof...(Ts)) {
+            // Move to the next array in the tuple
+            apply_to_tuple_of_arrays_elements<outer_idx + 1, 0, Operation>(std::forward<Operation>(operation), tuple);
         }
     }
 };

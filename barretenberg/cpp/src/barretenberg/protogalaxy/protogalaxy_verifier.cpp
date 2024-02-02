@@ -87,6 +87,22 @@ void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(cons
     witness_commitments.w_r = transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.w_r);
     witness_commitments.w_o = transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.w_o);
 
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        // Get  commitments to the ECC wire polynomials and databus polynomials
+        witness_commitments.ecc_op_wire_1 =
+            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_1);
+        witness_commitments.ecc_op_wire_2 =
+            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_2);
+        witness_commitments.ecc_op_wire_3 =
+            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_3);
+        witness_commitments.ecc_op_wire_4 =
+            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_4);
+        witness_commitments.calldata =
+            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.calldata);
+        witness_commitments.calldata_read_counts =
+            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.calldata_read_counts);
+    }
+
     // Get challenge for sorted list batching and wire four memory records commitment
     auto eta = transcript->get_challenge(domain_separator + "_eta");
     witness_commitments.sorted_accum =
@@ -95,6 +111,13 @@ void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(cons
 
     // Get permutation challenges and commitment to permutation and lookup grand products
     auto [beta, gamma] = transcript->get_challenges(domain_separator + "_beta", domain_separator + "_gamma");
+
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomial
+        witness_commitments.lookup_inverses = transcript->template receive_from_prover<Commitment>(
+            domain_separator + "_" + commitment_labels.lookup_inverses);
+    }
+
     witness_commitments.z_perm =
         transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.z_perm);
     witness_commitments.z_lookup =
