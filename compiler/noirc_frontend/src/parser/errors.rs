@@ -41,7 +41,7 @@ pub enum ParserErrorReason {
     NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
-    #[error("Integer bit size {0} won't be supported")]
+    #[error("Integer bit size {0} isn't supported")]
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
