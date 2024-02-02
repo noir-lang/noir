@@ -8,6 +8,7 @@ fn main() {
     test_value_override();
     test_insert_and_methods();
     test_retain();
+    test_hashmaps_equality();
 }
 
 // Insert, get, remove.
@@ -120,4 +121,30 @@ fn test_retain() {
 
     assert(hashmap.len() == 2, "HashMap should have retained 2 elements");
     assert(hashmap.get(2).is_none(), "pair should have been removed, since it does not match predicate");
+}
+
+// Equality trait check.
+fn test_hashmaps_equality() {
+    let mut hashmap_1: HashMap<Field, Field, 4, BuildHasherDefault<PedersenHasher>> = HashMap::default();
+    let mut hashmap_2: HashMap<Field, Field, 4, BuildHasherDefault<PedersenHasher>> = HashMap::default();
+
+    let (key, value) = (5, 11);
+    hashmap_1.insert(key, value);
+    let (key, value) = (2, 13);
+    hashmap_1.insert(key, value);
+    let (key, value) = (11, 5);
+    hashmap_1.insert(key, value);
+
+    let (key, value) = (5, 11);
+    hashmap_2.insert(key, value);
+    let (key, value) = (2, 13);
+    hashmap_2.insert(key, value);
+    let (key, value) = (11, 5);
+    hashmap_2.insert(key, value);
+
+    assert(hashmap_1 == hashmap_2, "HashMaps should be equal");
+
+    hashmap_2.remove(11);
+
+    assert(hashmap_1 != hashmap_2, "HashMaps should not be equal");
 }
