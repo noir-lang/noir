@@ -101,6 +101,7 @@ Builder create_inner_circuit()
                                   .ec_add_constraints = {},
                                   .recursion_constraints = {},
                                   .bigint_from_le_bytes_constraints = {},
+                                  .bigint_to_le_bytes_constraints = {},
                                   .bigint_operations = {},
                                   .constraints = { expr_a, expr_b, expr_c, expr_d },
                                   .block_constraints = {} };
@@ -255,6 +256,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                   .ec_add_constraints = {},
                                   .recursion_constraints = recursion_constraints,
                                   .bigint_from_le_bytes_constraints = {},
+                                  .bigint_to_le_bytes_constraints = {},
                                   .bigint_operations = {},
                                   .constraints = {},
                                   .block_constraints = {} };

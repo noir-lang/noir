@@ -1,9 +1,13 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/dsl/acir_format/bigint_constraint.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include <cstddef>
 
 namespace acir_format {
+
+template class DSLBigInts<UltraCircuitBuilder>;
+template class DSLBigInts<GoblinUltraCircuitBuilder>;
 
 template <typename Builder>
 void build_constraints(Builder& builder, AcirFormat const& constraint_system, bool has_valid_witness_assignments)
@@ -90,11 +94,15 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
     }
 
     // Add big_int constraints
-    for (const auto& constraint : constraint_system.bigint_operations) {
-        create_bigint_operations_constraint(builder, constraint);
-    }
+    DSLBigInts<Builder> dsl_bigints;
     for (const auto& constraint : constraint_system.bigint_from_le_bytes_constraints) {
-        create_bigint_from_le_bytes_constraint(builder, constraint);
+        create_bigint_from_le_bytes_constraint(builder, constraint, dsl_bigints);
+    }
+    for (const auto& constraint : constraint_system.bigint_operations) {
+        create_bigint_operations_constraint<Builder>(constraint, dsl_bigints);
+    }
+    for (const auto& constraint : constraint_system.bigint_to_le_bytes_constraints) {
+        create_bigint_to_le_bytes_constraint(builder, constraint, dsl_bigints);
     }
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): disable these for UGH for now since we're not yet

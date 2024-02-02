@@ -256,6 +256,11 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, Aci
                     .modulus = map(arg.modulus, [](auto& e) -> uint32_t { return e; }),
                     .result = arg.output,
                 });
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntToLeBytes>) {
+                af.bigint_to_le_bytes_constraints.push_back(BigIntToLeBytes{
+                    .input = arg.input,
+                    .result = map(arg.outputs, [](auto& e) { return e.value; }),
+                });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntAdd>) {
                 af.bigint_operations.push_back(BigIntOperation{
                     .lhs = arg.lhs,
@@ -268,7 +273,7 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, Aci
                     .lhs = arg.lhs,
                     .rhs = arg.rhs,
                     .result = arg.output,
-                    .opcode = BigIntOperationType::Neg,
+                    .opcode = BigIntOperationType::Sub,
                 });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::BigIntMul>) {
                 af.bigint_operations.push_back(BigIntOperation{

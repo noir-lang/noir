@@ -68,6 +68,7 @@ TEST_F(EcOperations, TestECOperations)
         .ec_add_constraints = { ec_add_constraint },
         .recursion_constraints = {},
         .bigint_from_le_bytes_constraints = {},
+        .bigint_to_le_bytes_constraints = {},
         .bigint_operations = {},
         .constraints = {},
         .block_constraints = {},
