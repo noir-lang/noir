@@ -6,6 +6,7 @@ import { AvmMachineState } from '../avm_machine_state.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
 import { initExecutionEnvironment } from '../fixtures/index.js';
 import { AvmJournal } from '../journal/journal.js';
+import { InstructionExecutionError } from './instruction.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Memory instructions', () => {
@@ -63,6 +64,27 @@ describe('Memory instructions', () => {
 
       expect(actual).toEqual(new Uint32(1234n));
       expect(tag).toEqual(TypeTag.UINT32);
+    });
+
+    it('should correctly set value and tag (truncating)', async () => {
+      await new Set(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT16, /*value=*/ 0x12345678n, /*offset=*/ 1).execute(
+        machineState,
+        journal,
+      );
+
+      const actual = machineState.memory.get(1);
+      const tag = machineState.memory.getTag(1);
+
+      expect(actual).toEqual(new Uint16(0x5678));
+      expect(tag).toEqual(TypeTag.UINT16);
+    });
+
+    it('should throw if tag is FIELD, UNINITIALIZED, INVALID', async () => {
+      for (const tag of [TypeTag.FIELD, TypeTag.UNINITIALIZED, TypeTag.INVALID]) {
+        await expect(
+          new Set(/*indirect=*/ 0, /*inTag=*/ tag, /*value=*/ 1234n, /*offset=*/ 1).execute(machineState, journal),
+        ).rejects.toThrow(InstructionExecutionError);
+      }
     });
   });
 

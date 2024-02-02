@@ -2,7 +2,7 @@ import { AvmMachineState } from '../avm_machine_state.js';
 import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { AvmJournal } from '../journal/index.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
-import { Instruction } from './instruction.js';
+import { Instruction, InstructionExecutionError } from './instruction.js';
 import { TwoOperandInstruction } from './instruction_impl.js';
 
 export class Set extends Instruction {
@@ -22,8 +22,12 @@ export class Set extends Instruction {
   }
 
   async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const res = TaggedMemory.integralFromTag(this.value, this.inTag);
+    // Per the YP, the tag cannot be a field.
+    if ([TypeTag.FIELD, TypeTag.UNINITIALIZED, TypeTag.INVALID].includes(this.inTag)) {
+      throw new InstructionExecutionError(`Invalid tag ${TypeTag[this.inTag]} for SET.`);
+    }
 
+    const res = TaggedMemory.integralFromTag(this.value, this.inTag);
     machineState.memory.set(this.dstOffset, res);
 
     this.incrementPc(machineState);
