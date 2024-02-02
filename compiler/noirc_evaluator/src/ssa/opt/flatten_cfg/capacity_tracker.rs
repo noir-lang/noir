@@ -9,16 +9,6 @@ use fxhash::FxHashMap as HashMap;
 
 pub(crate) struct SliceCapacityTracker<'a> {
     dfg: &'a DataFlowGraph,
-    /// Maps SSA array values representing a slice's contents to its updated array value
-    /// after an array set or a slice intrinsic operation.
-    /// Maps original value -> result
-    mapped_slice_values: HashMap<ValueId, ValueId>,
-
-    /// Maps an updated array value following an array operation to its previous value.
-    /// When used in conjunction with `mapped_slice_values` we form a two way map of all array
-    /// values being used in array operations.
-    /// Maps result -> original value
-    slice_parents: HashMap<ValueId, ValueId>,
 
     // Values containing nested slices to be replaced
     slice_values: Vec<ValueId>,
@@ -26,12 +16,7 @@ pub(crate) struct SliceCapacityTracker<'a> {
 
 impl<'a> SliceCapacityTracker<'a> {
     pub(crate) fn new(dfg: &'a DataFlowGraph) -> Self {
-        SliceCapacityTracker {
-            dfg,
-            mapped_slice_values: HashMap::default(),
-            slice_parents: HashMap::default(),
-            slice_values: Vec::new(),
-        }
+        SliceCapacityTracker { dfg, slice_values: Vec::new() }
     }
 
     /// Determine how the slice sizes map needs to be updated according to the provided instruction.
@@ -63,7 +48,6 @@ impl<'a> SliceCapacityTracker<'a> {
                         // If the result has internal slices and is called in an array set
                         // we could potentially have a new larger slice which we need to account for
                         inner_sizes.1.push(results[0]);
-                        self.slice_parents.insert(results[0], *array);
 
                         let inner_sizes_iter = inner_sizes.1.clone();
                         for slice_value in inner_sizes_iter {
@@ -77,10 +61,6 @@ impl<'a> SliceCapacityTracker<'a> {
                                 }
                             } else {
                                 slice_sizes.insert(results[0], inner_slice.clone());
-                            }
-                            let resolved_result = self.resolve_slice_value(results[0]);
-                            if resolved_result != slice_value {
-                                self.mapped_slice_values.insert(slice_value, results[0]);
                             }
                         }
                     }
@@ -112,16 +92,6 @@ impl<'a> SliceCapacityTracker<'a> {
                     let inner_sizes = inner_sizes.clone();
 
                     slice_sizes.insert(results[0], inner_sizes);
-
-                    if let Some(fetched_val) = self.mapped_slice_values.get(&results[0]) {
-                        if *fetched_val != *array {
-                            self.mapped_slice_values.insert(*array, results[0]);
-                        }
-                    } else if *array != results[0] {
-                        self.mapped_slice_values.insert(*array, results[0]);
-                    }
-
-                    self.slice_parents.insert(results[0], *array);
                 }
             }
             Instruction::Call { func, arguments } => {
@@ -159,20 +129,6 @@ impl<'a> SliceCapacityTracker<'a> {
 
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
-
-                                if let Some(fetched_val) =
-                                    self.mapped_slice_values.get(&results[result_index])
-                                {
-                                    if *fetched_val != slice_contents {
-                                        self.mapped_slice_values
-                                            .insert(slice_contents, results[result_index]);
-                                    }
-                                } else if slice_contents != results[result_index] {
-                                    self.mapped_slice_values
-                                        .insert(slice_contents, results[result_index]);
-                                }
-
-                                self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
                         Intrinsic::SlicePopBack
@@ -184,20 +140,6 @@ impl<'a> SliceCapacityTracker<'a> {
                             if let Some(inner_sizes) = slice_sizes.get(&slice_contents) {
                                 let inner_sizes = inner_sizes.clone();
                                 slice_sizes.insert(results[result_index], inner_sizes);
-
-                                if let Some(fetched_val) =
-                                    self.mapped_slice_values.get(&results[result_index])
-                                {
-                                    if *fetched_val != slice_contents {
-                                        self.mapped_slice_values
-                                            .insert(slice_contents, results[result_index]);
-                                    }
-                                } else if slice_contents != results[result_index] {
-                                    self.mapped_slice_values
-                                        .insert(slice_contents, results[result_index]);
-                                }
-
-                                self.slice_parents.insert(results[result_index], slice_contents);
                             }
                         }
                         _ => {}
@@ -279,28 +221,5 @@ impl<'a> SliceCapacityTracker<'a> {
                 slice_sizes.insert(array_id, slice_value);
             }
         }
-    }
-
-    /// Resolves a ValueId representing a slice's contents to its updated value.
-    /// If there is no resolved value for the supplied value, the value which
-    /// was passed to the method is returned.
-    fn resolve_slice_value(&self, array_id: ValueId) -> ValueId {
-        let val = match self.mapped_slice_values.get(&array_id) {
-            Some(value) => self.resolve_slice_value(*value),
-            None => array_id,
-        };
-        val
-    }
-
-    pub(crate) fn constant_nested_slices(&mut self) -> Vec<ValueId> {
-        std::mem::take(&mut self.slice_values)
-    }
-
-    pub(crate) fn slice_parents_map(&mut self) -> HashMap<ValueId, ValueId> {
-        std::mem::take(&mut self.slice_parents)
-    }
-
-    pub(crate) fn slice_values_map(&mut self) -> HashMap<ValueId, ValueId> {
-        std::mem::take(&mut self.mapped_slice_values)
     }
 }
