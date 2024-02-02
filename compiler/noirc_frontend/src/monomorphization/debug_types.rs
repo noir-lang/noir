@@ -9,9 +9,9 @@ use noirc_printable_type::PrintableType;
 use std::collections::HashMap;
 
 /// We keep a collection of the debug variables and their types in this
-/// structure. The fe_var_id refers to the ID given when inserting the
-/// instrumentation probe. This variable does not have a type yet and hence it
-/// can be instantiated multiple types if it's in the context of a generic
+/// structure. The source_var_id refers to the ID given by the debug
+/// instrumenter. This variable does not have a type yet and hence it
+/// can be instantiated for multiple types if it's in the context of a generic
 /// variable. The var_id refers to the ID of the instantiated variable which
 /// will have a valid type.
 #[derive(Debug, Clone, Default)]
