@@ -1,11 +1,13 @@
 import { makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { isArrayEmpty } from '@aztec/foundation/collection';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { FieldReader, Tuple, serializeToBuffer, serializeToFieldArray } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import {
+  GeneratorIndex,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
@@ -210,6 +212,15 @@ export class PublicCircuitPublicInputs {
       unencryptedLogPreimagesLength,
       historicalHeader,
       proverAddress,
+    );
+  }
+
+  hash(): Fr {
+    return Fr.fromBuffer(
+      pedersenHash(
+        this.toFields().map(field => field.toBuffer()),
+        GeneratorIndex.PUBLIC_CIRCUIT_PUBLIC_INPUTS,
+      ),
     );
   }
 }

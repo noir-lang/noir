@@ -31,4 +31,10 @@ describe('PrivateCircuitPublicInputs', () => {
     const fields = inputs.toFields();
     expect(fields.length).toBe(PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH);
   });
+
+  it('hash matches snapshot', () => {
+    const target = makePrivateCircuitPublicInputs(327);
+    const hash = target.hash();
+    expect(hash).toMatchSnapshot();
+  });
 });

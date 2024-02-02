@@ -70,6 +70,9 @@ library Constants {
   uint256 internal constant MAX_NOTES_PER_PAGE = 10;
   uint256 internal constant VIEW_NOTE_ORACLE_RETURN_LENGTH = 212;
   uint256 internal constant CALL_CONTEXT_LENGTH = 8;
+  uint256 internal constant GLOBAL_VARIABLES_LENGTH = 4;
+  uint256 internal constant PARTIAL_STATE_REFERENCE_LENGTH = 8;
+  uint256 internal constant STATE_REFERENCE_LENGTH = 10;
   uint256 internal constant HEADER_LENGTH = 18;
   uint256 internal constant FUNCTION_DATA_LENGTH = 4;
   uint256 internal constant CONTRACT_DEPLOYMENT_DATA_LENGTH = 6;
@@ -79,8 +82,6 @@ library Constants {
   uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 201;
   uint256 internal constant GET_NOTES_ORACLE_RETURN_LENGTH = 674;
   uint256 internal constant CALL_PRIVATE_FUNCTION_RETURN_SIZE = 210;
-  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH = 98;
-  uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH = 188;
   uint256 internal constant COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP = 2048;
   uint256 internal constant NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP = 2048;
   uint256 internal constant PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP = 1024;

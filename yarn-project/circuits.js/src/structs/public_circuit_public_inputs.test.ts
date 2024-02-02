@@ -22,4 +22,10 @@ describe('PublicCircuitPublicInputs', () => {
     const fields = target.toFields();
     expect(fields.length).toBe(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
   });
+
+  it('hash matches snapshot', () => {
+    const target = makePublicCircuitPublicInputs(327);
+    const hash = target.hash();
+    expect(hash).toMatchSnapshot();
+  });
 });

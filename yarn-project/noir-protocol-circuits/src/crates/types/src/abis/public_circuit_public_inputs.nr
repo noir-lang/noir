@@ -8,7 +8,6 @@ use crate::constants::{
     NUM_FIELDS_PER_SHA256,
     RETURN_VALUES_LENGTH,
     GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
-    PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
 };
 use crate::{
@@ -21,8 +20,10 @@ use crate::{
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
     },
+    hash::pedersen_hash,
     header::Header,
 };
+use crate::traits::{Hash, Serialize, Deserialize};
 
 struct PublicCircuitPublicInputs{
     call_context: CallContext,
@@ -52,39 +53,8 @@ struct PublicCircuitPublicInputs{
     prover_address: AztecAddress,
 }
 
-impl PublicCircuitPublicInputs{
-    fn hash(self) -> Field {      
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595) have mercy por favor  
-        let mut inputs: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0);
-        inputs.push(self.call_context.hash());
-        inputs.push(self.args_hash);
-        inputs.extend_from_array(self.return_values);
-        for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
-            inputs.push(self.contract_storage_update_requests[i].hash());
-        }
-        for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
-            inputs.push(self.contract_storage_reads[i].hash());
-        }
-        inputs.extend_from_array(self.public_call_stack_hashes);
-
-        for i in 0..MAX_NEW_COMMITMENTS_PER_CALL{
-            inputs.push(self.new_commitments[i].hash());
-        }
-        for i in 0..MAX_NEW_NULLIFIERS_PER_CALL{
-            inputs.push(self.new_nullifiers[i].hash());
-        }
-        inputs.extend_from_array(self.new_l2_to_l1_msgs);
-        inputs.extend_from_array(self.unencrypted_logs_hash);
-        inputs.push(self.unencrypted_log_preimages_length);
-        inputs.extend_from_array(self.historical_header.serialize());
-        inputs.push(self.prover_address.to_field());
-
-        assert_eq(inputs.len(), PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH, "Incorrect number of input fields when hashing PublicCircuitPublicInputs");
-
-        dep::std::hash::pedersen_hash_with_separator(inputs.storage, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)
-    }
-
-    pub fn serialize(self) -> [Field; PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
+impl Serialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInputs {
+    fn serialize(self) -> [Field; PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
         fields.extend_from_array(self.call_context.serialize());   
         fields.push(self.args_hash);
@@ -110,4 +80,22 @@ impl PublicCircuitPublicInputs{
         fields.push(self.prover_address.to_field());
         fields.storage
     }
+}
+
+impl Hash for PublicCircuitPublicInputs {
+    fn hash(self) -> Field {
+        pedersen_hash(self.serialize(), GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)
+    }
+}
+
+#[test]
+fn serialization_smoke() {
+    let pcpi: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+    let _serialized = pcpi.serialize();
+}
+
+#[test]
+fn hash_smoke() {
+    let pcpi: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+    let _hashed = pcpi.hash();
 }

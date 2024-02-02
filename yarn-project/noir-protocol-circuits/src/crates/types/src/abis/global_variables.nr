@@ -1,9 +1,14 @@
 use dep::std::cmp::Eq;
 use crate::{
-    constants::GENERATOR_INDEX__GLOBAL_VARIABLES,
+    constants::{
+        GENERATOR_INDEX__GLOBAL_VARIABLES,
+        GLOBAL_VARIABLES_LENGTH,
+    },
     traits::{
+        Deserialize,
         Empty,
         Hash,
+        Serialize,
     },
 };
 
@@ -14,9 +19,7 @@ struct GlobalVariables {
     timestamp : Field,
 }
 
-global GLOBAL_VARIABLES_LENGTH: Field = 4;
-
-impl GlobalVariables {
+impl Serialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
     fn serialize(self) -> [Field; GLOBAL_VARIABLES_LENGTH] {
         [
             self.chain_id,
@@ -25,7 +28,9 @@ impl GlobalVariables {
             self.timestamp
         ]
     }
+}
 
+impl Deserialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
     fn deserialize(serialized: [Field; GLOBAL_VARIABLES_LENGTH]) -> GlobalVariables {
         GlobalVariables {
             chain_id: serialized[0],
@@ -54,4 +59,11 @@ impl Empty for GlobalVariables {
             timestamp: 0,
         }
     }
+}
+
+#[test]
+fn serialization_deserialization_smoke() {
+    let vars: GlobalVariables = dep::std::unsafe::zeroed();
+    let _serialized = vars.serialize();
+    let _deserialized = GlobalVariables::deserialize(_serialized);
 }

@@ -8,7 +8,7 @@ use crate::{
     hash::pedersen_hash,
 };
 use dep::std::cmp::Eq;
-use crate::traits::Hash;
+use crate::traits::{Hash, Serialize};
 
 // docs:start:call-context
 struct CallContext {
@@ -25,6 +25,20 @@ struct CallContext {
     start_side_effect_counter : u32,
 }
 // docs:end:call-context
+
+impl CallContext {
+    fn assert_is_zero(self) {
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
+        assert(self.msg_sender.to_field() == 0);
+        assert(self.storage_contract_address.to_field() == 0);
+        assert(self.portal_contract_address.to_field() == 0);
+        assert(self.function_selector.to_field() == 0);
+        assert(self.is_delegate_call == false);
+        assert(self.is_static_call == false);
+        assert(self.is_contract_deployment == false);
+        assert(self.start_side_effect_counter == 0);
+    }
+}
 
 impl Eq for CallContext {
     fn eq(self, call_context: CallContext) -> bool {
@@ -46,7 +60,7 @@ impl Hash for CallContext {
     }
 }
 
-impl CallContext {
+impl Serialize<CALL_CONTEXT_LENGTH> for CallContext {
     fn serialize(self) -> [Field; CALL_CONTEXT_LENGTH] {
         [
             self.msg_sender.to_field(),
@@ -59,16 +73,16 @@ impl CallContext {
             self.start_side_effect_counter as Field,
         ]
     }
+}
 
-    fn assert_is_zero(self) {
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3595)
-        assert(self.msg_sender.to_field() == 0);
-        assert(self.storage_contract_address.to_field() == 0);
-        assert(self.portal_contract_address.to_field() == 0);
-        assert(self.function_selector.to_field() == 0);
-        assert(self.is_delegate_call == false);
-        assert(self.is_static_call == false);
-        assert(self.is_contract_deployment == false);
-        assert(self.start_side_effect_counter == 0);
-    }
+#[test]
+fn serialization_smoke() {
+    let context: CallContext = dep::std::unsafe::zeroed();
+    let _serialized = context.serialize();
+}
+
+#[test]
+fn hash_smoke() {
+    let context: CallContext = dep::std::unsafe::zeroed();
+    let _hashed = context.hash();
 }

@@ -20,7 +20,7 @@ export class StateReference {
     return serializeToBuffer(this.l1ToL2MessageTree, this.partial);
   }
 
-  toFieldArray(): Fr[] {
+  toFields(): Fr[] {
     return [...this.l1ToL2MessageTree.toFields(), ...this.partial.toFields()];
   }
 

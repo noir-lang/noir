@@ -36,7 +36,7 @@ export class Header {
     const serialized = [
       ...this.lastArchive.toFields(),
       ...to2Fields(this.bodyHash),
-      ...this.state.toFieldArray(),
+      ...this.state.toFields(),
       ...this.globalVariables.toFields(),
     ];
     if (serialized.length !== HEADER_LENGTH) {
