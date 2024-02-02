@@ -323,8 +323,6 @@ fn simplify_slice_push_back(
     let slice_size = slice.len();
     let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
-    // dbg!(slice_size);
-    // dbg!(element_size);
 
     let set_last_slice_value_instr =
         Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2] };
