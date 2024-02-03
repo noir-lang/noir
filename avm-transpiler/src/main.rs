@@ -25,14 +25,9 @@ fn main() {
         serde_json::from_str(&contract_json).expect("Unable to parse json");
 
     // Skip if contract has "transpiled: true" flag!
-    if let Some(transpiled) = raw_json_obj.get("transpiled") {
-        match transpiled {
-            serde_json::Value::Bool(true) => {
-                warn!("Contract already transpiled. Skipping.");
-                return; // nothing to transpile
-            }
-            _ => (),
-        }
+    if let Some(serde_json::Value::Bool(true)) = raw_json_obj.get("transpiled") {
+        warn!("Contract already transpiled. Skipping.");
+        return;
     }
     // Parse json into contract object
     let contract: CompiledAcirContract =

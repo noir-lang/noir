@@ -56,7 +56,6 @@ const INSTRUCTION_SET: InstructionSet = new Map<Opcode, DeserializableInstructio
   [
     [Add.opcode, Add],
     [Sub.opcode, Sub],
-    [Sub.opcode, Sub],
     [Mul.opcode, Mul],
     [Div.opcode, Div],
     [Eq.opcode, Eq],

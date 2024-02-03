@@ -39,7 +39,7 @@ describe('avm', () => {
 
   describe('testing transpiled Noir contracts', () => {
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/4361): sync wire format w/transpiler.
-    it.skip('Should execute contract function that performs addition', async () => {
+    it('Should execute contract function that performs addition', async () => {
       const calldata: Fr[] = [new Fr(1), new Fr(2)];
       const journal = mock<AvmJournal>();
 
@@ -47,7 +47,8 @@ describe('avm', () => {
       const addArtifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_addArgsReturn')!;
 
       // Decode bytecode into instructions
-      const instructions = decodeFromBytecode(Buffer.from(addArtifact.bytecode, 'base64'));
+      const instructionsBytecode = Buffer.from(addArtifact.bytecode, 'base64');
+      const instructions = decodeFromBytecode(instructionsBytecode);
 
       // Execute instructions
       const context = new AvmMachineState(initExecutionEnvironment({ calldata }));

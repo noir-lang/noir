@@ -76,10 +76,12 @@ pub enum AvmOrAcirContractFunction {
 impl From<CompiledAcirContract> for TranspiledContract {
     fn from(contract: CompiledAcirContract) -> Self {
         let mut functions = Vec::new();
+
+        // Note, in aztec_macros/lib.rs, avm_ prefix is pushed to function names with the #[aztec(public-vm)] tag
+        let re = Regex::new(r"avm_.*$").unwrap();
         for function in contract.functions {
             // TODO(4269): once functions are tagged for transpilation to AVM, check tag
-            let re = Regex::new(r"avm_.*$").unwrap();
-            if function.function_type == ContractFunctionType::Unconstrained
+            if function.function_type == ContractFunctionType::Open
                 && re.is_match(function.name.as_str())
             {
                 info!(
@@ -91,7 +93,7 @@ impl From<CompiledAcirContract> for TranspiledContract {
                 let brillig = extract_brillig_from_acir(&acir_circuit.opcodes);
 
                 // Transpile to AVM
-                let avm_bytecode = brillig_to_avm(&brillig);
+                let avm_bytecode = brillig_to_avm(brillig);
 
                 // Push modified function entry to ABI
                 functions.push(AvmOrAcirContractFunction::Avm(AvmContractFunction {

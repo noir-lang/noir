@@ -424,6 +424,10 @@ fn transform_module(
                 transform_function("Public", func, storage_defined)
                     .map_err(|err| (err, crate_graph.root_file_id))?;
                 has_transformed_module = true;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
+                transform_vm_function(func, storage_defined)
+                    .map_err(|err| (err, crate_graph.root_file_id))?;
+                has_transformed_module = true;
             }
         }
         // Add the storage struct to the beginning of the function if it is unconstrained in an aztec contract
@@ -633,6 +637,20 @@ fn transform_function(
         _ => (),
     }
 
+    Ok(())
+}
+
+/// Transform a function to work with AVM bytecode
+fn transform_vm_function(
+    func: &mut NoirFunction,
+    _storage_defined: bool,
+) -> Result<(), AztecMacroError> {
+    // We want the function to be seen as a public function
+    func.def.is_open = true;
+
+    // NOTE: the line below is a temporary hack to trigger external transpilation tools
+    // It will be removed once the transpiler is integrated into the Noir compiler
+    func.def.name.0.contents = format!("avm_{}", func.def.name.0.contents);
     Ok(())
 }
 

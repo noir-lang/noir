@@ -1,3 +1,6 @@
+use std::fmt;
+use std::fmt::{Debug, Formatter};
+
 use crate::opcodes::AvmOpcode;
 
 /// Common values of the indirect instruction flag
@@ -36,7 +39,7 @@ impl AvmInstruction {
         if let Some(dst_tag) = self.dst_tag {
             out_str += format!(", dst_tag: {}", dst_tag as u8).as_str();
         }
-        if self.operands.len() > 0 {
+        if !self.operands.is_empty() {
             out_str += ", operands: [";
             for operand in &self.operands {
                 out_str += format!("{}, ", operand.to_string()).as_str();
@@ -55,8 +58,7 @@ impl AvmInstruction {
         // TODO(4271): add in_tag alongside its support in TS
         if let Some(dst_tag) = self.dst_tag {
             // TODO(4271): make 8 bits when TS supports deserialization of 8 bit flags
-            //bytes.push(dst_tag as u8);
-            bytes.extend_from_slice(&(dst_tag as u32).to_be_bytes());
+            bytes.extend_from_slice(&(dst_tag as u8).to_be_bytes());
         }
         for operand in &self.operands {
             bytes.extend_from_slice(&operand.to_be_bytes());
@@ -64,6 +66,13 @@ impl AvmInstruction {
         bytes
     }
 }
+
+impl Debug for AvmInstruction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
 impl Default for AvmInstruction {
     fn default() -> Self {
         AvmInstruction {
@@ -95,21 +104,21 @@ pub enum AvmTypeTag {
 pub enum AvmOperand {
     U32 { value: u32 },
     // TODO(4267): Support operands of size other than 32 bits (for SET)
-    //U128 { value: u128 },
+    U128 { value: u128 },
 }
 impl AvmOperand {
     pub fn to_string(&self) -> String {
         match self {
             AvmOperand::U32 { value } => format!(" U32:{}", value),
             // TODO(4267): Support operands of size other than 32 bits (for SET)
-            //AvmOperand::U128 { value } => format!("U128:{}", value),
+            AvmOperand::U128 { value } => format!(" U128:{}", value),
         }
     }
     pub fn to_be_bytes(&self) -> Vec<u8> {
         match self {
             AvmOperand::U32 { value } => value.to_be_bytes().to_vec(),
             // TODO(4267): Support operands of size other than 32 bits (for SET)
-            //AvmOperand::U128 { value } => value.to_be_bytes().to_vec(),
+            AvmOperand::U128 { value } => value.to_be_bytes().to_vec(),
         }
     }
 }

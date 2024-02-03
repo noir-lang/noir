@@ -14,28 +14,26 @@ pub fn extract_brillig_from_acir(opcodes: &Vec<Opcode>) -> &Brillig {
         panic!("There should only be one brillig opcode");
     }
     let opcode = &opcodes[0];
-    let brillig = match opcode {
+    match opcode {
         Opcode::Brillig(brillig) => brillig,
         _ => panic!("Tried to extract a Brillig program from its ACIR wrapper opcode, but the opcode doesn't contain Brillig!"),
-    };
-    brillig
+    }
 }
 
 /// Print inputs, outputs, and instructions in a Brillig program
 pub fn dbg_print_brillig_program(brillig: &Brillig) {
     debug!("Printing Brillig program...");
     debug!("\tInputs: {:?}", brillig.inputs);
-    for i in 0..brillig.bytecode.len() {
-        let instr = &brillig.bytecode[i];
-        debug!("\tPC:{0} {1:?}", i, instr);
+    for (i, instruction) in brillig.bytecode.iter().enumerate() {
+        debug!("\tPC:{0} {1:?}", i, instruction);
     }
     debug!("\tOutputs: {:?}", brillig.outputs);
 }
 
 /// Print each instruction in an AVM program
-pub fn dbg_print_avm_program(avm_program: &Vec<AvmInstruction>) {
+pub fn dbg_print_avm_program(avm_program: &[AvmInstruction]) {
     debug!("Printing AVM program...");
-    for i in 0..avm_program.len() {
-        debug!("\tPC:{0}: {1}", i, &avm_program[i].to_string());
+    for (i, instruction) in avm_program.iter().enumerate() {
+        debug!("\tPC:{0}: {1}", i, &instruction.to_string());
     }
 }

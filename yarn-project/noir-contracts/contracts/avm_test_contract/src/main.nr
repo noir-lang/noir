@@ -9,8 +9,9 @@ contract AvmTest {
     #[aztec(private)]
     fn constructor() {}
 
-    // Function name prefix "avm_" flags it for transpilation
-    unconstrained fn avm_addArgsReturn(argA: Field, argB: Field) -> pub Field {
+    // Public-vm macro will prefix avm to the function name for transpilation
+    #[aztec(public-vm)]
+    fn addArgsReturn(argA: Field, argB: Field) -> pub Field {
         argA + argB
     }
 
