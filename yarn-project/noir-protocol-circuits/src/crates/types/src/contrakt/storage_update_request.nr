@@ -4,9 +4,14 @@ use crate::{
         GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST,
     },
     hash::pedersen_hash,
+    traits::{
+        Deserialize,
+        Hash,
+        Empty,
+        Serialize,
+    },
 };
 use dep::std::cmp::Eq;
-use crate::traits::{Hash, Empty, Serialize};
 
 struct StorageUpdateRequest{
     storage_slot : Field,
@@ -42,6 +47,16 @@ impl Hash for StorageUpdateRequest {
 impl Serialize<CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH> for StorageUpdateRequest {
     fn serialize(self) -> [Field; CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH] {
         [self.storage_slot, self.old_value, self.new_value]
+    }
+}
+
+impl Deserialize<CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH> for StorageUpdateRequest {
+    fn deserialize(serialized: [Field; CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH]) -> Self {
+        StorageUpdateRequest {
+            storage_slot: serialized[0],
+            old_value: serialized[1],
+            new_value: serialized[2],
+        }
     }
 }
 

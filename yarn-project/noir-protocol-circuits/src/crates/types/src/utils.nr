@@ -4,6 +4,7 @@
 
 mod arrays;
 mod field;
+mod reader;
 mod uint256;
 
 // if predicate == true then return lhs, else return rhs

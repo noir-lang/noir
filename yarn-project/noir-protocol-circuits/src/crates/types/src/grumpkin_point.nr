@@ -14,6 +14,15 @@ impl Serialize<GRUMPKIN_POINT_SERIALIZED_LEN> for GrumpkinPoint {
     }
 }
 
+impl Deserialize<GRUMPKIN_POINT_SERIALIZED_LEN> for GrumpkinPoint {
+    fn deserialize(serialized: [Field; GRUMPKIN_POINT_SERIALIZED_LEN]) -> Self {
+        Self {
+            x: serialized[0],
+            y: serialized[1],
+        }
+    }
+}
+
 impl Eq for GrumpkinPoint {
     fn eq(self, point: GrumpkinPoint) -> bool {
         (point.x == self.x) & (point.y == self.y)
