@@ -3,10 +3,10 @@
 // by the methods in the `slice` module
 impl<T, N> [T; N] {
     #[builtin(array_len)]
-    pub fn len(_self: Self) -> Field {}
+    pub fn len(self) -> Field {}
 
     #[builtin(arraysort)]
-    pub fn sort(_self: Self) -> Self {}
+    pub fn sort(self) -> Self {}
 
     // Sort with a custom sorting function.
     pub fn sort_via<Env>(mut a: Self, ordering: fn[Env](T, T) -> bool) -> Self { 

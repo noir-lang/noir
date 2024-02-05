@@ -165,13 +165,6 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
             Ok(())
         }
-        BlackBoxOp::EmbeddedCurveDouble { input1_x, input1_y, result } => {
-            let input1_x = registers.get(*input1_x).to_field();
-            let input1_y = registers.get(*input1_y).to_field();
-            let (x, y) = solver.ec_double(&input1_x, &input1_y)?;
-            memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
-            Ok(())
-        }
         BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
                 read_heap_vector(memory, registers, inputs).iter().map(|x| x.to_field()).collect();
@@ -200,6 +193,14 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             registers.set(*output, hash.into());
             Ok(())
         }
+        BlackBoxOp::BigIntAdd { .. } => todo!(),
+        BlackBoxOp::BigIntNeg { .. } => todo!(),
+        BlackBoxOp::BigIntMul { .. } => todo!(),
+        BlackBoxOp::BigIntDiv { .. } => todo!(),
+        BlackBoxOp::BigIntFromLeBytes { .. } => todo!(),
+        BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
+        BlackBoxOp::Poseidon2Permutation { .. } => todo!(),
+        BlackBoxOp::Sha256Compression { .. } => todo!(),
     }
 }
 
@@ -217,7 +218,14 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
         BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
-        BlackBoxOp::EmbeddedCurveDouble { .. } => BlackBoxFunc::EmbeddedCurveDouble,
+        BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
+        BlackBoxOp::BigIntNeg { .. } => BlackBoxFunc::BigIntNeg,
+        BlackBoxOp::BigIntMul { .. } => BlackBoxFunc::BigIntMul,
+        BlackBoxOp::BigIntDiv { .. } => BlackBoxFunc::BigIntDiv,
+        BlackBoxOp::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
+        BlackBoxOp::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
+        BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
+        BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
     }
 }
 

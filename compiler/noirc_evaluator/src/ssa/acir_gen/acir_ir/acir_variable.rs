@@ -1,3 +1,4 @@
+use super::big_int::BigIntContext;
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
@@ -107,6 +108,9 @@ pub(crate) struct AcirContext {
     /// then the `acir_ir` will be populated to assert this
     /// addition.
     acir_ir: GeneratedAcir,
+
+    /// The BigIntContext, used to generate identifiers for BigIntegers
+    big_int_ctx: BigIntContext,
 }
 
 impl AcirContext {
@@ -1140,10 +1144,10 @@ impl AcirContext {
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
-        output_count: usize,
+        mut output_count: usize,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
-        let constants = match name {
+        let (constant_inputs, constant_outputs) = match name {
             BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
@@ -1167,23 +1171,140 @@ impl AcirContext {
                     }
                 };
 
-                vec![domain_constant]
+                (vec![domain_constant], Vec::new())
             }
-            _ => vec![],
+            BlackBoxFunc::Poseidon2Permutation => {
+                // The last argument is the state length, which must be a constant
+                let state_len = match inputs.pop() {
+                    Some(state_len) => state_len.into_var()?,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "poseidon_2_permutation call".to_string(),
+                            arg: "length".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                let state_len = match self.vars[&state_len].as_constant() {
+                    Some(state_len) => state_len,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "length".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                (vec![state_len], Vec::new())
+            }
+            BlackBoxFunc::BigIntAdd
+            | BlackBoxFunc::BigIntNeg
+            | BlackBoxFunc::BigIntMul
+            | BlackBoxFunc::BigIntDiv => {
+                assert_eq!(inputs.len(), 4, "ICE - bigint operation requires 4 inputs");
+                let const_inputs = vecmap(inputs, |i| {
+                    let var = i.into_var()?;
+                    match self.vars[&var].as_constant() {
+                        Some(const_var) => Ok(const_var),
+                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "big integer".to_string(),
+                            call_stack: self.get_call_stack(),
+                        })),
+                    }
+                });
+                inputs = Vec::new();
+                output_count = 0;
+                let mut field_inputs = Vec::new();
+                for i in const_inputs {
+                    field_inputs.push(i?);
+                }
+                if field_inputs[1] != field_inputs[3] {
+                    return Err(RuntimeError::BigIntModulus { call_stack: self.get_call_stack() });
+                }
+
+                let result_id = self.big_int_ctx.new_big_int(field_inputs[1]);
+                (
+                    vec![field_inputs[0], field_inputs[2]],
+                    vec![result_id.bigint_id(), result_id.modulus_id()],
+                )
+            }
+            BlackBoxFunc::BigIntToLeBytes => {
+                let const_inputs = vecmap(inputs, |i| {
+                    let var = i.into_var()?;
+                    match self.vars[&var].as_constant() {
+                        Some(const_var) => Ok(const_var),
+                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "big integer".to_string(),
+                            call_stack: self.get_call_stack(),
+                        })),
+                    }
+                });
+                inputs = Vec::new();
+                let mut field_inputs = Vec::new();
+                for i in const_inputs {
+                    field_inputs.push(i?);
+                }
+                let modulus = self.big_int_ctx.modulus(field_inputs[0]);
+                let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
+                output_count = bytes_len as usize;
+                (field_inputs, vec![FieldElement::from(bytes_len as u128)])
+            }
+            BlackBoxFunc::BigIntFromLeBytes => {
+                let invalid_input = "ICE - bigint operation requires 2 inputs";
+                assert_eq!(inputs.len(), 2, "{invalid_input}");
+                let mut modulus = Vec::new();
+                match inputs.pop().expect(invalid_input) {
+                    AcirValue::Array(values) => {
+                        for value in values {
+                            modulus.push(self.vars[&value.into_var()?].as_constant().ok_or(
+                                RuntimeError::InternalError(InternalError::NotAConstant {
+                                    name: "big integer".to_string(),
+                                    call_stack: self.get_call_stack(),
+                                }),
+                            )?);
+                        }
+                    }
+                    _ => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "big_int_from_le_bytes".to_owned(),
+                            arg: "modulus".to_owned(),
+                            call_stack: self.get_call_stack(),
+                        }));
+                    }
+                }
+                let big_modulus = BigUint::from_bytes_le(&vecmap(&modulus, |b| b.to_u128() as u8));
+                output_count = 0;
+
+                let modulus_id = self.big_int_ctx.get_or_insert_modulus(big_modulus);
+                let result_id =
+                    self.big_int_ctx.new_big_int(FieldElement::from(modulus_id as u128));
+                (modulus, vec![result_id.bigint_id(), result_id.modulus_id()])
+            }
+            _ => (vec![], vec![]),
         };
 
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
-
         // Call Black box with `FunctionInput`
-        let outputs = self.acir_ir.call_black_box(name, &inputs, constants, output_count)?;
+        let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
+        let outputs = self.acir_ir.call_black_box(
+            name,
+            &inputs,
+            constant_inputs,
+            constant_outputs,
+            output_count,
+        )?;
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.
         //
         // We do not apply range information on the output of the black box function.
         // See issue #1439
-        Ok(vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index))))
+        results.extend(vecmap(&outputs, |witness_index| {
+            self.add_data(AcirVarData::Witness(*witness_index))
+        }));
+        Ok(results)
     }
 
     /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
@@ -1320,20 +1441,22 @@ impl AcirContext {
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
-    ) -> Result<Vec<AcirValue>, InternalError> {
-        let b_inputs = try_vecmap(inputs, |i| match i {
-            AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
-            AcirValue::Array(vars) => {
-                let mut var_expressions: Vec<Expression> = Vec::new();
-                for var in vars {
-                    self.brillig_array_input(&mut var_expressions, var)?;
+    ) -> Result<Vec<AcirValue>, RuntimeError> {
+        let b_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
+            match i {
+                AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
+                AcirValue::Array(vars) => {
+                    let mut var_expressions: Vec<Expression> = Vec::new();
+                    for var in vars {
+                        self.brillig_array_input(&mut var_expressions, var)?;
+                    }
+                    Ok(BrilligInputs::Array(var_expressions))
                 }
-                Ok(BrilligInputs::Array(var_expressions))
-            }
-            AcirValue::DynamicArray(_) => {
-                let mut var_expressions = Vec::new();
-                self.brillig_array_input(&mut var_expressions, i)?;
-                Ok(BrilligInputs::Array(var_expressions))
+                AcirValue::DynamicArray(_) => {
+                    let mut var_expressions = Vec::new();
+                    self.brillig_array_input(&mut var_expressions, i)?;
+                    Ok(BrilligInputs::Array(var_expressions))
+                }
             }
         })?;
 
@@ -1367,6 +1490,34 @@ impl AcirContext {
         });
         let predicate = self.var_to_expression(predicate)?;
         self.acir_ir.brillig(Some(predicate), generated_brillig, b_inputs, b_outputs);
+
+        fn range_constraint_value(
+            context: &mut AcirContext,
+            value: &AcirValue,
+        ) -> Result<(), RuntimeError> {
+            match value {
+                AcirValue::Var(var, typ) => {
+                    let numeric_type = match typ {
+                        AcirType::NumericType(numeric_type) => numeric_type,
+                        _ => unreachable!("`AcirValue::Var` may only hold primitive values"),
+                    };
+                    context.range_constrain_var(*var, numeric_type, None)?;
+                }
+                AcirValue::Array(values) => {
+                    for value in values {
+                        range_constraint_value(context, value)?;
+                    }
+                }
+                AcirValue::DynamicArray(_) => {
+                    unreachable!("Brillig opcodes cannot return dynamic arrays")
+                }
+            }
+            Ok(())
+        }
+
+        for output_var in &outputs_var {
+            range_constraint_value(self, output_var)?;
+        }
 
         Ok(outputs_var)
     }
@@ -1498,7 +1649,6 @@ impl AcirContext {
         &mut self,
         inputs: Vec<AcirVar>,
         bit_size: u32,
-        predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let len = inputs.len();
         // Convert the inputs into expressions
@@ -1515,23 +1665,14 @@ impl AcirContext {
         self.acir_ir.permutation(&inputs_expr, &output_expr)?;
 
         // Enforce the outputs to be sorted
+        let true_var = self.add_constant(true);
         for i in 0..(outputs_var.len() - 1) {
-            self.less_than_constrain(outputs_var[i], outputs_var[i + 1], bit_size, predicate)?;
+            let less_than_next_element =
+                self.more_than_eq_var(outputs_var[i + 1], outputs_var[i], bit_size)?;
+            self.assert_eq_var(less_than_next_element, true_var, None)?;
         }
 
         Ok(outputs_var)
-    }
-
-    /// Constrain lhs to be less than rhs
-    fn less_than_constrain(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        bit_size: u32,
-        predicate: AcirVar,
-    ) -> Result<(), RuntimeError> {
-        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size)?;
-        self.maybe_eq_predicate(lhs_less_than_rhs, predicate)
     }
 
     /// Returns a Variable that is constrained to be the result of reading

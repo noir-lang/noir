@@ -8,6 +8,7 @@ use crate::hir_def::stmt::{
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
+use crate::UnaryOp;
 
 use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
@@ -303,6 +304,9 @@ impl<'interner> TypeChecker<'interner> {
         let expr_type = self.check_expression(&stmt.0);
         let expr_span = self.interner.expr_span(&stmt.0);
 
+        // Must type check the assertion message expression so that we instantiate bindings
+        stmt.2.map(|assert_msg_expr| self.check_expression(&assert_msg_expr));
+
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
             expected_typ: Type::Bool.to_string(),
@@ -358,9 +362,15 @@ impl<'interner> TypeChecker<'interner> {
                     };
                 };
             }
-            HirExpression::Prefix(_) => self
-                .errors
-                .push(TypeCheckError::InvalidUnaryOp { kind: annotated_type.to_string(), span }),
+            HirExpression::Prefix(expr) => {
+                self.lint_overflowing_uint(&expr.rhs, annotated_type);
+                if matches!(expr.operator, UnaryOp::Minus) {
+                    self.errors.push(TypeCheckError::InvalidUnaryOp {
+                        kind: "annotated_type".to_string(),
+                        span,
+                    });
+                }
+            }
             HirExpression::Infix(expr) => {
                 self.lint_overflowing_uint(&expr.lhs, annotated_type);
                 self.lint_overflowing_uint(&expr.rhs, annotated_type);
