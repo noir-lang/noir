@@ -32,7 +32,7 @@ export class AcirSimulator {
   private static solver: Promise<WasmBlackBoxFunctionSolver>; // ACVM's backend
   private log: DebugLogger;
 
-  constructor(private db: DBOracle) {
+  constructor(private db: DBOracle, private node: AztecNode) {
     this.log = createDebugLogger('aztec:simulator');
   }
 
@@ -107,6 +107,7 @@ export class AcirSimulator {
       new ExecutionNoteCache(),
       this.db,
       curve,
+      this.node,
     );
 
     try {
@@ -133,13 +134,12 @@ export class AcirSimulator {
     request: FunctionCall,
     entryPointArtifact: FunctionArtifactWithDebugMetadata,
     contractAddress: AztecAddress,
-    aztecNode?: AztecNode,
   ) {
     if (entryPointArtifact.functionType !== FunctionType.UNCONSTRAINED) {
       throw new Error(`Cannot run ${entryPointArtifact.functionType} function as constrained`);
     }
 
-    const context = new ViewDataOracle(contractAddress, [], this.db, aztecNode);
+    const context = new ViewDataOracle(contractAddress, [], this.db, this.node);
 
     try {
       return await executeUnconstrainedFunction(

@@ -1,4 +1,12 @@
-import { AuthWitness, FunctionL2Logs, L1NotePayload, Note, NoteStatus, UnencryptedL2Log } from '@aztec/circuit-types';
+import {
+  AuthWitness,
+  AztecNode,
+  FunctionL2Logs,
+  L1NotePayload,
+  Note,
+  NoteStatus,
+  UnencryptedL2Log,
+} from '@aztec/circuit-types';
 import {
   CallContext,
   ContractDeploymentData,
@@ -66,9 +74,10 @@ export class ClientExecutionContext extends ViewDataOracle {
     private readonly noteCache: ExecutionNoteCache,
     protected readonly db: DBOracle,
     private readonly curve: Grumpkin,
+    private node: AztecNode,
     protected log = createDebugLogger('aztec:simulator:client_execution_context'),
   ) {
-    super(contractAddress, authWitnesses, db, undefined, log);
+    super(contractAddress, authWitnesses, db, node, log);
   }
 
   // We still need this function until we can get user-defined ordering of structs for fn arguments
@@ -344,6 +353,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.noteCache,
       this.db,
       this.curve,
+      this.node,
     );
 
     const childExecutionResult = await executePrivateFunction(

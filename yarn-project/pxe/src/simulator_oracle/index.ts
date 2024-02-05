@@ -1,12 +1,12 @@
 import { DBOracle, KeyPair, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import {
+  AztecNode,
   KeyStore,
   L2Block,
   MerkleTreeId,
   NoteStatus,
   NullifierMembershipWitness,
   PublicDataWitness,
-  StateInfoProvider,
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -31,7 +31,7 @@ export class SimulatorOracle implements DBOracle {
     private contractDataOracle: ContractDataOracle,
     private db: PxeDatabase,
     private keyStore: KeyStore,
-    private stateInfoProvider: StateInfoProvider,
+    private aztecNode: AztecNode,
     private log = createDebugLogger('aztec:pxe:simulator_oracle'),
   ) {}
 
@@ -127,10 +127,10 @@ export class SimulatorOracle implements DBOracle {
    *          index of the message in the l1ToL2MessageTree
    */
   async getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
-    const messageAndIndex = await this.stateInfoProvider.getL1ToL2MessageAndIndex(msgKey);
+    const messageAndIndex = await this.aztecNode.getL1ToL2MessageAndIndex(msgKey);
     const message = messageAndIndex.message;
     const index = messageAndIndex.index;
-    const siblingPath = await this.stateInfoProvider.getL1ToL2MessageSiblingPath('latest', index);
+    const siblingPath = await this.aztecNode.getL1ToL2MessageSiblingPath('latest', index);
     return new MessageLoadOracleInputs(message, index, siblingPath);
   }
 
@@ -140,30 +140,29 @@ export class SimulatorOracle implements DBOracle {
    * @returns - The index of the commitment. Undefined if it does not exist in the tree.
    */
   async getCommitmentIndex(commitment: Fr) {
-    return await this.stateInfoProvider.findLeafIndex('latest', MerkleTreeId.NOTE_HASH_TREE, commitment);
+    return await this.aztecNode.findLeafIndex('latest', MerkleTreeId.NOTE_HASH_TREE, commitment);
   }
 
   async getNullifierIndex(nullifier: Fr) {
-    return await this.stateInfoProvider.findLeafIndex('latest', MerkleTreeId.NULLIFIER_TREE, nullifier);
+    return await this.aztecNode.findLeafIndex('latest', MerkleTreeId.NULLIFIER_TREE, nullifier);
   }
 
   public async findLeafIndex(blockNumber: number, treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined> {
-    return await this.stateInfoProvider.findLeafIndex(blockNumber, treeId, leafValue);
+    return await this.aztecNode.findLeafIndex(blockNumber, treeId, leafValue);
   }
 
   public async getSiblingPath(blockNumber: number, treeId: MerkleTreeId, leafIndex: bigint): Promise<Fr[]> {
-    // @todo Doing a nasty workaround here because of https://github.com/AztecProtocol/aztec-packages/issues/3414
     switch (treeId) {
       case MerkleTreeId.CONTRACT_TREE:
-        return (await this.stateInfoProvider.getContractSiblingPath(blockNumber, leafIndex)).toFields();
+        return (await this.aztecNode.getContractSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.NULLIFIER_TREE:
-        return (await this.stateInfoProvider.getNullifierSiblingPath(blockNumber, leafIndex)).toFields();
+        return (await this.aztecNode.getNullifierSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.NOTE_HASH_TREE:
-        return (await this.stateInfoProvider.getNoteHashSiblingPath(blockNumber, leafIndex)).toFields();
+        return (await this.aztecNode.getNoteHashSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.PUBLIC_DATA_TREE:
-        return (await this.stateInfoProvider.getPublicDataSiblingPath(blockNumber, leafIndex)).toFields();
+        return (await this.aztecNode.getPublicDataSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.ARCHIVE:
-        return (await this.stateInfoProvider.getArchiveSiblingPath(blockNumber, leafIndex)).toFields();
+        return (await this.aztecNode.getArchiveSiblingPath(blockNumber, leafIndex)).toFields();
       default:
         throw new Error('Not implemented');
     }
@@ -173,22 +172,22 @@ export class SimulatorOracle implements DBOracle {
     blockNumber: number,
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined> {
-    return this.stateInfoProvider.getNullifierMembershipWitness(blockNumber, nullifier);
+    return this.aztecNode.getNullifierMembershipWitness(blockNumber, nullifier);
   }
 
   public getLowNullifierMembershipWitness(
     blockNumber: number,
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined> {
-    return this.stateInfoProvider.getLowNullifierMembershipWitness(blockNumber, nullifier);
+    return this.aztecNode.getLowNullifierMembershipWitness(blockNumber, nullifier);
   }
 
   public async getBlock(blockNumber: number): Promise<L2Block | undefined> {
-    return await this.stateInfoProvider.getBlock(blockNumber);
+    return await this.aztecNode.getBlock(blockNumber);
   }
 
   public async getPublicDataTreeWitness(blockNumber: number, leafSlot: Fr): Promise<PublicDataWitness | undefined> {
-    return await this.stateInfoProvider.getPublicDataTreeWitness(blockNumber, leafSlot);
+    return await this.aztecNode.getPublicDataTreeWitness(blockNumber, leafSlot);
   }
 
   /**
@@ -206,6 +205,6 @@ export class SimulatorOracle implements DBOracle {
    * @returns The block number.
    */
   public async getBlockNumber(): Promise<number> {
-    return await this.stateInfoProvider.getBlockNumber();
+    return await this.aztecNode.getBlockNumber();
   }
 }

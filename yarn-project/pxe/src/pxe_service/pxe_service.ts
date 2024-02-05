@@ -575,7 +575,7 @@ export class PXEService implements PXE {
 
     this.log('Executing unconstrained simulator...');
     try {
-      const result = await this.simulator.runUnconstrained(execRequest, functionArtifact, contractAddress, this.node);
+      const result = await this.simulator.runUnconstrained(execRequest, functionArtifact, contractAddress);
       this.log('Unconstrained simulation completed!');
 
       return result;

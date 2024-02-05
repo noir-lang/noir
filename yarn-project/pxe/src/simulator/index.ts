@@ -1,5 +1,5 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
-import { KeyStore, StateInfoProvider } from '@aztec/circuit-types';
+import { AztecNode, KeyStore } from '@aztec/circuit-types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { PxeDatabase } from '../database/pxe_database.js';
@@ -10,7 +10,7 @@ import { SimulatorOracle } from '../simulator_oracle/index.js';
  */
 export function getAcirSimulator(
   db: PxeDatabase,
-  stateInfoProvider: StateInfoProvider,
+  aztecNode: AztecNode,
   keyStore: KeyStore,
   contractDataOracle?: ContractDataOracle,
 ) {
@@ -18,7 +18,7 @@ export function getAcirSimulator(
     contractDataOracle ?? new ContractDataOracle(db),
     db,
     keyStore,
-    stateInfoProvider,
+    aztecNode,
   );
-  return new AcirSimulator(simulatorOracle);
+  return new AcirSimulator(simulatorOracle, aztecNode);
 }

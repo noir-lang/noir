@@ -1,4 +1,3 @@
-export * from './state_info_provider.js';
 export * from './aztec-node.js';
 export * from './pxe.js';
 export * from './deployed-contract.js';

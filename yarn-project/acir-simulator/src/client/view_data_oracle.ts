@@ -27,7 +27,7 @@ export class ViewDataOracle extends TypedOracle {
     /** List of transient auth witnesses to be used during this simulation */
     protected readonly authWitnesses: AuthWitness[],
     protected readonly db: DBOracle,
-    protected readonly aztecNode: AztecNode | undefined,
+    protected readonly aztecNode: AztecNode,
     protected log = createDebugLogger('aztec:simulator:client_view_context'),
   ) {
     super();
@@ -230,10 +230,6 @@ export class ViewDataOracle extends TypedOracle {
    * @param numberOfElements - Number of elements to read from the starting storage slot.
    */
   public async storageRead(startStorageSlot: Fr, numberOfElements: number) {
-    if (!this.aztecNode) {
-      throw new Error('Aztec node is undefined, cannot read storage.');
-    }
-
     const values = [];
     for (let i = 0n; i < numberOfElements; i++) {
       const storageSlot = new Fr(startStorageSlot.value + i);

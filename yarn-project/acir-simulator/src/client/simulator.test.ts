@@ -1,4 +1,4 @@
-import { Note } from '@aztec/circuit-types';
+import { AztecNode, Note } from '@aztec/circuit-types';
 import { CompleteAddress } from '@aztec/circuits.js';
 import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
 import { ABIParameterVisibility, FunctionArtifactWithDebugMetadata, getFunctionArtifact } from '@aztec/foundation/abi';
@@ -14,6 +14,8 @@ import { AcirSimulator } from './simulator.js';
 
 describe('Simulator', () => {
   let oracle: MockProxy<DBOracle>;
+  let node: MockProxy<AztecNode>;
+
   let simulator: AcirSimulator;
   const ownerPk = GrumpkinScalar.fromString('2dcc5485a58316776299be08c78fa3788a1a7961ae30dc747fb1be17692a8d32');
   const ownerCompleteAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
@@ -25,13 +27,14 @@ describe('Simulator', () => {
 
   beforeEach(() => {
     oracle = mock<DBOracle>();
+    node = mock<AztecNode>();
     oracle.getNullifierKeyPair.mockResolvedValue({
       secretKey: ownerNullifierSecretKey,
       publicKey: ownerNullifierPublicKey,
     });
     oracle.getCompleteAddress.mockResolvedValue(ownerCompleteAddress);
 
-    simulator = new AcirSimulator(oracle);
+    simulator = new AcirSimulator(oracle, node);
   });
 
   describe('computeNoteHashAndNullifier', () => {

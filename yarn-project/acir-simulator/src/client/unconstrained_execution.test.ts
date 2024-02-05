@@ -1,4 +1,4 @@
-import { FunctionCall, Note } from '@aztec/circuit-types';
+import { AztecNode, FunctionCall, Note } from '@aztec/circuit-types';
 import { CompleteAddress, FunctionData, Header } from '@aztec/circuits.js';
 import { FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -12,11 +12,12 @@ import { AcirSimulator } from './simulator.js';
 
 describe('Unconstrained Execution test suite', () => {
   let oracle: ReturnType<typeof mock<DBOracle>>;
+  let node: ReturnType<typeof mock<AztecNode>>;
   let acirSimulator: AcirSimulator;
 
   beforeEach(() => {
     oracle = mock<DBOracle>();
-    acirSimulator = new AcirSimulator(oracle);
+    acirSimulator = new AcirSimulator(oracle, node);
   });
 
   describe('private token contract', () => {
