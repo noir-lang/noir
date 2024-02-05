@@ -43,6 +43,11 @@ pub struct Circuit {
     // TODO: We should move towards having all the checks being evaluated in the same manner
     // TODO: as runtime assert messages specified by the user. This will also be a breaking change as the `Circuit` structure will change.
     pub assert_messages: Vec<(OpcodeLocation, String)>,
+
+    /// States whether the backend should use a SNARK recursion friendly prover.
+    /// If implemented by a backend, this means that proofs generated with this circuit
+    /// will be friendly for recursively verifying inside of another SNARK.
+    pub recursive: bool,
 }
 
 impl Circuit {
@@ -322,6 +327,7 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
+            recursive: false,
         };
 
         fn read_write(circuit: Circuit) -> (Circuit, Circuit) {
@@ -352,6 +358,7 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
+            recursive: false,
         };
 
         let json = serde_json::to_string_pretty(&circuit).unwrap();
