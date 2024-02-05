@@ -1,6 +1,9 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{
+    debug_info::{DebugTypes, DebugVariables},
+    Location,
+};
 
 use crate::{
     hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness, Visibility,
@@ -31,7 +34,7 @@ pub enum Expression {
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
     Let(Let),
-    Constrain(Box<Expression>, Location, Option<String>),
+    Constrain(Box<Expression>, Location, Option<Box<Expression>>),
     Assign(Assign),
     Semi(Box<Expression>),
 }
@@ -246,6 +249,8 @@ pub struct Program {
     pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
+    pub debug_variables: DebugVariables,
+    pub debug_types: DebugTypes,
 }
 
 impl Program {
@@ -255,6 +260,8 @@ impl Program {
         return_distinctness: Distinctness,
         return_location: Option<Location>,
         return_visibility: Visibility,
+        debug_variables: DebugVariables,
+        debug_types: DebugTypes,
     ) -> Program {
         Program {
             functions,
@@ -262,6 +269,8 @@ impl Program {
             return_distinctness,
             return_location,
             return_visibility,
+            debug_variables,
+            debug_types,
         }
     }
 
