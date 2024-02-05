@@ -173,7 +173,10 @@ pub(crate) fn allocate_value(
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(_) | Type::Reference(_) => {
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+            // NB. function references are converted to a constant when
+            // translating from SSA to Brillig (to allow for debugger
+            // instrumentation to work properly)
             let register = brillig_context.allocate_register();
             BrilligVariable::Simple(register)
         }
@@ -198,9 +201,6 @@ pub(crate) fn allocate_value(
                 size: size_register,
                 rc: rc_register,
             })
-        }
-        Type::Function => {
-            unreachable!("ICE: Function values should have been removed from the SSA")
         }
     }
 }
