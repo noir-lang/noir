@@ -1,5 +1,6 @@
 #include "AvmMini_execution.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/proof_system/circuit_builder/generated/AvmMini_circuit_builder.hpp"
 #include "barretenberg/vm/avm_trace/AvmMini_common.hpp"
 #include "barretenberg/vm/avm_trace/AvmMini_instructions.hpp"
@@ -56,7 +57,7 @@ std::vector<Instruction> Execution::parse(std::vector<uint8_t> const& bytecode)
         pos += AVM_OPCODE_BYTE_LENGTH;
 
         if (!Bytecode::is_valid(opcode_byte)) {
-            throw std::runtime_error("Invalid opcode byte: " + std::to_string(opcode_byte));
+            throw_or_abort("Invalid opcode byte: " + std::to_string(opcode_byte));
         }
 
         const auto opcode = static_cast<OpCode>(opcode_byte);
@@ -64,12 +65,12 @@ std::vector<Instruction> Execution::parse(std::vector<uint8_t> const& bytecode)
 
         if (Bytecode::has_in_tag(opcode)) {
             if (pos + AVM_IN_TAG_BYTE_LENGTH > length) {
-                throw std::runtime_error("Instruction tag missing at position " + std::to_string(pos));
+                throw_or_abort("Instruction tag missing at position " + std::to_string(pos));
             }
             in_tag_u8 = bytecode.at(pos);
             if (in_tag_u8 == static_cast<uint8_t>(AvmMemoryTag::U0) || in_tag_u8 > MAX_MEM_TAG) {
-                throw std::runtime_error("Instruction tag is invalid at position " + std::to_string(pos) +
-                                         " value: " + std::to_string(in_tag_u8));
+                throw_or_abort("Instruction tag is invalid at position " + std::to_string(pos) +
+                               " value: " + std::to_string(in_tag_u8));
             }
             pos += AVM_IN_TAG_BYTE_LENGTH;
         }
@@ -109,8 +110,8 @@ std::vector<Instruction> Execution::parse(std::vector<uint8_t> const& bytecode)
                 operands_size = 20;
                 break;
             default:
-                throw std::runtime_error("Instruction tag for SET opcode is invalid at position " +
-                                         std::to_string(pos) + " value: " + std::to_string(in_tag_u8));
+                throw_or_abort("Instruction tag for SET opcode is invalid at position " + std::to_string(pos) +
+                               " value: " + std::to_string(in_tag_u8));
                 break;
             }
         } else {
@@ -119,7 +120,7 @@ std::vector<Instruction> Execution::parse(std::vector<uint8_t> const& bytecode)
         }
 
         if (pos + operands_size > length) {
-            throw std::runtime_error("Operand is missing at position " + std::to_string(pos));
+            throw_or_abort("Operand is missing at position " + std::to_string(pos));
         }
 
         // We handle operands which are encoded with less than 4 bytes.

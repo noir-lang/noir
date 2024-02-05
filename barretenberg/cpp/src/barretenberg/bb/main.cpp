@@ -1,5 +1,9 @@
+#include "barretenberg/bb/file_io.hpp"
+#include "barretenberg/common/serialize.hpp"
 #include "barretenberg/dsl/types.hpp"
+#include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/vm/avm_trace/AvmMini_execution.hpp"
 #include "config.hpp"
 #include "get_bn254_crs.hpp"
 #include "get_bytecode.hpp"
@@ -12,6 +16,7 @@
 #include <barretenberg/dsl/acir_proofs/acir_composer.hpp>
 #include <barretenberg/dsl/acir_proofs/goblin_acir_composer.hpp>
 #include <barretenberg/srs/global_crs.hpp>
+#include <cstdint>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -506,6 +511,7 @@ int main(int argc, char* argv[])
         if (command == "prove_and_verify_goblin") {
             return proveAndVerifyGoblin(bytecode_path, witness_path) ? 0 : 1;
         }
+
         if (command == "prove") {
             std::string output_path = get_option(args, "-o", "./proofs/proof");
             prove(bytecode_path, witness_path, output_path);
@@ -528,6 +534,23 @@ int main(int argc, char* argv[])
         } else if (command == "vk_as_fields") {
             std::string output_path = get_option(args, "-o", vk_path + "_fields.json");
             vk_as_fields(vk_path, output_path);
+        } else if (command == "avm_prove") {
+            std::string avm_bytecode_path = get_option(args, "-b", "./target/avm_bytecode.bin");
+            std::string output_path = get_option(args, "-o", "./proofs/avm_proof");
+            std::vector<uint8_t> call_data_bytes{};
+
+            if (flag_present(args, "-d")) {
+                auto const call_data_path = get_option(args, "-d", "./target/call_data.bin");
+                call_data_bytes = read_file(call_data_path);
+            }
+
+            srs::init_crs_factory("../srs_db/ignition");
+
+            std::vector<fr> const call_data = many_from_buffer<fr>(call_data_bytes);
+            auto const avm_bytecode = read_file(avm_bytecode_path);
+            auto const proof = avm_trace::Execution::run_and_prove(avm_bytecode, call_data);
+            std::vector<uint8_t> const proof_bytes = to_buffer(proof);
+            write_file(output_path, proof_bytes);
         } else {
             std::cerr << "Unknown command: " << command << "\n";
             return 1;

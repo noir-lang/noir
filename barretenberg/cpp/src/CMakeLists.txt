@@ -137,7 +137,8 @@ set(BARRETENBERG_TARGET_OBJECTS
     $<TARGET_OBJECTS:sumcheck_objects>
     $<TARGET_OBJECTS:transcript_objects>
     $<TARGET_OBJECTS:translator_vm_objects>
-    $<TARGET_OBJECTS:ultra_honk_objects>)
+    $<TARGET_OBJECTS:ultra_honk_objects>
+    $<TARGET_OBJECTS:vm_objects>)
 
 add_library(
     barretenberg
