@@ -8,7 +8,7 @@ describe('Execution Environment', () => {
 
   it('New call should fork execution environment correctly', () => {
     const executionEnvironment = initExecutionEnvironment();
-    const newExecutionEnvironment = executionEnvironment.newCall(newAddress, calldata);
+    const newExecutionEnvironment = executionEnvironment.deriveEnvironmentForNestedCall(newAddress, calldata);
 
     allTheSameExcept(executionEnvironment, newExecutionEnvironment, {
       address: newAddress,
@@ -30,7 +30,7 @@ describe('Execution Environment', () => {
 
   it('New static call call should fork execution environment correctly', () => {
     const executionEnvironment = initExecutionEnvironment();
-    const newExecutionEnvironment = executionEnvironment.newStaticCall(newAddress, calldata);
+    const newExecutionEnvironment = executionEnvironment.deriveEnvironmentForNestedStaticCall(newAddress, calldata);
 
     allTheSameExcept(executionEnvironment, newExecutionEnvironment, {
       address: newAddress,

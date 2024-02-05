@@ -1,37 +1,29 @@
 import { Fr } from '@aztec/foundation/fields';
 
 /**
- * AVM message call result.
+ * Results of an contract call's execution in the AVM.
  */
-export class AvmMessageCallResult {
+export class AvmContractCallResults {
   public readonly reverted: boolean;
-
-  public readonly revertReason: Error | undefined;
-  /** .- */
   public readonly output: Fr[];
 
-  private constructor(reverted: boolean, output: Fr[], revertReason?: Error) {
+  /** For exceptional halts */
+  public readonly revertReason: Error | undefined;
+
+  constructor(reverted: boolean, output: Fr[], revertReason?: Error) {
     this.reverted = reverted;
     this.output = output;
     this.revertReason = revertReason;
   }
 
   /**
-   * Terminate a call as a success
-   * @param output - Return data
-   * @returns instance of AvmMessageCallResult
+   * Generate a string representation of call results.
    */
-  public static success(output: Fr[]): AvmMessageCallResult {
-    return new AvmMessageCallResult(false, output);
-  }
-
-  /**
-   * Terminate a call as a revert
-   * @param output - Return data ( revert message )
-   * @param reason - Optional reason for revert
-   * @returns instance of AvmMessageCallResult
-   */
-  public static revert(output: Fr[], reason?: Error): AvmMessageCallResult {
-    return new AvmMessageCallResult(true, output, reason);
+  toString(): string {
+    let resultsStr = `reverted: ${this.reverted}, output: ${this.output}`;
+    if (this.revertReason) {
+      resultsStr += `, revertReason: ${this.revertReason}`;
+    }
+    return resultsStr;
   }
 }

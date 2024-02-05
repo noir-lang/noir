@@ -1,14 +1,14 @@
 import { Fr } from '@aztec/foundation/fields';
 
 import { jest } from '@jest/globals';
-import { MockProxy, mock } from 'jest-mock-extended';
+import { mock } from 'jest-mock-extended';
 
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js';
-import { AvmMachineState } from '../avm_machine_state.js';
+import { AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
-import { initExecutionEnvironment } from '../fixtures/index.js';
+import { initContext } from '../fixtures/index.js';
 import { HostStorage } from '../journal/host_storage.js';
-import { AvmJournal } from '../journal/journal.js';
+import { AvmWorldStateJournal } from '../journal/journal.js';
 import { encodeToBytecode } from '../serialization/bytecode_serialization.js';
 import { Return } from './control_flow.js';
 import { Call, StaticCall } from './external_calls.js';
@@ -17,20 +17,15 @@ import { CalldataCopy } from './memory.js';
 import { SStore } from './storage.js';
 
 describe('External Calls', () => {
-  let machineState: AvmMachineState;
-  let journal: AvmJournal;
-
-  let contractsDb: MockProxy<PublicContractsDB>;
+  let context: AvmContext;
 
   beforeEach(() => {
-    machineState = new AvmMachineState(initExecutionEnvironment());
-
-    contractsDb = mock<PublicContractsDB>();
-
+    const contractsDb = mock<PublicContractsDB>();
     const commitmentsDb = mock<CommitmentsDB>();
     const publicStateDb = mock<PublicStateDB>();
     const hostStorage = new HostStorage(publicStateDb, contractsDb, commitmentsDb);
-    journal = new AvmJournal(hostStorage);
+    const journal = new AvmWorldStateJournal(hostStorage);
+    context = initContext({ worldState: journal });
   });
 
   describe('Call', () => {
@@ -79,11 +74,11 @@ describe('External Calls', () => {
         new Return(/*indirect=*/ 0, /*retOffset=*/ 0, /*size=*/ 2),
       ]);
 
-      machineState.memory.set(0, new Field(gas));
-      machineState.memory.set(1, new Field(addr));
-      machineState.memory.setSlice(2, args);
+      context.machineState.memory.set(0, new Field(gas));
+      context.machineState.memory.set(1, new Field(addr));
+      context.machineState.memory.setSlice(2, args);
       jest
-        .spyOn(journal.hostStorage.contractsDb, 'getBytecode')
+        .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
         .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
       const instruction = new Call(
@@ -96,16 +91,16 @@ describe('External Calls', () => {
         retSize,
         successOffset,
       );
-      await instruction.execute(machineState, journal);
+      await instruction.execute(context);
 
-      const successValue = machineState.memory.get(successOffset);
+      const successValue = context.machineState.memory.get(successOffset);
       expect(successValue).toEqual(new Field(1n));
 
-      const retValue = machineState.memory.getSlice(retOffset, retSize);
+      const retValue = context.machineState.memory.getSlice(retOffset, retSize);
       expect(retValue).toEqual([new Field(1n), new Field(2n)]);
 
       // Check that the storage call has been merged into the parent journal
-      const { currentStorageValue } = journal.flush();
+      const { currentStorageValue } = context.worldState.flush();
       expect(currentStorageValue.size).toEqual(1);
 
       const nestedContractWrites = currentStorageValue.get(addr.toBigInt());
@@ -158,9 +153,9 @@ describe('External Calls', () => {
       const retSize = 2;
       const successOffset = 7;
 
-      machineState.memory.set(0, gas);
-      machineState.memory.set(1, addr);
-      machineState.memory.setSlice(2, args);
+      context.machineState.memory.set(0, gas);
+      context.machineState.memory.set(1, addr);
+      context.machineState.memory.setSlice(2, args);
 
       const otherContextInstructions: Instruction[] = [
         new CalldataCopy(/*indirect=*/ 0, /*csOffset=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0),
@@ -170,7 +165,7 @@ describe('External Calls', () => {
       const otherContextInstructionsBytecode = encodeToBytecode(otherContextInstructions);
 
       jest
-        .spyOn(journal.hostStorage.contractsDb, 'getBytecode')
+        .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
         .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
       const instruction = new StaticCall(
@@ -183,10 +178,10 @@ describe('External Calls', () => {
         retSize,
         successOffset,
       );
-      await instruction.execute(machineState, journal);
+      await instruction.execute(context);
 
       // No revert has occurred, but the nested execution has failed
-      const successValue = machineState.memory.get(successOffset);
+      const successValue = context.machineState.memory.get(successOffset);
       expect(successValue).toEqual(new Field(0n));
     });
   });

@@ -3,7 +3,8 @@ import {
   Address,
   And,
   BlockNumber,
-  CMov, // Call,
+  CMov,
+  Call,
   CalldataCopy,
   Cast,
   ChainId,
@@ -35,14 +36,15 @@ import {
   Sender,
   Set,
   Shl,
-  Shr, // StaticCall,
+  Shr,
+  StaticCall,
   StorageAddress,
   Sub,
   Timestamp,
   Version,
   Xor,
 } from '../opcodes/index.js';
-import { Instruction } from '../opcodes/instruction.js';
+import type { Instruction } from '../opcodes/index.js';
 import { BufferCursor } from './buffer_cursor.js';
 import { Opcode } from './instruction_serialization.js';
 
@@ -52,8 +54,10 @@ interface DeserializableInstruction {
 }
 
 export type InstructionSet = Map<Opcode, DeserializableInstruction>;
-const INSTRUCTION_SET: InstructionSet = new Map<Opcode, DeserializableInstruction>(
-  [
+// TODO(4359): This is a function so that Call and StaticCall can be lazily resolved.
+// This is a temporary solution until we solve the dependency cycle.
+const INSTRUCTION_SET = () =>
+  new Map<Opcode, DeserializableInstruction>([
     [Add.opcode, Add],
     [Sub.opcode, Sub],
     [Mul.opcode, Mul],
@@ -116,16 +120,15 @@ const INSTRUCTION_SET: InstructionSet = new Map<Opcode, DeserializableInstructio
     [EmitUnencryptedLog.opcode, EmitUnencryptedLog],
 
     // //// Control Flow - Contract Calls
-    // [Call.opcode, Call],
-    // [StaticCall.opcode, StaticCall],
+    [Call.opcode, Call],
+    [StaticCall.opcode, StaticCall],
     [Return.opcode, Return],
     [Revert.opcode, Revert],
 
     // //// Gadgets
     // //[Keccak.opcode, Keccak],
     // //[Poseidon.opcode, Poseidon],
-  ], //),
-);
+  ]);
 
 interface Serializable {
   serialize(): Buffer;
@@ -144,7 +147,10 @@ export function encodeToBytecode(instructions: Serializable[]): Buffer {
  * @param instructionSet Optional {@code InstructionSet} to be used for deserialization.
  * @returns Bytecode decoded into an ordered array of Instructions
  */
-export function decodeFromBytecode(bytecode: Buffer, instructionSet: InstructionSet = INSTRUCTION_SET): Instruction[] {
+export function decodeFromBytecode(
+  bytecode: Buffer,
+  instructionSet: InstructionSet = INSTRUCTION_SET(),
+): Instruction[] {
   const instructions: Instruction[] = [];
   const cursor = new BufferCursor(bytecode);
 
@@ -152,7 +158,7 @@ export function decodeFromBytecode(bytecode: Buffer, instructionSet: Instruction
     const opcode: Opcode = cursor.bufferAtPosition().readUint8(); // peek.
     const instructionDeserializerOrUndef = instructionSet.get(opcode);
     if (instructionDeserializerOrUndef === undefined) {
-      throw new Error(`Opcode 0x${opcode.toString(16)} not implemented`);
+      throw new Error(`Opcode ${Opcode[opcode]} (0x${opcode.toString(16)}) not implemented`);
     }
 
     const instructionDeserializer: DeserializableInstruction = instructionDeserializerOrUndef;

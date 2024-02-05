@@ -1,21 +1,16 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { MockProxy, mock } from 'jest-mock-extended';
-
-import { AvmMachineState } from '../avm_machine_state.js';
+import { AvmContext } from '../avm_context.js';
 import { Field, Uint16 } from '../avm_memory_types.js';
-import { initExecutionEnvironment } from '../fixtures/index.js';
-import { AvmJournal } from '../journal/journal.js';
+import { InstructionExecutionError } from '../errors.js';
+import { initContext } from '../fixtures/index.js';
 import { InternalCall, InternalReturn, Jump, JumpI, Return, Revert } from './control_flow.js';
-import { InstructionExecutionError } from './instruction.js';
 
 describe('Control Flow Opcodes', () => {
-  let journal: MockProxy<AvmJournal>;
-  let machineState: AvmMachineState;
+  let context: AvmContext;
 
   beforeEach(() => {
-    journal = mock<AvmJournal>();
-    machineState = new AvmMachineState(initExecutionEnvironment());
+    context = initContext();
   });
 
   describe('JUMP', () => {
@@ -33,11 +28,11 @@ describe('Control Flow Opcodes', () => {
     it('Should implement JUMP', async () => {
       const jumpLocation = 22;
 
-      expect(machineState.pc).toBe(0);
+      expect(context.machineState.pc).toBe(0);
 
       const instruction = new Jump(jumpLocation);
-      await instruction.execute(machineState, journal);
-      expect(machineState.pc).toBe(jumpLocation);
+      await instruction.execute(context);
+      expect(context.machineState.pc).toBe(jumpLocation);
     });
   });
 
@@ -59,31 +54,31 @@ describe('Control Flow Opcodes', () => {
       const jumpLocation = 22;
       const jumpLocation1 = 69;
 
-      expect(machineState.pc).toBe(0);
+      expect(context.machineState.pc).toBe(0);
 
-      machineState.memory.set(0, new Uint16(1n));
-      machineState.memory.set(1, new Uint16(2n));
+      context.machineState.memory.set(0, new Uint16(1n));
+      context.machineState.memory.set(1, new Uint16(2n));
 
       const instruction = new JumpI(/*indirect=*/ 0, jumpLocation, /*condOffset=*/ 0);
-      await instruction.execute(machineState, journal);
-      expect(machineState.pc).toBe(jumpLocation);
+      await instruction.execute(context);
+      expect(context.machineState.pc).toBe(jumpLocation);
 
       // Truthy can be greater than 1
       const instruction1 = new JumpI(/*indirect=*/ 0, jumpLocation1, /*condOffset=*/ 1);
-      await instruction1.execute(machineState, journal);
-      expect(machineState.pc).toBe(jumpLocation1);
+      await instruction1.execute(context);
+      expect(context.machineState.pc).toBe(jumpLocation1);
     });
 
     it('Should implement JUMPI - falsy', async () => {
       const jumpLocation = 22;
 
-      expect(machineState.pc).toBe(0);
+      expect(context.machineState.pc).toBe(0);
 
-      machineState.memory.set(0, new Uint16(0n));
+      context.machineState.memory.set(0, new Uint16(0n));
 
       const instruction = new JumpI(/*indirect=*/ 0, jumpLocation, /*condOffset=*/ 0);
-      await instruction.execute(machineState, journal);
-      expect(machineState.pc).toBe(1);
+      await instruction.execute(context);
+      expect(context.machineState.pc).toBe(1);
     });
   });
 
@@ -102,20 +97,20 @@ describe('Control Flow Opcodes', () => {
     it('Should implement Internal Call and Return', async () => {
       const jumpLocation = 22;
 
-      expect(machineState.pc).toBe(0);
+      expect(context.machineState.pc).toBe(0);
 
       const instruction = new InternalCall(jumpLocation);
       const returnInstruction = new InternalReturn();
 
-      await instruction.execute(machineState, journal);
-      expect(machineState.pc).toBe(jumpLocation);
+      await instruction.execute(context);
+      expect(context.machineState.pc).toBe(jumpLocation);
 
-      await returnInstruction.execute(machineState, journal);
-      expect(machineState.pc).toBe(1);
+      await returnInstruction.execute(context);
+      expect(context.machineState.pc).toBe(1);
     });
 
     it('Should error if Internal Return is called without a corresponding Internal Call', async () => {
-      const returnInstruction = () => new InternalReturn().execute(machineState, journal);
+      const returnInstruction = () => new InternalReturn().execute(context);
       await expect(returnInstruction()).rejects.toThrow(InstructionExecutionError);
     });
   });
@@ -151,8 +146,8 @@ describe('Control Flow Opcodes', () => {
       ];
 
       for (let i = 0; i < instructions.length; i++) {
-        await instructions[i].execute(machineState, journal);
-        expect(machineState.pc).toBe(expectedPcs[i]);
+        await instructions[i].execute(context);
+        expect(context.machineState.pc).toBe(expectedPcs[i]);
       }
     });
   });
@@ -174,16 +169,18 @@ describe('Control Flow Opcodes', () => {
     it('Should return data from the return opcode', async () => {
       const returnData = [new Fr(1n), new Fr(2n), new Fr(3n)];
 
-      machineState.memory.set(0, new Field(1n));
-      machineState.memory.set(1, new Field(2n));
-      machineState.memory.set(2, new Field(3n));
+      context.machineState.memory.set(0, new Field(1n));
+      context.machineState.memory.set(1, new Field(2n));
+      context.machineState.memory.set(2, new Field(3n));
 
       const instruction = new Return(/*indirect=*/ 0, /*returnOffset=*/ 0, returnData.length);
-      await instruction.execute(machineState, journal);
+      await instruction.execute(context);
 
-      expect(machineState.getReturnData()).toEqual(returnData);
-      expect(machineState.halted).toBe(true);
-      expect(machineState.reverted).toBe(false);
+      expect(context.machineState.halted).toBe(true);
+      expect(context.machineState.getResults()).toEqual({
+        reverted: false,
+        output: returnData,
+      });
     });
   });
 
@@ -204,16 +201,18 @@ describe('Control Flow Opcodes', () => {
     it('Should return data and revert from the revert opcode', async () => {
       const returnData = [new Fr(1n), new Fr(2n), new Fr(3n)];
 
-      machineState.memory.set(0, new Field(1n));
-      machineState.memory.set(1, new Field(2n));
-      machineState.memory.set(2, new Field(3n));
+      context.machineState.memory.set(0, new Field(1n));
+      context.machineState.memory.set(1, new Field(2n));
+      context.machineState.memory.set(2, new Field(3n));
 
       const instruction = new Revert(/*indirect=*/ 0, /*returnOffset=*/ 0, returnData.length);
-      await instruction.execute(machineState, journal);
+      await instruction.execute(context);
 
-      expect(machineState.getReturnData()).toEqual(returnData);
-      expect(machineState.halted).toBe(true);
-      expect(machineState.reverted).toBe(true);
+      expect(context.machineState.halted).toBe(true);
+      expect(context.machineState.getResults()).toEqual({
+        reverted: true,
+        output: returnData,
+      });
     });
   });
 });

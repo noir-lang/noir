@@ -1,7 +1,5 @@
-import { AvmMachineState } from '../avm_machine_state.js';
-import { AvmJournal } from '../journal/index.js';
+import type { AvmContext } from '../avm_context.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
-import { Instruction } from './instruction.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
 
 export class Eq extends ThreeOperandInstruction {
@@ -12,17 +10,17 @@ export class Eq extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.get(this.aOffset);
-    const b = machineState.memory.get(this.bOffset);
+    const a = context.machineState.memory.get(this.aOffset);
+    const b = context.machineState.memory.get(this.bOffset);
 
     // Result will be of the same type as 'a'.
     const dest = a.build(a.equals(b) ? 1n : 0n);
-    machineState.memory.set(this.dstOffset, dest);
+    context.machineState.memory.set(this.dstOffset, dest);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -34,17 +32,17 @@ export class Lt extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.get(this.aOffset);
-    const b = machineState.memory.get(this.bOffset);
+    const a = context.machineState.memory.get(this.aOffset);
+    const b = context.machineState.memory.get(this.bOffset);
 
     // Result will be of the same type as 'a'.
     const dest = a.build(a.lt(b) ? 1n : 0n);
-    machineState.memory.set(this.dstOffset, dest);
+    context.machineState.memory.set(this.dstOffset, dest);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -56,16 +54,16 @@ export class Lte extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.get(this.aOffset);
-    const b = machineState.memory.get(this.bOffset);
+    const a = context.machineState.memory.get(this.aOffset);
+    const b = context.machineState.memory.get(this.bOffset);
 
     // Result will be of the same type as 'a'.
     const dest = a.build(a.equals(b) || a.lt(b) ? 1n : 0n);
-    machineState.memory.set(this.dstOffset, dest);
+    context.machineState.memory.set(this.dstOffset, dest);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }

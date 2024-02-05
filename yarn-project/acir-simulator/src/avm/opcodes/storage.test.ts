@@ -3,22 +3,20 @@ import { Fr } from '@aztec/foundation/fields';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
-import { AvmMachineState } from '../avm_machine_state.js';
+import { AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
-import { initExecutionEnvironment } from '../fixtures/index.js';
-import { AvmJournal } from '../journal/journal.js';
+import { initContext, initExecutionEnvironment } from '../fixtures/index.js';
+import { AvmWorldStateJournal } from '../journal/journal.js';
 import { SLoad, SStore, StaticCallStorageAlterError } from './storage.js';
 
 describe('Storage Instructions', () => {
-  let journal: MockProxy<AvmJournal>;
-  let machineState: AvmMachineState;
+  let context: AvmContext;
+  let journal: MockProxy<AvmWorldStateJournal>;
   const address = AztecAddress.random();
 
-  beforeEach(() => {
-    journal = mock<AvmJournal>();
-
-    const executionEnvironment = initExecutionEnvironment({ address, storageAddress: address });
-    machineState = new AvmMachineState(executionEnvironment);
+  beforeEach(async () => {
+    journal = mock<AvmWorldStateJournal>();
+    context = initContext({ worldState: journal, env: initExecutionEnvironment({ address, storageAddress: address }) });
   });
 
   describe('SSTORE', () => {
@@ -39,26 +37,27 @@ describe('Storage Instructions', () => {
       const a = new Field(1n);
       const b = new Field(2n);
 
-      machineState.memory.set(0, a);
-      machineState.memory.set(1, b);
+      context.machineState.memory.set(0, a);
+      context.machineState.memory.set(1, b);
 
-      await new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 1).execute(machineState, journal);
+      await new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 1).execute(context);
 
       expect(journal.writeStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()), new Fr(b.toBigInt()));
     });
 
     it('Should not be able to write to storage in a static call', async () => {
-      const executionEnvironment = initExecutionEnvironment({ isStaticCall: true });
-      machineState = new AvmMachineState(executionEnvironment);
+      context = initContext({
+        worldState: journal,
+        env: initExecutionEnvironment({ address, storageAddress: address, isStaticCall: true }),
+      });
 
       const a = new Field(1n);
       const b = new Field(2n);
 
-      machineState.memory.set(0, a);
-      machineState.memory.set(1, b);
+      context.machineState.memory.set(0, a);
+      context.machineState.memory.set(1, b);
 
-      const instruction = () =>
-        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 1).execute(machineState, journal);
+      const instruction = () => new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 1).execute(context);
       await expect(instruction()).rejects.toThrow(StaticCallStorageAlterError);
     });
   });
@@ -85,14 +84,14 @@ describe('Storage Instructions', () => {
       const a = new Field(1n);
       const b = new Field(2n);
 
-      machineState.memory.set(0, a);
-      machineState.memory.set(1, b);
+      context.machineState.memory.set(0, a);
+      context.machineState.memory.set(1, b);
 
-      await new SLoad(/*indirect=*/ 0, /*slotOffset=*/ 0, /*dstOffset=*/ 1).execute(machineState, journal);
+      await new SLoad(/*indirect=*/ 0, /*slotOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
 
       expect(journal.readStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()));
 
-      const actual = machineState.memory.get(1);
+      const actual = context.machineState.memory.get(1);
       expect(actual).toEqual(new Field(expectedResult));
     });
   });

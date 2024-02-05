@@ -37,7 +37,7 @@ export class AvmExecutionEnvironment {
     public readonly calldata: Fr[],
   ) {}
 
-  public newCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
+  public deriveEnvironmentForNestedCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
       /*address=*/ address,
       /*storageAddress=*/ address,
@@ -55,7 +55,7 @@ export class AvmExecutionEnvironment {
     );
   }
 
-  public newStaticCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
+  public deriveEnvironmentForNestedStaticCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
       /*address=*/ address,
       /*storageAddress=*/ address,

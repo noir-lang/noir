@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 
-import { Add, Address, Sub } from '../opcodes/index.js';
+import { Add, Address, Call, StaticCall, Sub } from '../opcodes/index.js';
 import { BufferCursor } from './buffer_cursor.js';
 import { InstructionSet, decodeFromBytecode, encodeToBytecode } from './bytecode_serialization.js';
 import { Opcode } from './instruction_serialization.js';
@@ -75,6 +75,26 @@ describe('Bytecode Serialization', () => {
       new Add(/*indirect=*/ 0, /*inTag=*/ 0, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 2),
       new Sub(/*indirect=*/ 0, /*inTag=*/ 0, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 2),
       new Address(/*indirect=*/ 0, /*dstOffset=*/ 1),
+      new Call(
+        /*indirect=*/ 0x01,
+        /*gasOffset=*/ 0x12345678,
+        /*addrOffset=*/ 0xa2345678,
+        /*argsOffset=*/ 0xb2345678,
+        /*argsSize=*/ 0xc2345678,
+        /*retOffset=*/ 0xd2345678,
+        /*retSize=*/ 0xe2345678,
+        /*successOffset=*/ 0xf2345678,
+      ),
+      new StaticCall(
+        /*indirect=*/ 0x01,
+        /*gasOffset=*/ 0x12345678,
+        /*addrOffset=*/ 0xa2345678,
+        /*argsOffset=*/ 0xb2345678,
+        /*argsSize=*/ 0xc2345678,
+        /*retOffset=*/ 0xd2345678,
+        /*retSize=*/ 0xe2345678,
+        /*successOffset=*/ 0xf2345678,
+      ),
     ];
     const bytecode = Buffer.concat(instructions.map(i => i.serialize()));
 
@@ -88,6 +108,26 @@ describe('Bytecode Serialization', () => {
       new Add(/*indirect=*/ 0, /*inTag=*/ 0, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 2),
       new Sub(/*indirect=*/ 0, /*inTag=*/ 0, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 2),
       new Address(/*indirect=*/ 0, /*dstOffset=*/ 1),
+      new Call(
+        /*indirect=*/ 0x01,
+        /*gasOffset=*/ 0x12345678,
+        /*addrOffset=*/ 0xa2345678,
+        /*argsOffset=*/ 0xb2345678,
+        /*argsSize=*/ 0xc2345678,
+        /*retOffset=*/ 0xd2345678,
+        /*retSize=*/ 0xe2345678,
+        /*successOffset=*/ 0xf2345678,
+      ),
+      new StaticCall(
+        /*indirect=*/ 0x01,
+        /*gasOffset=*/ 0x12345678,
+        /*addrOffset=*/ 0xa2345678,
+        /*argsOffset=*/ 0xb2345678,
+        /*argsSize=*/ 0xc2345678,
+        /*retOffset=*/ 0xd2345678,
+        /*retSize=*/ 0xe2345678,
+        /*successOffset=*/ 0xf2345678,
+      ),
     ];
 
     const actual = encodeToBytecode(instructions);

@@ -1,8 +1,8 @@
-import { AvmMachineState } from '../avm_machine_state.js';
+import type { AvmContext } from '../avm_context.js';
 import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
-import { AvmJournal } from '../journal/index.js';
+import { InstructionExecutionError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
-import { Instruction, InstructionExecutionError } from './instruction.js';
+import { Instruction } from './instruction.js';
 import { TwoOperandInstruction } from './instruction_impl.js';
 
 export class Set extends Instruction {
@@ -21,16 +21,16 @@ export class Set extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
+  async execute(context: AvmContext): Promise<void> {
     // Per the YP, the tag cannot be a field.
     if ([TypeTag.FIELD, TypeTag.UNINITIALIZED, TypeTag.INVALID].includes(this.inTag)) {
       throw new InstructionExecutionError(`Invalid tag ${TypeTag[this.inTag]} for SET.`);
     }
 
     const res = TaggedMemory.integralFromTag(this.value, this.inTag);
-    machineState.memory.set(this.dstOffset, res);
+    context.machineState.memory.set(this.dstOffset, res);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -57,15 +57,15 @@ export class CMov extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const a = machineState.memory.get(this.aOffset);
-    const b = machineState.memory.get(this.bOffset);
-    const cond = machineState.memory.get(this.condOffset);
+  async execute(context: AvmContext): Promise<void> {
+    const a = context.machineState.memory.get(this.aOffset);
+    const b = context.machineState.memory.get(this.bOffset);
+    const cond = context.machineState.memory.get(this.condOffset);
 
     // TODO: reconsider toBigInt() here
-    machineState.memory.set(this.dstOffset, cond.toBigInt() > 0 ? a : b);
+    context.machineState.memory.set(this.dstOffset, cond.toBigInt() > 0 ? a : b);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -77,16 +77,16 @@ export class Cast extends TwoOperandInstruction {
     super(indirect, dstTag, aOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const a = machineState.memory.get(this.aOffset);
+  async execute(context: AvmContext): Promise<void> {
+    const a = context.machineState.memory.get(this.aOffset);
 
     // TODO: consider not using toBigInt()
     const casted =
       this.inTag == TypeTag.FIELD ? new Field(a.toBigInt()) : TaggedMemory.integralFromTag(a.toBigInt(), this.inTag);
 
-    machineState.memory.set(this.dstOffset, casted);
+    context.machineState.memory.set(this.dstOffset, casted);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -105,12 +105,12 @@ export class Mov extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const a = machineState.memory.get(this.srcOffset);
+  async execute(context: AvmContext): Promise<void> {
+    const a = context.machineState.memory.get(this.srcOffset);
 
-    machineState.memory.set(this.dstOffset, a);
+    context.machineState.memory.set(this.dstOffset, a);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -130,12 +130,12 @@ export class CalldataCopy extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const transformedData = machineState.executionEnvironment.calldata
+  async execute(context: AvmContext): Promise<void> {
+    const transformedData = context.environment.calldata
       .slice(this.cdOffset, this.cdOffset + this.copySize)
       .map(f => new Field(f));
-    machineState.memory.setSlice(this.dstOffset, transformedData);
+    context.machineState.memory.setSlice(this.dstOffset, transformedData);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }

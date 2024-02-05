@@ -1,8 +1,8 @@
-import { AvmMachineState } from '../avm_machine_state.js';
+import type { AvmContext } from '../avm_context.js';
 import { IntegralValue } from '../avm_memory_types.js';
-import { AvmJournal } from '../journal/journal.js';
+import { InstructionExecutionError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
-import { Instruction, InstructionExecutionError } from './instruction.js';
+import { Instruction } from './instruction.js';
 
 export class Return extends Instruction {
   static type: string = 'RETURN';
@@ -19,12 +19,10 @@ export class Return extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const returnData = machineState.memory.getSlice(this.returnOffset, this.copySize).map(word => word.toFr());
+  async execute(context: AvmContext): Promise<void> {
+    const output = context.machineState.memory.getSlice(this.returnOffset, this.copySize).map(word => word.toFr());
 
-    machineState.setReturnData(returnData);
-
-    this.halt(machineState);
+    context.machineState.return(output);
   }
 }
 
@@ -43,13 +41,12 @@ export class Revert extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const returnData = machineState.memory
+  async execute(context: AvmContext): Promise<void> {
+    const output = context.machineState.memory
       .getSlice(this.returnOffset, this.returnOffset + this.retSize)
       .map(word => word.toFr());
-    machineState.setReturnData(returnData);
 
-    this.revert(machineState);
+    context.machineState.revert(output);
   }
 }
 
@@ -63,8 +60,8 @@ export class Jump extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    machineState.pc = this.jumpOffset;
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.pc = this.jumpOffset;
   }
 }
 
@@ -84,14 +81,14 @@ export class JumpI extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const condition = machineState.memory.getAs<IntegralValue>(this.condOffset);
+  async execute(context: AvmContext): Promise<void> {
+    const condition = context.machineState.memory.getAs<IntegralValue>(this.condOffset);
 
     // TODO: reconsider this casting
     if (condition.toBigInt() == 0n) {
-      this.incrementPc(machineState);
+      context.machineState.incrementPc();
     } else {
-      machineState.pc = this.loc;
+      context.machineState.pc = this.loc;
     }
   }
 }
@@ -106,9 +103,9 @@ export class InternalCall extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    machineState.internalCallStack.push(machineState.pc + 1);
-    machineState.pc = this.loc;
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.internalCallStack.push(context.machineState.pc + 1);
+    context.machineState.pc = this.loc;
   }
 }
 
@@ -122,11 +119,11 @@ export class InternalReturn extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const jumpOffset = machineState.internalCallStack.pop();
+  async execute(context: AvmContext): Promise<void> {
+    const jumpOffset = context.machineState.internalCallStack.pop();
     if (jumpOffset === undefined) {
       throw new InstructionExecutionError('Internal call empty!');
     }
-    machineState.pc = jumpOffset;
+    context.machineState.pc = jumpOffset;
   }
 }

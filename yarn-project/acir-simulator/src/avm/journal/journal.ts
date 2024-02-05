@@ -1,6 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { RootJournalCannotBeMerged } from './errors.js';
 import { HostStorage } from './host_storage.js';
 
 /**
@@ -25,11 +24,11 @@ export type JournalData = {
  * A cache of the current state of the AVM
  * The interpreter should make any state queries through this object
  *
- * When a sub context's call succeeds, it's journal is merge into the parent
- * When a a call fails, it's journal is discarded and the parent is used from this point forward
+ * When a nested context succeeds, it's journal is merge into the parent
+ * When a call fails, it's journal is discarded and the parent is used from this point forward
  * When a call succeeds's we can merge a child into its parent
  */
-export class AvmJournal {
+export class AvmWorldStateJournal {
   /** Reference to node storage */
   public readonly hostStorage: HostStorage;
 
@@ -49,27 +48,18 @@ export class AvmJournal {
   // contract address -> key -> value
   private currentStorageValue: Map<bigint, Map<bigint, Fr>> = new Map();
 
-  private parentJournal: AvmJournal | undefined;
+  private parentJournal: AvmWorldStateJournal | undefined;
 
-  constructor(hostStorage: HostStorage, parentJournal?: AvmJournal) {
+  constructor(hostStorage: HostStorage, parentJournal?: AvmWorldStateJournal) {
     this.hostStorage = hostStorage;
     this.parentJournal = parentJournal;
   }
 
   /**
-   * Create a new root journal, without a parent
-   * @param hostStorage -
+   * Create a new world state journal forked from this one
    */
-  public static rootJournal(hostStorage: HostStorage) {
-    return new AvmJournal(hostStorage);
-  }
-
-  /**
-   * Create a new journal from a parent
-   * @param parentJournal -
-   */
-  public static branchParent(parentJournal: AvmJournal) {
-    return new AvmJournal(parentJournal.hostStorage, parentJournal);
+  public fork() {
+    return new AvmWorldStateJournal(this.hostStorage, this);
   }
 
   /**
@@ -162,44 +152,36 @@ export class AvmJournal {
   }
 
   /**
-   * Merge Journal from successful call into parent
+   * Accept nested world state, merging in its journal, and accepting its state modifications
    * - Utxo objects are concatenated
    * - Public state changes are merged, with the value in the incoming journal taking precedent
    * - Public state journals (r/w logs), with the accessing being appended in chronological order
    */
-  public mergeSuccessWithParent() {
-    if (!this.parentJournal) {
-      throw new RootJournalCannotBeMerged();
-    }
-
+  public acceptNestedWorldState(nestedJournal: AvmWorldStateJournal) {
     // Merge UTXOs
-    this.parentJournal.newNoteHashes = this.parentJournal.newNoteHashes.concat(this.newNoteHashes);
-    this.parentJournal.newL1Messages = this.parentJournal.newL1Messages.concat(this.newL1Messages);
-    this.parentJournal.newNullifiers = this.parentJournal.newNullifiers.concat(this.newNullifiers);
-    this.parentJournal.newLogs = this.parentJournal.newLogs.concat(this.newLogs);
+    this.newNoteHashes = this.newNoteHashes.concat(nestedJournal.newNoteHashes);
+    this.newL1Messages = this.newL1Messages.concat(nestedJournal.newL1Messages);
+    this.newNullifiers = this.newNullifiers.concat(nestedJournal.newNullifiers);
+    this.newLogs = this.newLogs.concat(nestedJournal.newLogs);
 
     // Merge Public State
-    mergeCurrentValueMaps(this.parentJournal.currentStorageValue, this.currentStorageValue);
+    mergeCurrentValueMaps(this.currentStorageValue, nestedJournal.currentStorageValue);
 
     // Merge storage read and write journals
-    mergeContractJournalMaps(this.parentJournal.storageReads, this.storageReads);
-    mergeContractJournalMaps(this.parentJournal.storageWrites, this.storageWrites);
+    mergeContractJournalMaps(this.storageReads, nestedJournal.storageReads);
+    mergeContractJournalMaps(this.storageWrites, nestedJournal.storageWrites);
   }
 
   /**
-   * Merge Journal for failed call into parent
+   * Reject nested world state, merging in its journal, but not accepting its state modifications
    * - Utxo objects are concatenated
    * - Public state changes are dropped
    * - Public state journals (r/w logs) are maintained, with the accessing being appended in chronological order
    */
-  public mergeFailureWithParent() {
-    if (!this.parentJournal) {
-      throw new RootJournalCannotBeMerged();
-    }
-
+  public rejectNestedWorldState(nestedJournal: AvmWorldStateJournal) {
     // Merge storage read and write journals
-    mergeContractJournalMaps(this.parentJournal.storageReads, this.storageReads);
-    mergeContractJournalMaps(this.parentJournal.storageWrites, this.storageWrites);
+    mergeContractJournalMaps(this.storageReads, nestedJournal.storageReads);
+    mergeContractJournalMaps(this.storageWrites, nestedJournal.storageWrites);
   }
 
   /**

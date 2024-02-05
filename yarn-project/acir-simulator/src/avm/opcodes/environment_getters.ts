@@ -1,7 +1,6 @@
-import { AvmExecutionEnvironment } from '../avm_execution_environment.js';
-import { AvmMachineState } from '../avm_machine_state.js';
+import type { AvmContext } from '../avm_context.js';
+import type { AvmExecutionEnvironment } from '../avm_execution_environment.js';
 import { Field } from '../avm_memory_types.js';
-import { AvmJournal } from '../journal/journal.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 
@@ -13,10 +12,10 @@ abstract class GetterInstruction extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    const res = new Field(this.getIt(machineState.executionEnvironment));
-    machineState.memory.set(this.dstOffset, res);
-    this.incrementPc(machineState);
+  async execute(context: AvmContext): Promise<void> {
+    const res = new Field(this.getIt(context.environment));
+    context.machineState.memory.set(this.dstOffset, res);
+    context.machineState.incrementPc();
   }
 
   protected abstract getIt(env: AvmExecutionEnvironment): any;

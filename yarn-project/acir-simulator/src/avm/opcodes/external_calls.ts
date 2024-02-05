@@ -1,9 +1,8 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { AvmContext } from '../avm_context.js';
-import { AvmMachineState } from '../avm_machine_state.js';
+import type { AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
-import { AvmJournal } from '../journal/journal.js';
+import { AvmSimulator } from '../avm_simulator.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 
@@ -37,34 +36,30 @@ export class Call extends Instruction {
   }
 
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3992): there is no concept of remaining / available gas at this moment
-  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
-    const callAddress = machineState.memory.getAs<Field>(this.addrOffset);
-    const calldata = machineState.memory.getSlice(this.argsOffset, this.argsSize).map(f => new Fr(f.toBigInt()));
+  async execute(context: AvmContext): Promise<void> {
+    const callAddress = context.machineState.memory.getAs<Field>(this.addrOffset);
+    const calldata = context.machineState.memory.getSlice(this.argsOffset, this.argsSize).map(f => f.toFr());
 
-    const avmContext = AvmContext.prepExternalCallContext(
-      new Fr(callAddress.toBigInt()),
-      calldata,
-      machineState.executionEnvironment,
-      journal,
-    );
+    const nestedContext = context.createNestedContractCallContext(callAddress.toFr(), calldata);
 
-    const returnObject = await avmContext.call();
-    const success = !returnObject.reverted;
+    const nestedCallResults = await new AvmSimulator(nestedContext).execute();
+    const success = !nestedCallResults.reverted;
 
     // We only take as much data as was specified in the return size -> TODO: should we be reverting here
-    const returnData = returnObject.output.slice(0, this.retSize);
+    const returnData = nestedCallResults.output.slice(0, this.retSize);
     const convertedReturnData = returnData.map(f => new Field(f));
 
     // Write our return data into memory
-    machineState.memory.set(this.successOffset, new Field(success ? 1 : 0));
-    machineState.memory.setSlice(this.retOffset, convertedReturnData);
+    context.machineState.memory.set(this.successOffset, new Field(success ? 1 : 0));
+    context.machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
-      avmContext.mergeJournalSuccess();
+      context.worldState.acceptNestedWorldState(nestedContext.worldState);
     } else {
-      avmContext.mergeJournalFailure();
+      context.worldState.rejectNestedWorldState(nestedContext.worldState);
     }
-    this.incrementPc(machineState);
+
+    context.machineState.incrementPc();
   }
 }
 
@@ -97,34 +92,31 @@ export class StaticCall extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
-    const callAddress = machineState.memory.get(this.addrOffset);
-    const calldata = machineState.memory.getSlice(this.argsOffset, this.argsSize).map(f => new Fr(f.toBigInt()));
+  async execute(context: AvmContext): Promise<void> {
+    const callAddress = context.machineState.memory.get(this.addrOffset);
+    const calldata = context.machineState.memory
+      .getSlice(this.argsOffset, this.argsSize)
+      .map(f => new Fr(f.toBigInt()));
 
-    const avmContext = AvmContext.prepExternalStaticCallContext(
-      new Fr(callAddress.toBigInt()),
-      calldata,
-      machineState.executionEnvironment,
-      journal,
-    );
+    const nestedContext = context.createNestedContractStaticCallContext(callAddress.toFr(), calldata);
 
-    const returnObject = await avmContext.call();
-    const success = !returnObject.reverted;
+    const nestedCallResults = await new AvmSimulator(nestedContext).execute();
+    const success = !nestedCallResults.reverted;
 
     // We only take as much data as was specified in the return size -> TODO: should we be reverting here
-    const returnData = returnObject.output.slice(0, this.retSize);
+    const returnData = nestedCallResults.output.slice(0, this.retSize);
     const convertedReturnData = returnData.map(f => new Field(f));
 
     // Write our return data into memory
-    machineState.memory.set(this.successOffset, new Field(success ? 1 : 0));
-    machineState.memory.setSlice(this.retOffset, convertedReturnData);
+    context.machineState.memory.set(this.successOffset, new Field(success ? 1 : 0));
+    context.machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
-      avmContext.mergeJournalSuccess();
+      context.worldState.acceptNestedWorldState(nestedContext.worldState);
     } else {
-      avmContext.mergeJournalFailure();
+      context.worldState.rejectNestedWorldState(nestedContext.worldState);
     }
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }

@@ -1,5 +1,4 @@
-import { AvmMachineState } from '../avm_machine_state.js';
-import { AvmJournal } from '../journal/journal.js';
+import type { AvmContext } from '../avm_context.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 import { StaticCallStorageAlterError } from './storage.js';
@@ -14,15 +13,15 @@ export class EmitNoteHash extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
-    if (machineState.executionEnvironment.isStaticCall) {
+  async execute(context: AvmContext): Promise<void> {
+    if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
-    const noteHash = machineState.memory.get(this.noteHashOffset).toFr();
-    journal.writeNoteHash(noteHash);
+    const noteHash = context.machineState.memory.get(this.noteHashOffset).toFr();
+    context.worldState.writeNoteHash(noteHash);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -36,15 +35,15 @@ export class EmitNullifier extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
-    if (machineState.executionEnvironment.isStaticCall) {
+  async execute(context: AvmContext): Promise<void> {
+    if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
-    const nullifier = machineState.memory.get(this.nullifierOffset).toFr();
-    journal.writeNullifier(nullifier);
+    const nullifier = context.machineState.memory.get(this.nullifierOffset).toFr();
+    context.worldState.writeNullifier(nullifier);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -58,15 +57,15 @@ export class EmitUnencryptedLog extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
-    if (machineState.executionEnvironment.isStaticCall) {
+  async execute(context: AvmContext): Promise<void> {
+    if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
-    const log = machineState.memory.getSlice(this.logOffset, this.logSize).map(f => f.toFr());
-    journal.writeLog(log);
+    const log = context.machineState.memory.getSlice(this.logOffset, this.logSize).map(f => f.toFr());
+    context.worldState.writeLog(log);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -80,14 +79,14 @@ export class SendL2ToL1Message extends Instruction {
     super();
   }
 
-  async execute(machineState: AvmMachineState, journal: AvmJournal): Promise<void> {
-    if (machineState.executionEnvironment.isStaticCall) {
+  async execute(context: AvmContext): Promise<void> {
+    if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
-    const msg = machineState.memory.getSlice(this.msgOffset, this.msgSize).map(f => f.toFr());
-    journal.writeL1Message(msg);
+    const msg = context.machineState.memory.getSlice(this.msgOffset, this.msgSize).map(f => f.toFr());
+    context.worldState.writeL1Message(msg);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }

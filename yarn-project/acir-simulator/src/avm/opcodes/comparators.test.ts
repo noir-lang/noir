@@ -1,19 +1,14 @@
-import { MockProxy, mock } from 'jest-mock-extended';
-
-import { AvmMachineState } from '../avm_machine_state.js';
+import { AvmContext } from '../avm_context.js';
 import { Field, TypeTag, Uint16, Uint32 } from '../avm_memory_types.js';
-import { initExecutionEnvironment } from '../fixtures/index.js';
-import { AvmJournal } from '../journal/journal.js';
+import { TagCheckError } from '../errors.js';
+import { initContext } from '../fixtures/index.js';
 import { Eq, Lt, Lte } from './comparators.js';
-import { InstructionExecutionError } from './instruction.js';
 
 describe('Comparators', () => {
-  let machineState: AvmMachineState;
-  let journal: MockProxy<AvmJournal>;
+  let context: AvmContext;
 
-  beforeEach(async () => {
-    machineState = new AvmMachineState(initExecutionEnvironment());
-    journal = mock<AvmJournal>();
+  beforeEach(() => {
+    context = initContext();
   });
 
   describe('Eq', () => {
@@ -39,33 +34,33 @@ describe('Comparators', () => {
     });
 
     it('Works on integral types', async () => {
-      machineState.memory.setSlice(0, [new Uint32(1), new Uint32(2), new Uint32(3), new Uint32(1)]);
+      context.machineState.memory.setSlice(0, [new Uint32(1), new Uint32(2), new Uint32(3), new Uint32(1)]);
 
       [
         new Eq(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 10),
         new Eq(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 11),
         new Eq(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 3, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(machineState, journal));
+      ].forEach(i => i.execute(context));
 
-      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
       expect(actual).toEqual([new Uint32(0), new Uint32(0), new Uint32(1)]);
     });
 
     it('Works on field elements', async () => {
-      machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(3), new Field(1)]);
+      context.machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(3), new Field(1)]);
 
       [
         new Eq(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 10),
         new Eq(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 11),
         new Eq(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 3, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(machineState, journal));
+      ].forEach(i => i.execute(context));
 
-      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
       expect(actual).toEqual([new Field(0), new Field(0), new Field(1)]);
     });
 
     it('InTag is checked', async () => {
-      machineState.memory.setSlice(0, [new Field(1), new Uint32(2), new Uint16(3)]);
+      context.machineState.memory.setSlice(0, [new Field(1), new Uint32(2), new Uint16(3)]);
 
       const ops = [
         new Eq(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 10),
@@ -75,7 +70,7 @@ describe('Comparators', () => {
       ];
 
       for (const o of ops) {
-        await expect(() => o.execute(machineState, journal)).rejects.toThrow(InstructionExecutionError);
+        await expect(() => o.execute(context)).rejects.toThrow(TagCheckError);
       }
     });
   });
@@ -103,33 +98,33 @@ describe('Comparators', () => {
     });
 
     it('Works on integral types', async () => {
-      machineState.memory.setSlice(0, [new Uint32(1), new Uint32(2), new Uint32(0)]);
+      context.machineState.memory.setSlice(0, [new Uint32(1), new Uint32(2), new Uint32(0)]);
 
       [
         new Lt(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 0, /*dstOffset=*/ 10),
         new Lt(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 11),
         new Lt(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(machineState, journal));
+      ].forEach(i => i.execute(context));
 
-      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
       expect(actual).toEqual([new Uint32(0), new Uint32(1), new Uint32(0)]);
     });
 
     it('Works on field elements', async () => {
-      machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(0)]);
+      context.machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(0)]);
 
       [
         new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 0, /*dstOffset=*/ 10),
         new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 11),
         new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(machineState, journal));
+      ].forEach(i => i.execute(context));
 
-      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
       expect(actual).toEqual([new Field(0), new Field(1), new Field(0)]);
     });
 
     it('InTag is checked', async () => {
-      machineState.memory.setSlice(0, [new Field(1), new Uint32(2), new Uint16(3)]);
+      context.machineState.memory.setSlice(0, [new Field(1), new Uint32(2), new Uint16(3)]);
 
       const ops = [
         new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 10),
@@ -139,7 +134,7 @@ describe('Comparators', () => {
       ];
 
       for (const o of ops) {
-        await expect(() => o.execute(machineState, journal)).rejects.toThrow(InstructionExecutionError);
+        await expect(() => o.execute(context)).rejects.toThrow(TagCheckError);
       }
     });
   });
@@ -167,33 +162,33 @@ describe('Comparators', () => {
     });
 
     it('Works on integral types', async () => {
-      machineState.memory.setSlice(0, [new Uint32(1), new Uint32(2), new Uint32(0)]);
+      context.machineState.memory.setSlice(0, [new Uint32(1), new Uint32(2), new Uint32(0)]);
 
       [
         new Lte(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 0, /*dstOffset=*/ 10),
         new Lte(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 11),
         new Lte(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(machineState, journal));
+      ].forEach(i => i.execute(context));
 
-      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
       expect(actual).toEqual([new Uint32(1), new Uint32(1), new Uint32(0)]);
     });
 
     it('Works on field elements', async () => {
-      machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(0)]);
+      context.machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(0)]);
 
       [
         new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 0, /*dstOffset=*/ 10),
         new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 11),
         new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(machineState, journal));
+      ].forEach(i => i.execute(context));
 
-      const actual = machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
       expect(actual).toEqual([new Field(1), new Field(1), new Field(0)]);
     });
 
     it('InTag is checked', async () => {
-      machineState.memory.setSlice(0, [new Field(1), new Uint32(2), new Uint16(3)]);
+      context.machineState.memory.setSlice(0, [new Field(1), new Uint32(2), new Uint16(3)]);
 
       const ops = [
         new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 10),
@@ -203,7 +198,7 @@ describe('Comparators', () => {
       ];
 
       for (const o of ops) {
-        await expect(() => o.execute(machineState, journal)).rejects.toThrow(InstructionExecutionError);
+        await expect(() => o.execute(context)).rejects.toThrow(TagCheckError);
       }
     });
   });

@@ -1,8 +1,6 @@
-import { AvmMachineState } from '../avm_machine_state.js';
+import type { AvmContext } from '../avm_context.js';
 import { IntegralValue } from '../avm_memory_types.js';
-import { AvmJournal } from '../journal/index.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
-import { Instruction } from './instruction.js';
 import { ThreeOperandInstruction, TwoOperandInstruction } from './instruction_impl.js';
 
 export class And extends ThreeOperandInstruction {
@@ -13,16 +11,16 @@ export class And extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = machineState.memory.getAs<IntegralValue>(this.bOffset);
+    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
+    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
 
     const res = a.and(b);
-    machineState.memory.set(this.dstOffset, res);
+    context.machineState.memory.set(this.dstOffset, res);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -34,16 +32,16 @@ export class Or extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = machineState.memory.getAs<IntegralValue>(this.bOffset);
+    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
+    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
 
     const res = a.or(b);
-    machineState.memory.set(this.dstOffset, res);
+    context.machineState.memory.set(this.dstOffset, res);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -55,16 +53,16 @@ export class Xor extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = machineState.memory.getAs<IntegralValue>(this.bOffset);
+    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
+    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
 
     const res = a.xor(b);
-    machineState.memory.set(this.dstOffset, res);
+    context.machineState.memory.set(this.dstOffset, res);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -76,15 +74,15 @@ export class Not extends TwoOperandInstruction {
     super(indirect, inTag, aOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset);
 
-    const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
+    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
 
     const res = a.not();
-    machineState.memory.set(this.dstOffset, res);
+    context.machineState.memory.set(this.dstOffset, res);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -96,16 +94,16 @@ export class Shl extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = machineState.memory.getAs<IntegralValue>(this.bOffset);
+    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
+    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
 
     const res = a.shl(b);
-    machineState.memory.set(this.dstOffset, res);
+    context.machineState.memory.set(this.dstOffset, res);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }
 
@@ -117,15 +115,15 @@ export class Shr extends ThreeOperandInstruction {
     super(indirect, inTag, aOffset, bOffset, dstOffset);
   }
 
-  async execute(machineState: AvmMachineState, _journal: AvmJournal): Promise<void> {
-    Instruction.checkTags(machineState, this.inTag, this.aOffset, this.bOffset);
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
 
-    const a = machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = machineState.memory.getAs<IntegralValue>(this.bOffset);
+    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
+    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
 
     const res = a.shr(b);
-    machineState.memory.set(this.dstOffset, res);
+    context.machineState.memory.set(this.dstOffset, res);
 
-    this.incrementPc(machineState);
+    context.machineState.incrementPc();
   }
 }

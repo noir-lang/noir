@@ -1,21 +1,14 @@
-import { mock } from 'jest-mock-extended';
-
-import { AvmMachineState } from '../avm_machine_state.js';
+import { AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
-import { initExecutionEnvironment } from '../fixtures/index.js';
-import { HostStorage } from '../journal/host_storage.js';
-import { AvmJournal } from '../journal/journal.js';
+import { initContext, initExecutionEnvironment } from '../fixtures/index.js';
 import { EmitNoteHash, EmitNullifier, EmitUnencryptedLog, SendL2ToL1Message } from './accrued_substate.js';
 import { StaticCallStorageAlterError } from './storage.js';
 
 describe('Accrued Substate', () => {
-  let journal: AvmJournal;
-  let machineState: AvmMachineState;
+  let context: AvmContext;
 
   beforeEach(() => {
-    const hostStorage = mock<HostStorage>();
-    journal = new AvmJournal(hostStorage);
-    machineState = new AvmMachineState(initExecutionEnvironment());
+    context = initContext();
   });
 
   describe('EmitNoteHash', () => {
@@ -33,11 +26,11 @@ describe('Accrued Substate', () => {
 
     it('Should append a new note hash correctly', async () => {
       const value = new Field(69n);
-      machineState.memory.set(0, value);
+      context.machineState.memory.set(0, value);
 
-      await new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0).execute(machineState, journal);
+      await new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
 
-      const journalState = journal.flush();
+      const journalState = context.worldState.flush();
       const expected = [value.toFr()];
       expect(journalState.newNoteHashes).toEqual(expected);
     });
@@ -58,11 +51,11 @@ describe('Accrued Substate', () => {
 
     it('Should append a new nullifier correctly', async () => {
       const value = new Field(69n);
-      machineState.memory.set(0, value);
+      context.machineState.memory.set(0, value);
 
-      await new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(machineState, journal);
+      await new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
 
-      const journalState = journal.flush();
+      const journalState = context.worldState.flush();
       const expected = [value.toFr()];
       expect(journalState.newNullifiers).toEqual(expected);
     });
@@ -86,13 +79,13 @@ describe('Accrued Substate', () => {
       const startOffset = 0;
 
       const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
-      machineState.memory.setSlice(0, values);
+      context.machineState.memory.setSlice(0, values);
 
       const length = values.length;
 
-      await new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(machineState, journal);
+      await new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(context);
 
-      const journalState = journal.flush();
+      const journalState = context.worldState.flush();
       const expected = values.map(v => v.toFr());
       expect(journalState.newLogs).toEqual([expected]);
     });
@@ -116,21 +109,20 @@ describe('Accrued Substate', () => {
       const startOffset = 0;
 
       const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
-      machineState.memory.setSlice(0, values);
+      context.machineState.memory.setSlice(0, values);
 
       const length = values.length;
 
-      await new SendL2ToL1Message(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(machineState, journal);
+      await new SendL2ToL1Message(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(context);
 
-      const journalState = journal.flush();
+      const journalState = context.worldState.flush();
       const expected = values.map(v => v.toFr());
       expect(journalState.newL1Messages).toEqual([expected]);
     });
   });
 
   it('All substate instructions should fail within a static call', async () => {
-    const executionEnvironment = initExecutionEnvironment({ isStaticCall: true });
-    machineState = new AvmMachineState(executionEnvironment);
+    context = initContext({ env: initExecutionEnvironment({ isStaticCall: true }) });
 
     const instructions = [
       new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0),
@@ -140,7 +132,7 @@ describe('Accrued Substate', () => {
     ];
 
     for (const instruction of instructions) {
-      await expect(instruction.execute(machineState, journal)).rejects.toThrow(StaticCallStorageAlterError);
+      await expect(instruction.execute(context)).rejects.toThrow(StaticCallStorageAlterError);
     }
   });
 });
