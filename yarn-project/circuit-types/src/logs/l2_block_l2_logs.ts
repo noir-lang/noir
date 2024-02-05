@@ -101,11 +101,13 @@ export class L2BlockL2Logs {
    * @param blockLogs - Input logs from a set of blocks.
    * @returns Unrolled logs.
    */
-  public static unrollLogs(blockLogs: L2BlockL2Logs[]): Buffer[] {
+  public static unrollLogs(blockLogs: (L2BlockL2Logs | undefined)[]): Buffer[] {
     const logs: Buffer[] = [];
     for (const blockLog of blockLogs) {
-      for (const txLog of blockLog.txLogs) {
-        logs.push(...txLog.unrollLogs());
+      if (blockLog) {
+        for (const txLog of blockLog.txLogs) {
+          logs.push(...txLog.unrollLogs());
+        }
       }
     }
     return logs;

@@ -17,7 +17,8 @@ import {
   computeContractAddressFromPartial,
   computePublicKeysHash,
 } from '@aztec/circuits.js';
-import { computeTxHash } from '@aztec/circuits.js/abis';
+import { computeTxHash, computeVarArgsHash } from '@aztec/circuits.js/abis';
+import { times } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
@@ -180,6 +181,12 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
 
     const publicCallStackItem = new PublicCallStackItem(contractAddress, functionData, appPublicInputs, true);
     expect(publicCallStackItem.hash().toString()).toMatchSnapshot();
+  });
+
+  it('Var args hash matches noir', () => {
+    const args = times(800, i => new Fr(i));
+    const res = computeVarArgsHash(args);
+    expect(res).toMatchSnapshot();
   });
 });
 

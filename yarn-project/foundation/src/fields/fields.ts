@@ -51,7 +51,7 @@ abstract class BaseField {
     } else if (typeof value === 'bigint' || typeof value === 'number' || typeof value === 'boolean') {
       this.asBigInt = BigInt(value);
       if (this.asBigInt >= this.modulus()) {
-        throw new Error('Value >= to field modulus.');
+        throw new Error(`Value 0x${this.asBigInt.toString(16)} is greater or equal to field modulus.`);
       }
     } else if (value instanceof BaseField) {
       this.asBuffer = value.asBuffer;
@@ -89,10 +89,18 @@ abstract class BaseField {
     if (this.asBigInt === undefined) {
       this.asBigInt = toBigIntBE(this.asBuffer!);
       if (this.asBigInt >= this.modulus()) {
-        throw new Error('Value >= to field modulus.');
+        throw new Error(`Value 0x${this.asBigInt.toString(16)} is greater or equal to field modulus.`);
       }
     }
     return this.asBigInt;
+  }
+
+  toNumber(): number {
+    const value = this.toBigInt();
+    if (value > Number.MAX_SAFE_INTEGER) {
+      throw new Error(`Value ${value.toString(16)} greater than than max safe integer`);
+    }
+    return Number(value);
   }
 
   toShortString(): string {

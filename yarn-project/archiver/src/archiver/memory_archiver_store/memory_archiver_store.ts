@@ -17,7 +17,7 @@ import {
 } from '@aztec/circuit-types';
 import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { ArchiverDataStore } from '../archiver_store.js';
 import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
@@ -69,7 +69,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   private pendingL1ToL2Messages: PendingL1ToL2MessageStore = new PendingL1ToL2MessageStore();
 
-  private contractClasses: Map<string, ContractClassWithId> = new Map();
+  private contractClasses: Map<string, ContractClassPublic> = new Map();
 
   private contractInstances: Map<string, ContractInstanceWithAddress> = new Map();
 
@@ -81,7 +81,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     public readonly maxLogs: number,
   ) {}
 
-  public getContractClass(id: Fr): Promise<ContractClassWithId | undefined> {
+  public getContractClass(id: Fr): Promise<ContractClassPublic | undefined> {
     return Promise.resolve(this.contractClasses.get(id.toString()));
   }
 
@@ -89,7 +89,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     return Promise.resolve(this.contractInstances.get(address.toString()));
   }
 
-  public addContractClasses(data: ContractClassWithId[], _blockNumber: number): Promise<boolean> {
+  public addContractClasses(data: ContractClassPublic[], _blockNumber: number): Promise<boolean> {
     for (const contractClass of data) {
       this.contractClasses.set(contractClass.id.toString(), contractClass);
     }

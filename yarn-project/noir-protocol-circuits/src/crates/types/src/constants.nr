@@ -81,7 +81,16 @@ global MAPPING_SLOT_PEDERSEN_SEPARATOR: Field = 4;
 // sha256 hash is stored in two fields to accommodate all 256-bits of the hash
 global NUM_FIELDS_PER_SHA256: Field = 2;
 global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
-global ARGS_HASH_CHUNK_COUNT: u32 = 16;
+global ARGS_HASH_CHUNK_COUNT: u32 = 32;
+// This should be around 8192 (assuming 2**15 instructions packed at 8 bytes each), 
+// but it's reduced to speed up build times, otherwise the ClassRegisterer takes over 5 mins to compile.
+// We are not using 1024 so we can squeeze in a few more args to methods that consume packed public bytecode,
+// such as the ClassRegisterer.register, and still land below the 32 * 32 max args limit for hashing.
+global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: Field = 1000;
+// Since we are not yet emitting selectors we'll use this magic value to identify events emitted by the ClassRegisterer. 
+// This is just a stopgap until we implement proper selectors.
+// This is the sha224sum of 'struct ContractClassRegistered {contract_class_id: ContractClassId, version: Field, artifact_hash: Field, private_functions_root: Field, packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS] }'
+global CONTRACT_CLASS_REGISTERED_MAGIC_VALUE = 0x6999d1e02b08a447a463563453cb36919c9dd7150336fc7c4d2b52f8;
 
 // NOIR CONSTANTS - constants used only in yarn-packages/noir-contracts
 // Some are defined here because Noir doesn't yet support globals referencing other globals yet.

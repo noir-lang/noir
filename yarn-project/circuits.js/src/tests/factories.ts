@@ -3,6 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
+import { ContractClassPublic, PrivateFunction, PublicFunction } from '@aztec/types/contracts';
 
 import { SchnorrSignature } from '../barretenberg/index.js';
 import {
@@ -104,6 +105,9 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
   WitnessedPublicCallData,
+  computeContractClassId,
+  computePublicBytecodeCommitment,
+  packBytecode,
 } from '../index.js';
 import { GlobalVariables } from '../structs/global_variables.js';
 import { Header, NUM_BYTES_PER_SHA256 } from '../structs/header.js';
@@ -1070,6 +1074,40 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     archiveRootMembershipWitness,
     constants,
   });
+}
+
+export function makeContractClassPublic(seed = 0): ContractClassPublic {
+  const artifactHash = fr(seed + 1);
+  const publicFunctions = makeTuple(3, makeContractClassPublicFunction, seed + 2);
+  const privateFunctionsRoot = fr(seed + 3);
+  const packedBytecode = packBytecode(publicFunctions);
+  const publicBytecodeCommitment = computePublicBytecodeCommitment(packedBytecode);
+  const id = computeContractClassId({ artifactHash, privateFunctionsRoot, publicBytecodeCommitment });
+  return {
+    id,
+    artifactHash,
+    packedBytecode,
+    privateFunctionsRoot,
+    publicFunctions,
+    version: 1,
+  };
+}
+
+function makeContractClassPublicFunction(seed = 0): PublicFunction {
+  return {
+    selector: FunctionSelector.fromField(fr(seed + 1)),
+    bytecode: makeBytes(100, seed + 2),
+    isInternal: false,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function makeContractClassPrivateFunction(seed = 0): PrivateFunction {
+  return {
+    selector: FunctionSelector.fromField(fr(seed + 1)),
+    vkHash: fr(seed + 2),
+    isInternal: false,
+  };
 }
 
 /**

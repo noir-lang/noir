@@ -42,12 +42,14 @@ export class UnencryptedL2Log {
 
   /**
    * Serializes log to a human readable string.
+   * Outputs the log data as ascii if all bytes are valid ascii characters between 32 and 126, or as hex otherwise.
    * @returns A human readable representation of the log.
    */
   public toHumanReadable(): string {
-    return `UnencryptedL2Log(contractAddress: ${this.contractAddress.toString()}, selector: ${this.selector.toString()}, data: ${this.data.toString(
-      'ascii',
-    )})`;
+    const payload = this.data.every(byte => byte >= 32 && byte <= 126)
+      ? this.data.toString('ascii')
+      : `0x` + this.data.toString('hex');
+    return `UnencryptedL2Log(contractAddress: ${this.contractAddress.toString()}, selector: ${this.selector.toString()}, data: ${payload})`;
   }
 
   /**

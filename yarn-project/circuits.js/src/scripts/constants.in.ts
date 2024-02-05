@@ -14,7 +14,7 @@ interface ParsedContent {
   /**
    * Constants.
    */
-  constants: { [key: string]: number };
+  constants: { [key: string]: string };
   /**
    * GeneratorIndexEnum.
    */
@@ -27,10 +27,10 @@ interface ParsedContent {
  * @param constants - An object containing key-value pairs representing constants.
  * @returns A string containing code that exports the constants as TypeScript constants.
  */
-function processConstantsTS(constants: { [key: string]: number }): string {
+function processConstantsTS(constants: { [key: string]: string }): string {
   const code: string[] = [];
   Object.entries(constants).forEach(([key, value]) => {
-    code.push(`export const ${key} = ${value};`);
+    code.push(`export const ${key} = ${+value > Number.MAX_SAFE_INTEGER ? value + 'n' : value};`);
   });
   return code.join('\n');
 }
@@ -63,7 +63,7 @@ function processEnumTS(enumName: string, enumValues: { [key: string]: number }):
  * @param prefix - A prefix to add to the constant names.
  * @returns A string containing code that exports the constants as Noir constants.
  */
-function processConstantsSolidity(constants: { [key: string]: number }, prefix = ''): string {
+function processConstantsSolidity(constants: { [key: string]: string }, prefix = ''): string {
   const code: string[] = [];
   Object.entries(constants).forEach(([key, value]) => {
     code.push(`  uint256 internal constant ${prefix}${key} = ${value};`);
@@ -114,7 +114,7 @@ ${processConstantsSolidity(constants)}
  * Parse the content of the constants file in Noir.
  */
 function parseNoirFile(fileContent: string): ParsedContent {
-  const constants: { [key: string]: number } = {};
+  const constants: { [key: string]: string } = {};
   const generatorIndexEnum: { [key: string]: number } = {};
 
   fileContent.split('\n').forEach(l => {
@@ -123,7 +123,7 @@ function parseNoirFile(fileContent: string): ParsedContent {
       return;
     }
 
-    const [, name, _type, value] = line.match(/global\s+(\w+)(\s*:\s*\w+)?\s*=\s*(\d+);/) || [];
+    const [, name, _type, value] = line.match(/global\s+(\w+)(\s*:\s*\w+)?\s*=\s*(0x[a-fA-F0-9]+|\d+);/) || [];
     if (!name || !value) {
       // eslint-disable-next-line no-console
       console.warn(`Unknown content: ${line}`);
@@ -134,7 +134,7 @@ function parseNoirFile(fileContent: string): ParsedContent {
     if (indexName) {
       generatorIndexEnum[indexName] = +value;
     } else {
-      constants[name] = +value;
+      constants[name] = value;
     }
   });
 

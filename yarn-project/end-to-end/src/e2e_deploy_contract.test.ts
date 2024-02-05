@@ -1,9 +1,11 @@
 import {
   AztecAddress,
+  AztecNode,
   BatchCall,
   CompleteAddress,
   Contract,
   ContractArtifact,
+  ContractBase,
   ContractDeployer,
   DebugLogger,
   EthAddress,
@@ -12,11 +14,17 @@ import {
   SignerlessWallet,
   TxStatus,
   Wallet,
+  getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
   isContractDeployed,
 } from '@aztec/aztec.js';
+import {
+  computePrivateFunctionsRoot,
+  computePublicBytecodeCommitment,
+  packedBytecodeAsFields,
+} from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
-import { StatefulTestContract } from '@aztec/noir-contracts';
+import { ContractClassRegistererContract, ReaderContractArtifact, StatefulTestContract } from '@aztec/noir-contracts';
 import { TestContract, TestContractArtifact } from '@aztec/noir-contracts/Test';
 import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 import { SequencerClient } from '@aztec/sequencer-client';
@@ -29,10 +37,11 @@ describe('e2e_deploy_contract', () => {
   let logger: DebugLogger;
   let wallet: Wallet;
   let sequencer: SequencerClient | undefined;
+  let aztecNode: AztecNode;
   let teardown: () => Promise<void>;
 
   beforeEach(async () => {
-    ({ teardown, pxe, accounts, logger, wallet, sequencer } = await setup());
+    ({ teardown, pxe, accounts, logger, wallet, sequencer, aztecNode } = await setup());
   }, 100_000);
 
   afterEach(() => teardown());
@@ -240,6 +249,42 @@ describe('e2e_deploy_contract', () => {
     expect(await contracts[0].methods.summed_values(owner).view()).toEqual(42n);
     expect(await contracts[1].methods.summed_values(owner).view()).toEqual(52n);
   });
+
+  // Tests registering a new contract class on a node
+  // All this dance will be hidden behind a nicer API in the near future!
+  it('registers a new contract class via the class registerer contract', async () => {
+    const registerer = await registerContract(wallet, ContractClassRegistererContract, [], new Fr(1));
+    const contractClass = getContractClassFromArtifact(ReaderContractArtifact);
+    const privateFunctionsRoot = computePrivateFunctionsRoot(contractClass.privateFunctions);
+    const publicBytecodeCommitment = computePublicBytecodeCommitment(contractClass.packedBytecode);
+
+    logger(`contractClass.id: ${contractClass.id}`);
+    logger(`contractClass.artifactHash: ${contractClass.artifactHash}`);
+    logger(`contractClass.privateFunctionsRoot: ${privateFunctionsRoot}`);
+    logger(`contractClass.publicBytecodeCommitment: ${publicBytecodeCommitment}`);
+    logger(`contractClass.packedBytecode.length: ${contractClass.packedBytecode.length}`);
+
+    const tx = await registerer.methods
+      .register(
+        contractClass.artifactHash,
+        privateFunctionsRoot,
+        publicBytecodeCommitment,
+        packedBytecodeAsFields(contractClass.packedBytecode),
+      )
+      .send()
+      .wait();
+
+    const logs = await pxe.getUnencryptedLogs({ txHash: tx.txHash });
+    const registeredLog = logs.logs[0].log; // We need a nicer API!
+    expect(registeredLog.contractAddress).toEqual(registerer.address);
+
+    const registeredClass = await aztecNode.getContractClass(contractClass.id);
+    expect(registeredClass).toBeDefined();
+    expect(registeredClass?.artifactHash.toString()).toEqual(contractClass.artifactHash.toString());
+    expect(registeredClass?.privateFunctionsRoot.toString()).toEqual(privateFunctionsRoot.toString());
+    expect(registeredClass?.packedBytecode.toString('hex')).toEqual(contractClass.packedBytecode.toString('hex'));
+    expect(registeredClass?.publicFunctions).toEqual(contractClass.publicFunctions);
+  });
 });
 
 type StatefulContractCtorArgs = Parameters<StatefulTestContract['methods']['constructor']>;
@@ -250,13 +295,18 @@ async function registerRandomAccount(pxe: PXE): Promise<AztecAddress> {
   return owner.address;
 }
 
-type ContractArtifactClass = {
-  at(address: AztecAddress, wallet: Wallet): Promise<Contract>;
+type ContractArtifactClass<T extends ContractBase> = {
+  at(address: AztecAddress, wallet: Wallet): Promise<T>;
   artifact: ContractArtifact;
 };
 
-async function registerContract(wallet: Wallet, contractArtifact: ContractArtifactClass, args: any[] = []) {
-  const instance = getContractInstanceFromDeployParams(contractArtifact.artifact, args);
+async function registerContract<T extends ContractBase>(
+  wallet: Wallet,
+  contractArtifact: ContractArtifactClass<T>,
+  args: any[] = [],
+  salt?: Fr,
+): Promise<T> {
+  const instance = getContractInstanceFromDeployParams(contractArtifact.artifact, args, salt);
   await wallet.addContracts([{ artifact: contractArtifact.artifact, instance }]);
   return contractArtifact.at(instance.address, wallet);
 }

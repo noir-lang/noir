@@ -14,6 +14,49 @@ exports[`Noir compatibility tests (interop_testing.nr) Public key hash matches N
 
 exports[`Noir compatibility tests (interop_testing.nr) TxRequest Hash matches Noir 1`] = `"0x0b487ff2900ae1178e131bfe333fdbc351beef658f7c0d62db2801429b1aab75"`;
 
+exports[`Noir compatibility tests (interop_testing.nr) Var args hash matches noir 1`] = `
+Fr {
+  "asBigInt": 1557627899280963684159398665725097926236612957540256425197580046184563077271n,
+  "asBuffer": {
+    "data": [
+      3,
+      113,
+      150,
+      13,
+      216,
+      78,
+      211,
+      68,
+      90,
+      176,
+      153,
+      172,
+      76,
+      26,
+      245,
+      186,
+      144,
+      224,
+      199,
+      19,
+      181,
+      147,
+      224,
+      202,
+      82,
+      238,
+      83,
+      32,
+      135,
+      199,
+      240,
+      151,
+    ],
+    "type": "Buffer",
+  },
+}
+`;
+
 exports[`Private kernel Executes private kernel init circuit for a contract deployment 1`] = `
 KernelCircuitPublicInputs {
   "constants": CombinedConstantData {

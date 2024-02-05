@@ -111,6 +111,13 @@ export class BufferReader {
     return Buffer.from(this.buffer.subarray(this.index - n, this.index));
   }
 
+  /** Reads until the end of the buffer. */
+  public readToEnd(): Buffer {
+    const result = this.buffer.subarray(this.index);
+    this.index = this.buffer.length;
+    return result;
+  }
+
   /**
    * Reads a vector of numbers from the buffer and returns it as an array of numbers.
    * The method utilizes the 'readVector' method, passing a deserializer that reads numbers.

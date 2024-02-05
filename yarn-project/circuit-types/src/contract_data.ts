@@ -8,6 +8,7 @@ import {
   serializeBufferArrayToVector,
   serializeToBuffer,
 } from '@aztec/foundation/serialize';
+import { ContractClassPublic } from '@aztec/types/contracts';
 
 /**
  * Used for retrieval of contract data (A3 address, portal contract address, bytecode).
@@ -55,6 +56,12 @@ export interface ContractDataSource {
    * @returns The number of the latest L2 block processed by the implementation.
    */
   getBlockNumber(): Promise<number>;
+
+  /**
+   * Returns the contract class for a given contract class id, or undefined if not found.
+   * @param id - Contract class id.
+   */
+  getContractClass(id: Fr): Promise<ContractClassPublic | undefined>;
 }
 
 /**

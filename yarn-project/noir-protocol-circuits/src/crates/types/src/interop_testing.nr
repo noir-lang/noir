@@ -6,7 +6,7 @@ use crate::abis::function_data::FunctionData;
 use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::contrakt::deployment_data::ContractDeploymentData;
 use crate::abis::function_selector::FunctionSelector;
-use crate::hash::{compute_l2_to_l1_hash, sha256_to_field};
+use crate::hash::{compute_l2_to_l1_hash, sha256_to_field, hash_args};
 use crate::abis::call_stack_item::PublicCallStackItem;
 use crate::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
 use crate::abis::side_effect::SideEffect;
@@ -45,6 +45,16 @@ fn compute_address_from_partial_and_pubkey() {
 
     let address = AztecAddress::compute(PublicKeysHash::compute(point), partial_address);
     assert(address.to_field() == 0x0447f893197175723deb223696e2e96dbba1e707ee8507766373558877e74197);
+}
+
+#[test]
+fn compute_var_args_hash() {
+    let mut input = [0; 800];
+    for i in 0..800 {
+        input[i] = i as Field;
+    }
+    let hash = hash_args(input);
+    assert(hash == 1557627899280963684159398665725097926236612957540256425197580046184563077271);
 }
 
 #[test]

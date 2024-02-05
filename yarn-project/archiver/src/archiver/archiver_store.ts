@@ -12,7 +12,7 @@ import {
 } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 /**
  * Represents the latest L1 block processed by the archiver for various objects in L2.
@@ -175,13 +175,13 @@ export interface ArchiverDataStore {
    * @param blockNumber - Number of the L2 block the contracts were registered in.
    * @returns True if the operation is successful.
    */
-  addContractClasses(data: ContractClassWithId[], blockNumber: number): Promise<boolean>;
+  addContractClasses(data: ContractClassPublic[], blockNumber: number): Promise<boolean>;
 
   /**
    * Returns a contract class given its id, or undefined if not exists.
    * @param id - Id of the contract class.
    */
-  getContractClass(id: Fr): Promise<ContractClassWithId | undefined>;
+  getContractClass(id: Fr): Promise<ContractClassPublic | undefined>;
 
   /**
    * Add new contract instances from an L2 block to the store's list.

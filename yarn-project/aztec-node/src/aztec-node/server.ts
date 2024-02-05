@@ -47,6 +47,7 @@ import {
   SequencerClient,
   getGlobalVariableBuilder,
 } from '@aztec/sequencer-client';
+import { ContractClassPublic } from '@aztec/types/contracts';
 import {
   MerkleTrees,
   ServerWorldStateSynchronizer,
@@ -235,6 +236,10 @@ export class AztecNodeService implements AztecNode {
    */
   public async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     return await this.contractDataSource.getContractData(contractAddress);
+  }
+
+  public getContractClass(id: Fr): Promise<ContractClassPublic | undefined> {
+    return this.contractDataSource.getContractClass(id);
   }
 
   /**

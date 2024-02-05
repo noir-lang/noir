@@ -7,7 +7,13 @@ import { boolToBuffer, numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/f
 import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
 
-import { FUNCTION_SELECTOR_NUM_BYTES, FUNCTION_TREE_HEIGHT, GeneratorIndex } from '../constants.gen.js';
+import {
+  ARGS_HASH_CHUNK_COUNT,
+  ARGS_HASH_CHUNK_LENGTH,
+  FUNCTION_SELECTOR_NUM_BYTES,
+  FUNCTION_TREE_HEIGHT,
+  GeneratorIndex,
+} from '../constants.gen.js';
 import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
 import {
   ContractDeploymentData,
@@ -224,9 +230,6 @@ export function computePublicDataTreeLeafSlot(contractAddress: AztecAddress, sto
   );
 }
 
-const ARGS_HASH_CHUNK_SIZE = 32;
-const ARGS_HASH_CHUNK_COUNT = 16;
-
 /**
  * Computes the hash of a list of arguments.
  * @param args - Arguments to hash.
@@ -236,13 +239,13 @@ export function computeVarArgsHash(args: Fr[]) {
   if (args.length === 0) {
     return Fr.ZERO;
   }
-  if (args.length > ARGS_HASH_CHUNK_SIZE * ARGS_HASH_CHUNK_COUNT) {
-    throw new Error(`Cannot hash more than ${ARGS_HASH_CHUNK_SIZE * ARGS_HASH_CHUNK_COUNT} arguments`);
+  if (args.length > ARGS_HASH_CHUNK_LENGTH * ARGS_HASH_CHUNK_COUNT) {
+    throw new Error(`Cannot hash more than ${ARGS_HASH_CHUNK_LENGTH * ARGS_HASH_CHUNK_COUNT} arguments`);
   }
 
-  let chunksHashes = chunk(args, ARGS_HASH_CHUNK_SIZE).map(c => {
-    if (c.length < ARGS_HASH_CHUNK_SIZE) {
-      c = padArrayEnd(c, Fr.ZERO, ARGS_HASH_CHUNK_SIZE);
+  let chunksHashes = chunk(args, ARGS_HASH_CHUNK_LENGTH).map(c => {
+    if (c.length < ARGS_HASH_CHUNK_LENGTH) {
+      c = padArrayEnd(c, Fr.ZERO, ARGS_HASH_CHUNK_LENGTH);
     }
     return Fr.fromBuffer(
       pedersenHash(

@@ -11,13 +11,9 @@ import {
 } from '@aztec/circuit-types';
 import '@aztec/circuit-types/jest';
 import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { makeContractClassPublic } from '@aztec/circuits.js/factories';
 import { randomBytes } from '@aztec/foundation/crypto';
-import {
-  ContractClassWithId,
-  ContractInstanceWithAddress,
-  SerializableContractClass,
-  SerializableContractInstance,
-} from '@aztec/types/contracts';
+import { ContractClassPublic, ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
 import { ArchiverDataStore } from './archiver_store.js';
 
@@ -345,11 +341,11 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
     });
 
     describe('contractClasses', () => {
-      let contractClass: ContractClassWithId;
+      let contractClass: ContractClassPublic;
       const blockNum = 10;
 
       beforeEach(async () => {
-        contractClass = { ...SerializableContractClass.random(), id: Fr.random() };
+        contractClass = makeContractClassPublic();
         await store.addContractClasses([contractClass], blockNum);
       });
 

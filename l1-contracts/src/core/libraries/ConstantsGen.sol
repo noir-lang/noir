@@ -62,7 +62,10 @@ library Constants {
   uint256 internal constant MAPPING_SLOT_PEDERSEN_SEPARATOR = 4;
   uint256 internal constant NUM_FIELDS_PER_SHA256 = 2;
   uint256 internal constant ARGS_HASH_CHUNK_LENGTH = 32;
-  uint256 internal constant ARGS_HASH_CHUNK_COUNT = 16;
+  uint256 internal constant ARGS_HASH_CHUNK_COUNT = 32;
+  uint256 internal constant MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS = 1000;
+  uint256 internal constant CONTRACT_CLASS_REGISTERED_MAGIC_VALUE =
+    0x6999d1e02b08a447a463563453cb36919c9dd7150336fc7c4d2b52f8;
   uint256 internal constant L1_TO_L2_MESSAGE_LENGTH = 8;
   uint256 internal constant L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 25;
   uint256 internal constant MAX_NOTE_FIELDS_LENGTH = 20;

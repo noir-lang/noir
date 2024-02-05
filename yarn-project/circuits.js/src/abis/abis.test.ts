@@ -127,7 +127,6 @@ describe('abis', () => {
   });
 
   it('hashes function args', () => {
-    // const args = Array.from({ length: 8 }).map((_, i) => new Fr(i));
     const args = times(8, i => new Fr(i));
     const res = computeVarArgsHash(args);
     expect(res).toMatchSnapshot();
