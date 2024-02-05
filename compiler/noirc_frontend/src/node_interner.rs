@@ -59,7 +59,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     /// This graph tracks dependencies between different global definitions.
-    /// This is used to ensure the absense of dependency cycles for globals
+    /// This is used to ensure the absence of dependency cycles for globals
     /// and types.
     dependency_graph: DiGraph<DependencyId, ()>,
 
