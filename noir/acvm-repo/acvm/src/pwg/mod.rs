@@ -10,7 +10,10 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
-use self::{arithmetic::ExpressionSolver, directives::solve_directives, memory_op::MemoryOpSolver};
+use self::{
+    arithmetic::ExpressionSolver, blackbox::bigint::BigIntSolver, directives::solve_directives,
+    memory_op::MemoryOpSolver,
+};
 use crate::BlackBoxFunctionSolver;
 
 use thiserror::Error;
@@ -132,6 +135,8 @@ pub struct ACVM<'a, B: BlackBoxFunctionSolver> {
     /// Stores the solver for memory operations acting on blocks of memory disambiguated by [block][`BlockId`].
     block_solvers: HashMap<BlockId, MemoryOpSolver>,
 
+    bigint_solver: BigIntSolver,
+
     /// A list of opcodes which are to be executed by the ACVM.
     opcodes: &'a [Opcode],
     /// Index of the next opcode to be executed.
@@ -149,6 +154,7 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             status,
             backend,
             block_solvers: HashMap::default(),
+            bigint_solver: BigIntSolver::default(),
             opcodes,
             instruction_pointer: 0,
             witness_map: initial_witness,
@@ -254,9 +260,12 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
 
         let resolution = match opcode {
             Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
-            Opcode::BlackBoxFuncCall(bb_func) => {
-                blackbox::solve(self.backend, &mut self.witness_map, bb_func)
-            }
+            Opcode::BlackBoxFuncCall(bb_func) => blackbox::solve(
+                self.backend,
+                &mut self.witness_map,
+                bb_func,
+                &mut self.bigint_solver,
+            ),
             Opcode::Directive(directive) => solve_directives(&mut self.witness_map, directive),
             Opcode::MemoryInit { block_id, init } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
