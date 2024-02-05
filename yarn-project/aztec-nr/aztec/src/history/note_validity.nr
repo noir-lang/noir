@@ -2,11 +2,14 @@ use crate::{
     context::PrivateContext,
     history::{
         note_inclusion::prove_note_inclusion,
-        note_inclusion::prove_note_inclusion_at,
+        note_inclusion::_note_inclusion,
         nullifier_non_inclusion::prove_note_not_nullified,
-        nullifier_non_inclusion::prove_note_not_nullified_at,
+        nullifier_non_inclusion::_nullifier_non_inclusion,
     },
-    note::note_interface::NoteInterface,
+    note::{
+        utils::compute_siloed_nullifier,
+        note_interface::NoteInterface,
+    },
 };
 
 pub fn prove_note_validity<Note, N>(note: Note, context: &mut PrivateContext) where Note: NoteInterface<N> {
@@ -20,6 +23,10 @@ pub fn prove_note_validity_at<Note, N>(
     block_number: u32,
     context: &mut PrivateContext
 ) where Note: NoteInterface<N> {
-    prove_note_inclusion_at(note, block_number, *context);
-    prove_note_not_nullified_at(note, block_number, context);
+    // We are calling the internal functions here because we want to avoid calling get_header_at twice
+    let header = context.get_header_at(block_number);
+    _note_inclusion(note, header);
+
+    let nullifier = compute_siloed_nullifier(note, context);
+    _nullifier_non_inclusion(nullifier, header);
 }

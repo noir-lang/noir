@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-fn _nullifier_non_inclusion(nullifier: Field, header: Header) {
+pub fn _nullifier_non_inclusion(nullifier: Field, header: Header) {
     // 1) Get the membership witness of a low nullifier of the nullifier
     let witness = get_low_nullifier_membership_witness(header.global_variables.block_number as u32, nullifier);
 

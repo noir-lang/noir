@@ -10,7 +10,7 @@ use crate::{
     oracle::get_membership_witness::get_note_hash_membership_witness,
 };
 
-fn _note_inclusion<Note, N>(note: Note, header: Header) where Note: NoteInterface<N> {
+pub fn _note_inclusion<Note, N>(note: Note, header: Header) where Note: NoteInterface<N> {
     // 1) Compute note_hash
     let note_hash = compute_note_hash_for_consumption(note);
 
