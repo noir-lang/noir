@@ -8,6 +8,7 @@ use crate::hir_def::stmt::{
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
+use crate::UnaryOp;
 
 use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
@@ -361,9 +362,15 @@ impl<'interner> TypeChecker<'interner> {
                     };
                 };
             }
-            HirExpression::Prefix(_) => self
-                .errors
-                .push(TypeCheckError::InvalidUnaryOp { kind: annotated_type.to_string(), span }),
+            HirExpression::Prefix(expr) => {
+                self.lint_overflowing_uint(&expr.rhs, annotated_type);
+                if matches!(expr.operator, UnaryOp::Minus) {
+                    self.errors.push(TypeCheckError::InvalidUnaryOp {
+                        kind: "annotated_type".to_string(),
+                        span,
+                    });
+                }
+            }
             HirExpression::Infix(expr) => {
                 self.lint_overflowing_uint(&expr.lhs, annotated_type);
                 self.lint_overflowing_uint(&expr.rhs, annotated_type);

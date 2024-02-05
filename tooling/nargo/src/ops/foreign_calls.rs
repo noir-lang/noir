@@ -69,7 +69,7 @@ impl From<Vec<ForeignCallParam>> for NargoForeignCallResult {
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
-pub(crate) enum ForeignCall {
+pub enum ForeignCall {
     Print,
     AssertMessage,
     CreateMock,

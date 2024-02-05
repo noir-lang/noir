@@ -1649,7 +1649,6 @@ impl AcirContext {
         &mut self,
         inputs: Vec<AcirVar>,
         bit_size: u32,
-        predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let len = inputs.len();
         // Convert the inputs into expressions
@@ -1666,23 +1665,14 @@ impl AcirContext {
         self.acir_ir.permutation(&inputs_expr, &output_expr)?;
 
         // Enforce the outputs to be sorted
+        let true_var = self.add_constant(true);
         for i in 0..(outputs_var.len() - 1) {
-            self.less_than_constrain(outputs_var[i], outputs_var[i + 1], bit_size, predicate)?;
+            let less_than_next_element =
+                self.more_than_eq_var(outputs_var[i + 1], outputs_var[i], bit_size)?;
+            self.assert_eq_var(less_than_next_element, true_var, None)?;
         }
 
         Ok(outputs_var)
-    }
-
-    /// Constrain lhs to be less than rhs
-    fn less_than_constrain(
-        &mut self,
-        lhs: AcirVar,
-        rhs: AcirVar,
-        bit_size: u32,
-        predicate: AcirVar,
-    ) -> Result<(), RuntimeError> {
-        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size)?;
-        self.maybe_eq_predicate(lhs_less_than_rhs, predicate)
     }
 
     /// Returns a Variable that is constrained to be the result of reading
