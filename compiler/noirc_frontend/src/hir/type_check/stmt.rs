@@ -92,7 +92,7 @@ impl<'interner> TypeChecker<'interner> {
         match pattern {
             HirPattern::Identifier(ident) => self.interner.push_definition_type(ident.id, typ),
             HirPattern::Mutable(pattern, _) => self.bind_pattern(pattern, typ),
-            HirPattern::Tuple(fields, span) => match typ {
+            HirPattern::Tuple(fields, location) => match typ {
                 Type::Tuple(field_types) if field_types.len() == fields.len() => {
                     for (field, field_type) in fields.iter().zip(field_types) {
                         self.bind_pattern(field, field_type);
@@ -106,16 +106,16 @@ impl<'interner> TypeChecker<'interner> {
                     self.errors.push(TypeCheckError::TypeMismatchWithSource {
                         expected,
                         actual: other,
-                        span: *span,
+                        span: location.span,
                         source: Source::Assignment,
                     });
                 }
             },
-            HirPattern::Struct(struct_type, fields, span) => {
+            HirPattern::Struct(struct_type, fields, location) => {
                 self.unify(struct_type, &typ, || TypeCheckError::TypeMismatchWithSource {
                     expected: struct_type.clone(),
                     actual: typ.clone(),
-                    span: *span,
+                    span: location.span,
                     source: Source::Assignment,
                 });
 
