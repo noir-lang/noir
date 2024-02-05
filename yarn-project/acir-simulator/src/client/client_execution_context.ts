@@ -309,14 +309,14 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param targetContractAddress - The address of the contract to call.
    * @param functionSelector - The function selector of the function to call.
    * @param argsHash - The packed arguments to pass to the function.
-   * @param sideffectCounter - The side effect counter at the start of the call.
+   * @param sideEffectCounter - The side effect counter at the start of the call.
    * @returns The execution result.
    */
   async callPrivateFunction(
     targetContractAddress: AztecAddress,
     functionSelector: FunctionSelector,
     argsHash: Fr,
-    sideffectCounter: number,
+    sideEffectCounter: number,
   ) {
     this.log(
       `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
@@ -337,7 +337,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     const derivedCallContext = await this.deriveCallContext(
       targetContractAddress,
       targetArtifact,
-      sideffectCounter,
+      sideEffectCounter,
       false,
       false,
     );

@@ -1,8 +1,10 @@
 import { FunctionAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { pedersenHash } from '@aztec/foundation/crypto';
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { ContractFunctionDao, Fr, GeneratorIndex } from '../index.js';
+import { GeneratorIndex } from '../constants.gen.js';
+import { ContractFunctionDao } from '../types/contract_function_dao.js';
 
 /**
  * Function description for circuit.

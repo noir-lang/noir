@@ -107,10 +107,10 @@ impl PrivateKernelInputsInit {
                           self.tx_request.function_data);
 
         // TODO(David): What previous kernel proof are we talking about, since this is private-kernel-init
-        let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.end.aggregation_object,self.private_call.proof);
+        let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.aggregation_object,self.private_call.proof);
         assert(is_previous_state_valid);
 
-        public_inputs.end.aggregation_object = updated_aggregation_object;
+        public_inputs.aggregation_object = updated_aggregation_object;
 
         public_inputs.finish()
     }

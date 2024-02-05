@@ -47,6 +47,10 @@ global MAX_READ_REQUESTS_PER_TX: Field = 128;
 global MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX: Field = 4;
 global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
 global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
+
+global MAX_NEW_COMMITMENTS_PER_TX_META: Field = 8;
+global MAX_NEW_NULLIFIERS_PER_TX_META: Field = 8;
+global MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX_META: Field = 2;
 // docs:end:constants
 
 // ROLLUP CONTRACT CONSTANTS - constants used only in l1-contracts
@@ -82,12 +86,12 @@ global MAPPING_SLOT_PEDERSEN_SEPARATOR: Field = 4;
 global NUM_FIELDS_PER_SHA256: Field = 2;
 global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
 global ARGS_HASH_CHUNK_COUNT: u32 = 32;
-// This should be around 8192 (assuming 2**15 instructions packed at 8 bytes each), 
+// This should be around 8192 (assuming 2**15 instructions packed at 8 bytes each),
 // but it's reduced to speed up build times, otherwise the ClassRegisterer takes over 5 mins to compile.
 // We are not using 1024 so we can squeeze in a few more args to methods that consume packed public bytecode,
 // such as the ClassRegisterer.register, and still land below the 32 * 32 max args limit for hashing.
 global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: Field = 1000;
-// Since we are not yet emitting selectors we'll use this magic value to identify events emitted by the ClassRegisterer. 
+// Since we are not yet emitting selectors we'll use this magic value to identify events emitted by the ClassRegisterer.
 // This is just a stopgap until we implement proper selectors.
 // This is the sha224sum of 'struct ContractClassRegistered {contract_class_id: ContractClassId, version: Field, artifact_hash: Field, private_functions_root: Field, packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS] }'
 global CONTRACT_CLASS_REGISTERED_MAGIC_VALUE = 0x6999d1e02b08a447a463563453cb36919c9dd7150336fc7c4d2b52f8;
@@ -110,14 +114,14 @@ global CALL_CONTEXT_LENGTH: Field = 8;
 global GLOBAL_VARIABLES_LENGTH: Field = 4;
 global PARTIAL_STATE_REFERENCE_LENGTH: Field = 8;
 global STATE_REFERENCE_LENGTH: Field = 10; // 2 for snap + 8 for partial
-global HEADER_LENGTH: Field = 18; // 2 for last_archive, 2 for body hash, 10 for state reference, 4 for global vars 
+global HEADER_LENGTH: Field = 18; // 2 for last_archive, 2 for body hash, 10 for state reference, 4 for global vars
 global FUNCTION_DATA_LENGTH: Field = 4;
 global CONTRACT_DEPLOYMENT_DATA_LENGTH: Field = 6;
 // Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
 // In other words, if the structure/size of the public inputs of a function call changes then we should change this
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
-global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 204;
-global PRIVATE_CALL_STACK_ITEM_LENGTH: Field = 209;
+global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 205;
+global PRIVATE_CALL_STACK_ITEM_LENGTH: Field = 210;
 global CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH: Field = 3;
 global CONTRACT_STORAGE_READ_LENGTH: Field = 2;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.

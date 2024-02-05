@@ -10,7 +10,7 @@ use dep::types::{
         nullifier_key_validation_request::NullifierKeyValidationRequestContext,
         previous_kernel_data::PreviousKernelData,
         kernel_circuit_public_inputs::{
-            KernelCircuitPublicInputsBuilder, 
+            KernelCircuitPublicInputsBuilder,
             KernelCircuitPublicInputsFinal,
         },
         side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered},
@@ -20,6 +20,8 @@ use dep::types::{
         MAX_NEW_NULLIFIERS_PER_TX,
         MAX_READ_REQUESTS_PER_TX,
         MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
+        MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+        MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX
     },
     grumpkin_private_key::GrumpkinPrivateKey,
     hash::{
@@ -45,7 +47,7 @@ struct PrivateKernelInputsOrdering {
 
 impl PrivateKernelInputsOrdering {
     fn validate_inputs(self) {
-        assert_eq(array_length(self.previous_kernel.public_inputs.end.private_call_stack), 0, 
+        assert_eq(array_length(self.previous_kernel.public_inputs.end.private_call_stack), 0,
             "Private call stack must be empty when executing the ordering circuit");
     }
 
@@ -200,7 +202,7 @@ impl PrivateKernelInputsOrdering {
         self.validate_inputs();
 
         common::validate_previous_kernel_values(self.previous_kernel.public_inputs.end);
-        
+
         // Do this before any functions can modify the inputs.
         common::initialize_end_values(self.previous_kernel, &mut public_inputs);
 
@@ -210,9 +212,10 @@ impl PrivateKernelInputsOrdering {
 
         self.match_reads_to_commitments(&mut public_inputs);
 
-        self.match_nullifiers_to_commitments_and_squash(&mut public_inputs);        
+        self.match_nullifiers_to_commitments_and_squash(&mut public_inputs);
 
-        PrivateKernelInputsOrdering::apply_commitment_nonces(&mut public_inputs); 
+        PrivateKernelInputsOrdering::apply_commitment_nonces(&mut public_inputs);
+
 
         public_inputs.to_final()
     }
@@ -266,7 +269,7 @@ mod tests {
             self.compute_unique_siloed_commitments(self.previous_kernel.end.new_commitments.storage)
         }
 
-        // A helper function that uses the first nullifer in the previous kernel to compute the unique siloed 
+        // A helper function that uses the first nullifer in the previous kernel to compute the unique siloed
         // commitments for the given commitments.
         pub fn compute_unique_siloed_commitments<N>(self, commitments: [SideEffect; N]) -> [SideEffect; N] {
             let first_nullifier = self.previous_kernel.end.new_nullifiers.get_unchecked(0);

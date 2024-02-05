@@ -28,9 +28,11 @@ use crate::constants::{
 
 struct PrivateCircuitPublicInputsBuilder {
     call_context: CallContext,
-    
+
     args_hash: Field,
     return_values: BoundedVec<Field, RETURN_VALUES_LENGTH>,
+
+    meta_hwm: u32,
 
     read_requests: BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_CALL>,
     nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequest, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL>,
@@ -113,6 +115,7 @@ impl PrivateCircuitPublicInputsBuilder {
             call_context: self.call_context,
             args_hash: self.args_hash,
             return_values: self.return_values.storage,
+            meta_hwm: self.meta_hwm,
 
             read_requests: self.read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,

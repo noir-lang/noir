@@ -38,6 +38,9 @@ library Constants {
   uint256 internal constant MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX = 4;
   uint256 internal constant NUM_ENCRYPTED_LOGS_HASHES_PER_TX = 1;
   uint256 internal constant NUM_UNENCRYPTED_LOGS_HASHES_PER_TX = 1;
+  uint256 internal constant MAX_NEW_COMMITMENTS_PER_TX_META = 8;
+  uint256 internal constant MAX_NEW_NULLIFIERS_PER_TX_META = 8;
+  uint256 internal constant MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX_META = 2;
   uint256 internal constant NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP = 16;
   uint256 internal constant VK_TREE_HEIGHT = 3;
   uint256 internal constant FUNCTION_TREE_HEIGHT = 5;
@@ -79,8 +82,8 @@ library Constants {
   uint256 internal constant HEADER_LENGTH = 18;
   uint256 internal constant FUNCTION_DATA_LENGTH = 4;
   uint256 internal constant CONTRACT_DEPLOYMENT_DATA_LENGTH = 6;
-  uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 204;
-  uint256 internal constant PRIVATE_CALL_STACK_ITEM_LENGTH = 209;
+  uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 205;
+  uint256 internal constant PRIVATE_CALL_STACK_ITEM_LENGTH = 210;
   uint256 internal constant CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH = 3;
   uint256 internal constant CONTRACT_STORAGE_READ_LENGTH = 2;
   uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 201;

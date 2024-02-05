@@ -1,6 +1,5 @@
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
-
-import { Fr } from './index.js';
 
 /**
  * Essential members and functions of all SideEffect variants

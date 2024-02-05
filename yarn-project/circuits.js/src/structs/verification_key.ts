@@ -1,7 +1,7 @@
 import { times } from '@aztec/foundation/collection';
+import { Fq } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { Fq } from './index.js';
 import { CircuitType } from './shared.js';
 
 /**

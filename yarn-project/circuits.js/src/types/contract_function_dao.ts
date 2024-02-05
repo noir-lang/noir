@@ -1,6 +1,4 @@
-import { FunctionArtifact } from '@aztec/foundation/abi';
-
-import { FunctionSelector } from '../index.js';
+import { FunctionArtifact, FunctionSelector } from '@aztec/foundation/abi';
 
 /**
  * A contract function Data Access Object (DAO).

@@ -68,10 +68,10 @@ impl PrivateKernelInputsInner {
             this_call_stack_item.public_inputs.contract_deployment_data,
             this_call_stack_item.function_data);
 
-        let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.end.aggregation_object,self.private_call.proof);
+        let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.aggregation_object,self.private_call.proof);
         assert(is_previous_state_valid);
 
-        public_inputs.end.aggregation_object = updated_aggregation_object;
+        public_inputs.aggregation_object = updated_aggregation_object;
 
         public_inputs.finish()
     }

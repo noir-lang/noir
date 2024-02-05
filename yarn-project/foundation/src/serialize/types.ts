@@ -16,7 +16,7 @@ type _Tuple<T, N extends number, R extends unknown[]> = R['length'] extends N ? 
  */
 export function assertLength<T, N extends number>(array: T[], n: N): Tuple<T, N> {
   if (array.length !== n) {
-    throw new Error("Wrong 'fixed array' size");
+    throw new Error(`Wrong 'fixed array' size. Expected ${n}, got ${array.length}.`);
   }
   return array as Tuple<T, N>;
 }

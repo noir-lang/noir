@@ -4,6 +4,7 @@ import {
   FunctionData,
   FunctionSelector,
   KernelCircuitPublicInputs,
+  KernelCircuitPublicInputsFinal,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_READ_REQUESTS_PER_CALL,
@@ -21,7 +22,6 @@ import { makeTxRequest } from '@aztec/circuits.js/factories';
 import { makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
 
 import { mock } from 'jest-mock-extended';
 
@@ -81,11 +81,26 @@ describe('Kernel Prover', () => {
 
   const createProofOutput = (newNoteIndices: number[]) => {
     const publicInputs = KernelCircuitPublicInputs.empty();
-    const commitments = newNoteIndices.map(
-      idx => new SideEffect(generateFakeSiloedCommitment(notesAndSlots[idx]), Fr.ZERO),
-    );
-    // TODO(AD) FIXME(AD) This cast is bad. Why is this not the correct length when this is called?
-    publicInputs.end.newCommitments = commitments as Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_TX>;
+    const commitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => SideEffect.empty());
+    for (let i = 0; i < newNoteIndices.length; i++) {
+      commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
+    }
+
+    publicInputs.end.newCommitments = commitments;
+    return {
+      publicInputs,
+      proof: makeEmptyProof(),
+    };
+  };
+
+  const createProofOutputFinal = (newNoteIndices: number[]) => {
+    const publicInputs = KernelCircuitPublicInputsFinal.empty();
+    const commitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => SideEffect.empty());
+    for (let i = 0; i < newNoteIndices.length; i++) {
+      commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
+    }
+
+    publicInputs.end.newCommitments = commitments;
     return {
       publicInputs,
       proof: makeEmptyProof(),
@@ -140,7 +155,7 @@ describe('Kernel Prover', () => {
     );
     proofCreator.createProofInit.mockResolvedValue(createProofOutput([]));
     proofCreator.createProofInner.mockResolvedValue(createProofOutput([]));
-    proofCreator.createProofOrdering.mockResolvedValue(createProofOutput([]));
+    proofCreator.createProofOrdering.mockResolvedValue(createProofOutputFinal([]));
 
     prover = new KernelProver(oracle, proofCreator);
   });
@@ -182,7 +197,7 @@ describe('Kernel Prover', () => {
     proofCreator.createProofInit.mockResolvedValueOnce(createProofOutput([1, 2, 3]));
     proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 4]));
     proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 5, 6]));
-    proofCreator.createProofOrdering.mockResolvedValueOnce(createProofOutput([1, 3, 5, 6]));
+    proofCreator.createProofOrdering.mockResolvedValueOnce(createProofOutputFinal([1, 3, 5, 6]));
 
     const executionResult = {
       ...resultA,

@@ -355,7 +355,7 @@ impl BaseRollupInputs {
     // TODO(Kev): This aggregate_proof method is duplicated in a lot of places
     fn aggregate_proofs(self) -> AggregationObject {
         // TODO: for now we simply return the aggregation object from the first proof
-        self.kernel_data.public_inputs.end.aggregation_object
+        self.kernel_data.public_inputs.aggregation_object
     }
 }
 
