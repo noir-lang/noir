@@ -1,13 +1,6 @@
-use dep::aztec::abi;
 use dep::aztec::context::PrivateContext;
 use dep::aztec::protocol_types::{
-  abis::{
-    call_stack_item::{
-      PrivateCallStackItem,
-      PublicCallStackItem,
-    },
-    function_selector::FunctionSelector,
-  },
+  abis::function_selector::FunctionSelector,
   address::AztecAddress,
   constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
   hash::pedersen_hash,

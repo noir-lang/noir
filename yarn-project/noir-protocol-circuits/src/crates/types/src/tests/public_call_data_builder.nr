@@ -2,9 +2,9 @@ use crate::{
     abis::{
         call_context::CallContext,
         call_request::{CallerContext, CallRequest},
-        call_stack_item::PublicCallStackItem,
         function_data::FunctionData,
         public_call_data::PublicCallData,
+        public_call_stack_item::PublicCallStackItem,
         public_circuit_public_inputs::PublicCircuitPublicInputs,
     },
     address::{AztecAddress, EthAddress},

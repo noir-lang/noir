@@ -21,4 +21,13 @@ describe('FunctionData', () => {
     const fields = functionData.toFields();
     expect(fields.length).toBe(FUNCTION_DATA_LENGTH);
   });
+
+  it('computes empty inputs hash', () => {
+    const data = FunctionData.empty();
+    const hash = data.hash();
+    expect(hash).toMatchSnapshot();
+
+    // Value used in empty_hash test in private_circuit_public_inputs.nr
+    // console.log("hash", hash.toString());
+  });
 });

@@ -1,7 +1,7 @@
 use crate::{
     abis::{
         call_request::CallRequest,
-        call_stack_item::PublicCallStackItem,
+        public_call_stack_item::PublicCallStackItem,
     },
     address::EthAddress,
     mocked::Proof,

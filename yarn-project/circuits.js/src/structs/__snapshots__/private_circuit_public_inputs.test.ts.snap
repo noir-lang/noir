@@ -1,5 +1,48 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`PrivateCircuitPublicInputs computes empty inputs hash 1`] = `
+Fr {
+  "asBigInt": 12301192320887385040004337322010330544799239165678935149737125610986921421742n,
+  "asBuffer": {
+    "data": [
+      27,
+      50,
+      58,
+      102,
+      44,
+      155,
+      59,
+      78,
+      57,
+      121,
+      12,
+      232,
+      163,
+      173,
+      44,
+      126,
+      204,
+      147,
+      1,
+      69,
+      103,
+      187,
+      156,
+      228,
+      194,
+      51,
+      60,
+      93,
+      32,
+      90,
+      107,
+      174,
+    ],
+    "type": "Buffer",
+  },
+}
+`;
+
 exports[`PrivateCircuitPublicInputs hash matches snapshot 1`] = `
 Fr {
   "asBigInt": 7655509707748365385586683354008259293573299722789964529445054772581519738939n,

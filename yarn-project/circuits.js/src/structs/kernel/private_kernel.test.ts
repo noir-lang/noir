@@ -4,7 +4,6 @@ import {
   makeNewSideEffect,
   makePreviousKernelData,
   makePrivateCallData,
-  makePrivateCallStackItem,
   makePrivateCircuitPublicInputs,
   makePrivateKernelInputsInner,
   makePrivateKernelPublicInputsFinal,
@@ -13,7 +12,6 @@ import {
   CallRequest,
   FinalAccumulatedData,
   PreviousKernelData,
-  PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   PrivateKernelPublicInputsFinal,
   SideEffect,
@@ -74,15 +72,6 @@ describe('CallRequest', () => {
     const fad = makeCallRequest(0);
     const buf = fad.toBuffer();
     expect(CallRequest.fromBuffer(buf)).toEqual(fad);
-  });
-});
-
-describe('PrivateCallStackcItem', () => {
-  it('convert to and from buffer', () => {
-    const fad = makePrivateCallStackItem(0);
-
-    const buf = fad.toBuffer();
-    expect(PrivateCallStackItem.fromBuffer(buf)).toEqual(fad);
   });
 });
 

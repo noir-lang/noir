@@ -1,7 +1,7 @@
 use crate::{
     abis::{
         call_request::{CallerContext, CallRequest},
-        call_stack_item::PrivateCallStackItem,
+        private_call_stack_item::PrivateCallStackItem,
         function_data::FunctionData,
         membership_witness::{
             ContractLeafMembershipWitness,
@@ -188,9 +188,8 @@ impl PrivateCallDataBuilder {
     pub fn get_call_stack_item_hash(self) -> Field {
         let call_stack_item = PrivateCallStackItem {
             contract_address: self.contract_address,
-            public_inputs: self.public_inputs.finish(),
-            is_execution_request: false,
             function_data: self.function_data,
+            public_inputs: self.public_inputs.finish(),
         };
         call_stack_item.hash()
     }
@@ -198,9 +197,8 @@ impl PrivateCallDataBuilder {
     pub fn finish(self) -> PrivateCallData {
         let call_stack_item = PrivateCallStackItem {
             contract_address: self.contract_address,
-            public_inputs: self.public_inputs.finish(),
-            is_execution_request: false,
             function_data: self.function_data,
+            public_inputs: self.public_inputs.finish(),
         };
 
         PrivateCallData {

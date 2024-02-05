@@ -67,6 +67,30 @@ struct PrivateCircuitPublicInputs {
     version: Field,
 }
 
+impl Eq for PrivateCircuitPublicInputs {
+    fn eq(self, other: Self) -> bool {
+        self.call_context.eq(other.call_context) &
+        self.args_hash.eq(other.args_hash) &
+        (self.return_values == other.return_values) &
+        (self.read_requests == other.read_requests) &
+        (self.nullifier_key_validation_requests == other.nullifier_key_validation_requests) &
+        (self.new_commitments == other.new_commitments) &
+        (self.new_nullifiers == other.new_nullifiers) &
+        (self.private_call_stack_hashes == other.private_call_stack_hashes) &
+        (self.public_call_stack_hashes == other.public_call_stack_hashes) &
+        (self.new_l2_to_l1_msgs == other.new_l2_to_l1_msgs) &
+        (self.end_side_effect_counter == other.end_side_effect_counter) &
+        (self.encrypted_logs_hash == other.encrypted_logs_hash) &
+        (self.unencrypted_logs_hash == other.unencrypted_logs_hash) &
+        (self.encrypted_log_preimages_length == other.encrypted_log_preimages_length) &
+        (self.unencrypted_log_preimages_length == other.unencrypted_log_preimages_length) &
+        self.historical_header.eq(other.historical_header) &
+        self.contract_deployment_data.eq(other.contract_deployment_data) &
+        self.chain_id.eq(other.chain_id) &
+        self.version.eq(other.version)
+    }
+}
+
 impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInputs {
     fn serialize(self) -> [Field; PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
@@ -143,13 +167,18 @@ impl Hash for PrivateCircuitPublicInputs {
 }
 
 #[test]
-fn serialization_smoke() {
+fn serialization_of_empty() {
     let pcpi: PrivateCircuitPublicInputs = dep::std::unsafe::zeroed();
-    let _serialized = pcpi.serialize();
+    let serialized = pcpi.serialize();
+    let deserialized = PrivateCircuitPublicInputs::deserialize(serialized);
+    assert(pcpi.eq(deserialized));
 }
 
 #[test]
-fn hash_smoke() {
-    let pcpi: PrivateCircuitPublicInputs = dep::std::unsafe::zeroed();
-    let _hashed = pcpi.hash();
+fn empty_hash() {
+    let inputs: PrivateCircuitPublicInputs = dep::std::unsafe::zeroed();
+    let hash = inputs.hash();
+
+    // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
+    assert_eq(hash, 0x1b323a662c9b3b4e39790ce8a3ad2c7ecc93014567bb9ce4c2333c5d205a6bae);
 }

@@ -68,7 +68,7 @@ impl Empty for StateReference {
 }
 
 #[test]
-fn serialization_deserialization_smoke() {
+fn serialization_of_empty() {
     let state: StateReference = dep::std::unsafe::zeroed();
     let _serialized = state.serialize();
     let _deserialized = StateReference::deserialize(_serialized);

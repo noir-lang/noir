@@ -3,7 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { isArrayEmpty } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { FieldReader, Tuple, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, Tuple, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import {
@@ -178,40 +178,47 @@ export class PublicCircuitPublicInputs {
     return serializeToFields(...PublicCircuitPublicInputs.getFields(this));
   }
 
+  /**
+   * Deserializes from a buffer or reader.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized instance.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PublicCircuitPublicInputs {
+    const reader = BufferReader.asReader(buffer);
+    return new PublicCircuitPublicInputs(
+      reader.readObject(CallContext),
+      reader.readObject(Fr),
+      reader.readArray(RETURN_VALUES_LENGTH, Fr),
+      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, ContractStorageUpdateRequest),
+      reader.readArray(MAX_PUBLIC_DATA_READS_PER_CALL, ContractStorageRead),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr),
+      reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
+      reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, Fr),
+      reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
+      reader.readObject(Fr),
+      reader.readObject(Header),
+      reader.readObject(AztecAddress),
+    );
+  }
+
   static fromFields(fields: Fr[] | FieldReader): PublicCircuitPublicInputs {
     const reader = FieldReader.asReader(fields);
 
-    const callContext = CallContext.fromFields(reader);
-    const argsHash = reader.readField();
-    const returnValues = reader.readFieldArray(RETURN_VALUES_LENGTH);
-    const contractStorageUpdateRequests = reader.readArray(
-      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-      ContractStorageUpdateRequest,
-    );
-    const contractStorageReads = reader.readArray(MAX_PUBLIC_DATA_READS_PER_CALL, ContractStorageRead);
-    const publicCallStackHashes = reader.readFieldArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
-    const newCommitments = reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect);
-    const newNullifiers = reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash);
-    const newL2ToL1Msgs = reader.readFieldArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL);
-    const unencryptedLogsHash = reader.readFieldArray(NUM_FIELDS_PER_SHA256);
-    const unencryptedLogPreimagesLength = reader.readField();
-    const historicalHeader = Header.fromFields(reader);
-    const proverAddress = AztecAddress.fromFields(reader);
-
     return new PublicCircuitPublicInputs(
-      callContext,
-      argsHash,
-      returnValues,
-      contractStorageUpdateRequests,
-      contractStorageReads,
-      publicCallStackHashes,
-      newCommitments,
-      newNullifiers,
-      newL2ToL1Msgs,
-      unencryptedLogsHash,
-      unencryptedLogPreimagesLength,
-      historicalHeader,
-      proverAddress,
+      CallContext.fromFields(reader),
+      reader.readField(),
+      reader.readFieldArray(RETURN_VALUES_LENGTH),
+      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, ContractStorageUpdateRequest),
+      reader.readArray(MAX_PUBLIC_DATA_READS_PER_CALL, ContractStorageRead),
+      reader.readFieldArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL),
+      reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
+      reader.readFieldArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL),
+      reader.readFieldArray(NUM_FIELDS_PER_SHA256),
+      reader.readField(),
+      Header.fromFields(reader),
+      AztecAddress.fromFields(reader),
     );
   }
 

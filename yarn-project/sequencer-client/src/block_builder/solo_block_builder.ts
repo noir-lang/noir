@@ -358,9 +358,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     ];
 
     const getRootTreeSiblingPath = async (treeId: MerkleTreeId) => {
-      // TODO: Synchronize these operations into the tree db to avoid race conditions
       const { size } = await this.db.getTreeInfo(treeId);
-      // TODO: Check for off-by-one errors
       const path = await this.db.getSiblingPath(treeId, size);
       return path.toFields();
     };

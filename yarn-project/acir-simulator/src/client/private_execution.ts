@@ -53,7 +53,7 @@ export async function executePrivateFunction(
   publicInputs.unencryptedLogsHash = to2Fields(unencryptedLogs.hash());
   publicInputs.unencryptedLogPreimagesLength = new Fr(unencryptedLogs.getSerializedLength());
 
-  const callStackItem = new PrivateCallStackItem(contractAddress, functionData, publicInputs, false);
+  const callStackItem = new PrivateCallStackItem(contractAddress, functionData, publicInputs);
   const returnValues = decodeReturnValues(artifact, publicInputs.returnValues);
   const readRequestPartialWitnesses = context.getReadRequestPartialWitnesses(publicInputs.readRequests);
   const newNotes = context.getNewNotes();

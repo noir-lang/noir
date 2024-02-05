@@ -12,7 +12,6 @@ use crate::{
         Serialize,
     },
 };
-use dep::std::cmp::Eq;
 
 // docs:start:call-context
 struct CallContext {
@@ -95,9 +94,11 @@ impl Deserialize<CALL_CONTEXT_LENGTH> for CallContext {
 }
 
 #[test]
-fn serialization_smoke() {
+fn serialization_of_empty() {
     let context: CallContext = dep::std::unsafe::zeroed();
-    let _serialized = context.serialize();
+    let serialized = context.serialize();
+    let deserialized = CallContext::deserialize(serialized);
+    assert(context.eq(deserialized));
 }
 
 #[test]

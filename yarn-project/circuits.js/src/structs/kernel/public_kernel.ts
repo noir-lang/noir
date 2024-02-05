@@ -9,9 +9,9 @@ import {
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
-import { PublicCallStackItem } from '../call_stack_item.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { Proof } from '../proof.js';
+import { PublicCallStackItem } from '../public_call_stack_item.js';
 import { PreviousKernelData } from './previous_kernel_data.js';
 
 /**

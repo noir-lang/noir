@@ -58,6 +58,12 @@ struct PublicCircuitPublicInputs{
     prover_address: AztecAddress,
 }
 
+impl Eq for PublicCircuitPublicInputs {
+    fn eq(self, other: Self) -> bool {
+        self.serialize() == other.serialize()
+    }
+}
+
 impl Serialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInputs {
     fn serialize(self) -> [Field; PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
@@ -119,9 +125,11 @@ impl Hash for PublicCircuitPublicInputs {
 }
 
 #[test]
-fn serialization_smoke() {
+fn serialization_of_empty() {
     let pcpi: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
-    let _serialized = pcpi.serialize();
+    let serialized = pcpi.serialize();
+    let deserialized = PublicCircuitPublicInputs::deserialize(serialized);
+    assert(pcpi.eq(deserialized));
 }
 
 #[test]

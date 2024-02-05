@@ -24,6 +24,16 @@ struct ContractDeploymentData {
 }
 // docs:end:contract-deployment-data
 
+impl Eq for ContractDeploymentData {
+    fn eq(self, other: Self) -> bool {
+        self.public_key.eq(other.public_key) &
+        self.initialization_hash.eq(other.initialization_hash) &
+        self.contract_class_id.eq(other.contract_class_id) &
+        self.contract_address_salt.eq(other.contract_address_salt) &
+        self.portal_contract_address.eq(other.portal_contract_address)
+    }
+}
+
 impl Hash for ContractDeploymentData {
     fn hash(self) -> Field {
         pedersen_hash(self.serialize(), GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)
@@ -66,4 +76,12 @@ impl ContractDeploymentData {
         assert(self.contract_address_salt == 0);
         self.portal_contract_address.assert_is_zero();
     }
+}
+
+#[test]
+fn serialization_of_empty() {
+    let data: ContractDeploymentData = dep::std::unsafe::zeroed();
+    let serialized = data.serialize();
+    let deserialized = ContractDeploymentData::deserialize(serialized);
+    assert(data.eq(deserialized));
 }

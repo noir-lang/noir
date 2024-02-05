@@ -20,7 +20,6 @@ import {
   FunctionData,
   FunctionLeafPreimage,
   NewContractData,
-  PrivateCallStackItem,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
   SideEffect,
@@ -154,10 +153,7 @@ export function computeFunctionTreeRoot(fnLeaves: Fr[]) {
  */
 export function hashConstructor(functionData: FunctionData, argsHash: Fr, constructorVKHash: Buffer): Fr {
   return Fr.fromBuffer(
-    pedersenHash(
-      [computeFunctionDataHash(functionData).toBuffer(), argsHash.toBuffer(), constructorVKHash],
-      GeneratorIndex.CONSTRUCTOR,
-    ),
+    pedersenHash([functionData.hash().toBuffer(), argsHash.toBuffer(), constructorVKHash], GeneratorIndex.CONSTRUCTOR),
   );
 }
 
@@ -294,25 +290,11 @@ export function computeTxHash(txRequest: TxRequest): Fr {
     pedersenHash(
       [
         txRequest.origin.toBuffer(),
-        computeFunctionDataHash(txRequest.functionData).toBuffer(),
+        txRequest.functionData.hash().toBuffer(),
         txRequest.argsHash.toBuffer(),
         computeTxContextHash(txRequest.txContext).toBuffer(),
       ],
       GeneratorIndex.TX_REQUEST,
-    ),
-  );
-}
-
-function computeFunctionDataHash(functionData: FunctionData): Fr {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [
-        functionData.selector.toBuffer(32),
-        new Fr(functionData.isInternal).toBuffer(),
-        new Fr(functionData.isPrivate).toBuffer(),
-        new Fr(functionData.isConstructor).toBuffer(),
-      ],
-      GeneratorIndex.FUNCTION_DATA,
     ),
   );
 }
@@ -349,24 +331,6 @@ function computeContractDeploymentDataHash(data: ContractDeploymentData): Fr {
   );
 }
 
-/**
- * Computes a call stack item hash.
- * @param callStackItem - The call stack item.
- * @returns The call stack item hash.
- */
-export function computePrivateCallStackItemHash(callStackItem: PrivateCallStackItem): Fr {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [
-        callStackItem.contractAddress.toBuffer(),
-        computeFunctionDataHash(callStackItem.functionData).toBuffer(),
-        callStackItem.publicInputs.hash().toBuffer(),
-      ],
-      GeneratorIndex.CALL_STACK_ITEM,
-    ),
-  );
-}
-
 export function computeCommitmentsHash(input: SideEffect) {
   return pedersenHash([input.value.toBuffer(), input.counter.toBuffer()], GeneratorIndex.SIDE_EFFECT);
 }
@@ -398,7 +362,7 @@ export function computePublicCallStackItemHash({
 
   return Fr.fromBuffer(
     pedersenHash(
-      [contractAddress.toBuffer(), computeFunctionDataHash(functionData).toBuffer(), publicInputs.hash().toBuffer()],
+      [contractAddress, functionData.hash(), publicInputs.hash()].map(f => f.toBuffer()),
       GeneratorIndex.CALL_STACK_ITEM,
     ),
   );

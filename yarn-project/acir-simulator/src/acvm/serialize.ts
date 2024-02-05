@@ -50,6 +50,7 @@ export function toACVMField(
  * are empty since this is just an execution request, so we don't send them to the circuit.
  * @param item - The public call stack item to serialize to be passed onto Noir.
  * @returns The fields expected by the enqueue_public_function_call_oracle Aztec.nr function.
+ * TODO(#4380): Nuke this and replace it with PublicCallRequest.toFields()
  */
 export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVMField[] {
   return [

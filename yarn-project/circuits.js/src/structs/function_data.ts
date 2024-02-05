@@ -1,7 +1,8 @@
 import { FunctionAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { ContractFunctionDao, Fr } from '../index.js';
+import { ContractFunctionDao, Fr, GeneratorIndex } from '../index.js';
 
 /**
  * Function description for circuit.
@@ -107,5 +108,14 @@ export class FunctionData {
     const isConstructor = reader.readBoolean();
 
     return new FunctionData(selector, isInternal, isPrivate, isConstructor);
+  }
+
+  hash(): Fr {
+    return Fr.fromBuffer(
+      pedersenHash(
+        this.toFields().map(field => field.toBuffer()),
+        GeneratorIndex.FUNCTION_DATA,
+      ),
+    );
   }
 }

@@ -37,6 +37,15 @@ struct Header {
 }
 // docs:end:header
 
+impl Eq for Header {
+    fn eq(self, other: Self) -> bool {
+        self.last_archive.eq(other.last_archive) &
+        (self.body_hash == other.body_hash) &
+        self.state.eq(other.state) &
+        self.global_variables.eq(other.global_variables)
+    }
+}
+
 impl Serialize<HEADER_LENGTH> for Header {
     fn serialize(self) -> [Field; HEADER_LENGTH] {
         let mut fields: BoundedVec<Field, HEADER_LENGTH> = BoundedVec::new(0);
@@ -92,10 +101,11 @@ impl Hash for Header {
 }
 
 #[test]
-fn serialization_deserialization_smoke() {
+fn serialization_of_empty() {
     let header: Header = dep::std::unsafe::zeroed();
-    let _serialized = header.serialize();
-    let _deserialized = Header::deserialize(_serialized);
+    let serialized = header.serialize();
+    let deserialized = Header::deserialize(serialized);
+    assert(header.eq(deserialized));
 }
 
 #[test]

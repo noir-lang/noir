@@ -693,7 +693,6 @@ export function makePrivateCallStackItem(seed = 1): PrivateCallStackItem {
     makeAztecAddress(seed),
     new FunctionData(makeSelector(seed + 0x1), false, true, true),
     makePrivateCircuitPublicInputs(seed + 0x10),
-    false,
   );
 }
 

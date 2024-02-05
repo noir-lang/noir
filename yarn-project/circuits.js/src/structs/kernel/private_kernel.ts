@@ -14,8 +14,8 @@ import {
 } from '../../constants.gen.js';
 import { GrumpkinPrivateKey } from '../../types/grumpkin_private_key.js';
 import { CallRequest } from '../call_request.js';
-import { PrivateCallStackItem } from '../call_stack_item.js';
 import { MembershipWitness } from '../membership_witness.js';
+import { PrivateCallStackItem } from '../private_call_stack_item.js';
 import { Proof } from '../proof.js';
 import { ReadRequestMembershipWitness } from '../read_request_membership_witness.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';

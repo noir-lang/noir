@@ -7,7 +7,7 @@ use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::contrakt::deployment_data::ContractDeploymentData;
 use crate::abis::function_selector::FunctionSelector;
 use crate::hash::{compute_l2_to_l1_hash, sha256_to_field, hash_args};
-use crate::abis::call_stack_item::PublicCallStackItem;
+use crate::abis::public_call_stack_item::PublicCallStackItem;
 use crate::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
 use crate::abis::side_effect::SideEffect;
 use crate::contract_class::ContractClassId;

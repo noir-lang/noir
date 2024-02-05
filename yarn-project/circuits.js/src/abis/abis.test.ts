@@ -14,7 +14,6 @@ import {
 import {
   makeAztecAddress,
   makeEthAddress,
-  makePrivateCallStackItem,
   makePublicCallStackItem,
   makeTxRequest,
   makeVerificationKey,
@@ -27,7 +26,6 @@ import {
   computeFunctionSelector,
   computeFunctionTreeRoot,
   computeNullifierHash,
-  computePrivateCallStackItemHash,
   computePublicCallStackItemHash,
   computePublicDataTreeLeafSlot,
   computePublicDataTreeValue,
@@ -153,12 +151,6 @@ describe('abis', () => {
   it('compute tx hash', () => {
     const txRequest = makeTxRequest();
     const hash = computeTxHash(txRequest);
-    expect(hash).toMatchSnapshot();
-  });
-
-  it('compute private call stack item hash', () => {
-    const item = makePrivateCallStackItem();
-    const hash = computePrivateCallStackItemHash(item);
     expect(hash).toMatchSnapshot();
   });
 
