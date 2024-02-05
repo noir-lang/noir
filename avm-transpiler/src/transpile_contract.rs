@@ -1,3 +1,4 @@
+use base64::Engine;
 use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -101,7 +102,7 @@ impl From<CompiledAcirContract> for TranspiledContract {
                     function_type: function.function_type,
                     is_internal: function.is_internal,
                     abi: function.abi,
-                    bytecode: base64::encode(avm_bytecode),
+                    bytecode: base64::prelude::BASE64_STANDARD.encode(avm_bytecode),
                     debug_symbols: function.debug_symbols,
                 }));
             } else {
