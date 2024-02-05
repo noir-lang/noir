@@ -148,7 +148,7 @@ mod tests {
     use acir::{
         circuit::{
             opcodes::{BlackBoxFuncCall, FunctionInput},
-            Circuit, Opcode, PublicInputs,
+            Circuit, ExpressionWidth, Opcode, PublicInputs,
         },
         native_types::{Expression, Witness},
     };
@@ -167,6 +167,7 @@ mod tests {
 
         Circuit {
             current_witness_index: 1,
+            expression_width: ExpressionWidth::Bounded { width: 3 },
             opcodes,
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs::default(),

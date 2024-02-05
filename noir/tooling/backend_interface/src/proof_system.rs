@@ -2,8 +2,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
-use acvm::ExpressionWidth;
+use acvm::acir::{
+    circuit::{Circuit, ExpressionWidth},
+    native_types::WitnessMap,
+};
 use acvm::FieldElement;
 use tempfile::tempdir;
 use tracing::warn;
