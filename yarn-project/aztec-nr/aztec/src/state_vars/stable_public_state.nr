@@ -50,19 +50,15 @@ impl<T> StablePublicState<T> {
         // Read the value from storage (using the public tree)
         let fields = storage_read(self.storage_slot);
 
-        // TODO: The block_number here can be removed when using the current header in the membership proof.
-        let block_number = private_context.get_header().global_variables.block_number;
-
         // Loop over the fields and prove their inclusion in the public tree
         for i in 0..fields.len() {
             // TODO: Update membership proofs to use current header (Requires #4179)
             // Currently executing unnecessary computation:
-            // - a membership proof of the header(block_number) in the history
             // - a membership proof of the value in the public tree of the header 
             prove_public_value_inclusion(
                 fields[i],
                 self.storage_slot + i,
-                block_number as u32,
+                (*private_context).this_address(),
                 (*private_context),
             )
         }

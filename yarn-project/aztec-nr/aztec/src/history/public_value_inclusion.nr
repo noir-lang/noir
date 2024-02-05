@@ -1,6 +1,10 @@
 use dep::protocol_types::{
     constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
+    header::Header,
     hash::pedersen_hash,
+        address::{
+        AztecAddress
+    },
 };
 use dep::std::merkle::compute_merkle_root;
 
@@ -8,7 +12,6 @@ use crate::{
     context::PrivateContext,
     oracle::get_public_data_witness::{
         get_public_data_witness,
-        PublicDataWitness,
     },
     utils::{
         full_field_less_than,
@@ -18,20 +21,46 @@ use crate::{
 pub fn prove_public_value_inclusion(
     value: Field, // The value that we want to prove is in the public data tree
     storage_slot: Field, // The storage slot in which the value is stored
+    contract_address: AztecAddress, // The contract we want to look into
+    context: PrivateContext
+) {
+    _public_value_inclusion(
+        value,
+        storage_slot,
+        contract_address,
+        context.historical_header
+    );
+}
+
+pub fn prove_public_value_inclusion_at(
+    value: Field, // The value that we want to prove is in the public data tree
+    storage_slot: Field, // The storage slot in which the value is stored
+    contract_address: AztecAddress, // The contract we want to look into
     block_number: u32, // The block at which we'll prove that the note exists
     context: PrivateContext
 ) {
-    // 1) Get block header from oracle and ensure that the block hash is included in the archive.
     let header = context.get_header_at(block_number);
 
-    // 2) Compute the leaf slot by siloing the storage slot with our own address
+    _public_value_inclusion(value, storage_slot, contract_address, header);
+}
+
+fn _public_value_inclusion(
+    value: Field,
+    storage_slot: Field,
+    contract_address: AztecAddress,
+    header: Header
+) {
+    // 1) Compute the leaf slot by siloing the storage slot with the contract address
     let public_value_leaf_slot = pedersen_hash(
-        [context.this_address().to_field(), storage_slot],
+        [contract_address.to_field(), storage_slot],
         GENERATOR_INDEX__PUBLIC_LEAF_INDEX
     );
 
     // 3) Get the membership witness of the slot
-    let witness = get_public_data_witness(block_number, public_value_leaf_slot);
+    let witness = get_public_data_witness(
+        header.global_variables.block_number as u32,
+        public_value_leaf_slot
+    );
 
     // 4) Check that the witness matches the corresponding public_value
     let preimage = witness.leaf_preimage;

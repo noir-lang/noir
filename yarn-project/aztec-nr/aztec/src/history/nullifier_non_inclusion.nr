@@ -1,10 +1,10 @@
 use dep::std::merkle::compute_merkle_root;
+use dep::protocol_types::header::Header;
 
 use crate::{
     context::PrivateContext,
     note::{
         utils::compute_siloed_nullifier,
-        note_header::NoteHeader,
         note_interface::NoteInterface,
     },
     oracle::get_nullifier_membership_witness::get_low_nullifier_membership_witness,
@@ -14,16 +14,9 @@ use crate::{
     },
 };
 
-pub fn prove_nullifier_non_inclusion(
-    nullifier: Field,
-    block_number: u32, // The block at which we'll prove that the nullifier does not exists
-    context: PrivateContext
-) {
-    // 1) Get block header from oracle and ensure that the block is included in the archive.
-    let header = context.get_header_at(block_number);
-
-    // 2) Get the membership witness of a low nullifier of the nullifier
-    let witness = get_low_nullifier_membership_witness(block_number, nullifier);
+fn _nullifier_non_inclusion(nullifier: Field, header: Header) {
+    // 1) Get the membership witness of a low nullifier of the nullifier
+    let witness = get_low_nullifier_membership_witness(header.global_variables.block_number as u32, nullifier);
 
     // 3) Prove that the nullifier is not included in the nullifier tree
 
@@ -49,12 +42,32 @@ pub fn prove_nullifier_non_inclusion(
     //     was not yet included in the nullifier tree.
 }
 
+pub fn prove_nullifier_not_included(nullifier: Field, context: PrivateContext) {
+    _nullifier_non_inclusion(nullifier, context.historical_header);
+}
+
+pub fn prove_nullifier_not_included_at(nullifier: Field, block_number: u32, context: PrivateContext) {
+    let header = context.get_header_at(block_number);
+
+    _nullifier_non_inclusion(nullifier, header);
+}
+
 pub fn prove_note_not_nullified<Note, N>(
-    note_with_header: Note,
+    note: Note,
+    context: &mut PrivateContext
+) where Note: NoteInterface<N> {
+    let nullifier = compute_siloed_nullifier(note, context);
+
+    _nullifier_non_inclusion(nullifier, context.historical_header);
+}
+
+pub fn prove_note_not_nullified_at<Note, N>(
+    note: Note,
     block_number: u32, // The block at which we'll prove that the note was not nullified
     context: &mut PrivateContext
 ) where Note: NoteInterface<N> {
-    let nullifier = compute_siloed_nullifier(note_with_header, context);
+    let nullifier = compute_siloed_nullifier(note, context);
+    let header = context.get_header_at(block_number);
 
-    prove_nullifier_non_inclusion(nullifier, block_number, *context);
+    _nullifier_non_inclusion(nullifier, header);
 }
