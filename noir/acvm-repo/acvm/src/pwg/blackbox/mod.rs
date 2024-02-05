@@ -193,7 +193,7 @@ pub(crate) fn solve(
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
         BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntNeg { lhs, rhs, output }
+        | BlackBoxFuncCall::BigIntSub { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntMul { lhs, rhs, output }
         | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
             bigint_solver.bigint_op(*lhs, *rhs, *output, bb_func.get_black_box_func())

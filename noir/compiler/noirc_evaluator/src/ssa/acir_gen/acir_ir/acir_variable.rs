@@ -1199,7 +1199,7 @@ impl AcirContext {
                 (vec![state_len], Vec::new())
             }
             BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntNeg
+            | BlackBoxFunc::BigIntSub
             | BlackBoxFunc::BigIntMul
             | BlackBoxFunc::BigIntDiv => {
                 assert_eq!(inputs.len(), 4, "ICE - bigint operation requires 4 inputs");

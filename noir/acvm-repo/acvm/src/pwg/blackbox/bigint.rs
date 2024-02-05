@@ -96,7 +96,7 @@ impl BigIntSolver {
         let rhs = self.get_bigint(rhs, func)?;
         let mut result = match func {
             BlackBoxFunc::BigIntAdd => lhs + rhs,
-            BlackBoxFunc::BigIntNeg => {
+            BlackBoxFunc::BigIntSub => {
                 if lhs >= rhs {
                     &lhs - &rhs
                 } else {

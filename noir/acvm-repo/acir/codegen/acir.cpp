@@ -206,14 +206,14 @@ namespace Circuit {
             static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        struct BigIntNeg {
+        struct BigIntSub {
             uint32_t lhs;
             uint32_t rhs;
             uint32_t output;
 
-            friend bool operator==(const BigIntNeg&, const BigIntNeg&);
+            friend bool operator==(const BigIntSub&, const BigIntSub&);
             std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntNeg bincodeDeserialize(std::vector<uint8_t>);
+            static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
         };
 
         struct BigIntMul {
@@ -275,7 +275,7 @@ namespace Circuit {
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, FixedBaseScalarMul, EmbeddedCurveAdd, Keccak256, Keccak256VariableLength, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntNeg, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
+        std::variant<AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, FixedBaseScalarMul, EmbeddedCurveAdd, Keccak256, Keccak256VariableLength, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
 
         friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -612,14 +612,14 @@ namespace Circuit {
             static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        struct BigIntNeg {
+        struct BigIntSub {
             Circuit::MemoryAddress lhs;
             Circuit::MemoryAddress rhs;
             Circuit::MemoryAddress output;
 
-            friend bool operator==(const BigIntNeg&, const BigIntNeg&);
+            friend bool operator==(const BigIntSub&, const BigIntSub&);
             std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntNeg bincodeDeserialize(std::vector<uint8_t>);
+            static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
         };
 
         struct BigIntMul {
@@ -681,7 +681,7 @@ namespace Circuit {
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, FixedBaseScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntNeg, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
+        std::variant<Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, FixedBaseScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
 
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -2648,22 +2648,22 @@ Circuit::BlackBoxFuncCall::BigIntAdd serde::Deserializable<Circuit::BlackBoxFunc
 
 namespace Circuit {
 
-    inline bool operator==(const BlackBoxFuncCall::BigIntNeg &lhs, const BlackBoxFuncCall::BigIntNeg &rhs) {
+    inline bool operator==(const BlackBoxFuncCall::BigIntSub &lhs, const BlackBoxFuncCall::BigIntSub &rhs) {
         if (!(lhs.lhs == rhs.lhs)) { return false; }
         if (!(lhs.rhs == rhs.rhs)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxFuncCall::BigIntNeg::bincodeSerialize() const {
+    inline std::vector<uint8_t> BlackBoxFuncCall::BigIntSub::bincodeSerialize() const {
         auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::BigIntNeg>::serialize(*this, serializer);
+        serde::Serializable<BlackBoxFuncCall::BigIntSub>::serialize(*this, serializer);
         return std::move(serializer).bytes();
     }
 
-    inline BlackBoxFuncCall::BigIntNeg BlackBoxFuncCall::BigIntNeg::bincodeDeserialize(std::vector<uint8_t> input) {
+    inline BlackBoxFuncCall::BigIntSub BlackBoxFuncCall::BigIntSub::bincodeDeserialize(std::vector<uint8_t> input) {
         auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::BigIntNeg>::deserialize(deserializer);
+        auto value = serde::Deserializable<BlackBoxFuncCall::BigIntSub>::deserialize(deserializer);
         if (deserializer.get_buffer_offset() < input.size()) {
             throw serde::deserialization_error("Some input bytes were not read");
         }
@@ -2674,7 +2674,7 @@ namespace Circuit {
 
 template <>
 template <typename Serializer>
-void serde::Serializable<Circuit::BlackBoxFuncCall::BigIntNeg>::serialize(const Circuit::BlackBoxFuncCall::BigIntNeg &obj, Serializer &serializer) {
+void serde::Serializable<Circuit::BlackBoxFuncCall::BigIntSub>::serialize(const Circuit::BlackBoxFuncCall::BigIntSub &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.lhs)>::serialize(obj.lhs, serializer);
     serde::Serializable<decltype(obj.rhs)>::serialize(obj.rhs, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
@@ -2682,8 +2682,8 @@ void serde::Serializable<Circuit::BlackBoxFuncCall::BigIntNeg>::serialize(const 
 
 template <>
 template <typename Deserializer>
-Circuit::BlackBoxFuncCall::BigIntNeg serde::Deserializable<Circuit::BlackBoxFuncCall::BigIntNeg>::deserialize(Deserializer &deserializer) {
-    Circuit::BlackBoxFuncCall::BigIntNeg obj;
+Circuit::BlackBoxFuncCall::BigIntSub serde::Deserializable<Circuit::BlackBoxFuncCall::BigIntSub>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxFuncCall::BigIntSub obj;
     obj.lhs = serde::Deserializable<decltype(obj.lhs)>::deserialize(deserializer);
     obj.rhs = serde::Deserializable<decltype(obj.rhs)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
@@ -3576,22 +3576,22 @@ Circuit::BlackBoxOp::BigIntAdd serde::Deserializable<Circuit::BlackBoxOp::BigInt
 
 namespace Circuit {
 
-    inline bool operator==(const BlackBoxOp::BigIntNeg &lhs, const BlackBoxOp::BigIntNeg &rhs) {
+    inline bool operator==(const BlackBoxOp::BigIntSub &lhs, const BlackBoxOp::BigIntSub &rhs) {
         if (!(lhs.lhs == rhs.lhs)) { return false; }
         if (!(lhs.rhs == rhs.rhs)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
     }
 
-    inline std::vector<uint8_t> BlackBoxOp::BigIntNeg::bincodeSerialize() const {
+    inline std::vector<uint8_t> BlackBoxOp::BigIntSub::bincodeSerialize() const {
         auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::BigIntNeg>::serialize(*this, serializer);
+        serde::Serializable<BlackBoxOp::BigIntSub>::serialize(*this, serializer);
         return std::move(serializer).bytes();
     }
 
-    inline BlackBoxOp::BigIntNeg BlackBoxOp::BigIntNeg::bincodeDeserialize(std::vector<uint8_t> input) {
+    inline BlackBoxOp::BigIntSub BlackBoxOp::BigIntSub::bincodeDeserialize(std::vector<uint8_t> input) {
         auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::BigIntNeg>::deserialize(deserializer);
+        auto value = serde::Deserializable<BlackBoxOp::BigIntSub>::deserialize(deserializer);
         if (deserializer.get_buffer_offset() < input.size()) {
             throw serde::deserialization_error("Some input bytes were not read");
         }
@@ -3602,7 +3602,7 @@ namespace Circuit {
 
 template <>
 template <typename Serializer>
-void serde::Serializable<Circuit::BlackBoxOp::BigIntNeg>::serialize(const Circuit::BlackBoxOp::BigIntNeg &obj, Serializer &serializer) {
+void serde::Serializable<Circuit::BlackBoxOp::BigIntSub>::serialize(const Circuit::BlackBoxOp::BigIntSub &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.lhs)>::serialize(obj.lhs, serializer);
     serde::Serializable<decltype(obj.rhs)>::serialize(obj.rhs, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
@@ -3610,8 +3610,8 @@ void serde::Serializable<Circuit::BlackBoxOp::BigIntNeg>::serialize(const Circui
 
 template <>
 template <typename Deserializer>
-Circuit::BlackBoxOp::BigIntNeg serde::Deserializable<Circuit::BlackBoxOp::BigIntNeg>::deserialize(Deserializer &deserializer) {
-    Circuit::BlackBoxOp::BigIntNeg obj;
+Circuit::BlackBoxOp::BigIntSub serde::Deserializable<Circuit::BlackBoxOp::BigIntSub>::deserialize(Deserializer &deserializer) {
+    Circuit::BlackBoxOp::BigIntSub obj;
     obj.lhs = serde::Deserializable<decltype(obj.lhs)>::deserialize(deserializer);
     obj.rhs = serde::Deserializable<decltype(obj.rhs)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);

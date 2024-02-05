@@ -252,7 +252,7 @@ impl GeneratedAcir {
                 rhs: constant_inputs[1].to_u128() as u32,
                 output: constant_outputs[0].to_u128() as u32,
             },
-            BlackBoxFunc::BigIntNeg => BlackBoxFuncCall::BigIntNeg {
+            BlackBoxFunc::BigIntSub => BlackBoxFuncCall::BigIntSub {
                 lhs: constant_inputs[0].to_u128() as u32,
                 rhs: constant_inputs[1].to_u128() as u32,
                 output: constant_outputs[0].to_u128() as u32,
@@ -646,7 +646,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Big integer operations take in 0 inputs. They use constants for their inputs.
         BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntNeg
+        | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
         | BlackBoxFunc::BigIntDiv
         | BlackBoxFunc::BigIntToLeBytes => Some(0),
@@ -696,7 +696,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntNeg
+        | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
         | BlackBoxFunc::BigIntDiv
         | BlackBoxFunc::BigIntFromLeBytes => Some(0),

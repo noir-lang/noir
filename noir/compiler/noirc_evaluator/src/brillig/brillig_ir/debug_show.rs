@@ -457,7 +457,7 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::BigIntNeg { lhs, rhs, output } => {
+            BlackBoxOp::BigIntSub { lhs, rhs, output } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  BIGINT_NEG {} {} -> {}",
