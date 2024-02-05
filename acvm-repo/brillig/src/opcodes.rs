@@ -4,92 +4,98 @@ use serde::{Deserialize, Serialize};
 pub type Label = usize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct RegisterIndex(pub usize);
+pub struct MemoryAddress(pub usize);
 
-/// `RegisterIndex` refers to the index in VM register space.
-impl RegisterIndex {
+/// `MemoryAddress` refers to the index in VM memory.
+impl MemoryAddress {
     pub fn to_usize(self) -> usize {
         self.0
     }
 }
 
-impl From<usize> for RegisterIndex {
+impl From<usize> for MemoryAddress {
     fn from(value: usize) -> Self {
-        RegisterIndex(value)
+        MemoryAddress(value)
     }
 }
 
-/// A fixed-sized array starting from a Brillig register memory location.
+/// A fixed-sized array starting from a Brillig memory location.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct HeapArray {
-    pub pointer: RegisterIndex,
+    pub pointer: MemoryAddress,
     pub size: usize,
 }
 
-/// A register-sized vector passed starting from a Brillig register memory location and with a register-held size
+/// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct HeapVector {
-    pub pointer: RegisterIndex,
-    pub size: RegisterIndex,
+    pub pointer: MemoryAddress,
+    pub size: MemoryAddress,
 }
 
 /// Lays out various ways an external foreign call's input and output data may be interpreted inside Brillig.
-/// This data can either be an individual register value or memory.
+/// This data can either be an individual value or memory.
 ///
 /// While we are usually agnostic to how memory is passed within Brillig,
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the ForeignCall instructions.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
-pub enum RegisterOrMemory {
-    /// A single register value passed to or from an external call
-    /// It is an 'immediate' value - used without dereferencing memory.
-    /// For a foreign call input, the value is read directly from the register.
-    /// For a foreign call output, the value is written directly to the register.
-    RegisterIndex(RegisterIndex),
+pub enum ValueOrArray {
+    /// A single value passed to or from an external call
+    /// It is an 'immediate' value - used without dereferencing.
+    /// For a foreign call input, the value is read directly from memory.
+    /// For a foreign call output, the value is written directly to memory.
+    MemoryAddress(MemoryAddress),
     /// An array passed to or from an external call
     /// In the case of a foreign call input, the array is read from this Brillig memory location + usize more cells.
     /// In the case of a foreign call output, the array is written to this Brillig memory location with the usize being here just as a sanity check for the size write.
     HeapArray(HeapArray),
     /// A vector passed to or from an external call
-    /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the 2nd register indicates.
-    /// In the case of a foreign call output, the vector is written to this Brillig memory location and as 'size' cells, with size being stored in the second register.
+    /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the 2nd address indicates.
+    /// In the case of a foreign call output, the vector is written to this Brillig memory location and as 'size' cells, with size being stored in the second address.
     HeapVector(HeapVector),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BrilligOpcode {
-    /// Takes the fields in registers `lhs` and `rhs`
+    /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` register.  
+    /// and stores the value in the `result` address.  
     BinaryFieldOp {
-        destination: RegisterIndex,
+        destination: MemoryAddress,
         op: BinaryFieldOp,
-        lhs: RegisterIndex,
-        rhs: RegisterIndex,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
     },
-    /// Takes the `bit_size` size integers in registers `lhs` and `rhs`
+    /// Takes the `bit_size` size integers in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` register.  
+    /// and stores the value in the `result` address.  
     BinaryIntOp {
-        destination: RegisterIndex,
+        destination: MemoryAddress,
         op: BinaryIntOp,
         bit_size: u32,
-        lhs: RegisterIndex,
-        rhs: RegisterIndex,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
     },
     JumpIfNot {
-        condition: RegisterIndex,
+        condition: MemoryAddress,
         location: Label,
     },
     /// Sets the program counter to the value located at `destination`
     /// If the value at `condition` is non-zero
     JumpIf {
-        condition: RegisterIndex,
+        condition: MemoryAddress,
         location: Label,
     },
     /// Sets the program counter to the label.
     Jump {
         location: Label,
+    },
+    /// Copies calldata after the offset to the specified address and length
+    CalldataCopy {
+        destination_address: MemoryAddress,
+        size: usize,
+        offset: usize,
     },
     /// We don't support dynamic jumps or calls
     /// See https://github.com/ethereum/aleth/issues/3404 for reasoning
@@ -97,7 +103,7 @@ pub enum BrilligOpcode {
         location: Label,
     },
     Const {
-        destination: RegisterIndex,
+        destination: MemoryAddress,
         value: Value,
     },
     Return,
@@ -109,28 +115,31 @@ pub enum BrilligOpcode {
         /// Interpreted by caller context, ie this will have different meanings depending on
         /// who the caller is.
         function: String,
-        /// Destination registers (may be single values or memory pointers).
-        destinations: Vec<RegisterOrMemory>,
-        /// Input registers (may be single values or memory pointers).
-        inputs: Vec<RegisterOrMemory>,
+        /// Destination addresses (may be single values or memory pointers).
+        destinations: Vec<ValueOrArray>,
+        /// Input addresses (may be single values or memory pointers).
+        inputs: Vec<ValueOrArray>,
     },
     Mov {
-        destination: RegisterIndex,
-        source: RegisterIndex,
+        destination: MemoryAddress,
+        source: MemoryAddress,
     },
     Load {
-        destination: RegisterIndex,
-        source_pointer: RegisterIndex,
+        destination: MemoryAddress,
+        source_pointer: MemoryAddress,
     },
     Store {
-        destination_pointer: RegisterIndex,
-        source: RegisterIndex,
+        destination_pointer: MemoryAddress,
+        source: MemoryAddress,
     },
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure
     Trap,
-    /// Stop execution
-    Stop,
+    /// Stop execution, returning data after the offset
+    Stop {
+        return_data_offset: usize,
+        return_data_size: usize,
+    },
 }
 
 /// Binary fixed-length field expressions

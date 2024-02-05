@@ -84,6 +84,10 @@ pub enum ResolverError {
     InvalidTypeForEntryPoint { span: Span },
     #[error("Nested slices are not supported")]
     NestedSlices { span: Span },
+    #[error("#[recursive] attribute is only allowed on entry points to a program")]
+    MisplacedRecursiveAttribute { ident: Ident },
+    #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
+    LowLevelFunctionOutsideOfStdlib { ident: Ident },
 }
 
 impl ResolverError {
@@ -310,6 +314,23 @@ impl From<ResolverError> for Diagnostic {
                 "Nested slices are not supported".into(),
                 "Try to use a constant sized array instead".into(),
                 span,
+            ),
+            ResolverError::MisplacedRecursiveAttribute { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[recursive] attribute on function {name} rather than the main function"),
+                    "misplaced #[recursive] attribute".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
+                diag
+            }
+            ResolverError::LowLevelFunctionOutsideOfStdlib { ident } => Diagnostic::simple_error(
+                "Definition of low-level function outside of standard library".into(),
+                "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
+                ident.span(),
             ),
         }
     }

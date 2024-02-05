@@ -11,7 +11,7 @@ use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
 use acvm::blackbox_solver;
-use acvm::brillig_vm::{brillig::Value, Registers, VMStatus, VM};
+use acvm::brillig_vm::{brillig::Value, VMStatus, VM};
 use acvm::{
     acir::{
         brillig::Opcode as BrilligOpcode,
@@ -1441,20 +1441,22 @@ impl AcirContext {
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
-    ) -> Result<Vec<AcirValue>, InternalError> {
-        let b_inputs = try_vecmap(inputs, |i| match i {
-            AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
-            AcirValue::Array(vars) => {
-                let mut var_expressions: Vec<Expression> = Vec::new();
-                for var in vars {
-                    self.brillig_array_input(&mut var_expressions, var)?;
+    ) -> Result<Vec<AcirValue>, RuntimeError> {
+        let b_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
+            match i {
+                AcirValue::Var(var, _) => Ok(BrilligInputs::Single(self.var_to_expression(var)?)),
+                AcirValue::Array(vars) => {
+                    let mut var_expressions: Vec<Expression> = Vec::new();
+                    for var in vars {
+                        self.brillig_array_input(&mut var_expressions, var)?;
+                    }
+                    Ok(BrilligInputs::Array(var_expressions))
                 }
-                Ok(BrilligInputs::Array(var_expressions))
-            }
-            AcirValue::DynamicArray(_) => {
-                let mut var_expressions = Vec::new();
-                self.brillig_array_input(&mut var_expressions, i)?;
-                Ok(BrilligInputs::Array(var_expressions))
+                AcirValue::DynamicArray(_) => {
+                    let mut var_expressions = Vec::new();
+                    self.brillig_array_input(&mut var_expressions, i)?;
+                    Ok(BrilligInputs::Array(var_expressions))
+                }
             }
         })?;
 
@@ -1488,6 +1490,34 @@ impl AcirContext {
         });
         let predicate = self.var_to_expression(predicate)?;
         self.acir_ir.brillig(Some(predicate), generated_brillig, b_inputs, b_outputs);
+
+        fn range_constraint_value(
+            context: &mut AcirContext,
+            value: &AcirValue,
+        ) -> Result<(), RuntimeError> {
+            match value {
+                AcirValue::Var(var, typ) => {
+                    let numeric_type = match typ {
+                        AcirType::NumericType(numeric_type) => numeric_type,
+                        _ => unreachable!("`AcirValue::Var` may only hold primitive values"),
+                    };
+                    context.range_constrain_var(*var, numeric_type, None)?;
+                }
+                AcirValue::Array(values) => {
+                    for value in values {
+                        range_constraint_value(context, value)?;
+                    }
+                }
+                AcirValue::DynamicArray(_) => {
+                    unreachable!("Brillig opcodes cannot return dynamic arrays")
+                }
+            }
+            Ok(())
+        }
+
+        for output_var in &outputs_var {
+            range_constraint_value(self, output_var)?;
+        }
 
         Ok(outputs_var)
     }
@@ -1557,23 +1587,17 @@ impl AcirContext {
         inputs: &[BrilligInputs],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
-        let (registers, memory) = execute_brillig(code, inputs)?;
+        let mut memory = (execute_brillig(code, inputs)?).into_iter();
 
-        let outputs_var = vecmap(outputs_types.iter().enumerate(), |(index, output)| {
-            let register_value = registers.get(index.into());
-            match output {
-                AcirType::NumericType(_) => {
-                    let var = self.add_data(AcirVarData::Const(register_value.to_field()));
-                    AcirValue::Var(var, output.clone())
-                }
-                AcirType::Array(element_types, size) => {
-                    let mem_ptr = register_value.to_usize();
-                    self.brillig_constant_array_output(
-                        element_types,
-                        *size,
-                        &mut memory.iter().skip(mem_ptr),
-                    )
-                }
+        let outputs_var = vecmap(outputs_types.iter(), |output| match output {
+            AcirType::NumericType(_) => {
+                let var = self.add_data(AcirVarData::Const(
+                    memory.next().expect("Missing return data").to_field(),
+                ));
+                AcirValue::Var(var, output.clone())
+            }
+            AcirType::Array(element_types, size) => {
+                self.brillig_constant_array_output(element_types, *size, &mut memory)
             }
         });
 
@@ -1581,11 +1605,11 @@ impl AcirContext {
     }
 
     /// Recursively create [`AcirValue`]s for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn brillig_constant_array_output<'a>(
+    fn brillig_constant_array_output(
         &mut self,
         element_types: &[AcirType],
         size: usize,
-        memory_iter: &mut impl Iterator<Item = &'a Value>,
+        memory_iter: &mut impl Iterator<Item = Value>,
     ) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
@@ -1828,42 +1852,28 @@ pub(crate) struct AcirVar(usize);
 /// Returns the finished state of the Brillig VM if execution can complete.
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig(
-    code: &[BrilligOpcode],
-    inputs: &[BrilligInputs],
-) -> Option<(Registers, Vec<Value>)> {
+fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<Vec<Value>> {
     // Set input values
-    let mut input_register_values: Vec<Value> = Vec::with_capacity(inputs.len());
-    let mut input_memory: Vec<Value> = Vec::new();
+    let mut calldata: Vec<Value> = Vec::new();
+
     // Each input represents a constant or array of constants.
     // Iterate over each input and push it into registers and/or memory.
     for input in inputs {
         match input {
             BrilligInputs::Single(expr) => {
-                input_register_values.push(expr.to_const()?.into());
+                calldata.push(expr.to_const()?.into());
             }
             BrilligInputs::Array(expr_arr) => {
                 // Attempt to fetch all array input values
-                let memory_pointer = input_memory.len();
                 for expr in expr_arr.iter() {
-                    input_memory.push(expr.to_const()?.into());
+                    calldata.push(expr.to_const()?.into());
                 }
-
-                // Push value of the array pointer as a register
-                input_register_values.push(Value::from(memory_pointer));
             }
         }
     }
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(
-        input_registers,
-        input_memory,
-        code,
-        Vec::new(),
-        &blackbox_solver::StubbedBlackBoxSolver,
-    );
+    let mut vm = VM::new(calldata, code, Vec::new(), &blackbox_solver::StubbedBlackBoxSolver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();
@@ -1872,7 +1882,9 @@ fn execute_brillig(
     // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
     // If it's finished then we can omit the opcode and just write in the return values.
     match vm_status {
-        VMStatus::Finished => Some((vm.get_registers().clone(), vm.get_memory().to_vec())),
+        VMStatus::Finished { return_data_offset, return_data_size } => Some(
+            vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec(),
+        ),
         VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
         VMStatus::Failure { .. } => {
             // TODO: Return an error stating that the brillig function failed.
