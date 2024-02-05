@@ -2,16 +2,14 @@ use crate::cmp::Eq;
 use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
+use crate::unsafe::zeroed;
 use crate::hash::{Hash, Hasher, BuildHasher};
 
-// Generic trait for one-directional key -> value data structure.
-// May be implemented by either hash tables or graphs for instance.
-trait Map<K, V> {
-    fn len(self) -> u64;
-    fn get(self, key: K) -> Option<V>;
-    fn insert(&mut self, key: K, value: V);
-    fn remove(&mut self, key: K);
-}
+// We use load factor α_max = 0.75. 
+// Upon exceeding it, assert will fail in order to inform the user 
+// about performance degradation, so that he can adjust the capacity.
+global MAX_LOAD_FACTOR_NUMERATOR = 3;
+global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
 
 // Hash table with open addressing and quadratic probing.
 // Size of the underlying table must be known at compile time.
@@ -27,8 +25,8 @@ struct HashMap<K, V, N, B> {
 }
 
 // Data unit in the HashMap table.
-// In case Noir would support enums in future, this  
-// better to be refactored to use it with three states:
+// In case Noir adds support for enums in the future, this  
+// should be refactored to have three states:
 // 1. (key, value)
 // 2. (empty)
 // 3. (deleted)
@@ -65,13 +63,16 @@ impl<K, V> Slot<K, V>{
     }
 
     // Shall not override `_key_value` with Option::none(),
-    // because we must we able to differentiate empty 
+    // because we must be able to differentiate empty 
     // and deleted slots for lookup.
     fn mark_deleted(&mut self){
         self._is_deleted = true;
     }
 }
 
+// While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
+// that if we have went that far without finding desired, 
+// it is very unlikely to be after - performance will be heavily degraded.
 impl<K, V, N, B, H> HashMap<K, V, N, B> {   
     // Creates a new instance of HashMap with specified BuildHasher.
     pub fn with_hasher(_build_hasher: B) -> Self
@@ -104,30 +105,146 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         self._len == 0
     }
 
-    // Returns a vector of all active keys.
-    pub fn keys(self) -> Vec<K>{
-        let mut keys = Vec::new();
+    // Returns array of all active key-value pairs.
+    // Array size is restricted to N because of 
+    // compile time limitations and nested slices temporary ban, 
+    // hovewer first len() positioned with pairs 
+    // and afterwards all elements are zeroed().
+    pub fn iter(self) -> [(K, V); N]{
+        let mut pairs = [zeroed(); N];
+        let mut i = 0;
+
+        for slot in self._table{
+            if slot.is_valid(){
+                pairs[i] = slot.key_value_unchecked();
+                i += 1;
+            }
+        }
+        
+        assert(
+            i == self._len, 
+            f"Must have iterated {self._len} times, instead did {i}."
+        );
+
+        pairs
+    } 
+
+    // Returns array of all active keys.
+    // Array size is restricted to N because of 
+    // compile time limitations and nested slices temporary ban, 
+    // hovewer first len() positioned with keys 
+    // and afterwards all elements are zeroed().
+    pub fn keys(self) -> [K; N]{
+        let mut keys = [zeroed(); N];
+        let mut i = 0;
+
         for slot in self._table{
             if slot.is_valid(){
                 let (key, _) = slot.key_value_unchecked();
-                keys.push(key);
+                keys[i] = key;
+                i += 1;
             }
         }
-        keys
-    }
+        
+        assert(
+            i == self._len, 
+            f"Must have iterated {self._len} times, instead did {i}."
+        );
 
-    // Returns a vector of all active values. Not necessarily unique.
-    pub fn values(self) -> Vec<V>{
-        let mut values = Vec::new();
+        keys
+    } 
+
+    // Returns array of all active values.
+    // Array size is restricted to N because of 
+    // compile time limitations and nested slices temporary ban, 
+    // hovewer first len() positioned with values 
+    // and afterwards all elements are zeroed().
+    pub fn values(self) -> [V; N]{
+        let mut values = [zeroed(); N];
+        let mut i = 0;
+
         for slot in self._table{
             if slot.is_valid(){
                 let (_, value) = slot.key_value_unchecked();
-                values.push(value);
+                values[i] = value;
+                i += 1;
             }
         }
+        
+        assert(
+            i == self._len, 
+            f"Must have iterated {self._len} times, instead did {i}."
+        );
+
         values
+    } 
+
+    // For each key-value pair applies mutator function.
+    pub fn iter_mut(&mut self, f: fn(K, V) -> (K, V))
+    where
+        K: Eq + Hash,
+        B: BuildHasher<H>,
+        H: Hasher
+    {
+        let mut pairs = self.iter();
+        for i in 0..N{
+            if i < self._len{
+                let (key, value) = pairs[i];
+                pairs[i] = f(key, value);
+            }
+        }
+
+        let mut new_map = HashMap::with_hasher(self._build_hasher);
+
+        for i in 0..N{
+            if i < self._len{
+                let (key, value) = pairs[i];
+                new_map.insert(key, value);
+            }
+        }
+
+        self._table = new_map._table;
     }
 
+    // For each key applies mutator function.
+    pub fn mut_keys(&mut self, f: fn(K) -> K) 
+    where
+        K: Eq + Hash,
+        B: BuildHasher<H>,
+        H: Hasher
+    {
+        let mut pairs = self.iter();
+        for i in 0..N{
+            if i < self._len{
+                let (key, value) = pairs[i];
+                pairs[i] = (f(key), value);
+            }
+        }
+
+        let mut new_map = HashMap::with_hasher(self._build_hasher);
+
+        for i in 0..N{
+            if i < self._len{
+                let (key, value) = pairs[i];
+                new_map.insert(key, value);
+            }
+        }
+
+        self._table = new_map._table;
+    }
+
+    // For each value applies mutator function.
+    pub fn mut_values(&mut self, f: fn(V) -> V) {
+        for i in 0..N{
+            let mut slot = self._table[i];
+            if slot.is_valid(){
+                let (key, value) = slot.key_value_unchecked();
+                slot.set(key, f(value));
+                self._table[i] = slot;
+            }
+        }
+    }
+    
     // Retains only the elements specified by the predicate.
     pub fn retain(&mut self, f: fn(K, V) -> bool){
         for index in 0..N{
@@ -143,40 +260,18 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         }
     }
 
-    fn hash(self, key: K) -> u64
-    where
-        K: Hash,
-        B: BuildHasher<H>,
-        H: Hasher
-    {
-        let mut hasher = self._build_hasher.build_hasher();
-        key.hash(&mut hasher);
-        hasher.finish() as u64
-    }
-
-    // Probing scheme: quadratic function.
-    // We use 0.5 constant near variadic attempt and attempt^2 monomials.
-    // This ensures good uniformity of distribution for table sizes
-    // equal to prime numbers or powers of two. 
-    fn quadratic_probe(self, hash: u64, attempt: u64) -> u64 {
-        (hash + (attempt + attempt * attempt) / 2 ) % N
-    }
-}
-
-// While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
-// that if we have went that far without finding desired, 
-// it is very unlikely to be after - performance in that case would be drastical.
-impl<K, V, N, B, H> Map<K, V> for HashMap<K, V, N, B>
-where
-    K: Eq + Hash,
-    B: BuildHasher<H>,
-    H: Hasher
-{
-    fn len(self) -> u64{
+    // Amount of active key-value pairs.
+    pub fn len(self) -> u64{
         self._len
     }
 
-    fn get(self, key: K) -> Option<V>{
+    // Get the value by key. If it does not exist, returns none().
+    pub fn get(self, key: K) -> Option<V>
+    where
+        K: Eq + Hash,
+        B: BuildHasher<H>,
+        H: Hasher
+    {
         let mut result = Option::none();
 
         let hash = self.hash(key);
@@ -201,7 +296,15 @@ where
         result
     }
 
-    fn insert(&mut self, key: K, value: V){
+    // Insert key-value pair. In case key was already present, value is overridden. 
+    pub fn insert(&mut self, key: K, value: V)
+    where
+        K: Eq + Hash,
+        B: BuildHasher<H>,
+        H: Hasher
+    {
+        self.assert_load_factor();
+
         let hash = self.hash(key);
         let mut break = false;
 
@@ -231,7 +334,13 @@ where
         }
     }
 
-    fn remove(&mut self, key: K){
+    // Remove key-value entry. If key is not present, HashMap remains unchanged.
+    pub fn remove(&mut self, key: K)
+    where
+        K: Eq + Hash,
+        B: BuildHasher<H>,
+        H: Hasher
+    {
         let hash = self.hash(key);
         let mut break = false;
 
@@ -252,6 +361,38 @@ where
                 }
             }
         }
+    }
+
+    // Apply HashMap's hasher onto key to obtain pre-hash for probing.
+    fn hash(self, key: K) -> u64
+    where
+        K: Hash,
+        B: BuildHasher<H>,
+        H: Hasher
+    {
+        let mut hasher = self._build_hasher.build_hasher();
+        key.hash(&mut hasher);
+        hasher.finish() as u64
+    }
+
+    // Probing scheme: quadratic function.
+    // We use 0.5 constant near variadic attempt and attempt^2 monomials.
+    // This ensures good uniformity of distribution for table sizes
+    // equal to prime numbers or powers of two. 
+    fn quadratic_probe(self, hash: u64, attempt: u64) -> u64 {
+        (hash + (attempt + attempt * attempt) / 2 ) % N
+    }
+
+    // Amount of elements in the table in relation to available slots exceeds α_max. 
+    // To avoid division with potential incorrectness due to floating point values,
+    // we conduct cross-multiplication.
+    // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DEN0MINATOR 
+    // n * MAX_LOAD_FACTOR_NUMERATOR >= m * MAX_LOAD_FACTOR_DEN0MINATOR
+    fn assert_load_factor(self){
+        let lhs = self._len * MAX_LOAD_FACTOR_DEN0MINATOR;
+        let rhs = self._table.len() as u64 * MAX_LOAD_FACTOR_NUMERATOR;
+        let exceeded = lhs >= rhs;
+        assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
     }
 }
 

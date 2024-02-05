@@ -84,15 +84,10 @@ pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
 // Hash trait shall be implemented per type.
 trait Hash{
     fn hash<H>(self, state: &mut H) where H: Hasher;
-
-    fn hash_slice<H>(data: [Self], state: &mut H) where H: Hasher{
-        for piece in data{
-            piece.hash(state);
-        }
-    }
 }
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
+// TODO: consider making the types generic here ([u8], [Field], etc.)
 trait Hasher{
     fn finish(self) -> Field;
     
@@ -124,6 +119,7 @@ where
     }    
 }
 
+// TODO: add implementations for the remainder of primitive types.
 impl Hash for Field{
     fn hash<H>(self, state: &mut H) where H: Hasher{
         let input: [Field] = [self];

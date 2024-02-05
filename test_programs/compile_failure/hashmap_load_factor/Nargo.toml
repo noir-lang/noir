@@ -1,0 +1,6 @@
+[package]
+name = "hashmap_load_factor"
+type = "bin"
+authors = [""]
+
+[dependencies]
