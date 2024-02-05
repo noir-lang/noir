@@ -316,7 +316,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 self.call_stack.push(Value::from(self.program_counter));
                 self.set_program_counter(*location)
             }
-            Opcode::Const { destination, value } => {
+            Opcode::Const { destination, value, bit_size: _ } => {
                 self.memory.write(*destination, *value);
                 self.increment_program_counter()
             }
@@ -737,17 +737,21 @@ mod tests {
 
             let start = [
                 // i = 0
-                Opcode::Const { destination: r_i, value: 0u128.into() },
+                Opcode::Const { destination: r_i, value: 0u128.into(), bit_size: 32 },
                 // len = memory.len() (approximation)
-                Opcode::Const { destination: r_len, value: Value::from(item_count as u128) },
+                Opcode::Const {
+                    destination: r_len,
+                    value: Value::from(item_count as u128),
+                    bit_size: 32,
+                },
                 // pointer = free_memory_ptr
-                Opcode::Const { destination: r_pointer, value: 4u128.into() },
+                Opcode::Const { destination: r_pointer, value: 4u128.into(), bit_size: 32 },
             ];
             let loop_body = [
                 // *i = i
                 Opcode::Store { destination_pointer: r_pointer, source: r_i },
                 // tmp = 1
-                Opcode::Const { destination: r_tmp, value: 1u128.into() },
+                Opcode::Const { destination: r_tmp, value: 1u128.into(), bit_size: 32 },
                 // i = i + 1 (tmp)
                 Opcode::BinaryIntOp {
                     destination: r_i,
@@ -816,13 +820,17 @@ mod tests {
 
             let start = [
                 // sum = 0
-                Opcode::Const { destination: r_sum, value: 0u128.into() },
+                Opcode::Const { destination: r_sum, value: 0u128.into(), bit_size: 32 },
                 // i = 0
-                Opcode::Const { destination: r_i, value: 0u128.into() },
+                Opcode::Const { destination: r_i, value: 0u128.into(), bit_size: 32 },
                 // len = array.len() (approximation)
-                Opcode::Const { destination: r_len, value: Value::from(memory.len() as u128) },
+                Opcode::Const {
+                    destination: r_len,
+                    value: Value::from(memory.len() as u128),
+                    bit_size: 32,
+                },
                 // pointer = array_ptr
-                Opcode::Const { destination: r_pointer, value: 5u128.into() },
+                Opcode::Const { destination: r_pointer, value: 5u128.into(), bit_size: 32 },
                 Opcode::CalldataCopy {
                     destination_address: MemoryAddress(5),
                     size: memory.len(),
@@ -841,7 +849,7 @@ mod tests {
                     bit_size,
                 },
                 // tmp = 1
-                Opcode::Const { destination: r_tmp, value: 1u128.into() },
+                Opcode::Const { destination: r_tmp, value: 1u128.into(), bit_size: 32 },
                 // i = i + 1 (tmp)
                 Opcode::BinaryIntOp {
                     destination: r_i,
@@ -908,11 +916,11 @@ mod tests {
 
             let start = [
                 // i = 0
-                Opcode::Const { destination: r_i, value: 0u128.into() },
+                Opcode::Const { destination: r_i, value: 0u128.into(), bit_size: 32 },
                 // len = size
-                Opcode::Const { destination: r_len, value: size.into() },
+                Opcode::Const { destination: r_len, value: size.into(), bit_size: 32 },
                 // pointer = free_memory_ptr
-                Opcode::Const { destination: r_pointer, value: 4u128.into() },
+                Opcode::Const { destination: r_pointer, value: 4u128.into(), bit_size: 32 },
                 // call recursive_fn
                 Opcode::Call {
                     location: 5, // Call after 'start'
@@ -938,7 +946,7 @@ mod tests {
                 // *i = i
                 Opcode::Store { destination_pointer: r_pointer, source: r_i },
                 // tmp = 1
-                Opcode::Const { destination: r_tmp, value: 1u128.into() },
+                Opcode::Const { destination: r_tmp, value: 1u128.into(), bit_size: 32 },
                 // i = i + 1 (tmp)
                 Opcode::BinaryIntOp {
                     destination: r_i,
@@ -1008,7 +1016,7 @@ mod tests {
 
         let double_program = vec![
             // Load input address with value 5
-            Opcode::Const { destination: r_input, value: Value::from(5u128) },
+            Opcode::Const { destination: r_input, value: Value::from(5u128), bit_size: 32 },
             // Call foreign function "double" with the input address
             Opcode::ForeignCall {
                 function: "double".into(),
@@ -1067,9 +1075,9 @@ mod tests {
                 offset: 0,
             },
             // input = 0
-            Opcode::Const { destination: r_input, value: 2_usize.into() },
+            Opcode::Const { destination: r_input, value: 2_usize.into(), bit_size: 32 },
             // output = 0
-            Opcode::Const { destination: r_output, value: 2_usize.into() },
+            Opcode::Const { destination: r_output, value: 2_usize.into(), bit_size: 32 },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),
@@ -1138,18 +1146,24 @@ mod tests {
                 offset: 0,
             },
             // input_pointer = 4
-            Opcode::Const { destination: r_input_pointer, value: Value::from(4u128) },
+            Opcode::Const { destination: r_input_pointer, value: Value::from(4u128), bit_size: 32 },
             // input_size = input_string.len() (constant here)
-            Opcode::Const { destination: r_input_size, value: Value::from(input_string.len()) },
+            Opcode::Const {
+                destination: r_input_size,
+                value: Value::from(input_string.len()),
+                bit_size: 32,
+            },
             // output_pointer = 4 + input_size
             Opcode::Const {
                 destination: r_output_pointer,
                 value: Value::from(4 + input_string.len()),
+                bit_size: 32,
             },
             // output_size = input_size * 2
             Opcode::Const {
                 destination: r_output_size,
                 value: Value::from(input_string.len() * 2),
+                bit_size: 32,
             },
             // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
             Opcode::ForeignCall {
@@ -1218,9 +1232,9 @@ mod tests {
                 offset: 0,
             },
             // input = 0
-            Opcode::Const { destination: r_input, value: Value::from(2u128) },
+            Opcode::Const { destination: r_input, value: Value::from(2u128), bit_size: 32 },
             // output = 0
-            Opcode::Const { destination: r_output, value: Value::from(6u128) },
+            Opcode::Const { destination: r_output, value: Value::from(6u128), bit_size: 32 },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),
@@ -1299,11 +1313,11 @@ mod tests {
                 offset: 0,
             },
             // input = 3
-            Opcode::Const { destination: r_input_a, value: Value::from(3u128) },
+            Opcode::Const { destination: r_input_a, value: Value::from(3u128), bit_size: 32 },
             // input = 7
-            Opcode::Const { destination: r_input_b, value: Value::from(7u128) },
+            Opcode::Const { destination: r_input_b, value: Value::from(7u128), bit_size: 32 },
             // output = 0
-            Opcode::Const { destination: r_output, value: Value::from(0u128) },
+            Opcode::Const { destination: r_output, value: Value::from(0u128), bit_size: 32 },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),

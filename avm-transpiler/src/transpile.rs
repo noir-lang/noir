@@ -141,7 +141,7 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     ..Default::default()
                 });
             }
-            BrilligOpcode::Const { destination, value } => {
+            BrilligOpcode::Const { destination, value, bit_size:_ } => {
                 avm_instrs.push(AvmInstruction {
                     opcode: AvmOpcode::SET,
                     indirect: Some(0),

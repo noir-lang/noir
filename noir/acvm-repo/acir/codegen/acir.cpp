@@ -800,6 +800,7 @@ namespace Circuit {
 
         struct Const {
             Circuit::MemoryAddress destination;
+            uint32_t bit_size;
             Circuit::Value value;
 
             friend bool operator==(const Const&, const Const&);
@@ -4410,6 +4411,7 @@ namespace Circuit {
 
     inline bool operator==(const BrilligOpcode::Const &lhs, const BrilligOpcode::Const &rhs) {
         if (!(lhs.destination == rhs.destination)) { return false; }
+        if (!(lhs.bit_size == rhs.bit_size)) { return false; }
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
     }
@@ -4435,6 +4437,7 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Circuit::BrilligOpcode::Const>::serialize(const Circuit::BrilligOpcode::Const &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.destination)>::serialize(obj.destination, serializer);
+    serde::Serializable<decltype(obj.bit_size)>::serialize(obj.bit_size, serializer);
     serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
 }
 
@@ -4443,6 +4446,7 @@ template <typename Deserializer>
 Circuit::BrilligOpcode::Const serde::Deserializable<Circuit::BrilligOpcode::Const>::deserialize(Deserializer &deserializer) {
     Circuit::BrilligOpcode::Const obj;
     obj.destination = serde::Deserializable<decltype(obj.destination)>::deserialize(deserializer);
+    obj.bit_size = serde::Deserializable<decltype(obj.bit_size)>::deserialize(deserializer);
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }

@@ -459,6 +459,7 @@ mod tests {
                 BrilligOpcode::Const {
                     destination: MemoryAddress::from(1),
                     value: Value::from(fe_0),
+                    bit_size: 32,
                 },
                 BrilligOpcode::ForeignCall {
                     function: "clear_mock".into(),

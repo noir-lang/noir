@@ -1,5 +1,6 @@
-use acvm::acir::brillig::{
-    BinaryFieldOp, BinaryIntOp, MemoryAddress, Opcode as BrilligOpcode, Value,
+use acvm::{
+    acir::brillig::{BinaryFieldOp, BinaryIntOp, MemoryAddress, Opcode as BrilligOpcode, Value},
+    FieldElement,
 };
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
@@ -24,7 +25,11 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
             // If the input is zero, then we jump to the stop opcode
             BrilligOpcode::JumpIfNot { condition: input, location: stop_location },
             // Put value one in register (1)
-            BrilligOpcode::Const { destination: one_const, value: Value::from(1_usize) },
+            BrilligOpcode::Const {
+                destination: one_const,
+                value: Value::from(1_usize),
+                bit_size: FieldElement::max_num_bits(),
+            },
             // Divide 1 by the input, and set the result of the division into register (0)
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Div,

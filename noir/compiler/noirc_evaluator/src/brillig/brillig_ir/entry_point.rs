@@ -3,7 +3,7 @@ use super::{
     brillig_variable::{BrilligArray, BrilligVariable},
     debug_show::DebugShow,
     registers::BrilligRegistersContext,
-    BrilligContext, ReservedRegisters,
+    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 use acvm::acir::brillig::{MemoryAddress, Opcode as BrilligOpcode};
 
@@ -48,6 +48,7 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Const {
             destination: ReservedRegisters::stack_pointer(),
             value: (MAX_STACK_SIZE + calldata_size + return_data_size).into(),
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
         });
 
         // Copy calldata
@@ -72,8 +73,8 @@ impl BrilligContext {
                 }
                 BrilligParameter::Array(_, _) => {
                     let pointer_to_the_array_in_calldata =
-                        self.make_constant(current_calldata_pointer.into());
-                    let rc_register = self.make_constant(1_usize.into());
+                        self.make_usize_constant(current_calldata_pointer.into());
+                    let rc_register = self.make_usize_constant(1_usize.into());
                     let flattened_size = BrilligContext::flattened_size(argument);
                     let var = BrilligVariable::BrilligArray(BrilligArray {
                         pointer: pointer_to_the_array_in_calldata,
@@ -158,10 +159,10 @@ impl BrilligContext {
 
                 for (subitem_index, subitem) in item_type.iter().enumerate() {
                     let source_index =
-                        self.make_constant((source_item_base_index + source_offset).into());
+                        self.make_usize_constant((source_item_base_index + source_offset).into());
 
                     let target_index =
-                        self.make_constant((target_item_base_index + subitem_index).into());
+                        self.make_usize_constant((target_item_base_index + subitem_index).into());
 
                     match subitem {
                         BrilligParameter::Simple => {
@@ -196,7 +197,7 @@ impl BrilligContext {
                             );
                             let reference = self.allocate_register();
                             let rc = self.allocate_register();
-                            self.const_instruction(rc, 1_usize.into());
+                            self.usize_const(rc, 1_usize.into());
 
                             self.allocate_array_reference_instruction(reference);
                             let array_variable = BrilligVariable::BrilligArray(BrilligArray {
@@ -280,7 +281,7 @@ impl BrilligContext {
                 }
                 BrilligParameter::Array(item_type, item_count) => {
                     let returned_pointer = returned_variable.extract_array().pointer;
-                    let pointer_to_return_data = self.make_constant(return_data_index.into());
+                    let pointer_to_return_data = self.make_usize_constant(return_data_index.into());
 
                     self.flatten_array(
                         item_type,
@@ -324,9 +325,9 @@ impl BrilligContext {
 
                 for (subitem_index, subitem) in item_type.iter().enumerate() {
                     let source_index =
-                        self.make_constant((source_item_base_index + subitem_index).into());
+                        self.make_usize_constant((source_item_base_index + subitem_index).into());
                     let target_index =
-                        self.make_constant((target_item_base_index + target_offset).into());
+                        self.make_usize_constant((target_item_base_index + target_offset).into());
 
                     match subitem {
                         BrilligParameter::Simple => {
@@ -405,7 +406,7 @@ impl BrilligContext {
 
             self.deallocate_register(movement_register);
         } else {
-            let item_count = self.make_constant((item_count * item_type.len()).into());
+            let item_count = self.make_usize_constant((item_count * item_type.len()).into());
             self.copy_array_instruction(
                 deflattened_array_pointer,
                 flattened_array_pointer,

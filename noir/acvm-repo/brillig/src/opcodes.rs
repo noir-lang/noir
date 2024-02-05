@@ -104,6 +104,7 @@ pub enum BrilligOpcode {
     },
     Const {
         destination: MemoryAddress,
+        bit_size: u32,
         value: Value,
     },
     Return,
