@@ -33,7 +33,7 @@ pub fn prove_note_inclusion<Note, N>(
     note_with_header: Note,
     block_number: u32, // The block at which we'll prove that the note exists
     context: PrivateContext
-) where Note: NoteInterface {
+) where Note: NoteInterface<N> {
     let note_commitment = compute_note_hash_for_consumption(note_with_header);
 
     prove_note_commitment_inclusion(note_commitment, block_number, context);

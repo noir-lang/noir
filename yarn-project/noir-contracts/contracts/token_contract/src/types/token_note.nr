@@ -1,10 +1,8 @@
-use dep::aztec::protocol_types::{
-    address::AztecAddress,
-    constants::{
-        MAX_READ_REQUESTS_PER_CALL
-    },
-};
 use dep::aztec::{
+    protocol_types::{
+        address::AztecAddress,
+        constants::MAX_READ_REQUESTS_PER_CALL
+    },
     note::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
@@ -14,10 +12,6 @@ use dep::aztec::{
     state_vars::set::Set,
     log::emit_encrypted_log,
     hash::pedersen_hash,
-    protocol_types::traits::{
-        Serialize,
-        Deserialize
-    },
 };
 use dep::aztec::oracle::{
     rand::rand,
@@ -49,14 +43,12 @@ struct TokenNote {
     header: NoteHeader,
 }
 
-impl Serialize<TOKEN_NOTE_LEN> for TokenNote {
-    fn serialize(self) -> [Field; TOKEN_NOTE_LEN] {
+impl NoteInterface<TOKEN_NOTE_LEN> for TokenNote {
+    fn serialize_content(self) -> [Field; TOKEN_NOTE_LEN] {
         [self.amount.value as Field, self.owner.to_field(), self.randomness]
     }
-}
 
-impl Deserialize<TOKEN_NOTE_LEN> for TokenNote {
-    fn deserialize(serialized_note: [Field; TOKEN_NOTE_LEN]) -> Self {
+    fn deserialize_content(serialized_note: [Field; TOKEN_NOTE_LEN]) -> Self {
         Self {
             amount: SafeU120::new(serialized_note[0]),
             owner: AztecAddress::from_field(serialized_note[1]),
@@ -64,12 +56,10 @@ impl Deserialize<TOKEN_NOTE_LEN> for TokenNote {
             header: NoteHeader::empty(),
         }
     }
-}
 
-impl NoteInterface for TokenNote {
     fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash(self.serialize(), 0)
+        pedersen_hash(self.serialize_content(), 0)
     }
 
     // docs:start:nullifier
@@ -100,8 +90,8 @@ impl NoteInterface for TokenNote {
         self.header = header;
     }
 
-    fn get_header(note: TokenNote) -> NoteHeader {
-        note.header
+    fn get_header(self) -> NoteHeader {
+        self.header
     }
 
     // Broadcasts the note as an encrypted log on L1.
@@ -114,7 +104,7 @@ impl NoteInterface for TokenNote {
               (*context).this_address(),
               slot,
               encryption_pub_key,
-              self.serialize(),
+              self.serialize_content(),
           );
       }
   }

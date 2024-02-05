@@ -7,7 +7,6 @@ use dep::aztec::{
     },
     hash::{compute_secret_hash, pedersen_hash},
     context::PrivateContext,
-    protocol_types::traits::{Serialize, Deserialize}
 };
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
@@ -23,28 +22,23 @@ struct TransparentNote {
     header: NoteHeader,
 }
 
-impl Serialize<TRANSPARENT_NOTE_LEN> for TransparentNote {
-    fn serialize(self) -> [Field; TRANSPARENT_NOTE_LEN] {
+impl NoteInterface<TRANSPARENT_NOTE_LEN> for TransparentNote {
+    fn serialize_content(self) -> [Field; TRANSPARENT_NOTE_LEN] {
         [self.amount, self.secret_hash]
     }
-}
 
-impl Deserialize<TRANSPARENT_NOTE_LEN> for TransparentNote {
-    fn deserialize(preimage: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
+    fn deserialize_content(serialized_note: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
         TransparentNote {
-            amount: preimage[0],
-            secret_hash: preimage[1],
+            amount: serialized_note[0],
+            secret_hash: serialized_note[1],
             secret: 0,
             header: NoteHeader::empty(),
         }
     }
-}
-
-impl NoteInterface for TransparentNote {
 
     fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash(self.serialize(), 0)
+        pedersen_hash(self.serialize_content(), 0)
     }
 
     fn compute_nullifier(self, _context: &mut PrivateContext) -> Field {

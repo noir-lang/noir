@@ -5,7 +5,6 @@ use dep::aztec::{
     },
     hash::pedersen_hash,
     context::PrivateContext,
-    protocol_types::traits::{Serialize, Deserialize},
 };
 
 global FIELD_NOTE_LEN: Field = 1;
@@ -18,25 +17,21 @@ struct FieldNote {
     header: NoteHeader,
 }
 
-impl Serialize<FIELD_NOTE_LEN> for FieldNote {
-    fn serialize(self) -> [Field; FIELD_NOTE_LEN]{
+impl NoteInterface<FIELD_NOTE_LEN> for FieldNote {
+    fn serialize_content(self) -> [Field; FIELD_NOTE_LEN]{
         [self.value]
     }
-}
 
-impl Deserialize<FIELD_NOTE_LEN> for FieldNote {
-    fn deserialize(serialized_note: [Field; FIELD_NOTE_LEN]) -> Self {
+    fn deserialize_content(serialized_note: [Field; FIELD_NOTE_LEN]) -> Self {
         FieldNote {
             value: serialized_note[0],
             header: NoteHeader::empty(),
         }
     }
-}
 
-impl NoteInterface for FieldNote {
     fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash(self.serialize(), 0)
+        pedersen_hash(self.serialize_content(), 0)
     }
 
     fn compute_nullifier(self, _context: &mut PrivateContext) -> Field {

@@ -6,7 +6,6 @@ use dep::protocol_types::{
         GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
     },
     hash::pedersen_hash,
-    traits::{Serialize, Deserialize},
 };
 
 use crate::context::{PrivateContext, PublicContext, Context};
@@ -69,7 +68,7 @@ impl<Note> Singleton<Note> {
         self,
         note: &mut Note,
         broadcast: bool,
-    ) where Note: NoteInterface + Serialize<N> + Deserialize<N> {
+    ) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
@@ -85,7 +84,7 @@ impl<Note> Singleton<Note> {
         self,
         new_note: &mut Note,
         broadcast: bool,
-    ) where Note: NoteInterface + Serialize<N> + Deserialize<N> {
+    ) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
         let prev_note = get_note(context, self.storage_slot);
 
@@ -98,7 +97,7 @@ impl<Note> Singleton<Note> {
     // docs:end:replace
 
     // docs:start:get_note
-    pub fn get_note<N>(self, broadcast: bool) -> Note where Note: NoteInterface + Serialize<N> + Deserialize<N> {
+    pub fn get_note<N>(self, broadcast: bool) -> Note where Note: NoteInterface<N> {
         let context = self.context.unwrap();
         let mut note = get_note(context, self.storage_slot);
 
@@ -114,7 +113,7 @@ impl<Note> Singleton<Note> {
     // docs:end:get_note
 
     // docs:start:view_note
-    unconstrained pub fn view_note<N>(self) -> Note where Note: NoteInterface + Deserialize<N> {
+    unconstrained pub fn view_note<N>(self) -> Note where Note: NoteInterface<N> {
         let options = NoteViewerOptions::new().set_limit(1);
         view_notes(self.storage_slot, options)[0].unwrap()
     }

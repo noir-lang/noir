@@ -7,7 +7,6 @@ use dep::aztec::{
     },
     hash::{compute_secret_hash, pedersen_hash},
     context::PrivateContext,
-    protocol_types::traits::{Serialize, Deserialize, Empty}
 };
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
@@ -23,14 +22,12 @@ struct TransparentNote {
     header: NoteHeader,
 }
 
-impl Serialize<TRANSPARENT_NOTE_LEN> for TransparentNote {
-    fn serialize(self) -> [Field; TRANSPARENT_NOTE_LEN] {
+impl NoteInterface<TRANSPARENT_NOTE_LEN> for TransparentNote {
+    fn serialize_content(self) -> [Field; TRANSPARENT_NOTE_LEN] {
         [self.amount, self.secret_hash]
     }
-}
 
-impl Deserialize<TRANSPARENT_NOTE_LEN> for TransparentNote {
-    fn deserialize(serialized_note: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
+    fn deserialize_content(serialized_note: [Field; TRANSPARENT_NOTE_LEN]) -> Self {
         TransparentNote {
             amount: serialized_note[0],
             secret_hash: serialized_note[1],
@@ -38,19 +35,10 @@ impl Deserialize<TRANSPARENT_NOTE_LEN> for TransparentNote {
             header: NoteHeader::empty(),
         }
     }
-}
-
-impl Empty for TransparentNote {
-    fn empty() -> Self {
-        TransparentNote::new(0, 0)
-    }
-}
-
-impl NoteInterface for TransparentNote {
 
     fn compute_note_content_hash(self) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash(self.serialize(), 0)
+        pedersen_hash(self.serialize_content(), 0)
     }
 
     fn compute_nullifier(self, _context: &mut PrivateContext) -> Field {
@@ -63,13 +51,12 @@ impl NoteInterface for TransparentNote {
         pedersen_hash([self.secret, siloed_note_hash],0)
     }
 
-
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
 
-    fn get_header(note: TransparentNote) -> NoteHeader {
-        note.header
+    fn get_header(self) -> NoteHeader {
+        self.header
     }
 
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
@@ -89,6 +76,7 @@ impl TransparentNote {
             header: NoteHeader::empty(),
         }
     }
+
     // new oracle call primitive
     // get me the secret corresponding to this hash
     pub fn new_from_secret(amount: Field, secret: Field) -> Self {

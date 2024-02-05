@@ -9,14 +9,13 @@ use crate::note::{
     utils::{compute_note_hash_for_insertion, compute_note_hash_for_consumption},
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
-use dep::protocol_types::traits::{Serialize, Deserialize};
 
 pub fn create_note<Note, N>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note: &mut Note,
     broadcast: bool
-) where Note: NoteInterface + Serialize<N> + Deserialize<N> {
+) where Note: NoteInterface<N> {
     let contract_address = (*context).this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, is_transient: true };
@@ -26,7 +25,7 @@ pub fn create_note<Note, N>(
     let inner_note_hash = compute_note_hash_for_insertion(*note);
 
     // TODO: Strong typing required because of https://github.com/noir-lang/noir/issues/4088
-    let serialized_note: [Field; N] = Note::serialize(*note);
+    let serialized_note: [Field; N] = Note::serialize_content(*note);
     assert(notify_created_note(storage_slot, serialized_note, inner_note_hash) == 0);
 
     context.push_new_note_hash(inner_note_hash);
@@ -36,7 +35,11 @@ pub fn create_note<Note, N>(
     }
 }
 
-pub fn create_note_hash_from_public<Note>(context: &mut PublicContext, storage_slot: Field, note: &mut Note) where Note: NoteInterface {
+pub fn create_note_hash_from_public<Note, N>(
+    context: &mut PublicContext,
+    storage_slot: Field,
+    note: &mut Note
+) where Note: NoteInterface<N> {
     let contract_address = (*context).this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, is_transient: true };
@@ -47,7 +50,7 @@ pub fn create_note_hash_from_public<Note>(context: &mut PublicContext, storage_s
     context.push_new_note_hash(inner_note_hash);
 }
 
-pub fn destroy_note<Note>(context: &mut PrivateContext, note: Note) where Note: NoteInterface {
+pub fn destroy_note<Note, N>(context: &mut PrivateContext, note: Note) where Note: NoteInterface<N> {
     let mut nullifier = 0;
     let mut consumed_note_hash: Field = 0;
     nullifier = note.compute_nullifier(context);

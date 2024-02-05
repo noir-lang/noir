@@ -13,7 +13,7 @@ use dep::aztec::{
     context::PrivateContext,
     protocol_types::{
         address::AztecAddress,
-        traits::{Serialize, Deserialize, Empty}
+        traits::Empty
     }
 };
 
@@ -41,14 +41,12 @@ impl CardNote {
     }
 }
 
-impl Serialize<CARD_NOTE_LEN> for CardNote {
-    fn serialize(self) -> [Field; CARD_NOTE_LEN] {
+impl NoteInterface<CARD_NOTE_LEN> for CardNote {
+    fn serialize_content(self) -> [Field; CARD_NOTE_LEN] {
         [self.points as Field, self.randomness, self.owner.to_field()]
     }
-}
 
-impl Deserialize<CARD_NOTE_LEN> for CardNote {
-    fn deserialize(serialized_note: [Field; CARD_NOTE_LEN]) -> Self {
+    fn deserialize_content(serialized_note: [Field; CARD_NOTE_LEN]) -> Self {
         CardNote {
             points: serialized_note[0] as u8,
             randomness: serialized_note[1],
@@ -56,11 +54,9 @@ impl Deserialize<CARD_NOTE_LEN> for CardNote {
             header: NoteHeader::empty(),
         }
     }
-}
 
-impl NoteInterface for CardNote {
     fn compute_note_content_hash(self) -> Field {
-        pedersen_hash(self.serialize(), 0)
+        pedersen_hash(self.serialize_content(), 0)
     }
 
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
@@ -99,7 +95,7 @@ impl NoteInterface for CardNote {
             (*context).this_address(),
             slot,
             encryption_pub_key,
-            self.serialize(),
+            self.serialize_content(),
         );
     }
 }

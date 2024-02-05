@@ -7,7 +7,6 @@ use crate::utils::arr_copy_slice;
 
 use dep::protocol_types::{
     address::AztecAddress,
-    traits::Deserialize
 };
 
 #[oracle(notifyCreatedNote)]
@@ -84,7 +83,7 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
     mut placeholder_opt_notes: [Option<Note>; S], // TODO: Remove it and use `limit` to initialize the note array.
     placeholder_fields: [Field; NS], // TODO: Remove it and use `limit` to initialize the note array.
     _placeholder_note_length: [Field; N] // Turbofish hack? Compiler breaks calculating read_offset unless we add this parameter
-) -> [Option<Note>; S] where Note: NoteInterface + Deserialize<N> {
+) -> [Option<Note>; S] where Note: NoteInterface<N> {
     let fields = get_notes_oracle_wrapper(
         storage_slot,
         num_selects,
@@ -110,7 +109,7 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
             let is_transient = fields[read_offset + 1] as bool;
             let header = NoteHeader { contract_address, nonce, storage_slot, is_transient };
             let serialized_note = arr_copy_slice(fields, [0; N], read_offset + 2);
-            let mut note = Note::deserialize(serialized_note);
+            let mut note = Note::deserialize_content(serialized_note);
             // TODO: change this to note.setHeader(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
             Note::set_header(&mut note, header);
             placeholder_opt_notes[i] = Option::some(note);

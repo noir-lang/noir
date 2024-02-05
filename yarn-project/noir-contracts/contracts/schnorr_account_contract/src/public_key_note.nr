@@ -13,7 +13,6 @@ use dep::aztec::{
     context::PrivateContext,
     protocol_types::{
         address::AztecAddress,
-        traits::{Serialize, Deserialize},
     }
 };
 
@@ -28,14 +27,12 @@ struct PublicKeyNote {
     header: NoteHeader,
 }
 
-impl Serialize<PUBLIC_KEY_NOTE_LEN> for PublicKeyNote {
-    fn serialize(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
+impl NoteInterface<PUBLIC_KEY_NOTE_LEN> for PublicKeyNote {
+    fn serialize_content(self) -> [Field; PUBLIC_KEY_NOTE_LEN] {
         [self.x, self.y, self.owner.to_field()]
     }
-}
 
-impl Deserialize<PUBLIC_KEY_NOTE_LEN> for PublicKeyNote {
-    fn deserialize(serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
+    fn deserialize_content(serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
         PublicKeyNote {
             x: serialized_note[0],
             y: serialized_note[1],
@@ -43,9 +40,6 @@ impl Deserialize<PUBLIC_KEY_NOTE_LEN> for PublicKeyNote {
             header: NoteHeader::empty()
         }
     }
-}
-
-impl NoteInterface for PublicKeyNote {
 
     fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
         let unique_siloed_note_hash = compute_note_hash_for_consumption(self);
@@ -71,7 +65,7 @@ impl NoteInterface for PublicKeyNote {
 
     fn compute_note_content_hash(note: PublicKeyNote) -> Field {
         // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash(note.serialize(), 0)
+        pedersen_hash(note.serialize_content(), 0)
     }
 
     fn set_header(&mut self, header: NoteHeader) {
@@ -90,7 +84,7 @@ impl NoteInterface for PublicKeyNote {
             (*context).this_address(),
             slot,
             encryption_pub_key,
-            self.serialize(),
+            self.serialize_content(),
         );
     }
 }

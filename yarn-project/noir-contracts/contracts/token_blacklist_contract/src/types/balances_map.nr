@@ -6,7 +6,6 @@ use dep::aztec::{
     protocol_types::{
         address::AztecAddress,
         constants::MAX_READ_REQUESTS_PER_CALL,
-        traits::{Serialize, Deserialize}
     },
     state_vars::{
         set::Set,
@@ -23,7 +22,6 @@ use dep::aztec::{
 use crate::types::token_note::{TokenNote, OwnedNote};
 
 struct BalancesMap<T> {
-    context: Context,
     map: Map<AztecAddress, Set<T>>
 }
 
@@ -34,16 +32,15 @@ impl<T> BalancesMap<T> {
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Self {
-            context,
             map: Map::new(context, storage_slot, |context, slot| Set::new(context, slot))
         }
     }
 
-    unconstrained pub fn balance_of<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress) -> SafeU120 where T: Deserialize<T_SERIALIZED_LEN> + Serialize<T_SERIALIZED_LEN> + NoteInterface + OwnedNote {
+    unconstrained pub fn balance_of<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress) -> SafeU120 where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
         self.balance_of_with_offset(owner, 0)
     }
 
-  unconstrained pub fn balance_of_with_offset<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress, offset: u32) -> SafeU120 where T: Deserialize<T_SERIALIZED_LEN> + Serialize<T_SERIALIZED_LEN> + NoteInterface + OwnedNote {
+  unconstrained pub fn balance_of_with_offset<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress, offset: u32) -> SafeU120 where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
       // Same as SafeU120::new(0), but fewer constraints because no check. 
       let mut balance = SafeU120::min();
       // docs:start:view_notes
@@ -63,7 +60,7 @@ impl<T> BalancesMap<T> {
       balance
   }
 
-    pub fn add<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress, addend: SafeU120) where T: Deserialize<T_SERIALIZED_LEN> + Serialize<T_SERIALIZED_LEN> + NoteInterface + OwnedNote {
+    pub fn add<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress, addend: SafeU120) where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
         let mut addend_note = T::new(addend, owner);
 
         // docs:start:insert
@@ -71,7 +68,7 @@ impl<T> BalancesMap<T> {
         // docs:end:insert
     }
 
-    pub fn sub<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress, subtrahend: SafeU120) where T: Deserialize<T_SERIALIZED_LEN> + Serialize<T_SERIALIZED_LEN> + NoteInterface + OwnedNote{
+    pub fn sub<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress, subtrahend: SafeU120) where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote{
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend);
         let maybe_notes = self.map.at(owner).get_notes(options);
@@ -107,7 +104,7 @@ impl<T> BalancesMap<T> {
 pub fn filter_notes_min_sum<T, T_SERIALIZED_LEN>(
     notes: [Option<T>; MAX_READ_REQUESTS_PER_CALL],
     min_sum: SafeU120
-) -> [Option<T>; MAX_READ_REQUESTS_PER_CALL] where T: Deserialize<T_SERIALIZED_LEN> + Serialize<T_SERIALIZED_LEN> + NoteInterface + OwnedNote {
+) -> [Option<T>; MAX_READ_REQUESTS_PER_CALL] where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
     let mut selected = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let mut sum = SafeU120::min();
     for i in 0..notes.len() {

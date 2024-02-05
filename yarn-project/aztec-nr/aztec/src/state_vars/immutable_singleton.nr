@@ -1,8 +1,7 @@
 use dep::std::option::Option;
 use dep::protocol_types::{
     address::AztecAddress,
-    traits::{Serialize, Deserialize},
-        constants::{
+    constants::{
         GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
     },
     hash::pedersen_hash,
@@ -63,7 +62,7 @@ impl<Note> ImmutableSingleton<Note> {
         self,
         note: &mut Note, 
         broadcast: bool,
-    ) where Note: NoteInterface + Serialize<N> + Deserialize<N> {
+    ) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
@@ -80,7 +79,7 @@ impl<Note> ImmutableSingleton<Note> {
     // docs:end:initialize
 
     // docs:start:get_note
-    pub fn get_note<N>(self) -> Note where Note: NoteInterface + Deserialize<N> {
+    pub fn get_note<N>(self) -> Note where Note: NoteInterface<N> {
         let context = self.context.unwrap();
         let storage_slot = self.storage_slot;
         get_note(context, storage_slot)
@@ -88,7 +87,7 @@ impl<Note> ImmutableSingleton<Note> {
     // docs:end:get_note
 
     // docs:start:view_note
-    unconstrained pub fn view_note<N>(self) -> Note  where Note: NoteInterface + Deserialize<N> {
+    unconstrained pub fn view_note<N>(self) -> Note  where Note: NoteInterface<N> {
         let options = NoteViewerOptions::new().set_limit(1);
         view_notes(self.storage_slot, options)[0].unwrap()
     }

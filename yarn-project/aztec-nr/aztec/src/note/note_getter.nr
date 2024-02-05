@@ -7,7 +7,6 @@ use dep::protocol_types::{
         MAX_NOTES_PER_PAGE,
         VIEW_NOTE_ORACLE_RETURN_LENGTH,
     },
-    traits::{Deserialize, Serialize}
 };
 use crate::context::PrivateContext;
 use crate::note::{
@@ -22,7 +21,7 @@ fn check_note_header<Note, N>(
     context: PrivateContext,
     storage_slot: Field,
     note: Note
-) where Note: NoteInterface {
+) where Note: NoteInterface<N> {
     let header = note.get_header();
     let contract_address = context.this_address();
     assert(header.contract_address.eq(contract_address));
@@ -73,7 +72,7 @@ fn check_notes_order<N>(
 pub fn get_note<Note, N>(
     context: &mut PrivateContext,
     storage_slot: Field
-) -> Note where Note: NoteInterface + Deserialize<N> {
+) -> Note where Note: NoteInterface<N> {
     let note = get_note_internal(storage_slot);
 
     check_note_header(*context, storage_slot, note);
@@ -88,7 +87,7 @@ pub fn get_notes<Note, N, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, FILTER_ARGS>
-) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface + Deserialize<N> + Serialize<N> {
+) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
     let opt_notes = get_notes_internal(storage_slot, options);
     let mut num_notes = 0;
     let mut prev_fields = [0; N];
@@ -96,7 +95,7 @@ pub fn get_notes<Note, N, FILTER_ARGS>(
         let opt_note = opt_notes[i];
         if opt_note.is_some() {
             let note = opt_note.unwrap_unchecked();
-            let fields = note.serialize();
+            let fields = note.serialize_content();
             check_note_header(*context, storage_slot, note);
             check_note_fields(fields, options.selects);
             if i != 0 {
@@ -118,7 +117,7 @@ pub fn get_notes<Note, N, FILTER_ARGS>(
     opt_notes
 }
 
-unconstrained fn get_note_internal<Note, N>(storage_slot: Field) -> Note where Note: NoteInterface + Deserialize<N> {
+unconstrained fn get_note_internal<Note, N>(storage_slot: Field) -> Note where Note: NoteInterface<N> {
     let placeholder_note = [Option::none()];
     let placeholder_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];
     let placeholder_note_length = [0; N];
@@ -142,7 +141,7 @@ unconstrained fn get_note_internal<Note, N>(storage_slot: Field) -> Note where N
 unconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, FILTER_ARGS>
-) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface + Deserialize<N> {
+) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
     let (num_selects, select_by, select_values, select_comparators, sort_by, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let placeholder_fields = [0; GET_NOTES_ORACLE_RETURN_LENGTH];
@@ -171,7 +170,7 @@ unconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(
 unconstrained pub fn view_notes<Note, N>(
     storage_slot: Field,
     options: NoteViewerOptions<Note, N>
-) -> [Option<Note>; MAX_NOTES_PER_PAGE] where Note: NoteInterface + Deserialize<N> {
+) -> [Option<Note>; MAX_NOTES_PER_PAGE] where Note: NoteInterface<N> {
     let (num_selects, select_by, select_values, select_comparators, sort_by, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_NOTES_PER_PAGE];
     let placeholder_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];

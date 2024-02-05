@@ -3,7 +3,6 @@ use crate::abi::PublicContextInputs;
 use dep::protocol_types::{
     constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
     abis::side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    traits::{Deserialize, Serialize},
 };
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
@@ -43,7 +42,7 @@ impl<Note> Set<Note> {
     pub fn insert<N>(self,
         note: &mut Note,
         broadcast: bool,
-    ) where Note: NoteInterface + Deserialize<N> + Serialize<N> {
+    ) where Note: NoteInterface<N> {
         create_note(
             self.context.private.unwrap(),
             self.storage_slot,
@@ -54,7 +53,7 @@ impl<Note> Set<Note> {
     // docs:end:insert
 
     // docs:start:insert_from_public
-    pub fn insert_from_public(self, note: &mut Note) where Note: NoteInterface {
+    pub fn insert_from_public<N>(self, note: &mut Note) where Note: NoteInterface<N> {
         create_note_hash_from_public(
             self.context.public.unwrap(),
             self.storage_slot,
@@ -74,7 +73,7 @@ impl<Note> Set<Note> {
     }
 
     // docs:start:remove
-    pub fn remove(self, note: Note) where Note: NoteInterface {
+    pub fn remove<N>(self, note: Note) where Note: NoteInterface<N> {
         let context = self.context.private.unwrap();
         let note_hash = compute_note_hash_for_consumption(note);
         let has_been_read = context.read_requests.any(|r: SideEffect| r.value == note_hash);
@@ -91,7 +90,7 @@ impl<Note> Set<Note> {
     pub fn get_notes<N, FILTER_ARGS>(
         self,
         options: NoteGetterOptions<Note, N, FILTER_ARGS>,
-    ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface + Serialize<N> + Deserialize<N> {
+    ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
         let storage_slot = self.storage_slot;
         let opt_notes = get_notes(
             self.context.private.unwrap(),
@@ -106,7 +105,7 @@ impl<Note> Set<Note> {
     unconstrained pub fn view_notes<N>(
         self,
         options: NoteViewerOptions<Note, N>,
-    ) -> [Option<Note>; MAX_NOTES_PER_PAGE] where Note: NoteInterface + Deserialize<N> {
+    ) -> [Option<Note>; MAX_NOTES_PER_PAGE] where Note: NoteInterface<N> {
         view_notes(self.storage_slot, options)
     }
     // docs:end:view_notes

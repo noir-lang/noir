@@ -332,11 +332,11 @@ contract Test {
     ) -> pub [Field; 4] {
         if (storage_slot == storage.example_constant.get_storage_slot()) {
             let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-            note_utils::compute_note_hash_and_nullifier(FieldNote::deserialize, note_header, serialized_note)
+            note_utils::compute_note_hash_and_nullifier(FieldNote::deserialize_content, note_header, serialized_note)
         } else {
             // For ValueNotes created via write_value_to_storage
             let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-            note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize, note_header, serialized_note)
+            note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
         }
     }
 }

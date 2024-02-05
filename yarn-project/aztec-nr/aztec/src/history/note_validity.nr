@@ -12,7 +12,7 @@ pub fn prove_note_validity<Note, N>(
     note_with_header: Note,
     block_number: u32, // The block at which we'll prove that the note exists
     context: &mut PrivateContext
-) where Note: NoteInterface {
+) where Note: NoteInterface<N> {
     prove_note_inclusion(note_with_header, block_number, *context);
     prove_note_not_nullified(note_with_header, block_number, context);
 }
