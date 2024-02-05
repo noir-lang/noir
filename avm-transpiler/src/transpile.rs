@@ -1,7 +1,7 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::circuit::brillig::Brillig;
 
-use acvm::brillig_vm::brillig::{BinaryFieldOp, BinaryIntOp};
+use acvm::brillig_vm::brillig::{BinaryFieldOp, BinaryIntOp, ValueOrArray};
 
 use crate::instructions::{
     AvmInstruction, AvmOperand, AvmTypeTag, FIRST_OPERAND_INDIRECT, ZEROTH_OPERAND_INDIRECT,
@@ -252,7 +252,10 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     ],
                     ..Default::default()
                 });
-            }
+            },
+            BrilligOpcode::ForeignCall { function, destinations, inputs } => {
+                handle_foreign_call(&mut avm_instrs, function, destinations, inputs);
+            },
             _ => panic!(
                 "Transpiler doesn't know how to process {:?} brillig instruction",
                 brillig_instr
@@ -268,6 +271,54 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
         bytecode.extend_from_slice(&instruction.to_bytes());
     }
     bytecode
+}
+
+/// Handle foreign function calls
+/// - Environment getting opcodes will be represented as foreign calls
+/// - TODO: support for avm external calls through this function
+fn handle_foreign_call(
+    avm_instrs: &mut Vec<AvmInstruction>,
+    function: &String,
+    destinations: &Vec<ValueOrArray>,
+    inputs: &Vec<ValueOrArray>,
+) {
+    // For the foreign calls we want to handle, we do not want inputs, as they are getters
+    assert!(inputs.len() == 0);
+    assert!(destinations.len() == 1);
+    let dest_offset_maybe = destinations[0];
+    let dest_offset = match dest_offset_maybe {
+        ValueOrArray::MemoryAddress(dest_offset) => dest_offset.0,
+        _ => panic!("ForeignCall address destination should be a single value"),
+    };
+
+    let opcode = match function.as_str() {
+        "address" => AvmOpcode::ADDRESS,
+        "storageAddress" => AvmOpcode::STORAGEADDRESS,
+        "origin" => AvmOpcode::ORIGIN,
+        "sender" => AvmOpcode::SENDER,
+        "portal" => AvmOpcode::PORTAL,
+        "feePerL1Gas" => AvmOpcode::FEEPERL1GAS,
+        "feePerL2Gas" => AvmOpcode::FEEPERL2GAS,
+        "feePerDaGas" => AvmOpcode::FEEPERDAGAS,
+        "chainId" => AvmOpcode::CHAINID,
+        "version" => AvmOpcode::VERSION,
+        "blockNumber" => AvmOpcode::BLOCKNUMBER,
+        "timestamp" => AvmOpcode::TIMESTAMP,
+        // "callStackDepth" => AvmOpcode::CallStackDepth,
+        _ => panic!(
+            "Transpiler doesn't know how to process ForeignCall function {:?}",
+            function
+        ),
+    };
+
+    avm_instrs.push(AvmInstruction {
+        opcode,
+        indirect: Some(0),
+        operands: vec![AvmOperand::U32 {
+            value: dest_offset as u32,
+        }],
+        ..Default::default()
+    });
 }
 
 /// Compute an array that maps each Brillig pc to an AVM pc.
