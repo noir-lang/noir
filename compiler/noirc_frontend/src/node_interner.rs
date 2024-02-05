@@ -242,7 +242,7 @@ impl DefinitionId {
 
 impl From<DefinitionId> for Index {
     fn from(id: DefinitionId) -> Self {
-        Index(id.0)
+        Index(id.0, generational_arena::Index::from_raw_parts(0, 0))
     }
 }
 
@@ -254,7 +254,7 @@ impl StmtId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StmtId {
-        StmtId(Index(std::usize::MAX))
+        StmtId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(std::usize::MAX, 0)))
     }
 }
 
@@ -263,7 +263,7 @@ pub struct ExprId(Index);
 
 impl ExprId {
     pub fn empty_block_id() -> ExprId {
-        ExprId(Index(0))
+        ExprId(Index(0, generational_arena::Index::from_raw_parts(0, 0)))
     }
 }
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -274,7 +274,7 @@ impl FuncId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index(std::usize::MAX))
+        FuncId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(std::usize::MAX, 0)))
     }
 }
 
@@ -369,7 +369,7 @@ partialeq!(StmtId);
 /// We use one Arena for all types that can be interned as that has better cache locality
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Node {
     Function(HirFunction),
     Statement(HirStatement),

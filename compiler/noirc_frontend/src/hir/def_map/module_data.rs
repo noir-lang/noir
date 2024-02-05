@@ -11,7 +11,7 @@ use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 
 /// Contains the actual contents of a module: its parent (if one exists),
 /// children, and scope with all definitions defined within the scope.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModuleData {
     pub parent: Option<LocalModuleId>,
     pub children: HashMap<Ident, LocalModuleId>,

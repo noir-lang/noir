@@ -4,3 +4,6 @@ version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
+
+[dependencies]
+generational-arena = "0.2.8"

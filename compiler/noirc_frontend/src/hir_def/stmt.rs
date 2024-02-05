@@ -8,7 +8,7 @@ use noirc_errors::Span;
 /// the Statement AST node. Unlike the AST node, any nested nodes
 /// are referred to indirectly via ExprId or StmtId, which can be
 /// used to retrieve the relevant node via the NodeInterner.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum HirStatement {
     Let(HirLetStatement),
     Constrain(HirConstrainStatement),
@@ -19,7 +19,7 @@ pub enum HirStatement {
     Error,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HirLetStatement {
     pub pattern: HirPattern,
     pub r#type: Type,
@@ -35,7 +35,7 @@ impl HirLetStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HirForStatement {
     pub identifier: HirIdent,
     pub start_range: ExprId,
@@ -44,7 +44,7 @@ pub struct HirForStatement {
 }
 
 /// Corresponds to `lvalue = expression;` in the source code
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HirAssignStatement {
     pub lvalue: HirLValue,
     pub expression: ExprId,
@@ -54,10 +54,10 @@ pub struct HirAssignStatement {
 /// This node also contains the FileId of the file the constrain
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<ExprId>);
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
