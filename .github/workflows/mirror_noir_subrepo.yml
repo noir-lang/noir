@@ -6,6 +6,7 @@ name: Mirror to noir repo
 # Don't allow multiple of these running at once:
 concurrency:
   group: ${{ github.workflow }}
+  cancel-in-progress: false
 on:
   push:
     branches:
@@ -19,6 +20,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Get noir master's last sync commit
+        id: last_merge_hash
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // NOTE: more robust heuristic needed if aztecbot opens different kinds of PRs
+            const response = await github.rest.search.commits({
+              q: 'author:AztecBot committer:web-flow repo:noir-lang/noir sort:committer-date'
+            });
+            console.log(response.data.items);
+            return response.data.items[0].sha;
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -26,38 +39,59 @@ jobs:
           token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
 
       # We push using git subrepo (https://github.com/ingydotnet/git-subrepo)
-      # with some logic to recover from squashed parent commits
-      # We push to subrepo, commit to master. The commit is needed
-      # to continue to replay. If we still hit issues such as this
-      # action failing due to upstream changes, a manual resolution
-      # PR with ./scripts/git_subrepo.sh pull will be needed.
+      # and push all Aztec commits as a single commit with metadata.
       - name: Push to branch
         run: |
+          set -xue # print commands
+          # Enable gh executable. We spread out the API requests between the github actions bot token, and aztecbot
+          export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           SUBREPO_PATH=noir
           BRANCH=aztec-packages
           # identify ourselves, needed to commit
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
-          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=$BRANCH; then
-            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
+          BASE_NOIR_COMMIT=`git config --file=noir/.gitrepo subrepo.commit`
+          BASE_AZTEC_COMMIT=`git config --file=noir/.gitrepo subrepo.parent`
+          # Fix PR branch
+          git clone https://x-access-token:${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}@github.com/noir-lang/noir.git noir-repo
+          cd noir-repo
+          git checkout $BRANCH || git checkout -b $BRANCH
+          git reset --hard "$BASE_NOIR_COMMIT"
+          # Reset our branch to our expected target
+          git push origin $BRANCH --force
+          cd ..
+          # Get the last sync PR's last commit state
+          LAST_MERGED_PR_HASH=`gh pr list --repo=noir-lang/noir --state merged --head aztec-packages  --json headRefOid --jq=.[0].headRefOid`
+          # Use a commit heuristic where we look at when .gitrepo first started to look at that commit state (through a push)
+          COMMIT_HEURISTIC=$(git log -p -S"$LAST_MERGED_PR_HASH" --reverse --source --  noir/.gitrepo | grep -m 1 '^commit'  | awk '{print $2}' || true)
+          if [[ " $COMMIT_HEURISTIC" = "" ]] ; then
+            # It it fails, just use our gitrepo parent commit (last time we pushed or pulled)
+            COMMIT_HEURISTIC=$BASE_AZTEC_COMMIT
+          fi
+          # Create a filtered git log for release-please changelog / metadata
+          MESSAGE=$(git log --pretty=format:"%s" $COMMIT_HEURISTIC..HEAD -- noir/  ':!noir/.gitrepo' | grep -v 'git subrepo' || true)
+          # Fix Aztec PR links
+          MESSAGE=$(echo "$MESSAGE" | sed -E 's/\(#([0-9]+)\)/(https:\/\/github.com\/AztecProtocol\/aztec-packages\/pull\/\1)/g')
+          git commit --allow-empty -m"chore: Sync to noir-lang/noir" -m"$MESSAGE"
+          COMMIT=$(git rev-parse HEAD)
+          # Now push to it with subrepo with computed commit messages
+          if ./scripts/git_subrepo.sh push $SUBREPO_PATH --squash --branch=$BRANCH; then
+            git reset $COMMIT
+            git commit --amend -am "$(git log -1 --pretty=%B) [skip ci]"
             git push
           else
             echo "Problems syncing noir. We may need to pull the subrepo."
             exit 1
           fi
-
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          repository: noir-lang/noir
-          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
-      - name: Create PR for Aztec Branch
-        continue-on-error: true
-        uses: repo-sync/pull-request@v2
-        with:
-          github_token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
-          pr_title: 'feat: Sync commits from `aztec-packages`'
-          pr_body: 'Development from [aztec-packages](https://github.com/AztecProtocol/aztec-packages).'
-          destination_branch: 'master'
-          source_branch: 'aztec-packages'
+          # Formatted for updating the PR, overrides for release-please commit message parsing 
+          PR_BODY="""BEGIN_COMMIT_OVERRIDE
+          $MESSAGE
+          END_COMMIT_OVERRIDE"""
+          PR_URL=$(gh pr list --repo noir-lang/noir --head aztec-packages --json url --jq ".[0].url")
+          # for cross-opening PR in noir repo, we use aztecbot's token
+          export GH_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+          if [[ "$PR_URL" == "" ]]; then
+            gh pr create --repo noir-lang/noir --title "feat: Sync from aztec-packages" --body "$PR_BODY" --base master --head aztec-packages
+          else
+            gh pr edit "$PR_URL" --body "$PR_BODY"
+          fi

@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-set -eu
+set -e
 set -x
 
 # Make a directory to work in:
