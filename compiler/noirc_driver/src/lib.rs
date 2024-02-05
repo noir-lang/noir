@@ -87,7 +87,7 @@ pub struct CompileOptions {
     pub show_monomorphized: bool,
 
     /// Insert debug symbols to inspect variables
-    #[arg(long)]
+    #[arg(long, hide = true)]
     pub instrument_debug: bool,
 
     /// Force Brillig output (for step debugging)
