@@ -1,0 +1,7 @@
+[package]
+name = "array_slice_polymorphism"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.23.0"
+
+[dependencies]

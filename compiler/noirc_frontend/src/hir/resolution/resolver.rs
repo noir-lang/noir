@@ -105,7 +105,8 @@ pub struct Resolver<'a> {
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
     /// were declared in.
-    generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    /// The bool represents 'prevent_numeric', i.e. "N?"
+    generics: Vec<(Rc<String>, TypeVariable, Span, bool)>,
 
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment
@@ -782,14 +783,14 @@ impl<'a> Resolver<'a> {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
-            let span = generic.0.span();
+            let span = generic.ident.0.span();
 
             // Check for name collisions of this generic
-            let name = Rc::new(generic.0.contents.clone());
+            let name = Rc::new(generic.ident.0.contents.clone());
 
             if let Some((_, _, first_span)) = self.find_generic(&name) {
                 self.errors.push(ResolverError::DuplicateDefinition {
-                    name: generic.0.contents.clone(),
+                    name: generic.ident.0.contents.clone(),
                     first_span: *first_span,
                     second_span: span,
                 });
@@ -808,11 +809,11 @@ impl<'a> Resolver<'a> {
         assert_eq!(names.len(), generics.len());
 
         for (name, typevar) in names.iter().zip(generics) {
-            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
+            self.add_existing_generic(&name.ident.0.contents, name.ident.0.span(), typevar.clone(), name.prevent_numeric);
         }
     }
 
-    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable) {
+    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable, prevent_numeric: bool) {
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.to_owned());
 
@@ -823,7 +824,7 @@ impl<'a> Resolver<'a> {
                 second_span: span,
             });
         } else {
-            self.generics.push((rc_name, typevar, span));
+            self.generics.push((rc_name, typevar, span, prevent_numeric));
         }
     }
 

@@ -233,6 +233,25 @@ impl<T> Recoverable for Vec<T> {
     }
 }
 
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub struct GenericIdent {
+    pub ident: Ident,
+    /// "N?" prevents "N" from being used as a numeric.
+    /// This allows "N" to be used for both array and slice lengths.
+    pub prevent_numeric: bool,
+}
+
+impl Display for GenericIdent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let question_mark = if self.prevent_numeric {
+            "?"
+        } else {
+            ""
+        };
+        write!(f, "{}{}", self.ident, question_mark)
+    }
+}
+
 /// Trait for recoverable nodes during parsing.
 /// This is similar to Default but is expected
 /// to return an Error node of the appropriate type.

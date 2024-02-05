@@ -109,6 +109,7 @@ impl<'a> Lexer<'a> {
             Some('.') => self.glue(Token::Dot),
             Some(':') => self.glue(Token::Colon),
             Some('!') => self.glue(Token::Bang),
+            Some('?') => self.glue(Token::Question),
             Some('-') => self.glue(Token::Minus),
             Some('&') => self.ampersand(),
             Some('|') => self.single_char_token(Token::Pipe),
@@ -584,10 +585,11 @@ mod tests {
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
     #[test]
     fn test_single_double_char() {
-        let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
+        let input = "! ? != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
 
         let expected = vec![
             Token::Bang,
+            Token::Question,
             Token::NotEqual,
             Token::Plus,
             Token::LeftParen,

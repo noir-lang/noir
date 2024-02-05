@@ -84,6 +84,8 @@ pub enum Token {
     Semicolon,
     /// !
     Bang,
+    /// ?
+    Question,
     /// =
     Assign,
     #[allow(clippy::upper_case_acronyms)]
@@ -199,6 +201,7 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
+            Token::Question => write!(f, "?"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),

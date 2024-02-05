@@ -121,11 +121,12 @@ fn resolve_trait_methods(
             let self_typevar = the_trait.self_type_typevar.clone();
             let self_type = Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
             let name_span = the_trait.name.span();
+            let self_prevent_numeric = false;
 
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
             resolver.add_generics(generics);
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
-            resolver.add_existing_generic("Self", name_span, self_typevar);
+            resolver.add_existing_generic("Self", name_span, self_typevar, self_prevent_numeric);
             resolver.set_self_type(Some(self_type.clone()));
 
             let func_id = unresolved_trait.method_ids[&name.0.contents];
