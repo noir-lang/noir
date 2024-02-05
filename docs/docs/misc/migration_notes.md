@@ -38,6 +38,46 @@ Makes a split in logic for note hash computation for consumption and insertion. 
 `compute_note_hash_for_consumption` replaces `compute_note_hash_for_read_or_nullify`.
 `compute_note_hash_for_insertion` is new, and mainly used in `lifecycle.nr``
 
+### `Note::serialize_content` and `Note::deserialize_content` added to `NoteInterface
+
+The `NoteInterface` have been extended to include `serialize_content` and `deserialize_content` functions. This is to convey the difference between serializing the full note, and just the content. This change allows you to also add a `serialize` function to support passing in a complete note to a function.
+
+Before:
+```rust
+impl Serialize<ADDRESS_NOTE_LEN> for AddressNote {
+    fn serialize(self) -> [Field; ADDRESS_NOTE_LEN]{
+        [self.address.to_field(), self.owner.to_field(), self.randomness]
+    }
+}
+impl Deserialize<ADDRESS_NOTE_LEN> for AddressNote {
+    fn deserialize(serialized_note: [Field; ADDRESS_NOTE_LEN]) -> Self {
+        AddressNote {
+            address: AztecAddress::from_field(serialized_note[0]),
+            owner: AztecAddress::from_field(serialized_note[1]),
+            randomness: serialized_note[2],
+            header: NoteHeader::empty(),
+        }
+    }
+```
+
+Now 
+```rust
+impl NoteInterface<ADDRESS_NOTE_LEN>  for AddressNote {
+    fn serialize_content(self) -> [Field; ADDRESS_NOTE_LEN]{
+        [self.address.to_field(), self.owner.to_field(), self.randomness]
+    }
+
+    fn deserialize_content(serialized_note: [Field; ADDRESS_NOTE_LEN]) -> Self {
+        AddressNote {
+            address: AztecAddress::from_field(serialized_note[0]),
+            owner: AztecAddress::from_field(serialized_note[1]),
+            randomness: serialized_note[2],
+            header: NoteHeader::empty(),
+        }
+    }
+    ...
+}
+```
 
 ## 0.22.0
 
