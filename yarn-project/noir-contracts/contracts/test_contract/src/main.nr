@@ -87,7 +87,9 @@ contract Test {
 
     #[aztec(private)]
     fn call_create_note(value: Field, owner: AztecAddress, storage_slot: Field) {
-        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+        assert(
+            storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
+        );
 
         let mut note = ValueNote::new(value, owner);
         create_note(&mut context, storage_slot, &mut note, true);
@@ -95,7 +97,9 @@ contract Test {
 
     #[aztec(private)]
     fn call_get_notes(storage_slot: Field, active_or_nullified: bool) {
-        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+        assert(
+            storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
+        );
 
         let mut options = NoteGetterOptions::new();
         if (active_or_nullified) {
@@ -112,7 +116,9 @@ contract Test {
 
     #[aztec(private)]
     fn call_get_notes_many(storage_slot: Field, active_or_nullified: bool) {
-        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+        assert(
+            storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
+        );
 
         let mut options = NoteGetterOptions::new();
         if (active_or_nullified) {
@@ -128,7 +134,9 @@ contract Test {
     }
 
     unconstrained fn call_view_notes(storage_slot: Field, active_or_nullified: bool) -> pub Field {
-        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+        assert(
+            storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
+        );
 
         let mut options = NoteViewerOptions::new();
         if (active_or_nullified) {
@@ -144,7 +152,9 @@ contract Test {
         storage_slot: Field,
         active_or_nullified: bool
     ) -> pub [Field; 2] {
-        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+        assert(
+            storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
+        );
 
         let mut options = NoteViewerOptions::new();
         if (active_or_nullified) {
@@ -158,7 +168,9 @@ contract Test {
 
     #[aztec(private)]
     fn call_destroy_note(storage_slot: Field) {
-        assert(storage_slot != 1, "storage slot 1 is reserved for example_constant");
+        assert(
+            storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
+        );
 
         let options = NoteGetterOptions::new();
         let opt_notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
