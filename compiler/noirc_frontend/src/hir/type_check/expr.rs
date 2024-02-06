@@ -36,11 +36,7 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn is_unconstrained_call(
-        &self,
-        expr: &ExprId,
-        // arg_types: impl Iterator<Item = &Type>
-    ) -> bool {
+    fn is_unconstrained_call(&self, expr: &ExprId) -> bool {
         if let HirExpression::Ident(expr::HirIdent { id, .. }) = self.interner.expression(expr) {
             if let Some(DefinitionKind::Function(func_id)) =
                 self.interner.try_definition(id).map(|def| &def.kind)
@@ -161,8 +157,8 @@ impl<'interner> TypeChecker<'interner> {
                     .current_function
                     .expect("Can only have call expression inside of a function body");
                 let func_mod = self.interner.function_modifiers(&current_func);
-                let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
                 let is_current_func_constrained = !func_mod.is_unconstrained;
+                let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
 
                 self.check_if_deprecated(&call_expr.func);
 
