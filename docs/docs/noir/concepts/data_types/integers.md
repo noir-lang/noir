@@ -80,13 +80,13 @@ fn main(x: u64, y: u64) {
 ```
 
 Note that the limbs are stored as Field elements in order to avoid unnecessary conversions.
-A part from this, most operations will work as usual:
+Apart from this, most operations will work as usual:
 
 ```rust
 fn main(x: U128, y: U128) {
     // multiplication
     let c = x * y;
-    //addition and subtraction
+    // addition and subtraction
     let c = c - x + y;
     // division
     let c = x / y;
