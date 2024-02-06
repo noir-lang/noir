@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         # Description
-        Thanks for taking the time to create the Issue, and welcome to the Noirot family!
+        Thanks for taking the time to create the Issue and welcome to the Noir community!
   - type: textarea
     id: aim
     attributes:
