@@ -115,12 +115,12 @@ pub enum TypeCheckError {
     NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
     #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
     UnneededTraitConstraint { trait_name: String, typ: Type, span: Span },
-    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { span: Span },
     #[error(
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
     ConstrainedReferenceToUnconstrained { span: Span },
+    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedSliceReturnToConstrained { span: Span },
 }
 
 impl TypeCheckError {
