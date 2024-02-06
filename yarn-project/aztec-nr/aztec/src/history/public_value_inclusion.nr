@@ -18,32 +18,6 @@ use crate::{
     },
 };
 
-pub fn prove_public_value_inclusion(
-    value: Field, // The value that we want to prove is in the public data tree
-    storage_slot: Field, // The storage slot in which the value is stored
-    contract_address: AztecAddress, // The contract we want to look into
-    context: PrivateContext
-) {
-    _public_value_inclusion(
-        value,
-        storage_slot,
-        contract_address,
-        context.historical_header
-    );
-}
-
-pub fn prove_public_value_inclusion_at(
-    value: Field, // The value that we want to prove is in the public data tree
-    storage_slot: Field, // The storage slot in which the value is stored
-    contract_address: AztecAddress, // The contract we want to look into
-    block_number: u32, // The block at which we'll prove that the note exists
-    context: PrivateContext
-) {
-    let header = context.get_header_at(block_number);
-
-    _public_value_inclusion(value, storage_slot, contract_address, header);
-}
-
 fn _public_value_inclusion(
     value: Field,
     storage_slot: Field,
@@ -87,4 +61,30 @@ fn _public_value_inclusion(
     );
     // --> Now we have traversed the trees all the way up to archive root and that way verified that a specific
     // `value` was really set in a given contract storage slot at block `block_number` in public data tree.
+}
+
+pub fn prove_public_value_inclusion(
+    value: Field, // The value that we want to prove is in the public data tree
+    storage_slot: Field, // The storage slot in which the value is stored
+    contract_address: AztecAddress, // The contract we want to look into
+    context: PrivateContext
+) {
+    _public_value_inclusion(
+        value,
+        storage_slot,
+        contract_address,
+        context.historical_header
+    );
+}
+
+pub fn prove_public_value_inclusion_at(
+    value: Field, // The value that we want to prove is in the public data tree
+    storage_slot: Field, // The storage slot in which the value is stored
+    contract_address: AztecAddress, // The contract we want to look into
+    block_number: u32, // The block at which we'll prove that the note exists
+    context: PrivateContext
+) {
+    let header = context.get_header_at(block_number);
+
+    _public_value_inclusion(value, storage_slot, contract_address, header);
 }

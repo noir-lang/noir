@@ -6,76 +6,93 @@ title: History Reference
 
 ## Note inclusion 
 
-Note inclusion proves that a note existed (its hash was included in a note hash tree) at a specific block number.
+Note inclusion proves that a note existed (its hash was included in a note hash tree) at a specific block number. There exists a version that tests for note inclusion at current block number. It is recommended to use this version whenever possible to reduce cost.
 
-## prove_note_inclusion
+### prove_note_inclusion
 
-`prove_note_inclusion` takes 4 parameters:
+`prove_note_inclusion_at` takes 3 parameters:
 
 | Name            | Type                   | Description                                         |
 |-----------------|------------------------|-----------------------------------------------------|
-| note_interface  | NoteInterface<Note, N> | Interface for the note with necessary functionality|
 | note_with_header| Note                   | The note you are proving inclusion for             |
 | block_number    | u32                    | Block number for proving note's existence           |
 | context         | PrivateContext         | Private context     |
 
-## prove_note_commitment_inclusion
-
-A **commitment**, also referred to as a **note hash** is a public acknowledgment of the existence of a note without revealing the content of the note. You can learn more about how to compress a note to a note hash [here](../../../../learn/concepts/storage/trees/main.md#example-note).
-
-`prove_note_commitment_inclusion` takes 3 parameters:
+`prove_note_inclusion` takes 2 parameters:
 
 | Name            | Type                   | Description                                         |
 |-----------------|------------------------|-----------------------------------------------------|
-| commitment  | Field | Note commitment we are checking inclusion of |   
-| block_number    | u32                    | Block number for proving note's existence           |
-| context| PrivateContext                   | Private Context |    
+| note_with_header| Note                   | The note you are proving inclusion for             |
+| context         | PrivateContext         | Private context     |
 
 ## Note validity
 
-This proves that a note exists and has not been nullified at a specified block.
+This proves that a note exists and has not been nullified at a specified block. Again as above, there exists a version that tests for validity at current block. It is recommended to use this version whenever possible to reduce cost.
 
 ### prove_note_validity
 
-`prove_note_validity` takes 4 parameters:
+`prove_note_validity_at` takes 3 parameters:
 
 | Name            | Type                   | Description                                         |
 |-----------------|------------------------|-----------------------------------------------------|
-| note_interface  | NoteInterface<Note, N> | Interface for the note with necessary functionality|
 | note_with_header| Note                   | The note you are proving inclusion for             |
 | block_number    | u32                    | Block number for proving note's existence           |
+| context         | PrivateContext         | Private context     |
+
+`prove_note_validity` takes 2 parameters:
+
+| Name            | Type                   | Description                                         |
+|-----------------|------------------------|-----------------------------------------------------|
+| note_with_header| Note                   | The note you are proving inclusion for             |
 | context         | PrivateContext         | Private context     |
 
 ## Nullifier inclusion
 
-This proves that a nullifier was included in a certain block (can be used to prove that a note had been nullified). 
+This proves that a nullifier was included in a certain block (can be used to prove that a note had been nullified). The same disclaimer above holds true for this, and subsequent functions that specify another version without a block_number argument.
 
 ### prove_nullifier_inclusion
 
-`prove_nullifier_inclusion` takes 3 parameters:
+`prove_nullifier_inclusion_at` takes 3 parameters:
 
 | Name            | Type                   | Description                                         |
 |-----------------|------------------------|-----------------------------------------------------|
 | nullifier | Field                   | The nullifier you are proving inclusion for             |
 | block_number    | u32                    | Block number for proving note's existence           |
 | context         | PrivateContext         | Private context     |
+
+`prove_nullifier_inclusion` takes 2 parameters:
+
+| Name            | Type                   | Description                                         |
+|-----------------|------------------------|-----------------------------------------------------|
+| nullifier | Field                   | The nullifier you are proving inclusion for             |
+| context         | PrivateContext         | Private context     |
+
+### prove_note_is_nullified_at / prove_note_is_nullified
+
+Instead of passing the nullifier, you can check that a note has been nullified by passing the note.
 
 ## Nullifier non inclusion
 
 This proves that a nullifier was not included in a certain block (can be used to prove that a note had not yet been nullified in a given block).
 
-### prove_nullifier_non_inclusion
+### prove_nullifier_not_included
 
-`prove_nullifier_non_inclusion` takes 3 parameters:
+`prove_nullifier_not_included_at` takes 3 parameters:
 
 | Name            | Type                   | Description                                         |
 |-----------------|------------------------|-----------------------------------------------------|
 | nullifier | Field                   | The nullifier you are proving inclusion for             |
 | block_number    | u32                    | Block number for proving note's existence           |
 | context         | PrivateContext         | Private context     |
-                           
- 
-### note_not_nullified
+
+`prove_nullifier_not_included` takes 2 parameters:
+
+| Name            | Type                   | Description                                         |
+|-----------------|------------------------|-----------------------------------------------------|
+| nullifier | Field                   | The nullifier you are proving inclusion for             |
+| context         | PrivateContext         | Private context     |
+
+### prove_note_not_nullified_at / prove_note_not_nullified
 
 Instead of passing the nullifier, you can check that a note has not been nullified by passing the note.
 
@@ -85,7 +102,7 @@ This proves that a public value exists at a certain block.
 
 ### prove_public_value_inclusion
 
-`prove_public_value_inclusion` takes 4 parameters:
+`prove_public_value_inclusion_at` takes 4 parameters:
 
 | Name            | Type                   | Description                                         |
 |-----------------|------------------------|-----------------------------------------------------|
@@ -94,13 +111,21 @@ This proves that a public value exists at a certain block.
 | block_number         | u32         | Block number for proving value's existence     |
 | context         | PrivateContext         | Private context     |
 
+`prove_public_value_inclusion` takes 3 parameters:
+
+| Name            | Type                   | Description                                         |
+|-----------------|------------------------|-----------------------------------------------------|
+| value | Field                   | The public value you are proving inclusion for             |
+| storage_slot    | Field                    | Storage slot the value exists in          |
+| context         | PrivateContext         | Private context     |
+
 ## Contract inclusion
 
 This proves that a contract exists in, ie had been deployed before or in, a certain block.
 
 ### prove_contract_inclusion
 
-`prove_contract_inclusion` takes 7 parameters:
+`prove_contract_inclusion_at` takes 7 parameters:
 
 | Name                      | Type            | Description                                           |
 |---------------------------|-----------------|-------------------------------------------------------|

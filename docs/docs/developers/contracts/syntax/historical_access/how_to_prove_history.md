@@ -53,22 +53,17 @@ In this example, the user's notes are stored in a map called `private_values`. W
 
 ## 4. Prove that a note was included in a specified block
 
-To prove that a note existed in a specified block, call `prove_note_inclusion` as shown in this example: 
+To prove that a note existed in a specified block, call `prove_note_inclusion_at` as shown in this example:
 
 #include_code prove_note_inclusion yarn-project/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
 
-This function takes in 4 arguments:
+This function takes in 3 arguments:
 
-1. The note interface (`ValueNoteMethods`)
-2. The note (`maybe_note.unwrap_unchecked()`). Here, `unwrap_unchecked()` returns the inner value without asserting `self.is_some()`
-3. The block number
-4. Private context
+1. The note (`maybe_note.unwrap_unchecked()`). Here, `unwrap_unchecked()` returns the inner value without asserting `self.is_some()`
+2. The block number
+3. Private context
 
-Note: for this to work, you will need to import `ValueNoteMethods` at the beginning of the contract:
-
-#include_code value_note_imports yarn-project/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
-
-This will only prove the note existed, not whether or not the note has been nullified. You can prove that a note existed and had not been nullified in a specified block by using `prove_note_validity` which takes the same arguments:
+This will only prove the note existed at the specific block number, not whether or not the note has been nullified. You can prove that a note existed and had not been nullified in a specified block by using `prove_note_validity_at` which takes the same arguments:
 
 #include_code prove_note_validity yarn-project/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
 
@@ -84,7 +79,7 @@ You can then compute this nullifier with `note.compute_nullifier(&mut context)`.
 
 ## 6. Prove that a nullifier was included in a specified block
 
-Call `prove_nullifier_inclusion` like so:
+Call `prove_nullifier_inclusion_at` like so:
 
 #include_code prove_nullifier_inclusion yarn-project/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
 
@@ -93,10 +88,8 @@ This takes three arguments:
 2. Block number
 3. Private context
 
-You can also prove that a nullifier was not included in a specified block by using `prove_nullifier_non_inclusion` which takes the same arguments:
+You can also prove that a nullifier was not included in a specified block by using `prove_nullifier_not_included_at` which takes the same arguments.
 
-#include_code prove_nullifier_non_inclusion yarn-project/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
-
-## Prove contract inclusion, public value inclusion, and note commitment inclusion
+## Prove contract inclusion, public value inclusion, and use current state in lookups
 
 To see what else you can do with the `history` library, check out the [reference](./history_lib_reference.md).
