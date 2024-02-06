@@ -320,6 +320,7 @@ impl DefCollector {
         // We must wait to resolve non-integer globals until after we resolve structs since structs
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
         resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
+        errors.extend(resolved_globals.errors);
 
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
@@ -338,31 +339,31 @@ impl DefCollector {
         // over trait methods if there are name conflicts.
         errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
 
-        // Lower each function in the crate. This is now possible since imports have been resolved
-        let file_func_ids = resolve_free_functions(
+        // Resolve each function in the crate. This is now possible since imports have been resolved
+        let mut functions = Vec::new();
+        functions.extend(resolve_free_functions(
             &mut context.def_interner,
             crate_id,
             &context.def_maps,
             def_collector.collected_functions,
             None,
             &mut errors,
-        );
+        ));
 
-        let file_method_ids = resolve_impls(
+        functions.extend(resolve_impls(
             &mut context.def_interner,
             crate_id,
             &context.def_maps,
             def_collector.collected_impls,
             &mut errors,
-        );
-        let file_trait_impls_ids = resolve_trait_impls(
+        ));
+
+        functions.extend(resolve_trait_impls(
             context,
             def_collector.collected_traits_impls,
             crate_id,
             &mut errors,
-        );
-
-        errors.extend(resolved_globals.errors);
+        ));
 
         for macro_processor in macro_processors {
             macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
@@ -371,12 +372,11 @@ impl DefCollector {
                 },
             );
         }
-        errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
 
-        // Type check all of the functions in the crate
-        errors.extend(type_check_functions(&mut context.def_interner, file_func_ids));
-        errors.extend(type_check_functions(&mut context.def_interner, file_method_ids));
-        errors.extend(type_check_functions(&mut context.def_interner, file_trait_impls_ids));
+        errors.extend(context.def_interner.check_for_dependency_cycles());
+
+        errors.extend(type_check_globals(&mut context.def_interner, resolved_globals.globals));
+        errors.extend(type_check_functions(&mut context.def_interner, functions));
         errors
     }
 }

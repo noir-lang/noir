@@ -23,7 +23,7 @@ rust-embed = { version = "6.6.0", features = [
     "include-exclude",
 ] }
 
-grumpkin = { package = "noir_grumpkin", features = [
+grumpkin = { version = "0.1.0", package = "noir_grumpkin", features = [
     "std",
 ] } # BN254 fixed base scalar multiplication solver
 ark-ec = { version = "^0.4.0", default-features = false }
