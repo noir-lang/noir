@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.21.0...barretenberg.js-v0.22.0) (2024-02-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **acir:** Move `is_recursive` flag to be part of the circuit definition ([#4221](https://github.com/AztecProtocol/aztec-packages/issues/4221))
+
+### Miscellaneous
+
+* **acir:** Move `is_recursive` flag to be part of the circuit definition ([#4221](https://github.com/AztecProtocol/aztec-packages/issues/4221)) ([9c965a7](https://github.com/AztecProtocol/aztec-packages/commit/9c965a7c9e652dfeaba2f09152e5db287407473d))
+
 ## [0.21.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.20.0...barretenberg.js-v0.21.0) (2024-01-30)
 
 
