@@ -1,5 +1,4 @@
-import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-
+import { toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
 import { Fr } from '../fields/fields.js';
 import { numToUInt32BE } from './free_funcs.js';
 

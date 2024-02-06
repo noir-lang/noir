@@ -3,13 +3,10 @@ import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 import { Grumpkin } from '../barretenberg/index.js';
-import {
-  GrumpkinPrivateKey,
-  PartialAddress,
-  PublicKey,
-  computeContractAddressFromPartial,
-  computePartialAddress,
-} from '../index.js';
+import { computeContractAddressFromPartial, computePartialAddress } from '../contract/contract_address.js';
+import { GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
+import { PartialAddress } from '../types/partial_address.js';
+import { PublicKey } from '../types/public_key.js';
 
 /**
  * A complete address is a combination of an Aztec address, a public key and a partial address.

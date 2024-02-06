@@ -17,8 +17,10 @@ import {
   NUM_FIELDS_PER_SHA256,
   RETURN_VALUES_LENGTH,
 } from '../constants.gen.js';
+import { ContractDeploymentData } from '../structs/contract_deployment_data.js';
+import { Header } from '../structs/header.js';
+import { SideEffect, SideEffectLinkedToNoteHash } from '../structs/side_effects.js';
 import { CallContext } from './call_context.js';
-import { ContractDeploymentData, Header, SideEffect, SideEffectLinkedToNoteHash } from './index.js';
 import { NullifierKeyValidationRequest } from './nullifier_key_validation_request.js';
 
 /**

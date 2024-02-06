@@ -1,6 +1,6 @@
-import { Tuple } from '@aztec/foundation/serialize';
+import { Tuple } from '../serialize/index.js';
 
-export type { FieldsOf } from '@aztec/foundation/types';
+export type { FieldsOf } from '../types/index.js';
 
 /**
  * Create an array over an integer range.

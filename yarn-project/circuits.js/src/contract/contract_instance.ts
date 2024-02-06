@@ -1,7 +1,11 @@
 import { ContractArtifact } from '@aztec/foundation/abi';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { ContractInstance, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { EthAddress, Fr, Point, PublicKey, computeContractClassId, getContractClassFromArtifact } from '../index.js';
+import { getContractClassFromArtifact } from '../contract/contract_class.js';
+import { computeContractClassId } from '../contract/contract_class_id.js';
+import { PublicKey } from '../types/public_key.js';
 import {
   computeContractAddressFromInstance,
   computeInitializationHash,

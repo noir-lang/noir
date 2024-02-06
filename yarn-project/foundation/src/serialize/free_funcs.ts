@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation/fields';
+import { Fr } from '../fields/fields.js';
 
 /**
  * Convert a boolean value to its corresponding byte representation in a Buffer of size 1.

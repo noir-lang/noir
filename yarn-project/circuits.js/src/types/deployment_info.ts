@@ -1,4 +1,6 @@
-import { CompleteAddress, Fr } from '../index.js';
+import { Fr } from '@aztec/foundation/fields';
+
+import { CompleteAddress } from '../structs/complete_address.js';
 
 /**
  * Represents the data generated as part of contract deployment.

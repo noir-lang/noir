@@ -10,7 +10,7 @@ import {
 import { EthAddress, Fr } from '@aztec/circuits.js';
 import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
 
-import { ArchiveSource } from '../index.js';
+import { ArchiveSource } from '../archiver/archiver.js';
 
 export const createArchiverClient = (url: string, fetch = makeFetch([1, 2, 3], true)): ArchiveSource =>
   createJsonRpcClient<ArchiveSource>(

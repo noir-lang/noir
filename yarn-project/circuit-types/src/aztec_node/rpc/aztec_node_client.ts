@@ -6,7 +6,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/client';
 
 import { ContractData, ExtendedContractData } from '../../contract_data.js';
-import { AztecNode } from '../../interfaces/index.js';
+import { AztecNode } from '../../interfaces/aztec-node.js';
 import { L1ToL2MessageAndIndex } from '../../l1_to_l2_message.js';
 import { L2Block } from '../../l2_block.js';
 import { L2Tx } from '../../l2_tx.js';

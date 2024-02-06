@@ -1,6 +1,8 @@
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { EthAddress, Fr, Point, PublicKey } from '../index.js';
+import { PublicKey } from '../types/public_key.js';
 
 /**
  * Contract deployment data in a TxContext

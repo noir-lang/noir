@@ -18,13 +18,10 @@ import {
   RETURN_VALUES_LENGTH,
 } from '../constants.gen.js';
 import { CallContext } from './call_context.js';
-import {
-  ContractStorageRead,
-  ContractStorageUpdateRequest,
-  Header,
-  SideEffect,
-  SideEffectLinkedToNoteHash,
-} from './index.js';
+import { ContractStorageRead } from './contract_storage_read.js';
+import { ContractStorageUpdateRequest } from './contract_storage_update_request.js';
+import { Header } from './header.js';
+import { SideEffect, SideEffectLinkedToNoteHash } from './side_effects.js';
 
 /**
  * Public inputs to a public circuit.

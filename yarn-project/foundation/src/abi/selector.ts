@@ -1,10 +1,9 @@
-import { fromHex, toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { BufferReader, FieldReader } from '@aztec/foundation/serialize';
-
 import { randomBytes } from 'crypto';
 
+import { fromHex, toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
 import { keccak } from '../crypto/keccak/index.js';
 import { Fr } from '../fields/index.js';
+import { BufferReader, FieldReader } from '../serialize/index.js';
 import { type ABIParameter } from './abi.js';
 import { decodeFunctionSignature } from './decoder.js';
 

@@ -15,19 +15,19 @@ import {
   GeneratorIndex,
 } from '../constants.gen.js';
 import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
-import {
+import type {
   ContractDeploymentData,
   FunctionData,
   FunctionLeafPreimage,
   NewContractData,
   PublicCallStackItem,
-  PublicCircuitPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
   TxContext,
   TxRequest,
-  VerificationKey,
 } from '../structs/index.js';
+import { PublicCircuitPublicInputs } from '../structs/public_circuit_public_inputs.js';
+import { VerificationKey } from '../structs/verification_key.js';
 
 /**
  * Computes a hash of a transaction request.

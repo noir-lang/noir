@@ -1,7 +1,8 @@
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
-import { ContractDeploymentData, Fr } from './index.js';
+import { ContractDeploymentData } from '../structs/contract_deployment_data.js';
 
 /**
  * Transaction context.
