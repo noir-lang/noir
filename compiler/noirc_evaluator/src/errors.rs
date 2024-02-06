@@ -46,6 +46,10 @@ pub enum RuntimeError {
     NestedSlice { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
+    #[error(
+        "Slices cannot be return from an unconstrained environment to a constrained environment"
+    )]
+    UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
 }
 
 // We avoid showing the actual lhs and rhs since most of the time they are just 0
@@ -135,7 +139,8 @@ impl RuntimeError {
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
-            | RuntimeError::BigIntModulus { call_stack, .. } => call_stack,
+            | RuntimeError::BigIntModulus { call_stack, .. }
+            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack } => call_stack,
         }
     }
 }
@@ -168,6 +173,17 @@ impl RuntimeError {
                 Diagnostic::simple_error(
                     primary_message,
                     "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
+                    location.span,
+                )
+            }
+            RuntimeError::UnconstrainedSliceReturnToConstrained { .. } => {
+                let primary_message = self.to_string();
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+
+                Diagnostic::simple_error(
+                    primary_message,
+                    "If attempting to return a `Vec` type, `Vec` contains a slice internally.".to_string(),
                     location.span,
                 )
             }
