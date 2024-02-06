@@ -38,7 +38,10 @@ use super::{
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
+pub(crate) fn generate_ssa(
+    program: Program,
+    force_brillig_runtime: bool,
+) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
@@ -56,7 +59,11 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let mut function_context = FunctionContext::new(
         main.name.clone(),
         &main.parameters,
-        if main.unconstrained { RuntimeType::Brillig } else { RuntimeType::Acir },
+        if force_brillig_runtime || main.unconstrained {
+            RuntimeType::Brillig
+        } else {
+            RuntimeType::Acir
+        },
         &context,
     );
 
@@ -722,6 +729,11 @@ impl<'a> FunctionContext<'a> {
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
         let lhs = self.extract_current_value(&assign.lvalue)?;
         let rhs = self.codegen_expression(&assign.expression)?;
+
+        rhs.clone().for_each(|value| {
+            let value = value.eval(self);
+            self.builder.increment_array_reference_count(value);
+        });
 
         self.assign_new_value(lhs, rhs);
         Ok(Self::unit_value())

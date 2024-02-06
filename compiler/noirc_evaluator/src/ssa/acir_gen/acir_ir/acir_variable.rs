@@ -631,18 +631,22 @@ impl AcirContext {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        // lhs = rhs * q + r
-        //
-        // If predicate is zero, `q_witness` and `r_witness` will be 0
         let zero = self.add_constant(FieldElement::zero());
-        if self.var_to_expression(predicate)?.is_zero() {
-            return Ok((zero, zero));
-        }
+        let one = self.add_constant(FieldElement::one());
 
-        match (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const()) {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+        let predicate_expr = self.var_to_expression(predicate)?;
+
+        match (lhs_expr.to_const(), rhs_expr.to_const(), predicate_expr.to_const()) {
+            // If predicate is zero, `quotient_var` and `remainder_var` will be 0.
+            (_, _, Some(predicate_const)) if predicate_const.is_zero() => {
+                return Ok((zero, zero));
+            }
+
             // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
-            (Some(lhs_const), Some(rhs_const)) if rhs_const != FieldElement::zero() => {
+            (Some(lhs_const), Some(rhs_const), _) if rhs_const != FieldElement::zero() => {
                 let quotient = lhs_const.to_u128() / rhs_const.to_u128();
                 let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
 
@@ -652,36 +656,29 @@ impl AcirContext {
             }
 
             // If `rhs` is one then the division is a noop.
-            (_, Some(rhs_const)) if rhs_const == FieldElement::one() => {
+            (_, Some(rhs_const), _) if rhs_const == FieldElement::one() => {
                 return Ok((lhs, zero));
             }
 
-            _ => (),
-        }
+            // After this point, we cannot perform the division at compile-time.
+            //
+            // We need to check that the rhs is not zero, otherwise when executing the brillig quotient,
+            // we may attempt to divide by zero and cause a VM panic.
+            //
+            // When the predicate is 0, the division always succeeds (as it is skipped).
+            // When the predicate is 1, the rhs must not be 0.
 
-        // Check that we the rhs is not zero.
-        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
-        //
-        // When the predicate is 0, the equation always passes.
-        // When the predicate is 1, the rhs must not be 0.
-        let one = self.add_constant(FieldElement::one());
+            // If the predicate is known to be active, we simply assert that an inverse must exist.
+            // This implies that `rhs != 0`.
+            (_, _, Some(predicate_const)) if predicate_const.is_one() => {
+                let _inverse = self.inv_var(rhs, one)?;
+            }
 
-        let rhs_expr = self.var_to_expression(rhs)?;
-        let rhs_is_nonzero_const = rhs_expr.is_const() && !rhs_expr.is_zero();
-        if !rhs_is_nonzero_const {
-            match self.var_to_expression(predicate)?.to_const() {
-                Some(predicate) if predicate.is_one() => {
-                    // If the predicate is known to be active, we simply assert that an inverse must exist.
-                    // This implies that `rhs != 0`.
-                    let _inverse = self.inv_var(rhs, one)?;
-                }
-
-                _ => {
-                    // Otherwise we must handle both potential cases.
-                    let rhs_is_zero = self.eq_var(rhs, zero)?;
-                    let rhs_is_not_zero = self.mul_var(rhs_is_zero, predicate)?;
-                    self.assert_eq_var(rhs_is_not_zero, zero, None)?;
-                }
+            // Otherwise we must handle both potential cases.
+            _ => {
+                let rhs_is_zero = self.eq_var(rhs, zero)?;
+                let rhs_is_zero_and_predicate_active = self.mul_var(rhs_is_zero, predicate)?;
+                self.assert_eq_var(rhs_is_zero_and_predicate_active, zero, None)?;
             }
         }
 
@@ -689,25 +686,13 @@ impl AcirContext {
         let mut max_q_bits = bit_size;
         let mut max_rhs_bits = bit_size;
         // when rhs is constant, we can better estimate the maximum bit sizes
-        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+        if let Some(rhs_const) = rhs_expr.to_const() {
             max_rhs_bits = rhs_const.num_bits();
             if max_rhs_bits != 0 {
                 if max_rhs_bits > bit_size {
                     return Ok((zero, zero));
                 }
                 max_q_bits = bit_size - max_rhs_bits + 1;
-            }
-        }
-
-        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
-        let mut avoid_overflow = false;
-        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
-            // q*b+r can overflow; we avoid this when b is constant
-            if self.var_to_expression(rhs)?.is_const() {
-                avoid_overflow = true;
-            } else {
-                // we do not support unbounded division
-                unreachable!("overflow in unbounded division");
             }
         }
 
@@ -761,7 +746,19 @@ impl AcirContext {
         let lhs_constraint = self.mul_var(lhs, predicate)?;
         self.assert_eq_var(lhs_constraint, rhs_constraint, None)?;
 
-        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
+        let mut avoid_overflow = false;
+        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
+            // q*b+r can overflow; we avoid this when b is constant
+            if rhs_expr.is_const() {
+                avoid_overflow = true;
+            } else {
+                // we do not support unbounded division
+                unreachable!("overflow in unbounded division");
+            }
+        }
+
+        if let Some(rhs_const) = rhs_expr.to_const() {
             if avoid_overflow {
                 // we compute q0 = p/rhs
                 let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
