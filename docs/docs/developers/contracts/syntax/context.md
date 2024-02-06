@@ -4,8 +4,6 @@ description: Documentation of Aztec's Private and Public execution contexts
 hide_table_of_contents: false
 ---
 
-import Image from "@theme/IdealImage";
-
 # The Function Context
 
 ## What is the context
@@ -23,7 +21,9 @@ On this page, you'll learn
 - Differences between the private and public contexts, especially the unique features and variables in the public context
 
 ## Two context's one API
-The `Aztec` blockchain contains two environments [public and private](../../../learn/concepts/hybrid_state/main.md). 
+
+The `Aztec` blockchain contains two environments [public and private](../../../learn/concepts/hybrid_state/main.md).
+
 - Private, for private transactions taking place on user's devices.
 - Public, for public transactions taking place on the network's sequencers.
 
@@ -57,7 +57,7 @@ The call context contains information about the current call being made:
 
 > The graphic below illustrates how the message sender changes throughout the kernel circuit iterations.
 
-<Image img={require("/img/context/sender_context_change.png")} />
+<img src="/img/context/sender_context_change.png" />
 
 2. Storage contract address
 

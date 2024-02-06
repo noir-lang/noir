@@ -12,13 +12,13 @@ A public function is executed by the sequencer and has access to a state model t
 All data inserted into private storage from a public function will be publicly viewable (not private).
 :::
 
-To create a public function you can annotate it with the `#[aztec(public)]` attribute. This will make the [public context](../context.mdx) available within the function's execution scope.
+To create a public function you can annotate it with the `#[aztec(public)]` attribute. This will make the [public context](../context.md) available within the function's execution scope.
 
 #include_code set_minter /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ## `Private` Functions
 
-A private function operates on private information, and is executed by the user. Annotate the function with the `#[aztec(private)]` attribute to tell the compiler it's a private function. This will make the [private context](../context.mdx#private-context-broken-down) available within the function's execution scope.
+A private function operates on private information, and is executed by the user. Annotate the function with the `#[aztec(private)]` attribute to tell the compiler it's a private function. This will make the [private context](../context.md#private-context-broken-down) available within the function's execution scope.
 
 #include_code redeem_shield /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 

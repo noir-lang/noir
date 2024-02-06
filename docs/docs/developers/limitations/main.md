@@ -34,7 +34,7 @@ Help shape and define:
   - These values are unused in the call-context.
   - Beware that what you think of as a `view` could alter state ATM! Notably the account could alter state or re-enter whenever the account contract's `is_valid` function is called.
 - `msg_sender` is currently leaking when doing private -> public calls
-  - The `msg_sender` will always be set, if you call a public function from the private world, the `msg_sender` will be set to the private caller's address. See [function context](../contracts/syntax/context.mdx).
+  - The `msg_sender` will always be set, if you call a public function from the private world, the `msg_sender` will be set to the private caller's address. See [function context](../contracts/syntax/context.md).
 - The initial `msg_sender` is 0, which can be problematic for some contracts, see [function visibility](../contracts/syntax/functions/visibility.md).
 - Unencrypted logs don't link to the contract that emitted it, so essentially just a `debug_log`` that you can match values against.
 - A note that is created and nullified in the same transaction will still emit an encrypted log.

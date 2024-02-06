@@ -8,7 +8,7 @@ For a higher level overview of the state model in Aztec, see the [state model](.
 
 ## Overview
 
-The `PublicState` struct is generic over the variable type `T`. The type *must* implement Serialize and Deserialize traits, as specified here:
+The `PublicState` struct is generic over the variable type `T`. The type _must_ implement Serialize and Deserialize traits, as specified here:
 
 #include_code serialize /yarn-project/noir-protocol-circuits/src/crates/types/src/traits.nr rust
 #include_code deserialize /yarn-project/noir-protocol-circuits/src/crates/types/src/traits.nr rust
@@ -23,7 +23,7 @@ An example using a larger struct can be found in the [lending example](https://g
 
 ### `new`
 
-When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. As seen below, this takes the `storage_slot` and the  [`Context`](../context.mdx), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr).
+When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. As seen below, this takes the `storage_slot` and the [`Context`](../context.md), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/public_state.nr).
 
 #### Single value example
 
@@ -91,9 +91,9 @@ We have a `write` method on the `PublicState` struct that takes the value to wri
 
 ## Stable Public State
 
-`StablePublicState` is a special type of `PublicState` that can be read from both public and private! 
+`StablePublicState` is a special type of `PublicState` that can be read from both public and private!
 
-Since private execution is based on historical data, the user can pick ANY of its prior values to read from. This is why it `MUST` not be updated after the contract is deployed. The variable should be initialized at the constructor and then never changed. 
+Since private execution is based on historical data, the user can pick ANY of its prior values to read from. This is why it `MUST` not be updated after the contract is deployed. The variable should be initialized at the constructor and then never changed.
 
 This makes the stable public variables useful for stuff that you would usually have in `immutable` values in solidity. For example this can be the name of a token or its number of decimals.
 
@@ -102,6 +102,7 @@ Just like the `PublicState` it is generic over the variable type `T`. The type `
 You can find the details of `StablePublicState` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/stable_public_state.nr).
 
 ### `new`
+
 Is done exactly like the `PublicState` struct, but with the `StablePublicState` struct.
 
 #include_code storage-stable-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
@@ -123,8 +124,8 @@ Currently this is not constrained as we are in the middle of changing deployment
 Reading the value is like `PublicState`, simply with `read_public` instead of `read`.
 #include_code read_decimals_public /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
 
-
 ### `read_private`
+
 Reading the value is like `PublicState`, simply with `read_private` instead of `read`. This part can only be executed in private.
 
 #include_code read_decimals_private /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust

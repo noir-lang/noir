@@ -54,7 +54,7 @@ Inside the kernel circuits, the inputs to functions are reduced to a single valu
 **Creating the function's context.**
 #include_code context-example-context /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
-Each Aztec function has access to a [context](../context.mdx) object. This object, although labelled a global variable, is created locally on a users' device. It is initialized from the inputs provided by the kernel, and a hash of the function's inputs.
+Each Aztec function has access to a [context](../context.md) object. This object, although labelled a global variable, is created locally on a users' device. It is initialized from the inputs provided by the kernel, and a hash of the function's inputs.
 
 #include_code context-example-context-return /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
@@ -77,7 +77,7 @@ This function takes the application context, and converts it into the `PrivateCi
 
 Defining a function as `unconstrained` tells Aztec to simulate it completely client-side in the [ACIR simulator](../../../../learn/concepts/pxe/acir_simulator.md) without generating proofs. They are useful for extracting information from a user through an [oracle](./oracles.md).
 
-When an unconstrained function is called, it prompts the ACIR simulator to 
+When an unconstrained function is called, it prompts the ACIR simulator to
 
 1. generate the execution environment
 2. execute the function within this environment
@@ -94,7 +94,3 @@ This:
 2. Converts `args` into a format suitable for the ACVM (Abstract Circuit Virtual Machine), creating an initial witness (witness = set of inputs required to compute the function). `args` might be an oracle to request a user's balance
 3. Executes the function in the ACVM, which involves running the ACIR with the initial witness and the context. If requesting a user's balance, this would query the balance from the PXE database
 4. Extracts the return values from the `partialWitness` and decodes them based on the artifact to get the final function output. The [artifact](../../artifacts.md) is the compiled output of the contract, and has information like the function signature, parameter types, and return types
-
-
-
-
