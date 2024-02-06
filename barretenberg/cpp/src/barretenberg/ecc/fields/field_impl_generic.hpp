@@ -4,6 +4,8 @@
 #include <cstdint>
 
 #include "./field_impl.hpp"
+#include "barretenberg/common/op_count.hpp"
+
 namespace bb {
 
 // NOLINTBEGIN(readability-implicit-bool-conversion)
@@ -103,6 +105,7 @@ constexpr uint64_t field<T>::addc(const uint64_t a,
                                   const uint64_t carry_in,
                                   uint64_t& carry_out) noexcept
 {
+    BB_OP_COUNT_TRACK();
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
     uint128_t res = static_cast<uint128_t>(a) + static_cast<uint128_t>(b) + static_cast<uint128_t>(carry_in);
     carry_out = static_cast<uint64_t>(res >> 64);

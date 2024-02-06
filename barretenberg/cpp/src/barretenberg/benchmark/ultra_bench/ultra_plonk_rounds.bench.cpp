@@ -17,7 +17,7 @@ enum {
     SIXTH_BATCH_OPEN
 };
 
-BBERG_PROFILE static void plonk_round(
+BB_PROFILE static void plonk_round(
     State& state, plonk::UltraProver& prover, size_t target_index, size_t index, auto&& func) noexcept
 {
     if (index == target_index) {
@@ -37,7 +37,7 @@ BBERG_PROFILE static void plonk_round(
  * @param prover - The ultraplonk prover.
  * @param index - The pass to measure.
  **/
-BBERG_PROFILE static void test_round_inner(State& state, plonk::UltraProver& prover, size_t index) noexcept
+BB_PROFILE static void test_round_inner(State& state, plonk::UltraProver& prover, size_t index) noexcept
 {
     plonk_round(state, prover, PREAMBLE, index, [&] { prover.execute_preamble_round(); });
     plonk_round(state, prover, FIRST_WIRE_COMMITMENTS, index, [&] { prover.execute_first_round(); });
@@ -47,7 +47,7 @@ BBERG_PROFILE static void test_round_inner(State& state, plonk::UltraProver& pro
     plonk_round(state, prover, FIFTH_COMPUTE_QUOTIENT_EVALUTION, index, [&] { prover.execute_fifth_round(); });
     plonk_round(state, prover, SIXTH_BATCH_OPEN, index, [&] { prover.execute_sixth_round(); });
 }
-BBERG_PROFILE static void test_round(State& state, size_t index) noexcept
+BB_PROFILE static void test_round(State& state, size_t index) noexcept
 {
     bb::srs::init_crs_factory("../srs_db/ignition");
     for (auto _ : state) {

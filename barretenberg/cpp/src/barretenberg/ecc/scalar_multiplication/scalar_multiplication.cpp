@@ -9,6 +9,7 @@
 #include "./scalar_multiplication.hpp"
 
 #include "barretenberg/common/mem.hpp"
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/ecc/groups/wnaf.hpp"
@@ -876,6 +877,7 @@ typename Curve::Element pippenger(typename Curve::ScalarField* scalars,
                                   pippenger_runtime_state<Curve>& state,
                                   bool handle_edge_cases)
 {
+    BB_OP_COUNT_TRACK();
     using Group = typename Curve::Group;
     using Element = typename Curve::Element;
 

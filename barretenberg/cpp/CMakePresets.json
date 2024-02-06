@@ -167,6 +167,16 @@
       }
     },
     {
+      "name": "op-counting",
+      "displayName": "Release build with operation counts for benchmarks",
+      "description": "Build with op counting",
+      "inherits": "clang16",
+      "binaryDir": "build-op-counting",
+      "environment": {
+        "CXXFLAGS": "-DBB_USE_OP_COUNT"
+      }
+    },
+    {
       "name": "coverage",
       "displayName": "Build with coverage",
       "description": "Build default preset but with coverage enabled",
@@ -299,6 +309,11 @@
       "name": "clang16",
       "inherits": "default",
       "configurePreset": "clang16"
+    },
+    {
+      "name": "op-counting",
+      "inherits": "default",
+      "configurePreset": "op-counting"
     },
     {
       "name": "clang16-dbg",

@@ -52,7 +52,7 @@ class ThreadPool {
     std::condition_variable complete_condition_;
     bool stop = false;
 
-    BBERG_NO_PROFILE void worker_loop(size_t thread_index);
+    BB_NO_PROFILE void worker_loop(size_t thread_index);
 
     void do_iterations()
     {

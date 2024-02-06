@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/ecc/groups/element.hpp"
 #include "element.hpp"
@@ -444,6 +445,7 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const element& other
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+(const element& other) const noexcept
 {
+    BB_OP_COUNT_TRACK();
     element result(*this);
     return (result += other);
 }
@@ -458,6 +460,7 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator-=(const element& other
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator-(const element& other) const noexcept
 {
+    BB_OP_COUNT_TRACK();
     element result(*this);
     return (result -= other);
 }

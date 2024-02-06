@@ -84,11 +84,11 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     constexpr element normalize() const noexcept;
     static element infinity();
-    BBERG_INLINE constexpr element set_infinity() const noexcept;
-    BBERG_INLINE constexpr void self_set_infinity() noexcept;
-    [[nodiscard]] BBERG_INLINE constexpr bool is_point_at_infinity() const noexcept;
-    [[nodiscard]] BBERG_INLINE constexpr bool on_curve() const noexcept;
-    BBERG_INLINE constexpr bool operator==(const element& other) const noexcept;
+    BB_INLINE constexpr element set_infinity() const noexcept;
+    BB_INLINE constexpr void self_set_infinity() noexcept;
+    [[nodiscard]] BB_INLINE constexpr bool is_point_at_infinity() const noexcept;
+    [[nodiscard]] BB_INLINE constexpr bool on_curve() const noexcept;
+    BB_INLINE constexpr bool operator==(const element& other) const noexcept;
 
     static void batch_normalize(element* elements, size_t num_elements) noexcept;
     static void batch_affine_add(const std::span<affine_element<Fq, Fr, Params>>& first_group,

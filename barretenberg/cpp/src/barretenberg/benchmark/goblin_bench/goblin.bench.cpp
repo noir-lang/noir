@@ -2,6 +2,7 @@
 #include <benchmark/benchmark.h>
 
 #include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
+#include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/goblin/goblin.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
@@ -67,6 +68,7 @@ BENCHMARK_DEFINE_F(GoblinBench, GoblinFull)(benchmark::State& state)
     GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(goblin.op_queue);
 
     for (auto _ : state) {
+        BB_REPORT_OP_COUNT_IN_BENCH(state);
         // Perform a specified number of iterations of function/kernel accumulation
         perform_goblin_accumulation_rounds(state, goblin);
 

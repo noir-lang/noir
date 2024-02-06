@@ -91,7 +91,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      *
      * TODO(https://github.com/AztecProtocol/barretenberg/issues/753): fold goblin polynomials
      */
-    BBERG_PROFILE FoldingResult<Flavor> fold_instances();
+    BB_PROFILE FoldingResult<Flavor> fold_instances();
 
     /**
      * @brief For a new round challenge δ at each iteration of the ProtoGalaxy protocol, compute the vector

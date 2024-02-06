@@ -27,11 +27,11 @@ class GoblinTranslatorProver {
                                     const std::shared_ptr<CommitmentKey>& commitment_key,
                                     const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
-    BBERG_PROFILE void execute_preamble_round();
-    BBERG_PROFILE void execute_wire_and_sorted_constraints_commitments_round();
-    BBERG_PROFILE void execute_grand_product_computation_round();
-    BBERG_PROFILE void execute_relation_check_rounds();
-    BBERG_PROFILE void execute_zeromorph_rounds();
+    BB_PROFILE void execute_preamble_round();
+    BB_PROFILE void execute_wire_and_sorted_constraints_commitments_round();
+    BB_PROFILE void execute_grand_product_computation_round();
+    BB_PROFILE void execute_relation_check_rounds();
+    BB_PROFILE void execute_zeromorph_rounds();
     HonkProof& export_proof();
     HonkProof& construct_proof();
 

@@ -30,17 +30,17 @@ template <IsECCVMFlavor Flavor> class ECCVMProver_ {
                           const std::shared_ptr<PCSCommitmentKey>& commitment_key,
                           const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
-    BBERG_PROFILE void execute_preamble_round();
-    BBERG_PROFILE void execute_wire_commitments_round();
-    BBERG_PROFILE void execute_log_derivative_commitments_round();
-    BBERG_PROFILE void execute_grand_product_computation_round();
-    BBERG_PROFILE void execute_relation_check_rounds();
-    BBERG_PROFILE void execute_univariatization_round();
-    BBERG_PROFILE void execute_pcs_evaluation_round();
-    BBERG_PROFILE void execute_shplonk_batched_quotient_round();
-    BBERG_PROFILE void execute_shplonk_partial_evaluation_round();
-    BBERG_PROFILE void execute_final_pcs_round();
-    BBERG_PROFILE void execute_transcript_consistency_univariate_opening_round();
+    BB_PROFILE void execute_preamble_round();
+    BB_PROFILE void execute_wire_commitments_round();
+    BB_PROFILE void execute_log_derivative_commitments_round();
+    BB_PROFILE void execute_grand_product_computation_round();
+    BB_PROFILE void execute_relation_check_rounds();
+    BB_PROFILE void execute_univariatization_round();
+    BB_PROFILE void execute_pcs_evaluation_round();
+    BB_PROFILE void execute_shplonk_batched_quotient_round();
+    BB_PROFILE void execute_shplonk_partial_evaluation_round();
+    BB_PROFILE void execute_final_pcs_round();
+    BB_PROFILE void execute_transcript_consistency_univariate_opening_round();
 
     HonkProof& export_proof();
     HonkProof& construct_proof();

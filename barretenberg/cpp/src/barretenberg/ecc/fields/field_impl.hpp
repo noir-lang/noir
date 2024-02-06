@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
@@ -25,6 +26,7 @@ namespace bb {
  **/
 template <class T> constexpr field<T> field<T>::operator*(const field& other) const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f*");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         // >= 255-bits or <= 64-bits.
@@ -39,6 +41,7 @@ template <class T> constexpr field<T> field<T>::operator*(const field& other) co
 
 template <class T> constexpr field<T>& field<T>::operator*=(const field& other) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f*=");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         // >= 255-bits or <= 64-bits.
@@ -60,6 +63,7 @@ template <class T> constexpr field<T>& field<T>::operator*=(const field& other) 
  **/
 template <class T> constexpr field<T> field<T>::sqr() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::sqr");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         return montgomery_square();
@@ -73,6 +77,7 @@ template <class T> constexpr field<T> field<T>::sqr() const noexcept
 
 template <class T> constexpr void field<T>::self_sqr() noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::self_sqr");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         *this = montgomery_square();
@@ -92,6 +97,7 @@ template <class T> constexpr void field<T>::self_sqr() noexcept
  **/
 template <class T> constexpr field<T> field<T>::operator+(const field& other) const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f+");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         return add(other);
@@ -105,6 +111,7 @@ template <class T> constexpr field<T> field<T>::operator+(const field& other) co
 
 template <class T> constexpr field<T>& field<T>::operator+=(const field& other) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f+=");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         (*this) = operator+(other);
@@ -120,12 +127,14 @@ template <class T> constexpr field<T>& field<T>::operator+=(const field& other) 
 
 template <class T> constexpr field<T> field<T>::operator++() noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("++f");
     return *this += 1;
 }
 
 // NOLINTNEXTLINE(cert-dcl21-cpp) circular linting errors. If const is added, linter suggests removing
 template <class T> constexpr field<T> field<T>::operator++(int) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f++");
     field<T> value_before_incrementing = *this;
     *this += 1;
     return value_before_incrementing;
@@ -138,6 +147,7 @@ template <class T> constexpr field<T> field<T>::operator++(int) noexcept
  **/
 template <class T> constexpr field<T> field<T>::operator-(const field& other) const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f-");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         return subtract_coarse(other); // modulus - *this;
@@ -151,6 +161,7 @@ template <class T> constexpr field<T> field<T>::operator-(const field& other) co
 
 template <class T> constexpr field<T> field<T>::operator-() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("-f");
     if constexpr ((T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         constexpr field p{ modulus.data[0], modulus.data[1], modulus.data[2], modulus.data[3] };
@@ -179,6 +190,7 @@ template <class T> constexpr field<T> field<T>::operator-() const noexcept
 
 template <class T> constexpr field<T>& field<T>::operator-=(const field& other) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f-=");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         *this = subtract_coarse(other); // subtract(other);
@@ -194,6 +206,7 @@ template <class T> constexpr field<T>& field<T>::operator-=(const field& other) 
 
 template <class T> constexpr void field<T>::self_neg() noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::self_neg");
     if constexpr ((T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         constexpr field p{ modulus.data[0], modulus.data[1], modulus.data[2], modulus.data[3] };
@@ -206,6 +219,7 @@ template <class T> constexpr void field<T>::self_neg() noexcept
 
 template <class T> constexpr void field<T>::self_conditional_negate(const uint64_t predicate) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::self_conditional_negate");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         *this = predicate ? -(*this) : *this; // NOLINT
@@ -231,6 +245,7 @@ template <class T> constexpr void field<T>::self_conditional_negate(const uint64
  */
 template <class T> constexpr bool field<T>::operator>(const field& other) const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f>");
     const field left = reduce_once();
     const field right = other.reduce_once();
     const bool t0 = left.data[3] > right.data[3];
@@ -260,6 +275,7 @@ template <class T> constexpr bool field<T>::operator<(const field& other) const 
 
 template <class T> constexpr bool field<T>::operator==(const field& other) const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f==");
     const field left = reduce_once();
     const field right = other.reduce_once();
     return (left.data[0] == right.data[0]) && (left.data[1] == right.data[1]) && (left.data[2] == right.data[2]) &&
@@ -273,6 +289,7 @@ template <class T> constexpr bool field<T>::operator!=(const field& other) const
 
 template <class T> constexpr field<T> field<T>::to_montgomery_form() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::to_montgomery_form");
     constexpr field r_squared{ T::r_squared_0, T::r_squared_1, T::r_squared_2, T::r_squared_3 };
 
     field result = *this;
@@ -290,12 +307,14 @@ template <class T> constexpr field<T> field<T>::to_montgomery_form() const noexc
 
 template <class T> constexpr field<T> field<T>::from_montgomery_form() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::from_montgomery_form");
     constexpr field one_raw{ 1, 0, 0, 0 };
     return operator*(one_raw).reduce_once();
 }
 
 template <class T> constexpr void field<T>::self_to_montgomery_form() noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::self_to_montgomery_form");
     constexpr field r_squared{ T::r_squared_0, T::r_squared_1, T::r_squared_2, T::r_squared_3 };
     self_reduce_once();
     self_reduce_once();
@@ -306,6 +325,7 @@ template <class T> constexpr void field<T>::self_to_montgomery_form() noexcept
 
 template <class T> constexpr void field<T>::self_from_montgomery_form() noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::self_from_montgomery_form");
     constexpr field one_raw{ 1, 0, 0, 0 };
     *this *= one_raw;
     self_reduce_once();
@@ -313,6 +333,7 @@ template <class T> constexpr void field<T>::self_from_montgomery_form() noexcept
 
 template <class T> constexpr field<T> field<T>::reduce_once() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::reduce_once");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         return reduce();
@@ -326,6 +347,7 @@ template <class T> constexpr field<T> field<T>::reduce_once() const noexcept
 
 template <class T> constexpr void field<T>::self_reduce_once() noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::self_reduce_once");
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
         *this = reduce();
@@ -340,7 +362,7 @@ template <class T> constexpr void field<T>::self_reduce_once() noexcept
 
 template <class T> constexpr field<T> field<T>::pow(const uint256_t& exponent) const noexcept
 {
-
+    BB_OP_COUNT_TRACK_NAME("f::pow");
     field accumulator{ data[0], data[1], data[2], data[3] };
     field to_mul{ data[0], data[1], data[2], data[3] };
     const uint64_t maximum_set_bit = exponent.get_msb();
@@ -366,6 +388,7 @@ template <class T> constexpr field<T> field<T>::pow(const uint64_t exponent) con
 
 template <class T> constexpr field<T> field<T>::invert() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::invert");
     if (*this == zero()) {
         throw_or_abort("Trying to invert zero in the field");
     }
@@ -379,6 +402,7 @@ template <class T> void field<T>::batch_invert(field* coeffs, const size_t n) no
 
 template <class T> void field<T>::batch_invert(std::span<field> coeffs) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::batch_invert");
     const size_t n = coeffs.size();
 
     auto temporaries_ptr = std::static_pointer_cast<field[]>(get_mem_slab(n * sizeof(field)));
@@ -427,6 +451,7 @@ template <class T> void field<T>::batch_invert(std::span<field> coeffs) noexcept
 
 template <class T> constexpr field<T> field<T>::tonelli_shanks_sqrt() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::tonelli_shanks_sqrt");
     // Tonelli-shanks algorithm begins by finding a field element Q and integer S,
     // such that (p - 1) = Q.2^{s}
 
@@ -506,6 +531,7 @@ template <class T> constexpr field<T> field<T>::tonelli_shanks_sqrt() const noex
 
 template <class T> constexpr std::pair<bool, field<T>> field<T>::sqrt() const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::sqrt");
     field root;
     if constexpr ((T::modulus_0 & 0x3UL) == 0x3UL) {
         constexpr uint256_t sqrt_exponent = (modulus + uint256_t(1)) >> 2;
@@ -522,11 +548,13 @@ template <class T> constexpr std::pair<bool, field<T>> field<T>::sqrt() const no
 
 template <class T> constexpr field<T> field<T>::operator/(const field& other) const noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f/");
     return operator*(other.invert());
 }
 
 template <class T> constexpr field<T>& field<T>::operator/=(const field& other) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f/=");
     *this = operator/(other);
     return *this;
 }
@@ -563,6 +591,7 @@ template <class T> constexpr field<T> field<T>::get_root_of_unity(size_t subgrou
 
 template <class T> field<T> field<T>::random_element(numeric::RNG* engine) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::random_element");
     if (engine == nullptr) {
         engine = &numeric::get_randomness();
     }
@@ -575,6 +604,7 @@ template <class T> field<T> field<T>::random_element(numeric::RNG* engine) noexc
 
 template <class T> constexpr size_t field<T>::primitive_root_log_size() noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("f::primitive_root_log_size");
     uint256_t target = modulus - 1;
     size_t result = 0;
     while (!target.get_bit(result)) {
