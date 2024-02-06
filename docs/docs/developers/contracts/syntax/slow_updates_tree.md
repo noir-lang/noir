@@ -11,7 +11,7 @@ On this page you will learn:
 1. [The components involved in using the slow updates tree](slow_updates_tree.md#components-involved-in-implementing-a-slow-updates-tree)
 2. [How you can integrate it into your own smart contract](slow_updates_tree.md#how-to-integrate-a-slow-updates-tree)
 3. [An example of a token blacklisting contract that uses the slow updates tree](slow_updates_tree.md#exploring-an-example-integration-through-a-tokenblacklist-smart-contract)
-4. [Interface Reference](slow_updates_tree.md#reference)
+4. [Interface Reference](slow_updates_tree.md#functions)
 
 # Components involved in implementing a slow updates tree
 
