@@ -487,9 +487,9 @@ impl FunctionBuilder {
                 }
             }
             Type::Array(..) | Type::Slice(..) => {
-                self.insert_instruction(Instruction::IncrementRc { value }, None);
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
             }
         }
     }

@@ -509,6 +509,14 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
+                                // Check that we are not attempting to return a slice from 
+                                // an unconstrained runtime to a constrained runtime
+                                for result_id in result_ids {
+                                    if dfg.type_of_value(*result_id).contains_slice_element() {
+                                        return Err(RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack: self.acir_context.get_call_stack() })
+                                    }
+                                }
+
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
                                 let code = self.gen_brillig_for(func, brillig)?;
@@ -1368,7 +1376,13 @@ impl Context {
                 AcirValue::Array(elements.collect())
             }
             Value::Intrinsic(..) => todo!(),
-            Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
+            Value::Function(function_id) => {
+                // This conversion is for debugging support only, to allow the
+                // debugging instrumentation code to work. Taking the reference
+                // of a function in ACIR is useless.
+                let id = self.acir_context.add_constant(function_id.to_usize());
+                AcirValue::Var(id, AcirType::field())
+            }
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
@@ -1623,10 +1637,7 @@ impl Context {
                     }
                 }
                 // Generate the sorted output variables
-                let out_vars = self
-                    .acir_context
-                    .sort(input_vars, bit_size, self.current_side_effects_enabled_var)
-                    .expect("Could not sort");
+                let out_vars = self.acir_context.sort(input_vars, bit_size)?;
 
                 Ok(self.convert_vars_to_values(out_vars, dfg, result_ids))
             }

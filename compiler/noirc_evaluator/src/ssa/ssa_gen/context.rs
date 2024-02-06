@@ -740,7 +740,7 @@ impl<'a> FunctionContext<'a> {
     /// Create a const offset of an address for an array load or store
     pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
         if offset != 0 {
-            let offset = self.builder.field_constant(offset);
+            let offset = self.builder.numeric_constant(offset, self.builder.type_of_value(address));
             address = self.builder.insert_binary(address, BinaryOp::Add, offset);
         }
         address
@@ -999,6 +999,7 @@ impl<'a> FunctionContext<'a> {
         new_value.for_each(|value| {
             let value = value.eval(self);
             array = self.builder.insert_array_set(array, index, value);
+            self.builder.increment_array_reference_count(array);
             index = self.builder.insert_binary(index, BinaryOp::Add, one);
         });
         array
