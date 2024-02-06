@@ -27,11 +27,8 @@ body:
       label: Project Impact
       description: How does this affect a project you or others are working on? 
       options:
-        - "None"
         - "Nice-to-have"
         - "Blocker"
-    validations:
-      required: true
   - type: textarea
     id: impact_context
     attributes:
@@ -43,10 +40,7 @@ body:
       label: Workaround
       description: Is there a workaround for this Issue? 
       options:
-        - "None"
         - "Yes"
-    validations:
-      required: true
   - type: textarea
     id: workaround_description
     attributes:
@@ -68,11 +62,8 @@ body:
       description: Fellow contributors are happy to provide support where applicable.
       multiple: false
       options:
-        - "No"
         - "Maybe"
         - "Yes"
-    validations:
-      required: true
   - type: textarea
     id: pr-support
     attributes:
