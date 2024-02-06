@@ -42,9 +42,9 @@ body:
     id: impact
     attributes:
       label: Project Impact
-      description: Does this affect a project you or others are working on? 
+      description: How does this affect a project you or others are working on? 
       options:
-        - "No"
+        - "None"
         - "Nice-to-have"
         - "Blocker"
     validations:
@@ -60,7 +60,7 @@ body:
       label: Workaround
       description: Is there a workaround for this Issue? 
       options:
-        - "No"
+        - "None"
         - "Yes"
     validations:
       required: true
