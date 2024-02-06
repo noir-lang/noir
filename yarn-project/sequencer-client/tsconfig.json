@@ -7,7 +7,7 @@
   },
   "references": [
     {
-      "path": "../acir-simulator"
+      "path": "../simulator"
     },
     {
       "path": "../circuit-types"

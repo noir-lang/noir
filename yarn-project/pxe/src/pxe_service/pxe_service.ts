@@ -1,12 +1,4 @@
 import {
-  AcirSimulator,
-  ExecutionResult,
-  collectEncryptedLogs,
-  collectEnqueuedPublicFunctionCalls,
-  collectUnencryptedLogs,
-  resolveOpcodeLocations,
-} from '@aztec/acir-simulator';
-import {
   AuthWitness,
   AztecNode,
   ContractDao,
@@ -56,6 +48,14 @@ import { Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
+import {
+  AcirSimulator,
+  ExecutionResult,
+  collectEncryptedLogs,
+  collectEnqueuedPublicFunctionCalls,
+  collectUnencryptedLogs,
+  resolveOpcodeLocations,
+} from '@aztec/simulator';
 import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { NodeInfo } from '@aztec/types/interfaces';
 

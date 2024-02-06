@@ -1,4 +1,3 @@
-import { ExecutionResult, NoteAndSlot } from '@aztec/acir-simulator';
 import { FunctionL2Logs, Note } from '@aztec/circuit-types';
 import {
   FunctionData,
@@ -22,6 +21,7 @@ import { makeTxRequest } from '@aztec/circuits.js/factories';
 import { makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
+import { ExecutionResult, NoteAndSlot } from '@aztec/simulator';
 
 import { mock } from 'jest-mock-extended';
 

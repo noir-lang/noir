@@ -33,7 +33,6 @@
     "workerThreads": true
   },
   "dependencies": {
-    "@aztec/acir-simulator": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/ethereum": "workspace:^",
@@ -42,6 +41,7 @@
     "@aztec/kv-store": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
     "@aztec/noir-protocol-circuits": "workspace:^",
+    "@aztec/simulator": "workspace:^",
     "@aztec/types": "workspace:^",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",

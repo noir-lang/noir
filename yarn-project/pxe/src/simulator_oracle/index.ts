@@ -1,4 +1,3 @@
-import { DBOracle, KeyPair, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import {
   AztecNode,
   KeyStore,
@@ -19,6 +18,7 @@ import {
 } from '@aztec/circuits.js';
 import { FunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { DBOracle, KeyPair, MessageLoadOracleInputs } from '@aztec/simulator';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { PxeDatabase } from '../database/index.js';

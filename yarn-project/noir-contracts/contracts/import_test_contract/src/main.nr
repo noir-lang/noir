@@ -19,7 +19,7 @@ contract ImportTest {
 
     // Calls the testCodeGen on the Test contract at the target address
     // Used for testing calling a function with arguments of multiple types
-    // See yarn-project/acir-simulator/src/client/private_execution.ts
+    // See yarn-project/simulator/src/client/private_execution.ts
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
     #[aztec(private)]
     fn main(target: AztecAddress) -> Field {

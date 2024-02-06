@@ -1,9 +1,9 @@
-import { PublicExecutor, PublicStateDB } from '@aztec/acir-simulator';
 import { ContractDataSource, L1ToL2MessageSource, Tx } from '@aztec/circuit-types';
 import { TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
 import { GlobalVariables, Header, Proof, PublicKernelPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
+import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
 import { EmptyPublicProver } from '../prover/empty.js';

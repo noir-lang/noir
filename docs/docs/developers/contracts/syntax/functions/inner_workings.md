@@ -86,7 +86,7 @@ To generate the environment, the simulator gets the blockheader from the [PXE da
 
 Once the execution environment is created, `execute_unconstrained_function` is invoked:
 
-#include_code execute_unconstrained_function yarn-project/acir-simulator/src/client/unconstrained_execution.ts typescript
+#include_code execute_unconstrained_function yarn-project/simulator/src/client/unconstrained_execution.ts typescript
 
 This:
 

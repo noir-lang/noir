@@ -1,4 +1,3 @@
-import { ContractNotFoundError } from '@aztec/acir-simulator';
 import {
   AztecNode,
   INITIAL_L2_BLOCK_NUM,
@@ -13,6 +12,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
+import { ContractNotFoundError } from '@aztec/simulator';
 
 import { DeferredNoteDao } from '../database/deferred_note_dao.js';
 import { PxeDatabase } from '../database/index.js';

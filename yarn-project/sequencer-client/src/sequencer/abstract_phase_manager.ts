@@ -1,11 +1,3 @@
-import {
-  PublicExecution,
-  PublicExecutionResult,
-  PublicExecutor,
-  collectPublicDataReads,
-  collectPublicDataUpdateRequests,
-  isPublicExecutionResult,
-} from '@aztec/acir-simulator';
 import { FunctionL2Logs, MerkleTreeId, Tx } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -45,6 +37,14 @@ import { computeVarArgsHash } from '@aztec/circuits.js/abis';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
+import {
+  PublicExecution,
+  PublicExecutionResult,
+  PublicExecutor,
+  collectPublicDataReads,
+  collectPublicDataUpdateRequests,
+  isPublicExecutionResult,
+} from '@aztec/simulator';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
 import { getVerificationKeys } from '../mocks/verification_keys.js';

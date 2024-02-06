@@ -1,8 +1,8 @@
-# ACIR Simulator
+# Simulator
 
 ## Responsibilities
 
-This library package is responsible for simulating function circuits compiled to ACIR.
+This library package is responsible for simulating function circuits compiled to ACIR / AVM.
 
 Simulating a function implies generating the partial witness and the public inputs of the function, as well as collecting all the data (such as created notes or nullifiers, or state changes) that are necessary for components upstream.
 

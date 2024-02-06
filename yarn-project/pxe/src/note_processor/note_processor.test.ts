@@ -1,4 +1,3 @@
-import { AcirSimulator } from '@aztec/acir-simulator';
 import {
   AztecNode,
   FunctionL2Logs,
@@ -18,6 +17,7 @@ import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair } from '@aztec/key-store';
 import { AztecLmdbStore } from '@aztec/kv-store';
+import { AcirSimulator } from '@aztec/simulator';
 
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';

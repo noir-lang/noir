@@ -1,4 +1,3 @@
-import { PublicExecution, PublicExecutionResult, PublicExecutor } from '@aztec/acir-simulator';
 import {
   ExtendedContractData,
   FunctionCall,
@@ -36,6 +35,7 @@ import {
 } from '@aztec/circuits.js/factories';
 import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd, times } from '@aztec/foundation/collection';
+import { PublicExecution, PublicExecutionResult, PublicExecutor } from '@aztec/simulator';
 import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';

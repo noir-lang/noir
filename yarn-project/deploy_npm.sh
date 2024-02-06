@@ -91,7 +91,7 @@ deploy_package noir-compiler
 deploy_package noir-contracts
 deploy_package merkle-tree
 deploy_package noir-protocol-circuits
-deploy_package acir-simulator
+deploy_package simulator
 deploy_package key-store
 deploy_package pxe
 deploy_package archiver

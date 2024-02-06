@@ -1,4 +1,3 @@
-import { ContractClassNotFoundError, ContractNotFoundError } from '@aztec/acir-simulator';
 import { ContractDatabase } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -9,6 +8,7 @@ import {
 } from '@aztec/circuits.js';
 import { FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
+import { ContractClassNotFoundError, ContractNotFoundError } from '@aztec/simulator';
 import { ContractClass, ContractInstance } from '@aztec/types/contracts';
 
 import { ContractArtifactDatabase } from '../database/contracts/contract_artifact_db.js';

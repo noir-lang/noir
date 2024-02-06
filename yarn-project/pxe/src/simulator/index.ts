@@ -1,5 +1,5 @@
-import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode, KeyStore } from '@aztec/circuit-types';
+import { AcirSimulator } from '@aztec/simulator';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { PxeDatabase } from '../database/pxe_database.js';

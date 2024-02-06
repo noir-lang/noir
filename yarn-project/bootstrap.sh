@@ -46,7 +46,7 @@ yarn workspace @aztec/noir-contracts build:contracts
 echo "Copying account contracts..."
 yarn workspace @aztec/accounts build:copy-contracts
 # Build protocol circuits. TODO: move pre yarn-project.
-echo "Building contracts from noir-protocol-circuits..."
+echo "Building circuits from noir-protocol-circuits..."
 yarn workspace @aztec/noir-protocol-circuits build
 
 echo -e "\033[1mBuilding all packages...\033[0m"

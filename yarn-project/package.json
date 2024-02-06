@@ -17,7 +17,7 @@
   },
   "workspaces": [
     "accounts",
-    "acir-simulator",
+    "simulator",
     "archiver",
     "aztec-faucet",
     "aztec-node",

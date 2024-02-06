@@ -3,7 +3,7 @@
   "entryPointStrategy": "packages",
   "entryPoints": [
     "accounts",
-    "acir-simulator",
+    "simulator",
     "archiver",
     "aztec-cli",
     "pxe",
