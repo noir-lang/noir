@@ -76,11 +76,6 @@ For the _call_context_ in the [public_inputs](./private-function.md#public-input
    - The previous iteration must not be a static call:
      - _`caller_context.is_static_call == false`_
 
-4. If it is an internal call: _`call_stack_item.function_data.is_internal == true`_
-
-   - The _msg_sender_ of the current iteration must equal the _storage_contract_address_:
-     - _`call_context.msg_sender == call_context.storage_contract_address`_
-
 #### Verifying the private function proof.
 
 It verifies that the private function was executed successfully with the provided proof data, verification key, and the public inputs, sourced from _[private_inputs](#private-inputs).[private_call](#privatecall)_.

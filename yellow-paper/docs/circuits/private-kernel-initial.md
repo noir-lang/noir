@@ -22,8 +22,6 @@ For the _[function_data](#functiondata)_ in _[private_call](#privatecall).[call_
 
 - It must be a private function:
   - _`function_data.function_type == private`_
-- It must not be an internal function:
-  - _`function_data.is_internal == false`_
 
 #### Ensuring the function call is the first call.
 
@@ -65,23 +63,23 @@ With the following data provided from _[private_inputs](#private-inputs).[privat
 
 This circuit validates the existence of the function in the contract through the following checks:
 
-1. Verify that the _contract_address_ can be derived from the _contract_data_:
+1. Verify that the _contract_address_ can be derived from the _public_keys_hash_, _salted_initialization_hash_, and a _contract_class_id.
 
    Refer to the details [here](../contract-deployment/instances.md#address) for the process of computing the address for a contract instance.
 
-2. Verify that the _contract_data.contract_class_id_ can be derived from the given _contract_class_data_:
+2. Verify that _contract_class_id_ in the _contract_address_ preimage can be derived from the _contract_class_artifact_hash_, _contract_class_public_bytecode_commitment_, and a _private_functions_root_.
 
    Refer to the details [here](../contract-deployment/classes.md#class-identifier) for the process of computing the _contract_class_id_.
 
-3. Verify that _contract_class_data.private_functions_ includes the function being called:
+3. Verify that _contract_class.private_functions_ includes the function being called:
 
    1. Compute the hash of the verification key:
       - _`vk_hash = hash(private_call.vk)`_
    2. Compute the function leaf:
-      - _`hash(function_data.selector, vk_hash, private_call.bytecode_hash)`_
+      - _`hash(function_data.selector, vk_hash)`_
    3. Perform a membership check on the function leaf, where:
       - The index and sibling path are provided through _function_leaf_membership_witness_ within _[private_call](#privatecall)_.
-      - The root is _contract_class_data.private_functions_.
+      - The root is in the preimage of the _contract_class_id_ from the previous step. 
 
 #### Verifying the private function proof.
 
@@ -237,8 +235,10 @@ Data that holds details about the current private function call.
 | _proof_                            | _Proof_                                                             | Proof of the private function circuit.               |
 | _vk_                               | _VerificationKey_                                                   | Verification key of the private function circuit.    |
 | _bytecode_hash_                    | _field_                                                             | Hash of the function bytecode.                       |
-| _contract_data_                    | _[ContractInstance](../contract-deployment/instances.md#structure)_ | Data of the contract instance being called.          |
-| _contract_class_data_              | _[ContractClassData](#contractclassdata)_                           | Data of the contract class.                          |
+| _salted_initialization_hash_       | _field_                                                             | Part of the address preimage.                        |
+| _public_keys_hash_                 | _field_                                                             | Part of the address preimage.                        | 
+| _contract_class_artifact_hash_     | _field_                                                             | Part of the contract class identifier preimage.      |
+| _contract_class_public_bytecode_commitment_ | _field_                                                    | Part of the contract class identifier preimage.      |
 | _function_leaf_membership_witness_ | _[MembershipWitness](#membershipwitness)_                           | Membership witness for the function being called.    |
 
 ## Public Inputs
@@ -277,18 +277,6 @@ Data that remains the same throughout the entire transaction.
 | ------------------- | ---------------------------------- | --------------------------------------------------- |
 | _function_selector_ | _u32_                              | Selector of the function being called.              |
 | _function_type_     | private \| public \| unconstrained | Type of the function being called.                  |
-| _is_internal_       | _bool_                             | A flag indicating whether the function is internal. |
-
-#### _ContractClassData_
-
-| Field                     | Type           | Description                                                        |
-| ------------------------- | -------------- | ------------------------------------------------------------------ |
-| _version_                 | _u8_           | Version identifier.                                                |
-| _registerer_address_      | _AztecAddress_ | Address of the canonical contract used for registering this class. |
-| _artifact_hash_           | _field_        | Hash of the contract artifact.                                     |
-| _private_functions_       | _field_        | Merkle root of the private function tree.                          |
-| _public_functions_        | _field_        | Merkle root of the public function tree.                           |
-| _unconstrained_functions_ | _field_        | Merkle root of the unconstrained function tree.                    |
 
 #### _TransactionContext_
 
