@@ -46,9 +46,7 @@ pub enum RuntimeError {
     NestedSlice { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
-    #[error(
-        "Slices cannot be return from an unconstrained environment to a constrained environment"
-    )]
+    #[error("Slices cannot be return from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
 }
 
