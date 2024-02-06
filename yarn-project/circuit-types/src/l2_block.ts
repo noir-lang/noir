@@ -573,6 +573,7 @@ export class L2Block {
         newL2ToL1MsgsBuffer,
         this.newContracts[i].toBuffer(),
         this.newContractData[i].contractAddress.toBuffer(),
+        // TODO(#3938): make portal address 20 bytes here when updating the hashing
         this.newContractData[i].portalContractAddress.toBuffer32(),
         encryptedLogsHashKernel0,
         unencryptedLogsHashKernel0,

@@ -2,6 +2,7 @@ import { times } from '@aztec/foundation/collection';
 
 import {
   AztecAddress,
+  EthAddress,
   Fr,
   FunctionData,
   FunctionLeafPreimage,
@@ -143,7 +144,7 @@ describe('abis', () => {
   });
 
   it('computes zero contract leaf', () => {
-    const cd = new NewContractData(AztecAddress.ZERO, AztecAddress.ZERO, new Fr(0n));
+    const cd = new NewContractData(AztecAddress.ZERO, EthAddress.ZERO, new Fr(0n));
     const res = computeContractLeaf(cd);
     expect(res).toMatchSnapshot();
   });

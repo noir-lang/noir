@@ -8,7 +8,7 @@ describe('address', () => {
 
   it('should return correct buffer', () => {
     const address = EthAddress.fromString('0xc6d9d2cd449a754c494264e1809c50e34d64562b');
-    expect(address.toBuffer20()).toEqual(Buffer.from('c6d9d2cD449A754c494264e1809c50e34D64562b', 'hex'));
+    expect(address.toBuffer()).toEqual(Buffer.from('c6d9d2cD449A754c494264e1809c50e34D64562b', 'hex'));
   });
 
   it('should return correct 32 byte buffer', () => {
@@ -16,16 +16,6 @@ describe('address', () => {
     expect(address.toBuffer32()).toEqual(
       Buffer.from('000000000000000000000000c6d9d2cD449A754c494264e1809c50e34D64562b', 'hex'),
     );
-  });
-
-  it('should create address from 32 byte buffer', () => {
-    const buffer = Buffer.from('000000000000000000000000c6d9d2cD449A754c494264e1809c50e34D64562b', 'hex');
-    expect(new EthAddress(buffer)).toEqual(EthAddress.fromString('0xc6d9d2cD449A754c494264e1809c50e34D64562b'));
-  });
-
-  it('should not create address from 32 byte buffer that does not start with 12 0 bytes', () => {
-    const buffer = Buffer.from('010000000000000000000000c6d9d2cD449A754c494264e1809c50e34D64562b', 'hex');
-    expect(() => new EthAddress(buffer)).toThrowError();
   });
 
   it('should have correct zero address', () => {

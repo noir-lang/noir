@@ -260,7 +260,7 @@ export class ContractData {
    * @returns Encoded buffer.
    */
   public toBuffer(): Buffer {
-    return serializeToBuffer(this.contractAddress, this.portalContractAddress.toBuffer20());
+    return serializeToBuffer(this.contractAddress, this.portalContractAddress);
   }
 
   /**

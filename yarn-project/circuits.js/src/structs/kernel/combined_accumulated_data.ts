@@ -33,10 +33,6 @@ import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
  * Note: Not to be confused with `ContractDeploymentData`.
  */
 export class NewContractData {
-  /**
-   * Ethereum address of the portal contract on L1.
-   */
-  public portalContractAddress: EthAddress;
   constructor(
     /**
      * Aztec address of the contract.
@@ -44,18 +40,13 @@ export class NewContractData {
     public contractAddress: AztecAddress,
     /**
      * Ethereum address of the portal contract on L1.
-     * TODO(AD): refactor this later
-     * currently there is a kludge with circuits cpp as it emits an AztecAddress
      */
-    portalContractAddress: EthAddress | AztecAddress,
+    public portalContractAddress: EthAddress,
     /**
      * Contract class id.
      */
     public contractClassId: Fr,
-  ) {
-    // Handle circuits emitting this as an AztecAddress
-    this.portalContractAddress = new EthAddress(portalContractAddress.toBuffer());
-  }
+  ) {}
 
   toBuffer() {
     return serializeToBuffer(this.contractAddress, this.portalContractAddress, this.contractClassId);
@@ -68,11 +59,7 @@ export class NewContractData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): NewContractData {
     const reader = BufferReader.asReader(buffer);
-    return new NewContractData(
-      reader.readObject(AztecAddress),
-      new EthAddress(reader.readBytes(32)),
-      Fr.fromBuffer(reader),
-    );
+    return new NewContractData(reader.readObject(AztecAddress), reader.readObject(EthAddress), Fr.fromBuffer(reader));
   }
 
   static empty() {
@@ -157,7 +144,7 @@ export class OptionallyRevealedData {
       Fr.fromBuffer(reader),
       reader.readObject(FunctionData),
       Fr.fromBuffer(reader),
-      new EthAddress(reader.readBytes(32)),
+      reader.readObject(EthAddress),
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readBoolean(),

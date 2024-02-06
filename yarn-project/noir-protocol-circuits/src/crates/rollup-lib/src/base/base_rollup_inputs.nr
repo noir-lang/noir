@@ -293,6 +293,7 @@ impl BaseRollupInputs {
 
         let new_contracts = kernel_data.public_inputs.end.new_contracts;
         calldata_hash_inputs[offset] = new_contracts[0].contract_address.to_field();
+        // TODO(#3938): make portal address 20 bytes here when updating the hashing
         calldata_hash_inputs[offset + 1] = new_contracts[0].portal_contract_address.to_field();
 
         offset += MAX_NEW_CONTRACTS_PER_TX * 2;

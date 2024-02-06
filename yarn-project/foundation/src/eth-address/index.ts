@@ -1,7 +1,7 @@
 import { keccak256String } from '../crypto/keccak/index.js';
 import { randomBytes } from '../crypto/random/index.js';
 import { Fr } from '../fields/index.js';
-import { BufferReader } from '../serialize/index.js';
+import { BufferReader, FieldReader } from '../serialize/index.js';
 
 /**
  * Represents an Ethereum address as a 20-byte buffer and provides various utility methods
@@ -20,13 +20,7 @@ export class EthAddress {
   public static ZERO = new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES));
 
   constructor(private buffer: Buffer) {
-    if (buffer.length === 32) {
-      if (!buffer.slice(0, 12).equals(Buffer.alloc(12))) {
-        throw new Error(`Invalid address buffer: ${buffer.toString('hex')}`);
-      } else {
-        this.buffer = buffer.slice(12);
-      }
-    } else if (buffer.length !== EthAddress.SIZE_IN_BYTES) {
+    if (buffer.length !== EthAddress.SIZE_IN_BYTES) {
       throw new Error(`Expect buffer size to be ${EthAddress.SIZE_IN_BYTES}. Got ${buffer.length}.`);
     }
   }
@@ -176,21 +170,10 @@ export class EthAddress {
   }
 
   /**
-   * Alias for toBuffer32.
-   * @returns A 32-byte Buffer containing the padded Ethereum address.
+   * Returns a 20-byte buffer representation of the Ethereum address.
+   * @returns A 20-byte Buffer containing the Ethereum address.
    */
   public toBuffer() {
-    return this.toBuffer32();
-  }
-
-  /**
-   * Returns the internal Buffer representation of the Ethereum address.
-   * This method is useful when working with raw binary data or when
-   * integrating with other modules that require a Buffer as input.
-   *
-   * @returns A Buffer instance containing the 20-byte Ethereum address.
-   */
-  public toBuffer20() {
     return this.buffer;
   }
 
@@ -201,6 +184,7 @@ export class EthAddress {
    *
    * @returns A 32-byte Buffer containing the padded Ethereum address.
    */
+  // TODO(#3938): nuke this
   public toBuffer32() {
     const buffer = Buffer.alloc(32);
     this.buffer.copy(buffer, 12);
@@ -225,6 +209,11 @@ export class EthAddress {
     return new EthAddress(fr.toBuffer().slice(-EthAddress.SIZE_IN_BYTES));
   }
 
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return EthAddress.fromField(reader.readField());
+  }
+
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
@@ -232,7 +221,7 @@ export class EthAddress {
    */
   static fromBuffer(buffer: Buffer | BufferReader): EthAddress {
     const reader = BufferReader.asReader(buffer);
-    return new EthAddress(reader.readBytes(32));
+    return new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES));
   }
 
   /**

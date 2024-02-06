@@ -107,12 +107,6 @@ export type Bufferable =
   | string
   | {
       /**
-       * Serialize to a buffer of 32 bytes.
-       */
-      toBuffer32: () => Buffer;
-    }
-  | {
-      /**
        * Serialize to a buffer.
        */
       toBuffer: () => Buffer;
@@ -136,27 +130,6 @@ export type Fieldeable =
   | Fieldeable[];
 
 /**
- * Checks whether an object implements the toBuffer32 method.
- * @param obj - The object to check.
- * @returns Whether the object implements the toBuffer32 method.
- */
-function isSerializableToBuffer32(obj: object): obj is {
-  /**
-   * Signature of the target serialization function.
-   */
-  toBuffer32: () => Buffer;
-} {
-  return !!(
-    obj as {
-      /**
-       * Signature of the target serialization function.
-       */
-      toBuffer32: () => Buffer;
-    }
-  ).toBuffer32;
-}
-
-/**
  * Serializes a list of objects contiguously.
  * @param objs - Objects to serialize.
  * @returns A buffer list with the concatenation of all fields.
@@ -176,8 +149,6 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
     } else if (typeof obj === 'string') {
       ret.push(numToUInt32BE(obj.length));
       ret.push(Buffer.from(obj));
-    } else if (isSerializableToBuffer32(obj)) {
-      ret.push(obj.toBuffer32());
     } else {
       ret.push(obj.toBuffer());
     }

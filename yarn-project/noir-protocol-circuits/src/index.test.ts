@@ -131,7 +131,7 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
       new Fr(1),
       new Fr(2),
       new Fr(3),
-      new EthAddress(numberToBuffer(1)),
+      EthAddress.fromField(new Fr(1)),
     );
     const txRequest = TxRequest.from({
       origin: AztecAddress.fromBigInt(1n),
@@ -150,7 +150,7 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
       new Fr(1),
       new Fr(2),
       new Fr(3),
-      new EthAddress(numberToBuffer(1)),
+      EthAddress.fromField(new Fr(1)),
     );
     const txRequest = TxRequest.from({
       origin: AztecAddress.fromBigInt(1n),
@@ -189,12 +189,3 @@ describe('Noir compatibility tests (interop_testing.nr)', () => {
     expect(res).toMatchSnapshot();
   });
 });
-
-function numberToBuffer(value: number) {
-  // This can be used to convert a number to a buffer
-  // and used as an EthAddress or AztecAddress.
-  //
-  // I think the EthAddress taking in 32 bytes is
-  // not great, but I'll take advantage of it here.
-  return new Fr(value).toBuffer();
-}

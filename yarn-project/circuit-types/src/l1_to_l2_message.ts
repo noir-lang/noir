@@ -187,7 +187,7 @@ export class L1Actor {
 
   static fromBuffer(buffer: Buffer | BufferReader): L1Actor {
     const reader = BufferReader.asReader(buffer);
-    const ethAddr = new EthAddress(reader.readBytes(32));
+    const ethAddr = reader.readObject(EthAddress);
     const chainId = reader.readNumber();
     return new L1Actor(ethAddr, chainId);
   }
