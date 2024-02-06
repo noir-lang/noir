@@ -78,7 +78,7 @@ The portal must ensure that the sender is as expected. One way to do this is to 
 
 To send a message to L1 from your Aztec contract, you must use the `message_portal` function on the `context`. When messaging to L1, only the `content` is required (as a `Field`).
 
-#include_code context_message_portal /yarn-project/aztec-nr/aztec/src/context.nr rust
+#include_code context_message_portal /yarn-project/aztec-nr/aztec/src/context/private.nr rust
 
 When sending a message from L2 to L1 we don't need to pass recipient, deadline, secret nor fees. Recipient is populated with the attached portal and the remaining values are not needed as the message is inserted into the outbox at the same time as it was included in a block (for the inbox it could be inserted and then only included in rollup block later).
 
