@@ -14,16 +14,9 @@ class Execution {
   public:
     Execution() = default;
 
-    static size_t const AVM_OPERAND_BYTE_LENGTH = 4; // Keep in sync with TS code
-    static_assert(sizeof(uint32_t) / sizeof(uint8_t) == AVM_OPERAND_BYTE_LENGTH);
-
-    static size_t const AVM_OPCODE_BYTE_LENGTH = 1; // Keep in sync with TS code
-    static size_t const AVM_IN_TAG_BYTE_LENGTH = 1; // Keep in sync with TS code
-
-    static std::vector<Instruction> parse(std::vector<uint8_t> const& bytecode);
-    static std::vector<Row> gen_trace(std::vector<Instruction> const& instructions, std::vector<FF> const& calldata);
-    static bb::HonkProof run_and_prove(std::vector<uint8_t> const& bytecode,
-                                       std::vector<FF> const& calldata = std::vector<FF>{});
+    static std::vector<Row> gen_trace(std::vector<Instruction> const& instructions,
+                                      std::vector<FF> const& calldata = {});
+    static bb::HonkProof run_and_prove(std::vector<uint8_t> const& bytecode, std::vector<FF> const& calldata = {});
 };
 
 } // namespace avm_trace

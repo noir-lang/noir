@@ -377,7 +377,7 @@ std::vector<FF> AvmMiniTraceBuilder::return_op(uint32_t ret_offset, uint32_t ret
 {
     if (ret_size == 0) {
         halt();
-        return std::vector<FF>{};
+        return {};
     }
 
     // We parallelize loading memory operations in chunk of 3, i.e., 1 per intermediate register.
@@ -604,7 +604,7 @@ std::vector<Row> AvmMiniTraceBuilder::finalize()
     // Fill the rest with zeros.
     size_t zero_rows_num = AVM_TRACE_SIZE - main_trace_size - 1;
     while (zero_rows_num-- > 0) {
-        main_trace.push_back(Row{});
+        main_trace.push_back({});
     }
 
     main_trace.at(main_trace_size - 1).avmMini_last = FF(1);
