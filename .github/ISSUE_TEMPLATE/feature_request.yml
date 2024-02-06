@@ -21,11 +21,37 @@ body:
       description: Describe how you think it should work. Supply pseudocode / step-by-step examples if applicable.
     validations:
       required: true
-  - type: textarea
-    id: alternatives
+  - type: dropdown
+    id: impact
     attributes:
-      label: Alternatives Considered
-      description: Describe less-happy cases you have considered, if any.
+      label: Project Impact
+      description: Does this affect a project you or others are working on? 
+      options:
+        - "No"
+        - "Nice-to-have"
+        - "Blocker"
+    validations:
+      required: true
+  - type: textarea
+    id: impact_context
+    attributes:
+      label: Impact Context
+      description: If a nice-to-have / blocker, supplement how does this Issue affect the project.
+  - type: dropdown
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Is there a workaround for this Issue? 
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: workaround_description
+    attributes:
+      label: Workaround Description
+      description: If yes, supplement how could the Issue be worked around.
   - type: textarea
     id: additional
     attributes:
