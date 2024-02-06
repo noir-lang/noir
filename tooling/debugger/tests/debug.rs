@@ -27,7 +27,7 @@ mod tests {
         // Start debugger and test that it loads for the given program.
         dbg_session
             .execute(
-                &format!("{} debug --program-dir {}", nargo_bin, test_program_dir),
+                &format!("{} debug --program-dir {} --force-brillig", nargo_bin, test_program_dir),
                 ".*\\Starting debugger.*",
             )
             .expect("Could not start debugger");

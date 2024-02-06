@@ -175,6 +175,10 @@ impl<F: PrimeField> FieldElement<F> {
         self == &Self::one()
     }
 
+    pub fn is_negative(&self) -> bool {
+        self.neg().num_bits() < self.num_bits()
+    }
+
     pub fn pow(&self, exponent: &Self) -> Self {
         FieldElement(self.0.pow(exponent.0.into_bigint()))
     }
@@ -238,6 +242,12 @@ impl<F: PrimeField> FieldElement<F> {
 
     pub fn try_into_u128(self) -> Option<u128> {
         self.fits_in_u128().then(|| self.to_u128())
+    }
+
+    pub fn to_i128(self) -> i128 {
+        let is_negative = self.is_negative();
+        let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
+        i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
     }
 
     pub fn try_to_u64(&self) -> Option<u64> {
