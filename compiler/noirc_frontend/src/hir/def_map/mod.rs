@@ -31,7 +31,7 @@ pub struct LocalModuleId(pub Index);
 
 impl LocalModuleId {
     pub fn dummy_id() -> LocalModuleId {
-        LocalModuleId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(std::usize::MAX, 0)))
+        LocalModuleId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(0,0)))
     }
 }
 

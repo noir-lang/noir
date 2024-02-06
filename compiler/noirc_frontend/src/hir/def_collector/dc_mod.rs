@@ -235,9 +235,6 @@ impl<'a> ModCollector<'a> {
             unresolved_functions.push_fn(self.module_id, func_id, function);
 
             // Add function to scope/ns of the module
-            // TODO: remove before merge
-            let _ = self.def_collector.def_map.modules._arena[self.module_id.0.1]
-                .declare_function(name.clone(), func_id);
             let result = self.def_collector.def_map.modules[self.module_id.0]
                 .declare_function(name, func_id);
 
@@ -411,9 +408,6 @@ impl<'a> ModCollector<'a> {
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
-                        // TODO: remove before merge
-                        let _ = self.def_collector.def_map.modules._arena[trait_id.0.local_id.0.1]
-                            .declare_function(name.clone(), func_id);
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
                             .declare_function(name.clone(), func_id)
                         {
