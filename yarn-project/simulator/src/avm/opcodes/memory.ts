@@ -1,24 +1,71 @@
 import type { AvmContext } from '../avm_context.js';
 import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
-import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
+import { BufferCursor } from '../serialization/buffer_cursor.js';
+import { Opcode, OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 import { TwoOperandInstruction } from './instruction_impl.js';
+
+const TAG_TO_OPERAND_TYPE = new Map<TypeTag, OperandType>([
+  [TypeTag.UINT8, OperandType.UINT8],
+  [TypeTag.UINT16, OperandType.UINT16],
+  [TypeTag.UINT32, OperandType.UINT32],
+  [TypeTag.UINT64, OperandType.UINT64],
+  [TypeTag.UINT128, OperandType.UINT128],
+]);
+
+function getOperandTypeFromInTag(inTag: number | bigint): OperandType {
+  inTag = inTag as number;
+  const tagOperandType = TAG_TO_OPERAND_TYPE.get(inTag);
+  if (tagOperandType === undefined) {
+    throw new Error(`Invalid tag ${inTag} for SET.`);
+  }
+  return tagOperandType;
+}
 
 export class Set extends Instruction {
   static readonly type: string = 'SET';
   static readonly opcode: Opcode = Opcode.SET;
-  // Informs (de)serialization. See Instruction.deserialize.
-  static readonly wireFormat: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8,
-    OperandType.UINT8,
-    OperandType.UINT128,
-    OperandType.UINT32,
-  ];
 
-  constructor(private indirect: number, private inTag: number, private value: bigint, private dstOffset: number) {
+  private static readonly wireFormatBeforeConst: OperandType[] = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT8,
+  ];
+  private static readonly wireFormatAfterConst: OperandType[] = [OperandType.UINT32];
+
+  constructor(
+    private indirect: number,
+    private inTag: number,
+    private value: bigint | number,
+    private dstOffset: number,
+  ) {
     super();
+  }
+
+  public serialize(): Buffer {
+    const format: OperandType[] = [
+      ...Set.wireFormatBeforeConst,
+      getOperandTypeFromInTag(this.inTag),
+      ...Set.wireFormatAfterConst,
+    ];
+    return serialize(format, this);
+  }
+
+  public static deserialize<T extends { new (...args: any[]): InstanceType<T> }>(
+    this: T,
+    buf: BufferCursor | Buffer,
+  ): InstanceType<T> {
+    if (buf instanceof Buffer) {
+      buf = new BufferCursor(buf);
+    }
+    const beforeConst = deserialize(buf, Set.wireFormatBeforeConst);
+    const tag = beforeConst[beforeConst.length - 1];
+    const val = deserialize(buf, [getOperandTypeFromInTag(tag)]);
+    const afterConst = deserialize(buf, Set.wireFormatAfterConst);
+    const res = [...beforeConst, ...val, ...afterConst];
+    const args = res.slice(1) as ConstructorParameters<typeof Set>; // Remove opcode.
+    return new this(...args);
   }
 
   async execute(context: AvmContext): Promise<void> {

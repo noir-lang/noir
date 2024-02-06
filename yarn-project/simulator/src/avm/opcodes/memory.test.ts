@@ -14,17 +14,83 @@ describe('Memory instructions', () => {
   });
 
   describe('SET', () => {
-    it('Should (de)serialize correctly', () => {
+    it('Should (de)serialize correctly [tag=u8]', () => {
       const buf = Buffer.from([
         Set.opcode, // opcode
         0x01, // indirect
-        TypeTag.FIELD, // inTag
+        TypeTag.UINT8, // inTag
+        ...Buffer.from('12', 'hex'),
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Set(/*indirect=*/ 0x01, /*inTag=*/ TypeTag.UINT8, /*value=*/ 0x12, /*dstOffset=*/ 0x3456789a);
+
+      expect(Set.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should (de)serialize correctly [tag=u16]', () => {
+      const buf = Buffer.from([
+        Set.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT16, // inTag
+        ...Buffer.from('1234', 'hex'),
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Set(/*indirect=*/ 0x01, /*inTag=*/ TypeTag.UINT16, /*value=*/ 0x1234, /*dstOffset=*/ 0x3456789a);
+
+      expect(Set.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should (de)serialize correctly [tag=u32]', () => {
+      const buf = Buffer.from([
+        Set.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT32, // inTag
+        ...Buffer.from('12345678', 'hex'),
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Set(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT32,
+        /*value=*/ 0x12345678,
+        /*dstOffset=*/ 0x3456789a,
+      );
+
+      expect(Set.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should (de)serialize correctly [tag=u64]', () => {
+      const buf = Buffer.from([
+        Set.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT64, // inTag
+        ...Buffer.from('1234567812345678', 'hex'),
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new Set(
+        /*indirect=*/ 0x01,
+        /*inTag=*/ TypeTag.UINT64,
+        /*value=*/ 0x1234567812345678n,
+        /*dstOffset=*/ 0x3456789a,
+      );
+
+      expect(Set.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should (de)serialize correctly [tag=u128]', () => {
+      const buf = Buffer.from([
+        Set.opcode, // opcode
+        0x01, // indirect
+        TypeTag.UINT128, // inTag
         ...Buffer.from('12345678123456781234567812345678', 'hex'), // const (will be 128 bit)
         ...Buffer.from('3456789a', 'hex'), // dstOffset
       ]);
       const inst = new Set(
         /*indirect=*/ 0x01,
-        /*inTag=*/ TypeTag.FIELD,
+        /*inTag=*/ TypeTag.UINT128,
         /*value=*/ 0x12345678123456781234567812345678n,
         /*dstOffset=*/ 0x3456789a,
       );
