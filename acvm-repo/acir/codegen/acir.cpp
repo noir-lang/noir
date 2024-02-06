@@ -915,18 +915,7 @@ namespace Circuit {
             static ToLeRadix bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        struct PermutationSort {
-            std::vector<std::vector<Circuit::Expression>> inputs;
-            uint32_t tuple;
-            std::vector<Circuit::Witness> bits;
-            std::vector<uint32_t> sort_by;
-
-            friend bool operator==(const PermutationSort&, const PermutationSort&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static PermutationSort bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<ToLeRadix, PermutationSort> value;
+        std::variant<ToLeRadix> value;
 
         friend bool operator==(const Directive&, const Directive&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -4957,53 +4946,6 @@ Circuit::Directive::ToLeRadix serde::Deserializable<Circuit::Directive::ToLeRadi
     obj.a = serde::Deserializable<decltype(obj.a)>::deserialize(deserializer);
     obj.b = serde::Deserializable<decltype(obj.b)>::deserialize(deserializer);
     obj.radix = serde::Deserializable<decltype(obj.radix)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Circuit {
-
-    inline bool operator==(const Directive::PermutationSort &lhs, const Directive::PermutationSort &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.tuple == rhs.tuple)) { return false; }
-        if (!(lhs.bits == rhs.bits)) { return false; }
-        if (!(lhs.sort_by == rhs.sort_by)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> Directive::PermutationSort::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Directive::PermutationSort>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Directive::PermutationSort Directive::PermutationSort::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Directive::PermutationSort>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Circuit
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Circuit::Directive::PermutationSort>::serialize(const Circuit::Directive::PermutationSort &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.tuple)>::serialize(obj.tuple, serializer);
-    serde::Serializable<decltype(obj.bits)>::serialize(obj.bits, serializer);
-    serde::Serializable<decltype(obj.sort_by)>::serialize(obj.sort_by, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Circuit::Directive::PermutationSort serde::Deserializable<Circuit::Directive::PermutationSort>::deserialize(Deserializer &deserializer) {
-    Circuit::Directive::PermutationSort obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.tuple = serde::Deserializable<decltype(obj.tuple)>::deserialize(deserializer);
-    obj.bits = serde::Deserializable<decltype(obj.bits)>::deserialize(deserializer);
-    obj.sort_by = serde::Deserializable<decltype(obj.sort_by)>::deserialize(deserializer);
     return obj;
 }
 
