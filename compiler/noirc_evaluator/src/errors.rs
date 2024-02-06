@@ -160,6 +160,17 @@ impl RuntimeError {
                     noirc_errors::Span::inclusive(0, 0)
                 )
             }
+            RuntimeError::UnknownLoopBound { .. } => {
+                let primary_message = self.to_string();
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+
+                Diagnostic::simple_error(
+                    primary_message,
+                    "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
+                    location.span,
+                )
+            }
             _ => {
                 let message = self.to_string();
                 let location =
