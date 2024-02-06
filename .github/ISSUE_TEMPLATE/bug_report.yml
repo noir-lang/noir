@@ -69,6 +69,11 @@ body:
     attributes:
       label: Workaround Description
       description: If yes, supplement how could the Issue be worked around.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Supplement further information if applicable.
   - type: markdown
     attributes:
       value: |
@@ -102,15 +107,6 @@ body:
       label: NoirJS Version
       description: Version number of `noir_js` in `package.json`
       placeholder: "0.23.0"
-  - type: markdown
-    attributes:
-      value: |
-        # Misc
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional Context
-      description: Supplement further information if applicable.
   - type: markdown
     attributes:
       value: |
