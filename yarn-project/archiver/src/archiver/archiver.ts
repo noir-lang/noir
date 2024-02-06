@@ -17,10 +17,10 @@ import {
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import {
-  CONTRACT_CLASS_REGISTERED_MAGIC_VALUE,
   ContractClassRegisteredEvent,
   FunctionSelector,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE,
 } from '@aztec/circuits.js';
 import { createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -70,10 +70,13 @@ export class Archiver implements ArchiveSource {
    */
   private lastLoggedL1BlockNumber = 0n;
 
-  // TODO(@spalladino): Calculate this on the fly somewhere else!
+  // TODO(@spalladino): Calculate this on the fly somewhere else.
+  // Today this is printed in the logs for end-to-end test at
+  // end-to-end/src/e2e_deploy_contract.test.ts -t 'registering a new contract class'
+  // as "Added contract ContractClassRegisterer ADDRESS"
   /** Address of the ClassRegisterer contract with a salt=1 */
   private classRegistererAddress = AztecAddress.fromString(
-    '0x1c9f737a5ab5a7bb5ea970ba40737d44dc22fbcbe19fd8171429f2c2c433afb5',
+    '0x29c0cd0000951bba8af520ad5513cc53d9f0413c5a24a72a4ba8c17894c0bef9',
   );
 
   /**
@@ -335,7 +338,7 @@ export class Archiver implements ArchiveSource {
       try {
         if (
           !log.contractAddress.equals(this.classRegistererAddress) ||
-          toBigIntBE(log.data.subarray(0, 32)) !== CONTRACT_CLASS_REGISTERED_MAGIC_VALUE
+          toBigIntBE(log.data.subarray(0, 32)) !== REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE
         ) {
           continue;
         }

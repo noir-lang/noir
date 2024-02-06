@@ -1,39 +1,21 @@
+mod events;
+
 contract ContractClassRegisterer {
     use dep::std::option::Option;
     use dep::aztec::protocol_types::{
         address::{ AztecAddress, EthAddress },
         contract_class::ContractClassId,
-        constants::{MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS, CONTRACT_CLASS_REGISTERED_MAGIC_VALUE}
+        constants::{ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, FUNCTION_TREE_HEIGHT, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS, REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE},
+        traits::{Serialize}
     };
-
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Remove this once the issue is fixed
-    use dep::aztec::protocol_types;
 
     use dep::aztec::log::{ emit_unencrypted_log, emit_unencrypted_log_from_private};
 
-    #[event]
-    struct ContractClassRegistered {
-        contract_class_id: ContractClassId,
-        version: Field,
-        artifact_hash: Field,
-        private_functions_root: Field,
-        packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS],
-    }
-
-    impl ContractClassRegistered {
-        fn serialize(self: Self) -> [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS + 5] {
-            let mut packed = [0; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS + 5];
-            packed[0] = CONTRACT_CLASS_REGISTERED_MAGIC_VALUE;
-            packed[1] = self.contract_class_id.to_field();
-            packed[2] = self.version;
-            packed[3] = self.artifact_hash;
-            packed[4] = self.private_functions_root;
-            for i in 0..MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS {
-                packed[i + 5] = self.packed_public_bytecode[i];
-            }
-            packed
-        }
-    }
+    use crate::events::{
+        class_registered::ContractClassRegistered,
+        private_function_broadcasted::{ClassPrivateFunctionBroadcasted, PrivateFunction},
+        unconstrained_function_broadcasted::{ClassUnconstrainedFunctionBroadcasted, UnconstrainedFunction}
+    };
 
     #[aztec(private)]
     fn constructor() {}
@@ -62,6 +44,48 @@ contract ContractClassRegisterer {
         // Broadcast class info including public bytecode
         let event_payload = event.serialize();
         dep::aztec::oracle::debug_log::debug_log_array_with_prefix("ContractClassRegistered", event_payload);
+        emit_unencrypted_log_from_private(&mut context, event_payload);
+    }
+
+    #[aztec(private)]
+    fn broadcast_private_function(
+        contract_class_id: ContractClassId,
+        artifact_metadata_hash: Field,
+        unconstrained_functions_artifact_tree_root: Field,
+        private_function_tree_sibling_path: [Field; FUNCTION_TREE_HEIGHT],
+        artifact_function_tree_sibling_path: [Field; ARTIFACT_FUNCTION_TREE_MAX_HEIGHT],
+        function_data: PrivateFunction
+    ) {
+        let event = ClassPrivateFunctionBroadcasted {
+            contract_class_id,
+            artifact_metadata_hash,
+            unconstrained_functions_artifact_tree_root,
+            private_function_tree_sibling_path,
+            artifact_function_tree_sibling_path,
+            function: function_data
+        };
+        let event_payload = event.serialize();
+        dep::aztec::oracle::debug_log::debug_log_array_with_prefix("ClassPrivateFunctionBroadcasted", event_payload);
+        emit_unencrypted_log_from_private(&mut context, event_payload);
+    }
+
+    #[aztec(private)]
+    fn broadcast_unconstrained_function(
+        contract_class_id: ContractClassId,
+        artifact_metadata_hash: Field,
+        private_functions_artifact_tree_root: Field,
+        artifact_function_tree_sibling_path: [Field; ARTIFACT_FUNCTION_TREE_MAX_HEIGHT],
+        function_data: UnconstrainedFunction
+    ) {
+        let event = ClassUnconstrainedFunctionBroadcasted {
+            contract_class_id,
+            artifact_metadata_hash,
+            private_functions_artifact_tree_root,
+            artifact_function_tree_sibling_path,
+            function: function_data
+        };
+        let event_payload = event.serialize();
+        dep::aztec::oracle::debug_log::debug_log_array_with_prefix("ClassUnconstrainedFunctionBroadcasted", event_payload);
         emit_unencrypted_log_from_private(&mut context, event_payload);
     }
 }

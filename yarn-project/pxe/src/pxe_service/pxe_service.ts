@@ -44,9 +44,9 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PartialAddress,
   PublicCallRequest,
+  computeArtifactHash,
   computeContractClassId,
   computeSaltedInitializationHash,
-  getArtifactHash,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
@@ -232,7 +232,7 @@ export class PXEService implements PXE {
   private async addArtifactsAndInstancesFromDeployedContracts(contracts: DeployedContract[]) {
     for (const contract of contracts) {
       const artifact = contract.artifact;
-      const artifactHash = getArtifactHash(artifact);
+      const artifactHash = computeArtifactHash(artifact);
       const contractClassId = computeContractClassId(getContractClassFromArtifact({ ...artifact, artifactHash }));
       await this.db.addContractArtifact(contractClassId, artifact);
       await this.db.addContractInstance(contract.instance);

@@ -2,7 +2,7 @@ import { ContractArtifact, FunctionSelector, FunctionType } from '@aztec/foundat
 import { Fr } from '@aztec/foundation/fields';
 import { ContractClass, ContractClassWithId } from '@aztec/types/contracts';
 
-import { getArtifactHash } from './artifact_hash.js';
+import { computeArtifactHash } from './artifact_hash.js';
 import { computeContractClassId } from './contract_class_id.js';
 import { packBytecode } from './public_bytecode.js';
 
@@ -13,7 +13,7 @@ type ContractArtifactWithHash = ContractArtifact & { artifactHash: Fr };
 export function getContractClassFromArtifact(
   artifact: ContractArtifact | ContractArtifactWithHash,
 ): ContractClassWithId {
-  const artifactHash = (artifact as ContractArtifactWithHash).artifactHash ?? getArtifactHash(artifact);
+  const artifactHash = (artifact as ContractArtifactWithHash).artifactHash ?? computeArtifactHash(artifact);
   const publicFunctions: ContractClass['publicFunctions'] = artifact.functions
     .filter(f => f.functionType === FunctionType.OPEN)
     .map(f => ({

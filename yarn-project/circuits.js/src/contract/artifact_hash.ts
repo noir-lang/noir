@@ -3,6 +3,7 @@ import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { numToUInt8 } from '@aztec/foundation/serialize';
 
+import { MerkleTree } from '../merkle/merkle_tree.js';
 import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
 
 const VERSION = 1;
@@ -29,39 +30,48 @@ const VERSION = 1;
  * ```
  * @param artifact - Artifact to calculate the hash for.
  */
-export function getArtifactHash(artifact: ContractArtifact): Fr {
-  const privateFunctionRoot = getFunctionRoot(artifact, FunctionType.SECRET);
-  const unconstrainedFunctionRoot = getFunctionRoot(artifact, FunctionType.OPEN);
-  const metadataHash = getArtifactMetadataHash(artifact);
+export function computeArtifactHash(artifact: ContractArtifact): Fr {
+  const privateFunctionRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.SECRET);
+  const unconstrainedFunctionRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.UNCONSTRAINED);
+  const metadataHash = computeArtifactMetadataHash(artifact);
   const preimage = [numToUInt8(VERSION), privateFunctionRoot, unconstrainedFunctionRoot, metadataHash];
+  // TODO(@spalladino) Reducing sha256 to a field may have security implications. Validate this with crypto team.
   return Fr.fromBufferReduce(sha256(Buffer.concat(preimage)));
 }
 
-function getArtifactMetadataHash(artifact: ContractArtifact) {
+export function computeArtifactMetadataHash(artifact: ContractArtifact) {
   const metadata = { name: artifact.name, events: artifact.events }; // TODO(@spalladino): Should we use the sorted event selectors instead? They'd need to be unique for that.
   return sha256(Buffer.from(JSON.stringify(metadata), 'utf-8'));
 }
 
-type FunctionArtifactWithSelector = FunctionArtifact & { selector: FunctionSelector };
-
-function getFunctionRoot(artifact: ContractArtifact, fnType: FunctionType) {
-  const leaves = getFunctionLeaves(artifact, fnType);
-  const height = Math.ceil(Math.log2(leaves.length));
-  const calculator = new MerkleTreeCalculator(height, Buffer.alloc(32), (l, r) => sha256(Buffer.concat([l, r])));
-  return calculator.computeTreeRoot(leaves);
+export function computeArtifactFunctionTreeRoot(artifact: ContractArtifact, fnType: FunctionType) {
+  return computeArtifactFunctionTree(artifact, fnType)?.root ?? Fr.ZERO.toBuffer();
 }
 
-function getFunctionLeaves(artifact: ContractArtifact, fnType: FunctionType) {
+export function computeArtifactFunctionTree(artifact: ContractArtifact, fnType: FunctionType): MerkleTree | undefined {
+  const leaves = computeFunctionLeaves(artifact, fnType);
+  // TODO(@spalladino) Consider implementing a null-object for empty trees
+  if (leaves.length === 0) {
+    return undefined;
+  }
+  const height = Math.ceil(Math.log2(leaves.length));
+  const calculator = new MerkleTreeCalculator(height, Buffer.alloc(32), (l, r) => sha256(Buffer.concat([l, r])));
+  return calculator.computeTree(leaves);
+}
+
+function computeFunctionLeaves(artifact: ContractArtifact, fnType: FunctionType) {
   return artifact.functions
     .filter(f => f.functionType === fnType)
     .map(f => ({ ...f, selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters) }))
     .sort((a, b) => a.selector.value - b.selector.value)
-    .map(getFunctionArtifactHash);
+    .map(computeFunctionArtifactHash);
 }
 
-function getFunctionArtifactHash(fn: FunctionArtifactWithSelector): Buffer {
+export function computeFunctionArtifactHash(fn: FunctionArtifact & { selector?: FunctionSelector }): Buffer {
+  const selector =
+    (fn as { selector: FunctionSelector }).selector ?? FunctionSelector.fromNameAndParameters(fn.name, fn.parameters);
   const bytecodeHash = sha256(Buffer.from(fn.bytecode, 'hex'));
   const metadata = JSON.stringify(fn.returnTypes);
   const metadataHash = sha256(Buffer.from(metadata, 'utf8'));
-  return sha256(Buffer.concat([numToUInt8(VERSION), fn.selector.toBuffer(), metadataHash, bytecodeHash]));
+  return sha256(Buffer.concat([numToUInt8(VERSION), selector.toBuffer(), metadataHash, bytecodeHash]));
 }

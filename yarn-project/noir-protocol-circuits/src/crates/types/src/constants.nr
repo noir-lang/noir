@@ -65,6 +65,7 @@ global PUBLIC_DATA_TREE_HEIGHT: Field = 40;
 global NULLIFIER_TREE_HEIGHT: Field = 20;
 global L1_TO_L2_MSG_TREE_HEIGHT: Field = 16;
 global ROLLUP_VK_TREE_HEIGHT: Field = 8;
+global ARTIFACT_FUNCTION_TREE_MAX_HEIGHT = 5;
 
 // SUB-TREES RELATED CONSTANTS
 global CONTRACT_SUBTREE_HEIGHT: Field = 0;
@@ -86,15 +87,26 @@ global MAPPING_SLOT_PEDERSEN_SEPARATOR: Field = 4;
 global NUM_FIELDS_PER_SHA256: Field = 2;
 global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
 global ARGS_HASH_CHUNK_COUNT: u32 = 32;
-// This should be around 8192 (assuming 2**15 instructions packed at 8 bytes each),
+
+// CONTRACT CLASS CONSTANTS
+// This should be around 8192 (assuming 2**15 instructions packed at 8 bytes each), 
 // but it's reduced to speed up build times, otherwise the ClassRegisterer takes over 5 mins to compile.
 // We are not using 1024 so we can squeeze in a few more args to methods that consume packed public bytecode,
 // such as the ClassRegisterer.register, and still land below the 32 * 32 max args limit for hashing.
 global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: Field = 1000;
+// Bytecode size for private functions is per function, not for the entire contract.
+// Note that private functions bytecode includes a mix of acir and brillig.
+global MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS: Field = 500;
+// Same for unconstrained functions: the size is per function.
+global MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS: Field = 500;
 // Since we are not yet emitting selectors we'll use this magic value to identify events emitted by the ClassRegisterer.
 // This is just a stopgap until we implement proper selectors.
-// This is the sha224sum of 'struct ContractClassRegistered {contract_class_id: ContractClassId, version: Field, artifact_hash: Field, private_functions_root: Field, packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS] }'
-global CONTRACT_CLASS_REGISTERED_MAGIC_VALUE = 0x6999d1e02b08a447a463563453cb36919c9dd7150336fc7c4d2b52f8;
+// sha224sum 'struct ContractClassRegistered {contract_class_id: ContractClassId, version: Field, artifact_hash: Field, private_functions_root: Field, packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS] }'
+global REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE = 0x6999d1e02b08a447a463563453cb36919c9dd7150336fc7c4d2b52f8;
+// sha224sum 'struct ClassPrivateFunctionBroadcasted'
+global REGISTERER_PRIVATE_FUNCTION_BROADCASTED_MAGIC_VALUE = 0x1b70e95fde0b70adc30496b90a327af6a5e383e028e7a43211a07bcd;
+// sha224sum 'struct ClassUnconstrainedFunctionBroadcasted'
+global REGISTERER_UNCONSTRAINED_FUNCTION_BROADCASTED_MAGIC_VALUE = 0xe7af816635466f128568edb04c9fa024f6c87fb9010fdbffa68b3d99;
 
 // NOIR CONSTANTS - constants used only in yarn-packages/noir-contracts
 // Some are defined here because Noir doesn't yet support globals referencing other globals yet.

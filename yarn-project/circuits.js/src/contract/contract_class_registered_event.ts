@@ -1,3 +1,4 @@
+import { bufferFromFields } from '@aztec/foundation/abi';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
@@ -5,9 +6,9 @@ import { ContractClassPublic } from '@aztec/types/contracts';
 
 import chunk from 'lodash.chunk';
 
-import { CONTRACT_CLASS_REGISTERED_MAGIC_VALUE } from '../constants.gen.js';
+import { REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE } from '../constants.gen.js';
 import { computeContractClassId, computePublicBytecodeCommitment } from './contract_class_id.js';
-import { packedBytecodeFromFields, unpackBytecode } from './public_bytecode.js';
+import { unpackBytecode } from './public_bytecode.js';
 
 /** Event emitted from the ContractClassRegisterer. */
 export class ContractClassRegisteredEvent {
@@ -20,12 +21,12 @@ export class ContractClassRegisteredEvent {
   ) {}
 
   static isContractClassRegisteredEvent(log: Buffer) {
-    return toBigIntBE(log.subarray(0, 32)) == CONTRACT_CLASS_REGISTERED_MAGIC_VALUE;
+    return toBigIntBE(log.subarray(0, 32)) == REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE;
   }
 
   static fromLogData(log: Buffer) {
     if (!this.isContractClassRegisteredEvent(log)) {
-      const magicValue = CONTRACT_CLASS_REGISTERED_MAGIC_VALUE.toString(16);
+      const magicValue = REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE.toString(16);
       throw new Error(`Log data for ContractClassRegisteredEvent is not prefixed with magic value 0x${magicValue}`);
     }
     const reader = new BufferReader(log.subarray(32));
@@ -33,7 +34,7 @@ export class ContractClassRegisteredEvent {
     const version = reader.readObject(Fr).toNumber();
     const artifactHash = reader.readObject(Fr);
     const privateFunctionsRoot = reader.readObject(Fr);
-    const packedPublicBytecode = packedBytecodeFromFields(
+    const packedPublicBytecode = bufferFromFields(
       chunk(reader.readToEnd(), Fr.SIZE_IN_BYTES).map(Buffer.from).map(Fr.fromBuffer),
     );
 

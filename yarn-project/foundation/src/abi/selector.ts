@@ -154,7 +154,14 @@ export class FunctionSelector extends Selector {
    * @param parameters - An array of ABIParameter objects, each containing the type information of a function parameter.
    * @returns A Buffer containing the 4-byte selector.
    */
-  static fromNameAndParameters(name: string, parameters: ABIParameter[]) {
+  static fromNameAndParameters(args: { name: string; parameters: ABIParameter[] }): FunctionSelector;
+  static fromNameAndParameters(name: string, parameters: ABIParameter[]): FunctionSelector;
+  static fromNameAndParameters(
+    nameOrArgs: string | { name: string; parameters: ABIParameter[] },
+    maybeParameters?: ABIParameter[],
+  ): FunctionSelector {
+    const { name, parameters } =
+      typeof nameOrArgs === 'string' ? { name: nameOrArgs, parameters: maybeParameters! } : nameOrArgs;
     const signature = decodeFunctionSignature(name, parameters);
     const selector = this.fromSignature(signature);
     // If using the debug logger here it kill the typing in the `server_world_state_synchronizer` and jest tests.

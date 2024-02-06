@@ -23,6 +23,7 @@ export class MerkleTreeCalculator {
 
   computeTree(leaves: Buffer[] = []): MerkleTree {
     if (leaves.length === 0) {
+      // TODO(#4425): We should be returning a number of nodes that matches the tree height.
       return new MerkleTree(this.height, [this.zeroHashes[this.zeroHashes.length - 1]]);
     }
 
