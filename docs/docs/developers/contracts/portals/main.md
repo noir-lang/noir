@@ -42,7 +42,7 @@ To consume the message, we can use the `consume_l1_to_l2_message` function withi
 Note that while the `secret` and the `content` are both hashed, they are actually hashed with different hash functions!
 :::
 
-#include_code context_consume_l1_to_l2_message /yarn-project/aztec-nr/aztec/src/context.nr rust
+#include_code context_consume_l1_to_l2_message /yarn-project/aztec-nr/aztec/src/context/private.nr rust
 
 Computing the `content` must be done manually in its current form, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_bridge_contract/src/util.nr).
 
