@@ -645,6 +645,10 @@ fn transform_vm_function(
     func: &mut NoirFunction,
     _storage_defined: bool,
 ) -> Result<(), AztecMacroError> {
+    // Push Avm context creation to the beginning of the function
+    let create_context = create_avm_context()?;
+    func.def.body.0.insert(0, create_context);
+
     // We want the function to be seen as a public function
     func.def.is_open = true;
 
@@ -1156,6 +1160,35 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
 
     // Return all expressions that will be injected by the hasher
     Ok(injected_expressions)
+}
+
+/// Creates an mutable avm context
+///
+/// ```noir
+/// /// Before
+/// #[aztec(public-vm)]
+/// fn foo() -> Field {
+///   let mut context = aztec::context::AVMContext::new();
+///   let timestamp = context.timestamp();
+///   // ...
+/// }
+///
+/// /// After
+/// #[aztec(private)]
+/// fn foo() -> Field {
+///     let mut timestamp = context.timestamp();
+///     // ...
+/// }
+fn create_avm_context() -> Result<Statement, AztecMacroError> {
+    let let_context = mutable_assignment(
+        "context", // Assigned to
+        call(
+            variable_path(chained_path!("aztec", "context", "AVMContext", "new")), // Path
+            vec![],                                                                // args
+        ),
+    );
+
+    Ok(let_context)
 }
 
 /// Abstract Return Type

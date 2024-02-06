@@ -24,67 +24,67 @@ contract AvmTest {
      ************************************************************************/
     #[aztec(public-vm)]
     fn getAddress() -> pub AztecAddress {
-        AvmContext::address()
+        context.address()
     }
 
     #[aztec(public-vm)]
     fn getStorageAddress() -> pub AztecAddress {
-        AvmContext::storage_address()
+        context.storage_address()
     }
 
     #[aztec(public-vm)]
     fn getSender() -> pub AztecAddress {
-        AvmContext::sender()
+        context.sender()
     }
 
     #[aztec(public-vm)]
     fn getOrigin() -> pub AztecAddress {
-        AvmContext::origin()
+        context.origin()
     }
 
     #[aztec(public-vm)]
     fn getPortal() -> pub EthAddress {
-        AvmContext::portal()
+        context.portal()
     }
 
     #[aztec(public-vm)]
     fn getFeePerL1Gas() -> pub Field {
-        AvmContext::fee_per_l1_gas()
+        context.fee_per_l1_gas()
     }
 
     #[aztec(public-vm)]
     fn getFeePerL2Gas() -> pub Field {
-        AvmContext::fee_per_l2_gas()
+        context.fee_per_l2_gas()
     }
 
     #[aztec(public-vm)]
     fn getFeePerDaGas() -> pub Field {
-        AvmContext::fee_per_da_gas()
+        context.fee_per_da_gas()
     }
 
     #[aztec(public-vm)]
     fn getChainId() -> pub Field {
-        AvmContext::chain_id()
+        context.chain_id()
     }
 
     #[aztec(public-vm)]
     fn getVersion() -> pub Field {
-        AvmContext::version()
+        context.version()
     }
 
     #[aztec(public-vm)]
     fn getBlockNumber() -> pub Field {
-        AvmContext::block_number()
+        context.block_number()
     }
 
     #[aztec(public-vm)]
     fn getTimestamp() -> pub Field {
-        AvmContext::timestamp()
+        context.timestamp()
     }
 
     // #[aztec(public-vm)]
     // fn getContractCallDepth() -> pub Field {
-    //     AvmContext::contract_call_depth()
+    //     context.contract_call_depth()
     // }
 
     // Function required for all contracts
