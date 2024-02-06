@@ -1453,10 +1453,8 @@ impl AcirContext {
                     }
                     Ok(BrilligInputs::Array(var_expressions))
                 }
-                AcirValue::DynamicArray(_) => {
-                    let mut var_expressions = Vec::new();
-                    self.brillig_array_input(&mut var_expressions, i)?;
-                    Ok(BrilligInputs::Array(var_expressions))
+                AcirValue::DynamicArray(AcirDynamicArray { block_id,.. }) => {
+                    Ok(BrilligInputs::MemoryArray(block_id))
                 }
             }
         })?;
@@ -1869,6 +1867,9 @@ fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<V
                 for expr in expr_arr.iter() {
                     calldata.push(expr.to_const()?.into());
                 }
+            }
+            BrilligInputs::MemoryArray(_) => {
+                return None;
             }
         }
     }

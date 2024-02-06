@@ -318,7 +318,15 @@ namespace Circuit {
             static Array bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<Single, Array> value;
+        struct MemoryArray {
+            Circuit::BlockId value;
+
+            friend bool operator==(const MemoryArray&, const MemoryArray&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static MemoryArray bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Single, Array, MemoryArray> value;
 
         friend bool operator==(const BrilligInputs&, const BrilligInputs&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -4086,6 +4094,44 @@ template <>
 template <typename Deserializer>
 Circuit::BrilligInputs::Array serde::Deserializable<Circuit::BrilligInputs::Array>::deserialize(Deserializer &deserializer) {
     Circuit::BrilligInputs::Array obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+    inline bool operator==(const BrilligInputs::MemoryArray &lhs, const BrilligInputs::MemoryArray &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BrilligInputs::MemoryArray::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BrilligInputs::MemoryArray>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BrilligInputs::MemoryArray BrilligInputs::MemoryArray::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BrilligInputs::MemoryArray>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BrilligInputs::MemoryArray>::serialize(const Circuit::BrilligInputs::MemoryArray &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BrilligInputs::MemoryArray serde::Deserializable<Circuit::BrilligInputs::MemoryArray>::deserialize(Deserializer &deserializer) {
+    Circuit::BrilligInputs::MemoryArray obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
