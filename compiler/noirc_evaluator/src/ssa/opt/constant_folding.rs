@@ -94,9 +94,9 @@ impl Context {
 
         // Cache of instructions without any side-effects along with their outputs.
         let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
-        
+
         // Contains sets of values which are constrained to be equivalent to each other.
-        // 
+        //
         // The mapping's structure is `side_effects_enabled_var => (constrained_value => simplified_value)`.
         //
         // We partition the maps of constrained values according to the side-effects flag at the point
@@ -129,12 +129,9 @@ impl Context {
         constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
         side_effects_enabled_var: &mut ValueId,
     ) {
-        let constraint_simplification_mapping = constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
-        let instruction = Self::resolve_instruction(
-            id,
-            dfg,
-            constraint_simplification_mapping
-        );
+        let constraint_simplification_mapping =
+            constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
+        let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
@@ -153,7 +150,7 @@ impl Context {
             new_results,
             dfg,
             instruction_result_cache,
-            constraint_simplification_mapping
+            constraint_simplification_mapping,
         );
 
         // If we just inserted an `Instruction::EnableSideEffects`, we need to update `side_effects_enabled_var`
@@ -189,7 +186,8 @@ impl Context {
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
-        instruction.map_values(|value_id| resolve_cache(dfg, constraint_simplification_mapping, value_id))
+        instruction
+            .map_values(|value_id| resolve_cache(dfg, constraint_simplification_mapping, value_id))
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
