@@ -90,7 +90,6 @@ fi
 # Create a "hidden" `$HOME/.aztec` dir, so as not to clutter the user's cwd.
 mkdir -p $AZTEC_PATH
 mkdir -p $BIN_PATH
-rm -f $BIN_PATH/aztec*
 
 # Download containers from dockerhub. Tag them as latest.
 function pull_container {
@@ -121,6 +120,7 @@ function install_bin {
 }
 
 info "Installing scripts in $BIN_PATH..."
+rm -f $BIN_PATH/aztec*
 install_bin .aztec-run
 install_bin aztec
 install_bin aztec-cli
