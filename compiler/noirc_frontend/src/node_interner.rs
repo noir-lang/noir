@@ -1507,6 +1507,10 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Global(dependency));
     }
 
+    pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
+        self.add_dependency(dependent, DependencyId::Function(dependency));
+    }
+
     fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);

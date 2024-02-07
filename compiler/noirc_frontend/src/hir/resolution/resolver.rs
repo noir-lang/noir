@@ -189,6 +189,7 @@ impl<'a> Resolver<'a> {
         func_id: FuncId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
+        self.current_item = Some(DependencyId::Function(func_id));
 
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
@@ -1412,6 +1413,10 @@ impl<'a> Resolver<'a> {
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
+                                if let Some(current_item) = self.current_item {
+                                    self.interner.add_function_dependency(current_item, id);
+                                }
+
                                 if self.interner.function_visibility(id)
                                     != FunctionVisibility::Public
                                 {
