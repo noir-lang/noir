@@ -530,7 +530,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1)]).into();
 
         let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, &debug_artifact));
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,
@@ -624,7 +624,7 @@ mod tests {
         let initial_witness = BTreeMap::from([(Witness(1), fe_1), (Witness(2), fe_1)]).into();
 
         let foreign_call_executor =
-            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, &debug_artifact));
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
             circuit,

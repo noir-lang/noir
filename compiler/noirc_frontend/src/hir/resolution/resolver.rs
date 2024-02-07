@@ -1211,12 +1211,14 @@ impl<'a> Resolver<'a> {
         span: Span,
         condition: Expression,
     ) -> Option<ExprId> {
-        let mut assert_msg_call_args = if let Some(assert_message_expr) = assert_message_expr {
-            vec![assert_message_expr.clone()]
-        } else {
-            return None;
-        };
-        assert_msg_call_args.push(condition);
+        let assert_message_expr = assert_message_expr?;
+
+        if matches!(
+            assert_message_expr,
+            Expression { kind: ExpressionKind::Literal(Literal::Str(..)), .. }
+        ) {
+            return Some(self.resolve_expression(assert_message_expr));
+        }
 
         let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
         let assert_msg_call_path = if is_in_stdlib {
@@ -1232,6 +1234,7 @@ impl<'a> Resolver<'a> {
                 span,
             })
         };
+        let assert_msg_call_args = vec![assert_message_expr.clone(), condition];
         let assert_msg_call_expr = Expression::call(
             Expression { kind: assert_msg_call_path, span },
             assert_msg_call_args,
