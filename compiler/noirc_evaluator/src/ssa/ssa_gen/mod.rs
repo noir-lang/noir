@@ -8,7 +8,7 @@ use context::SharedContext;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::{
-    monomorphization::ast::{self, Expression, Literal, Program},
+    monomorphization::ast::{self, Expression, Program},
     Visibility,
 };
 
@@ -700,7 +700,7 @@ impl<'a> FunctionContext<'a> {
             return Ok(None)
         };
 
-        if let ast::Expression::Literal(Literal::Str(assert_message)) = assert_message_expr.as_ref()
+        if let ast::Expression::Literal(ast::Literal::Str(assert_message)) = assert_message_expr.as_ref()
         {
             return Ok(Some(Box::new(ConstrainError::Static(assert_message.to_string()))));
         }
