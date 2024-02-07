@@ -1250,7 +1250,19 @@ impl<'block> BrilligBlock<'block> {
                     new_variable
                 }
             }
-            Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => {
+            Value::Function(_) => {
+                // For the debugger instrumentation we want to allow passing
+                // around values representing function pointers, even though
+                // there is no interaction with the function possible given that
+                // value.
+                let new_variable =
+                    self.variables.allocate_constant(self.brillig_context, value_id, dfg);
+                let register_index = new_variable.extract_register();
+
+                self.brillig_context.const_instruction(register_index, value_id.to_usize().into());
+                new_variable
+            }
+            Value::Intrinsic(_) | Value::ForeignFunction(_) => {
                 todo!("ICE: Cannot convert value {value:?}")
             }
         }
