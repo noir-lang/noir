@@ -746,6 +746,11 @@ impl<'a> FunctionContext<'a> {
         address
     }
 
+    /// Array indexes are u64s. This function casts values used as indexes to u64.
+    pub(super) fn make_array_index(&mut self, index: ValueId) -> ValueId {
+        self.builder.insert_cast(index, Type::unsigned(64))
+    }
+
     /// Define a local variable to be some Values that can later be retrieved
     /// by calling self.lookup(id)
     pub(super) fn define(&mut self, id: LocalId, value: Values) {

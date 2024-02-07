@@ -509,6 +509,14 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
+                                // Check that we are not attempting to return a slice from 
+                                // an unconstrained runtime to a constrained runtime
+                                for result_id in result_ids {
+                                    if dfg.type_of_value(*result_id).contains_slice_element() {
+                                        return Err(RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack: self.acir_context.get_call_stack() })
+                                    }
+                                }
+
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
                                 let code = self.gen_brillig_for(func, brillig)?;
