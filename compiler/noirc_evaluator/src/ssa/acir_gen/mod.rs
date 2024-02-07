@@ -281,7 +281,16 @@ impl Context {
         for acir_var in output_vars {
             self.acir_context.return_var(acir_var)?;
         }
-        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
+
+        let generated_acir = self.acir_context.finish(witness_inputs, Vec::new());
+
+        assert_eq!(
+            generated_acir.opcodes().len(),
+            1,
+            "Unconstrained programs should only generate a single opcode but multiple were emitted"
+        );
+
+        Ok(generated_acir)
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.

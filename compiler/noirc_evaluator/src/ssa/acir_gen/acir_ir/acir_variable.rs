@@ -1514,7 +1514,7 @@ impl AcirContext {
             }
             Ok(())
         }
-        
+
         // This is a hack to ensure that if we're compiling a brillig entrypoint function then
         // we don't also add a number of range constraints.
         if !unsafe_return_values {
