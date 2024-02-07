@@ -71,8 +71,6 @@ pub fn initialize_end_values(
     circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
     circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
 
-    circuit_outputs.end.optionally_revealed_data = start.optionally_revealed_data;
-
     circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
     circuit_outputs.end.public_data_reads = array_to_bounded_vec(start.public_data_reads);
 

@@ -127,7 +127,6 @@ pub fn initialize_end_values(
     public_inputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
     public_inputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
 
-    public_inputs.end.optionally_revealed_data = start.optionally_revealed_data;
     public_inputs.end.new_contracts = array_to_bounded_vec(start.new_contracts);
 }
 

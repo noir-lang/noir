@@ -34,7 +34,6 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX_META,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-  MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX_META,
@@ -49,7 +48,6 @@ import {
   NullifierKeyValidationRequest,
   NullifierKeyValidationRequestContext,
   NullifierLeafPreimage,
-  OptionallyRevealedData,
   PUBLIC_DATA_TREE_HEIGHT,
   PartialStateReference,
   Point,
@@ -101,7 +99,6 @@ import {
   GrumpkinPoint as NoirPoint,
   NullifierKeyValidationRequestContext as NullifierKeyValidationRequestContextNoir,
   NullifierKeyValidationRequest as NullifierKeyValidationRequestNoir,
-  OptionallyRevealedData as OptionallyRevealedDataNoir,
   PrivateCallData as PrivateCallDataNoir,
   PrivateCallStackItem as PrivateCallStackItemNoir,
   PrivateCircuitPublicInputs as PrivateCircuitPublicInputsNoir,
@@ -760,46 +757,6 @@ export function mapSha256HashToNoir(hash: Buffer): FixedLengthArray<Field, 2> {
 }
 
 /**
- * Maps optionally revealed data from noir to the parsed type.
- * @param optionallyRevealedData - The noir optionally revealed data.
- * @returns The parsed optionally revealed data.
- */
-export function mapOptionallyRevealedDataFromNoir(
-  optionallyRevealedData: OptionallyRevealedDataNoir,
-): OptionallyRevealedData {
-  return new OptionallyRevealedData(
-    mapFieldFromNoir(optionallyRevealedData.call_stack_item_hash),
-    mapFunctionDataFromNoir(optionallyRevealedData.function_data),
-    mapFieldFromNoir(optionallyRevealedData.vk_hash),
-    mapEthAddressFromNoir(optionallyRevealedData.portal_contract_address),
-    optionallyRevealedData.pay_fee_from_l1,
-    optionallyRevealedData.pay_fee_from_public_l2,
-    optionallyRevealedData.called_from_l1,
-    optionallyRevealedData.called_from_public_l2,
-  );
-}
-
-/**
- * Maps optionally revealed data to noir optionally revealed data.
- * @param optionallyRevealedData - The optionally revealed data.
- * @returns The noir optionally revealed data.
- */
-export function mapOptionallyRevealedDataToNoir(
-  optionallyRevealedData: OptionallyRevealedData,
-): OptionallyRevealedDataNoir {
-  return {
-    call_stack_item_hash: mapFieldToNoir(optionallyRevealedData.callStackItemHash),
-    function_data: mapFunctionDataToNoir(optionallyRevealedData.functionData),
-    vk_hash: mapFieldToNoir(optionallyRevealedData.vkHash),
-    portal_contract_address: mapEthAddressToNoir(optionallyRevealedData.portalContractAddress),
-    pay_fee_from_l1: optionallyRevealedData.payFeeFromL1,
-    pay_fee_from_public_l2: optionallyRevealedData.payFeeFromPublicL2,
-    called_from_l1: optionallyRevealedData.calledFromL1,
-    called_from_public_l2: optionallyRevealedData.calledFromPublicL2,
-  };
-}
-
-/**
  * Maps new contract data from noir to the parsed type.
  * @param newContractData - The noir new contract data.
  * @returns The parsed new contract data.
@@ -910,11 +867,6 @@ export function mapCombinedAccumulatedDataFromNoir(
     mapFieldFromNoir(combinedAccumulatedData.unencrypted_log_preimages_length),
     mapTupleFromNoir(combinedAccumulatedData.new_contracts, MAX_NEW_CONTRACTS_PER_TX, mapNewContractDataFromNoir),
     mapTupleFromNoir(
-      combinedAccumulatedData.optionally_revealed_data,
-      MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
-      mapOptionallyRevealedDataFromNoir,
-    ),
-    mapTupleFromNoir(
       combinedAccumulatedData.public_data_update_requests,
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       mapPublicDataUpdateRequestFromNoir,
@@ -952,11 +904,6 @@ export function mapFinalAccumulatedDataFromNoir(finalAccumulatedData: FinalAccum
     mapFieldFromNoir(finalAccumulatedData.encrypted_log_preimages_length),
     mapFieldFromNoir(finalAccumulatedData.unencrypted_log_preimages_length),
     mapTupleFromNoir(finalAccumulatedData.new_contracts, MAX_NEW_CONTRACTS_PER_TX, mapNewContractDataFromNoir),
-    mapTupleFromNoir(
-      finalAccumulatedData.optionally_revealed_data,
-      MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
-      mapOptionallyRevealedDataFromNoir,
-    ),
   );
 }
 
@@ -1001,7 +948,6 @@ export function mapCombinedAccumulatedDataToNoir(
     encrypted_log_preimages_length: mapFieldToNoir(combinedAccumulatedData.encryptedLogPreimagesLength),
     unencrypted_log_preimages_length: mapFieldToNoir(combinedAccumulatedData.unencryptedLogPreimagesLength),
     new_contracts: mapTuple(combinedAccumulatedData.newContracts, mapNewContractDataToNoir),
-    optionally_revealed_data: mapTuple(combinedAccumulatedData.optionallyRevealedData, mapOptionallyRevealedDataToNoir),
     public_data_update_requests: mapTuple(
       combinedAccumulatedData.publicDataUpdateRequests,
       mapPublicDataUpdateRequestToNoir,

@@ -47,7 +47,6 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX_META,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-  MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -71,7 +70,6 @@ import {
   NullifierKeyValidationRequest,
   NullifierKeyValidationRequestContext,
   NullifierLeafPreimage,
-  OptionallyRevealedData,
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
   PartialStateReference,
@@ -262,7 +260,6 @@ export function makeAccumulatedData(seed = 1, full = false): CombinedAccumulated
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(MAX_NEW_CONTRACTS_PER_TX, makeNewContractData, seed + 0xb00),
-    tupleGenerator(MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX, makeOptionallyRevealedData, seed + 0xc00),
     tupleGenerator(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makePublicDataUpdateRequest, seed + 0xd00),
     tupleGenerator(MAX_PUBLIC_DATA_READS_PER_TX, makePublicDataRead, seed + 0xe00),
   );
@@ -287,7 +284,6 @@ export function makeFinalAccumulatedData(seed = 1, full = false): FinalAccumulat
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(MAX_NEW_CONTRACTS_PER_TX, makeNewContractData, seed + 0xb00),
-    tupleGenerator(MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX, makeOptionallyRevealedData, seed + 0xc00),
   );
 }
 
@@ -313,24 +309,6 @@ export function makeAccumulatedMetaData(seed = 1, full = false): AccumulatedMeta
  */
 export function makeNewContractData(seed = 1): NewContractData {
   return new NewContractData(makeAztecAddress(seed), makeEthAddress(seed + 1), fr(seed + 2));
-}
-
-/**
- * Creates arbitrary optionally revealed data.
- * @param seed - The seed to use for generating the optionally revealed data.
- * @returns An optionally revealed data.
- */
-export function makeOptionallyRevealedData(seed = 1): OptionallyRevealedData {
-  return new OptionallyRevealedData(
-    fr(seed),
-    new FunctionData(makeSelector(seed + 1), false, true, true),
-    fr(seed + 2),
-    makeEthAddress(seed + 3),
-    true,
-    false,
-    true,
-    false,
-  );
 }
 
 /**

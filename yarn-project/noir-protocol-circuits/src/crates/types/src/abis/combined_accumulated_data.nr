@@ -3,7 +3,6 @@ use crate::{
         call_request::CallRequest,
         new_contract_data::NewContractData,
         nullifier_key_validation_request::NullifierKeyValidationRequestContext,
-        optionally_revealed_data::OptionallyRevealedData,
         public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
@@ -18,7 +17,6 @@ use crate::constants::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     MAX_NEW_CONTRACTS_PER_TX,
-    MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     MAX_PUBLIC_DATA_READS_PER_TX,
     NUM_FIELDS_PER_SHA256,
@@ -49,8 +47,6 @@ struct CombinedAccumulatedData {
 
     new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
 
-    optionally_revealed_data: [OptionallyRevealedData; MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX],
-
     public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
 
     public_data_reads: [PublicDataRead; MAX_PUBLIC_DATA_READS_PER_TX],
@@ -73,7 +69,6 @@ struct FinalAccumulatedData {
     unencrypted_log_preimages_length: Field,
 
     new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
-    optionally_revealed_data: [OptionallyRevealedData; MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX]
 }
 
 struct AccumulatedMetaData {
@@ -103,8 +98,6 @@ struct CombinedAccumulatedDataBuilder {
 
     new_contracts: BoundedVec<NewContractData, MAX_NEW_CONTRACTS_PER_TX>,
 
-    optionally_revealed_data: [OptionallyRevealedData; MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX],
-
     public_data_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
 
     public_data_reads: BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_TX>,
@@ -131,8 +124,6 @@ impl CombinedAccumulatedDataBuilder {
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
 
             new_contracts: self.new_contracts.storage,
-
-            optionally_revealed_data: self.optionally_revealed_data,
 
             public_data_update_requests: self.public_data_update_requests.storage,
 
@@ -162,7 +153,6 @@ impl CombinedAccumulatedDataBuilder {
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
 
             new_contracts: self.new_contracts.storage,
-            optionally_revealed_data: self.optionally_revealed_data,
         }
     }
 }

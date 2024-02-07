@@ -16,7 +16,6 @@ mod combined_constant_data;
 mod nullifier_key_validation_request;
 mod public_data_read;
 mod public_data_update_request;
-mod optionally_revealed_data;
 
 mod combined_accumulated_data;
 
