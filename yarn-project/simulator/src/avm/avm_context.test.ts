@@ -24,8 +24,9 @@ describe('Avm Context', () => {
         pc: 0,
       }),
     );
-    // FIXME: I can't get this to work.
-    // expect(newContext.worldState).toEqual(context.worldState.fork());
+
+    // We stringify to remove circular references (parentJournal)
+    expect(JSON.stringify(newContext.worldState)).toEqual(JSON.stringify(context.worldState.fork()));
   });
 
   it('New static call should fork context correctly', () => {
@@ -49,7 +50,8 @@ describe('Avm Context', () => {
         pc: 0,
       }),
     );
-    // FIXME: I can't get this to work.
-    // expect(newContext.worldState).toEqual(context.worldState.fork());
+
+    // We stringify to remove circular references (parentJournal)
+    expect(JSON.stringify(newContext.worldState)).toEqual(JSON.stringify(context.worldState.fork()));
   });
 });

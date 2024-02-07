@@ -160,8 +160,7 @@ describe('Field', () => {
     expect(result).toStrictEqual(new Field(50n));
   });
 
-  // FIXME: field division is wrong
-  it.skip(`Should divide two Fields correctly`, () => {
+  it(`Should divide two Fields correctly`, () => {
     const field1 = new Field(10);
     const field2 = new Field(5);
     const result = field1.div(field2);

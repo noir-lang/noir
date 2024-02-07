@@ -201,8 +201,7 @@ describe('Arithmetic Instructions', () => {
       expect(inst.serialize()).toEqual(buf);
     });
 
-    // FIXME: field division is wrong
-    it.skip('Should perform field division', async () => {
+    it('Should perform field division', async () => {
       const a = new Field(10n);
       const b = new Field(5n);
 

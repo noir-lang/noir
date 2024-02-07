@@ -302,8 +302,8 @@ function modInverse(b: bigint) {
   if (gcd != 1n) {
     throw Error('Inverse does not exist');
   }
-  // Add modulus to ensure positive
-  return new Fr(x + Fr.MODULUS);
+  // Add modulus if -ve to ensure positive
+  return new Fr(x > 0 ? x : x + Fr.MODULUS);
 }
 
 /**
