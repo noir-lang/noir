@@ -319,6 +319,7 @@ impl AcirContext {
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
+            false,
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -706,6 +707,7 @@ impl AcirContext {
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
+                false,
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1438,6 +1440,7 @@ impl AcirContext {
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
+        unsafe_return_values: bool,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let b_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
             match i {
@@ -1512,10 +1515,13 @@ impl AcirContext {
             Ok(())
         }
 
-        for output_var in &outputs_var {
-            range_constraint_value(self, output_var)?;
+        // This is a hack to ensure that if we're compiling a brillig entrypoint function then
+        // we don't also add a number of range constraints.
+        if !unsafe_return_values {
+            for output_var in &outputs_var {
+                range_constraint_value(self, output_var)?;
+            }
         }
-
         Ok(outputs_var)
     }
 
@@ -1636,40 +1642,6 @@ impl AcirContext {
             }
         }
         AcirValue::Array(array_values)
-    }
-
-    /// Generate output variables that are constrained to be the sorted inputs
-    /// The outputs are the sorted inputs iff
-    /// outputs are sorted and
-    /// outputs are a permutation of the inputs
-    pub(crate) fn sort(
-        &mut self,
-        inputs: Vec<AcirVar>,
-        bit_size: u32,
-    ) -> Result<Vec<AcirVar>, RuntimeError> {
-        let len = inputs.len();
-        // Convert the inputs into expressions
-        let inputs_expr = try_vecmap(inputs, |input| self.var_to_expression(input))?;
-        // Generate output witnesses
-        let outputs_witness = vecmap(0..len, |_| self.acir_ir.next_witness_index());
-        let output_expr =
-            vecmap(&outputs_witness, |witness_index| Expression::from(*witness_index));
-        let outputs_var = vecmap(&outputs_witness, |witness_index| {
-            self.add_data(AcirVarData::Witness(*witness_index))
-        });
-
-        // Enforce the outputs to be a permutation of the inputs
-        self.acir_ir.permutation(&inputs_expr, &output_expr)?;
-
-        // Enforce the outputs to be sorted
-        let true_var = self.add_constant(true);
-        for i in 0..(outputs_var.len() - 1) {
-            let less_than_next_element =
-                self.more_than_eq_var(outputs_var[i + 1], outputs_var[i], bit_size)?;
-            self.assert_eq_var(less_than_next_element, true_var, None)?;
-        }
-
-        Ok(outputs_var)
     }
 
     /// Returns a Variable that is constrained to be the result of reading

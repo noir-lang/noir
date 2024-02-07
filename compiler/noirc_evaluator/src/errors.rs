@@ -46,6 +46,8 @@ pub enum RuntimeError {
     NestedSlice { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
+    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
 }
 
 // We avoid showing the actual lhs and rhs since most of the time they are just 0
@@ -135,7 +137,8 @@ impl RuntimeError {
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
-            | RuntimeError::BigIntModulus { call_stack, .. } => call_stack,
+            | RuntimeError::BigIntModulus { call_stack, .. }
+            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack } => call_stack,
         }
     }
 }

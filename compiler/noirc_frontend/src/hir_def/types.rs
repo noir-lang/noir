@@ -157,7 +157,7 @@ impl Type {
         }
     }
 
-    fn contains_slice(&self) -> bool {
+    pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Array(size, _) => matches!(size.as_ref(), Type::NotConstant),
             Type::Struct(struct_typ, generics) => {
