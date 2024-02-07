@@ -62,7 +62,9 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::bubble_up_constrains, "After Bubble Up Constraints:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
+        .run_pass(Ssa::bubble_up_constrains, "After Bubble Up Constraints:")
         .run_pass(
             Ssa::fold_constants_using_constraints,
             "After Constant Folding With Constraint Info:",
