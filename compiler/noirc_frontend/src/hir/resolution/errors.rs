@@ -142,33 +142,37 @@ impl From<ResolverError> for Diagnostic {
                 field.span(),
             ),
             ResolverError::NoSuchField { field, struct_definition } => {
-                let mut error = Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     format!("no such field {field} defined in struct {struct_definition}"),
                     String::new(),
                     field.span(),
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here with no {field} field"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
             ResolverError::MissingFields { span, missing_fields, struct_definition } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
-                let missing_fields = missing_fields.join(", ");
+                let mut truncated_fields_error = String::new();
+                let remaining_fields_names = match &missing_fields[..] {
+                    [field1] => field1.clone(),
+                    [field1, field2] => format!("{field1} and {field2}"),
+                    [field1, field2, field3] => format!("{field1}, {field2} and {field3}"),
+                    _ => {
+                        let len = missing_fields.len() - 3;
+                        let pluar = if len != 1 {"s"} else {""};
 
-                let mut error = Diagnostic::simple_error(
-                    format!("missing field{plural}: {missing_fields}"),
+                        truncated_fields_error = format!(" and {len} other field{pluar}");
+                        missing_fields
+                        .into_iter()
+                        .take(3)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                    }
+                };
+
+                Diagnostic::simple_error(
+                    format!("missing field{plural} {remaining_fields_names}{truncated_fields_error} in struct {struct_definition}"),
                     String::new(),
                     span,
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
             ResolverError::UnnecessaryMut { first_mut, second_mut } => {
                 let mut error = Diagnostic::simple_error(
