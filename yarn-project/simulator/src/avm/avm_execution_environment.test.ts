@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { initExecutionEnvironment } from './fixtures/index.js';
+import { allSameExcept, initExecutionEnvironment } from './fixtures/index.js';
 
 describe('Execution Environment', () => {
   const newAddress = new Fr(123456n);
@@ -10,46 +10,39 @@ describe('Execution Environment', () => {
     const executionEnvironment = initExecutionEnvironment();
     const newExecutionEnvironment = executionEnvironment.deriveEnvironmentForNestedCall(newAddress, calldata);
 
-    allTheSameExcept(executionEnvironment, newExecutionEnvironment, {
-      address: newAddress,
-      storageAddress: newAddress,
-      calldata,
-    });
+    expect(newExecutionEnvironment).toEqual(
+      allSameExcept(executionEnvironment, {
+        address: newAddress,
+        storageAddress: newAddress,
+        calldata,
+      }),
+    );
   });
 
   it('New delegate call should fork execution environment correctly', () => {
     const executionEnvironment = initExecutionEnvironment();
     const newExecutionEnvironment = executionEnvironment.newDelegateCall(newAddress, calldata);
 
-    allTheSameExcept(executionEnvironment, newExecutionEnvironment, {
-      address: newAddress,
-      isDelegateCall: true,
-      calldata,
-    });
+    expect(newExecutionEnvironment).toEqual(
+      allSameExcept(executionEnvironment, {
+        address: newAddress,
+        isDelegateCall: true,
+        calldata,
+      }),
+    );
   });
 
   it('New static call call should fork execution environment correctly', () => {
     const executionEnvironment = initExecutionEnvironment();
     const newExecutionEnvironment = executionEnvironment.deriveEnvironmentForNestedStaticCall(newAddress, calldata);
 
-    allTheSameExcept(executionEnvironment, newExecutionEnvironment, {
-      address: newAddress,
-      storageAddress: newAddress,
-      isStaticCall: true,
-      calldata,
-    });
+    expect(newExecutionEnvironment).toEqual(
+      allSameExcept(executionEnvironment, {
+        address: newAddress,
+        storageAddress: newAddress,
+        isStaticCall: true,
+        calldata,
+      }),
+    );
   });
 });
-
-/**
- * Check all properties of one object are the same, except for the specified differentProperties
- */
-function allTheSameExcept(referenceObject: any, comparingObject: any, differentProperties: Record<string, any>): void {
-  for (const key in referenceObject) {
-    if (Object.keys(differentProperties).includes(key)) {
-      expect(comparingObject[key]).toEqual(differentProperties[key]);
-    } else {
-      expect(comparingObject[key]).toEqual(referenceObject[key]);
-    }
-  }
-}

@@ -4,6 +4,11 @@ import type { AvmContext } from '../avm_context.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';
 import { OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
 
+type InstructionConstructor = {
+  new (...args: any[]): Instruction;
+  wireFormat?: OperandType[];
+};
+
 /**
  * Parent class for all AVM instructions.
  * It's most important aspects are execute and (de)serialize.
@@ -57,8 +62,3 @@ export abstract class Instruction {
     return new this(...args);
   }
 }
-
-type InstructionConstructor = {
-  new (...args: any[]): Instruction;
-  wireFormat?: OperandType[];
-};

@@ -4,6 +4,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 
 import { mock } from 'jest-mock-extended';
+import merge from 'lodash.merge';
 
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js';
 import { AvmContext } from '../avm_context.js';
@@ -77,4 +78,11 @@ export function initMachineState(overrides?: Partial<AvmMachineState>): AvmMachi
     l2GasLeft: overrides?.l2GasLeft ?? 0,
     daGasLeft: overrides?.daGasLeft ?? 0,
   });
+}
+
+/**
+ * Create a new object with all the same properties as the original, except for the ones in the overrides object.
+ */
+export function allSameExcept(original: any, overrides: any): any {
+  return merge({}, original, overrides);
 }
