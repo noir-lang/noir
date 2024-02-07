@@ -45,7 +45,20 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            constant_fold(function);
+            constant_fold(function, false);
+        }
+        self
+    }
+
+    /// Performs constant folding on each instruction.
+    ///
+    /// Also uses constraint information to inform more optimizations.
+    ///
+    /// See [`constant_folding`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
+        for function in self.functions.values_mut() {
+            constant_fold(function, true);
         }
         self
     }
@@ -53,8 +66,8 @@ impl Ssa {
 
 /// The structure of this pass is simple:
 /// Go through each block and re-insert all instructions.
-fn constant_fold(function: &mut Function) {
-    let mut context = Context::default();
+fn constant_fold(function: &mut Function, use_constraint_info: bool) {
+    let mut context = Context { use_constraint_info, ..Default::default() };
     context.block_queue.push(function.entry_block());
 
     while let Some(block) = context.block_queue.pop() {
@@ -69,6 +82,7 @@ fn constant_fold(function: &mut Function) {
 
 #[derive(Default)]
 struct Context {
+    use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
@@ -86,7 +100,7 @@ impl Context {
             function.dfg.make_constant(FieldElement::one(), Type::bool());
 
         for instruction_id in instructions {
-            Self::fold_constants_into_instruction(
+            self.fold_constants_into_instruction(
                 &mut function.dfg,
                 block,
                 instruction_id,
@@ -99,6 +113,7 @@ impl Context {
     }
 
     fn fold_constants_into_instruction(
+        &self,
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         id: InstructionId,
@@ -124,7 +139,7 @@ impl Context {
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
-        Self::cache_instruction(
+        self.cache_instruction(
             instruction.clone(),
             new_results,
             dfg,
@@ -199,36 +214,39 @@ impl Context {
     }
 
     fn cache_instruction(
+        &self,
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
         instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
         constraint_cache: &mut HashMap<ValueId, ValueId>,
     ) {
-        // If the instruction was a constraint, then create a link between the two `ValueId`s
-        // to map from the more complex to the simpler value.
-        if let Instruction::Constrain(lhs, rhs, _) = instruction {
-            // These `ValueId`s should be fully resolved now.
-            match (&dfg[lhs], &dfg[rhs]) {
-                // Ignore trivial constraints
-                (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
+        if self.use_constraint_info {
+            // If the instruction was a constraint, then create a link between the two `ValueId`s
+            // to map from the more complex to the simpler value.
+            if let Instruction::Constrain(lhs, rhs, _) = instruction {
+                // These `ValueId`s should be fully resolved now.
+                match (&dfg[lhs], &dfg[rhs]) {
+                    // Ignore trivial constraints
+                    (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => (),
 
-                // Prefer replacing with constants where possible.
-                (Value::NumericConstant { .. }, _) => {
-                    constraint_cache.insert(rhs, lhs);
+                    // Prefer replacing with constants where possible.
+                    (Value::NumericConstant { .. }, _) => {
+                        constraint_cache.insert(rhs, lhs);
+                    }
+                    (_, Value::NumericConstant { .. }) => {
+                        constraint_cache.insert(lhs, rhs);
+                    }
+                    // Otherwise prefer block parameters over instruction results.
+                    // This is as block parameters are more likely to be a single witness rather than a full expression.
+                    (Value::Param { .. }, Value::Instruction { .. }) => {
+                        constraint_cache.insert(rhs, lhs);
+                    }
+                    (Value::Instruction { .. }, Value::Param { .. }) => {
+                        constraint_cache.insert(lhs, rhs);
+                    }
+                    (_, _) => (),
                 }
-                (_, Value::NumericConstant { .. }) => {
-                    constraint_cache.insert(lhs, rhs);
-                }
-                // Otherwise prefer block parameters over instruction results.
-                // This is as block parameters are more likely to be a single witness rather than a full expression.
-                (Value::Param { .. }, Value::Instruction { .. }) => {
-                    constraint_cache.insert(rhs, lhs);
-                }
-                (Value::Instruction { .. }, Value::Param { .. }) => {
-                    constraint_cache.insert(lhs, rhs);
-                }
-                (_, _) => (),
             }
         }
 
