@@ -67,7 +67,7 @@ fn main() {
 
 When creating a mutable reference, the original variable being referred to (`y` in this
 example) must also be mutable. Since mutable references are a reference type, they must
-be explicitly derefereced via `*` to retrieve the underlying value. Note that this yields
+be explicitly dereferenced via `*` to retrieve the underlying value. Note that this yields
 a copy of the value, so mutating this copy will not change the original value behind the
 reference:
 
