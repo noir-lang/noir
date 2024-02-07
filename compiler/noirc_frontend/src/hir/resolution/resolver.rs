@@ -537,8 +537,8 @@ impl<'a> Resolver<'a> {
         resolved_type
     }
 
-    fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
-        self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
+    fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span, bool)> {
+        self.generics.iter().find(|(name, _, _, _)| name.as_ref() == target_name)
     }
 
     fn resolve_named_type(
@@ -653,8 +653,8 @@ impl<'a> Resolver<'a> {
     fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-            if let Some((name, var, _)) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(var.clone(), name.clone()));
+            if let Some((name, var, _, prevent_numeric)) = self.find_generic(name) {
+                return Some(Type::NamedGeneric(var.clone(), name.clone(), prevent_numeric));
             }
         }
 
@@ -768,14 +768,14 @@ impl<'a> Resolver<'a> {
     /// Return the current generics.
     /// Needed to keep referring to the same type variables across many
     /// methods in a single impl.
-    pub fn get_generics(&self) -> &[(Rc<String>, TypeVariable, Span)] {
+    pub fn get_generics(&self) -> &[(Rc<String>, TypeVariable, Span, bool)] {
         &self.generics
     }
 
     /// Set the current generics that are in scope.
     /// Unlike add_generics, this function will not create any new type variables,
     /// opting to reuse the existing ones it is directly given.
-    pub fn set_generics(&mut self, generics: Vec<(Rc<String>, TypeVariable, Span)>) {
+    pub fn set_generics(&mut self, generics: Vec<(Rc<String>, TypeVariable, Span, bool)>) {
         self.generics = generics;
     }
 
@@ -796,18 +796,19 @@ impl<'a> Resolver<'a> {
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
             let span = generic.ident.0.span();
+            let prevent_numeric = generic.prevent_numeric;
 
             // Check for name collisions of this generic
             let name = Rc::new(generic.ident.0.contents.clone());
 
-            if let Some((_, _, first_span)) = self.find_generic(&name) {
+            if let Some((_, _, first_span, _)) = self.find_generic(&name) {
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: generic.ident.0.contents.clone(),
                     first_span: *first_span,
                     second_span: span,
                 });
             } else {
-                self.generics.push((name, typevar.clone(), span));
+                self.generics.push((name, typevar.clone(), span, prevent_numeric));
             }
 
             typevar
@@ -829,7 +830,7 @@ impl<'a> Resolver<'a> {
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.to_owned());
 
-        if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+        if let Some((_, _, first_span, _)) = self.find_generic(&rc_name) {
             self.errors.push(ResolverError::DuplicateDefinition {
                 name: name.to_owned(),
                 first_span: *first_span,
@@ -890,7 +891,8 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attributes().clone();
 
-        let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
+        // TODO: prevent_numeric needed here?
+        let mut generics = vecmap(&self.generics, |(_, typevar, _, _)| typevar.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
@@ -1043,9 +1045,13 @@ impl<'a> Resolver<'a> {
             // We can fail to find the generic in self.generics if it is an implicit one created
             // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
-            if let Some((name, _, span)) =
-                self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
+            if let Some((name, _, span, prevent_numeric)) =
+                self.generics.iter().find(|(name, _, _, _)| name.as_ref() == &name_to_find)
             {
+                if *prevent_numeric {
+                    panic!("declare_numeric_generics: TODO: likely do nothing here?")
+                }
+
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident, false, false, false, definition);
