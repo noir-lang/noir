@@ -163,6 +163,10 @@
     to = "/learn/concepts/contracts/contract_creation"
 
 [[redirects]]
+    from = "/concepts/advanced/contract_creation"
+    to = "/learn/concepts/smart_contracts/main"
+
+[[redirects]]
     from = "/noir"
     to = "/"
 
