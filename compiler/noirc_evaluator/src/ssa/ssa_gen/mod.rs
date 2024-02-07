@@ -472,10 +472,12 @@ impl<'a> FunctionContext<'a> {
 
         // this is the 'i' in `for i in start .. end { block }`
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
-        let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
+        let loop_index = self.builder.add_block_parameter(loop_entry, index_type.clone());
 
         self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
+        // The frontend does not unify the types of the start range. We do this here.
+        let start_index = self.builder.insert_cast(start_index, index_type.clone());
 
         self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
@@ -492,6 +494,8 @@ impl<'a> FunctionContext<'a> {
         // end range. These are the instructions used to issue an error if the end of the range
         // cannot be determined at compile-time.
         self.builder.set_location(for_expr.end_range_location);
+        // The frontend does not unify the types of the end range. We do this here.
+        let end_index = self.builder.insert_cast(end_index, index_type);
         let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
         self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
 
