@@ -40,7 +40,7 @@ pub(crate) fn resolve_globals(
             global.file_id,
         );
 
-        let hir_stmt = resolver.resolve_global_let(global.stmt_def);
+        let hir_stmt = resolver.resolve_global_let(global.stmt_def, global.global_id);
         errors.extend(take_errors(global.file_id, resolver));
 
         let statement_id = context.def_interner.get_global(global.global_id).let_statement;

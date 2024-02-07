@@ -662,8 +662,8 @@ impl<'a> Resolver<'a> {
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
             Ok(ModuleDefId::GlobalId(id)) => {
-                if let Some(current_struct) = self.current_item {
-                    self.interner.add_global_dependency(current_struct, id);
+                if let Some(current_item) = self.current_item {
+                    self.interner.add_global_dependency(current_item, id);
                 }
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
@@ -1128,7 +1128,12 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve_global_let(&mut self, let_stmt: crate::LetStatement) -> HirStatement {
+    pub fn resolve_global_let(
+        &mut self,
+        let_stmt: crate::LetStatement,
+        global_id: GlobalId,
+    ) -> HirStatement {
+        self.current_item = Some(DependencyId::Global(global_id));
         let expression = self.resolve_expression(let_stmt.expression);
         let global_id = self.interner.next_global_id();
         let definition = DefinitionKind::Global(global_id);
@@ -1418,7 +1423,11 @@ impl<'a> Resolver<'a> {
                                     );
                                 }
                             }
-                            DefinitionKind::Global(_) => {}
+                            DefinitionKind::Global(global_id) => {
+                                if let Some(current_item) = self.current_item {
+                                    self.interner.add_global_dependency(current_item, global_id);
+                                }
+                            }
                             DefinitionKind::GenericType(_) => {
                                 // Initialize numeric generics to a polymorphic integer type in case
                                 // they're used in expressions. We must do this here since the type

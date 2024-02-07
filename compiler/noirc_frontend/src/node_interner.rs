@@ -1549,10 +1549,12 @@ impl NodeInterner {
                             let global = self.get_global(global_id);
                             let name = global.ident.to_string();
                             push_error(name, &scc, i, global.location);
+                            break;
                         }
                         DependencyId::Alias(alias_id) => {
                             let alias = self.get_type_alias(alias_id);
                             push_error(alias.name.to_string(), &scc, i, alias.location);
+                            break;
                         }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
