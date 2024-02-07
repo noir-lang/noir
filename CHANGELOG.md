@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.23.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.22.0...aztec-packages-v0.23.0) (2024-02-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename bigint_neg into bigint_sub (https://github.com/AztecProtocol/aztec-packages/pull/4420)
+* Add expression width into acir (https://github.com/AztecProtocol/aztec-packages/pull/4014)
+* init storage macro (https://github.com/AztecProtocol/aztec-packages/pull/4200)
+* **acir:** Move `is_recursive` flag to be part of the circuit definition (https://github.com/AztecProtocol/aztec-packages/pull/4221) [skip ci]
+
+### Features
+
+* Add additional error types to verifier contract and revert early ([#4464](https://github.com/AztecProtocol/aztec-packages/issues/4464)) ([5e16063](https://github.com/AztecProtocol/aztec-packages/commit/5e160632bb7d48e676583e1b62b604c25fc4af4e))
+* Add bit size to const opcode (https://github.com/AztecProtocol/aztec-packages/pull/4385) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Add expression width into acir (https://github.com/AztecProtocol/aztec-packages/pull/4014) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Allow brillig to read arrays directly from memory (https://github.com/AztecProtocol/aztec-packages/pull/4460) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Allow nested arrays and vectors in Brillig foreign calls ([#4478](https://github.com/AztecProtocol/aztec-packages/issues/4478)) ([bbfa337](https://github.com/AztecProtocol/aztec-packages/commit/bbfa3374d20b44c49870e21c61cbb2ab5f7ae117))
+* Allow nested arrays and vectors in Brillig foreign calls (https://github.com/AztecProtocol/aztec-packages/pull/4478) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* **avm:** Back in avm context with macro - refactor context (https://github.com/AztecProtocol/aztec-packages/pull/4438) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* **avm:** Generic bytecode deserialization ([#4441](https://github.com/AztecProtocol/aztec-packages/issues/4441)) ([934fabc](https://github.com/AztecProtocol/aztec-packages/commit/934fabc8d3706e601eb3dca546c4545b58a10006)), closes [#4304](https://github.com/AztecProtocol/aztec-packages/issues/4304)
+* **avm:** Support variable size SET opcode ([#4465](https://github.com/AztecProtocol/aztec-packages/issues/4465)) ([545b334](https://github.com/AztecProtocol/aztec-packages/commit/545b3341f73e5b20c3ac39b75f4783e7bdecac5d))
+* **aztec-nr:** Initial work for aztec public vm macro (https://github.com/AztecProtocol/aztec-packages/pull/4400) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* **bb:** Op counting mode ([#4437](https://github.com/AztecProtocol/aztec-packages/issues/4437)) ([5d00cff](https://github.com/AztecProtocol/aztec-packages/commit/5d00cff86a1f76f5279dad6a0bd4e02c8211b225))
+* Canonical instance deployer contract ([#4436](https://github.com/AztecProtocol/aztec-packages/issues/4436)) ([b4acc8c](https://github.com/AztecProtocol/aztec-packages/commit/b4acc8c6227f1551998aab9a300891b560479b9c))
+* Init storage macro (https://github.com/AztecProtocol/aztec-packages/pull/4200) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Updating global vars with fees ([#4421](https://github.com/AztecProtocol/aztec-packages/issues/4421)) ([34109eb](https://github.com/AztecProtocol/aztec-packages/commit/34109eb9c068df87bbb04164a1531605f3a2c47d)), closes [#3824](https://github.com/AztecProtocol/aztec-packages/issues/3824)
+
+
+### Bug Fixes
+
+* Delay rming bins till right before installing them. ([#4474](https://github.com/AztecProtocol/aztec-packages/issues/4474)) ([fabeac8](https://github.com/AztecProtocol/aztec-packages/commit/fabeac8b3f9971763a9a723ac6983e5ea8330f46))
+* **docs:** Add redirect for top google hit giving 404 ([#4487](https://github.com/AztecProtocol/aztec-packages/issues/4487)) ([e1d3f5a](https://github.com/AztecProtocol/aztec-packages/commit/e1d3f5ad6f45966845983a01eed8167afe7c137f))
+* **docs:** Update mdx files to md ([#4459](https://github.com/AztecProtocol/aztec-packages/issues/4459)) ([e67d94b](https://github.com/AztecProtocol/aztec-packages/commit/e67d94b9c335b94b2ca01ebb71f2da54747b9ee1))
+* **docs:** Update private voting tutorial cli commands ([#4472](https://github.com/AztecProtocol/aztec-packages/issues/4472)) ([0a8905a](https://github.com/AztecProtocol/aztec-packages/commit/0a8905a46fba47d1a773fd9cf562ef6f51197236))
+* Parse instance deployed event ([#4482](https://github.com/AztecProtocol/aztec-packages/issues/4482)) ([62b171a](https://github.com/AztecProtocol/aztec-packages/commit/62b171a1d217324fc61fad049ab32ce97a2fc2fb))
+
+
+### Miscellaneous
+
+* Able to run noir-sync manually ([#4486](https://github.com/AztecProtocol/aztec-packages/issues/4486)) ([2082fed](https://github.com/AztecProtocol/aztec-packages/commit/2082fedfb03d4882a269881f51c5337263bc539b))
+* **acir:** Move `is_recursive` flag to be part of the circuit definition (https://github.com/AztecProtocol/aztec-packages/pull/4221) [skip ci] ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Add bigint solver in ACVM and add a unit test for bigints in Noir (https://github.com/AztecProtocol/aztec-packages/pull/4415) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* **avm:** Add SET serialize comments and simplify signature ([#4476](https://github.com/AztecProtocol/aztec-packages/issues/4476)) ([84dbdd3](https://github.com/AztecProtocol/aztec-packages/commit/84dbdd35684ebc9929097c4ea9cfd59584fb8cbb))
+* Lift rollup address check & deplot kv-store to npm ([#4483](https://github.com/AztecProtocol/aztec-packages/issues/4483)) ([92d0aa4](https://github.com/AztecProtocol/aztec-packages/commit/92d0aa40ef9add4b433feed8862ba4286dc7036c))
+* Nuked `OptionallyRevealedData` ([#4456](https://github.com/AztecProtocol/aztec-packages/issues/4456)) ([83a3136](https://github.com/AztecProtocol/aztec-packages/commit/83a3136ac1553184b42ca7d96609697098eb80f4))
+* Rename bigint_neg into bigint_sub (https://github.com/AztecProtocol/aztec-packages/pull/4420) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Replace relative paths to noir-protocol-circuits ([902bbd4](https://github.com/AztecProtocol/aztec-packages/commit/902bbd4af8c77e209ad1f29e0fe03b55a384b142))
+* Surpress chained macro warning (https://github.com/AztecProtocol/aztec-packages/pull/4396) ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Sync to noir-lang/noir ([4113cfd](https://github.com/AztecProtocol/aztec-packages/commit/4113cfdfd5cf43a4dff98cdc398daf3a0d891dd3))
+* Unhardcode canonical addresses of deployer and registerer contracts ([#4467](https://github.com/AztecProtocol/aztec-packages/issues/4467)) ([2c82b62](https://github.com/AztecProtocol/aztec-packages/commit/2c82b62951ac001c4c1574b539aeff76d4e6d014))
+
 ## [0.22.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.21.0...aztec-packages-v0.22.0) (2024-02-06)
 
 

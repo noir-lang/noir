@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.22.0...barretenberg.js-v0.23.0) (2024-02-07)
+
+
+### Miscellaneous
+
+* **barretenberg.js:** Synchronize aztec-packages versions
+
 ## [0.22.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.21.0...barretenberg.js-v0.22.0) (2024-02-06)
 
 
