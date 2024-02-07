@@ -1,5 +1,9 @@
-use acvm::brillig_vm::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray};
+use acvm::brillig_vm::brillig::{
+    HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray,
+};
 use serde::{Deserialize, Serialize};
+
+use crate::ssa::ir::types::Type;
 
 /// The representation of a noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
@@ -91,5 +95,18 @@ impl BrilligVariable {
                 ValueOrArray::HeapVector(vector.to_heap_vector())
             }
         }
+    }
+}
+
+pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
+    match typ {
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple,
+        Type::Array(elem_type, size) => HeapValueType::Array {
+            value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
+            size: typ.element_size() * size,
+        },
+        Type::Slice(elem_type) => HeapValueType::Vector {
+            value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
+        },
     }
 }

@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use acir::{
     brillig::{ForeignCallParam, ForeignCallResult, Value},
     circuit::{
-        brillig::{Brillig, BrilligInputs, BrilligOutputs}, opcodes::BlockId, OpcodeLocation
+        brillig::{Brillig, BrilligInputs, BrilligOutputs},
+        opcodes::BlockId,
+        OpcodeLocation,
     },
     native_types::WitnessMap,
     FieldElement,
@@ -98,11 +100,16 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
                             }
                         }
                     }
-                },
+                }
                 BrilligInputs::MemoryArray(block_id) => {
-                    let memory_block = memory.get(block_id).ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.0))?;
+                    let memory_block = memory
+                        .get(block_id)
+                        .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.0))?;
                     for memory_index in 0..memory_block.block_len {
-                        let memory_value = memory_block.block_value.get(&memory_index).expect("All memory is initialized on creation"); 
+                        let memory_value = memory_block
+                            .block_value
+                            .get(&memory_index)
+                            .expect("All memory is initialized on creation");
                         calldata.push((*memory_value).into());
                     }
                 }

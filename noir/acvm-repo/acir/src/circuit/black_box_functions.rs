@@ -91,7 +91,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::RecursiveAggregation => "recursive_aggregation",
             BlackBoxFunc::EcdsaSecp256r1 => "ecdsa_secp256r1",
             BlackBoxFunc::BigIntAdd => "bigint_add",
-            BlackBoxFunc::BigIntSub => "bigint_neg",
+            BlackBoxFunc::BigIntSub => "bigint_sub",
             BlackBoxFunc::BigIntMul => "bigint_mul",
             BlackBoxFunc::BigIntDiv => "bigint_div",
             BlackBoxFunc::BigIntFromLeBytes => "bigint_from_le_bytes",

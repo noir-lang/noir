@@ -253,7 +253,7 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     ..Default::default()
                 });
             },
-            BrilligOpcode::ForeignCall { function, destinations, inputs } => {
+            BrilligOpcode::ForeignCall { function, destinations, inputs, destination_value_types:_, input_value_types:_ } => {
                 handle_foreign_call(&mut avm_instrs, function, destinations, inputs);
             },
             _ => panic!(

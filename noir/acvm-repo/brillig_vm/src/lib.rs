@@ -12,8 +12,8 @@
 //! [acvm]: https://crates.io/crates/acvm
 
 use acir::brillig::{
-    BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapArray, HeapVector,
-    MemoryAddress, Opcode, Value, ValueOrArray,
+    BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapArray, HeapValueType,
+    HeapVector, MemoryAddress, Opcode, Value, ValueOrArray,
 };
 use acir::FieldElement;
 // Re-export `brillig`.
@@ -212,7 +212,16 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                     self.fail("return opcode hit, but callstack already empty".to_string())
                 }
             }
-            Opcode::ForeignCall { function, destinations, inputs } => {
+            Opcode::ForeignCall {
+                function,
+                destinations,
+                destination_value_types,
+                inputs,
+                input_value_types,
+            } => {
+                assert!(inputs.len() == input_value_types.len());
+                assert!(destinations.len() == destination_value_types.len());
+
                 if self.foreign_call_counter >= self.foreign_call_results.len() {
                     // When this opcode is called, it is possible that the results of a foreign call are
                     // not yet known (not enough entries in `foreign_call_results`).
@@ -223,7 +232,8 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                     // but has the necessary results to proceed with execution.
                     let resolved_inputs = inputs
                         .iter()
-                        .map(|input| self.get_memory_values(*input))
+                        .zip(input_value_types)
+                        .map(|(input, input_type)| self.get_memory_values(*input, input_type))
                         .collect::<Vec<_>>();
                     return self.wait_for_foreign_call(function.clone(), resolved_inputs);
                 }
@@ -231,47 +241,68 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 let values = &self.foreign_call_results[self.foreign_call_counter].values;
 
                 let mut invalid_foreign_call_result = false;
-                for (destination, output) in destinations.iter().zip(values) {
-                    match destination {
-                        ValueOrArray::MemoryAddress(value_index) => match output {
-                            ForeignCallParam::Single(value) => {
-                                self.memory.write(*value_index, *value);
-                            }
-                            _ => unreachable!(
-                                "Function result size does not match brillig bytecode (expected 1 result)"
-                            ),
-                        },
-                        ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }) => {
+                for ((destination, value_type), output) in
+                    destinations.iter().zip(destination_value_types).zip(values)
+                {
+                    match (destination, value_type) {
+                        (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple) => {
                             match output {
-                                ForeignCallParam::Array(values) => {
-                                    if values.len() != *size {
-                                        invalid_foreign_call_result = true;
-                                        break;
-                                    }
-                                    // Convert the destination pointer to a usize
-                                    let destination = self.memory.read_ref(*pointer_index);
-                                    // Write to our destination memory
-                                    self.memory.write_slice(destination, values);
+                                ForeignCallParam::Single(value) => {
+                                    self.memory.write(*value_index, *value);
                                 }
-                                _ => {
-                                    unreachable!("Function result size does not match brillig bytecode size")
-                                }
+                                _ => unreachable!(
+                                    "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}"
+                                ),
                             }
                         }
-                        ValueOrArray::HeapVector(HeapVector { pointer: pointer_index, size: size_index }) => {
-                            match output {
-                                ForeignCallParam::Array(values) => {
-                                    // Set our size in the size address
-                                    self.memory.write(*size_index, Value::from(values.len()));
-                                    // Convert the destination pointer to a usize
-                                    let destination = self.memory.read_ref(*pointer_index);
-                                    // Write to our destination memory
-                                    self.memory.write_slice(destination, values);
+                        (
+                            ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                            HeapValueType::Array { value_types, size: type_size },
+                        ) if size == type_size => {
+                            if HeapValueType::all_simple(value_types) {
+                                match output {
+                                    ForeignCallParam::Array(values) => {
+                                        if values.len() != *size {
+                                            invalid_foreign_call_result = true;
+                                            break;
+                                        }
+                                        // Convert the destination pointer to a usize
+                                        let destination = self.memory.read_ref(*pointer_index);
+                                        // Write to our destination memory
+                                        self.memory.write_slice(destination, values);
+                                    }
+                                    _ => {
+                                        unreachable!("Function result size does not match brillig bytecode size")
+                                    }
                                 }
-                                _ => {
-                                    unreachable!("Function result size does not match brillig bytecode size")
-                                }
+                            } else {
+                                unimplemented!("deflattening heap arrays from foreign calls");
                             }
+                        }
+                        (
+                            ValueOrArray::HeapVector(HeapVector {pointer: pointer_index, size: size_index }),
+                            HeapValueType::Vector { value_types },
+                        ) => {
+                            if HeapValueType::all_simple(value_types) {
+                                match output {
+                                    ForeignCallParam::Array(values) => {
+                                        // Set our size in the size address
+                                        self.memory.write(*size_index, Value::from(values.len()));
+                                        // Convert the destination pointer to a usize
+                                        let destination = self.memory.read_ref(*pointer_index);
+                                        // Write to our destination memory
+                                        self.memory.write_slice(destination, values);
+                                    }
+                                    _ => {
+                                        unreachable!("Function result size does not match brillig bytecode size")
+                                    }
+                                }
+                            } else {
+                                unimplemented!("deflattening heap vectors from foreign calls");
+                            }
+                        }
+                        _ => {
+                            unreachable!("Unexpected value type {value_type:?} for destination {destination:?}");
                         }
                     }
                 }
@@ -351,18 +382,82 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
         self.status.clone()
     }
 
-    fn get_memory_values(&self, input: ValueOrArray) -> ForeignCallParam {
-        match input {
-            ValueOrArray::MemoryAddress(value_index) => self.memory.read(value_index).into(),
-            ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }) => {
-                let start = self.memory.read_ref(pointer_index);
-                self.memory.read_slice(start, size).to_vec().into()
+    fn get_memory_values(
+        &self,
+        input: ValueOrArray,
+        value_type: &HeapValueType,
+    ) -> ForeignCallParam {
+        match (input, value_type) {
+            (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple) => {
+                self.memory.read(value_index).into()
             }
-            ValueOrArray::HeapVector(HeapVector { pointer: pointer_index, size: size_index }) => {
+            (
+                ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                HeapValueType::Array { value_types, size: type_size },
+            ) if *type_size == size => {
                 let start = self.memory.read_ref(pointer_index);
-                let size = self.memory.read(size_index);
-                self.memory.read_slice(start, size.to_usize()).to_vec().into()
+                self.read_slice_of_values_from_memory(start, size, value_types).into()
             }
+            (
+                ValueOrArray::HeapVector(HeapVector { pointer: pointer_index, size: size_index }),
+                HeapValueType::Vector { value_types },
+            ) => {
+                let start = self.memory.read_ref(pointer_index);
+                let size = self.memory.read(size_index).to_usize();
+                self.read_slice_of_values_from_memory(start, size, value_types).into()
+            }
+            _ => {
+                unreachable!("Unexpected value type {value_type:?} for input {input:?}");
+            }
+        }
+    }
+
+    /// Reads an array/vector from memory but recursively reads pointers to
+    /// nested arrays/vectors according to the sequence of value types.
+    fn read_slice_of_values_from_memory(
+        &self,
+        start: MemoryAddress,
+        size: usize,
+        value_types: &[HeapValueType],
+    ) -> Vec<Value> {
+        if HeapValueType::all_simple(value_types) {
+            self.memory.read_slice(start, size).to_vec()
+        } else {
+            // Check that the sequence of value types fit an integer number of
+            // times inside the given size.
+            assert!(
+                0 == size % value_types.len(),
+                "array/vector does not contain a whole number of elements"
+            );
+            (0..size)
+                .zip(value_types.iter().cycle())
+                .flat_map(|(i, value_type)| {
+                    let value_address: MemoryAddress = (start.to_usize() + i).into();
+                    match value_type {
+                        HeapValueType::Simple => {
+                            let value = self.memory.read(value_address);
+                            vec![value]
+                        }
+                        HeapValueType::Array { value_types, size } => {
+                            let array_address = self.memory.read_ref(value_address);
+                            let array_start = self.memory.read_ref(array_address);
+                            self.read_slice_of_values_from_memory(array_start, *size, value_types)
+                        }
+                        HeapValueType::Vector { value_types } => {
+                            let vector_address = self.memory.read_ref(value_address);
+                            let vector_start = self.memory.read_ref(vector_address);
+                            let size_address: MemoryAddress =
+                                (vector_address.to_usize() + 1).into();
+                            let vector_size = self.memory.read(size_address).to_usize();
+                            self.read_slice_of_values_from_memory(
+                                vector_start,
+                                vector_size,
+                                value_types,
+                            )
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
         }
     }
 
@@ -1021,7 +1116,9 @@ mod tests {
             Opcode::ForeignCall {
                 function: "double".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(r_result)],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![ValueOrArray::MemoryAddress(r_input)],
+                input_value_types: vec![HeapValueType::Simple],
             },
         ];
 
@@ -1085,10 +1182,18 @@ mod tests {
                     pointer: r_output,
                     size: initial_matrix.len(),
                 })],
+                destination_value_types: vec![HeapValueType::Array {
+                    size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![ValueOrArray::HeapArray(HeapArray {
                     pointer: r_input,
                     size: initial_matrix.len(),
                 })],
+                input_value_types: vec![HeapValueType::Array {
+                    value_types: vec![HeapValueType::Simple],
+                    size: initial_matrix.len(),
+                }],
             },
         ];
 
@@ -1172,10 +1277,16 @@ mod tests {
                     pointer: r_output_pointer,
                     size: r_output_size,
                 })],
+                destination_value_types: vec![HeapValueType::Vector {
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![ValueOrArray::HeapVector(HeapVector {
                     pointer: r_input_pointer,
                     size: r_input_size,
                 })],
+                input_value_types: vec![HeapValueType::Vector {
+                    value_types: vec![HeapValueType::Simple],
+                }],
             },
         ];
 
@@ -1242,10 +1353,18 @@ mod tests {
                     pointer: r_output,
                     size: initial_matrix.len(),
                 })],
+                destination_value_types: vec![HeapValueType::Array {
+                    size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![ValueOrArray::HeapArray(HeapArray {
                     pointer: r_input,
                     size: initial_matrix.len(),
                 })],
+                input_value_types: vec![HeapValueType::Array {
+                    size: initial_matrix.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
             },
         ];
 
@@ -1325,9 +1444,23 @@ mod tests {
                     pointer: r_output,
                     size: matrix_a.len(),
                 })],
+                destination_value_types: vec![HeapValueType::Array {
+                    size: matrix_a.len(),
+                    value_types: vec![HeapValueType::Simple],
+                }],
                 inputs: vec![
                     ValueOrArray::HeapArray(HeapArray { pointer: r_input_a, size: matrix_a.len() }),
                     ValueOrArray::HeapArray(HeapArray { pointer: r_input_b, size: matrix_b.len() }),
+                ],
+                input_value_types: vec![
+                    HeapValueType::Array {
+                        size: matrix_a.len(),
+                        value_types: vec![HeapValueType::Simple],
+                    },
+                    HeapValueType::Array {
+                        size: matrix_b.len(),
+                        value_types: vec![HeapValueType::Simple],
+                    },
                 ],
             },
         ];
@@ -1356,6 +1489,123 @@ mod tests {
         // Check result in memory
         let result_values = vm.memory.read_slice(MemoryAddress(0), 4).to_vec();
         assert_eq!(result_values, expected_result);
+
+        // Ensure the foreign call counter has been incremented
+        assert_eq!(vm.foreign_call_counter, 1);
+    }
+
+    #[test]
+    fn foreign_call_opcode_nested_arrays_and_slices_input() {
+        // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]
+
+        let v2 = vec![Value::from(2u128), Value::from(3u128)];
+        let a4 = vec![Value::from(4u128)];
+        let v6 = vec![Value::from(6u128), Value::from(7u128), Value::from(8u128)];
+        let a9 = vec![Value::from(9u128)];
+
+        // construct memory by declaring all inner arrays/vectors first
+        let v2_ptr = 0u128;
+        let mut memory = v2.clone();
+        let v2_start = memory.len();
+        memory.extend(vec![Value::from(v2_ptr), Value::from(v2.len()), Value::from(1u128)]);
+        let a4_ptr = memory.len();
+        memory.extend(a4.clone());
+        let a4_start = memory.len();
+        memory.extend(vec![Value::from(a4_ptr), Value::from(1u128)]);
+        let v6_ptr = memory.len();
+        memory.extend(v6.clone());
+        let v6_start = memory.len();
+        memory.extend(vec![Value::from(v6_ptr), Value::from(v6.len()), Value::from(1u128)]);
+        let a9_ptr = memory.len();
+        memory.extend(a9.clone());
+        let a9_start = memory.len();
+        memory.extend(vec![Value::from(a9_ptr), Value::from(1u128)]);
+        // finally we add the contents of the outer array
+        let outer_ptr = memory.len();
+        let outer_array = vec![
+            Value::from(1u128),
+            Value::from(v2.len()),
+            Value::from(v2_start),
+            Value::from(a4_start),
+            Value::from(5u128),
+            Value::from(v6.len()),
+            Value::from(v6_start),
+            Value::from(a9_start),
+        ];
+        memory.extend(outer_array.clone());
+
+        let input_array_value_types = vec![
+            HeapValueType::Simple,
+            HeapValueType::Simple, // size of following vector
+            HeapValueType::Vector { value_types: vec![HeapValueType::Simple] },
+            HeapValueType::Array { value_types: vec![HeapValueType::Simple], size: 1 },
+        ];
+
+        // memory address of the end of the above data structures
+        let r_ptr = memory.len();
+
+        let r_input = MemoryAddress::from(r_ptr);
+        let r_output = MemoryAddress::from(r_ptr + 1);
+
+        let program = vec![
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress::from(0),
+                size: memory.len(),
+                offset: 0,
+            },
+            // input = 0
+            Opcode::Const { destination: r_input, value: Value::from(outer_ptr), bit_size: 32 },
+            // some_function(input)
+            Opcode::ForeignCall {
+                function: "flat_sum".into(),
+                destinations: vec![ValueOrArray::MemoryAddress(r_output)],
+                destination_value_types: vec![HeapValueType::Simple],
+                inputs: vec![ValueOrArray::HeapArray(HeapArray {
+                    pointer: r_input,
+                    size: outer_array.len(),
+                })],
+                input_value_types: vec![HeapValueType::Array {
+                    value_types: input_array_value_types,
+                    size: outer_array.len(),
+                }],
+            },
+        ];
+
+        let mut vm = brillig_execute_and_get_vm(memory, &program);
+
+        // Check that VM is waiting
+        assert_eq!(
+            vm.status,
+            VMStatus::ForeignCallWait {
+                function: "flat_sum".into(),
+                inputs: vec![ForeignCallParam::Array(vec![
+                    Value::from(1u128),
+                    Value::from(2u128), // size of following vector
+                    Value::from(2u128),
+                    Value::from(3u128),
+                    Value::from(4u128),
+                    Value::from(5u128),
+                    Value::from(3u128), // size of following vector
+                    Value::from(6u128),
+                    Value::from(7u128),
+                    Value::from(8u128),
+                    Value::from(9u128),
+                ])],
+            }
+        );
+
+        // Push result we're waiting for
+        vm.resolve_foreign_call(Value::from(45u128).into());
+
+        // Resume VM
+        brillig_execute(&mut vm);
+
+        // Check that VM finished once resumed
+        assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+
+        // Check result
+        let result_value = vm.memory.read(r_output);
+        assert_eq!(result_value, Value::from(45u128));
 
         // Ensure the foreign call counter has been incremented
         assert_eq!(vm.foreign_call_counter, 1);

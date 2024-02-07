@@ -338,7 +338,13 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
         // there will be a cached `BrilligSolver` to avoid recomputation.
         let mut solver: BrilligSolver<'_, B> = match self.brillig_solver.take() {
             Some(solver) => solver,
-            None => BrilligSolver::new(witness, &self.block_solvers, brillig, self.backend, self.instruction_pointer)?,
+            None => BrilligSolver::new(
+                witness,
+                &self.block_solvers,
+                brillig,
+                self.backend,
+                self.instruction_pointer,
+            )?,
         };
         match solver.solve()? {
             BrilligSolverStatus::ForeignCallWait(foreign_call) => {
@@ -373,7 +379,13 @@ impl<'a, B: BlackBoxFunctionSolver> ACVM<'a, B> {
             return StepResult::Status(self.handle_opcode_resolution(resolution));
         }
 
-        let solver = BrilligSolver::new(witness, &self.block_solvers, brillig, self.backend, self.instruction_pointer);
+        let solver = BrilligSolver::new(
+            witness,
+            &self.block_solvers,
+            brillig,
+            self.backend,
+            self.instruction_pointer,
+        );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),
             Err(..) => StepResult::Status(self.handle_opcode_resolution(solver.map(|_| ()))),

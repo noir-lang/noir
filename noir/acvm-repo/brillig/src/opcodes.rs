@@ -19,6 +19,27 @@ impl From<usize> for MemoryAddress {
     }
 }
 
+/// Describes the memory layout for an array/vector element
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub enum HeapValueType {
+    // A single field element is enough to represent the value
+    Simple,
+    // The value read should be interpreted as a pointer to a heap array, which
+    // consists of a pointer to a slice of memory of size elements, and a
+    // reference count
+    Array { value_types: Vec<HeapValueType>, size: usize },
+    // The value read should be interpreted as a pointer to a heap vector, which
+    // consists of a pointer to a slice of memory, a number of elements in that
+    // slice, and a reference count
+    Vector { value_types: Vec<HeapValueType> },
+}
+
+impl HeapValueType {
+    pub fn all_simple(types: &[HeapValueType]) -> bool {
+        types.iter().all(|typ| matches!(typ, HeapValueType::Simple))
+    }
+}
+
 /// A fixed-sized array starting from a Brillig memory location.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct HeapArray {
@@ -118,8 +139,13 @@ pub enum BrilligOpcode {
         function: String,
         /// Destination addresses (may be single values or memory pointers).
         destinations: Vec<ValueOrArray>,
+        /// Destination value types
+        destination_value_types: Vec<HeapValueType>,
         /// Input addresses (may be single values or memory pointers).
         inputs: Vec<ValueOrArray>,
+        /// Input value types (for heap allocated structures indicates how to
+        /// retrieve the elements)
+        input_value_types: Vec<HeapValueType>,
     },
     Mov {
         destination: MemoryAddress,

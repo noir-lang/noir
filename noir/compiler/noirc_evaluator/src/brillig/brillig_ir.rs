@@ -23,6 +23,7 @@ use acvm::{
         BinaryFieldOp, BinaryIntOp, BlackBoxOp, MemoryAddress, Opcode as BrilligOpcode, Value,
         ValueOrArray,
     },
+    brillig_vm::brillig::HeapValueType,
     FieldElement,
 };
 use debug_show::DebugShow;
@@ -577,13 +578,19 @@ impl BrilligContext {
         &mut self,
         func_name: String,
         inputs: &[ValueOrArray],
+        input_value_types: &[HeapValueType],
         outputs: &[ValueOrArray],
+        output_value_types: &[HeapValueType],
     ) {
+        assert!(inputs.len() == input_value_types.len());
+        assert!(outputs.len() == output_value_types.len());
         self.debug_show.foreign_call_instruction(func_name.clone(), inputs, outputs);
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
             destinations: outputs.to_vec(),
+            destination_value_types: output_value_types.to_vec(),
             inputs: inputs.to_vec(),
+            input_value_types: input_value_types.to_vec(),
         };
         self.push_opcode(opcode);
     }
@@ -948,7 +955,7 @@ impl BrilligContext {
 
     /// Issues a blackbox operation.
     pub(crate) fn black_box_op_instruction(&mut self, op: BlackBoxOp) {
-        self.debug_show.black_box_op_instruction(op);
+        self.debug_show.black_box_op_instruction(&op);
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
 
@@ -1063,6 +1070,7 @@ pub(crate) mod tests {
         BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapVector, MemoryAddress, Value,
         ValueOrArray,
     };
+    use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
@@ -1175,7 +1183,9 @@ pub(crate) mod tests {
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[ValueOrArray::MemoryAddress(r_input_size)],
+            &[HeapValueType::Simple],
             &[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
+            &[HeapValueType::Vector { value_types: vec![HeapValueType::Simple] }],
         );
         // push stack frame by r_returned_size
         context.memory_op(r_stack, r_output_size, r_stack, BinaryIntOp::Add);

@@ -1453,7 +1453,7 @@ impl AcirContext {
                     }
                     Ok(BrilligInputs::Array(var_expressions))
                 }
-                AcirValue::DynamicArray(AcirDynamicArray { block_id,.. }) => {
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
                     Ok(BrilligInputs::MemoryArray(block_id))
                 }
             }

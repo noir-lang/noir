@@ -1,7 +1,7 @@
+use super::opcodes::BlockId;
 use crate::native_types::{Expression, Witness};
 use brillig::Opcode as BrilligOpcode;
 use serde::{Deserialize, Serialize};
-use super::opcodes::BlockId;
 
 /// Inputs for the Brillig VM. These are the initial inputs
 /// that the Brillig VM will use to start.
@@ -9,7 +9,7 @@ use super::opcodes::BlockId;
 pub enum BrilligInputs {
     Single(Expression),
     Array(Vec<Expression>),
-    MemoryArray(BlockId)
+    MemoryArray(BlockId),
 }
 
 /// Outputs for the Brillig VM. Once the VM has completed
