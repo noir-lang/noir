@@ -994,12 +994,14 @@ impl<'a> FunctionContext<'a> {
         index: ValueId,
         location: Location,
     ) -> ValueId {
-        let element_size = self.builder.field_constant(self.element_size(array));
+        let index = self.make_array_index(index);
+        let element_size =
+            self.builder.numeric_constant(self.element_size(array), Type::unsigned(64));
 
         // The actual base index is the user's index * the array element type's size
         let mut index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        let one = self.builder.field_constant(FieldElement::one());
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::unsigned(64));
 
         new_value.for_each(|value| {
             let value = value.eval(self);
