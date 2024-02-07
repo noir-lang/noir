@@ -43,6 +43,7 @@ export class Set extends Instruction {
     super();
   }
 
+  /** We need to use a custom serialize function because of the variable length of the value. */
   public serialize(): Buffer {
     const format: OperandType[] = [
       ...Set.wireFormatBeforeConst,
@@ -52,10 +53,8 @@ export class Set extends Instruction {
     return serialize(format, this);
   }
 
-  public static deserialize<T extends { new (...args: any[]): InstanceType<T> }>(
-    this: T,
-    buf: BufferCursor | Buffer,
-  ): InstanceType<T> {
+  /** We need to use a custom deserialize function because of the variable length of the value. */
+  public static deserialize(this: typeof Set, buf: BufferCursor | Buffer): Set {
     if (buf instanceof Buffer) {
       buf = new BufferCursor(buf);
     }

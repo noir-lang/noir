@@ -1,4 +1,4 @@
-import { assert } from 'console';
+import { strict as assert } from 'assert';
 
 import type { AvmContext } from '../avm_context.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';
@@ -39,7 +39,7 @@ export abstract class Instruction {
    * @returns The serialized instruction.
    */
   public serialize(this: any): Buffer {
-    assert(this instanceof Instruction);
+    assert(!!this.constructor.wireFormat, 'wireFormat must be defined on the class');
     return serialize(this.constructor.wireFormat, this);
   }
 
@@ -50,12 +50,15 @@ export abstract class Instruction {
    * @param buf Buffer to read from.
    * @returns Constructed instance of Class.
    */
-  public static deserialize<T extends { new (...args: any[]): InstanceType<T>; wireFormat: OperandType[] }>(
-    this: T,
-    buf: BufferCursor | Buffer,
-  ): InstanceType<T> {
+  public static deserialize(this: InstructionConstructor, buf: BufferCursor | Buffer): Instruction {
+    assert(!!this.wireFormat, 'wireFormat must be defined on the instruction class');
     const res = deserialize(buf, this.wireFormat);
-    const args = res.slice(1) as ConstructorParameters<T>; // Remove opcode.
+    const args = res.slice(1); // Remove opcode.
     return new this(...args);
   }
 }
+
+type InstructionConstructor = {
+  new (...args: any[]): Instruction;
+  wireFormat?: OperandType[];
+};
