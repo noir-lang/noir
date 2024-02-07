@@ -248,6 +248,18 @@ impl ToField for PublicKeysHash {
     }
 }
 
+impl Serialize<1> for PublicKeysHash {
+    fn serialize(self: Self) -> [Field; 1] {
+        [self.to_field()]
+    }
+}
+
+impl Deserialize<1> for PublicKeysHash {
+    fn deserialize(fields: [Field; 1]) -> Self {
+        PublicKeysHash::from_field(fields[0])
+    }
+}
+
 impl PublicKeysHash {
     pub fn from_field(field : Field) -> Self {
         Self {

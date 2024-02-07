@@ -95,6 +95,10 @@ abstract class BaseField {
     return this.asBigInt;
   }
 
+  toBool(): boolean {
+    return Boolean(this.toBigInt());
+  }
+
   toNumber(): number {
     const value = this.toBigInt();
     if (value > Number.MAX_SAFE_INTEGER) {

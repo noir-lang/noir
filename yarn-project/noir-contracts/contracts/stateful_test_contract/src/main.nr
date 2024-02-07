@@ -49,11 +49,21 @@ contract StatefulTest {
         increment(recipient_notes, amount, recipient);
     }
 
+    #[aztec(public)]
+    fn increment_public_value(owner: AztecAddress, value: Field) {
+        let loc = storage.public_values.at(owner);
+        loc.write(loc.read() + value);
+    }
+
     unconstrained fn summed_values(owner: AztecAddress) -> pub Field {
         let owner_balance = storage.notes.at(owner);
 
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance)
+    }
+
+    unconstrained fn get_public_value(owner: AztecAddress) -> pub Field {
+        storage.public_values.at(owner).read()
     }
 
     unconstrained fn compute_note_hash_and_nullifier(

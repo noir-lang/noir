@@ -13,7 +13,7 @@ export function bufferAsFields(input: Buffer, targetLength: number): Fr[] {
   const encoded = [
     new Fr(input.length),
     ...chunk(input, Fr.SIZE_IN_BYTES - 1).map(c => {
-      const fieldBytes = Buffer.alloc(32);
+      const fieldBytes = Buffer.alloc(Fr.SIZE_IN_BYTES);
       Buffer.from(c).copy(fieldBytes, 1);
       return Fr.fromBuffer(fieldBytes);
     }),

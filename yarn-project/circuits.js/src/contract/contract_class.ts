@@ -13,7 +13,7 @@ type ContractArtifactWithHash = ContractArtifact & { artifactHash: Fr };
 export function getContractClassFromArtifact(
   artifact: ContractArtifact | ContractArtifactWithHash,
 ): ContractClassWithId {
-  const artifactHash = (artifact as ContractArtifactWithHash).artifactHash ?? computeArtifactHash(artifact);
+  const artifactHash = 'artifactHash' in artifact ? artifact.artifactHash : computeArtifactHash(artifact);
   const publicFunctions: ContractClass['publicFunctions'] = artifact.functions
     .filter(f => f.functionType === FunctionType.OPEN)
     .map(f => ({
