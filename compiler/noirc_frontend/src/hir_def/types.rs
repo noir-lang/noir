@@ -751,7 +751,7 @@ impl std::fmt::Display for Type {
             },
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.0.borrow()),
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
-                if let TypeBinding::Unbound(_) = &*binding.0.borrow() {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
                     // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
                     // what they bind to by default anyway. It is less confusing than displaying it
                     // as a generic.
@@ -964,7 +964,7 @@ impl Type {
                 }
             }
             Type::TypeVariable(self_var, TypeVariableKind::Integer) => {
-                let borrow = self_var.0.borrow();
+                let borrow = self_var.borrow();
                 match &*borrow {
                     TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var, bindings),
                     // Avoid infinitely recursive bindings
@@ -1084,13 +1084,10 @@ impl Type {
 
             (TypeVariable(var, Kind::Integer), other)
             | (other, TypeVariable(var, Kind::Integer)) => {
-                ()
+                other.try_unify_to_type_variable(var, bindings, |bindings| {
+                    other.try_bind_to_polymorphic_int(var, bindings)
+                })
             }
-            // {
-            //     other.try_unify_to_type_variable(var, bindings, |bindings| {
-            //         other.try_bind_to_polymorphic_int(var, bindings)
-            //     })
-            // }
 
             (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
@@ -1665,7 +1662,7 @@ impl From<&Type> for PrintableType {
                 Signedness::Signed => PrintableType::SignedInteger { width: *bit_width },
             },
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
-                match &*binding.0.borrow() {
+                match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.into(),
                     TypeBinding::Unbound(_) => Type::default_range_loop_type().into(),
                 }
