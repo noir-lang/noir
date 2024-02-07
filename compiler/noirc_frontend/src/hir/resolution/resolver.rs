@@ -1211,9 +1211,7 @@ impl<'a> Resolver<'a> {
         span: Span,
         condition: Expression,
     ) -> Option<ExprId> {
-        let Some(assert_message_expr) = assert_message_expr else {
-            return None;
-        };
+        let assert_message_expr = assert_message_expr?;
 
         if matches!(assert_message_expr,  Expression {kind: ExpressionKind::Literal(Literal::Str(..)), ..}){
             return Some(self.resolve_expression(assert_message_expr));
