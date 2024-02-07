@@ -190,7 +190,7 @@ aztec-cli codegen target -o src/artifacts --ts
 Once it is compiled you can [deploy](../contracts/deploying.md) it to the sandbox. Ensure your [sandbox is running](../cli/sandbox-reference.md) and run this in the same dir as before:
 
 ```bash
-aztec-cli deploy ./target/Voting.json --args $ADMIN_ADDRESS
+aztec-cli deploy ./target/private_voting-Voting.json --args $ADMIN_ADDRESS
 ```
 
 The constructor takes an address as an argument to set the admin, so you can use an address that is deployed with the sandbox - check the sandbox terminal or run `aztec-cli get-accounts`.
@@ -200,7 +200,7 @@ You should see a success message with the contract address. Now we can start cal
 Cast a vote like this:
 
 ```bash
-aztec-cli send cast_vote --contract-artifact ./target/Voting.json --contract-address $CONTRACT_ADDRESS --args 1 --private-key $PRIVATE_KEY
+aztec-cli send cast_vote --contract-artifact ./target/private_voting-Voting.json --contract-address $CONTRACT_ADDRESS --args 1 --private-key $PRIVATE_KEY
 ```
 
 You can get the contract address from the sandbox terminal or the message printed when you deployed the contract. You can also get a private key from the sandbox terminal, or generate one with `aztec-cli generate-private-key`.
@@ -212,7 +212,7 @@ You can now try running this command again to ensure our nullifier works.
 Get the number of votes like this:
 
 ```bash
-aztec-cli call get_vote --contract-artifact ./target/Voting.json --contract-address $CONTRACT_ADDRESS --args 1
+aztec-cli call get_vote --contract-artifact ./target/private_voting-Voting.json --contract-address $CONTRACT_ADDRESS --args 1
 ```
 
 This should return `1n`.
