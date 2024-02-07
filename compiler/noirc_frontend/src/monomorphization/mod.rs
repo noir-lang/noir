@@ -727,7 +727,12 @@ impl<'interner> Monomorphizer<'interner> {
                     ident_expression
                 }
             }
-            DefinitionKind::Global(expr_id) => self.expr(*expr_id),
+            DefinitionKind::Global(global_id) => {
+                let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
+                    unreachable!("Globals should have a corresponding let statement by monomorphization")
+                };
+                self.expr(let_.expression)
+            }
             DefinitionKind::Local(_) => self.lookup_captured_expr(ident.id).unwrap_or_else(|| {
                 let ident = self.local_ident(&ident).unwrap();
                 ast::Expression::Ident(ident)

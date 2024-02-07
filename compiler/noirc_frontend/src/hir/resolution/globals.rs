@@ -6,7 +6,7 @@ use crate::{
         def_map::ModuleId,
         Context,
     },
-    node_interner::{StmtId, GlobalId},
+    node_interner::GlobalId,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -40,16 +40,13 @@ pub(crate) fn resolve_globals(
             global.file_id,
         );
 
-        let name = global.stmt_def.pattern.name_ident().clone();
-
         let hir_stmt = resolver.resolve_global_let(global.stmt_def);
         errors.extend(take_errors(global.file_id, resolver));
 
-        context.def_interner.update_global(global.stmt_id, hir_stmt);
+        let statement_id = context.def_interner.get_global(global.global_id).let_statement;
+        context.def_interner.replace_statement(statement_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name, global.module_id);
-
-        (global.file_id, global.stmt_id)
+        (global.file_id, global.global_id)
     });
     ResolvedGlobals { globals, errors }
 }
