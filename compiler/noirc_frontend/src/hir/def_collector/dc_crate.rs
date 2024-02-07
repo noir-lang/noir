@@ -317,7 +317,7 @@ impl DefCollector {
         // Must resolve structs before we resolve globals.
         errors.extend(resolve_structs(context, def_collector.collected_types, crate_id));
 
-        // We must wait to resolve non-integer globals until after we resolve structs since structs
+        // We must wait to resolve non-integer globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
         resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
         errors.extend(resolved_globals.errors);

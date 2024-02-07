@@ -140,7 +140,9 @@ pub struct NodeInterner {
     /// checking.
     field_indices: HashMap<ExprId, usize>,
 
-    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    // Maps GlobalId -> GlobalInfo
+    // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    globals: Vec<GlobalInfo>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -278,6 +280,10 @@ impl From<DefinitionId> for Index {
         Index::from_raw_parts(id.0, u64::MAX)
     }
 }
+
+/// An ID for a global value
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+pub struct GlobalId(usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct StmtId(Index);
@@ -429,7 +435,7 @@ impl DefinitionInfo {
 pub enum DefinitionKind {
     Function(FuncId),
 
-    Global(ExprId),
+    Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
@@ -450,7 +456,7 @@ impl DefinitionKind {
     pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
@@ -459,8 +465,11 @@ impl DefinitionKind {
 
 #[derive(Debug, Clone)]
 pub struct GlobalInfo {
+    pub id: GlobalId,
     pub ident: Ident,
     pub local_id: LocalModuleId,
+    pub location: Location,
+    pub let_statement: StmtId,
 }
 
 impl Default for NodeInterner {
@@ -489,7 +498,7 @@ impl Default for NodeInterner {
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
-            globals: HashMap::new(),
+            globals: Vec::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -651,8 +660,10 @@ impl NodeInterner {
         self.type_ref_locations.push((typ, location));
     }
 
-    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
+    pub fn push_global(&mut self, ident: Ident, local_id: LocalModuleId, let_statement: StmtId, location: Location) -> GlobalId {
+        let id = GlobalId(self.globals.len());
+        self.globals.push(GlobalInfo { id, ident, local_id, let_statement, location });
+        id
     }
 
     /// Intern an empty global stmt. Used for collecting globals
@@ -850,19 +861,19 @@ impl NodeInterner {
         }
     }
 
-    /// Returns the interned let statement corresponding to `stmt_id`
-    pub fn let_statement(&self, stmt_id: &StmtId) -> HirLetStatement {
-        let def =
-            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
+    /// Try to get the `HirLetStatement` which defines a given global value
+    pub fn get_global_let_statement(&self, global: GlobalId) -> Option<HirLetStatement> {
+        let global = self.get_global(global);
+        let def = self.nodes.get(global.let_statement.0)?;
 
         match def {
             Node::Statement(hir_stmt) => {
                 match hir_stmt {
-                    HirStatement::Let(let_stmt) => let_stmt.clone(),
-                    _ => panic!("ice: all let statement ids should correspond to a let statement in the interner"),
+                    HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
+                    _ => panic!("ice: all globals should correspond to a let statement in the interner"),
                 }
             },
-            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+            _ => panic!("ice: all globals should correspond to a statement in the interner"),
         }
     }
 
@@ -928,12 +939,12 @@ impl NodeInterner {
         &self.type_aliases[id.0]
     }
 
-    pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
-        self.globals.get(stmt_id).cloned()
+    pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
+        &self.globals[global_id.0]
     }
 
-    pub fn get_all_globals(&self) -> HashMap<StmtId, GlobalInfo> {
-        self.globals.clone()
+    pub fn get_all_globals(&self) -> &[GlobalInfo] {
+        &self.globals
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.

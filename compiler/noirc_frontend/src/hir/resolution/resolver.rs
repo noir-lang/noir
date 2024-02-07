@@ -342,18 +342,18 @@ impl<'a> Resolver<'a> {
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global. The check below prevents this error.
-        let mut stmt_id = None;
+        let mut global_id = None;
         let global = self.interner.get_all_globals();
-        for (global_stmt_id, global_info) in global {
+        for global_info in global {
             if global_info.ident == name
                 && global_info.local_id == self.path_resolver.local_module_id()
             {
-                stmt_id = Some(global_stmt_id);
+                global_id = Some(global_info.id);
             }
         }
 
-        let (ident, resolver_meta) = if let Some(id) = stmt_id {
-            let hir_let_stmt = self.interner.let_statement(&id);
+        let (ident, resolver_meta) = if let Some(id) = global_id {
+            let hir_let_stmt = self.interner.get_global_let_statement(id).expect("All globals should have an associated let statement");
             let ident = hir_let_stmt.ident();
             let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
             (hir_let_stmt.ident(), resolver_meta)
@@ -856,10 +856,9 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_local_globals(&mut self) {
-        for (stmt_id, global_info) in self.interner.get_all_globals() {
+        for global_info in self.interner.get_all_globals() {
             if global_info.local_id == self.path_resolver.local_module_id() {
-                let global_stmt = self.interner.let_statement(&stmt_id);
-                let definition = DefinitionKind::Global(global_stmt.expression);
+                let definition = DefinitionKind::Global(global_info.id);
                 self.add_global_variable_decl(global_info.ident, definition);
             }
         }

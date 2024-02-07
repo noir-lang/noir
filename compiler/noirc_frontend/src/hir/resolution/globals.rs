@@ -6,13 +6,13 @@ use crate::{
         def_map::ModuleId,
         Context,
     },
-    node_interner::StmtId,
+    node_interner::{StmtId, GlobalId},
 };
 use fm::FileId;
 use iter_extended::vecmap;
 
 pub(crate) struct ResolvedGlobals {
-    pub(crate) globals: Vec<(FileId, StmtId)>,
+    pub(crate) globals: Vec<(FileId, GlobalId)>,
     pub(crate) errors: Vec<(CompilationError, FileId)>,
 }
 
