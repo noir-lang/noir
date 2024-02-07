@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.tag || env.GITHUB_REF }}
 
       - name: Install bleeding edge cmake
         run: |

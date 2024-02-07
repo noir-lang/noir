@@ -1,16 +1,15 @@
 include(GoogleTest)
 include(FetchContent)
 
+set(BUILD_GMOCK ON CACHE INTERNAL BOOL "Build with gMock enabled")
+set(INSTALL_GTEST OFF CACHE BOOL "gTest installation disabled")
+
 FetchContent_Declare(
     GTest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    # Version 1.12.1 is not compatible with WASI-SDK 12
-    GIT_TAG release-1.10.0
+    GIT_TAG v1.13.0 #v1.14.0 does not compile with gcc (compiler bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105329)
     FIND_PACKAGE_ARGS
 )
-
-set(BUILD_GMOCK OFF CACHE BOOL "Build with gMock disabled")
-set(INSTALL_GTEST OFF CACHE BOOL "gTest installation disabled")
 
 FetchContent_MakeAvailable(GTest)
 
@@ -42,8 +41,6 @@ if (NOT GTest_FOUND)
         gtest_disable_pthreads gtest_force_shared_crt gtest_hide_internal_symbols
     )
 
-    add_library(GTest::gtest ALIAS gtest)
-    add_library(GTest::gtest_main ALIAS gtest_main)
 endif()
 
 enable_testing()

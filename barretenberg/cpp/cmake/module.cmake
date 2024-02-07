@@ -77,6 +77,8 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_NAME}_test_objects
             PRIVATE
             GTest::gtest
+            GTest::gtest_main
+            GTest::gmock_main
             ${TBB_IMPORTED_TARGETS}
         )
 
@@ -118,6 +120,7 @@ function(barretenberg_module MODULE_NAME)
             ${ARGN}
             GTest::gtest
             GTest::gtest_main
+            GTest::gmock_main
             ${TBB_IMPORTED_TARGETS}
         )
 

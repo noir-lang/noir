@@ -7,6 +7,7 @@
 #include "barretenberg/vm/avm_trace/AvmMini_opcode.hpp"
 #include "barretenberg/vm/tests/helpers.test.hpp"
 #include <cstdint>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <string>
 #include <utility>
@@ -64,7 +65,7 @@ TEST_F(AvmMiniExecutionTests, basicAddReturn)
     auto instructions = Deserialization::parse(bytecode);
 
     // 2 instructions
-    EXPECT_EQ(instructions.size(), 2);
+    EXPECT_THAT(instructions, testing::SizeIs(2));
 
     // ADD
     EXPECT_EQ(instructions.at(0).op_code, OpCode::ADD);
