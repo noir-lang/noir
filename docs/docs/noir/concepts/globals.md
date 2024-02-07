@@ -48,7 +48,7 @@ mod my_submodule {
 }
 ```
 
-When a global is used, Noir replaces the name with its definition on each occurance.
+When a global is used, Noir replaces the name with its definition on each occurrence.
 This means globals defined using function calls will repeat the call each time they're used:
 
 ```rust
