@@ -34,6 +34,9 @@
       "path": "../noir-protocol-circuits"
     },
     {
+      "path": "../protocol-contracts"
+    },
+    {
       "path": "../types"
     },
     {

@@ -40,7 +40,8 @@ export function computeArtifactHash(artifact: ContractArtifact): Fr {
 }
 
 export function computeArtifactMetadataHash(artifact: ContractArtifact) {
-  const metadata = { name: artifact.name, events: artifact.events }; // TODO(@spalladino): Should we use the sorted event selectors instead? They'd need to be unique for that.
+  // TODO(@spalladino): Should we use the sorted event selectors instead? They'd need to be unique for that.
+  const metadata = { name: artifact.name, events: artifact.events };
   return sha256(Buffer.from(JSON.stringify(metadata), 'utf-8'));
 }
 

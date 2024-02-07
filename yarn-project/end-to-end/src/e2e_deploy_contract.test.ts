@@ -22,28 +22,14 @@ import {
   isContractDeployed,
 } from '@aztec/aztec.js';
 import {
-  ARTIFACT_FUNCTION_TREE_MAX_HEIGHT,
-  MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS,
-  MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS,
-  Point,
-  PublicKey,
-  computeArtifactFunctionTree,
-  computeArtifactFunctionTreeRoot,
-  computeArtifactMetadataHash,
-  computeFunctionArtifactHash,
-  computePrivateFunctionsRoot,
-  computePrivateFunctionsTree,
-  computePublicBytecodeCommitment,
-  computePublicKeysHash,
-} from '@aztec/circuits.js';
+  broadcastPrivateFunction,
+  broadcastUnconstrainedFunction,
+  registerContractClass,
+} from '@aztec/aztec.js/deployment';
+import { ContractClassIdPreimage, Point, PublicKey, computePublicKeysHash } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
-import { FunctionSelector, FunctionType, bufferAsFields } from '@aztec/foundation/abi';
-import { padArrayEnd } from '@aztec/foundation/collection';
-import {
-  ContractClassRegistererContract,
-  ContractInstanceDeployerContract,
-  StatefulTestContract,
-} from '@aztec/noir-contracts';
+import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { ContractInstanceDeployerContract, StatefulTestContract } from '@aztec/noir-contracts';
 import { TestContract, TestContractArtifact } from '@aztec/noir-contracts/Test';
 import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
 import { SequencerClient } from '@aztec/sequencer-client';
@@ -273,121 +259,38 @@ describe('e2e_deploy_contract', () => {
   // These tests look scary, but don't fret: all this hodgepodge of calls will be hidden
   // behind a much nicer API in the near future as part of #4080.
   describe('registering a contract class', () => {
-    let registerer: ContractClassRegistererContract;
     let artifact: ContractArtifact;
-    let contractClass: ContractClassWithId;
-    let registerTxHash: TxHash;
-    let privateFunctionsRoot: Fr;
-    let publicBytecodeCommitment: Fr;
+    let contractClass: ContractClassWithId & ContractClassIdPreimage;
 
     beforeAll(async () => {
       artifact = StatefulTestContract.artifact;
+      await registerContractClass(wallet, artifact).send().wait();
       contractClass = getContractClassFromArtifact(artifact);
-      privateFunctionsRoot = computePrivateFunctionsRoot(contractClass.privateFunctions);
-      publicBytecodeCommitment = computePublicBytecodeCommitment(contractClass.packedBytecode);
-      registerer = await registerContract(wallet, ContractClassRegistererContract, [], { salt: new Fr(1) });
-
-      logger(`contractClass.id: ${contractClass.id}`);
-      logger(`contractClass.artifactHash: ${contractClass.artifactHash}`);
-      logger(`contractClass.privateFunctionsRoot: ${privateFunctionsRoot}`);
-      logger(`contractClass.publicBytecodeCommitment: ${publicBytecodeCommitment}`);
-      logger(`contractClass.packedBytecode.length: ${contractClass.packedBytecode.length}`);
-
-      // Broadcast the class public bytecode via the registerer contract
-      const tx = await registerer.methods
-        .register(
-          contractClass.artifactHash,
-          privateFunctionsRoot,
-          publicBytecodeCommitment,
-          bufferAsFields(contractClass.packedBytecode, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS),
-        )
-        .send()
-        .wait();
-      registerTxHash = tx.txHash;
-    });
-
-    it('emits registered logs', async () => {
-      const logs = await pxe.getUnencryptedLogs({ txHash: registerTxHash });
-      const registeredLog = logs.logs[0].log; // We need a nicer API!
-      expect(registeredLog.contractAddress).toEqual(registerer.address);
-    });
+    }, 60_000);
 
     it('registers the contract class on the node', async () => {
       const registeredClass = await aztecNode.getContractClass(contractClass.id);
       expect(registeredClass).toBeDefined();
       expect(registeredClass!.artifactHash.toString()).toEqual(contractClass.artifactHash.toString());
-      expect(registeredClass!.privateFunctionsRoot.toString()).toEqual(privateFunctionsRoot.toString());
+      expect(registeredClass!.privateFunctionsRoot.toString()).toEqual(contractClass.privateFunctionsRoot.toString());
       expect(registeredClass!.packedBytecode.toString('hex')).toEqual(contractClass.packedBytecode.toString('hex'));
       expect(registeredClass!.publicFunctions).toEqual(contractClass.publicFunctions);
       expect(registeredClass!.privateFunctions).toEqual([]);
     });
 
-    it('broadcasts a private function and registers it on the node', async () => {
-      const privateFunction = contractClass.privateFunctions[0];
-      const privateFunctionArtifact = artifact.functions.find(fn =>
-        FunctionSelector.fromNameAndParameters(fn).equals(privateFunction.selector),
-      )!;
-
-      // TODO(@spalladino): The following is computing the unconstrained root hash twice.
-      // Feels like we need a nicer API for returning a hash along with all its preimages,
-      // since it's common to provide all hash preimages to a function that verifies them.
-      const artifactMetadataHash = computeArtifactMetadataHash(artifact);
-      const unconstrainedArtifactFunctionTreeRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.OPEN);
-
-      // We need two sibling paths because private function information is split across two trees:
-      // The "private function tree" captures the selectors and verification keys, and is used in the kernel circuit for verifying the proof generated by the app circuit.
-      // The "artifact tree" captures function bytecode and metadata, and is used by the pxe to check that its executing the code it's supposed to be executing, but it never goes into circuits.
-      const privateFunctionTreePath = computePrivateFunctionsTree(contractClass.privateFunctions).getSiblingPath(0);
-      const artifactFunctionTreePath = computeArtifactFunctionTree(artifact, FunctionType.SECRET)!.getSiblingPath(0);
-
-      const selector = privateFunction.selector;
-      const metadataHash = computeFunctionArtifactHash(privateFunctionArtifact);
-      const bytecode = bufferAsFields(
-        Buffer.from(privateFunctionArtifact.bytecode, 'hex'),
-        MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS,
-      );
-      const vkHash = privateFunction.vkHash;
-
-      await registerer.methods
-        .broadcast_private_function(
-          contractClass.id,
-          Fr.fromBufferReduce(artifactMetadataHash),
-          Fr.fromBufferReduce(unconstrainedArtifactFunctionTreeRoot),
-          privateFunctionTreePath.map(Fr.fromBufferReduce),
-          padArrayEnd(artifactFunctionTreePath.map(Fr.fromBufferReduce), Fr.ZERO, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT),
-          // eslint-disable-next-line camelcase
-          { selector, metadata_hash: Fr.fromBufferReduce(metadataHash), bytecode, vk_hash: vkHash },
-        )
-        .send()
-        .wait();
+    it('broadcasts a private function', async () => {
+      const selector = contractClass.privateFunctions[0].selector;
+      await broadcastPrivateFunction(wallet, artifact, selector).send().wait();
+      // TODO(#4428): Test that these functions are captured by the node and made available when
+      // requesting the corresponding contract class.
     }, 60_000);
 
     it('broadcasts an unconstrained function', async () => {
       const functionArtifact = artifact.functions.find(fn => fn.functionType === FunctionType.UNCONSTRAINED)!;
-
-      // TODO(@spalladino): Same comment as above on computing duplicated hashes.
-      const artifactMetadataHash = computeArtifactMetadataHash(artifact);
-      const privateArtifactFunctionTreeRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.SECRET);
-      const functionTreePath = computeArtifactFunctionTree(artifact, FunctionType.UNCONSTRAINED)!.getSiblingPath(0);
-
       const selector = FunctionSelector.fromNameAndParameters(functionArtifact);
-      const metadataHash = computeFunctionArtifactHash(functionArtifact);
-      const bytecode = bufferAsFields(
-        Buffer.from(functionArtifact.bytecode, 'hex'),
-        MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS,
-      );
-
-      await registerer.methods
-        .broadcast_unconstrained_function(
-          contractClass.id,
-          Fr.fromBufferReduce(artifactMetadataHash),
-          Fr.fromBufferReduce(privateArtifactFunctionTreeRoot),
-          padArrayEnd(functionTreePath.map(Fr.fromBufferReduce), Fr.ZERO, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT),
-          // eslint-disable-next-line camelcase
-          { selector, metadata_hash: Fr.fromBufferReduce(metadataHash), bytecode },
-        )
-        .send()
-        .wait();
+      await broadcastUnconstrainedFunction(wallet, artifact, selector).send().wait();
+      // TODO(#4428): Test that these functions are captured by the node and made available when
+      // requesting the corresponding contract class.
     }, 60_000);
 
     describe('deploying a contract instance', () => {

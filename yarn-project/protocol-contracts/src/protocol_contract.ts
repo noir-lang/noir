@@ -1,12 +1,12 @@
 import { AztecAddress, getContractClassFromArtifact, getContractInstanceFromDeployParams } from '@aztec/circuits.js';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractClassWithId, ContractInstance } from '@aztec/types/contracts';
+import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 /** Represents a canonical contract in the protocol. */
 export interface ProtocolContract {
   /** Canonical deployed instance. */
-  instance: ContractInstance;
+  instance: ContractInstanceWithAddress;
   /** Contract class of this contract. */
   contractClass: ContractClassWithId;
   /** Complete contract artifact. */

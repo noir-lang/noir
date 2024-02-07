@@ -19,6 +19,7 @@
     "@aztec/bb.js": "portal:../barretenberg/ts",
     "@aztec/circuit-types": "portal:../yarn-project/circuit-types",
     "@aztec/ethereum": "portal:../yarn-project/ethereum",
+    "@aztec/protocol-contracts": "portal:../yarn-project/protocol-contracts",
     "@aztec/types": "portal:../yarn-project/types"
   }
 }

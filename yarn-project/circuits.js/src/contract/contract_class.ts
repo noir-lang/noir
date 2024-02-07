@@ -3,7 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { ContractClass, ContractClassWithId } from '@aztec/types/contracts';
 
 import { computeArtifactHash } from './artifact_hash.js';
-import { computeContractClassId } from './contract_class_id.js';
+import { ContractClassIdPreimage, computeContractClassIdWithPreimage } from './contract_class_id.js';
 import { packBytecode } from './public_bytecode.js';
 
 /** Contract artifact including its artifact hash */
@@ -12,7 +12,7 @@ type ContractArtifactWithHash = ContractArtifact & { artifactHash: Fr };
 /** Creates a ContractClass from a contract compilation artifact. */
 export function getContractClassFromArtifact(
   artifact: ContractArtifact | ContractArtifactWithHash,
-): ContractClassWithId {
+): ContractClassWithId & ContractClassIdPreimage {
   const artifactHash = 'artifactHash' in artifact ? artifact.artifactHash : computeArtifactHash(artifact);
   const publicFunctions: ContractClass['publicFunctions'] = artifact.functions
     .filter(f => f.functionType === FunctionType.OPEN)
@@ -36,8 +36,7 @@ export function getContractClassFromArtifact(
         isInternal: f.isInternal,
       })),
   };
-  const id = computeContractClassId(contractClass);
-  return { ...contractClass, id };
+  return { ...contractClass, ...computeContractClassIdWithPreimage(contractClass) };
 }
 
 /**

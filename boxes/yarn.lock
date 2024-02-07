@@ -70,6 +70,7 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/protocol-contracts": "workspace:^"
     "@aztec/types": "workspace:^"
     tslib: "npm:^2.4.0"
   languageName: node
@@ -289,11 +290,24 @@ __metadata:
     koa-router: "npm:^12.0.0"
     leveldown: "npm:^6.1.1"
     levelup: "npm:^5.1.1"
+    lodash.chunk: "npm:^4.2.0"
     lodash.clonedeepwith: "npm:^4.5.0"
     memdown: "npm:^6.1.1"
     pako: "npm:^2.1.0"
     sha3: "npm:^2.1.4"
     zod: "npm:^3.22.4"
+  languageName: node
+  linkType: soft
+
+"@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=%40aztec%2Fboxes%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=%40aztec%2Fboxes%40workspace%3A."
+  dependencies:
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
+    lodash.omit: "npm:^4.5.0"
+    tslib: "npm:^2.4.0"
   languageName: node
   linkType: soft
 
@@ -9473,6 +9487,13 @@ __metadata:
   version: 4.6.2
   resolution: "lodash.merge@npm:4.6.2"
   checksum: 402fa16a1edd7538de5b5903a90228aa48eb5533986ba7fa26606a49db2572bf414ff73a2c9f5d5fd36b31c46a5d5c7e1527749c07cbcf965ccff5fbdf32c506
+  languageName: node
+  linkType: hard
+
+"lodash.omit@npm:^4.5.0":
+  version: 4.5.0
+  resolution: "lodash.omit@npm:4.5.0"
+  checksum: 3808b9b6faae35177174b6ab327f1177e29c91f1e98dcbccf13a72a6767bba337306449d537a4e0d8a33d2673f10d39bc732e30c4b803274ea0c1168ea60e549
   languageName: node
   linkType: hard
 

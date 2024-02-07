@@ -19,15 +19,29 @@ import { computePrivateFunctionsRoot } from './private_function.js';
  * @returns The identifier.
  */
 export function computeContractClassId(contractClass: ContractClass | ContractClassIdPreimage): Fr {
-  const { artifactHash, privateFunctionsRoot, publicBytecodeCommitment } = isContractClassIdPreimage(contractClass)
-    ? contractClass
-    : computeContractClassIdPreimage(contractClass);
-  return Fr.fromBuffer(
+  return computeContractClassIdWithPreimage(contractClass).id;
+}
+
+/** Computes a contract class id and returns it along with its preimage. */
+export function computeContractClassIdWithPreimage(
+  contractClass: ContractClass | ContractClassIdPreimage,
+): ContractClassIdPreimage & { id: Fr } {
+  const artifactHash = contractClass.artifactHash;
+  const privateFunctionsRoot =
+    'privateFunctionsRoot' in contractClass
+      ? contractClass.privateFunctionsRoot
+      : computePrivateFunctionsRoot(contractClass.privateFunctions);
+  const publicBytecodeCommitment =
+    'publicBytecodeCommitment' in contractClass
+      ? contractClass.publicBytecodeCommitment
+      : computePublicBytecodeCommitment(contractClass.packedBytecode);
+  const id = Fr.fromBuffer(
     pedersenHash(
       [artifactHash.toBuffer(), privateFunctionsRoot.toBuffer(), publicBytecodeCommitment.toBuffer()],
       GeneratorIndex.CONTRACT_LEAF, // TODO(@spalladino): Review all generator indices in this file
     ),
   );
+  return { id, artifactHash, privateFunctionsRoot, publicBytecodeCommitment };
 }
 
 /** Returns the preimage of a contract class id given a contract class. */
@@ -43,11 +57,6 @@ export type ContractClassIdPreimage = {
   privateFunctionsRoot: Fr;
   publicBytecodeCommitment: Fr;
 };
-
-/** Returns whether the given object looks like a ContractClassIdPreimage. */
-function isContractClassIdPreimage(obj: any): obj is ContractClassIdPreimage {
-  return obj && obj.artifactHash && obj.privateFunctionsRoot && obj.publicBytecodeCommitment;
-}
 
 // TODO(@spalladino): Replace with actual implementation
 export function computePublicBytecodeCommitment(bytecode: Buffer) {

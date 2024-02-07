@@ -31,7 +31,7 @@ export {
   DeploySentTx,
 } from './contract/index.js';
 
-export { ContractDeployer } from './contract_deployer/index.js';
+export { ContractDeployer } from './deployment/index.js';
 
 export {
   generatePublicKey,

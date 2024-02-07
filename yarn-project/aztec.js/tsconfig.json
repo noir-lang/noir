@@ -19,6 +19,9 @@
       "path": "../foundation"
     },
     {
+      "path": "../protocol-contracts"
+    },
+    {
       "path": "../types"
     }
   ],
