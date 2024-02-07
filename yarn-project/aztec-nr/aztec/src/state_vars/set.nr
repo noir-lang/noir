@@ -1,5 +1,4 @@
 use dep::std::option::Option;
-use crate::abi::PublicContextInputs;
 use dep::protocol_types::{
     constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
     abis::side_effect::{SideEffect, SideEffectLinkedToNoteHash},

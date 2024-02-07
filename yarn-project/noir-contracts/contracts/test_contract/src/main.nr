@@ -298,6 +298,16 @@ contract Test {
         storage.example_constant.initialize(&mut note, false);
     }
 
+    #[aztec(public)]
+    fn assert_coinbase(coinbase: EthAddress) {
+        assert(context.coinbase().eq(coinbase), "Invalid coinbase");
+    }
+
+    #[aztec(public)]
+    fn assert_fee_recipient(fee_recipient: AztecAddress) {
+        assert(context.fee_recipient().eq(fee_recipient), "Invalid fee recipient");
+    }
+
     unconstrained fn get_constant() -> pub Field {
         let constant = storage.example_constant.view_note();
         constant.value

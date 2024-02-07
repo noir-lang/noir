@@ -129,6 +129,14 @@ impl PublicContext {
         self.inputs.public_global_variables.timestamp
     }
 
+    pub fn coinbase(self) -> EthAddress {
+        self.inputs.public_global_variables.coinbase
+    }
+
+    pub fn fee_recipient(self) -> AztecAddress {
+        self.inputs.public_global_variables.fee_recipient
+    }
+
     pub fn finish(self) -> PublicCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
         let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];

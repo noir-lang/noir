@@ -3,7 +3,6 @@ mod l1_to_l2_message_getter_data;
 
 use l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
 
-use crate::abi::PublicContextInputs;
 use crate::oracle::get_l1_to_l2_message::get_l1_to_l2_message_call;
 
 use dep::std::merkle::compute_merkle_root;

@@ -26,7 +26,7 @@ We can define a number of requirements that serve to provide a transparent and f
 ## High Level Concepts and Design
 
 1. We will use concepts of L1, L2 and DA gas to universally define units of resource for the Ethereum and Aztec networks respectively. L1 gas directly mirrors the actual gas specification as defined by Ethereum, L2 gas covers all resource expended on the L2 network. Finally, DA gas accounts for the data stored on the network's Data Availability solution.
-2. We will deterministically quantify all resource consumption of a transaction into 7 values. We will define these value later but essentially they represent the amortized and transaction specific quantities of each of L1, L2 and DA gas.
+2. We will deterministically quantify all resource consumption of a transaction into 7 values. We will define these values later but essentially they represent the amortized and transaction specific quantities of each of L1, L2 and DA gas.
 3. The transaction sender will provide a single fee for the transaction. This will be split into 3 components to cover each of the L1, L2 and DA gas costs. The sender will specify `feePerGas` and `gasLimit` for each component. Doing so provides protection to the sender that the amount of fee applicable to any component is constrained.
 4. We will constrain the sequencer to apply the correct amortized and transaction specific fees ensuring the sender can not be charged arbitrarily.
 5. We will define a method by which fees can be paid in any asset, either publicly or privately, on Ethereum or Aztec but where the sequencer retains agency as to what assets and fee payment methods they are willing to accept.
@@ -34,7 +34,7 @@ We can define a number of requirements that serve to provide a transparent and f
 
 ## Gas Metering
 
-Broadly speaking, resource consumption incurred by the sequencer falls into categories of transaction specific consumption and amortized, per-rollup consumption. Each operation performed by the sequencer can be attributed with a fixed amount of gas per unit representing it's level of resource consumption. The unit will differ between operations, for example in some operations it may be per-byte whilst in others it could be per-opcode. What matters is that we are able to determine the total gas consumption of any given transaction.
+Broadly speaking, resource consumption incurred by the sequencer falls into categories of transaction specific consumption and amortized, per-rollup consumption. Each operation performed by the sequencer can be attributed with a fixed amount of gas per unit representing its level of resource consumption. The unit will differ between operations, for example in some operations it may be per-byte whilst in others it could be per-opcode. What matters is that we are able to determine the total gas consumption of any given transaction.
 
 ### Examples of Gas Consuming Operations
 
@@ -53,9 +53,9 @@ Some operations are specific to a transaction, such as public function execution
 
 ### Measuring Gas Before Submission
 
-All of the operations listed in the transaction specific table can provide us with deterministic gas values for a transaction. The transaction can be simulated and appropriate gas figures can be calculated before the transaction is sent to the network. The transaction will also need to provide a fee to cover it's portion of the amortized cost. This can be done by deciding on a value of `N`, the number of transactions in a rollup. Of course, the transaction sender can't know in advance how many other transactions will be included in the same rollup but the sender will be able to see how many transactions were included in prior rollups and decide on a value that will give them some certainty of inclusion without overpaying for insufficient amortization. As with all costs, any additional amortization will be refunded to the sender.
+All of the operations listed in the transaction specific table can provide us with deterministic gas values for a transaction. The transaction can be simulated and appropriate gas figures can be calculated before the transaction is sent to the network. The transaction will also need to provide a fee to cover its portion of the amortized cost. This can be done by deciding on a value of `N`, the number of transactions in a rollup. Of course, the transaction sender can't know in advance how many other transactions will be included in the same rollup but the sender will be able to see how many transactions were included in prior rollups and decide on a value that will give them some certainty of inclusion without overpaying for insufficient amortization. As with all costs, any additional amortization will be refunded to the sender.
 
-For example, if the previous 10 rollups consist of an average of 5000 transactions, the sender could decide on a value of 1000 for `N` in it's amortization. If the transaction is included in a rollup with > `N` transactions, the fee saved by the additional amortization will be refunded to the sender. If the sequencer chooses to include the transaction in a rollup with < `N` transactions, the sequencer will effectively subsidize that reduced amortization.
+For example, if the previous 10 rollups consist of an average of 5000 transactions, the sender could decide on a value of 1000 for `N` in its amortization. If the transaction is included in a rollup with > `N` transactions, the fee saved by the additional amortization will be refunded to the sender. If the sequencer chooses to include the transaction in a rollup with < `N` transactions, the sequencer will effectively subsidize that reduced amortization.
 
 The transaction will be provided with 7 gas values:
 

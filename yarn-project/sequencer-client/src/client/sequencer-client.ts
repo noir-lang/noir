@@ -86,4 +86,12 @@ export class SequencerClient {
   public restart() {
     this.sequencer.restart();
   }
+
+  get coinbase() {
+    return this.sequencer.coinbase;
+  }
+
+  get feeRecipient() {
+    return this.sequencer.feeRecipient;
+  }
 }

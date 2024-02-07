@@ -264,7 +264,14 @@ describe('ACIR public execution simulator', () => {
         });
 
         const execution: PublicExecution = { contractAddress: parentContractAddress, functionData, args, callContext };
-        const globalVariables = new GlobalVariables(new Fr(69), new Fr(420), new Fr(1), new Fr(7));
+        const globalVariables = new GlobalVariables(
+          new Fr(69),
+          new Fr(420),
+          new Fr(1),
+          new Fr(7),
+          EthAddress.fromField(new Fr(8)),
+          AztecAddress.fromField(new Fr(9)),
+        );
 
         if (isInternal === undefined) {
           await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError(/Method not found -/);
@@ -449,7 +456,14 @@ describe('ACIR public execution simulator', () => {
         });
 
       const computeGlobalVariables = () =>
-        new GlobalVariables(new Fr(preimage.sender.chainId), new Fr(preimage.recipient.version), Fr.ZERO, Fr.ZERO);
+        new GlobalVariables(
+          new Fr(preimage.sender.chainId),
+          new Fr(preimage.recipient.version),
+          Fr.ZERO,
+          Fr.ZERO,
+          EthAddress.ZERO,
+          AztecAddress.ZERO,
+        );
 
       const mockOracles = () => {
         publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintPublicArtifact.bytecode, 'base64'));
@@ -615,6 +629,112 @@ describe('ACIR public execution simulator', () => {
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
         executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
         await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid message secret');
+      });
+    });
+  });
+
+  describe('Global variables in public context', () => {
+    let contractAddress: AztecAddress;
+    let callContext: CallContext;
+
+    beforeAll(() => {
+      contractAddress = AztecAddress.random();
+      callContext = CallContext.from({
+        msgSender: AztecAddress.random(),
+        storageContractAddress: AztecAddress.random(),
+        portalContractAddress: EthAddress.ZERO,
+        functionSelector: FunctionSelector.empty(),
+        isContractDeployment: false,
+        isDelegateCall: false,
+        isStaticCall: false,
+        startSideEffectCounter: 0,
+      });
+    });
+
+    const computeGlobalVariables = (coinbase: EthAddress, feeRecipient: AztecAddress) =>
+      new GlobalVariables(new Fr(1), new Fr(2), Fr.ZERO, Fr.ZERO, coinbase, feeRecipient);
+
+    describe('Coinbase', () => {
+      let expectedCoinbase: EthAddress;
+      let globalVariables: GlobalVariables;
+      let assertCoinbaseArtifact: FunctionArtifact;
+      let functionData: FunctionData;
+
+      beforeAll(() => {
+        expectedCoinbase = EthAddress.random();
+        globalVariables = computeGlobalVariables(expectedCoinbase, AztecAddress.random());
+
+        assertCoinbaseArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_coinbase')!;
+        functionData = FunctionData.fromAbi(assertCoinbaseArtifact);
+      });
+
+      beforeEach(() => {
+        publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertCoinbaseArtifact.bytecode, 'base64'));
+      });
+
+      it('Valid', () => {
+        // We set the coinbase function arg to one we set in global vars
+        const args = encodeArguments(assertCoinbaseArtifact, [expectedCoinbase]);
+
+        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
+
+        // Now we check that the global vars value was correctly set by checking if the assert func throws
+        expect(() => executor.simulate(execution, globalVariables)).not.toThrow();
+      });
+
+      it('Invalid', async () => {
+        // We set the coinbase function arg to a random invalid value
+        const invalidCoinbase = EthAddress.random();
+        const args = encodeArguments(assertCoinbaseArtifact, [invalidCoinbase]);
+
+        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
+
+        // Now we check that the function throws in case of invalid coinbase
+        await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid coinbase');
+      });
+    });
+
+    describe('Fee recipient', () => {
+      let expectedFeeRecipient: AztecAddress;
+      let globalVariables: GlobalVariables;
+      let assertFeeRecipientArtifact: FunctionArtifact;
+      let functionData: FunctionData;
+
+      beforeAll(() => {
+        expectedFeeRecipient = AztecAddress.random();
+        globalVariables = computeGlobalVariables(EthAddress.random(), expectedFeeRecipient);
+
+        assertFeeRecipientArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_fee_recipient')!;
+        functionData = FunctionData.fromAbi(assertFeeRecipientArtifact);
+      });
+
+      beforeEach(() => {
+        publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertFeeRecipientArtifact.bytecode, 'base64'));
+      });
+
+      it('Valid', () => {
+        // We set the fee recipient function arg to one we set in global vars
+        const args = encodeArguments(assertFeeRecipientArtifact, [expectedFeeRecipient]);
+
+        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
+
+        // Now we check that the global vars value was correctly set by checking if the assert func throws
+        expect(() => executor.simulate(execution, globalVariables)).not.toThrow();
+      });
+
+      it('Invalid', async () => {
+        // We set the fee recipient function arg to a random invalid value
+        const invalidFeeRecipient = AztecAddress.random();
+        const args = encodeArguments(assertFeeRecipientArtifact, [invalidFeeRecipient]);
+
+        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
+
+        // Now we check that the function throws in case of invalid fee recipient
+        await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid fee recipient');
       });
     });
   });

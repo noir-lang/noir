@@ -1,6 +1,6 @@
 import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx } from '@aztec/circuit-types';
 import { L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { GlobalVariables } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, GlobalVariables } from '@aztec/circuits.js';
 import { times } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -31,6 +31,9 @@ export class Sequencer {
   private pollingIntervalMs: number = 1000;
   private maxTxsPerBlock = 32;
   private minTxsPerBLock = 1;
+  // TODO: zero values should not be allowed for the following 2 values in PROD
+  private _coinbase = EthAddress.ZERO;
+  private _feeRecipient = AztecAddress.ZERO;
   private lastPublishedBlock = 0;
   private state = SequencerState.STOPPED;
 
@@ -63,6 +66,12 @@ export class Sequencer {
     }
     if (config.minTxsPerBlock) {
       this.minTxsPerBLock = config.minTxsPerBlock;
+    }
+    if (config.coinbase) {
+      this._coinbase = config.coinbase;
+    }
+    if (config.feeRecipient) {
+      this._feeRecipient = config.feeRecipient;
     }
   }
 
@@ -155,7 +164,11 @@ export class Sequencer {
         }
       };
 
-      const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(newBlockNumber));
+      const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(
+        new Fr(newBlockNumber),
+        this._coinbase,
+        this._feeRecipient,
+      );
 
       // Filter out invalid txs
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
@@ -407,6 +420,14 @@ export class Sequencer {
       }
     }
     return false;
+  }
+
+  get coinbase(): EthAddress {
+    return this._coinbase;
+  }
+
+  get feeRecipient(): AztecAddress {
+    return this._feeRecipient;
   }
 }
 

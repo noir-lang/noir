@@ -63,6 +63,8 @@ export function initGlobalVariables(overrides?: Partial<GlobalVariables>): Globa
     overrides?.version ?? Fr.zero(),
     overrides?.blockNumber ?? Fr.zero(),
     overrides?.timestamp ?? Fr.zero(),
+    overrides?.coinbase ?? EthAddress.ZERO,
+    overrides?.feeRecipient ?? AztecAddress.zero(),
   );
 }
 

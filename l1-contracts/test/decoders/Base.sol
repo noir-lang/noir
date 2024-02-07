@@ -49,6 +49,8 @@ contract DecoderBase is Test {
   struct GlobalVariables {
     uint256 blockNumber;
     uint256 chainId;
+    address coinbase;
+    bytes32 feeRecipient;
     uint256 timestamp;
     uint256 version;
   }

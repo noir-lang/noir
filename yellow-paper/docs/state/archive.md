@@ -33,7 +33,8 @@ class GlobalVariables {
     timestamp: Fr
     version: Fr
     chain_id: Fr
-    coinbase: Address
+    coinbase: EthAddress
+    fee_recipient: Address
 }
 
 class Header {

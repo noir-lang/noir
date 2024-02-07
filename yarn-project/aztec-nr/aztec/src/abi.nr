@@ -4,6 +4,7 @@ use dep::protocol_types::{
         private_circuit_public_inputs::PrivateCircuitPublicInputs,
         public_circuit_public_inputs::PublicCircuitPublicInputs,
     },
+    address::{AztecAddress, EthAddress},
     contrakt::deployment_data::ContractDeploymentData,
     hash::hash_args,
     traits::{Hash, Serialize},
@@ -29,12 +30,21 @@ struct PublicGlobalVariables {
     version: Field,
     block_number: Field,
     timestamp: Field,
+    coinbase: EthAddress,
+    fee_recipient: AztecAddress,
 }
 // docs:end:public-global-variables
 
-impl Serialize<4> for PublicGlobalVariables {
-    fn serialize(self) -> [Field; 4] {
-        [self.chain_id, self.version, self.block_number, self.timestamp]
+impl Serialize<6> for PublicGlobalVariables {
+    fn serialize(self) -> [Field; 6] {
+        [
+            self.chain_id,
+            self.version,
+            self.block_number,
+            self.timestamp,
+            self.coinbase.to_field(),
+            self.fee_recipient.to_field(),
+        ]
     }
 }
 

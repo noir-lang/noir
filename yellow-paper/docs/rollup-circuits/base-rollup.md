@@ -38,7 +38,8 @@ class GlobalVariables {
     timestamp: Fr
     version: Fr
     chain_id: Fr
-    coinbase: Address
+    coinbase: EthAddress
+    fee_recipient: Address
 }
 
 class Header {
@@ -311,8 +312,8 @@ def kernel_checks(
   assert kernel.proof.verify(kernel.public_inputs)
 
   tx_context = kernel.public_inputs.constants.tx_context
-  assert tx_context.chainid == constants.globalVariables.chainid
-  assert tx_context.version == constants.globalVariables.version
+  assert tx_context.chain_id == constants.global_variables.chain_id
+  assert tx_context.version == constants.global_variables.version
 
   assert len(kernel.public_inputs.end.private_call_stack) == 0
   assert len(kernel.public_inputs.end.public_call_stack) == 0

@@ -71,6 +71,10 @@ contract DecoderTest is DecoderBase {
         assertEq(header.globalVariables.chainId, globalVariables.chainId, "Invalid chain Id");
         assertEq(header.globalVariables.timestamp, globalVariables.timestamp, "Invalid timestamp");
         assertEq(header.globalVariables.version, globalVariables.version, "Invalid version");
+        assertEq(header.globalVariables.coinbase, globalVariables.coinbase, "Invalid coinbase");
+        assertEq(
+          header.globalVariables.feeRecipient, globalVariables.feeRecipient, "Invalid feeRecipient"
+        );
       }
 
       // StateReference

@@ -9,7 +9,10 @@ use crate::{
         append_only_tree_snapshot::AppendOnlyTreeSnapshot,
         global_variables::GlobalVariables,
     },
-    address::AztecAddress,
+    address::{
+        AztecAddress,
+        EthAddress,
+    },
     constants::NUM_FIELDS_PER_SHA256,
     grumpkin_point::GrumpkinPoint,
     header::Header,
@@ -25,6 +28,16 @@ global PUBLIC_KEY = GrumpkinPoint { x: 123456789, y: 123456789 };
 // Workaround for https://github.com/noir-lang/noir/issues/1440
 fn empty_append_only_tree() -> AppendOnlyTreeSnapshot {
     AppendOnlyTreeSnapshot::zero()
+}
+
+// Workaround for https://github.com/noir-lang/noir/issues/1440
+fn empty_eth_address() -> EthAddress {
+    EthAddress::empty()
+}
+
+// Workaround for https://github.com/noir-lang/noir/issues/1440
+fn empty_aztec_address() -> AztecAddress {
+    AztecAddress::empty()
 }
 
 global HEADER = Header {
@@ -49,6 +62,8 @@ global HEADER = Header {
         chain_id: 0,
         version: 0,
         block_number: 0,
-        timestamp: 0
+        timestamp: 0,
+        coinbase: empty_eth_address(),
+        fee_recipient: empty_aztec_address(),
     }
 };

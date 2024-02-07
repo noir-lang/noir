@@ -1,3 +1,4 @@
+import { AztecAddress } from '@aztec/circuits.js';
 import { L1ContractAddresses, NULL_KEY } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
@@ -45,6 +46,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     INBOX_CONTRACT_ADDRESS,
     CONTRACT_DEPLOYMENT_EMITTER_ADDRESS,
     OUTBOX_CONTRACT_ADDRESS,
+    COINBASE,
+    FEE_RECIPIENT,
   } = process.env;
 
   const publisherPrivateKey: Hex = SEQ_PUBLISHER_PRIVATE_KEY
@@ -76,5 +79,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     publisherPrivateKey,
     maxTxsPerBlock: SEQ_MAX_TX_PER_BLOCK ? +SEQ_MAX_TX_PER_BLOCK : 32,
     minTxsPerBlock: SEQ_MIN_TX_PER_BLOCK ? +SEQ_MIN_TX_PER_BLOCK : 1,
+    // TODO: undefined should not be allowed for the following 2 values in PROD
+    coinbase: COINBASE ? EthAddress.fromString(COINBASE) : undefined,
+    feeRecipient: FEE_RECIPIENT ? AztecAddress.fromString(FEE_RECIPIENT) : undefined,
   };
 }
