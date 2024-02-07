@@ -1,5 +1,6 @@
 mod context;
 mod dap;
+mod foreign_calls;
 mod repl;
 mod source_code_printer;
 

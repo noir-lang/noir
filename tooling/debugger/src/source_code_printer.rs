@@ -1,4 +1,3 @@
-use acvm::acir::circuit::OpcodeLocation;
 use codespan_reporting::files::Files;
 use nargo::artifacts::debug::DebugArtifact;
 use noirc_errors::Location;
@@ -31,13 +30,7 @@ struct LocationPrintContext {
 // Given a DebugArtifact and an OpcodeLocation, prints all the source code
 // locations the OpcodeLocation maps to, with some surrounding context and
 // visual aids to highlight the location itself.
-pub(crate) fn print_source_code_location(
-    debug_artifact: &DebugArtifact,
-    location: &OpcodeLocation,
-) {
-    let locations = debug_artifact.debug_symbols[0].opcode_location(location);
-    let Some(locations) = locations else { return; };
-
+pub(crate) fn print_source_code_location(debug_artifact: &DebugArtifact, locations: &[Location]) {
     let locations = locations.iter();
 
     for loc in locations {
@@ -276,7 +269,8 @@ mod tests {
         let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
 
-        let debug_symbols = vec![DebugInfo::new(opcode_locations)];
+        let debug_symbols =
+            vec![DebugInfo::new(opcode_locations, BTreeMap::default(), BTreeMap::default())];
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 
         let location_rendered: Vec<_> = render_location(&debug_artifact, &loc).collect();

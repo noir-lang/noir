@@ -86,6 +86,8 @@ pub enum ResolverError {
     NestedSlices { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
+    DependencyCycle { span: Span, item: String, cycle: String },
 }
 
 impl ResolverError {
@@ -318,6 +320,13 @@ impl From<ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
+            ResolverError::DependencyCycle { span, item, cycle } => {
+                Diagnostic::simple_error(
+                    "Dependency cycle found".into(),
+                    format!("'{item}' recursively depends on itself: {cycle}"),
+                    span,
+                )
+            },
         }
     }
 }
