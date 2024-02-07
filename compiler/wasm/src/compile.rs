@@ -177,7 +177,7 @@ pub fn compile(
     let compile_options = CompileOptions::default();
 
     // For now we default to a bounded width of 3, though we can add it as a parameter
-    let expression_width = acvm::ExpressionWidth::Bounded { width: 3 };
+    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 3 };
 
     if contracts.unwrap_or_default() {
         let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)

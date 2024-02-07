@@ -85,7 +85,7 @@ pub enum BlackBoxOp {
         rhs: MemoryAddress,
         output: MemoryAddress,
     },
-    BigIntNeg {
+    BigIntSub {
         lhs: MemoryAddress,
         rhs: MemoryAddress,
         output: MemoryAddress,

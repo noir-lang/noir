@@ -13,6 +13,7 @@ use acir::{
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
+use brillig_vm::brillig::HeapValueType;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
@@ -69,7 +70,9 @@ fn inversion_brillig_oracle_equivalence() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 3 },
         ],
@@ -196,12 +199,16 @@ fn double_inversion_brillig_oracle() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                input_value_types: vec![HeapValueType::Simple],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 5 },
         ],
@@ -327,12 +334,16 @@ fn oracle_dependent_execution() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                input_value_types: vec![HeapValueType::Simple],
             },
             BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 4 },
         ],
@@ -453,7 +464,9 @@ fn brillig_oracle_predicate() {
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
                 inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
         ],
         predicate: Some(Expression::default()),

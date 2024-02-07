@@ -1199,7 +1199,7 @@ impl AcirContext {
                 (vec![state_len], Vec::new())
             }
             BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntNeg
+            | BlackBoxFunc::BigIntSub
             | BlackBoxFunc::BigIntMul
             | BlackBoxFunc::BigIntDiv => {
                 assert_eq!(inputs.len(), 4, "ICE - bigint operation requires 4 inputs");
@@ -1245,7 +1245,8 @@ impl AcirContext {
                 for i in const_inputs {
                     field_inputs.push(i?);
                 }
-                let modulus = self.big_int_ctx.modulus(field_inputs[0]);
+                let bigint = self.big_int_ctx.get(field_inputs[0]);
+                let modulus = self.big_int_ctx.modulus(bigint.modulus_id());
                 let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
                 output_count = bytes_len as usize;
                 (field_inputs, vec![FieldElement::from(bytes_len as u128)])
@@ -1452,10 +1453,8 @@ impl AcirContext {
                     }
                     Ok(BrilligInputs::Array(var_expressions))
                 }
-                AcirValue::DynamicArray(_) => {
-                    let mut var_expressions = Vec::new();
-                    self.brillig_array_input(&mut var_expressions, i)?;
-                    Ok(BrilligInputs::Array(var_expressions))
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
+                    Ok(BrilligInputs::MemoryArray(block_id))
                 }
             }
         })?;
@@ -1868,6 +1867,9 @@ fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<V
                 for expr in expr_arr.iter() {
                     calldata.push(expr.to_const()?.into());
                 }
+            }
+            BrilligInputs::MemoryArray(_) => {
+                return None;
             }
         }
     }

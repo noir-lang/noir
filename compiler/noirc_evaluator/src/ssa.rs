@@ -14,7 +14,7 @@ use crate::{
     errors::{RuntimeError, SsaReport},
 };
 use acvm::acir::{
-    circuit::{Circuit, PublicInputs},
+    circuit::{Circuit, ExpressionWidth, PublicInputs},
     native_types::Witness,
 };
 
@@ -107,6 +107,7 @@ pub fn create_circuit(
 
     let circuit = Circuit {
         current_witness_index,
+        expression_width: ExpressionWidth::Unbounded,
         opcodes,
         private_parameters,
         public_parameters,

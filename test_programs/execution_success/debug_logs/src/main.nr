@@ -50,6 +50,12 @@ fn main(x: Field, y: pub Field) {
 
     regression_2906();
 
+    let first_array = [1, 2, 3];
+    let second_array = [4, 5, 6];
+    let arrays_nested = [first_array, second_array];
+    std::println(f"first_array: {first_array}, second_array: {second_array}");
+    std::println(f"arrays_nested: {arrays_nested}");
+
     let free_lambda = |x| x + 1;
     let sentinel: u32 = 8888;
     std::println(f"free_lambda: {free_lambda}, sentinel: {sentinel}");
