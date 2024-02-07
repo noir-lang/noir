@@ -700,7 +700,8 @@ impl<'a> FunctionContext<'a> {
             return Ok(None)
         };
 
-        if let ast::Expression::Literal(ast::Literal::Str(assert_message)) = assert_message_expr.as_ref()
+        if let ast::Expression::Literal(ast::Literal::Str(assert_message)) =
+            assert_message_expr.as_ref()
         {
             return Ok(Some(Box::new(ConstrainError::Static(assert_message.to_string()))));
         }
