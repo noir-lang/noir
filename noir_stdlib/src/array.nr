@@ -1,3 +1,4 @@
+use crate::cmp::{Ord};
 
 // TODO: Once we fully move to the new SSA pass this module can be removed and replaced
 // by the methods in the `slice` module
@@ -5,7 +6,7 @@ impl<T, N> [T; N] {
     #[builtin(array_len)]
     pub fn len(self) -> Field {}
 
-    pub fn sort(self) -> Self {
+    pub fn sort(self) -> Self where T: Ord {
         self.sort_via(|a, b| a <= b)
     }
 
@@ -14,7 +15,7 @@ impl<T, N> [T; N] {
         let mut result = self;
         // Ensure the indexes are correct
         for i in 0..N {
-            let pos = sort_helper(sorted_index, i);
+            let pos = find_index(sorted_index, i);
             assert(sorted_index[pos] == i);
          }
         // Sort the array using the indexes
@@ -115,7 +116,8 @@ impl<T, N> [T; N] {
 }
 
 // helper function used to look up the position of a value in an array of Field
-unconstrained fn sort_helper<N>(a: [Field;N], find: Field) -> Field {
+// Note that function returns 0 if the value is not found
+unconstrained fn find_index<N>(a: [Field;N], find: Field) -> Field {
     let mut result = 0;
     for i in 0..a.len() {
         if a[i] == find {

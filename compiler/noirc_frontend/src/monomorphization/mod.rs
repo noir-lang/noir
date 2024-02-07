@@ -385,11 +385,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let rhs = self.expr(infix.rhs);
                 let operator = infix.operator.kind;
                 let location = self.interner.expr_location(&expr);
-                use crate::BinaryOpKind::*;
-                if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
-                    let lhs_type = self.interner.id_type(infix.lhs);
-                    assert!(!lhs_type.is_field(), "Comparisons are invalid on Field types");
-                }
                 if self.interner.get_selected_impl_for_expression(expr).is_some() {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
