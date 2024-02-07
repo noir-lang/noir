@@ -1587,9 +1587,10 @@ impl NodeInterner {
 
         let mut cycle = index_to_string(scc[start_index]).to_string();
 
-        for i in 0..scc.len() {
+        // Reversing the dependencies here matches the order users would expect for the error message
+        for i in (0..scc.len()).rev() {
             cycle += " -> ";
-            cycle += &index_to_string(scc[(start_index + i + 1) % scc.len()]);
+            cycle += &index_to_string(scc[(start_index + i) % scc.len()]);
         }
 
         cycle
