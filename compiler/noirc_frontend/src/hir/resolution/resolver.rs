@@ -28,8 +28,8 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
-    TraitImplId, TraitMethodId,
+    DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, NodeInterner, StmtId, StructId,
+    TraitId, TraitImplId, TraitMethodId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -1406,6 +1406,8 @@ impl<'a> Resolver<'a> {
                                     != FunctionVisibility::Public
                                 {
                                     let span = hir_ident.location.span;
+                                    let func_def = self.interner.function_modifiers(&id);
+                                    tracing::debug!("Func definition: {:?}", (id, span, func_def));
                                     self.check_can_reference_function(
                                         id,
                                         span,
@@ -1460,10 +1462,30 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
-                let func = self.resolve_expression(*call_expr.func);
+                let func = self.resolve_expression(*call_expr.clone().func);
 
-                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
+                let arguments =
+                    vecmap(call_expr.clone().arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
+
+                if let ExpressionKind::Variable(path) = call_expr.clone().func.kind {
+                    let (hir_ident, _var_scope_index) = self.get_ident_from_path(path);
+                    if hir_ident.id != DefinitionId::dummy_id() {
+                        if let DefinitionKind::Function(func_def_id) =
+                            self.interner.definition(hir_ident.id).kind
+                        {
+                            if let Some(func_meta) = self.interner.func_meta.get(&func_def_id) {
+                                self.interner.add_reference(
+                                    (DependencyId::Function(func_def_id), func_meta.location),
+                                    (
+                                        DependencyId::CallExpression(func),
+                                        Location::new(call_expr.func.span, self.file),
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
                 HirExpression::Call(HirCallExpression { func, arguments, location })
             }
             ExpressionKind::MethodCall(call_expr) => {

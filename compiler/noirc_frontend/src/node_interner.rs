@@ -25,6 +25,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::locations::LocationStore;
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
@@ -164,6 +165,13 @@ pub struct NodeInterner {
 
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
+
+    /// Store the location of the references in the graph
+    pub(crate) graph_references: DiGraph<(DependencyId, Location), ()>,
+    /// Tracks the index of the references in the graph
+    pub(crate) graph_references_indices: HashMap<DependencyId, PetGraphIndex>,
+    /// Store the location of the references in the graph
+    pub(crate) location_store: LocationStore,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -182,6 +190,7 @@ pub enum DependencyId {
     Global(StmtId),
     Function(FuncId),
     Alias(TypeAliasId),
+    CallExpression(ExprId),
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -494,6 +503,9 @@ impl Default for NodeInterner {
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
+            location_store: LocationStore::default(),
+            graph_references: petgraph::graph::DiGraph::new(),
+            graph_references_indices: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -1464,13 +1476,13 @@ impl NodeInterner {
         self.add_dependency(DependencyId::Struct(dependent), DependencyId::Global(dependency));
     }
 
-    fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
+    pub(crate) fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);
         self.dependency_graph.update_edge(dependent_index, dependency_index, ());
     }
 
-    fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
+    pub(crate) fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
         if let Some(index) = self.dependency_graph_indices.get(&id) {
             return *index;
         }
@@ -1520,6 +1532,7 @@ impl NodeInterner {
                         }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
+                        _ => (),
                     }
                 }
             }
@@ -1547,6 +1560,7 @@ impl NodeInterner {
                 };
                 Cow::Owned(self.pattern_name_and_location(&let_stmt.pattern).0)
             }
+            _ => Cow::Borrowed(""),
         };
 
         let mut cycle = index_to_string(scc[start_index]).to_string();
