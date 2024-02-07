@@ -553,6 +553,7 @@ impl<'interner> TypeChecker<'interner> {
             Type::Integer(..)
             | Type::FieldElement
             | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(_, TypeVariableKind::Integer)
             | Type::Bool => (),
 
             Type::TypeVariable(_, _) => {

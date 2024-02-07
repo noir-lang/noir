@@ -144,12 +144,11 @@ impl AbiType {
 
                 Self::Integer { sign, width: *bit_width }
             }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                    TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
-                }
-            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => Self::from_type(context, typ),
+                TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
+            },
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
