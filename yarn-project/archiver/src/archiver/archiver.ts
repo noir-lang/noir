@@ -31,6 +31,8 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
+import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
+import { InstanceDeployerAddress } from '@aztec/protocol-contracts/instance-deployer';
 import {
   ContractClass,
   ContractClassPublic,
@@ -71,21 +73,11 @@ export class Archiver implements ArchiveSource {
    */
   private lastLoggedL1BlockNumber = 0n;
 
-  // TODO(@spalladino): Calculate this on the fly somewhere else.
-  // Today this is printed in the logs for end-to-end test at
-  // end-to-end/src/e2e_deploy_contract.test.ts -t 'registering a new contract class'
-  // "Added contract ContractClassRegisterer ADDRESS"
-  // "Added contract ContractInstanceDeployer ADDRESS"
-
   /** Address of the ClassRegisterer contract with a salt=1 */
-  private classRegistererAddress = AztecAddress.fromString(
-    '0x29c0cd0000951bba8af520ad5513cc53d9f0413c5a24a72a4ba8c17894c0bef9',
-  );
+  private classRegistererAddress = ClassRegistererAddress;
 
   /** Address of the InstanceDeployer contract with a salt=1 */
-  private instanceDeployerAddress = AztecAddress.fromString(
-    '0x1799c61aa10430bf6fec46679c4cb76c3ed12cd8b6e73ed7389d5ae296ad1b97',
-  );
+  private instanceDeployerAddress = InstanceDeployerAddress;
 
   /**
    * Creates a new instance of the Archiver.

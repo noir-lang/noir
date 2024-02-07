@@ -13,8 +13,9 @@ COPY . .
 RUN yarn workspace @aztec/noir-compiler build
 # Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
 RUN yarn workspace @aztec/noir-contracts build:contracts
-# We need to build accounts as it needs to copy in account contracts from noir-contracts.
+# We need to copy noir contracts into other packages
 RUN yarn workspace @aztec/accounts build:copy-contracts
+RUN yarn workspace @aztec/protocol-contracts build:copy-contracts
 RUN yarn workspace @aztec/noir-protocol-circuits build
 RUN yarn tsc -b
 

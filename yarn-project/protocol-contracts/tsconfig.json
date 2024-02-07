@@ -7,29 +7,14 @@
   },
   "references": [
     {
-      "path": "../circuit-types"
-    },
-    {
       "path": "../circuits.js"
-    },
-    {
-      "path": "../ethereum"
     },
     {
       "path": "../foundation"
     },
     {
-      "path": "../kv-store"
-    },
-    {
-      "path": "../l1-artifacts"
-    },
-    {
-      "path": "../protocol-contracts"
-    },
-    {
       "path": "../types"
     }
   ],
-  "include": ["src"]
+  "include": ["src", "src/**/*.json"]
 }

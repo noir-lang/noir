@@ -39,6 +39,7 @@
     { "path": "noir-protocol-circuits/tsconfig.json" },
     { "path": "p2p/tsconfig.json" },
     { "path": "p2p-bootstrap/tsconfig.json" },
+    { "path": "protocol-contracts/tsconfig.json" },
     { "path": "prover-client/tsconfig.json" },
     { "path": "sequencer-client/tsconfig.json" },
     { "path": "types/tsconfig.json" },

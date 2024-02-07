@@ -41,6 +41,7 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/kv-store": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
+    "@aztec/protocol-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
     "debug": "^4.3.4",
     "lmdb": "^2.9.2",
