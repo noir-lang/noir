@@ -35,7 +35,7 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   #contractClassStore: ContractClassStore;
   #contractInstanceStore: ContractInstanceStore;
 
-  #log = createDebugLogger('aztec:archiver:lmdb');
+  #log = createDebugLogger('aztec:archiver:data-store');
 
   constructor(db: AztecKVStore, logsMaxPageSize: number = 1000) {
     this.#blockStore = new BlockStore(db);

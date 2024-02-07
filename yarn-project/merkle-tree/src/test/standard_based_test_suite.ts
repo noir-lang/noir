@@ -1,5 +1,6 @@
 import { SiblingPath } from '@aztec/circuit-types';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
 
 import { randomBytes } from 'crypto';
@@ -35,21 +36,21 @@ export const standardBasedTreeTestSuite = (
     });
 
     it('should have correct empty tree root for depth 32', async () => {
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test', 32);
       const root = tree.getRoot(false);
       expect(root.toString('hex')).toEqual('16642d9ccd8346c403aa4c3fa451178b22534a27035cdaa6ec34ae53b29c50cb');
     });
 
     it('should throw when appending beyond max index', async () => {
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test', 2);
       const leaves = Array.from({ length: 5 }, _ => randomBytes(32));
       await expect(appendLeaves(tree, leaves)).rejects.toThrow();
     });
 
     it('should have correct root and sibling paths', async () => {
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test', 2);
 
       const level1ZeroHash = pedersen.hash(INITIAL_LEAF, INITIAL_LEAF);

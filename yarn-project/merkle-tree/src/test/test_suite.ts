@@ -1,5 +1,6 @@
 import { SiblingPath } from '@aztec/circuit-types';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
 
 import { Pedersen } from '../index.js';
@@ -50,10 +51,10 @@ export const treeTestSuite = (
     });
 
     it('should revert changes on rollback', async () => {
-      const dbEmpty = await AztecLmdbStore.openTmp();
+      const dbEmpty = openTmpStore();
       const emptyTree = await createDb(dbEmpty, pedersen, 'test', 10);
 
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test2', 10);
       await appendLeaves(tree, values.slice(0, 4));
 
@@ -85,10 +86,10 @@ export const treeTestSuite = (
     });
 
     it('should not revert changes after commit', async () => {
-      const dbEmpty = await AztecLmdbStore.openTmp();
+      const dbEmpty = openTmpStore();
       const emptyTree = await createDb(dbEmpty, pedersen, 'test', 10);
 
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test2', 10);
       await appendLeaves(tree, values.slice(0, 4));
 
@@ -104,7 +105,7 @@ export const treeTestSuite = (
     });
 
     it('should be able to restore from previous committed data', async () => {
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test', 10);
       await appendLeaves(tree, values.slice(0, 4));
       await tree.commit();
@@ -121,7 +122,7 @@ export const treeTestSuite = (
     });
 
     it('should throw an error if previous data does not exist for the given name', async () => {
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       await expect(
         (async () => {
           await createFromName(db, pedersen, 'a_whole_new_tree');
@@ -130,7 +131,7 @@ export const treeTestSuite = (
     });
 
     it('should serialize sibling path data to a buffer and be able to deserialize it back', async () => {
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test', 10);
       await appendLeaves(tree, values.slice(0, 1));
 

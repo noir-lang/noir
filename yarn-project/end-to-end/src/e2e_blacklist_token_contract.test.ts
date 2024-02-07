@@ -14,7 +14,7 @@ import {
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Pedersen, SparseTree, newTree } from '@aztec/merkle-tree';
 import { SlowTreeContract, TokenBlacklistContract, TokenContract } from '@aztec/noir-contracts';
 
@@ -104,7 +104,7 @@ describe('e2e_blacklist_token_contract', () => {
     slowTree = await SlowTreeContract.deploy(wallets[0]).send().deployed();
 
     const depth = 254;
-    slowUpdateTreeSimulator = await newTree(SparseTree, await AztecLmdbStore.openTmp(), new Pedersen(), 'test', depth);
+    slowUpdateTreeSimulator = await newTree(SparseTree, openTmpStore(), new Pedersen(), 'test', depth);
 
     const deployTx = TokenBlacklistContract.deploy(wallets[0], accounts[0], slowTree.address).send({});
     const receipt = await deployTx.wait();

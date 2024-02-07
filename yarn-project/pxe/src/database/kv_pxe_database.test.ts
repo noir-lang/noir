@@ -1,4 +1,4 @@
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { KVPxeDatabase } from './kv_pxe_database.js';
 import { describePxeDatabase } from './pxe_database_test_suite.js';
@@ -6,8 +6,8 @@ import { describePxeDatabase } from './pxe_database_test_suite.js';
 describe('KVPxeDatabase', () => {
   let database: KVPxeDatabase;
 
-  beforeEach(async () => {
-    database = new KVPxeDatabase(await AztecLmdbStore.openTmp());
+  beforeEach(() => {
+    database = new KVPxeDatabase(openTmpStore());
   });
 
   describePxeDatabase(() => database);

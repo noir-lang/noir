@@ -4,7 +4,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { makeHeader } from '@aztec/circuits.js/factories';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { TestKeyStore } from '@aztec/key-store';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import omit from 'lodash.omit';
@@ -21,11 +21,11 @@ describe('Synchronizer', () => {
   const initialSyncBlockNumber = 3;
   let headerBlock3: Header;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     headerBlock3 = makeHeader(Math.floor(Math.random() * 1000), initialSyncBlockNumber);
 
     aztecNode = mock<AztecNode>();
-    database = new KVPxeDatabase(await AztecLmdbStore.openTmp());
+    database = new KVPxeDatabase(openTmpStore());
     jobQueue = new SerialQueue();
     synchronizer = new TestSynchronizer(aztecNode, database, jobQueue);
   });
@@ -114,7 +114,7 @@ describe('Synchronizer', () => {
     expect(await synchronizer.isGlobalStateSynchronized()).toBe(true);
 
     // Manually adding account to database so that we can call synchronizer.isAccountStateSynchronized
-    const keyStore = new TestKeyStore(new Grumpkin(), await AztecLmdbStore.openTmp());
+    const keyStore = new TestKeyStore(new Grumpkin(), openTmpStore());
     const addAddress = async (startingBlockNum: number) => {
       const privateKey = GrumpkinScalar.random();
       await keyStore.addAccount(privateKey);

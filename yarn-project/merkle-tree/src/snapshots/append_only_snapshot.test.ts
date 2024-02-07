@@ -1,4 +1,5 @@
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { Pedersen, StandardTree, newTree } from '../index.js';
 import { AppendOnlySnapshotBuilder } from './append_only_snapshot.js';
@@ -10,7 +11,7 @@ describe('AppendOnlySnapshot', () => {
   let db: AztecKVStore;
 
   beforeEach(async () => {
-    db = await AztecLmdbStore.openTmp();
+    db = openTmpStore();
     const hasher = new Pedersen();
     tree = await newTree(StandardTree, db, hasher, 'test', 4);
     snapshotBuilder = new AppendOnlySnapshotBuilder(db, tree, hasher);

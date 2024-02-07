@@ -2,7 +2,11 @@
   "name": "@aztec/kv-store",
   "version": "0.1.0",
   "type": "module",
-  "exports": "./dest/index.js",
+  "exports": {
+    ".": "./dest/interfaces/index.js",
+    "./lmdb": "./dest/lmdb/index.js",
+    "./utils": "./dest/utils.js"
+  },
   "scripts": {
     "build": "yarn clean && tsc -b",
     "build:dev": "tsc -b --watch",
@@ -43,7 +47,6 @@
     "src",
     "!*.test.*"
   ],
-  "types": "./dest/index.d.ts",
   "engines": {
     "node": ">=18"
   }

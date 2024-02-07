@@ -12,7 +12,7 @@ import {
   computeSaltedInitializationHash,
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Pedersen, StandardTree } from '@aztec/merkle-tree';
 import { ContractClass, ContractInstance } from '@aztec/types/contracts';
 
@@ -94,7 +94,7 @@ describe('Data generation for noir tests', () => {
     const indexes = new Array(128).fill(null).map((_, i) => BigInt(i));
     const leaves = indexes.map(i => new Fr(i + 1n).toBuffer());
 
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
 
     const noteHashTree = new StandardTree(
       db,

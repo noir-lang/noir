@@ -1,5 +1,6 @@
 import { randomBytes } from '@aztec/foundation/crypto';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
 
 import { loadTree } from '../load_tree.js';
@@ -33,7 +34,7 @@ describe('StandardTree_batchAppend', () => {
   });
 
   it('correctly computes root when batch appending and calls hash function expected num times', async () => {
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', 3);
     const leaves = Array.from({ length: 5 }, _ => randomBytes(32));
 
@@ -69,7 +70,7 @@ describe('StandardTree_batchAppend', () => {
   });
 
   it('should be able to find indexes of leaves', async () => {
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', 3);
     const values = [Buffer.alloc(32, 1), Buffer.alloc(32, 2)];
 

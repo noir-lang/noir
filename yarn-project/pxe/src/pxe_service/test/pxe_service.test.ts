@@ -3,7 +3,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { L1ContractAddresses } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { TestKeyStore } from '@aztec/key-store';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
@@ -13,8 +13,8 @@ import { PXEServiceConfig } from '../../index.js';
 import { PXEService } from '../pxe_service.js';
 import { pxeTestSuite } from './pxe_test_suite.js';
 
-async function createPXEService(): Promise<PXE> {
-  const kvStore = await AztecLmdbStore.openTmp();
+function createPXEService(): Promise<PXE> {
+  const kvStore = openTmpStore();
   const keyStore = new TestKeyStore(new Grumpkin(), kvStore);
   const node = mock<AztecNode>();
   const db = new KVPxeDatabase(kvStore);
@@ -45,8 +45,8 @@ describe('PXEService', () => {
   let db: PxeDatabase;
   let config: PXEServiceConfig;
 
-  beforeEach(async () => {
-    const kvStore = await AztecLmdbStore.openTmp();
+  beforeEach(() => {
+    const kvStore = openTmpStore();
     keyStore = new TestKeyStore(new Grumpkin(), kvStore);
     node = mock<AztecNode>();
     db = new KVPxeDatabase(kvStore);

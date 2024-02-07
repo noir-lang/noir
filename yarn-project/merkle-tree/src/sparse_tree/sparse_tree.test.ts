@@ -1,6 +1,7 @@
 import { SiblingPath } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
 
 import { randomBytes } from 'crypto';
@@ -36,7 +37,7 @@ describe('SparseTreeSpecific', () => {
   });
 
   it('throws when index is bigger than (2^DEPTH - 1) ', async () => {
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const depth = 32;
     const tree = await createDb(db, pedersen, 'test', depth);
 
@@ -48,7 +49,7 @@ describe('SparseTreeSpecific', () => {
     const depth = 32;
     const maxIndex = 2 ** depth - 1;
 
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', depth);
 
     const randomIndex = BigInt(Math.floor(Math.random() * maxIndex));
@@ -67,7 +68,7 @@ describe('SparseTreeSpecific', () => {
     const depth = 254;
     const maxIndex = 2 ** depth - 1;
 
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', depth);
 
     const randomIndex = BigInt(Math.floor(Math.random() * maxIndex));
@@ -83,7 +84,7 @@ describe('SparseTreeSpecific', () => {
   });
 
   it('should have correct root and sibling path after in a "non-append-only" way', async () => {
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', 3);
 
     const level2ZeroHash = pedersen.hash(INITIAL_LEAF, INITIAL_LEAF);
@@ -156,7 +157,7 @@ describe('SparseTreeSpecific', () => {
     const depth = 254;
     const maxIndex = 2 ** depth - 1;
 
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', depth);
 
     const leaves = Array.from({ length: 1000 }).map(() => randomBytes(32));

@@ -10,7 +10,7 @@ import {
   Wallet,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { initStoreForRollup, openTmpStore } from '@aztec/kv-store/utils';
 import { TokenContract } from '@aztec/noir-contracts/Token';
 
 import { Chain, HttpTransport, PublicClient } from 'viem';
@@ -43,7 +43,9 @@ describe('archiver integration with l1 to l2 messages', () => {
     config.archiverPollingIntervalMS = 100;
     archiver = await Archiver.createAndSync(
       { ...config, l1Contracts: deployL1ContractsValues.l1ContractAddresses },
-      new KVArchiverDataStore(await AztecLmdbStore.open(deployL1ContractsValues.l1ContractAddresses.rollupAddress)),
+      new KVArchiverDataStore(
+        await initStoreForRollup(openTmpStore(), deployL1ContractsValues.l1ContractAddresses.rollupAddress),
+      ),
     );
 
     const walletClient = deployL1ContractsValues.walletClient;

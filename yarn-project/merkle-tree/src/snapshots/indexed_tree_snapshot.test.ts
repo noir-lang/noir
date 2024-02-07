@@ -1,5 +1,6 @@
 import { Fr, NullifierLeaf, NullifierLeafPreimage } from '@aztec/circuits.js';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
 
 import { Pedersen, newTree } from '../index.js';
@@ -19,7 +20,7 @@ describe('IndexedTreeSnapshotBuilder', () => {
   let snapshotBuilder: IndexedTreeSnapshotBuilder;
 
   beforeEach(async () => {
-    db = await AztecLmdbStore.openTmp();
+    db = openTmpStore();
     tree = await newTree(NullifierTree, db, new Pedersen(), 'test', 4);
     snapshotBuilder = new IndexedTreeSnapshotBuilder(db, tree, NullifierLeafPreimage);
   });

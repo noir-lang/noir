@@ -45,4 +45,9 @@ export interface AztecKVStore {
    * @param callback - The callback to execute in a transaction
    */
   transaction<T extends Exclude<any, Promise<any>>>(callback: () => T): Promise<T>;
+
+  /**
+   * Clears the store
+   */
+  clear(): Promise<void>;
 }

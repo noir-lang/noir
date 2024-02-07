@@ -1,4 +1,5 @@
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { Pedersen, StandardTree, newTree } from '../index.js';
 import { FullTreeSnapshotBuilder } from './full_snapshot.js';
@@ -10,7 +11,7 @@ describe('FullSnapshotBuilder', () => {
   let db: AztecKVStore;
 
   beforeEach(async () => {
-    db = await AztecLmdbStore.openTmp();
+    db = openTmpStore();
     tree = await newTree(StandardTree, db, new Pedersen(), 'test', 4);
     snapshotBuilder = new FullTreeSnapshotBuilder(db, tree);
   });

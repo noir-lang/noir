@@ -40,7 +40,9 @@ import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/abis';
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
+import { initStoreForRollup } from '@aztec/kv-store/utils';
 import { AztecKVTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import {
   GlobalVariableBuilder,
@@ -104,7 +106,12 @@ export class AztecNodeService implements AztecNode {
     }
 
     const log = createDebugLogger('aztec:node');
-    const store = await AztecLmdbStore.open(config.l1Contracts.rollupAddress, config.dataDirectory);
+    const storeLog = createDebugLogger('aztec:node:lmdb');
+    const store = await initStoreForRollup(
+      AztecLmdbStore.open(config.dataDirectory, storeLog),
+      config.l1Contracts.rollupAddress,
+      storeLog,
+    );
 
     let archiver: ArchiveSource;
     if (!config.archiverUrl) {

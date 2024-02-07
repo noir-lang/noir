@@ -7,7 +7,8 @@ import {
   PublicDataTreeLeafPreimage,
 } from '@aztec/circuits.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
 
 import { INITIAL_LEAF, MerkleTree, Pedersen, loadTree, newTree } from '../../index.js';
@@ -75,7 +76,7 @@ describe('StandardIndexedTreeSpecific', () => {
 
   it('produces the correct roots and sibling paths', async () => {
     // Create a depth-3 indexed merkle tree
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', 3);
 
     /**
@@ -272,7 +273,7 @@ describe('StandardIndexedTreeSpecific', () => {
 
   it('Can append empty leaves and handle insertions', async () => {
     // Create a depth-3 indexed merkle tree
-    const tree = await createDb(await AztecLmdbStore.openTmp(), pedersen, 'test', 3);
+    const tree = await createDb(openTmpStore(), pedersen, 'test', 3);
 
     /**
      * Initial state:
@@ -489,8 +490,8 @@ describe('StandardIndexedTreeSpecific', () => {
     const SUBTREE_HEIGHT = 5; // originally from BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT
 
     // Create a depth-3 indexed merkle tree
-    const appendTree = await createDb(await AztecLmdbStore.openTmp(), pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
-    const insertTree = await createDb(await AztecLmdbStore.openTmp(), pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
+    const appendTree = await createDb(openTmpStore(), pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
+    const insertTree = await createDb(openTmpStore(), pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
 
     await appendTree.appendLeaves(leaves);
     await insertTree.batchInsert(leaves, SUBTREE_HEIGHT);
@@ -501,7 +502,7 @@ describe('StandardIndexedTreeSpecific', () => {
   });
 
   it('should be able to find indexes of leaves', async () => {
-    const db = await AztecLmdbStore.openTmp();
+    const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', 3);
     const values = [Buffer.alloc(32, 1), Buffer.alloc(32, 2)];
 
@@ -519,7 +520,7 @@ describe('StandardIndexedTreeSpecific', () => {
   describe('Updatable leaves', () => {
     it('should be able to upsert leaves', async () => {
       // Create a depth-3 indexed merkle tree
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const tree = await newTree(PublicDataTree, db, pedersen, 'test', 3, 1);
 
       /**
@@ -629,7 +630,7 @@ describe('StandardIndexedTreeSpecific', () => {
       const INITIAL_TREE_SIZE = 8;
       const SUBTREE_HEIGHT = 5;
 
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const appendTree = await newTree(PublicDataTree, db, pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
       const insertTree = await newTree(PublicDataTree, db, pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
 

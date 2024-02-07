@@ -1,5 +1,6 @@
 import { L2BlockSource, mockTx } from '@aztec/circuit-types';
-import { AztecKVStore, AztecLmdbStore } from '@aztec/kv-store';
+import { AztecKVStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { expect, jest } from '@jest/globals';
 
@@ -22,7 +23,7 @@ describe('In-Memory P2P Client', () => {
   let kvStore: AztecKVStore;
   let client: P2PClient;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     txPool = {
       addTxs: jest.fn(),
       getTxByHash: jest.fn().mockReturnValue(undefined),
@@ -41,7 +42,7 @@ describe('In-Memory P2P Client', () => {
 
     blockSource = new MockBlockSource();
 
-    kvStore = await AztecLmdbStore.openTmp();
+    kvStore = openTmpStore();
     client = new P2PClient(kvStore, blockSource, txPool, p2pService);
   });
 

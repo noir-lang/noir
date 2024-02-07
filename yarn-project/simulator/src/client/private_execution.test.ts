@@ -41,7 +41,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { FieldsOf } from '@aztec/foundation/types';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
   ChildContractArtifact,
@@ -140,7 +140,7 @@ describe('Private Execution test suite', () => {
       throw new Error(`Unknown tree ${name}`);
     }
     if (!trees[name]) {
-      const db = await AztecLmdbStore.openTmp();
+      const db = openTmpStore();
       const pedersen = new Pedersen();
       trees[name] = await newTree(StandardTree, db, pedersen, name, treeHeights[name]);
     }

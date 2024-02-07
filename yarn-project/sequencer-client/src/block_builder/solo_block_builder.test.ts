@@ -52,7 +52,7 @@ import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { times } from '@aztec/foundation/collection';
 import { to2Fields } from '@aztec/foundation/serialize';
-import { AztecLmdbStore } from '@aztec/kv-store';
+import { openTmpStore } from '@aztec/kv-store/utils';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { MockProxy, mock } from 'jest-mock-extended';
@@ -100,8 +100,8 @@ describe('sequencer/solo_block_builder', () => {
     blockNumber = 3;
     globalVariables = new GlobalVariables(chainId, version, new Fr(blockNumber), Fr.ZERO, coinbase, feeRecipient);
 
-    builderDb = await MerkleTrees.new(await AztecLmdbStore.openTmp()).then(t => t.asLatest());
-    expectsDb = await MerkleTrees.new(await AztecLmdbStore.openTmp()).then(t => t.asLatest());
+    builderDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
+    expectsDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
     vks = getVerificationKeys();
     simulator = mock<RollupSimulator>();
     prover = mock<RollupProver>();
