@@ -319,6 +319,7 @@ impl AcirContext {
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
+            false,
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -706,6 +707,7 @@ impl AcirContext {
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
+                false,
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1438,6 +1440,7 @@ impl AcirContext {
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
+        unsafe_return_values: bool,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let b_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
             match i {
@@ -1511,11 +1514,14 @@ impl AcirContext {
             }
             Ok(())
         }
-
-        for output_var in &outputs_var {
-            range_constraint_value(self, output_var)?;
+        
+        // This is a hack to ensure that if we're compiling a brillig entrypoint function then
+        // we don't also add a number of range constraints.
+        if !unsafe_return_values {
+            for output_var in &outputs_var {
+                range_constraint_value(self, output_var)?;
+            }
         }
-
         Ok(outputs_var)
     }
 
