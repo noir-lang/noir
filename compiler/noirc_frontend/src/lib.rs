@@ -11,6 +11,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 pub mod ast;
+pub mod debug;
 pub mod graph;
 pub mod lexer;
 pub mod monomorphization;
@@ -48,7 +49,7 @@ pub mod macros_api {
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
     pub use crate::node_interner::{NodeInterner, StructId};
-    pub use crate::parser::SortedModule;
+    pub use crate::parser::{parse_program, SortedModule};
     pub use crate::token::SecondaryAttribute;
 
     pub use crate::hir::def_map::ModuleDefId;

@@ -18,7 +18,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{Endian, InstructionId, Intrinsic},
+        instruction::{ConstrainError, Endian, InstructionId, Intrinsic},
         types::NumericType,
     },
     ssa_gen::Ssa,
@@ -250,7 +250,7 @@ impl FunctionBuilder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        assert_message: Option<String>,
+        assert_message: Option<Box<ConstrainError>>,
     ) {
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
@@ -487,9 +487,9 @@ impl FunctionBuilder {
                 }
             }
             Type::Array(..) | Type::Slice(..) => {
-                self.insert_instruction(Instruction::IncrementRc { value }, None);
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
             }
         }
     }

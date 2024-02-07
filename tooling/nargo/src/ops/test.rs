@@ -16,7 +16,7 @@ pub enum TestStatus {
 
 pub fn run_test<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
-    context: &Context,
+    context: &mut Context,
     test_function: TestFunction,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,

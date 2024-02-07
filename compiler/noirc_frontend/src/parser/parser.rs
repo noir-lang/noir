@@ -23,6 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use super::errors::ALLOWED_INTEGER_BIT_SIZES;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -35,7 +36,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
+use crate::token::{Attribute, Attributes, IntType, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
@@ -832,23 +833,10 @@ where
 
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|expressions, span, emit| {
+        .validate(|expressions, span, _| {
             let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
-            let mut message_str = None;
-
-            if let Some(message) = expressions.get(1) {
-                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
-                    message_str = Some(message.clone());
-                } else {
-                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
-                }
-            }
-
-            StatementKind::Constrain(ConstrainStatement(
-                condition,
-                message_str,
-                ConstrainKind::Assert,
-            ))
+            let message = expressions.get(1).cloned();
+            StatementKind::Constrain(ConstrainStatement(condition, message, ConstrainKind::Assert))
         })
 }
 
@@ -861,7 +849,7 @@ where
 
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .validate(|exprs: Vec<Expression>, span, emit| {
+        .validate(|exprs: Vec<Expression>, span, _| {
             let predicate = Expression::new(
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
@@ -870,18 +858,10 @@ where
                 })),
                 span,
             );
-            let mut message_str = None;
-
-            if let Some(message) = exprs.get(2) {
-                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
-                    message_str = Some(message.clone());
-                } else {
-                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
-                }
-            }
+            let message = exprs.get(2).cloned();
             StatementKind::Constrain(ConstrainStatement(
                 predicate,
-                message_str,
+                message,
                 ConstrainKind::AssertEq,
             ))
         })
@@ -1113,6 +1093,18 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
                 Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
+        .validate(|int_type, span, emit| {
+            let bit_size = match int_type.1 {
+                IntType::Signed(bit_size) | IntType::Unsigned(bit_size) => bit_size,
+            };
+            if !ALLOWED_INTEGER_BIT_SIZES.contains(&bit_size) {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::DeprecatedBitSize(bit_size),
+                    span,
+                ));
+            }
+            int_type
+        })
         .map_with_span(|(_, token), span| UnresolvedTypeData::from_int_token(token).with_span(span))
 }
 
@@ -2092,7 +2084,13 @@ mod test {
         match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
         {
             StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                assert_eq!(message, Some("assertion message".to_owned()));
+                let message = message.unwrap();
+                match message.kind {
+                    ExpressionKind::Literal(Literal::Str(message_string)) => {
+                        assert_eq!(message_string, "assertion message".to_owned());
+                    }
+                    _ => unreachable!(),
+                }
             }
             _ => unreachable!(),
         }
@@ -2116,7 +2114,13 @@ mod test {
             .unwrap()
         {
             StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                assert_eq!(message, Some("assertion message".to_owned()));
+                let message = message.unwrap();
+                match message.kind {
+                    ExpressionKind::Literal(Literal::Str(message_string)) => {
+                        assert_eq!(message_string, "assertion message".to_owned());
+                    }
+                    _ => unreachable!(),
+                }
             }
             _ => unreachable!(),
         }
@@ -2483,7 +2487,7 @@ mod test {
             Case {
                 source: "assert(x == x, x)",
                 expect: "constrain (plain::x == plain::x)",
-                errors: 1,
+                errors: 0,
             },
             Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
             Case {
@@ -2494,7 +2498,7 @@ mod test {
             Case {
                 source: "assert_eq(x, x, x)",
                 expect: "constrain (plain::x == plain::x)",
-                errors: 1,
+                errors: 0,
             },
         ];
 
