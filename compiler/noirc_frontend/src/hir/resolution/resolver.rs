@@ -354,13 +354,11 @@ impl<'a> Resolver<'a> {
         }
 
         let (ident, resolver_meta) = if let Some(id) = global_id {
-            let hir_let_stmt = self
-                .interner
-                .get_global_let_statement(id)
-                .expect("All globals should have an associated let statement");
-            let ident = hir_let_stmt.ident();
+            let global = self.interner.get_global(id);
+            let hir_ident = HirIdent::non_trait_method(global.definition_id, global.location);
+            let ident = hir_ident.clone();
             let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
-            (hir_let_stmt.ident(), resolver_meta)
+            (hir_ident, resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
             let id =
