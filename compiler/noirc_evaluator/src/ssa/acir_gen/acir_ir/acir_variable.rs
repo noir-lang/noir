@@ -1638,40 +1638,6 @@ impl AcirContext {
         AcirValue::Array(array_values)
     }
 
-    /// Generate output variables that are constrained to be the sorted inputs
-    /// The outputs are the sorted inputs iff
-    /// outputs are sorted and
-    /// outputs are a permutation of the inputs
-    pub(crate) fn sort(
-        &mut self,
-        inputs: Vec<AcirVar>,
-        bit_size: u32,
-    ) -> Result<Vec<AcirVar>, RuntimeError> {
-        let len = inputs.len();
-        // Convert the inputs into expressions
-        let inputs_expr = try_vecmap(inputs, |input| self.var_to_expression(input))?;
-        // Generate output witnesses
-        let outputs_witness = vecmap(0..len, |_| self.acir_ir.next_witness_index());
-        let output_expr =
-            vecmap(&outputs_witness, |witness_index| Expression::from(*witness_index));
-        let outputs_var = vecmap(&outputs_witness, |witness_index| {
-            self.add_data(AcirVarData::Witness(*witness_index))
-        });
-
-        // Enforce the outputs to be a permutation of the inputs
-        self.acir_ir.permutation(&inputs_expr, &output_expr)?;
-
-        // Enforce the outputs to be sorted
-        let true_var = self.add_constant(true);
-        for i in 0..(outputs_var.len() - 1) {
-            let less_than_next_element =
-                self.more_than_eq_var(outputs_var[i + 1], outputs_var[i], bit_size)?;
-            self.assert_eq_var(less_than_next_element, true_var, None)?;
-        }
-
-        Ok(outputs_var)
-    }
-
     /// Returns a Variable that is constrained to be the result of reading
     /// from the memory `block_id` at the given `index`.
     pub(crate) fn read_from_memory(
