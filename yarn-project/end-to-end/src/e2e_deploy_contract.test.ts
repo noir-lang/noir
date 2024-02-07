@@ -407,6 +407,9 @@ describe('e2e_deploy_contract', () => {
         const publicKeysHash = computePublicKeysHash(publicKey);
 
         instance = getContractInstanceFromDeployParams(artifact, initArgs, salt, publicKey, portalAddress);
+        logger(
+          `Deploying contract instance at ${instance.address.toString()} with class id ${instance.contractClassId.toString()}`,
+        );
         const tx = await deployer.methods
           .deploy(salt, contractClass.id, instance.initializationHash, portalAddress, publicKeysHash, false)
           .send()

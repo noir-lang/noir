@@ -34,7 +34,7 @@ export class ContractInstanceDeployedEvent {
     const salt = reader.readObject(Fr);
     const contractClassId = reader.readObject(Fr);
     const initializationHash = reader.readObject(Fr);
-    const portalContractAddress = reader.readObject(EthAddress);
+    const portalContractAddress = EthAddress.fromField(reader.readObject(Fr));
     const publicKeysHash = reader.readObject(Fr);
     const universalDeploy = reader.readObject(Fr).toBool();
 

@@ -19,6 +19,12 @@ export function getSampleContractClassRegisteredEventPayload(): Buffer {
   return Buffer.from(readFileSync(path).toString(), 'hex');
 }
 
+// Copied from the test 'deploying a contract instance' in end-to-end/src/e2e_deploy_contract.test.ts
+export function getSampleContractInstanceDeployedEventPayload(): Buffer {
+  const path = getPathToFixture('ContractInstanceDeployedEventData.hex');
+  return Buffer.from(readFileSync(path).toString(), 'hex');
+}
+
 function getPathToFixture(name: string) {
   return resolve(dirname(fileURLToPath(import.meta.url)), `../../fixtures/${name}`);
 }
