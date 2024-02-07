@@ -38,6 +38,10 @@ pub(crate) enum BinaryOp {
     Or,
     /// Bitwise xor (^)
     Xor,
+    /// Bitshift left (<<)
+    Shl,
+    /// Bitshift right (>>)
+    Shr,
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -53,6 +57,8 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::And => write!(f, "and"),
             BinaryOp::Or => write!(f, "or"),
             BinaryOp::Xor => write!(f, "xor"),
+            BinaryOp::Shl => write!(f, "shl"),
+            BinaryOp::Shr => write!(f, "shr"),
         }
     }
 }
@@ -215,6 +221,7 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(zero);
                 }
             }
+            BinaryOp::Shl | BinaryOp::Shr => (),
         }
         SimplifyResult::None
     }
@@ -314,6 +321,8 @@ impl BinaryOp {
             BinaryOp::And => None,
             BinaryOp::Or => None,
             BinaryOp::Xor => None,
+            BinaryOp::Shl => None,
+            BinaryOp::Shr => None,
         }
     }
 
@@ -329,6 +338,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
+            BinaryOp::Shl => |x, y| Some(x << y),
+            BinaryOp::Shr => |x, y| Some(x >> y),
         }
     }
 
@@ -344,6 +355,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as i128),
             BinaryOp::Lt => |x, y| Some((x < y) as i128),
+            BinaryOp::Shl => |x, y| Some(x << y),
+            BinaryOp::Shr => |x, y| Some(x >> y),
         }
     }
 }

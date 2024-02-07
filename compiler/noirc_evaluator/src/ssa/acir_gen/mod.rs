@@ -1483,6 +1483,9 @@ impl Context {
                 bit_count,
                 self.current_side_effects_enabled_var,
             ),
+            BinaryOp::Shl | BinaryOp::Shr => unreachable!(
+                "ICE - bit shift operators do not exist in ACIR and should have been replaced"
+            ),
         }
     }
 

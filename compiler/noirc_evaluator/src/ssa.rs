@@ -49,6 +49,7 @@ pub(crate) fn optimize_into_acir(
     let ssa = SsaBuilder::new(program, print_ssa_passes, force_brillig_output)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
+        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
