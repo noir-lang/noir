@@ -24,9 +24,10 @@ import {
 import {
   broadcastPrivateFunction,
   broadcastUnconstrainedFunction,
+  deployInstance,
   registerContractClass,
 } from '@aztec/aztec.js/deployment';
-import { ContractClassIdPreimage, Point, PublicKey, computePublicKeysHash } from '@aztec/circuits.js';
+import { ContractClassIdPreimage, Point, PublicKey } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { ContractInstanceDeployerContract, StatefulTestContract } from '@aztec/noir-contracts';
@@ -307,16 +308,12 @@ describe('e2e_deploy_contract', () => {
         const salt = Fr.random();
         const portalAddress = EthAddress.random();
         publicKey = Point.random();
-        const publicKeysHash = computePublicKeysHash(publicKey);
 
         instance = getContractInstanceFromDeployParams(artifact, initArgs, salt, publicKey, portalAddress);
-        logger(
-          `Deploying contract instance at ${instance.address.toString()} with class id ${instance.contractClassId.toString()}`,
-        );
-        const tx = await deployer.methods
-          .deploy(salt, contractClass.id, instance.initializationHash, portalAddress, publicKeysHash, false)
-          .send()
-          .wait();
+        const { address, contractClassId } = instance;
+        logger(`Deploying contract instance at ${address.toString()} class id ${contractClassId.toString()}`);
+
+        const tx = await deployInstance(wallet, instance).send().wait();
         deployTxHash = tx.txHash;
       });
 
