@@ -1213,7 +1213,10 @@ impl<'a> Resolver<'a> {
     ) -> Option<ExprId> {
         let assert_message_expr = assert_message_expr?;
 
-        if matches!(assert_message_expr,  Expression {kind: ExpressionKind::Literal(Literal::Str(..)), ..}){
+        if matches!(
+            assert_message_expr,
+            Expression { kind: ExpressionKind::Literal(Literal::Str(..)), .. }
+        ) {
             return Some(self.resolve_expression(assert_message_expr));
         }
 
