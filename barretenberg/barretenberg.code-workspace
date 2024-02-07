@@ -152,8 +152,7 @@
         },
         "cmake.configureArgs": [
             "--preset clang16",
-            "-G Ninja",
-            "-g"
+            "-G Ninja"
         ],
         "cmake.useCMakePresets": "auto",
         "editor.inlayHints.enabled": "offUnlessPressed",

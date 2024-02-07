@@ -320,7 +320,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         auto second_accumulator = fold_and_verify(instances, composer, true);
         check_accumulator_target_sum_manual(second_accumulator, true);
 
-        decide_and_verify(first_accumulator, composer, true);
+        decide_and_verify(second_accumulator, composer, true);
     }
 
     /**

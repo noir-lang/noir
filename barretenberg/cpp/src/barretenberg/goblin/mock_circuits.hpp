@@ -164,7 +164,7 @@ class GoblinMockCircuits {
     }
 
     /**
-     * @brief Construct a mock kernel circuit
+     * @brief Construct a size 2^17 mock kernel circuit for benchmarking
      * @details This circuit contains (1) some arbitrary operations representing general kernel logic, (2) recursive
      * verification of a function circuit proof, and optionally (3) recursive verification of a previous kernel circuit
      * proof. The arbitrary kernel logic is structured to bring the final dyadic circuit size of the kernel to 2^17.
@@ -187,6 +187,25 @@ class GoblinMockCircuits {
         stdlib::generate_ecdsa_verification_test_circuit(builder, NUM_ECDSA_VERIFICATIONS);
         stdlib::generate_sha256_test_circuit(builder, NUM_SHA_HASHES);
 
+        // Execute recursive aggregation of function proof
+        RecursiveVerifier verifier1{ &builder, function_accum.verification_key };
+        verifier1.verify_proof(function_accum.proof);
+
+        // Execute recursive aggregation of previous kernel proof if one exists
+        if (!prev_kernel_accum.proof.empty()) {
+            RecursiveVerifier verifier2{ &builder, prev_kernel_accum.verification_key };
+            verifier2.verify_proof(prev_kernel_accum.proof);
+        }
+    }
+
+    /**
+     * @brief A minimal version of the mock kernel (recursive verifiers only) for faster testing
+     *
+     */
+    static void construct_mock_kernel_small(GoblinUltraBuilder& builder,
+                                            const KernelInput& function_accum,
+                                            const KernelInput& prev_kernel_accum)
+    {
         // Execute recursive aggregation of function proof
         RecursiveVerifier verifier1{ &builder, function_accum.verification_key };
         verifier1.verify_proof(function_accum.proof);

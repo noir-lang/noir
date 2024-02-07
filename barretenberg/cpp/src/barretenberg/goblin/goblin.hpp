@@ -121,6 +121,31 @@ class Goblin {
     };
 
     /**
+     * @brief Add a recursive merge verifier to input circuit and construct a merge proof for the updated op queue
+     * @details When this method is used, the "prover" functionality of the IVC scheme must be performed explicitly, but
+     * this method has to be called first so that the recursive merge verifier can be "appended" to the circuit being
+     * accumulated
+     *
+     * @param circuit_builder
+     */
+    void merge(GoblinUltraCircuitBuilder& circuit_builder)
+    {
+        // Complete the circuit logic by recursively verifying previous merge proof if it exists
+        if (merge_proof_exists) {
+            RecursiveMergeVerifier merge_verifier{ &circuit_builder };
+            [[maybe_unused]] auto pairing_points = merge_verifier.verify_proof(merge_proof);
+        }
+
+        // Construct and store the merge proof to be recursively verified on the next call to accumulate
+        MergeProver merge_prover{ op_queue };
+        merge_proof = merge_prover.construct_proof();
+
+        if (!merge_proof_exists) {
+            merge_proof_exists = true;
+        }
+    };
+
+    /**
      * @brief Construct an ECCVM proof and the translation polynomial evaluations
      *
      */
