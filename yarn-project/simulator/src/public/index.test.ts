@@ -231,11 +231,7 @@ describe('ACIR public execution simulator', () => {
         const initialValue = 3n;
 
         const functionData = new FunctionData(parentEntryPointFnSelector, isInternal ?? false, false, false);
-        const args = encodeArguments(parentEntryPointFn, [
-          childContractAddress.toField(),
-          childValueFnSelector.toField(),
-          initialValue,
-        ]);
+        const args = encodeArguments(parentEntryPointFn, [childContractAddress, childValueFnSelector, initialValue]);
 
         const callContext = CallContext.from({
           msgSender: AztecAddress.random(),
@@ -311,7 +307,7 @@ describe('ACIR public execution simulator', () => {
       const msgSender = AztecAddress.random();
       const secretHash = Fr.random();
 
-      const args = encodeArguments(shieldArtifact, [msgSender.toField(), amount, secretHash, Fr.ZERO]);
+      const args = encodeArguments(shieldArtifact, [msgSender, amount, secretHash, Fr.ZERO]);
 
       const callContext = CallContext.from({
         msgSender: msgSender,
@@ -436,9 +432,9 @@ describe('ACIR public execution simulator', () => {
 
       const computeArgs = () =>
         encodeArguments(mintPublicArtifact, [
-          tokenRecipient.toField(),
+          tokenRecipient,
           bridgedAmount,
-          canceller.toField(),
+          canceller,
           messageKey ?? preimage.hash(),
           secret,
         ]);
@@ -636,6 +632,14 @@ describe('ACIR public execution simulator', () => {
   describe('Global variables in public context', () => {
     let contractAddress: AztecAddress;
     let callContext: CallContext;
+    let assertGlobalVarsArtifact: FunctionArtifact;
+    let functionData: FunctionData;
+
+    const modifyGlobalVariables = (globalVariables: GlobalVariables, propertyIndex: number, value: any) => {
+      const globalVariablesFields = GlobalVariables.getFields(globalVariables) as unknown as any[];
+      globalVariablesFields[propertyIndex] = value;
+      return GlobalVariables.fromFields(globalVariablesFields);
+    };
 
     beforeAll(() => {
       contractAddress = AztecAddress.random();
@@ -649,92 +653,68 @@ describe('ACIR public execution simulator', () => {
         isStaticCall: false,
         startSideEffectCounter: 0,
       });
+      assertGlobalVarsArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_public_global_vars')!;
+      functionData = FunctionData.fromAbi(assertGlobalVarsArtifact);
     });
 
-    const computeGlobalVariables = (coinbase: EthAddress, feeRecipient: AztecAddress) =>
-      new GlobalVariables(new Fr(1), new Fr(2), Fr.ZERO, Fr.ZERO, coinbase, feeRecipient);
-
-    describe('Coinbase', () => {
-      let expectedCoinbase: EthAddress;
-      let globalVariables: GlobalVariables;
-      let assertCoinbaseArtifact: FunctionArtifact;
-      let functionData: FunctionData;
-
-      beforeAll(() => {
-        expectedCoinbase = EthAddress.random();
-        globalVariables = computeGlobalVariables(expectedCoinbase, AztecAddress.random());
-
-        assertCoinbaseArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_coinbase')!;
-        functionData = FunctionData.fromAbi(assertCoinbaseArtifact);
-      });
-
-      beforeEach(() => {
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertCoinbaseArtifact.bytecode, 'base64'));
-      });
-
-      it('Valid', () => {
-        // We set the coinbase function arg to one we set in global vars
-        const args = encodeArguments(assertCoinbaseArtifact, [expectedCoinbase]);
-
-        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
-
-        // Now we check that the global vars value was correctly set by checking if the assert func throws
-        expect(() => executor.simulate(execution, globalVariables)).not.toThrow();
-      });
-
-      it('Invalid', async () => {
-        // We set the coinbase function arg to a random invalid value
-        const invalidCoinbase = EthAddress.random();
-        const args = encodeArguments(assertCoinbaseArtifact, [invalidCoinbase]);
-
-        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
-
-        // Now we check that the function throws in case of invalid coinbase
-        await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid coinbase');
-      });
+    beforeEach(() => {
+      publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertGlobalVarsArtifact.bytecode, 'base64'));
     });
 
-    describe('Fee recipient', () => {
-      let expectedFeeRecipient: AztecAddress;
-      let globalVariables: GlobalVariables;
-      let assertFeeRecipientArtifact: FunctionArtifact;
-      let functionData: FunctionData;
+    // Note: Order here has to match the order of the properties in GlobalVariables.getFields(...) function.
+    const testCases = [
+      { value: new Fr(1), invalidValue: Fr.random(), description: 'Chain ID' },
+      { value: new Fr(1), invalidValue: Fr.random(), description: 'Version' },
+      { value: new Fr(1), invalidValue: Fr.random(), description: 'Block number' },
+      { value: new Fr(1), invalidValue: Fr.random(), description: 'Timestamp' },
+      { value: EthAddress.random(), invalidValue: EthAddress.random(), description: 'Coinbase' },
+      {
+        value: AztecAddress.random(),
+        invalidValue: AztecAddress.random(),
+        description: 'Fee recipient',
+      },
+    ];
 
-      beforeAll(() => {
-        expectedFeeRecipient = AztecAddress.random();
-        globalVariables = computeGlobalVariables(EthAddress.random(), expectedFeeRecipient);
+    testCases.forEach(({ value, invalidValue, description }, i: number) => {
+      describe(`${description}`, () => {
+        let globalVariables: GlobalVariables;
 
-        assertFeeRecipientArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_fee_recipient')!;
-        functionData = FunctionData.fromAbi(assertFeeRecipientArtifact);
-      });
+        beforeAll(() => {
+          // We create a new global variables object containing non-zero value in place of the tested property
+          globalVariables = modifyGlobalVariables(GlobalVariables.empty(), i, value);
+        });
 
-      beforeEach(() => {
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertFeeRecipientArtifact.bytecode, 'base64'));
-      });
+        it('Valid', () => {
+          let args: Fr[];
+          {
+            // We create the args by just serializing the reference global variables object
+            const rawArgs = GlobalVariables.getFields(globalVariables) as unknown as any[];
+            args = encodeArguments(assertGlobalVarsArtifact, rawArgs);
+          }
 
-      it('Valid', () => {
-        // We set the fee recipient function arg to one we set in global vars
-        const args = encodeArguments(assertFeeRecipientArtifact, [expectedFeeRecipient]);
+          const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+          executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
 
-        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
+          expect(() => executor.simulate(execution, globalVariables)).not.toThrow();
+        });
 
-        // Now we check that the global vars value was correctly set by checking if the assert func throws
-        expect(() => executor.simulate(execution, globalVariables)).not.toThrow();
-      });
+        it('Invalid', async () => {
+          let args: Fr[];
+          {
+            // We create the args by modifying the global variables object to contain an invalid value in place of
+            // the tested property
+            const modifiedGlobalVariables = modifyGlobalVariables(globalVariables, i, invalidValue);
+            const rawArgs = GlobalVariables.getFields(modifiedGlobalVariables) as unknown as any[];
+            args = encodeArguments(assertGlobalVarsArtifact, rawArgs);
+          }
 
-      it('Invalid', async () => {
-        // We set the fee recipient function arg to a random invalid value
-        const invalidFeeRecipient = AztecAddress.random();
-        const args = encodeArguments(assertFeeRecipientArtifact, [invalidFeeRecipient]);
+          const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+          executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
 
-        const execution: PublicExecution = { contractAddress, functionData, args, callContext };
-        executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
-
-        // Now we check that the function throws in case of invalid fee recipient
-        await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError('Invalid fee recipient');
+          await expect(executor.simulate(execution, globalVariables)).rejects.toThrowError(
+            `Invalid ${description.toLowerCase()}`,
+          );
+        });
       });
     });
   });

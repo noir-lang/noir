@@ -301,14 +301,27 @@ contract Test {
         storage.example_constant.initialize(&mut note, false);
     }
 
-    #[aztec(public)]
-    fn assert_coinbase(coinbase: EthAddress) {
-        assert(context.coinbase().eq(coinbase), "Invalid coinbase");
+    #[aztec(private)]
+    fn assert_private_global_vars(chain_id: Field, version: Field) {
+        assert(context.chain_id() == chain_id, "Invalid chain id");
+        assert(context.version() == version, "Invalid version");
     }
 
     #[aztec(public)]
-    fn assert_fee_recipient(fee_recipient: AztecAddress) {
-        assert(context.fee_recipient().eq(fee_recipient), "Invalid fee recipient");
+    fn assert_public_global_vars(
+        chain_id: Field,
+        version: Field,
+        block_number: Field,
+        timestamp: Field,
+        coinbase: EthAddress,
+        fee_recipient: AztecAddress
+    ) {
+        assert(context.chain_id() == chain_id, "Invalid chain id");
+        assert(context.version() == version, "Invalid version");
+        assert(context.block_number() == block_number, "Invalid block number");
+        assert(context.timestamp() == timestamp, "Invalid timestamp");
+        assert(context.coinbase() == coinbase, "Invalid coinbase");
+        assert(context.fee_recipient() == fee_recipient, "Invalid fee recipient");
     }
 
     unconstrained fn get_constant() -> pub Field {
