@@ -244,13 +244,13 @@ pub(crate) fn convert_black_box_call(
                 )
             }
         }
-        BlackBoxFunc::BigIntNeg => {
+        BlackBoxFunc::BigIntSub => {
             if let (
                 [BrilligVariable::Simple(lhs), BrilligVariable::Simple(rhs)],
                 [BrilligVariable::Simple(output)],
             ) = (function_arguments, function_results)
             {
-                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntNeg {
+                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntSub {
                     lhs: *lhs,
                     rhs: *rhs,
                     output: *output,

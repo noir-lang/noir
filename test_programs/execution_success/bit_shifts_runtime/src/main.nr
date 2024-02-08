@@ -16,4 +16,5 @@ fn main(x: u64, y: u64) {
     assert(a << 7 == -128);
     assert(a << -a == -2);
 
+    assert(x >> x == 0);
 }
