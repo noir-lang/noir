@@ -256,6 +256,7 @@ pub struct Program {
 }
 
 impl Program {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         functions: Vec<Function>,
         main_function_signature: FunctionSignature,
