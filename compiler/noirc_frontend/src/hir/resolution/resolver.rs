@@ -28,8 +28,8 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
-    TraitImplId, TraitMethodId,
+    DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
+    StructId, TraitId, TraitImplId, TraitMethodId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -93,8 +93,9 @@ pub struct Resolver<'a> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
-    /// If we're currently resolving fields in a struct type, this is set to that type.
-    current_struct_type: Option<StructId>,
+    /// The current dependency item we're resolving.
+    /// Used to link items to their dependencies in the dependency graph
+    current_item: Option<DependencyId>,
 
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
@@ -151,7 +152,7 @@ impl<'a> Resolver<'a> {
             errors: Vec::new(),
             lambda_stack: Vec::new(),
             current_trait_impl: None,
-            current_struct_type: None,
+            current_item: None,
             file,
             in_contract,
         }
@@ -188,6 +189,7 @@ impl<'a> Resolver<'a> {
         func_id: FuncId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
+        self.current_item = Some(DependencyId::Function(func_id));
 
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
@@ -353,10 +355,11 @@ impl<'a> Resolver<'a> {
         }
 
         let (ident, resolver_meta) = if let Some(id) = global_id {
-            let hir_let_stmt = self.interner.get_global_let_statement(id).expect("All globals should have an associated let statement");
-            let ident = hir_let_stmt.ident();
+            let global = self.interner.get_global(id);
+            let hir_ident = HirIdent::non_trait_method(global.definition_id, global.location);
+            let ident = hir_ident.clone();
             let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
-            (hir_let_stmt.ident(), resolver_meta)
+            (hir_ident, resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
             let id =
@@ -603,9 +606,9 @@ impl<'a> Resolver<'a> {
                     struct_type.borrow().to_string()
                 });
 
-                if let Some(current_struct) = self.current_struct_type {
+                if let Some(current_item) = self.current_item {
                     let dependency_id = struct_type.borrow().id;
-                    self.interner.add_type_dependency(current_struct, dependency_id);
+                    self.interner.add_type_dependency(current_item, dependency_id);
                 }
 
                 Type::Struct(struct_type, args)
@@ -660,10 +663,10 @@ impl<'a> Resolver<'a> {
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
             Ok(ModuleDefId::GlobalId(id)) => {
-                if let Some(current_struct) = self.current_struct_type {
-                    self.interner.add_type_global_dependency(current_struct, id);
+                if let Some(current_item) = self.current_item {
+                    self.interner.add_global_dependency(current_item, id);
                 }
-                Some(Type::Constant(self.eval_global_as_array_length(id)))
+                Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
         }
@@ -849,17 +852,20 @@ impl<'a> Resolver<'a> {
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        self.current_struct_type = Some(struct_id);
+        self.current_item = Some(DependencyId::Struct(struct_id));
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (generics, fields, self.errors)
     }
 
     fn resolve_local_globals(&mut self) {
-        for global_info in self.interner.get_all_globals() {
-            if global_info.local_id == self.path_resolver.local_module_id() {
-                let definition = DefinitionKind::Global(global_info.id);
-                self.add_global_variable_decl(global_info.ident, definition);
+        let globals = vecmap(self.interner.get_all_globals(), |global| {
+            (global.id, global.local_id, global.ident.clone())
+        });
+        for (id, local_module_id, name) in globals {
+            if local_module_id == self.path_resolver.local_module_id() {
+                let definition = DefinitionKind::Global(id);
+                self.add_global_variable_decl(name, definition);
             }
         }
     }
@@ -1123,9 +1129,15 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve_global_let(&mut self, let_stmt: crate::LetStatement) -> HirStatement {
+    pub fn resolve_global_let(
+        &mut self,
+        let_stmt: crate::LetStatement,
+        global_id: GlobalId,
+    ) -> HirStatement {
+        self.current_item = Some(DependencyId::Global(global_id));
         let expression = self.resolve_expression(let_stmt.expression);
-        let definition = DefinitionKind::Global(expression);
+        let global_id = self.interner.next_global_id();
+        let definition = DefinitionKind::Global(global_id);
 
         HirStatement::Let(HirLetStatement {
             pattern: self.resolve_pattern(let_stmt.pattern, definition),
@@ -1210,12 +1222,14 @@ impl<'a> Resolver<'a> {
         span: Span,
         condition: Expression,
     ) -> Option<ExprId> {
-        let mut assert_msg_call_args = if let Some(assert_message_expr) = assert_message_expr {
-            vec![assert_message_expr.clone()]
-        } else {
-            return None;
-        };
-        assert_msg_call_args.push(condition);
+        let assert_message_expr = assert_message_expr?;
+
+        if matches!(
+            assert_message_expr,
+            Expression { kind: ExpressionKind::Literal(Literal::Str(..)), .. }
+        ) {
+            return Some(self.resolve_expression(assert_message_expr));
+        }
 
         let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
         let assert_msg_call_path = if is_in_stdlib {
@@ -1231,6 +1245,7 @@ impl<'a> Resolver<'a> {
                 span,
             })
         };
+        let assert_msg_call_args = vec![assert_message_expr.clone(), condition];
         let assert_msg_call_expr = Expression::call(
             Expression { kind: assert_msg_call_path, span },
             assert_msg_call_args,
@@ -1401,6 +1416,10 @@ impl<'a> Resolver<'a> {
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
+                                if let Some(current_item) = self.current_item {
+                                    self.interner.add_function_dependency(current_item, id);
+                                }
+
                                 if self.interner.function_visibility(id)
                                     != FunctionVisibility::Public
                                 {
@@ -1412,7 +1431,11 @@ impl<'a> Resolver<'a> {
                                     );
                                 }
                             }
-                            DefinitionKind::Global(_) => {}
+                            DefinitionKind::Global(global_id) => {
+                                if let Some(current_item) = self.current_item {
+                                    self.interner.add_global_dependency(current_item, global_id);
+                                }
+                            }
                             DefinitionKind::GenericType(_) => {
                                 // Initialize numeric generics to a polymorphic integer type in case
                                 // they're used in expressions. We must do this here since the type
@@ -1708,8 +1731,8 @@ impl<'a> Resolver<'a> {
         }
 
         if let Some(global) = TryFromModuleDefId::try_from(id) {
-            let let_stmt = self.interner.let_statement(&global);
-            return Ok(let_stmt.ident().id);
+            let global = self.interner.get_global(global);
+            return Ok(global.definition_id);
         }
 
         let expected = "global variable".into();
@@ -1891,10 +1914,11 @@ impl<'a> Resolver<'a> {
         self.interner.push_expr(hir_block)
     }
 
-    fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
-        let stmt = match self.interner.statement(&global) {
-            HirStatement::Let(let_expr) => let_expr,
-            _ => return 0,
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+        let Some(stmt) = self.interner.get_global_let_statement(global) else {
+            let path = path.clone();
+            self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+            return 0;
         };
 
         let length = stmt.expression;

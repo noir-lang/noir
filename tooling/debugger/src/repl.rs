@@ -38,14 +38,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             initial_witness.clone(),
             foreign_call_executor,
         );
-        Self {
-            context,
-            blackbox_solver,
-            circuit,
-            debug_artifact,
-            initial_witness,
-            last_result: DebugCommandResult::Ok,
-        }
+        let last_result = if context.get_current_opcode_location().is_none() {
+            // handle circuit with no opcodes
+            DebugCommandResult::Done
+        } else {
+            DebugCommandResult::Ok
+        };
+        Self { context, blackbox_solver, circuit, debug_artifact, initial_witness, last_result }
     }
 
     pub fn show_current_vm_status(&self) {

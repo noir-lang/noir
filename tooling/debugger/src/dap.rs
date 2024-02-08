@@ -125,9 +125,9 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     pub fn run_loop(&mut self) -> Result<(), ServerError> {
-        self.running = true;
+        self.running = self.context.get_current_opcode_location().is_some();
 
-        if matches!(self.context.get_current_source_location(), None) {
+        if self.running && matches!(self.context.get_current_source_location(), None) {
             // TODO: remove this? This is to ensure that the tool has a proper
             // source location to show when first starting the debugger, but
             // maybe the default behavior should be to start executing until the

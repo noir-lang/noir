@@ -113,11 +113,6 @@ pub(super) fn transform_internal(
                             transformer.mark_solvable(*witness);
                         }
                     }
-                    Directive::PermutationSort { bits, .. } => {
-                        for witness in bits {
-                            transformer.mark_solvable(*witness);
-                        }
-                    }
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
