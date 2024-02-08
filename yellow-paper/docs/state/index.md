@@ -2,22 +2,26 @@
 title: State
 ---
 
+<!-- Some review notes:
+- Update to remove contract tree (and align with new way of deploying a contract).
+-->
+
 # State
 
 The global state is the set of data that makes up Aztec - it is persistent and only updates when new blocks are added to the chain.
 
-The state consists of multiple different categories of data with varying requirements. What all of the categories have in common is that they need strong integrity guarantees and efficient membership proofs. Like most other blockchains, this can be enforced by structuring the data as leafs in Merkle trees.
+The state consists of multiple different categories of data with varying requirements. What all of the categories have in common is that they need strong integrity guarantees and efficient membership proofs. Like most other blockchains, this can be enforced by structuring the data as leaves in Merkle trees.
 
-However, unlike most other blockchains, our contract state cannot use a Merkle tree as a key-value store for each contracts data. The reason for this is that we have both private and public state; while public state could be stored in a key-value tree, private state cannot, as doing so would leak information whenever the private state is updated, even if encrypted.
+However, unlike most other blockchains, our contract state cannot use a Merkle tree as a key-value store for each contract's data. The reason for this is that we have both private and public state; while public state could be stored in a key-value tree, private state cannot, as doing so would leak information whenever the private state is updated, even if encrypted.
 
-To work around this, we use a two-tree approach for state that can be used privately. Namely we have one (or more) tree(s) where data is added to (sometimes called a data tree), and a second tree where we "nullify" or mark the data as deleted. This allows us to "update" a leaf by adding a new leaf to the date trees, and add the nullifier of the old leaf to the second tree (the nullifier tree). That way we can show that the new leaf is the "active" one, and that the old leaf is "deleted".
+To work around this, we use a two-tree approach for state that can be used privately. Namely we have one (or more) tree(s) where data is added to (sometimes called a data tree), and a second tree where we "nullify" or mark the data as deleted. This allows us to "update" a leaf by adding a new leaf to the data trees, and add the nullifier of the old leaf to the second tree (the nullifier tree). That way we can show that the new leaf is the "active" one, and that the old leaf is "deleted".
 
-When dealing with private data, only the hash of the data is stored in the leaf in our data tree and we must setup a derivation mechanism that ensures nullifiers can be computed deterministically from the pre-image (the data that was hashed). This way, no-one can tell what data is stored in the leaf (unless they already know it), and therefore won't be able to derive the nullifier and tell if the leaf is active or deleted.
+When dealing with private data, only the hash of the data is stored in the leaf in our data tree and we must set up a derivation mechanism that ensures nullifiers can be computed deterministically from the pre-image (the data that was hashed). This way, no-one can tell what data is stored in the leaf (unless they already know it), and therefore won't be able to derive the nullifier and tell if the leaf is active or deleted.
 
 Convincing someone that a piece of data is active can then be done by proving its membership in the data tree, and that it is not deleted by proving its non-membership in the nullifier tree. This ability to efficiently prove non-membership is one of the extra requirements we have for some parts of our state. To support the requirements most efficiently, we use two families of Merkle trees:
 
 - The [Append-only Merkle tree](./tree-implementations.md#append-only-merkle-trees), which supports efficient membership proofs,
-- The [Indexed Merkle tree](./tree-implementations.md#indexed-merkle-trees), which supports efficient membership and non-membership proofs but increases the cost of adding leafs.
+- The [Indexed Merkle tree](./tree-implementations.md#indexed-merkle-trees), which supports efficient membership and non-membership proofs but increases the cost of adding leaves.
 
 ### Private State Access
 
@@ -43,16 +47,24 @@ A side-effect of this also means that if multiple users are "sharing" their note
 
 ## State Categories
 
+<!--
+Missing the L2->L1 messages (the new tree idea), which also form part of the state of the Aztec protocol.
+The verification keys of the core protocol circuits are technically (constant) state of the Aztec protocol.
+Is there any other state on L1 that we're forgetting about? The vk of the squisher circuit? The state hash? Message data?
+-->
+
 Below is a short description of the state catagories (trees) and why they have the type they have.
 
-- [**Note Hashes**](./note-hash-tree.md): A set of hashes (commitments) of the individual blobs of contract data (we call these blobs of data notes). New notes can be created and their hashes inserted through contract execution. We need to support efficient membership proofs as any read will require one to prove validity. The set is represented as an [Append-only Merkle tree](./tree-implementations.md#append-only-merkle-trees), storing the note hashes as leafs.
+- [**Note Hashes**](./note-hash-tree.md): A set of hashes (commitments) of the individual blobs of contract data (we call these blobs of data notes). New notes can be created and their hashes inserted through contract execution. We need to support efficient membership proofs as any read will require one to prove validity. The set is represented as an [Append-only Merkle tree](./tree-implementations.md#append-only-merkle-trees), storing the note hashes as leaves.
 - [**Nullifiers**](./nullifier-tree.md): A set of nullifiers for notes that have been spent. We need to support efficient non-membership proofs since we need to check that a note has not been spent before it can be used. The set is represented as an [Indexed Merkle tree](./tree-implementations.md#indexed-merkle-trees).
 - [**Public Data**](./public-data-tree.md): The key-value store for public contract state. We need to support both efficient membership and non-membership proofs! We require both, since the tree is "empty" from the start. Meaning that if the key is not already stored (non-membership), we need to insert it, and if it is already stored (membership) we need to just update the value.
 - **Contracts**: The set of deployed contracts. We need to support efficient membership proofs as we need to check that a contract is deployed before we can interact with it. The set is represented as an [Append-only Merkle tree](./tree-implementations.md#append-only-merkle-trees).
 - **L1 to L2 Messages**: The set of messages sent from L1 to L2. The set itself only needs to support efficient membership proofs, so we can ensure that the message was correctly sent from L1. However, it utilizes the Nullifier tree from above to ensure that the message cannot be processed twice. The set is represented as an [Append-only Merkle tree](./tree-implementations.md#append-only-merkle-trees).
-- [**Archive**](./archive.md): The set of block headers that have been processed. We need to support efficient membership proofs as this is used in private execution to get the roots of the other trees. The set is represented as an [Append-only Merkle tree](./tree-implementations.md#append-only-merkle-trees).
+- [**Archive Tree**](./archive.md): The set of block headers that have been processed. We need to support efficient membership proofs as this is used in private execution to get the roots of the other trees. The set is represented as an [Append-only Merkle tree](./tree-implementations.md#append-only-merkle-trees).
 
-To recall, the global state in Aztec is represented by a set of Merkle trees: the [Note Hash tree](./note-hash-tree.md), [Nullifier tree](./nullifier-tree.md), and [Public Data tree](./public-data-tree.md) reflect the latest state of the chain, while the L1 to L2 message tree allows for [cross-chain communication](../cross-chain-communication/#l2-outbox) and the [Archive](./archive.md) allows for historical state access.
+To recall, the global state in Aztec is represented by a set of Merkle trees: the [Note Hash tree](./note-hash-tree.md), [Nullifier tree](./nullifier-tree.md), and [Public Data tree](./public-data-tree.md) reflect the latest state of the chain, while the L1 to L2 message tree allows for [cross-chain communication](../l1-smart-contracts/#l2-outbox) and the [Archive Tree](./archive.md) allows for historical state access.
+
+<!-- NOTE: If you're editing this diagram, there will be other diagrams (e.g. in the rollup-circuits / circuits sections) that will need to be updated too. There are also class definitions in other sections which will need to be updated. -->
 
 ```mermaid
 classDiagram
@@ -82,7 +94,7 @@ class GlobalVariables {
 }
 
 class Header {
-    last_archive: Snapshot
+    previous_archive_tree: Snapshot
     body_hash: Fr[2]
     state: StateReference
     global_variables: GlobalVariables
@@ -125,11 +137,11 @@ class Body {
 }
 Body *-- "m" TxEffect
 
-class Archive {
+class ArchiveTree {
   type: AppendOnlyMerkleTree
   leaves: List~Header~
 }
-Archive *.. "m" Header : leaves
+ArchiveTree *.. "m" Header : leaves
 
 
 class NoteHashTree {
@@ -180,7 +192,7 @@ class NullifierTree {
 NullifierTree *.. "m" NullifierPreimage : leaves
 
 class State {
-  archive: Archive
+  archive_tree: ArchiveTree
   note_hash_tree: NoteHashTree
   nullifier_tree: NullifierTree
   public_data_tree: PublicDataTree
@@ -188,7 +200,7 @@ class State {
   l1_to_l2_message_tree: L1ToL2MessageTree
 }
 State *-- L1ToL2MessageTree : l1_to_l2_message_tree
-State *-- Archive : archive
+State *-- ArchiveTree : archive_tree
 State *-- NoteHashTree : note_hash_tree
 State *-- NullifierTree : nullifier_tree
 State *-- PublicDataTree : public_data_tree

@@ -27,9 +27,9 @@ We should probably introduce the PXE somewhere
 
 - **CPU**: Help
 - **Network**: 40KB for a transaction with proof (see [P2P network](./p2p-network.md#network-bandwidth)). Assuming gossiping grows the data upload/download 10x, ~400KB per tx. With 10 tx/s that's 4MB/s or 32mb/s.
-- **Storage**: [~1548 bytes per transaction](../cross-chain-communication/da.md#aztec-specific-data) + tree overhead, ~ 0.4 TB per year.
+- **Storage**: [~1548 bytes per transaction](../data-publication-and-availability/index.md#aztec-specific-data) + tree overhead, ~ 0.4 TB per year.
 - **RAM**: Help
-:::
+  :::
 
 ### Sequencers
 
@@ -65,9 +65,9 @@ An Aztec Prover is a full node that is producing Aztec-specific zero knowledge (
 Mostly as full nodes. The compute and memory requirements might be larger since it needs to actually build the large proofs. Note, that the prover don't directly need to be a full node, merely have access to one.
 :::
 
-### Other types of network nodes
+### Other types of network node
 
-- [Validating Light nodes](../cross-chain-communication/index.md)
+- [Validating Light nodes](../l1-smart-contracts/index.md)
   - Maintain a state root and process block headers (validate proofs), but do not store the full state.
   - The L1 bridge is a validating light node.
   - Can be used to validate correctness of information received from a data provider.
@@ -113,7 +113,7 @@ Anyone ->> Network: eligible as a sequencer
 - In Diagram
   - add a dedicated timeline from the block production's PoV
   - get rid of "pre-confirmed"
-:::
+    :::
 
 ![Governance Summary Image](./images/Aztec-Block-Production-1.png)
 
@@ -258,11 +258,11 @@ Future Aztec versions will receive rewards based on their staked amount, as dete
 With the rest of the protocol _mostly_ well defined, Aztec Labs now expects to begin a series of sprints dedicated towards economic analysis and modeling with [Blockscience](https://block.science/) throughout Q1-Q2 2024. This will result in a public report and associated changes to this documentation to reflect the latest thinking.
 :::
 
-## Mev-boost
+## MEV-boost
 
 :::success
 
-##### About MEV on Aztec
+### About MEV on Aztec
 
 Within the Aztec Network, "MEV" (Maximal Extractable Value) can be considered "mitigated", compared to "public" blockchains where all transaction contents and their resulting state transitions are public. In Aztec's case, MEV is _generally_ only applicable to [public functions](#) and those transactions that touch publicly viewable state.
 :::
@@ -281,7 +281,7 @@ Initially it's expected that the negotiations and commitment could be facilitate
 
 ## Diagrams
 
-#### Happy path
+### Happy path
 
 :::danger TODO
 I'm not fully understanding the different groups, is the aztec network just the node software or 👀? Maybe coloring is nice to mark what is contracts and entities or groups of entities. Otherwise seems quite nice.
@@ -318,7 +318,7 @@ Sequencers ->> Contract: exit()
 Sequencers --> Sequencers: wait 7 days
 ```
 
-#### Voting on upgrades
+### Voting on upgrades
 
 In the initial implementation of Aztec, sequencers may vote on upgrades alongside block proposals. If they wish to vote alongside an upgrade, they signal by updating their client software or an environment configuration variable. If they wish to vote no or abstain, they do nothing. Because the "election" is randomized, the voting acts as a random sampling throughout the current sequencer set. This implies that the specific duration of the vote must be sufficiently long and RANDAO sufficiently randomized to ensure that the sampling is reasonably distributed.
 
@@ -347,7 +347,7 @@ loop Happy Path Block Production
 end
 ```
 
-#### Backup mode
+### Backup mode
 
 In the event that no one submits a valid block proposal, we introduce a "backup" mode which enables a first come first serve race to submit the first proof to the L1 smart contracts.
 

@@ -4,15 +4,15 @@ Aztec relies on two Merkle tree implementations in the protocol: append-only and
 
 ## Append-only Merkle trees
 
-In an append-only Merkle tree new leaves are inserted in order from left to right. Existing leaf values are immutable and cannot be modified. These tree are useful to represent historic data, as new entries are added as new transactions and blocks are processed, and historic data is not altered.
+In an append-only Merkle tree, new leaves are inserted in order from left to right. Existing leaf values are immutable and cannot be modified. These trees are useful to represent historical data, as historical data is not altered, and new entries can be added as new transactions and blocks are processed.
 
-Append-only trees allow for more efficient syncing than sparse trees, since clients can sync from left to right starting with their last known value. Updates to the tree root from new leaves can be computed just by keeping the rightmost boundary of the tree, and batch insertions can be computed with fewer hashes than in a sparse tree. Append-only trees also provide cheap historic snapshots, as older roots can be computed by completing the merkle path from a past left subtree with an empty right subtree.
+Append-only trees allow for more efficient syncing than sparse trees, since clients can sync from left to right starting with their last known value. Updates to the tree root, when inserting new leaves, can be computed from the rightmost "frontier" of the tree (i.e., from the sibling path of the rightmost nonzero leaf). Batch insertions can be computed with fewer hashes than in a sparse tree. The historical snapshots of append-only trees also enable efficient membership proofs; as older roots can be computed by completing the merkle path from a past left subtree with an empty right subtree.
 
 ## Indexed Merkle trees
 
-Indexed Merkle trees, introduced [here](https://eprint.iacr.org/2021/1263.pdf), allow for proofs of non-inclusion more efficiently than sparse Merkle trees. Each leaf in the tree is a tuple with the leaf value, the next higher value in the tree, and the index of the leaf where that value is stored. New nodes are inserted left to right, as in the append-only tree, but existing nodes can be modified to update the next value and its pointer. Indexed Merkle trees behave as a Merkle tree over a sorted linked list.
+Indexed Merkle trees, introduced [here](https://eprint.iacr.org/2021/1263.pdf), allow for proofs of non-inclusion more efficiently than sparse Merkle trees. Each leaf in the tree is a tuple of: the leaf value, the next-highest value in the tree, and the index of the leaf where that next-highest value is stored. New leaves are inserted from left to right, as in the append-only tree, but existing leaves can be _modified_ to update the next-highest value and next-highest index (a.k.a. the "pointer") if a new leaf with a "closer value" is added to the tree. An Indexed Merkle trees behaves as a Merkle tree over a sorted linked list.
 
-Assuming the indexed Merkle tree invariants hold, proving non-membership of a value `x` then requires a membership proof of the node with value lower than `x` and a next higher value greater than `x`. The cost of this proof is proportional to the height of the tree, which can be set according to the expected number of elements to be stored in the tree. For comparison, a non-membership proof in a sparse tree requires a tree with height proportional to the size of the elements, so when working with 256-bit elements, 256 hashes are required for a proof.
+With an Indexed Merkle tree, proving non-membership of a value `x` then requires a membership proof of the node with value lower than `x` and a next-highest value greater than `x`. The cost of this proof is proportional to the height of the tree, which can be set according to the expected number of elements to be stored in the tree. For comparison, a non-membership proof in a sparse tree requires a tree with height proportional to the size of the elements, so when working with 256-bit elements, 256 hashes are required for a proof.
 
 Refer to [this page](https://docs.aztec.network/concepts/advanced/data_structures/indexed_merkle_tree) for more details on how insertions, updates, and membership proofs are executed on an Indexed Merkle tree.
 
@@ -20,6 +20,6 @@ Refer to [this page](https://docs.aztec.network/concepts/advanced/data_structure
 
 ## Siloing leaves
 
-In several trees in the protocol we indicate that its leaves are "siloed". This refers to hashing the leaf value with a siloing value before inserting it in the tree. The siloing value is typically an identifier of the contract that produced the value. This allows us to store disjoint "domains" within the same tree, ensuring that a value emitted from one domain cannot affect others.
+In several trees in the protocol we indicate that its leaves are "siloed". This refers to hashing the leaf value with some other "siloing" value before inserting it into the tree. The siloing value is typically the contract address of the contract that produced the value. This allows us to store disjoint "domains" within the same tree, ensuring that a value emitted from one domain cannot affect others.
 
-To guarantee the siloing of leaf values, siloing is performed by a trusted protocol circuit, such as the kernel or rollup circuits, and not by an application circuit. Siloing is performed by Pedersen hashing the contract address and the value.
+To guarantee the siloing of leaf values, siloing is performed by a trusted protocol circuit, such as a kernel or rollup circuit, and not by an application circuit.

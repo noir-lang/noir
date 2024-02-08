@@ -6,7 +6,7 @@ In order to satisfy the requirements established for private message delivery, w
 
 ## Provably Sending a Note
 
-To provably encrypt, tag, and send a note to a recipient, applications should first check the registry. This ensures that the latest preferences for the recipient are honored, in case they rotated their keys. The registry should be queried via a direct storage read and not a function call, in order to save an additional recursion which incurs in extra proving time.
+To provably encrypt, tag, and send a note to a recipient, applications should first check the registry. This ensures that the latest preferences for the recipient are honored, in case they rotated their keys or updated their precompile preference. The registry should be queried via a direct storage read and not a function call, in order to save an additional recursion which incurs in extra proving time.
 
 If the recipient is not in the registry, then the app should allow the sender to provide the recipient's public key from the recipient's address preimage. This allows users who have never interacted with the chain to receive encrypted notes, though it requires a collaborative sender.
 
@@ -16,7 +16,7 @@ Execution of the precompile that implements the recipient's choice for encryptio
 
 ## Pseudocode
 
-The following pseudocode covers how to provably send a note to a recipient, given an `encryption_type` (incoming, outgoing, or internal incoming). Should the registry support [multiple entries for a given recipient](./registry.md#multiple-recipients-per-address), this method must execute a batched call per each entry recovered from the registry.
+The following pseudocode covers how to provably send a note to a recipient, given an `encryption_type` <!-- I think this should be `private_message_type`. Selecting the kind of key is separate from selecting an encryption scheme --> (incoming, outgoing, or internal incoming). Should the registry support [multiple entries for a given recipient](./registry.md#multiple-recipients-per-address), this method must execute a batched call per each entry recovered from the registry.
 
 ```
 fn provably_send_note(recipient, note, encryption_type)

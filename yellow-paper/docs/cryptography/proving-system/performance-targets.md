@@ -22,7 +22,7 @@ The following is a list of the relevant properties that affect the performance o
 - Time to compute a 2-to-1 rollup proof
 - Memory required to compute a 2-to-1 rollup proof
 
-<!-- We can break these properties down into metrics linked to specitic cryptographic components:
+<!-- We can break these properties down into metrics linked to specific cryptographic components:
 
 * Size of Goblin Plonk proofs
 * Size of Honk proofs
@@ -47,7 +47,7 @@ Note: gb = gigabytes (not gigabits, gigibits or gigibytes)
 | 2-to-1 rollup proving time | 1 2-to-1 rollup proof | 7.4 seconds | 0.74 seconds |
 | 2-to-1 rollup memory consumption | 1 2-to-1 rollup proof | 128gb | 16gb |
 
-To come up with the above estimates, we are targetting 10 transactions per second for the MVP and 100 tps for the "ideal" case. We are assuming both block producers and rollup Provers have access to 128-core machines with 128gb of RAM. Additionally, we assume that the various process required to produce a block consume the following:
+To come up with the above estimates, we are targeting 10 transactions per second for the MVP and 100 tps for the "ideal" case. We are assuming both block producers and rollup Provers have access to 128-core machines with 128gb of RAM. Additionally, we assume that the various process required to produce a block consume the following:
 
 <!-- prettier-ignore -->
 | process | percent of block production time allocated to process |
@@ -62,7 +62,7 @@ These are very rough estimates that could use further evaluation and validation!
 
 ### Proof size
 
-The MVP wishes to target a tx through put of 10 tx per second.
+The MVP wishes to target a tx throughput of 10 txs per second.
 
 Each Aztec node (not sequencer/prover, just a regular node that is sending transactions) needs to download `10*proof_size` bytes of data to keep track of the mempool. However, this is the _best case_ scenario.
 
@@ -84,7 +84,7 @@ To support 100 transactions per second we would require a proof size of $8$ kilo
 
 The critical UX factor. To measure prover time for a transaction, we must first define a baseline transaction we wish to measure and the execution environment of the Prover.
 
-As we build+refine our MVP, we want to avoid optimising the best-case scenario (i.e. the most basic tx type, a token transfer). Instead we want to ensure that transactions of a "moderate" complexity are possible with consuer hardware.
+As we build+refine our MVP, we want to avoid optimising the best-case scenario (i.e. the most basic tx type, a token transfer). Instead we want to ensure that transactions of a "moderate" complexity are possible with consumer hardware.
 
 As a north star, we consider a private swap, and transpose it into an Aztec contract.
 

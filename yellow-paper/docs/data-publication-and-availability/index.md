@@ -22,7 +22,7 @@ Security is often used quite in an unspecific manner, "good" security etc, witho
 
 - **Liveness**: Eventually something good will happen.
 - **Safety**: Nothing bad will happen.
-:::
+  :::
 
 In the context of blockchain, this _security_ is defined by the confirmation rule, while this can be chosen individually by the user, our validating light node (L1 bridge) can be seen as a user, after all, it's "just" another node. For the case of a validity proof based blockchain, a good confirmation rule should satisfy the following sub-properties (inspired by [Sreeram's framing](https://twitter.com/sreeramkannan/status/1683735050897207296)):
 
@@ -42,6 +42,8 @@ With this out the way, we will later be able to reason about the choice of data 
 In particular, we will be looking at what is required to give observers (nodes) different guarantees similar to what Jon did in [his post](https://dba.xyz/do-rollups-inherit-security/). This can be useful to get an idea around what we can do for data publication and availability later.
 
 ## Quick Catch-up
+
+<!-- Rename section to convey exactly what it's about (what are we catching up on?). -->
 
 A rollup is broadly speaking a blockchain that put its blocks on some other chain (the host) to make them available to its nodes. Most rollups have a contract on this host blockchain which validates its state transitions (through fault proofs or validity proofs) taking the role of a full-validating light-node, increasing the accessibility of running a node on the rollup chain, making any host chain node indirectly validate its state.
 
@@ -134,7 +136,7 @@ While the committee is small, it seems like they can ensure honesty through the 
 
 It is not fully clear how often blocks would be relayed to the hotshot contract for consumption by our rollup, but the team says it should be frequent. Cost is estimated to be ~400K gas.
 
-## Aztec Specific Data
+## Aztec-specific Data
 
 As part of figuring out the data throughput requirements, we need to know what data we need to publish. In Aztec we have a bunch of data with varying importance; some being important to **everyone** and some being important to **someone**.
 
@@ -215,6 +217,8 @@ For every throughput column, we insert 3 marks, for everyone, someone and the to
 |Espresso| Unclear but at least 1 mb per second | ✅✅✅ | ✅✅✅ |  ✅✅✅| ✅✅✅
 
 > **Disclaimer**: Remember that these fractions for available space are pulled out of my ass.
+
+<!-- Please rephrase. -->
 
 With these numbers at hand, we can get an estimate of our throughput in transactions based on our storage medium.
 

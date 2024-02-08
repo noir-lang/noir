@@ -4,6 +4,15 @@
 
 In particular, the following fields of the returned `CallStackItem` must be zero or empty in a static call:
 
+<!-- Please can we have a similar list for the side effects of a public call? We're missing things like public state writes. -->
+<!--
+What about nested calls? Is a function which is 'staticcalled' allowed to make calls?
+I think the options are:
+- No. Or,
+- Yes, but any nested calls from a staticcalled function must also be static calls.
+Thoughts? Ethereum does the latter. We should write about whichever we choose in this page.
+-->
+
 - `new_commitments`
 - `new_nullifiers`
 - `nullified_commitments`

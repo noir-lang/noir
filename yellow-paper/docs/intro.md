@@ -16,7 +16,7 @@ In particular, can we explain the protocol to the wider cryptography team, whose
 
 This document should be considered the foundation of the protocol. It shouldn't need to refer to the implementation details elsewhere in this monorepo. (The protocol should inform the implementation; not the other way around).
 
-The details should be sufficient for some other engineering team to implement the entire protocol (save for a few exact details, which are details (here)(LINK)).
+The details should be sufficient for some other engineering team to implement the entire protocol.
 
 Some of the info we need to populate this document might have already been written in the top-level `docs/` dir of the monorepo. But the target audience is different. Reduce verbose prose. Remove monorepo code snippets (but note that simple pseudocode snippets to explain a protocol concept are fine). Don't describe components of the sandbox (that's an implementation detail and doesn't belong in this doc).
 

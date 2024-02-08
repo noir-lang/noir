@@ -9,7 +9,7 @@ graph LR
 A[RootRollupInputs] --> C[RootRollupCircuit] --> B[RootRollupPublicInputs] --> D[ProvenBlock] --> E[Node]
 ```
 
-For rollup purposes, the node we want to convince of the correctness is the [validating light node](../cross-chain-communication/index.md) that we put on L1. We will cover it in more detail in the [cross-chain communication](../cross-chain-communication/index.md) section.
+For rollup purposes, the node we want to convince of the correctness is the [validating light node](../l1-smart-contracts/index.md) that we put on L1. We will cover it in more detail in the [cross-chain communication](../l1-smart-contracts/index.md) section.
 
 :::info Squishers
 This might practically happen through a series of "squisher" circuits that will wrap the proof in another proof that is cheaper to verify on-chain. For example, wrapping a ultra-plonk proof in a standard plonk proof.
@@ -214,4 +214,4 @@ def RootRollupCircuit(
     )
 ```
 
-The `RootRollupPublicInputs` can then be used together with `Body` to build a `ProvenBlock` which can be used to convince the [validating light node](../cross-chain-communication/index.md) of state progression.
+The `RootRollupPublicInputs` can then be used together with `Body` to build a `ProvenBlock` which can be used to convince the [validating light node](../l1-smart-contracts/index.md) of state progression.

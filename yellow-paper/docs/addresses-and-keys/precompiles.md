@@ -1,25 +1,32 @@
 ---
 title: Precompiles
-sidebar_position: 2
 ---
 
-Precompiled contracts, which borrow their name from Ethereum's, are contracts not deployed by users but defined at the protocol level. These contracts and their classes are assigned well-known low-number addresses and identifiers, and their implementation is subject to change via protocol upgrades. Precompiled contracts in Aztec are implemented as a set of circuits, one for each function they expose, like user-defined private contracts. Precompiles may make use of the local PXE oracle. Note that, unlike user-defined contracts, the address of a precompiled contract instance and the identifier of its class both have no known preimage.
+<!-- Missing exact descriptions of the interfaces & logic of each precompile. -->
 
-Rationale for precompiled contracts is to provide a set of vetted primitives for note encryption and tagging that applications can use safely. These primitives are guaranteed to be always satisfiable when called with valid arguments. This allows account contracts to choose their preferred method of encryption and tagging from any primitive in this set, and application contracts to call into them without the risk of calling into a untrusted code, which could potentially halt the execution flow via an unsatisfiable constrain. Furthermore, by exposing these primitives in a reserved set of well-known addresses, applications can be forward-compatible and incorporate new encryption and tagging methods as accounts opt into them.
+Precompiled contracts, which borrow their name from Ethereum's, are contracts not deployed by users but defined at the protocol level. These contract [instances](../contract-deployment/instances.md) and their [classes](../contract-deployment/classes.md) are assigned well-known low-number addresses and identifiers, and their implementation is subject to change via protocol upgrades. Precompiled contracts in Aztec are implemented as a set of circuits, one for each function they expose, like user-defined private contracts. Precompiles may make use of the local PXE oracle.
+
+Note that, unlike user-defined contracts, the address of a precompiled [contract instance](../contract-deployment/instances.md) and the [identifier of its class](../contract-deployment/classes.md#class-identifier) both have no known preimage.
+
+The rationale for precompiled contracts is to provide a set of vetted primitives for [note encryption](../private-message-delivery/encryption-and-decryption.md) and [tagging](../private-message-delivery/note-discovery.md) that applications can use safely. These primitives are guaranteed to be always-satisfiable when called with valid arguments. This allows account contracts to choose their preferred method of encryption and tagging from any primitive in this set, and application contracts to call into them without the risk of calling into a untrusted code, which could potentially halt the execution flow via an unsatisfiable constraint. Furthermore, by exposing these primitives in a reserved set of well-known addresses, applications can be forward-compatible and incorporate new encryption and tagging methods as accounts opt into them.
 
 ## Constants
 
-- `ENCRYPTION_BATCH_SIZES=[4, 16, 32]`: Defines what max batch sizes are supported in precompiled encryption methods.
+- `ENCRYPTION_BATCH_SIZES=[4, 8, 16, 32]`: Defines what max [batch sizes](../calls/batched-calls.md) are supported in precompiled encryption methods.
 - `ENCRYPTION_PRECOMPILE_ADDRESS_RANGE=0x00..0xFFFF`: Defines the range of addresses reserved for precompiles used for encryption and tagging.
 - `MAX_PLAINTEXT_LENGTH`: Defines the maximum length of a plaintext to encrypt.
-- `MAX_CYPHERTEXT_LENGTH`: Defines the maximum length of a returned encrypted cyphertext.
-- `MAX_TAGGED_CYPHERTEXT_LENGTH`: Defines the maximum length of a returned encrypted cyphertext prefixed with a note tag.
+- `MAX_CIPHERTEXT_LENGTH`: Defines the maximum length of a returned encrypted ciphertext.
+- `MAX_TAGGED_CIPHERTEXT_LENGTH`: Defines the maximum length of a returned encrypted ciphertext prefixed with a note tag.
+
+<!-- TODO: move to the dedicated constants.md file -->
 
 ## Encryption and tagging precompiles
 
-All precompiles in the address range `ENCRYPTION_PRECOMPILE_ADDRESS_RANGE` are reserved for encryption and tagging. Application contracts can expected to call into these contracts with note plaintext, recipients, and public keys. To facilitate forward compatibility, all unassigned addresses within the range expose the functions below as no-ops, meaning that no actions will be executed when calling into them.
+All precompiles in the address range `ENCRYPTION_PRECOMPILE_ADDRESS_RANGE` are reserved for encryption and tagging. Application contracts can expected to call into these contracts with note plaintext(s), recipient address(es), and public key(s). To facilitate forward compatibility, all unassigned addresses within the range expose the functions below as no-ops, meaning that no actions will be executed when calling into them.
 
-All functions in these precompiles accept a `PublicKeys` struct which contains the user advertised public keys. The structure of each of the public keys included can change from one encryption method to another, with the exception of the `nullifier_key` which is always restricted to a single field element. For forward compatibility, the precompiles interface accepts a hash of the public keys, which can be expanded within each method via an oracle call.
+<!-- Q: How is this 'no-op' functionality achieved? -->
+
+All functions in these precompiles accept a `PublicKeys` struct which contains the user-advertised public keys. The structure of each of the public keys included can change from one encryption method to another, with the exception of the `nullifier_key` which is always restricted to a single field element. For forward compatibility, the precompiles interface accepts a hash of the public keys, which can be expanded within each method via an oracle call.
 
 ```
 struct PublicKeys:
@@ -48,36 +55,36 @@ validate_keys(public_keys_hash: Field): bool
 Returns true if the set of public keys represented by `public_keys` is valid for this encryption and tagging mechanism. The precompile must guarantee that any of its methods must succeed if called with a set of public keys deemed as valid. This method returns `false` for undefined precompiles.
 
 ```
-encrypt(public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH]): Field[MAX_CYPHERTEXT_LENGTH]
+encrypt(public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH]): Field[MAX_CIPHERTEXT_LENGTH]
 ```
 
-Encrypts the given plaintext using the provided public keys, and returns the encrypted cyphertext.
+Encrypts the given plaintext using the provided public keys, and returns the encrypted ciphertext.
 
 ```
-encrypt_and_tag(public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH]): Field[MAX_TAGGED_CYPHERTEXT_LENGTH]
+encrypt_and_tag(public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH]): Field[MAX_TAGGED_CIPHERTEXT_LENGTH]
 ```
 
 Encrypts and tags the given plaintext using the provided public keys, and returns the encrypted note prefixed with its tag for note discovery.
 
 ```
-encrypt_and_broadcast(public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH]): Field[MAX_TAGGED_CYPHERTEXT_LENGTH]
+encrypt_and_broadcast(public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH]): Field[MAX_TAGGED_CIPHERTEXT_LENGTH]
 ```
 
 Encrypts and tags the given plaintext using the provided public keys, broadcasts them as an event, and returns the encrypted note prefixed with its tag for note discovery. This functions should be invoked via a [delegate call](../calls/delegate-calls.md), so that the broadcasted event is emitted as if it were from the caller contract.
 
 ```
-encrypt<N>([call_context: CallContext, public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH] ][N]): Field[MAX_CYPHERTEXT_LENGTH][N]
-encrypt_and_tag<N>([call_context: CallContext, public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH] ][N]): Field[MAX_TAGGED_CYPHERTEXT_LENGTH][N]
-encrypt_and_broadcast<N>([call_context: CallContext, public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH] ][N]): Field[MAX_TAGGED_CYPHERTEXT_LENGTH][N]
+encrypt<N>([call_context: CallContext, public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH] ][N]): Field[MAX_CIPHERTEXT_LENGTH][N]
+encrypt_and_tag<N>([call_context: CallContext, public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH] ][N]): Field[MAX_TAGGED_CIPHERTEXT_LENGTH][N]
+encrypt_and_broadcast<N>([call_context: CallContext, public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH] ][N]): Field[MAX_TAGGED_CIPHERTEXT_LENGTH][N]
 ```
 
 Batched versions of the methods above, which accept an array of `N` tuples of public keys, recipient, and plaintext to encrypt in batch. Precompiles expose instances of this method for multiple values of `N` as defined by `ENCRYPTION_BATCH_SIZES`. Values in the batch with zeroes are skipped. These functions are intended to be used in [batched calls](../calls/batched-calls.md).
 
 ```
-decrypt(public_keys_hash: Field, encryption_type: EncryptionType, owner: AztecAddress, cyphertext: Field[MAX_CYPHERTEXT_LENGTH]): Field[MAX_PLAINTEXT_LENGTH]
+decrypt(public_keys_hash: Field, encryption_type: EncryptionType, owner: AztecAddress, ciphertext: Field[MAX_CIPHERTEXT_LENGTH]): Field[MAX_PLAINTEXT_LENGTH]
 ```
 
-Decrypts the given cyphertext, encrypted for the provided owner. Instead of receiving the decryption key, this method triggers an oracle call to fetch the private decryption key directly from the local PXE and validates it against the supplied public key, in order to avoid leaking a user secret to untrusted application code. This method is intended for provable decryption use cases.
+Decrypts the given ciphertext, encrypted for the provided owner. Instead of receiving the decryption key, this method triggers an oracle call to fetch the private decryption key directly from the local PXE and validates it against the supplied public key, in order to avoid leaking a user secret to untrusted application code. This method is intended for provable decryption use cases.
 
 ## Encryption strategies
 
@@ -85,7 +92,7 @@ List of encryption strategies implemented by precompiles:
 
 ### AES128
 
-Uses AES128 for encryption, by generating an AES128 symmetric key and an IV from a shared secret derived from the recipient's public key and an ephemeral keypair. Requires that the recipient's keys are points in the Grumpkin curve. The output of the encryption is the concatenation of the encrypted cyphertext and the ephemeral public key.
+Uses AES128 for encryption, by generating an AES128 symmetric key and an IV from a shared secret derived from the recipient's public key and an ephemeral keypair. Requires that the recipient's keys are points in the Grumpkin curve. The output of the encryption is the concatenation of the encrypted ciphertext and the ephemeral public key.
 
 Pseudocode for the encryption process:
 
@@ -100,11 +107,11 @@ encrypt(plaintext, recipient_public_key):
 Pseudocode for the decryption process:
 
 ```
-decrypt(cyphertext, recipient_private_key):
-  ephemeral_public_key = cyphertext[0:64]
+decrypt(ciphertext, recipient_private_key):
+  ephemeral_public_key = ciphertext[0:64]
   shared_secret = ephemeral_public_key * recipient_private_key
   [aes_key, aes_iv] = sha256(shared_secret ++ [0x01])
-  return aes_decrypt(aes_key, aes_iv, cyphertext[64:])
+  return aes_decrypt(aes_key, aes_iv, ciphertext[64:])
 ```
 
 <!-- TODO: Why append the [1] at the end of the shared secret? Also, do we want to keep using sha, or should we use a snark-friendlier hash here? -->
@@ -142,7 +149,7 @@ When Alice wants to send a message to Bob for the first time:
 3. Alice's PXE looks up the shared secret which doesn't exist since this is their first interaction.
 4. Alice's PXE generates a random shared secret, and stores it associated Bob along with `counter=1`.
 5. The precompile makes a call to the `Handshake` contract that emits the shared secret, encrypted for Bob and optionally Alice.
-6. The precompile computes `new_tag = hash(alice, bob, secret, counter)`, emits it as a nullifier, and prepends it to the note cyphertext before broadcasting it.
+6. The precompile computes `new_tag = hash(alice, bob, secret, counter)`, emits it as a nullifier, and prepends it to the note ciphertext before broadcasting it.
 
 For all subsequent messages:
 
@@ -150,15 +157,16 @@ For all subsequent messages:
 2. The precompile makes an oracle call to `getSharedSecret(Alice, Bob)`.
 3. Alice's PXE looks up the shared secret and returns it, along with the current value for `counter`, and locally increments `counter`.
 4. The precompile computes `previous_tag = hash(alice, bob, secret, counter)`, and performs a merkle membership proof for it in the nullifier tree. This ensures that tags are incremental and cannot be skipped.
-5. The precompile computes `new_tag = hash(alice, bob, secret, counter + 1)`, emits it as a nullifier, and prepends it to the note cyphertext before broadcasting it.
+5. The precompile computes `new_tag = hash(alice, bob, secret, counter + 1)`, emits it as a nullifier, and prepends it to the note ciphertext before broadcasting it.
 
 ## Defined precompiles
 
 List of precompiles defined by the protocol:
 
+<!-- prettier-ignore -->
 | Address | Encryption | Note Tagging | Comments |
-|---------|------------|--------------|----------|
-| 0x01 | Noop | Noop | Used by accounts to explicitly signal that they cannot receive encrypted payloads. Validation method returns `true` only for an empty list of public keys. All other methods return empty. |
-| 0x02 | AES128 | Trial decryption |  |
-| 0x03 | AES128 | Delegated trial decryption |  |
-| 0x04 | AES128 | Tag hopping |  |
+| ------- | ---------- | ------------ | -------- |
+| 0x01    | Noop       | Noop         | Used by accounts to explicitly signal that they cannot receive encrypted payloads. Validation method returns `true` only for an empty list of public keys. All other methods return empty. |
+| 0x02    | AES128     | Trial decryption | |
+| 0x03    | AES128     | Delegated trial decryption | |
+| 0x04    | AES128     | Tag hopping  | |                                                                                                                                                                                           |

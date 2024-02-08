@@ -1,71 +1,83 @@
 # Inter-Layer Calls
 
+<!-- Mike: come back to this one -->
+
 ## Public-Private messaging
 
-Public state and private state exist in different trees. In a private function you cannot reference or modify public state.
+Public state and private state exist in different [trees](../state/index.md). In a private function you cannot reference or modify public state.
+
 Yet, it should be possible for:
 
 1. private functions to call private or public functions
 2. public functions to call private or public functions
 
-Private functions are executed locally by the user and work by providing evidence of correct execution generated locally through kernel proofs. This way, the sequencer doesn't need to have knowledge of everything happening in the transaction, only the results. Public functions, on the other hand, are able to utilize the latest state to manage updates and perform alterations, as they are executed by the sequencer.
+Private functions are executed locally by the user, so that the user can ensure privacy of their data. Public functions are executed by the sequencer, who is the only party with an up-to-date view of the latest public state. It's natural, then, that private functions be executed first, and public functions be executed after the user has submitted a [transaction object](../transactions/tx-object.md) (which contains proof of private execution) to the network. Since a user doesn't have an up-to-date view of the latest state, private functions are always executed on some historical snapshot of the network's state.
 
-Therefore, private functions are always executed first, as they are executed on a state $S_i$, where $i \le n$, with $S_n$ representing the current state where the public functions always operate on the current state $S_n$.
+Given this natural flow from private-land to public-land, private functions can enqueue calls to public functions. But the opposite direction is not true. We'll see [below](#public-to-private-messaging) that public functions cannot "call" private functions, but rather they must pass messages.
 
-This enables private functions to enqueue calls to public functions. But vice-versa is not true. Since private functions execute first, it cannot "wait" on the results of any of their calls to public functions. Stated differently, any calls made across domains are unilateral in nature.
+Since private functions execute first, they cannot 'wait' on the results of any of their calls to public functions.
 
-The figure below shows the order of function calls on the left-hand side, while the right-hand side shows how the functions will be executed. Notably, the second private function call is independent of the output of the public function and merely occurs after its execution.
-
-Tx call order be:
+By way of example, suppose a function makes a call to a public function, and then to a private function. The public function will not be executed immediately, but will instead be enqueued for the sequencer to execute later.
 
 ```mermaid
-graph TD
-    A[Private Function 1] -->|Calls| B(Public Function 1)
-    A -----> |Followed by| C[Private Function 2]
+graph LR
+    A[Private Function 1] --> |1st call| B(Public Function 1)
+    A --> |2nd call| C[Private Function 2]
+    C --> |return values| A
+    A --> |3rd call| D(Public Function 2)
+    A --> |4th call| E[Private Function 3]
+    E --> |return values| A
 ```
 
-But Tx execution order will be
+The order of execution will actually be:
 
 ```mermaid
-graph TD
-    A[Private Function 1] -->|Calls| B(Private Function 2)
-    A -----> |Followed by| C[Public Function 1]
+graph LR
+    A[Private Function 1] --> C[Private Function 2]
+    C --> |return values| A
+    A[Private Function 1] --> E[Private Function 3]
+    E --> |return values| A
+    A -----> |Enqueued| B(Public Function 1)
+    A -----> |Enqueued| D(Public Function 2)
+```
+
+And the order of proving will actually be:
+
+```mermaid
+flowchart LR
+    A[Private Function 1] --> C[Private Function 2] --> E[Private Function 3] ----> B(Public Function 1) --> D(Public Function 2)
 ```
 
 ## Private to Public Messaging
 
 When a private function calls a public function:
 
-1. Public function args get hashed together
-1. A public call stack item is created with the public function selector, it's contract address and args hash
-1. The hash of the item gets enqueued into a separate public call stack and passed as inputs to the private kernel
-1. The private kernel pushes these hashes into the public input, which the sequencer can see.
-1. PXE creates a transaction object as outlined [here](../transactions/tx-object.md) where it passes the hashes and the actual call stack item
-1. PXE sends the transaction to the sequencer.
-1. Sequencer then picks up the public call stack item and executes each of the functions.
-1. The Public VM which executes the methods then verifies that the hash provided by the private kernel matches the current call stack item.
+1. The arguments to the public function are hashed into an `args_hash`.
+1. A `public_call_stack_item` <!-- todo: link to definition --> is created, which includes the public function's `function_selector` <!-- TODO: do we have en explanation for function_selectors, and how the notion is enshrined for private functions (although languages can still choose how they compute a function selector)? -->, `contract_address`, and `args_hash`.
+1. A hash of the `public_call_stack_item` gets enqueued into a separate [`public_call_stack`](../circuits/private-function.md#public-inputs) and passed as inputs to the private kernel.
+1. The private kernel pushes these hashes onto its own the [`public_inputs`](../circuits/private-kernel-initial.mdx#public-inputs), which the sequencer can see.
+1. The PXE creates a [`transaction_object`](../transactions/tx-object.md) which includes the kernel's `public_inputs`.
+1. The PXE sends the `transaction_object` to the sequencer.
+1. Sequencer then unpacks the `public_call_stack_item` and executes each of the functions.
+1. The Public VM executes the enqueued public calls, and then verifies that the hash provided by the private kernel matches the current call stack item.
 
 ### Handling Privacy Leakage and `msg.sender`
 
-In the above design, the sequencer only sees the public part of the call stack along with any new commitments, nullifiers etc that were created in the private transaction i.e. should learns nothing more of the private transaction (such as its origin, execution logic etc).
+The sequencer only sees the data in the [`transaction_object`](../transactions/tx-object.md), which shouldn't expose any private information. There are some [practical caveats](http://docs.aztec.network).
 
-:::warning
-TODO: Haven't finalized what msg.sender will be
-:::
+When making a private-to-public call, the `msg_sender` will become public. If this is the actual user, then it leaks privacy. If `msg_sender` is some application's contract address, this leaks which contract is calling the public method and therefore leaks which contract the user was interacting with in private land.
 
-Within the context of these enqueued public functions, any usage of `msg_sender` should return **TODO**. If the `msg_sender` is the actual user, then it leaks privacy. If `msg_sender` is the contract address, this leaks which contract is calling the public method and therefore leaks which contract the user was interacting with in private land.
-
-Therefore, when the call stack is passed to the kernel circuit, the kernel should assert the `msg_sender` is 0 and hash appropriately.
+An out-of-protocol option to randomizing `msg.sender` (as a user) would be to deploy a [diversified account contract](../addresses-and-keys/diversified-and-stealth.md) and route transactions through this contract. Application developers might also be able to do something similar, to randomize the `msg.sender` of their app contract's address.
 
 ### Reverts
 
-If the private part of the transaction reverts, then public calls are never enqueued. But if the public part of the transaction reverts, it should still revert the entire transaction i.e. the sequencer should drop the execution results of the private part of the transaction and not include those in the state transitioner smart contract. However, since the sequencer had to execute your transaction, appropriate fee will be charged. Reverting in public causing the whole transaction to be dropped enables existing paradigms of ethereum where your valid transaction can revert because of altered state e.g., trade incurring too much slippage.
+If the private part of a transaction reverts, then public calls are never enqueued. But if the public part of the transaction reverts, it should still revert the entire transaction. I.e. the sequencer should drop the execution results of the private part of the transaction and not include those in the state transitioner smart contract. A fee can still be charged by the sequencer for their compute effort.
 
 ## Public to Private Messaging
 
-Since public functions execute after private functions, it isn't possible for public to call a private function in the same transaction. Nevertheless, it is quite useful for public functions to have a message passing system to private. A public function could add messages to an append only merkle tree to save messages from a public function call, that can later be executed by a private function. Note, only a transaction coming after the one including the message from a public function can consume it. In practice this means that unless you are the sequencer it will not be within the same rollup.
+Since public functions execute after private functions, it isn't possible for a public function to call a private function in the same transaction. Nevertheless, it is quite useful for public functions to have a message passing system to private land. A public function can add messages to the [Note Hash Tree](../state/note-hash-tree.md) to save messages from a public function call, that can later be consumed by a private function. Note: such a message can only be consumed by a _later_ transaction. In practice this means that unless you are the sequencer (or have an out of protocol agreement with the sequencer) it cannot be consumed within the same rollup.
 
-To elaborate, a public function may not have read access to encrypted private state in the note hash tree, but it can write to it. You could create a note in the public domain, compute it's note hash which gets passed to the inputs of the public VM which adds the hash to the note hash tree. The user who wants to redeem the note can add the note preimage to their PXE and then redeem/nullify the note in the private domain at a later time.
+To elaborate, a public function may not have read access to encrypted private state in the Note Hash Tree, but it can write to it. You could create a note in the public domain, compute its note hash which gets passed to the inputs of the public VM which adds the hash to the note hash tree. The user who wants to redeem the note can add the note preimage to their PXE and then redeem/nullify the note in the private domain at a later time.
 
 In the picture below, it is worth noting that all data reads performed by private functions are historical in nature, and that private functions are not capable of modifying public storage. Conversely, public functions have the capacity to manipulate private storage (e.g., inserting new commitments, potentially as part of transferring funds from the public domain to the private domain).
 

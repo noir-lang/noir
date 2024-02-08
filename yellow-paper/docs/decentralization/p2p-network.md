@@ -1,8 +1,10 @@
 # P2P Network
 
+<!-- Also incorporate Phil's latest hackmd on the p2p network, if his recommendations in that hackmd are agreed to be our approach -->
+
 ## Requirements for a P2P Network
 
-When a rollup is successfully published, the state transitions it produces are published along with it, making them publicly available. This broadcasted state does not depend on the Aztec network for its persistence or distribution. Transient data however, such as pending user transactions for inclusion in future rollups, does rely on the network for this. It is important that the network provides a performant, permissionless and censorship resistant mechanism for the effective propagation of these transactions to all network participants. Without this, transactions may be disadvantaged and the throughput of the network will deteriorate.
+When a rollup is successfully published, the state transitions it produces are published along with it, making them publicly available. This broadcasted state does not depend on the Aztec network for its persistence or distribution. Transient data however, such as pending user transactions for inclusion in future rollups, does rely on the network for availability. It is important that the network provides a performant, permissionless and censorship resistant mechanism for the effective propagation of these transactions to all network participants. Without this, transactions may be disadvantaged and the throughput of the network will deteriorate.
 
 Other data that may be transmitted over the network are the final rollup proofs to be submitted to the rollup contract, however the size and rate of these payloads should not make any meaningful impact on the bandwidth requirements.
 
@@ -39,16 +41,16 @@ Aztec Node instances will offer a JSON RPC interface for consumption by a user's
 
 ### Network Bandwidth
 
-Transactions are composed of several data elements and can vary in size. The transaction size is determined largely by the private kernel proof and whether the transaction deloys any public bytecode. A typical transaction that emits a private note and an unencrypted log, makes a public call and contains a valid proof would consume approximately 40Kb of data. A transaction that additionally deploys a contract would need to transmit the public bytecode on top of this.
+Transactions are composed of several data elements and can vary in size. The transaction size is determined largely by the private kernel proof and whether the transaction deploys any public bytecode. A typical transaction that: emits a private note and an unencrypted log, makes a public call and contains a valid proof, would consume approximately 40Kb of data. A transaction that additionally deploys a contract would need to transmit the public bytecode on top of this.
 
 | Element                                      | Size  |
 | -------------------------------------------- | ----- |
-| Public Inputs, Public Calls and Emitted Logs | ~8Kb  |
-| Private Kernel Proof                         | ~32Kb |
+| Public Inputs, Public Calls and Emitted Logs | ~8KB  |
+| Private Kernel Proof                         | ~32KB |
 
-If we take 2 values of transaction throughput of 10 and 100 transactions per second, we can arrive at average network bandwidth requirements of 400Kb and 4000Kb per second respectively.
+If we take 2 values of transaction throughput of 10 and 100 transactions per second, we can arrive at average network bandwidth requirements of 400KB and 4000KB per second respectively.
 
-### Sequencer to Prover Communication
+### Sequencer-to-Prover Communication
 
 Proving is an out-of-protocol activity. The nature of the communication between sequencers and provers will depend entirely on the prover/s selected by the sequencer. Provers may choose to run their own Transaction Pool Node infrastructure so that they are prepared for generating proofs and don't need to receive this data out-of-band.
 

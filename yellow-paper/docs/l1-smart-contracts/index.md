@@ -11,7 +11,7 @@ The purpose of the L1 contracts are simple:
 
 - Facilitate cross-chain communication such that L1 liquidity can be used on L2
 - Act as a validating light node for L2 that every L1 node implicitly run
-:::
+  :::
 
 ## Overview
 
@@ -141,7 +141,9 @@ For a generic DA that publishes data commitments to Ethereum, the oracle could b
 
 By having the availability oracle be independent from state progression we can even do multi-transaction blocks, e.g., use multiple transactions or commitments from other DA layers to construct the `TxsHash` for a large block.
 
-For more information around the requirements we have for the availability oracle, see [Data Availability](./da.md).
+For more information around the requirements we have for the availability oracle, see [Data Availability](../data-publication-and-availability/index.md).
+
+<!-- TODO: consider giving this registry an adjective to describe what it's for. We're seeing several registries in the aztec protocol, so need to distinguish them. -->
 
 ### Registry
 
@@ -214,6 +216,8 @@ We are using the `secretHash` to ensure that the user can spend the message priv
 
 When we say inbox, we are generally referring to the L1 contract that handles the L1 to L2 messages.
 
+<!-- TODO: the name "inbox" feels wrong in this context. -->
+
 The inbox is logically a [multi-set](https://en.wikipedia.org/wiki/Multiset) that builds messages based on the caller and user-provided content (multi-set meaning that repetitions are allowed). While anyone can insert messages into the inbox, only the recipient state transitioner can consume messages from it (as specified by the version). When the state transitioner is consuming a message, it MUST insert it into the "L2 outbox" ([message tree](./../state/index.md)).
 
 When a message is inserted into the inbox, the inbox **MUST** fill in the `sender`:
@@ -236,7 +240,7 @@ The contract that sent the message must decide how to handle the cancellation. I
 While we have ensured that the message either arrives to the L2 outbox or is cancelled, we have not ensured that the message is consumed by the L2 contract. This is up to the L2 contract to handle. If the L2 contract does not handle the message, it will be stuck in the outbox forever. Similarly, it is up to the L1 contract to handle the cancellation. If the L1 contract does not handle the cancellation, the user might have a message that is pending forever. Error handling is entirely on the contract developer.
 :::
 
-##### L2 Inbox
+#### L2 Inbox
 
 While the L2 inbox is not a real contract, it is a logical contract that apply mutations to the data similar to the L1 inbox to ensure that the sender cannot fake his position. This logic is handled by the kernel and rollup circuits.
 
@@ -250,6 +254,11 @@ In practice, this is done in the kernel circuit of the L2, and the message hash 
 ### Outbox
 
 The outboxes are the location where a user can consume messages from. An outbox can only contain elements that have previously been removed from the paired inbox.
+
+<!--
+> The outboxes are the location where a user can consume messages from.
+That's not what an outbox is... that's an inbox!
+-->
 
 Our L1 outbox is pretty simple, Like the L1 inbox, it is a multi-set. It should allow the state transitioner to insert messages and the recipient of the message can consume it (removing it from the outbox).
 

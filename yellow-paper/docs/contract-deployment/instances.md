@@ -1,5 +1,7 @@
 # Contract instances
 
+<!-- Consider adding a diagram which shows how all of this data interrelates. Similar to the outdated ones I drew. You know I love my diagrams. -->
+
 A contract instance is a concrete deployment of a [contract class](./classes.md). A contract instance always references a contract class, which dictates what code it executes when called. A contract instance has state (both private and public), as well as an address that acts as its identifier. A contract instance can be called into.
 
 ## Requirements
@@ -9,7 +11,7 @@ A contract instance is a concrete deployment of a [contract class](./classes.md)
 - A user calling into an address must be able to prove that it has not been deployed. This allows the executor to prove that a given call in a transaction is unsatisfiable and revert accordingly.
 - A user should be able to privately call into a contract without publicly deploying it. This allows private applications to deploy contracts without leaking information about their usage.
 
-## `ContractInstance` structure
+## `ContractInstance`
 
 The structure of a contract instance is defined as:
 
@@ -32,7 +34,7 @@ Contract instances have a `version` field that identifies the schema of the inst
 
 ### Address
 
-The address of the contract instance is computed as the hash of the elements in the structure above, as defined in [the addresses and keys section](../addresses-and-keys/specification.md#address). This computation is deterministic, which allows any user to precompute the expected deployment address of their contract, including account contracts.
+The address of the contract instance is computed as the hash of the elements in the structure above, as defined in [the addresses and keys section](../addresses-and-keys/address.md#address). This computation is deterministic, which allows any user to precompute the expected deployment address of their contract, including account contracts.
 
 ### Deployer
 
@@ -75,7 +77,7 @@ Contract constructors are not enshrined in the protocol, but handled at the appl
 
 These checks are embedded in the application circuits themselves. The constructor emits an Initialization Nullifier when it is invoked, which prevents it from being called more than once. The constructor code must also check that its own selector and the arguments for the call match the ones in the address preimage, which are supplied via an oracle call.
 
-All non-constructor functions in the contract should require a merkle membership proof for the Initialization Nullifier, to prevent them from being called before the constructor is invoked. Nevertheless, a contract may choose to allow some functions to be called before initialization, such as in the case of [Diversified and Stealth account contracts](../addresses-and-keys/diversified-and-stealth.md). 
+All non-constructor functions in the contract should require a merkle membership proof for the Initialization Nullifier, to prevent them from being called before the constructor is invoked. Nevertheless, a contract may choose to allow some functions to be called before initialization, such as in the case of [Diversified and Stealth account contracts](../addresses-and-keys/diversified-and-stealth.md).
 
 Removing constructors from the protocol itself simplifies the kernel circuit, and decoupling Initialization from Public Deployments allows users to keep contract instances private if they wish to do so.
 
@@ -101,16 +103,16 @@ The pseudocode for the process described above is the following:
 
 ```
 function deploy (
-  salt: Field, 
-  contract_class_id: Field, 
-  initialization_hash: Field, 
-  portal_contract_address: Field, 
-  public_keys_hash: Field, 
+  salt: Field,
+  contract_class_id: Field,
+  initialization_hash: Field,
+  portal_contract_address: Field,
+  public_keys_hash: Field,
   universal_deploy?: boolean,
 )
   assert nullifier_exists silo(contract_class_id, ContractClassRegisterer)
   assert is_valid_eth_address(portal_contract_address)
-  
+
   deployer = if universal_deploy then zero else msg_sender
   version = 1
   address = compute_address(version, salt, deployer, contract_class_id, initialization_hash, portal_contract_address, public_keys_hash)
@@ -126,9 +128,7 @@ The `ContractInstanceDeployer` contract provides two implementations of the `dep
 
 ### Genesis
 
-The `ContractInstanceDeployer` will need to exist from the genesis of the Aztec Network, otherwise nothing will ever be deployable to the network. The Class Nullifier for the `ContractInstanceDeployer` contract will be pre-inserted into the genesis nullifier tree at leaf index `GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_INSTANCE_DEPLOYER_CLASS_ID_NULLIFIER=3`. The canonical instance will be deployed at `CONTRACT_INSTANCE_DEPLOYER_ADDRESS=0x10001`, and its Deployment Nullifier will be inserted at `GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_INSTANCE_DEPLOYER_DEPLOYMENT_NULLIFIER=4`.
-
-<!-- TODO: Perhaps we need a page of constants? -->
+The `ContractInstanceDeployer` will need to exist from the genesis of the Aztec Network, otherwise nothing will ever be deployable to the network. The Class Nullifier for the `ContractInstanceDeployer` contract will be pre-inserted into the genesis nullifier tree at leaf index [`GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_INSTANCE_DEPLOYER_CLASS_ID_NULLIFIER`](../constants.md#genesis-constants). The canonical instance will be deployed at [`CONTRACT_INSTANCE_DEPLOYER_ADDRESS`](../constants.md#genesis-constants), and its Deployment Nullifier will be inserted at [`GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_INSTANCE_DEPLOYER_DEPLOYMENT_NULLIFIER`](../constants.md#genesis-constants).
 
 <!-- TODO(cryptography): How do we convince the world that there's 'nothing up our sleeves'? What could be the consequences of a cunningly-chosen nullifier being pre-inserted into the nullifier tree? -->
 
@@ -140,9 +140,11 @@ The Kernel Circuit, both private and public, is responsible for verifying that t
 - The [function selector](./classes.md#private-function) being executed is part of the `contract_class_id`, verified via a Merkle membership proof of the selector in the functions tree of the Contract Class.
 
 Specific to private functions:
+
 - The hash of the `verification_key` matches the `vk_hash` defined in the corresponding [Private Function](./classes.md#private-function) for the Contract Class.
 
 Specific to public functions:
+
 - The bytecode loaded by the [AVM](../public-vm/avm.md) for the contract matches the `bytecode_commitment` in the contract class, verified using the [bytecode validation circuit](../public-vm/bytecode-validation-circuit.md).
 - The contract Deployment Nullifier has been emitted, or prove that it hasn't, in which case the transaction is expected to revert. This check is done via a merkle (non-)membership proof of the Deployment Nullifier. Note that a public function should be callable in the same transaction in which its contract Deployment Nullifier was emitted.
 

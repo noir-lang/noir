@@ -4,9 +4,16 @@
 
 A transaction begins with a call to a private function, which may invoke nested calls to other private and public functions. The entire set of private function calls is executed in a secure environment, and their proofs are validated and aggregated by private kernel circuits. Meanwhile, any public function calls triggered from private functions will be enqueued. The proofs for these calls, along with those from the nested public function calls, are generated and processed through public kernel circuits in any entity possessing the correct contexts.
 
-Once all functions in a transaction are executed, the accumulated data is outputted from a tail circuit. These values are then inserted or updated to the trees within the base rollup circuit. The merge rollup circuit facilitates the merging of two rollup proofs. Repeating this merging process enables the inclusion of more transactions in a block. Finally, the root rollup circuit produces the final proof, which is subsequently submitted and validated onchain.
+Once all functions in a transaction are executed, the accumulated data is outputted from a tail circuit. These values are then inserted or updated to the [state trees](../state/index.md) within the base rollup circuit. The merge rollup circuit facilitates the merging of two rollup proofs. Repeating this merging process enables the inclusion of more transactions in a block. Finally, the root rollup circuit produces the final proof, which is subsequently submitted and validated onchain.
 
 To illustrate, consider a transaction involving the following functions, where circles depict private functions, and squares denote public functions:
+
+:::info
+A note for Aztec protocol developers: In this yellow paper, the order in which the kernel circuit processes calls is different from previous literature, and is different from the current implementation (as at January 2024).
+:::
+
+<!-- Mike review: perhaps a more comprehensive example would be if f2 makes the calls to f4 and f5, to cover a case which isn't covered in the current example: If f2 calls f4 & f5, then which is processed by the kernel first out of f3, f4, or f5?
+-->
 
 ```mermaid
 flowchart LR
@@ -123,8 +130,8 @@ flowchart TB
 
 A few things to note:
 
-- A transaction always starts with an [initial private kernel circuit](./private-kernel-initial.md).
-- An [inner private kernel circuit](./private-kernel-inner.md) won't be required if there is only one private function in a transaction.
+- A transaction always starts with an [initial private kernel circuit](./private-kernel-initial.mdx).
+- An [inner private kernel circuit](./private-kernel-inner.mdx) won't be required if there is only one private function in a transaction.
 - A [reset private kernel circuit](./private-kernel-reset.md) can be executed between two private kernel circuits to "reset" transient data. The reset process can be repeated as needed.
 - Public functions are "enqueued" when invoked from a private function. Public kernel circuits will be executed after the completion of all private kernel iterations.
 - A [base rollup circuit](../rollup-circuits/base-rollup.md) can accept either a [tail public kernel circuit](./public-kernel-tail.md), or a [tail private kernel circuit](./private-kernel-tail.md) in cases where no public functions are present in the transaction.

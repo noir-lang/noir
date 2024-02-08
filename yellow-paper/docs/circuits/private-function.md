@@ -2,9 +2,9 @@
 
 ## Requirements
 
-Private function circuits represent smart contract functions that modify the Aztec private state trees. They serve as untrusted, third-party code that is executed as part of evaluating an Aztec transaction.
+Private function circuits represent smart contract functions that can: privately read and modify leaves of the note hash tree and nullifier tree; perform computations on private data; and can be executed without revealing which function or contract has been executed.
 
-The logic of each private function circuit is tailored to the needs of a particular application or scenario, yet its public inputs must adhere to a specific format. This circuit should be designed to handle private data processing while generating public inputs that safeguard the application and account's intentions without compromising sensitive information.
+The logic of each private function circuit is tailored to the needs of a particular application or scenario, but the public inputs of every private function circuit _must_ adhere to a specific format. This specific format (often referred to as the "public inputs ABI for private functions") ensures that the [private kernel circuits](./private-kernel-initial.mdx) can correctly interpret the actions of every private function circuit.
 
 ## Private Inputs
 
@@ -12,105 +12,137 @@ The private inputs of a private function circuit are customizable.
 
 ## Public Inputs
 
-The public inputs of a private function circuit will be incorporated into the private inputs of a private kernel circuit. Private kernel circuits leverage these public inputs, coupled with proof data and verification key from a private function circuit, to prove the correct execution of a private function.
+<!-- Mike review: Perhaps we could also do one big class diagram which shows how all the structs (for all circuits) interrelate (similar to Lasse's diagrams in the 'Rollup Circuits' section)? -->
 
-The following format defines the ABI that is used by the private kernel circuit when processing private function public inputs:
+<!-- Mike review:
+- Elaborate on what the `counter`s are for (or link to a section which describes them).
+- It would be nice to explain what's inside a call_stack_item_hash, or to link to a definition of the the private_call_stack_item and public_call_stack_item structs.
+- It seems the L1->L2 messages tree doesn't exist anymore (according to the `../state/*` section of this paper. Perhaps it's been absorbed into the note hashes tree?). Consider updating the structs accordingly. EDIT: it should still exist.
+- I think there's still some outstanding ugliness originating from the "where to read?" debate:
+    - Read requests for notes are being output by private functions, but the `note_hash_tree_root` is also available - so which should be used by an app?
+    - Read requests for the other trees aren't possible with the ABI, which implies all other reads would be have to be done inside the app circuit.
+        - How feasible / ugly would it even be to enable the kernel circuit to process read requests of any historical data?
+    - Is it possible to align the `BlockHeader` definition with the `Header` struct defined in `../rollup_circuits/base_rollup.md`?
+    - I haven't read the kernel sections yet (I'll get there), but how does the kernel circuit link a note and nullifier together, to squash them both? There's no "pointer" from a nullifier to a note?
+- TODO: consider whether we need a 'batched_call: bool` in the `CallContext`, and similarly whether we need a new call stack for pushing new batched call requests. (See the section `../calls/batched_calls.md` for some thinking that Palla has done on this subject.)
+- TODO: Lasse has been considering whether `portal_contract_address` is unnecessary. He was pushing for L2 functions to be able to send a message to any L1 function. Catch up w/ Lasse.
+- In addition to `msg_sender`, do we also need a `tx_origin`? I know this question often arises when considering how to spend escrowed notes if `msg.sender` is a non-human smart contract (which cannot possess nullifier secrets). In such cases, only `tx.origin` is a human capable of possessing secrets. Having said all that, there are patterns such as authwit and using 'secrets' instead of 'nullifier secrets' that have been proposed.
+- Consider whether any types should be changed from `field`. (Presumably it would be less efficient to do so. Things like the preimage lengths could be something like a u32, for example).
+- Consider whether args and return values should use the data bus, instead of being hashed.
+- Consider whether logs should use the data bus, instead of being hashed. This would save sha256 computations on the client side. Instead, the entire data bus of logs could be forwarded to the sequencer who could sha256 them instead. Sometimes the data bus will need to be 'reset', in which case the user would need to call a special reset circuit to sha256-compress the logs.
+- We'll need to add fields for requesting key derivation, using the user's master key(s). Done for nullifiers now. Still pending for outgoing viewing keys (we might be able to use the same interface for both and just rename it).
+- Possibly mad suggestion: should the public inputs struct contain further nested structs: call_context, args_hash, return_values, read_requests, side_effects: { note_hashes, nullifiers, l2_to_l1_messages, logs: { unencrypted_log_hashes, encrypted_log_hashes, encrypted_note_preimage_hashes }, call_stacks: { private..., public... } }, block_header, globals: { chain_id, version }. It's up to you circuit writers :)
 
-| Field                               | Type                                                                     | Description                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| _call_context_                      | _[CallContext](#callcontext)_                                            | Context of the call corresponding to this function execution.         |
-| _args_hash_                         | _field_                                                                  | Hash of the function arguments.                                       |
-| _return_values_                     | [_field_; _C_]                                                           | Return values of this function call.                                  |
-| _read_requests_                     | [_[ReadRequest](#readrequest)_; _C_]                                     | Requests to read notes in the note hash tree.                         |
-| _nullifier_key_validation_requests_ | [_[NullifierKeyValidationRequest](#nullifierkeyvalidationrequest)_; _C_] | Requests to validate nullifier keys used in this function call.       |
-| _note_hashes_                       | [_[NoteHash](#notehash)_; _C_]                                           | New note hashes created in this function call.                        |
-| _nullifiers_                        | [_[Nullifier](#nullifier)_; _C_]                                         | New nullifiers created in this function call.                         |
-| _l2_to_l1_messages_                 | [_field_; _C_]                                                           | New L2 to L1 messages created in this function call.                  |
-| _unencrypted_log_hashes_            | [_[UnencryptedLogHash](#unencryptedloghash)_; _C_]                       | Hashes of the unencrypted logs emitted in this function call.         |
-| _encrypted_log_hashes_              | [_[EncryptedLogHash](#encryptedloghash)_; _C_]                           | Hashes of the encrypted logs emitted in this function call.           |
-| _encrypted_note_preimage_hashes_    | [_[EncryptedNotePreimageHash](#encryptednotepreimagehash)_; _C_]         | Hashes of the encrypted note preimages emitted in this function call. |
-| _private_call_stack_item_hashes_    | [_field_; _C_]                                                           | Hashes of the private function calls initiated by this function.      |
-| _public_call_stack_item_hashes_     | [_field_; _C_]                                                           | Hashes of the public function calls initiated by this function.       |
-| _header_                            | _[Header](#header)_                                                      | Header of a block which was used when assembling the tx.              |
-| _chain_id_                          | _field_                                                                  | Chain ID of the transaction.                                          |
-| _version_                           | _field_                                                                  | Version of the transaction.                                           |
+Some tweaks might be needed following this discussion: https://docs.google.com/spreadsheets/d/12Fk0oTvj-yHbdnAkMnu0ymsDqCOEXLdmAxdVB5T_Y3Q/edit#gid=0
+-->
 
-> The above **C**s represent constants defined by the protocol. Each **C** might have a different value from the others.
+The public inputs of _every_ private function _must_ adhere to the following ABI:
+
+| Field                               | Type                                                                    | Description                                                           |
+| ----------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `call_context`                      | [`CallContext`](#callcontext)                                           | Context of the call corresponding to this function execution.         |
+| `args_hash`                         | `field`                                                                 | Hash of the function arguments.                                       |
+| `return_values`                     | `[field; C]`                                                            | Return values of this function call.                                  |
+| `read_requests`                     | [`[ReadRequest; C]`](#readrequest)                                      | Requests to read notes in the note hash tree.                         |
+| `nullifier_key_validation_requests` | [`[NullifierKeyValidationRequest]; C]`](#nullifierkeyvalidationrequest) | Requests to validate nullifier keys used in this function call.       |
+| `note_hashes`                       | [`[NoteHash; C]`](#notehash)                                            | New note hashes created in this function call.                        |
+| `nullifiers`                        | [`[Nullifier; C]`](#nullifier)                                          | New nullifiers created in this function call.                         |
+| `l2_to_l1_messages`                 | `[field; C]`                                                            | New L2 to L1 messages created in this function call.                  |
+| `unencrypted_log_hashes`            | [`[UnencryptedLogHash; C]`](#unencryptedloghash)                        | Hashes of the unencrypted logs emitted in this function call.         |
+| `encrypted_log_hashes`              | [`[EncryptedLogHash; C]`](#encryptedloghash)                            | Hashes of the encrypted logs emitted in this function call.           |
+| `encrypted_note_preimage_hashes`    | [`[EncryptedNotePreimageHash]; C]`](#encryptednotepreimagehash)         | Hashes of the encrypted note preimages emitted in this function call. |
+| `private_call_stack_item_hashes`    | `[field; C]`                                                            | Hashes of the private function calls initiated by this function.      |
+| `public_call_stack_item_hashes`     | `[field; C]`                                                            | Hashes of the public function calls initiated by this function.       |
+| `block_header`                      | [`BlockHeader`](#blockheader)                                           | Information about the trees used for the transaction.                 |
+| `chain_id`                          | `field`                                                                 | Chain ID of the transaction.                                          |
+| `version`                           | `field`                                                                 | Version of the transaction.                                           |
+
+After generating a proof for a private function circuit, that proof (and associated public inputs) will be passed-into a private kernel circuit as private inputs. Private kernel circuits use the private function's proof, public inputs, and verification key, to verify the correct execution of the private function. Private kernel circuits then perform a number of checks and computations on the private function's public inputs.
+
+> The above `C`s represent constants defined by the protocol. Each `C` might have a different value from the others.
+
+<!--
+TODO: use different values for each constant, instead of `C`, so that this document is as precise as possible.
+-->
 
 ## Types
 
-#### _CallContext_
+### `CallContext`
 
-| Field                      | Type           | Description                                                             |
-| -------------------------- | -------------- | ----------------------------------------------------------------------- |
-| _msg_sender_               | _AztecAddress_ | Address of the caller contract.                                         |
-| _storage_contract_address_ | _AztecAddress_ | Address of the contract against which all state changes will be stored. |
-| _portal_contract_address_  | _AztecAddress_ | Address of the portal contract to the storage contract.                 |
-| _is_delegate_call_         | _bool_         | A flag indicating whether the call is a delegate call.                  |
-| _is_static_call_           | _bool_         | A flag indicating whether the call is a static call.                    |
+| Field                      | Type           | Description                                                                                                                                                                               |
+| -------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `msg_sender`               | `AztecAddress` | Address of the caller contract.                                                                                                                                                           |
+| `storage_contract_address` | `AztecAddress` | Address of the contract against which all state changes will be stored. (It is not called `contract_address`, because in the context of delegate calls, that would be an ambiguous name.) |
+| `portal_contract_address`  | `AztecAddress` | Address of the portal contract to the storage contract.                                                                                                                                   |
+| `is_delegate_call`         | `bool`         | A flag indicating whether the call is a [delegate call](../calls/delegate-calls.md).                                                                                                      |
+| `is_static_call`           | `bool`         | A flag indicating whether the call is a [static call](../calls/static-calls.md).                                                                                                          |
 
-#### _ReadRequest_
+### `ReadRequest`
 
 | Field       | Type    | Description                            |
 | ----------- | ------- | -------------------------------------- |
-| _note_hash_ | _field_ | Hash of the note to be read.           |
-| _counter_   | _field_ | Counter at which the request was made. |
+| `note_hash` | `field` | Hash of the note to be read.           |
+| `counter`   | `field` | Counter at which the request was made. |
 
-#### _NullifierKeyValidationRequest_
+### `NullifierKeyValidationRequest`
+
+<!-- These types might be wrong. The public key needs to be some encoding of a grumpkin point. The secret key needs to be an Fq field instead of an Fr field. -->
 
 | Field        | Type    | Description                                                          |
 | ------------ | ------- | -------------------------------------------------------------------- |
-| _public_key_ | _field_ | Nullifier public key of an account.                                  |
-| _secret_key_ | _field_ | Nullifier secret key of an account siloed with the contract address. |
+| `public_key` | `field` | Nullifier public key of an account.                                  |
+| `secret_key` | `field` | Nullifier secret key of an account siloed with the contract address. |
 
-#### _NoteHash_
+### `NoteHash`
 
 | Field     | Type    | Description                                 |
 | --------- | ------- | ------------------------------------------- |
-| _value_   | _field_ | Hash of the note.                           |
-| _counter_ | _field_ | Counter at which the note hash was created. |
+| `value`   | `field` | Hash of the note.                           |
+| `counter` | `field` | Counter at which the note hash was created. |
 
-#### _Nullifier_
+### `Nullifier`
 
 | Field               | Type    | Description                                                                                                              |
 | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
-| _value_             | _field_ | Value of the nullifier.                                                                                                  |
-| _counter_           | _field_ | Counter at which the nullifier was created.                                                                              |
-| _note_hash_counter_ | _field_ | Counter of the transient note the nullifier is created for. 0 if the nullifier does not associate with a transient note. |
+| `value`             | `field` | Value of the nullifier.                                                                                                  |
+| `counter`           | `field` | Counter at which the nullifier was created.                                                                              |
+| `note_hash_counter` | `field` | Counter of the transient note the nullifier is created for. 0 if the nullifier does not associate with a transient note. |
 
-#### _UnencryptedLogHash_
+### `UnencryptedLogHash`
+
+<!-- Consider creating a LogHash class, that all three of the below classes can use, via class composition or via inheritance. The first 3 fields of each are the same. -->
 
 | Field     | Type    | Description                            |
 | --------- | ------- | -------------------------------------- |
-| _hash_    | _field_ | Hash of the unencrypted log.           |
-| _length_  | _field_ | Number of fields of the log preimage.  |
-| _counter_ | _field_ | Counter at which the hash was emitted. |
+| `hash`    | `field` | Hash of the unencrypted log.           |
+| `length`  | `field` | Number of fields of the log preimage.  |
+| `counter` | `field` | Counter at which the hash was emitted. |
 
-#### _EncryptedLogHash_
+### `EncryptedLogHash`
 
 | Field        | Type    | Description                                  |
 | ------------ | ------- | -------------------------------------------- |
-| _hash_       | _field_ | Hash of the encrypted log.                   |
-| _length_     | _field_ | Number of fields of the log preimage.        |
-| _randomness_ | _field_ | A random value to hide the contract address. |
-| _counter_    | _field_ | Counter at which the hash was emitted.       |
+| `hash`       | `field` | Hash of the encrypted log.                   |
+| `length`     | `field` | Number of fields of the log preimage.        |
+| `counter`    | `field` | Counter at which the hash was emitted.       |
+| `randomness` | `field` | A random value to hide the contract address. |
 
-#### _EncryptedNotePreimageHash_
+### `EncryptedNotePreimageHash`
 
 | Field               | Type    | Description                             |
 | ------------------- | ------- | --------------------------------------- |
-| _hash_              | _field_ | Hash of the encrypted note preimage.    |
-| _length_            | _field_ | Number of fields of the note preimage.  |
-| _counter_           | _field_ | Counter at which the hash was emitted.  |
-| _note_hash_counter_ | _field_ | Counter of the corresponding note hash. |
+| `hash`              | `field` | Hash of the encrypted note preimage.    |
+| `length`            | `field` | Number of fields of the note preimage.  |
+| `counter`           | `field` | Counter at which the hash was emitted.  |
+| `note_hash_counter` | `field` | Counter of the corresponding note hash. |
 
-#### _Header_
+### `BlockHeader`
 
 | Field                         | Type    | Description                                                                                     |
 | ----------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
-| _note_hash_tree_root_         | _field_ | Root of the note hash tree.                                                                     |
-| _nullifier_tree_root_         | _field_ | Root of the nullifier tree.                                                                     |
-| _l1_to_l2_messages_tree_root_ | _field_ | Root of the l1-to-l2 messages tree.                                                             |
-| _public_data_tree_root_       | _field_ | Root of the public data tree.                                                                   |
-| _archive_tree_root_           | _field_ | Root of the state roots tree archived at the block prior to when the transaction was assembled. |
-| _global_variables_hash_       | _field_ | Hash of the previous global variables.                                                          |
+| `note_hash_tree_root`         | `field` | Root of the note hash tree.                                                                     |
+| `nullifier_tree_root`         | `field` | Root of the nullifier tree.                                                                     |
+| `l1_to_l2_messages_tree_root` | `field` | Root of the l1-to-l2 messages tree.                                                             |
+| `public_data_tree_root`       | `field` | Root of the public data tree.                                                                   |
+| `archive_tree_root`           | `field` | Root of the state roots tree archived at the block prior to when the transaction was assembled. |
+| `global_variables_hash`       | `field` | Hash of the previous global variables.                                                          |

@@ -39,6 +39,7 @@ const config = {
   markdown: {
     mermaid: true,
   },
+
   themes: ["@docusaurus/theme-mermaid"],
 
   presets: [
@@ -106,6 +107,7 @@ const config = {
           },
         ],
       },
+
       footer: {
         style: "dark",
         links: [
@@ -139,6 +141,7 @@ const config = {
         ],
         copyright: `Copyright © ${new Date().getFullYear()} Aztec Labs, Inc. Built with Docusaurus.`,
       },
+
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,

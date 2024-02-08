@@ -12,9 +12,9 @@ Read the following discussions for additional context:
 - [Abstracting contract deployment](https://forum.aztec.network/t/proposal-abstracting-contract-deployment/2576)
 - [Implementing contract upgrades](https://forum.aztec.network/t/implementing-contract-upgrades/2570)
 - [Contract classes, upgrades, and default accounts](https://forum.aztec.network/t/contract-classes-upgrades-and-default-accounts/433)
-:::
+  :::
 
-## Structure
+## `ContractClass`
 
 The structure of a contract class is defined as:
 
@@ -41,7 +41,7 @@ public_bytecode_commitment = calculate_commitment(packed_public_bytecode)
 contract_class_id = pedersen([artifact_hash, private_functions_root, public_bytecode_commitment], GENERATOR__CLASS_IDENTIFIER_V1)
 ```
 
-Private Functions are hashed into Function Leaves before being merkleized into a tree of height `FUNCTION_TREE_HEIGHT=5`. Empty leaves have value `0`. A poseidon hash is used. The AVM public bytecode commitment is calculated as [defined in the Public VM section](../public-vm/bytecode-validation-circuit.md#committed-representation).
+Private Functions are hashed into Function Leaves before being merkleized into a tree of height [`FUNCTION_TREE_HEIGHT`](../constants.md#tree-constants). Empty leaves have value `0`. A poseidon hash is used. The AVM public bytecode commitment is calculated as [defined in the Public VM section](../public-vm/bytecode-validation-circuit.md#committed-representation).
 
 ### Private Function
 
@@ -62,19 +62,19 @@ Also note the lack of commitment to the function compilation artifact. Even thou
 Even though not enforced by the protocol, it is suggested for the `artifact_hash` to follow this general structure, in order to be compatible with the definition of the [`broadcast` function below](#broadcast).
 
 ```
-private_functions_artifact_leaves = artifact.private_functions.map(fn => 
+private_functions_artifact_leaves = artifact.private_functions.map(fn =>
   sha256(fn.selector, fn.metadata_hash, sha256(fn.private_bytecode))
 )
 private_functions_artifact_tree_root = merkleize(private_functions_artifact_leaves)
 
-unconstrained_functions_artifact_leaves = artifact.unconstrained_functions.map(fn => 
+unconstrained_functions_artifact_leaves = artifact.unconstrained_functions.map(fn =>
   sha256(fn.selector, fn.metadata_hash, sha256(fn.unconstrained_bytecode))
 )
 unconstrained_functions_artifact_tree_root = merkleize(unconstrained_functions_artifact_leaves)
 
 artifact_hash = sha256(
   private_functions_artifact_tree_root,
-  unconstrained_functions_artifact_tree_root, 
+  unconstrained_functions_artifact_tree_root,
   artifact_metadata,
 )
 ```
@@ -125,7 +125,7 @@ function register(
   artifact_hash: Field,
   private_functions_root: Field,
   packed_public_bytecode: Field[],
-) 
+)
   assert is_valid_packed_public_bytecode(packed_public_bytecode)
 
   version = 1
@@ -142,15 +142,13 @@ Note that emitting the `contract_class_id` as a nullifier (the `contract_class_i
 
 ### Genesis
 
-The `ContractClassRegisterer` will need to exist from the genesis of the Aztec Network, otherwise nothing will ever be publicly deployable to the network. The Class Nullifier for the `ContractClassRegisterer` contract will be pre-inserted into the genesis nullifier tree at leaf index `GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_CLASS_REGISTERER_CLASS_ID_NULLIFIER=1`. The canonical instance will be deployed at `CONTRACT_CLASS_REGISTERER_ADDRESS=0x10000`, and its Deployment Nullifier will be inserted at `GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_CLASS_REGISTERER_DEPLOYMENT_NULLIFIER=2`.
-
-<!-- TODO: perhaps we need a page of constants? -->
+The `ContractClassRegisterer` will need to exist from the genesis of the Aztec Network, otherwise nothing will ever be publicly deployable to the network. The Class Nullifier for the `ContractClassRegisterer` contract will be pre-inserted into the genesis nullifier tree at leaf index [`GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_CLASS_REGISTERER_CLASS_ID_NULLIFIER`](../constants.md#genesis-constants). The canonical instance will be deployed at [`CONTRACT_CLASS_REGISTERER_ADDRESS`](../constants.md#genesis-constants), and its Deployment Nullifier will be inserted at [`GENESIS_NULLIFIER_LEAF_INDEX_OF_CONTRACT_CLASS_REGISTERER_DEPLOYMENT_NULLIFIER`](../constants.md#genesis-constants).
 
 <!-- TODO(cryptography): How do we convince the world that there's 'nothing up our sleeves'? What could be the consequences of a cunningly-chosen nullifier being pre-inserted into the nullifier tree? -->
 
 ### Broadcast
 
-The `ContractClassRegisterer` has an additional private `broadcast` functions that can be used for broadcasting on-chain the bytecode, both ACIR and Brillig, for private functions and unconstrained in the contract. Any user can freely call this function. Given that ACIR and Brillig [do not have a circuit-friendly commitment](../bytecode/index.md), it is left up to nodes to perform this check. 
+The `ContractClassRegisterer` has an additional private `broadcast` functions that can be used for broadcasting on-chain the bytecode, both ACIR and Brillig, for private functions and unconstrained in the contract. Any user can freely call this function. Given that ACIR and Brillig [do not have a circuit-friendly commitment](../bytecode/index.md), it is left up to nodes to perform this check.
 
 Broadcasted contract artifacts that do not match with their corresponding `artifact_hash`, or that reference a `contract_class_id` that has not been broadcasted, can be safely discarded.
 
