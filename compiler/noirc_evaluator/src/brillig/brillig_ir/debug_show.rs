@@ -3,8 +3,8 @@
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 use acvm::acir::brillig::{
-    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory,
-    Value,
+    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, MemoryAddress, Value,
+    ValueOrArray,
 };
 
 /// Trait for converting values into debug-friendly strings.
@@ -24,7 +24,7 @@ macro_rules! default_to_string_impl {
 
 default_to_string_impl! { str usize u32 }
 
-impl DebugToString for RegisterIndex {
+impl DebugToString for MemoryAddress {
     fn debug_to_string(&self) -> String {
         if *self == ReservedRegisters::stack_pointer() {
             "Stack".into()
@@ -74,9 +74,8 @@ impl DebugToString for BinaryIntOp {
             BinaryIntOp::And => "&&".into(),
             BinaryIntOp::Or => "||".into(),
             BinaryIntOp::Xor => "^".into(),
-            BinaryIntOp::Shl | BinaryIntOp::Shr => {
-                unreachable!("bit shift should have been replaced")
-            }
+            BinaryIntOp::Shl => "<<".into(),
+            BinaryIntOp::Shr => ">>".into(),
         }
     }
 }
@@ -112,12 +111,12 @@ impl DebugToString for Value {
     }
 }
 
-impl DebugToString for RegisterOrMemory {
+impl DebugToString for ValueOrArray {
     fn debug_to_string(&self) -> String {
         match self {
-            RegisterOrMemory::RegisterIndex(index) => index.debug_to_string(),
-            RegisterOrMemory::HeapArray(heap_array) => heap_array.debug_to_string(),
-            RegisterOrMemory::HeapVector(vector) => vector.debug_to_string(),
+            ValueOrArray::MemoryAddress(index) => index.debug_to_string(),
+            ValueOrArray::HeapArray(heap_array) => heap_array.debug_to_string(),
+            ValueOrArray::HeapVector(vector) => vector.debug_to_string(),
         }
     }
 }
@@ -152,15 +151,15 @@ impl DebugShow {
 
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false.
-    pub(crate) fn constrain_instruction(&self, condition: RegisterIndex) {
+    pub(crate) fn constrain_instruction(&self, condition: MemoryAddress) {
         debug_println!(self.enable_debug_trace, "  ASSERT {} != 0", condition);
     }
 
     /// Processes a return instruction.
-    pub(crate) fn return_instruction(&self, return_registers: &[RegisterIndex]) {
+    pub(crate) fn return_instruction(&self, return_registers: &[MemoryAddress]) {
         let registers_string = return_registers
             .iter()
-            .map(RegisterIndex::debug_to_string)
+            .map(MemoryAddress::debug_to_string)
             .collect::<Vec<String>>()
             .join(", ");
 
@@ -168,32 +167,32 @@ impl DebugShow {
     }
 
     /// Emits a `mov` instruction.
-    pub(crate) fn mov_instruction(&self, destination: RegisterIndex, source: RegisterIndex) {
+    pub(crate) fn mov_instruction(&self, destination: MemoryAddress, source: MemoryAddress) {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
     }
 
     /// Processes a binary instruction according `operation`.
     pub(crate) fn binary_instruction(
         &self,
-        lhs: RegisterIndex,
-        rhs: RegisterIndex,
-        result: RegisterIndex,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        result: MemoryAddress,
         operation: BrilligBinaryOp,
     ) {
         debug_println!(self.enable_debug_trace, "  {} = {} {} {}", result, lhs, operation, rhs);
     }
 
     /// Stores the value of `constant` in the `result` register
-    pub(crate) fn const_instruction(&self, result: RegisterIndex, constant: Value) {
+    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: Value) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
     /// Processes a not instruction. Append with "_" as this is a high-level instruction.
     pub(crate) fn not_instruction(
         &self,
-        condition: RegisterIndex,
+        condition: MemoryAddress,
         bit_size: u32,
-        result: RegisterIndex,
+        result: MemoryAddress,
     ) {
         debug_println!(self.enable_debug_trace, "  i{}_NOT {} = !{}", bit_size, result, condition);
     }
@@ -202,8 +201,8 @@ impl DebugShow {
     pub(crate) fn foreign_call_instruction(
         &self,
         func_name: String,
-        inputs: &[RegisterOrMemory],
-        outputs: &[RegisterOrMemory],
+        inputs: &[ValueOrArray],
+        outputs: &[ValueOrArray],
     ) {
         debug_println!(
             self.enable_debug_trace,
@@ -217,8 +216,8 @@ impl DebugShow {
     /// Emits a load instruction
     pub(crate) fn load_instruction(
         &self,
-        destination: RegisterIndex,
-        source_pointer: RegisterIndex,
+        destination: MemoryAddress,
+        source_pointer: MemoryAddress,
     ) {
         debug_println!(self.enable_debug_trace, "  LOAD {} = *{}", destination, source_pointer);
     }
@@ -226,8 +225,8 @@ impl DebugShow {
     /// Emits a store instruction
     pub(crate) fn store_instruction(
         &self,
-        destination_pointer: RegisterIndex,
-        source: RegisterIndex,
+        destination_pointer: MemoryAddress,
+        source: MemoryAddress,
     ) {
         debug_println!(self.enable_debug_trace, "  STORE *{} = {}", destination_pointer, source);
     }
@@ -240,8 +239,8 @@ impl DebugShow {
     /// Debug function for allocate_array_instruction
     pub(crate) fn allocate_array_instruction(
         &self,
-        pointer_register: RegisterIndex,
-        size_register: RegisterIndex,
+        pointer_register: MemoryAddress,
+        size_register: MemoryAddress,
     ) {
         debug_println!(
             self.enable_debug_trace,
@@ -252,16 +251,16 @@ impl DebugShow {
     }
 
     /// Debug function for allocate_instruction
-    pub(crate) fn allocate_instruction(&self, pointer_register: RegisterIndex) {
+    pub(crate) fn allocate_instruction(&self, pointer_register: MemoryAddress) {
         debug_println!(self.enable_debug_trace, "  ALLOCATE {} ", pointer_register);
     }
 
     /// Debug function for array_get
     pub(crate) fn array_get(
         &self,
-        array_ptr: RegisterIndex,
-        index: RegisterIndex,
-        result: RegisterIndex,
+        array_ptr: MemoryAddress,
+        index: MemoryAddress,
+        result: MemoryAddress,
     ) {
         debug_println!(
             self.enable_debug_trace,
@@ -275,9 +274,9 @@ impl DebugShow {
     /// Debug function for array_set
     pub(crate) fn array_set(
         &self,
-        array_ptr: RegisterIndex,
-        index: RegisterIndex,
-        value: RegisterIndex,
+        array_ptr: MemoryAddress,
+        index: MemoryAddress,
+        value: MemoryAddress,
     ) {
         debug_println!(self.enable_debug_trace, "  ARRAY_SET {}[{}] = {}", array_ptr, index, value);
     }
@@ -285,9 +284,9 @@ impl DebugShow {
     /// Debug function for copy_array_instruction
     pub(crate) fn copy_array_instruction(
         &self,
-        source: RegisterIndex,
-        destination: RegisterIndex,
-        num_elements_register: RegisterIndex,
+        source: MemoryAddress,
+        destination: MemoryAddress,
+        num_elements_register: MemoryAddress,
     ) {
         debug_println!(
             self.enable_debug_trace,
@@ -314,7 +313,7 @@ impl DebugShow {
     /// Debug function for jump_if_instruction
     pub(crate) fn jump_if_instruction<T: ToString>(
         &self,
-        condition: RegisterIndex,
+        condition: MemoryAddress,
         target_label: T,
     ) {
         debug_println!(
@@ -328,8 +327,8 @@ impl DebugShow {
     /// Debug function for cast_instruction
     pub(crate) fn truncate_instruction(
         &self,
-        destination: RegisterIndex,
-        source: RegisterIndex,
+        destination: MemoryAddress,
+        source: MemoryAddress,
         target_bit_size: u32,
     ) {
         debug_println!(
@@ -342,7 +341,7 @@ impl DebugShow {
     }
 
     /// Debug function for black_box_op
-    pub(crate) fn black_box_op_instruction(&self, op: BlackBoxOp) {
+    pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
         match op {
             BlackBoxOp::Sha256 { message, output } => {
                 debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
@@ -457,7 +456,7 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::BigIntNeg { lhs, rhs, output } => {
+            BlackBoxOp::BigIntSub { lhs, rhs, output } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  BIGINT_NEG {} {} -> {}",

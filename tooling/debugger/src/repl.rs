@@ -38,14 +38,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             initial_witness.clone(),
             foreign_call_executor,
         );
-        Self {
-            context,
-            blackbox_solver,
-            circuit,
-            debug_artifact,
-            initial_witness,
-            last_result: DebugCommandResult::Ok,
-        }
+        let last_result = if context.get_current_opcode_location().is_none() {
+            // handle circuit with no opcodes
+            DebugCommandResult::Done
+        } else {
+            DebugCommandResult::Ok
+        };
+        Self { context, blackbox_solver, circuit, debug_artifact, initial_witness, last_result }
     }
 
     pub fn show_current_vm_status(&self) {
@@ -257,37 +256,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         println!("_{} = {value}", index);
     }
 
-    pub fn show_brillig_registers(&self) {
-        if !self.context.is_executing_brillig() {
-            println!("Not executing a Brillig block");
-            return;
-        }
-
-        let Some(registers) = self.context.get_brillig_registers() else {
-            // this can happen when just entering the Brillig block since ACVM
-            // would have not initialized the Brillig VM yet; in fact, the
-            // Brillig code may be skipped altogether
-            println!("Brillig VM registers not available");
-            return;
-        };
-
-        for (index, value) in registers.inner.iter().enumerate() {
-            println!("{index} = {}", value.to_field());
-        }
-    }
-
-    pub fn set_brillig_register(&mut self, index: usize, value: String) {
-        let Some(field_value) = FieldElement::try_from_str(&value) else {
-            println!("Invalid value: {value}");
-            return;
-        };
-        if !self.context.is_executing_brillig() {
-            println!("Not executing a Brillig block");
-            return;
-        }
-        self.context.set_brillig_register(index, field_value);
-    }
-
     pub fn show_brillig_memory(&self) {
         if !self.context.is_executing_brillig() {
             println!("Not executing a Brillig block");
@@ -456,26 +424,6 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "update a witness with the given value",
                 (index: u32, value: String) => |index, value| {
                     ref_context.borrow_mut().update_witness(index, value);
-                    Ok(CommandStatus::Done)
-                }
-            },
-        )
-        .add(
-            "registers",
-            command! {
-                "show Brillig registers (valid when executing a Brillig block)",
-                () => || {
-                    ref_context.borrow().show_brillig_registers();
-                    Ok(CommandStatus::Done)
-                }
-            },
-        )
-        .add(
-            "regset",
-            command! {
-                "update a Brillig register with the given value",
-                (index: usize, value: String) => |index, value| {
-                    ref_context.borrow_mut().set_brillig_register(index, value);
                     Ok(CommandStatus::Done)
                 }
             },

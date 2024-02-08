@@ -1,13 +1,9 @@
-use std::cmp::Ordering;
-
 use acir::{circuit::directives::Directive, native_types::WitnessMap, FieldElement};
 use num_bigint::BigUint;
 
 use crate::OpcodeResolutionError;
 
 use super::{get_value, insert_value, ErrorLocation};
-
-mod sorting;
 
 /// Attempts to solve the [`Directive`] opcode `directive`.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
@@ -46,39 +42,6 @@ pub(super) fn solve_directives(
                 insert_value(witness, value, initial_witness)?;
             }
 
-            Ok(())
-        }
-        Directive::PermutationSort { inputs: a, tuple, bits, sort_by } => {
-            let mut val_a = Vec::new();
-            let mut base = Vec::new();
-            for (i, element) in a.iter().enumerate() {
-                assert_eq!(element.len(), *tuple as usize);
-                let mut element_val = Vec::with_capacity(*tuple as usize + 1);
-                for e in element {
-                    element_val.push(get_value(e, initial_witness)?);
-                }
-                let field_i = FieldElement::from(i as i128);
-                element_val.push(field_i);
-                base.push(field_i);
-                val_a.push(element_val);
-            }
-            val_a.sort_by(|a, b| {
-                for i in sort_by {
-                    let int_a = BigUint::from_bytes_be(&a[*i as usize].to_be_bytes());
-                    let int_b = BigUint::from_bytes_be(&b[*i as usize].to_be_bytes());
-                    let cmp = int_a.cmp(&int_b);
-                    if cmp != Ordering::Equal {
-                        return cmp;
-                    }
-                }
-                Ordering::Equal
-            });
-            let b = val_a.iter().map(|a| *a.last().unwrap()).collect();
-            let control = sorting::route(base, b);
-            for (w, value) in bits.iter().zip(control) {
-                let value = if value { FieldElement::one() } else { FieldElement::zero() };
-                insert_value(w, value, initial_witness)?;
-            }
             Ok(())
         }
     }

@@ -19,7 +19,7 @@ await newABICoder();
 await initACVM();
 
 const base_relative_path = '../../../../..';
-const circuit_main = 'test_programs/execution_success/assert_statement';
+const circuit_main = 'test_programs/execution_success/assert_statement_recursive';
 const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
 
 async function getCircuit(projectPath: string) {
@@ -48,15 +48,15 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const { witness: main_witnessUint8Array } = await new Noir(main_program).execute(main_inputs);
 
-    const main_proof = await main_backend.generateIntermediateProof(main_witnessUint8Array);
-    const main_verification = await main_backend.verifyIntermediateProof(main_proof);
+    const main_proof = await main_backend.generateProof(main_witnessUint8Array);
+    const main_verification = await main_backend.verifyProof(main_proof);
 
     logger.debug('main_verification', main_verification);
 
     expect(main_verification).to.be.true;
 
     const numPublicInputs = 1;
-    const { proofAsFields, vkAsFields, vkHash } = await main_backend.generateIntermediateProofArtifacts(
+    const { proofAsFields, vkAsFields, vkHash } = await main_backend.generateRecursiveProofArtifacts(
       main_proof,
       numPublicInputs,
     );
@@ -76,20 +76,20 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const { witness: recursion_witnessUint8Array } = await new Noir(recursion_program).execute(recursion_inputs);
 
-    const recursion_proof = await recursion_backend.generateFinalProof(recursion_witnessUint8Array);
+    const recursion_proof = await recursion_backend.generateProof(recursion_witnessUint8Array);
 
     // Causes an "unreachable" error.
     // Due to the fact that it's a non-recursive proof?
     //
     // const recursion_numPublicInputs = 1;
-    // const { proofAsFields: recursion_proofAsFields } = await recursion_backend.generateIntermediateProofArtifacts(
+    // const { proofAsFields: recursion_proofAsFields } = await recursion_backend.generateRecursiveProofArtifacts(
     //   recursion_proof,
     //   recursion_numPublicInputs,
     // );
     //
     // logger.debug('recursion_proofAsFields', recursion_proofAsFields);
 
-    const recursion_verification = await recursion_backend.verifyFinalProof(recursion_proof);
+    const recursion_verification = await recursion_backend.verifyProof(recursion_proof);
 
     logger.debug('recursion_verification', recursion_verification);
 

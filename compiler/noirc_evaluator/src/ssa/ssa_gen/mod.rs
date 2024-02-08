@@ -14,10 +14,7 @@ use noirc_frontend::{
 
 use crate::{
     errors::{InternalError, RuntimeError},
-    ssa::{
-        function_builder::data_bus::DataBusBuilder,
-        ir::{instruction::Intrinsic, types::NumericType},
-    },
+    ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
 };
 
 use self::{
@@ -390,8 +387,9 @@ impl<'a> FunctionContext<'a> {
         length: Option<super::ir::value::ValueId>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
+        let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = self.builder.field_constant(type_size as u128);
+        let type_size = self.builder.numeric_constant(type_size as u128, Type::unsigned(64));
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
@@ -428,20 +426,10 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         length: Option<super::ir::value::ValueId>,
     ) {
-        let array_len = length.expect("ICE: a length must be supplied for indexing slices");
-        // Check the type of the index value for valid comparisons
-        let array_len = match self.builder.type_of_value(index) {
-            Type::Numeric(numeric_type) => match numeric_type {
-                // If the index itself is an integer, keep the array length as a Field
-                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
-                // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
-                // Thus, we cast the array length to a u64 before performing the less than comparison
-                NumericType::NativeField => self
-                    .builder
-                    .insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 })),
-            },
-            _ => unreachable!("ICE: array index must be a numeric type"),
-        };
+        let index = self.make_array_index(index);
+        // We convert the length as an array index type for comparison
+        let array_len = self
+            .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
@@ -700,6 +688,12 @@ impl<'a> FunctionContext<'a> {
             return Ok(None)
         };
 
+        if let ast::Expression::Literal(ast::Literal::Str(assert_message)) =
+            assert_message_expr.as_ref()
+        {
+            return Ok(Some(Box::new(ConstrainError::Static(assert_message.to_string()))));
+        }
+
         let ast::Expression::Call(call) = assert_message_expr.as_ref() else {
             return Err(InternalError::Unexpected {
                 expected: "Expected a call expression".to_owned(),
@@ -729,6 +723,11 @@ impl<'a> FunctionContext<'a> {
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
         let lhs = self.extract_current_value(&assign.lvalue)?;
         let rhs = self.codegen_expression(&assign.expression)?;
+
+        rhs.clone().for_each(|value| {
+            let value = value.eval(self);
+            self.builder.increment_array_reference_count(value);
+        });
 
         self.assign_new_value(lhs, rhs);
         Ok(Self::unit_value())
