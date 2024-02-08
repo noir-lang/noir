@@ -1136,6 +1136,6 @@ class GoblinTranslatorFlavor {
         }
     };
 
-    using Transcript = BaseTranscript;
+    using Transcript = NativeTranscript;
 };
 } // namespace bb

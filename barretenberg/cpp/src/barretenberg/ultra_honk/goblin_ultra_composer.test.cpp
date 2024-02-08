@@ -23,6 +23,8 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
     using FF = Curve::ScalarField;
     using Point = Curve::AffineElement;
     using CommitmentKey = bb::CommitmentKey<Curve>;
+    using MergeProver = MergeProver_<GoblinUltraFlavor>;
+    using MergeVerifier = MergeVerifier_<GoblinUltraFlavor>;
 
     /**
      * @brief Generate a simple test circuit with some ECC op gates and conventional arithmetic gates

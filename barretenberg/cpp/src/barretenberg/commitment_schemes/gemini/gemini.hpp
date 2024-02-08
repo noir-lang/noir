@@ -149,7 +149,7 @@ template <typename Curve> class GeminiVerifier_ {
         }
 
         // compute vector of powers of random evaluation point r
-        const Fr r = transcript->get_challenge("Gemini:r");
+        const Fr r = transcript->template get_challenge<Fr>("Gemini:r");
         std::vector<Fr> r_squares = gemini::squares_of_r(r, num_variables);
 
         // Get evaluations a_i, i = 0,...,m-1 from transcript

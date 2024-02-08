@@ -60,6 +60,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->q_busread().emplace_back(0);
     this->q_poseidon2_external().emplace_back(1);
     this->q_poseidon2_internal().emplace_back(1);
+    this->check_selector_length_consistency();
 
     ++this->num_gates;
 
@@ -82,6 +83,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->q_busread().emplace_back(0);
     this->q_poseidon2_external().emplace_back(0);
     this->q_poseidon2_internal().emplace_back(0);
+    this->check_selector_length_consistency();
 
     ++this->num_gates;
 }
@@ -255,6 +257,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_calldata_lookup_gate(const databus_l
     this->q_aux().emplace_back(0);
     this->q_poseidon2_external().emplace_back(0);
     this->q_poseidon2_internal().emplace_back(0);
+    this->check_selector_length_consistency();
 
     ++this->num_gates;
 }
@@ -283,6 +286,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseid
     this->q_busread().emplace_back(0);
     this->q_poseidon2_external().emplace_back(1);
     this->q_poseidon2_internal().emplace_back(0);
+    this->check_selector_length_consistency();
     ++this->num_gates;
 }
 
@@ -310,6 +314,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseid
     this->q_busread().emplace_back(0);
     this->q_poseidon2_external().emplace_back(0);
     this->q_poseidon2_internal().emplace_back(1);
+    this->check_selector_length_consistency();
     ++this->num_gates;
 }
 
@@ -340,6 +345,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_end
     this->q_busread().emplace_back(0);
     this->q_poseidon2_external().emplace_back(0);
     this->q_poseidon2_internal().emplace_back(0);
+    this->check_selector_length_consistency();
     ++this->num_gates;
 }
 

@@ -28,7 +28,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
 
     const size_t n = 16;
 
-    auto prover_transcript = BaseTranscript::prover_init_empty();
+    auto prover_transcript = NativeTranscript::prover_init_empty();
 
     // Generate two random (unrelated) polynomials of two different sizes, as well as their evaluations at a (single but
     // different) random point and their commitments.
@@ -47,11 +47,11 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     std::vector<Polynomial> polynomials = { poly1.share(), poly2.share() };
 
     // Execute the shplonk prover functionality
-    const Fr nu_challenge = prover_transcript->get_challenge("Shplonk:nu");
+    const Fr nu_challenge = prover_transcript->template get_challenge<Fr>("Shplonk:nu");
     auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(opening_pairs, polynomials, nu_challenge);
     prover_transcript->send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
-    const Fr z_challenge = prover_transcript->get_challenge("Shplonk:z");
+    const Fr z_challenge = prover_transcript->template get_challenge<Fr>("Shplonk:z");
     const auto [prover_opening_pair, shplonk_prover_witness] =
         ShplonkProver::compute_partially_evaluated_batched_quotient(
             opening_pairs, polynomials, std::move(batched_quotient_Q), nu_challenge, z_challenge);
@@ -64,7 +64,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     opening_claims.emplace_back(OpeningClaim{ opening_pairs[0], commitment1 });
     opening_claims.emplace_back(OpeningClaim{ opening_pairs[1], commitment2 });
 
-    auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
+    auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 
     // Execute the shplonk verifier functionality
     const auto verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), opening_claims, verifier_transcript);

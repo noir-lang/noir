@@ -8,7 +8,7 @@
 namespace bb::field_conversion {
 
 /**
- * @brief Calculates number of bb::fr required to represent the input type
+ * @brief Calculates the size of a types in terms of bb::frs
  * @details We want to support the following types: bool, size_t, uint32_t, uint64_t, bb::fr, grumpkin::fr,
  * curve::BN254::AffineElement, curve::Grumpkin::AffineElement, bb::Univariate<FF, N>, std::array<FF, N>, for
  * FF = bb::fr/grumpkin::fr, and N is arbitrary
@@ -206,6 +206,17 @@ template <typename AllValues> std::vector<bb::fr> inline convert_to_bn254_frs(co
         fr_vec.insert(fr_vec.end(), tmp_vec.begin(), tmp_vec.end());
     }
     return fr_vec;
+}
+
+grumpkin::fr convert_to_grumpkin_fr(const bb::fr& f);
+
+template <typename T> T inline convert_challenge(const bb::fr& challenge)
+{
+    if constexpr (std::is_same_v<T, bb::fr>) {
+        return challenge;
+    } else if constexpr (std::is_same_v<T, grumpkin::fr>) {
+        return convert_to_grumpkin_fr(challenge);
+    }
 }
 
 } // namespace bb::field_conversion

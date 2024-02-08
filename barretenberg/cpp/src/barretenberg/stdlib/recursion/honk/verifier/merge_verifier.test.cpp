@@ -29,6 +29,8 @@ class RecursiveMergeVerifierTest : public testing::Test {
     using Commitment = InnerFlavor::Commitment;
     using FF = InnerFlavor::FF;
     using VerifierCommitmentKey = bb::VerifierCommitmentKey<curve::BN254>;
+    using MergeProver = MergeProver_<InnerFlavor>;
+    using MergeVerifier = MergeVerifier_<InnerFlavor>;
 
   public:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }

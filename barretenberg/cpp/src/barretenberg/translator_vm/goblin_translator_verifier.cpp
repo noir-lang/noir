@@ -64,7 +64,7 @@ void GoblinTranslatorVerifier::put_translation_data_in_relation_parameters(const
  */
 bool GoblinTranslatorVerifier::verify_proof(const HonkProof& proof)
 {
-    batching_challenge_v = transcript->get_challenge("Translation:batching_challenge");
+    batching_challenge_v = transcript->template get_challenge<BF>("Translation:batching_challenge");
     transcript->load_proof(proof);
 
     Flavor::VerifierCommitments commitments{ key };
@@ -229,7 +229,7 @@ bool GoblinTranslatorVerifier::verify_proof(const HonkProof& proof)
     commitments.ordered_range_constraints_4 = receive_commitment(commitment_labels.ordered_range_constraints_4);
 
     // Get permutation challenges
-    FF gamma = transcript->get_challenge("gamma");
+    FF gamma = transcript->template get_challenge<FF>("gamma");
 
     relation_parameters.beta = 0;
     relation_parameters.gamma = gamma;
@@ -242,10 +242,10 @@ bool GoblinTranslatorVerifier::verify_proof(const HonkProof& proof)
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);
     auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
-    FF alpha = transcript->get_challenge("Sumcheck:alpha");
+    FF alpha = transcript->template get_challenge<FF>("Sumcheck:alpha");
     std::vector<FF> gate_challenges(numeric::get_msb(key->circuit_size));
     for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
-        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+        gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
 
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =

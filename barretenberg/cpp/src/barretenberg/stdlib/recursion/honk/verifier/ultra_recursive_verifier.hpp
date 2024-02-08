@@ -17,6 +17,7 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     using Builder = typename Flavor::CircuitBuilder;
     using RelationSeparator = typename Flavor::RelationSeparator;
     using PairingPoints = std::array<GroupElement, 2>;
+    using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
 
     explicit UltraRecursiveVerifier_(Builder* builder,
                                      const std::shared_ptr<NativeVerificationKey>& native_verifier_key);
@@ -29,7 +30,7 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
     Builder* builder;
-    std::shared_ptr<Transcript<Builder>> transcript;
+    std::shared_ptr<Transcript> transcript;
 };
 
 // Instance declarations for Ultra and Goblin-Ultra verifier circuits with both conventional Ultra and Goblin-Ultra

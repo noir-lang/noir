@@ -458,7 +458,7 @@ class UltraFlavor {
      * @brief Derived class that defines proof structure for Ultra proofs, as well as supporting functions.
      *
      */
-    class Transcript : public BaseTranscript {
+    class Transcript : public NativeTranscript {
       public:
         // Transcript objects defined as public member variables for easy access and modification
         uint32_t circuit_size;
@@ -482,7 +482,7 @@ class UltraFlavor {
 
         // Used by verifier to initialize the transcript
         Transcript(const std::vector<FF>& proof)
-            : BaseTranscript(proof)
+            : NativeTranscript(proof)
         {}
 
         static std::shared_ptr<Transcript> prover_init_empty()
@@ -496,7 +496,7 @@ class UltraFlavor {
         static std::shared_ptr<Transcript> verifier_init_empty(const std::shared_ptr<Transcript>& transcript)
         {
             auto verifier_transcript = std::make_shared<Transcript>(transcript->proof_data);
-            [[maybe_unused]] auto _ = verifier_transcript->template receive_from_prover<uint32_t>("Init");
+            [[maybe_unused]] auto _ = verifier_transcript->template receive_from_prover<FF>("Init");
             return verifier_transcript;
         };
 

@@ -187,7 +187,7 @@ TEST_F(UltraTranscriptTests, ChallengeGenerationTest)
     // initialized with random value sent to verifier
     auto transcript = Flavor::Transcript::prover_init_empty();
     // test a bunch of challenges
-    auto challenges = transcript->get_challenges("a", "b", "c", "d", "e", "f");
+    auto challenges = transcript->template get_challenges<FF>("a", "b", "c", "d", "e", "f");
     // check they are not 0
     for (size_t i = 0; i < challenges.size(); ++i) {
         ASSERT_NE(challenges[i], 0) << "Challenge " << i << " is 0";
@@ -195,7 +195,7 @@ TEST_F(UltraTranscriptTests, ChallengeGenerationTest)
     constexpr uint32_t random_val{ 17 }; // arbitrary
     transcript->send_to_verifier("random val", random_val);
     // test more challenges
-    auto [a, b, c] = challenges_to_field_elements<FF>(transcript->get_challenges("a", "b", "c"));
+    auto [a, b, c] = transcript->template get_challenges<FF>("a", "b", "c");
     ASSERT_NE(a, 0) << "Challenge a is 0";
     ASSERT_NE(b, 0) << "Challenge b is 0";
     ASSERT_NE(c, 0) << "Challenge c is 0";

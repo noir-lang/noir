@@ -74,8 +74,8 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
             g_commitments.emplace_back(f_commitments[i]);
         }
 
-        // Initialize an empty BaseTranscript
-        auto prover_transcript = BaseTranscript::prover_init_empty();
+        // Initialize an empty NativeTranscript
+        auto prover_transcript = NativeTranscript::prover_init_empty();
 
         // Execute Prover protocol
         ZeroMorphProver::prove(f_polynomials,
@@ -86,7 +86,7 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
                                this->commitment_key,
                                prover_transcript);
 
-        auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
+        auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 
         // Execute Verifier protocol
         auto pairing_points = ZeroMorphVerifier::verify(
@@ -220,8 +220,8 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
             concatenation_groups_commitments.emplace_back(concatenation_group_commitment);
         }
 
-        // Initialize an empty BaseTranscript
-        auto prover_transcript = BaseTranscript::prover_init_empty();
+        // Initialize an empty NativeTranscript
+        auto prover_transcript = NativeTranscript::prover_init_empty();
 
         // Execute Prover protocol
         ZeroMorphProver::prove(f_polynomials, // unshifted
@@ -235,7 +235,7 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
                                c_evaluations,
                                to_vector_of_ref_vectors(concatenation_groups));
 
-        auto verifier_transcript = BaseTranscript::verifier_init_empty(prover_transcript);
+        auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 
         // Execute Verifier protocol
         auto pairing_points = ZeroMorphVerifier::verify(f_commitments, // unshifted

@@ -23,8 +23,7 @@ class Goblin {
   public:
     using Builder = GoblinUltraCircuitBuilder;
     using Fr = bb::fr;
-    using Transcript = bb::BaseTranscript;
-
+    using Transcript = NativeTranscript;
     using GoblinUltraComposer = bb::UltraComposer_<GoblinUltraFlavor>;
     using GoblinUltraVerifier = bb::UltraVerifier_<GoblinUltraFlavor>;
     using OpQueue = bb::ECCOpQueue;
@@ -35,8 +34,8 @@ class Goblin {
     using TranslatorBuilder = bb::GoblinTranslatorCircuitBuilder;
     using TranslatorComposer = bb::GoblinTranslatorComposer;
     using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
-    using MergeProver = bb::MergeProver;
-    using MergeVerifier = bb::MergeVerifier;
+    using MergeProver = bb::MergeProver_<GoblinUltraFlavor>;
+    using MergeVerifier = bb::MergeVerifier_<GoblinUltraFlavor>;
     /**
      * @brief Output of goblin::accumulate; an Ultra proof and the corresponding verification key
      *

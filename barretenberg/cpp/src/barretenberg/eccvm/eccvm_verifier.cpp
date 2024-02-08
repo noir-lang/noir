@@ -137,7 +137,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
     commitments.lookup_read_counts_1 = receive_commitment(commitment_labels.lookup_read_counts_1);
 
     // Get challenge for sorted list batching and wire four memory records
-    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript->get_challenges("beta", "gamma"));
+    auto [beta, gamma] = transcript->template get_challenges<FF>("beta", "gamma");
 
     relation_parameters.gamma = gamma;
     auto beta_sqr = beta * beta;
@@ -155,10 +155,10 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);
     auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
-    FF alpha = transcript->get_challenge("Sumcheck:alpha");
+    FF alpha = transcript->template get_challenge<FF>("Sumcheck:alpha");
     std::vector<FF> gate_challenges(numeric::get_msb(key->circuit_size));
     for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
-        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+        gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
 
     auto [multivariate_challenge, purported_evaluations, sumcheck_verified] =
@@ -178,7 +178,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
     auto batched_commitment_to_be_shifted = GroupElement::zero();
     const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
     // Compute powers of batching challenge rho
-    FF rho = transcript->get_challenge("rho");
+    FF rho = transcript->template get_challenge<FF>("rho");
     std::vector<FF> rhos = gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
 
     // Compute batched multivariate evaluation
@@ -238,7 +238,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
     {
         auto hack_commitment = receive_commitment("Translation:hack_commitment");
 
-        FF evaluation_challenge_x = transcript->get_challenge("Translation:evaluation_challenge_x");
+        FF evaluation_challenge_x = transcript->template get_challenge<FF>("Translation:evaluation_challenge_x");
 
         // Construct arrays of commitments and evaluations to be batched
         const size_t NUM_UNIVARIATES = 6;
@@ -256,7 +256,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
         };
 
         // Get another challenge for batching the univariate claims
-        FF ipa_batching_challenge = transcript->get_challenge("Translation:ipa_batching_challenge");
+        FF ipa_batching_challenge = transcript->template get_challenge<FF>("Translation:ipa_batching_challenge");
 
         // Construct batched commitment and batched evaluation
         auto batched_commitment = transcript_commitments[0];

@@ -30,6 +30,7 @@ bigfield<Builder, T>::bigfield(Builder* parent_context, const uint256_t& value)
     ASSERT(value < modulus);
 }
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/850): audit the evaluate_linear_identity function
 template <typename Builder, typename T>
 bigfield<Builder, T>::bigfield(const field_t<Builder>& low_bits_in,
                                const field_t<Builder>& high_bits_in,

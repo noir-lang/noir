@@ -36,12 +36,12 @@ template <typename Curve> class IPA {
     static void compute_opening_proof(const std::shared_ptr<CK>& ck,
                                       const OpeningPair<Curve>& opening_pair,
                                       const Polynomial& polynomial,
-                                      const std::shared_ptr<BaseTranscript>& transcript)
+                                      const std::shared_ptr<NativeTranscript>& transcript)
     {
         ASSERT(opening_pair.challenge != 0 && "The challenge point should not be zero");
         auto poly_degree = static_cast<size_t>(polynomial.size());
-        transcript->send_to_verifier("IPA:poly_degree", static_cast<uint64_t>(poly_degree));
-        const Fr generator_challenge = transcript->get_challenge("IPA:generator_challenge");
+        transcript->send_to_verifier("IPA:poly_degree", static_cast<uint32_t>(poly_degree));
+        const Fr generator_challenge = transcript->template get_challenge<Fr>("IPA:generator_challenge");
         auto aux_generator = Commitment::one() * generator_challenge;
         // Checks poly_degree is greater than zero and a power of two
         // In the future, we might want to consider if non-powers of two are needed
@@ -138,7 +138,7 @@ template <typename Curve> class IPA {
             transcript->send_to_verifier("IPA:R_" + index, Commitment(R_elements[i]));
 
             // Generate the round challenge.
-            const Fr round_challenge = transcript->get_challenge("IPA:round_challenge_" + index);
+            const Fr round_challenge = transcript->get_challenge<Fr>("IPA:round_challenge_" + index);
             const Fr round_challenge_inv = round_challenge.invert();
 
             auto G_lo = GroupElement::batch_mul_with_endomorphism(
@@ -183,10 +183,12 @@ template <typename Curve> class IPA {
      */
     static bool verify(const std::shared_ptr<VK>& vk,
                        const OpeningClaim<Curve>& opening_claim,
-                       const std::shared_ptr<BaseTranscript>& transcript)
+                       const std::shared_ptr<NativeTranscript>& transcript)
     {
-        auto poly_degree = static_cast<size_t>(transcript->template receive_from_prover<uint64_t>("IPA:poly_degree"));
-        const Fr generator_challenge = transcript->get_challenge("IPA:generator_challenge");
+        auto poly_degree = static_cast<uint32_t>(transcript->template receive_from_prover<typename Curve::BaseField>(
+            "IPA:poly_degree")); // note this is base field because this is a uint32_t, which should map to a bb::fr,
+                                 // not a grumpkin::fr, which is a BaseField element for Grumpkin
+        const Fr generator_challenge = transcript->template get_challenge<Fr>("IPA:generator_challenge");
         auto aux_generator = Commitment::one() * generator_challenge;
 
         auto log_poly_degree = static_cast<size_t>(numeric::get_msb(poly_degree));
@@ -204,7 +206,7 @@ template <typename Curve> class IPA {
             std::string index = std::to_string(i);
             auto element_L = transcript->template receive_from_prover<Commitment>("IPA:L_" + index);
             auto element_R = transcript->template receive_from_prover<Commitment>("IPA:R_" + index);
-            round_challenges[i] = transcript->get_challenge("IPA:round_challenge_" + index);
+            round_challenges[i] = transcript->template get_challenge<Fr>("IPA:round_challenge_" + index);
             round_challenges_inv[i] = round_challenges[i].invert();
 
             msm_elements[2 * i] = element_L;

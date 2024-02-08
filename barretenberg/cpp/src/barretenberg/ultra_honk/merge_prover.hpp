@@ -13,20 +13,21 @@ namespace bb {
  * @brief Prover class for the Goblin ECC op queue transcript merge protocol
  *
  */
-class MergeProver {
-    using Curve = curve::BN254;
-    using FF = Curve::ScalarField;
-    using Polynomial = polynomial;
-    using CommitmentKey = bb::CommitmentKey<Curve>;
-    using Commitment = Curve::AffineElement;
-    using PCS = bb::KZG<Curve>;
-    using OpeningClaim = typename bb::ProverOpeningClaim<Curve>;
-    using Transcript = BaseTranscript;
+template <typename Flavor> class MergeProver_ {
+    using FF = typename Flavor::FF;
+    using Polynomial = typename Flavor::Polynomial;
+    using CommitmentKey = typename Flavor::CommitmentKey;
+    using Commitment = typename Flavor::Commitment;
+    using PCS = typename Flavor::PCS;
+    using Curve = typename Flavor::Curve;
+    using OpeningClaim = ProverOpeningClaim<Curve>;
+    using OpeningPair = bb::OpeningPair<Curve>;
+    using Transcript = NativeTranscript;
 
   public:
     std::shared_ptr<Transcript> transcript;
 
-    explicit MergeProver(const std::shared_ptr<ECCOpQueue>&);
+    explicit MergeProver_(const std::shared_ptr<ECCOpQueue>&);
 
     BB_PROFILE HonkProof construct_proof();
 

@@ -21,6 +21,7 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
     using Builder = typename Flavor::CircuitBuilder;
     using RelationSeparator = typename Flavor::RelationSeparator;
     using PairingPoints = std::array<GroupElement, 2>;
+    using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
 
     static constexpr size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
 
@@ -29,7 +30,7 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
     CommitmentLabels commitment_labels;
 
     Builder* builder;
-    std::shared_ptr<Transcript<Builder>> transcript;
+    std::shared_ptr<Transcript> transcript;
 
     explicit ProtoGalaxyRecursiveVerifier_(Builder* builder)
         : instances(VerifierInstances())

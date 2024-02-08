@@ -164,12 +164,10 @@ bool AvmMiniVerifier::verify_proof(const HonkProof& proof)
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);
     auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
-
-    FF alpha = transcript->get_challenge("Sumcheck:alpha");
-
+    FF alpha = transcript->template get_challenge<FF>("Sumcheck:alpha");
     auto gate_challenges = std::vector<FF>(log_circuit_size);
     for (size_t idx = 0; idx < log_circuit_size; idx++) {
-        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+        gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
 
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =

@@ -18,7 +18,9 @@ template <typename CircuitBuilder>
 std::array<typename bn254<CircuitBuilder>::Element, 2> MergeRecursiveVerifier_<CircuitBuilder>::verify_proof(
     const HonkProof& proof)
 {
-    transcript = std::make_shared<Transcript>(builder, proof);
+    // transform it into stdlib proof
+    StdlibProof<CircuitBuilder> stdlib_proof = bb::convert_proof_to_witness(builder, proof);
+    transcript = std::make_shared<Transcript>(stdlib_proof);
 
     // Receive commitments [t_i^{shift}], [T_{i-1}], and [T_i]
     std::array<Commitment, NUM_WIRES> C_T_prev;
@@ -30,7 +32,7 @@ std::array<typename bn254<CircuitBuilder>::Element, 2> MergeRecursiveVerifier_<C
         C_T_current[idx] = transcript->template receive_from_prover<Commitment>("T_CURRENT_" + std::to_string(idx + 1));
     }
 
-    FF kappa = transcript->get_challenge("kappa");
+    FF kappa = transcript->template get_challenge<FF>("kappa");
 
     // Receive transcript poly evaluations and add corresponding univariate opening claims {(\kappa, p(\kappa), [p(X)]}
     std::array<FF, NUM_WIRES> T_prev_evals;
@@ -56,7 +58,7 @@ std::array<typename bn254<CircuitBuilder>::Element, 2> MergeRecursiveVerifier_<C
         T_current_evals[idx].assert_equal(T_prev_evals[idx] + t_shift_evals[idx]);
     }
 
-    FF alpha = transcript->get_challenge("alpha");
+    FF alpha = transcript->template get_challenge<FF>("alpha");
 
     // Constuct batched commitment and batched evaluation from constituents using batching challenge \alpha
     std::vector<FF> scalars;

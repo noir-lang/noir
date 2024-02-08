@@ -6,6 +6,9 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/ecc/fields/field_conversion.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
+#include "barretenberg/stdlib/hash/poseidon2/poseidon2.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/field/field_conversion.hpp"
 
 // #define LOG_CHALLENGES
 // #define LOG_INTERACTIONS
@@ -58,15 +61,39 @@ class TranscriptManifest {
     bool operator==(const TranscriptManifest& other) const = default;
 };
 
+struct NativeTranscriptParams {
+    using Fr = bb::fr;
+    using Proof = HonkProof;
+    static inline Fr hash(const std::vector<Fr>& data)
+    {
+        return crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(data);
+    }
+    template <typename T> static inline T convert_challenge(const Fr& challenge)
+    {
+        return bb::field_conversion::convert_challenge<T>(challenge);
+    }
+    template <typename T> static constexpr size_t calc_num_bn254_frs()
+    {
+        return bb::field_conversion::calc_num_bn254_frs<T>();
+    }
+    template <typename T> static inline T convert_from_bn254_frs(std::span<const Fr> frs)
+    {
+        return bb::field_conversion::convert_from_bn254_frs<T>(frs);
+    }
+    template <typename T> static inline std::vector<Fr> convert_to_bn254_frs(const T& element)
+    {
+        return bb::field_conversion::convert_to_bn254_frs(element);
+    }
+};
+
 /**
  * @brief Common transcript class for both parties. Stores the data for the current round, as well as the
  * manifest.
  */
-class BaseTranscript {
+template <typename TranscriptParams> class BaseTranscript {
   public:
-    using Fr = bb::fr;
-    using Poseidon2Params = crypto::Poseidon2Bn254ScalarFieldParams;
-    using Proof = HonkProof;
+    using Fr = typename TranscriptParams::Fr;
+    using Proof = typename TranscriptParams::Proof;
 
     BaseTranscript() = default;
 
@@ -78,6 +105,7 @@ class BaseTranscript {
     explicit BaseTranscript(const Proof& proof_data)
         : proof_data(proof_data.begin(), proof_data.end())
     {}
+
     static constexpr size_t HASH_OUTPUT_SIZE = 32;
 
     std::ptrdiff_t proof_start = 0;
@@ -132,7 +160,7 @@ class BaseTranscript {
         // Hash the full buffer with poseidon2, which is believed to be a collision resistant hash function and a random
         // oracle, removing the need to pre-hash to compress and then hash with a random oracle, as we previously did
         // with Pedersen and Blake3s.
-        Fr base_hash = crypto::Poseidon2<Poseidon2Params>::hash(full_buffer);
+        Fr base_hash = TranscriptParams::hash(full_buffer);
 
         Fr new_challenge = base_hash;
         // update previous challenge buffer for next time we call this function
@@ -167,7 +195,7 @@ class BaseTranscript {
      */
     template <typename T> void serialize_to_buffer(const T& element, Proof& proof_data)
     {
-        auto element_frs = bb::field_conversion::convert_to_bn254_frs(element);
+        auto element_frs = TranscriptParams::template convert_to_bn254_frs(element);
         proof_data.insert(proof_data.end(), element_frs.begin(), element_frs.end());
     }
     /**
@@ -181,13 +209,13 @@ class BaseTranscript {
      */
     template <typename T> T deserialize_from_buffer(const Proof& proof_data, size_t& offset) const
     {
-        constexpr size_t element_fr_size = bb::field_conversion::calc_num_bn254_frs<T>();
+        constexpr size_t element_fr_size = TranscriptParams::template calc_num_bn254_frs<T>();
         ASSERT(offset + element_fr_size <= proof_data.size());
 
         auto element_frs = std::span{ proof_data }.subspan(offset, element_fr_size);
         offset += element_fr_size;
 
-        auto element = bb::field_conversion::convert_from_bn254_frs<T>(element_frs);
+        auto element = TranscriptParams::template convert_from_bn254_frs<T>(element_frs);
 
         return element;
     }
@@ -225,7 +253,8 @@ class BaseTranscript {
      * @param labels human-readable names for the challenges for the manifest
      * @return std::array<Fr, num_challenges> challenges for this round.
      */
-    template <typename... Strings> std::array<uint256_t, sizeof...(Strings)> get_challenges(const Strings&... labels)
+    template <typename ChallengeType, typename... Strings>
+    std::array<ChallengeType, sizeof...(Strings)> get_challenges(const Strings&... labels)
     {
         constexpr size_t num_challenges = sizeof...(Strings);
 
@@ -235,7 +264,7 @@ class BaseTranscript {
         // Compute the new challenge buffer from which we derive the challenges.
 
         // Create challenges from Frs.
-        std::array<uint256_t, num_challenges> challenges{};
+        std::array<ChallengeType, num_challenges> challenges{};
 
         // Generate the challenges by iteratively hashing over the previous challenge.
         for (size_t i = 0; i < num_challenges; i++) {
@@ -247,10 +276,10 @@ class BaseTranscript {
             // copy half of the hash to lower 128 bits of challenge Note: because of how read() from buffers to fields
             works (in field_declarations.hpp), we use the later half of the buffer
             // std::copy_n(next_challenge_buffer.begin(),
-                        HASH_OUTPUT_SIZE / 2,
-                        field_element_buffer.begin() + HASH_OUTPUT_SIZE / 2);
+            //             HASH_OUTPUT_SIZE / 2,
+            //             field_element_buffer.begin() + HASH_OUTPUT_SIZE / 2);
             */
-            challenges[i] = static_cast<uint256_t>(get_next_challenge_buffer());
+            challenges[i] = TranscriptParams::template convert_challenge<ChallengeType>(get_next_challenge_buffer());
         }
 
         // Prepare for next round.
@@ -278,7 +307,7 @@ class BaseTranscript {
         // TODO(Adrian): Consider restricting serialization (via concepts) to types T for which sizeof(T) reliably
         // returns the size of T in frs. (E.g. this is true for std::array but not for std::vector).
         // convert element to field elements
-        auto element_frs = bb::field_conversion::convert_to_bn254_frs(element);
+        auto element_frs = TranscriptParams::convert_to_bn254_frs(element);
         proof_data.insert(proof_data.end(), element_frs.begin(), element_frs.end());
 
 #ifdef LOG_INTERACTIONS
@@ -297,7 +326,7 @@ class BaseTranscript {
      */
     template <class T> T receive_from_prover(const std::string& label)
     {
-        constexpr size_t element_size = bb::field_conversion::calc_num_bn254_frs<T>();
+        const size_t element_size = TranscriptParams::template calc_num_bn254_frs<T>();
         ASSERT(num_frs_read + element_size <= proof_data.size());
 
         auto element_frs = std::span{ proof_data }.subspan(num_frs_read, element_size);
@@ -305,7 +334,7 @@ class BaseTranscript {
 
         BaseTranscript::consume_prover_element_frs(label, element_frs);
 
-        auto element = bb::field_conversion::convert_from_bn254_frs<T>(element_frs);
+        auto element = TranscriptParams::template convert_from_bn254_frs<T>(element_frs);
 
 #ifdef LOG_INTERACTIONS
         if constexpr (Loggable<T>) {
@@ -339,13 +368,13 @@ class BaseTranscript {
     static std::shared_ptr<BaseTranscript> verifier_init_empty(const std::shared_ptr<BaseTranscript>& transcript)
     {
         auto verifier_transcript = std::make_shared<BaseTranscript>(transcript->proof_data);
-        [[maybe_unused]] auto _ = verifier_transcript->template receive_from_prover<uint32_t>("Init");
+        [[maybe_unused]] auto _ = verifier_transcript->template receive_from_prover<Fr>("Init");
         return verifier_transcript;
     };
 
-    uint256_t get_challenge(const std::string& label)
+    template <typename ChallengeType> ChallengeType get_challenge(const std::string& label)
     {
-        uint256_t result = get_challenges(label)[0];
+        ChallengeType result = get_challenges<ChallengeType>(label)[0];
 #if defined LOG_CHALLENGES || defined LOG_INTERACTIONS
         info("challenge: ", label, ": ", result);
 #endif
@@ -357,15 +386,16 @@ class BaseTranscript {
     void print() { manifest.print(); }
 };
 
-/**
- * @brief Convert an array of uint256_t's to an array of field elements
- * @details The syntax `std::array<Fr, 2> [a, b] = transcript.get_challenges("a", "b")` is unfortunately not allowed
- * (structured bindings must be defined with auto return type), so we need a workaround.
- */
-template <typename Fr, typename T, size_t N> std::array<Fr, N> challenges_to_field_elements(std::array<T, N>&& arr)
+template <typename Builder>
+static bb::StdlibProof<Builder> convert_proof_to_witness(Builder* builder, const HonkProof& proof)
 {
-    std::array<Fr, N> result;
-    std::move(arr.begin(), arr.end(), result.begin());
+    bb::StdlibProof<Builder> result;
+    for (const auto& element : proof) {
+        result.push_back(bb::stdlib::witness_t<Builder>(builder, element));
+    }
     return result;
 }
+
+using NativeTranscript = BaseTranscript<NativeTranscriptParams>;
+
 } // namespace bb

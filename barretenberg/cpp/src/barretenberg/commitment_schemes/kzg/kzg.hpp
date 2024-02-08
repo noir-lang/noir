@@ -31,7 +31,7 @@ template <typename Curve> class KZG {
     static void compute_opening_proof(std::shared_ptr<CK> ck,
                                       const OpeningPair<Curve>& opening_pair,
                                       const Polynomial& polynomial,
-                                      const std::shared_ptr<BaseTranscript>& prover_trancript)
+                                      const std::shared_ptr<NativeTranscript>& prover_trancript)
     {
         Polynomial quotient = polynomial;
         quotient[0] -= opening_pair.evaluation;
@@ -55,7 +55,7 @@ template <typename Curve> class KZG {
      */
     static bool verify(const std::shared_ptr<VK>& vk,
                        const OpeningClaim<Curve>& claim,
-                       const std::shared_ptr<BaseTranscript>& verifier_transcript)
+                       const std::shared_ptr<NativeTranscript>& verifier_transcript)
     {
         auto quotient_commitment = verifier_transcript->template receive_from_prover<Commitment>("KZG:W");
         auto lhs = claim.commitment - (GroupElement::one() * claim.opening_pair.evaluation) +
@@ -82,7 +82,7 @@ template <typename Curve> class KZG {
 
         GroupElement P_0;
         if constexpr (Curve::is_stdlib_type) {
-            auto builder = verifier_transcript->builder;
+            auto builder = quotient_commitment.get_context();
             auto one = Fr(builder, 1);
             std::vector<GroupElement> commitments = { claim.commitment,
                                                       quotient_commitment,

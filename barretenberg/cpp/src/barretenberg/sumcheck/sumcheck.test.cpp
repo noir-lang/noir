@@ -69,12 +69,12 @@ TEST_F(SumcheckTests, PolynomialNormalization)
     auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
     RelationSeparator alpha;
     for (size_t idx = 0; idx < alpha.size(); idx++) {
-        alpha[idx] = transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+        alpha[idx] = transcript->template get_challenge<FF>("Sumcheck:alpha_" + std::to_string(idx));
     }
 
     std::vector<FF> gate_challenges(multivariate_d);
     for (size_t idx = 0; idx < multivariate_d; idx++) {
-        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+        gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
     auto output = sumcheck.prove(full_polynomials, {}, alpha, gate_challenges);
 
@@ -141,12 +141,12 @@ TEST_F(SumcheckTests, Prover)
 
     RelationSeparator alpha;
     for (size_t idx = 0; idx < alpha.size(); idx++) {
-        alpha[idx] = transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+        alpha[idx] = transcript->template get_challenge<FF>("Sumcheck:alpha_" + std::to_string(idx));
     }
 
     std::vector<FF> gate_challenges(multivariate_d);
     for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
-        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+        gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
     auto output = sumcheck.prove(full_polynomials, {}, alpha, gate_challenges);
     FF u_0 = output.challenge[0];
@@ -224,12 +224,12 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
 
         RelationSeparator prover_alpha;
         for (size_t idx = 0; idx < prover_alpha.size(); idx++) {
-            prover_alpha[idx] = prover_transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+            prover_alpha[idx] = prover_transcript->template get_challenge<FF>("Sumcheck:alpha_" + std::to_string(idx));
         }
         std::vector<FF> prover_gate_challenges(multivariate_d);
         for (size_t idx = 0; idx < multivariate_d; idx++) {
             prover_gate_challenges[idx] =
-                prover_transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+                prover_transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
         }
         auto output = sumcheck_prover.prove(full_polynomials, {}, prover_alpha, prover_gate_challenges);
 
@@ -238,12 +238,13 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
         auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_d, verifier_transcript);
         RelationSeparator verifier_alpha;
         for (size_t idx = 0; idx < verifier_alpha.size(); idx++) {
-            verifier_alpha[idx] = verifier_transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+            verifier_alpha[idx] =
+                verifier_transcript->template get_challenge<FF>("Sumcheck:alpha_" + std::to_string(idx));
         }
         std::vector<FF> verifier_gate_challenges(multivariate_d);
         for (size_t idx = 0; idx < multivariate_d; idx++) {
             verifier_gate_challenges[idx] =
-                verifier_transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+                verifier_transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
         }
         auto verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_alpha, verifier_gate_challenges);
 

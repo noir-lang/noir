@@ -458,6 +458,9 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
             builder->q_elliptic().resize(num_gates);
             builder->q_aux().resize(num_gates);
             builder->q_lookup_type().resize(num_gates);
+            if constexpr (HasAdditionalSelectors<Arithmetization>) {
+                builder->selectors.resize_additional(num_gates);
+            }
         }
         /**
          * @brief Checks that the circuit state is the same as the stored circuit's one

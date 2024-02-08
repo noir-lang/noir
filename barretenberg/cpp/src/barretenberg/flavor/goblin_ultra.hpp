@@ -478,7 +478,7 @@ class GoblinUltraFlavor {
      * @brief Derived class that defines proof structure for GoblinUltra proofs, as well as supporting functions.
      * Note: Made generic for use in GoblinUltraRecursive.
      */
-    template <typename Commitment> class Transcript_ : public BaseTranscript {
+    template <typename Commitment> class Transcript_ : public NativeTranscript {
       public:
         uint32_t circuit_size;
         uint32_t public_input_size;
@@ -507,7 +507,7 @@ class GoblinUltraFlavor {
         Transcript_() = default;
 
         Transcript_(const HonkProof& proof)
-            : BaseTranscript(proof)
+            : NativeTranscript(proof)
         {}
 
         void deserialize_full_transcript()

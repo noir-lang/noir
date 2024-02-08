@@ -168,11 +168,11 @@ template <typename Curve> class ShplonkVerifier_ {
 
         const size_t num_claims = claims.size();
 
-        const Fr nu = transcript->get_challenge("Shplonk:nu");
+        const Fr nu = transcript->template get_challenge<Fr>("Shplonk:nu");
 
         auto Q_commitment = transcript->template receive_from_prover<Commitment>("Shplonk:Q");
 
-        const Fr z_challenge = transcript->get_challenge("Shplonk:z");
+        const Fr z_challenge = transcript->template get_challenge<Fr>("Shplonk:z");
 
         // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
         //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]

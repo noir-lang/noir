@@ -4,7 +4,6 @@
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
-
 namespace bb::stdlib::recursion::honk {
 template <typename Flavor> class DeciderRecursiveVerifier_ {
     using FF = typename Flavor::FF;
@@ -15,6 +14,7 @@ template <typename Flavor> class DeciderRecursiveVerifier_ {
     using Builder = typename Flavor::CircuitBuilder;
     using RelationSeparator = typename Flavor::RelationSeparator;
     using PairingPoints = std::array<GroupElement, 2>;
+    using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
 
   public:
     explicit DeciderRecursiveVerifier_(Builder* builder);
@@ -24,7 +24,7 @@ template <typename Flavor> class DeciderRecursiveVerifier_ {
     std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
     Builder* builder;
-    std::shared_ptr<Transcript<Builder>> transcript;
+    std::shared_ptr<Transcript> transcript;
 };
 
 } // namespace bb::stdlib::recursion::honk

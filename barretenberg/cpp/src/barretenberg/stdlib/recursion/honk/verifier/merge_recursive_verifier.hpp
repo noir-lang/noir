@@ -14,7 +14,7 @@ template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
     using KZG = ::bb::KZG<Curve>;
     using OpeningClaim = ::bb::OpeningClaim<Curve>;
     using PairingPoints = std::array<GroupElement, 2>;
-    using Transcript = honk::Transcript<CircuitBuilder>;
+    using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<CircuitBuilder>>;
 
     CircuitBuilder* builder;
     std::shared_ptr<Transcript> transcript;

@@ -8,7 +8,8 @@ namespace bb {
  * per-circuit contribution t_i^{shift}
  *
  */
-MergeProver::MergeProver(const std::shared_ptr<ECCOpQueue>& op_queue)
+template <class Flavor>
+MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<ECCOpQueue>& op_queue)
     : op_queue(op_queue)
     , pcs_commitment_key(std::make_shared<CommitmentKey>(op_queue->ultra_ops[0].size()))
 {
@@ -29,7 +30,7 @@ MergeProver::MergeProver(const std::shared_ptr<ECCOpQueue>& op_queue)
  *
  * @return honk::proof
  */
-HonkProof MergeProver::construct_proof()
+template <typename Flavor> HonkProof MergeProver_<Flavor>::construct_proof()
 {
     transcript = std::make_shared<Transcript>();
 
@@ -69,7 +70,7 @@ HonkProof MergeProver::construct_proof()
 
     // Compute evaluations T_i(\kappa), T_{i-1}(\kappa), t_i^{shift}(\kappa), add to transcript. For each polynomial
     // we add a univariate opening claim {p(X), (\kappa, p(\kappa))} to the set of claims to be checked via batched KZG.
-    FF kappa = transcript->get_challenge("kappa");
+    FF kappa = transcript->template get_challenge<FF>("kappa");
 
     // Add univariate opening claims for each polynomial.
     std::vector<OpeningClaim> opening_claims;
@@ -94,7 +95,7 @@ HonkProof MergeProver::construct_proof()
         opening_claims.emplace_back(OpeningClaim{ polynomial, { kappa, evaluation } });
     }
 
-    FF alpha = transcript->get_challenge("alpha");
+    FF alpha = transcript->template get_challenge<FF>("alpha");
 
     // Construct batched polynomial to opened via KZG
     auto batched_polynomial = Polynomial(N);
@@ -116,5 +117,8 @@ HonkProof MergeProver::construct_proof()
 
     return transcript->proof_data;
 }
+
+template class MergeProver_<UltraFlavor>;
+template class MergeProver_<GoblinUltraFlavor>;
 
 } // namespace bb

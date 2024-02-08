@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
+#include "barretenberg/proof_system/types/circuit_type.hpp"
 #include <array>
 #include <barretenberg/common/slab_allocator.hpp>
 #include <cstddef>
@@ -30,8 +31,8 @@ namespace bb {
  * We should only do this if it becomes necessary or convenient.
  */
 
-// These are not magic numbers and they should not be written with global constants. These parameters are not accessible
-// through clearly named static class members.
+// These are not magic numbers and they should not be written with global constants. These parameters are not
+// accessible through clearly named static class members.
 template <typename FF_> class StandardArith {
   public:
     static constexpr size_t NUM_WIRES = 3;
@@ -114,13 +115,6 @@ template <typename FF_> class UltraArith {
         }
     }
 
-    /**
-     * @brief Add zeros to all selectors which are not part of the conventional Ultra arithmetization
-     * @details Does nothing for this class since this IS the conventional Ultra arithmetization
-     *
-     */
-    void pad_additional(){};
-
     // Note: These are needed for Plonk only (for poly storage in a std::map). Must be in same order as above struct.
     inline static const std::vector<std::string> selector_names = { "q_m",        "q_c",   "q_1",       "q_2",
                                                                     "q_3",        "q_4",   "q_arith",   "q_sort",
@@ -196,6 +190,19 @@ template <typename FF_> class UltraHonkArith {
         q_poseidon2_internal().emplace_back(0);
     };
 
+    /**
+     * @brief Resizes all selectors which are not part of the conventional Ultra arithmetization
+     * @details Facilitates reuse of Ultra gate construction functions in arithmetizations which extend the conventional
+     * Ultra arithmetization
+     * @param new_size
+     */
+    void resize_additional(size_t new_size)
+    {
+        q_busread().resize(new_size);
+        q_poseidon2_external().resize(new_size);
+        q_poseidon2_internal().resize(new_size);
+    };
+
     // Note: Unused. Needed only for consistency with Ultra arith (which is used by Plonk)
     inline static const std::vector<std::string> selector_names = {};
 };
@@ -205,4 +212,7 @@ class GoblinTranslatorArith {
     static constexpr size_t NUM_WIRES = 81;
     static constexpr size_t NUM_SELECTORS = 0;
 };
+
+template <typename T>
+concept HasAdditionalSelectors = IsAnyOf<T, UltraHonkArith<bb::fr>>;
 } // namespace bb

@@ -55,7 +55,7 @@ void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared
                                      instance->witness_commitments.calldata_read_counts);
     }
 
-    auto eta = transcript->get_challenge(domain_separator + "_eta");
+    auto eta = transcript->template get_challenge<FF>(domain_separator + "_eta");
     instance->compute_sorted_accumulator_polynomials(eta);
 
     // Commit to the sorted withness-table accumulator and the finalized (i.e. with memory records) fourth wire
@@ -67,7 +67,8 @@ void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared
                                  witness_commitments.sorted_accum);
     transcript->send_to_verifier(domain_separator + "_" + commitment_labels.w_4, witness_commitments.w_4);
 
-    auto [beta, gamma] = transcript->get_challenges(domain_separator + "_beta", domain_separator + "_gamma");
+    auto [beta, gamma] =
+        transcript->template get_challenges<FF>(domain_separator + "_beta", domain_separator + "_gamma");
 
     if constexpr (IsGoblinFlavor<Flavor>) {
         // Compute and commit to the logderivative inverse used in DataBus
@@ -88,7 +89,8 @@ void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared
     transcript->send_to_verifier(domain_separator + "_" + commitment_labels.z_lookup,
                                  instance->witness_commitments.z_lookup);
     for (size_t idx = 0; idx < NUM_SUBRELATIONS - 1; idx++) {
-        instance->alphas[idx] = transcript->get_challenge(domain_separator + "_alpha_" + std::to_string(idx));
+        instance->alphas[idx] =
+            transcript->template get_challenge<FF>(domain_separator + "_alpha_" + std::to_string(idx));
     }
     auto vk_view = instance->verification_key->get_all();
     auto labels = instance->commitment_labels.get_precomputed();
@@ -156,7 +158,7 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepa
         // efficient by avoiding the computation of the perturbator
         finalise_and_send_instance(instance, domain_separator);
         instance->target_sum = 0;
-        auto beta = transcript->get_challenge(domain_separator + "_initial_gate_challenge");
+        auto beta = transcript->template get_challenge<FF>(domain_separator + "_initial_gate_challenge");
         std::vector<FF> gate_challenges(instance->log_instance_size);
         gate_challenges[0] = beta;
         for (size_t i = 1; i < instance->log_instance_size; i++) {
@@ -307,7 +309,7 @@ template <class ProverInstances>
 FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstances>::fold_instances()
 {
     prepare_for_folding();
-    FF delta = transcript->get_challenge("delta");
+    FF delta = transcript->template get_challenge<FF>("delta");
 
     auto accumulator = get_accumulator();
     auto deltas = compute_round_challenge_pows(accumulator->log_instance_size, delta);
@@ -316,7 +318,7 @@ FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstanc
     for (size_t idx = 0; idx <= accumulator->log_instance_size; idx++) {
         transcript->send_to_verifier("perturbator_" + std::to_string(idx), perturbator[idx]);
     }
-    auto perturbator_challenge = transcript->get_challenge("perturbator_challenge");
+    auto perturbator_challenge = transcript->template get_challenge<FF>("perturbator_challenge");
     instances.next_gate_challenges =
         update_gate_challenges(perturbator_challenge, accumulator->gate_challenges, deltas);
     combine_relation_parameters(instances);
@@ -330,7 +332,7 @@ FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstanc
     for (size_t idx = ProverInstances::NUM; idx < ProverInstances::BATCHED_EXTENDED_LENGTH; idx++) {
         transcript->send_to_verifier("combiner_quotient_" + std::to_string(idx), combiner_quotient.value_at(idx));
     }
-    FF combiner_challenge = transcript->get_challenge("combiner_quotient_challenge");
+    FF combiner_challenge = transcript->template get_challenge<FF>("combiner_quotient_challenge");
 
     FoldingResult<Flavor> res;
     auto next_accumulator =

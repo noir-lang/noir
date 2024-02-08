@@ -1,18 +1,18 @@
-#include "barretenberg/transcript/transcript.hpp"
+#include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
 #include <gtest/gtest.h>
 
 using namespace bb;
 
-using FF = fr;
-using Fr = fr;
-using Fq = fq;
-using Transcript = BaseTranscript;
+using FF = bb::fr;
+using Fr = bb::fr;
+using Fq = bb::fq;
+using Transcript = NativeTranscript;
 
 /**
  * @brief Test sending, receiving, and exporting proofs
  *
  */
-TEST(BaseTranscript, TwoProversTwoFields)
+TEST(NativeTranscript, TwoProversTwoFields)
 {
     const auto EXPECT_STATE = [](const Transcript& transcript, size_t start, size_t written, size_t read) {
         EXPECT_EQ(transcript.proof_start, static_cast<std::ptrdiff_t>(start));

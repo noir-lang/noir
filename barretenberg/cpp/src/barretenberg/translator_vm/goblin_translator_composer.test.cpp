@@ -63,7 +63,7 @@ TEST_F(GoblinTranslatorComposerTests, Basic)
     auto prover_transcript = std::make_shared<Transcript>();
     prover_transcript->send_to_verifier("init", Fq::random_element());
     prover_transcript->export_proof();
-    Fq translation_batching_challenge = prover_transcript->get_challenge("Translation:batching_challenge");
+    Fq translation_batching_challenge = prover_transcript->template get_challenge<Fq>("Translation:batching_challenge");
     Fq translation_evaluation_challenge = Fq::random_element();
     auto circuit_builder = CircuitBuilder(translation_batching_challenge, translation_evaluation_challenge, op_queue);
     EXPECT_TRUE(circuit_builder.check_circuit());

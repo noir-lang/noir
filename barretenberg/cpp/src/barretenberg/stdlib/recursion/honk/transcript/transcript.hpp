@@ -1,104 +1,57 @@
 #pragma once
 
-#include "barretenberg/ecc/curves/bn254/fq.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/honk/proof_system/types/proof.hpp"
-#include "barretenberg/polynomials/univariate.hpp"
-
 #include "barretenberg/transcript/transcript.hpp"
 
-#include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
-#include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/utility/utility.hpp"
-
 namespace bb::stdlib::recursion::honk {
-template <typename Builder> class Transcript {
-  public:
-    using field_ct = field_t<Builder>;
-    using FF = bb::fr;
-    using NativeTranscript = BaseTranscript;
-    using StdlibTypes = utility::StdlibTypesUtility<Builder>;
 
-    static constexpr size_t HASH_OUTPUT_SIZE = NativeTranscript::HASH_OUTPUT_SIZE;
-
-    NativeTranscript native_transcript;
-    Builder* builder;
-
-    Transcript() = default;
-
-    Transcript(Builder* builder, const bb::HonkProof& proof_data)
-        : native_transcript(proof_data)
-        , builder(builder){};
-
-    /**
-     * @brief Get the underlying native transcript manifest (primarily for debugging)
-     *
-     */
-    auto get_manifest() const { return native_transcript.get_manifest(); };
-
-    /**
-     * @brief Compute the challenges (more than 1) indicated by labels
-     *
-     * @tparam Strings
-     * @param labels Names of the challenges to be computed
-     * @return std::array<FF, sizeof...(Strings)> Array of challenges
-     */
-    template <typename... Strings> std::array<field_ct, sizeof...(Strings)> get_challenges(const Strings&... labels)
+template <typename Builder> struct StdlibTranscriptParams {
+    using Fr = stdlib::field_t<Builder>;
+    using Proof = std::vector<Fr>;
+    static inline Fr hash(const std::vector<Fr>& data)
     {
-        // Compute the indicated challenges from the native transcript
-        constexpr size_t num_challenges = sizeof...(Strings);
-        std::array<uint256_t, num_challenges> native_challenges{};
-        native_challenges = native_transcript.get_challenges(labels...);
+        if constexpr (std::is_same_v<Builder, GoblinUltraCircuitBuilder>) {
+            ASSERT(!data.empty() && data[0].get_context() != nullptr);
+            Builder* builder = data[0].get_context();
+            return stdlib::poseidon2<Builder>::hash(*builder, data);
+        } else {
+            using NativeFr = bb::fr;
+            ASSERT(!data.empty() && data[0].get_context() != nullptr);
+            Builder* builder = data[0].get_context();
 
-        /*
-         * TODO(#1351): Do stdlib hashing here. E.g., for the current pedersen/blake setup, we could write data into a
-         * byte_array as it is received from prover, then compress via pedersen and apply blake3s. Not doing this now
-         * since it's a pain and we'll be revamping our hashing anyway. For now, simply convert the native hashes to
-         * stdlib types without adding any hashing constraints.
-         */
-        std::array<field_ct, num_challenges> challenges;
-        for (size_t i = 0; i < num_challenges; ++i) {
-            challenges[i] = field_ct::from_witness(builder, native_challenges[i]);
+            // call the native hash on the data
+            std::vector<NativeFr> native_data;
+            native_data.reserve(data.size());
+            for (const auto& fr : data) {
+                native_data.push_back(fr.get_value());
+            }
+            NativeFr hash_value = crypto::Poseidon2<crypto::Poseidon2Bn254ScalarFieldParams>::hash(native_data);
+
+            Fr hash_field_ct = Fr::from_witness(builder, hash_value);
+            return hash_field_ct;
         }
-
-        return challenges;
     }
-
-    /**
-     * @brief Compute the single challenge indicated by the input label
-     *
-     * @param label Name of challenge
-     * @return field_ct Challenge
-     */
-    field_ct get_challenge(const std::string& label)
+    template <typename T> static inline T convert_challenge(const Fr& challenge)
     {
-        // Compute the indicated challenge from the native transcript
-        auto native_challenge = native_transcript.get_challenge(label);
-
-        // TODO(1351): Stdlib hashing here...
-
-        return field_ct::from_witness(builder, native_challenge);
+        Builder* builder = challenge.get_context();
+        return bb::stdlib::field_conversion::convert_challenge<Builder, T>(*builder, challenge);
     }
-
-    /**
-     * @brief Extract a native element from the transcript and return a corresponding stdlib type
-     *
-     * @tparam T Type of the native element to be extracted
-     * @param label Name of the element
-     * @return The corresponding element of appropriate stdlib type
-     */
-    template <class T> auto receive_from_prover(const std::string& label)
+    template <typename T> static constexpr size_t calc_num_bn254_frs()
     {
-        // Get native type corresponding to input type
-        using NativeType = typename StdlibTypes::template NativeType<T>::type;
-
-        // Extract the native element from the native transcript
-        NativeType element = native_transcript.template receive_from_prover<NativeType>(label);
-
-        // Return the corresponding stdlib type
-        return StdlibTypes::from_witness(builder, element);
+        return bb::stdlib::field_conversion::calc_num_bn254_frs<T>();
+    }
+    template <typename T> static inline T convert_from_bn254_frs(std::span<const Fr> frs)
+    {
+        ASSERT(!frs.empty() && frs[0].get_context() != nullptr);
+        Builder* builder = frs[0].get_context();
+        return bb::stdlib::field_conversion::convert_from_bn254_frs<Builder, T>(*builder, frs);
+    }
+    template <typename T> static inline std::vector<Fr> convert_to_bn254_frs(const T& element)
+    {
+        Builder* builder = element.get_context();
+        return bb::stdlib::field_conversion::convert_to_bn254_frs(*builder, element);
     }
 };
+
+using UltraStdlibTranscript = BaseTranscript<StdlibTranscriptParams<UltraCircuitBuilder>>;
+using GoblinUltraStdlibTranscript = BaseTranscript<StdlibTranscriptParams<GoblinUltraCircuitBuilder>>;
 } // namespace bb::stdlib::recursion::honk

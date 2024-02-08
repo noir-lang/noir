@@ -91,7 +91,7 @@ template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitme
  */
 template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_accumulator_round()
 {
-    FF eta = transcript->get_challenge("eta");
+    FF eta = transcript->template get_challenge<FF>("eta");
 
     instance->compute_sorted_accumulator_polynomials(eta);
 
@@ -112,7 +112,7 @@ template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_a
 template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_inverse_round()
 {
     // Compute and store challenges beta and gamma
-    auto [beta, gamma] = challenges_to_field_elements<FF>(transcript->get_challenges("beta", "gamma"));
+    auto [beta, gamma] = transcript->template get_challenges<FF>("beta", "gamma");
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
 
@@ -151,12 +151,12 @@ template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_chec
     auto sumcheck = Sumcheck(circuit_size, transcript);
     RelationSeparator alphas;
     for (size_t idx = 0; idx < alphas.size(); idx++) {
-        alphas[idx] = transcript->get_challenge("Sumcheck:alpha_" + std::to_string(idx));
+        alphas[idx] = transcript->template get_challenge<FF>("Sumcheck:alpha_" + std::to_string(idx));
     }
     instance->alphas = alphas;
     std::vector<FF> gate_challenges(numeric::get_msb(circuit_size));
     for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
-        gate_challenges[idx] = transcript->get_challenge("Sumcheck:gate_challenge_" + std::to_string(idx));
+        gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
     instance->gate_challenges = gate_challenges;
     sumcheck_output = sumcheck.prove(instance);
