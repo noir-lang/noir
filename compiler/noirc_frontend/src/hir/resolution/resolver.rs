@@ -1125,7 +1125,7 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_global_let(&mut self, let_stmt: crate::LetStatement) -> HirStatement {
-        let expression = self.resolve_expression(let_stmt.expression);
+        let expression = self.resolve_expression(let_stmt.clone().expression);
         let definition = DefinitionKind::Global(expression);
 
         HirStatement::Let(HirLetStatement {
@@ -1400,7 +1400,9 @@ impl<'a> Resolver<'a> {
                     // Otherwise, then it is referring to an Identifier
                     // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
                     // If the expression is a singular indent, we search the resolver's current scope as normal.
-                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path.clone());
+
+                    // tracing::debug!("Resolved variable: {:?}", hir_ident);
 
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
@@ -1409,13 +1411,20 @@ impl<'a> Resolver<'a> {
                                     != FunctionVisibility::Public
                                 {
                                     let span = hir_ident.location.span;
-                                    let func_def = self.interner.function_modifiers(&id);
-                                    tracing::debug!("Func definition: {:?}", (id, span, func_def));
                                     self.check_can_reference_function(
                                         id,
                                         span,
                                         self.interner.function_visibility(id),
                                     );
+                                    if let Some(func_meta) = self.interner.func_meta.get(&id) {
+                                        self.interner.add_reference(
+                                            (DependencyId::Function(id), func_meta.location),
+                                            (
+                                                DependencyId::FunctionCall(hir_ident.id),
+                                                hir_ident.location,
+                                            ),
+                                        );
+                                    }
                                 }
                             }
                             DefinitionKind::Global(_) => {}
@@ -1471,24 +1480,6 @@ impl<'a> Resolver<'a> {
                     vecmap(call_expr.clone().arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
 
-                if let ExpressionKind::Variable(path) = call_expr.clone().func.kind {
-                    let (hir_ident, _var_scope_index) = self.get_ident_from_path(path);
-                    if hir_ident.id != DefinitionId::dummy_id() {
-                        if let DefinitionKind::Function(func_def_id) =
-                            self.interner.definition(hir_ident.id).kind
-                        {
-                            if let Some(func_meta) = self.interner.func_meta.get(&func_def_id) {
-                                self.interner.add_reference(
-                                    (DependencyId::Function(func_def_id), func_meta.location),
-                                    (
-                                        DependencyId::CallExpression(func),
-                                        Location::new(call_expr.func.span, self.file),
-                                    ),
-                                );
-                            }
-                        }
-                    }
-                }
                 HirExpression::Call(HirCallExpression { func, arguments, location })
             }
             ExpressionKind::MethodCall(call_expr) => {
