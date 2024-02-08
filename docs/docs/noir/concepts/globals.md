@@ -9,9 +9,8 @@ sidebar_position: 8
 
 ## Globals
 
-Noir supports global variables. These can be defined as any expression, so long
-as they don't depend on themselves - otherwise there would be a dependency cycle!
-The global's type can also be inferred by the compiler entirely.
+
+Noir supports global variables. The global's type can be inferred by the compiler entirely:
 
 ```rust
 global N = 5; // Same as `global N: Field = 5`
@@ -23,6 +22,17 @@ fn main() {
     assert(N == TUPLE.0 + TUPLE.1);
 }
 ```
+
+:::info
+
+Globals can be defined as any expression, so long as they don't depend on themselves - otherwise there would be a dependency cycle! For example:
+
+```rust
+global T = foo(T); // dependency error
+```
+
+:::
+
 
 If they are initialized to a literal integer, globals can be used to specify an array's length:
 
