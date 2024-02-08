@@ -36,7 +36,6 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// of this is println.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
-    Sort,
     ArrayLen,
     AssertConstant,
     SlicePushBack,
@@ -57,7 +56,6 @@ pub(crate) enum Intrinsic {
 impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
@@ -90,8 +88,7 @@ impl Intrinsic {
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
-            Intrinsic::Sort
-            | Intrinsic::ArrayLen
+            Intrinsic::ArrayLen
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
             | Intrinsic::SlicePopBack
@@ -111,7 +108,6 @@ impl Intrinsic {
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
-            "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
@@ -440,9 +436,10 @@ impl Instruction {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
-                    Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
-                        let value = constant.is_zero() as u128;
-                        SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
+                    Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
+                        // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
+                        let value = !constant.to_u128() % (1 << typ.bit_size());
+                        SimplifiedTo(dfg.make_constant(value.into(), typ.clone()))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v

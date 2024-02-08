@@ -40,6 +40,8 @@ pub enum ParserErrorReason {
     NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
+    #[error("Integer bit size {0} won't be supported")]
+    DeprecatedBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
 }
@@ -130,6 +132,8 @@ impl std::fmt::Display for ParserError {
     }
 }
 
+pub(crate) static ALLOWED_INTEGER_BIT_SIZES: &[u32] = &[1, 8, 32, 64];
+
 impl From<ParserError> for Diagnostic {
     fn from(error: ParserError) -> Diagnostic {
         match error.reason {
@@ -143,6 +147,11 @@ impl From<ParserError> for Diagnostic {
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::DeprecatedBitSize(bit_size) => Diagnostic::simple_warning(
+                        format!("Use of deprecated bit size {}", bit_size),
+                        format!("Bit sizes for integers will be restricted to {}", ALLOWED_INTEGER_BIT_SIZES.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

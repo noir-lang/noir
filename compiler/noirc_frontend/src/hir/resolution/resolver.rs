@@ -93,6 +93,9 @@ pub struct Resolver<'a> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
+    /// If we're currently resolving fields in a struct type, this is set to that type.
+    current_struct_type: Option<StructId>,
+
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
     /// be overridden for impls. Impls are an odd case since the methods within resolve
@@ -148,6 +151,7 @@ impl<'a> Resolver<'a> {
             errors: Vec::new(),
             lambda_stack: Vec::new(),
             current_trait_impl: None,
+            current_struct_type: None,
             file,
             in_contract,
         }
@@ -599,6 +603,11 @@ impl<'a> Resolver<'a> {
                     struct_type.borrow().to_string()
                 });
 
+                if let Some(current_struct) = self.current_struct_type {
+                    let dependency_id = struct_type.borrow().id;
+                    self.interner.add_type_dependency(current_struct, dependency_id);
+                }
+
                 Type::Struct(struct_type, args)
             }
             None => Type::Error,
@@ -651,6 +660,9 @@ impl<'a> Resolver<'a> {
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
             Ok(ModuleDefId::GlobalId(id)) => {
+                if let Some(current_struct) = self.current_struct_type {
+                    self.interner.add_type_global_dependency(current_struct, id);
+                }
                 Some(Type::Constant(self.eval_global_as_array_length(id)))
             }
             _ => None,
@@ -830,12 +842,14 @@ impl<'a> Resolver<'a> {
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
+        struct_id: StructId,
     ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
 
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
+        self.current_struct_type = Some(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (generics, fields, self.errors)
@@ -1197,12 +1211,14 @@ impl<'a> Resolver<'a> {
         span: Span,
         condition: Expression,
     ) -> Option<ExprId> {
-        let mut assert_msg_call_args = if let Some(assert_message_expr) = assert_message_expr {
-            vec![assert_message_expr.clone()]
-        } else {
-            return None;
-        };
-        assert_msg_call_args.push(condition);
+        let assert_message_expr = assert_message_expr?;
+
+        if matches!(
+            assert_message_expr,
+            Expression { kind: ExpressionKind::Literal(Literal::Str(..)), .. }
+        ) {
+            return Some(self.resolve_expression(assert_message_expr));
+        }
 
         let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
         let assert_msg_call_path = if is_in_stdlib {
@@ -1218,6 +1234,7 @@ impl<'a> Resolver<'a> {
                 span,
             })
         };
+        let assert_msg_call_args = vec![assert_message_expr.clone(), condition];
         let assert_msg_call_expr = Expression::call(
             Expression { kind: assert_msg_call_path, span },
             assert_msg_call_args,
@@ -1577,13 +1594,15 @@ impl<'a> Resolver<'a> {
                 }
 
                 let pattern = self.resolve_pattern_mutable(*pattern, Some(span), definition);
-                HirPattern::Mutable(Box::new(pattern), span)
+                let location = Location::new(span, self.file);
+                HirPattern::Mutable(Box::new(pattern), location)
             }
             Pattern::Tuple(fields, span) => {
                 let fields = vecmap(fields, |field| {
                     self.resolve_pattern_mutable(field, mutable, definition.clone())
                 });
-                HirPattern::Tuple(fields, span)
+                let location = Location::new(span, self.file);
+                HirPattern::Tuple(fields, location)
             }
             Pattern::Struct(name, fields, span) => {
                 let error_identifier = |this: &mut Self| {
@@ -1612,7 +1631,8 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_constructor_fields(typ, fields, span, resolve_field);
 
                 let typ = Type::Struct(struct_type, generics);
-                HirPattern::Struct(typ, fields, span)
+                let location = Location::new(span, self.file);
+                HirPattern::Struct(typ, fields, location)
             }
         }
     }

@@ -270,6 +270,7 @@ impl Context {
             inputs,
             outputs,
             false,
+            true,
         )?;
         let output_vars: Vec<_> = output_values
             .iter()
@@ -280,7 +281,16 @@ impl Context {
         for acir_var in output_vars {
             self.acir_context.return_var(acir_var)?;
         }
-        Ok(self.acir_context.finish(witness_inputs, Vec::new()))
+
+        let generated_acir = self.acir_context.finish(witness_inputs, Vec::new());
+
+        assert_eq!(
+            generated_acir.opcodes().len(),
+            1,
+            "Unconstrained programs should only generate a single opcode but multiple were emitted"
+        );
+
+        Ok(generated_acir)
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -509,13 +519,21 @@ impl Context {
                                 "expected an intrinsic/brillig call, but found {func:?}. All ACIR methods should be inlined"
                             ),
                             RuntimeType::Brillig => {
+                                // Check that we are not attempting to return a slice from 
+                                // an unconstrained runtime to a constrained runtime
+                                for result_id in result_ids {
+                                    if dfg.type_of_value(*result_id).contains_slice_element() {
+                                        return Err(RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack: self.acir_context.get_call_stack() })
+                                    }
+                                }
+
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
                                 let code = self.gen_brillig_for(func, brillig)?;
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs, true)?;
+                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs, true, false)?;
 
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
@@ -1368,7 +1386,13 @@ impl Context {
                 AcirValue::Array(elements.collect())
             }
             Value::Intrinsic(..) => todo!(),
-            Value::Function(..) => unreachable!("ICE: All functions should have been inlined"),
+            Value::Function(function_id) => {
+                // This conversion is for debugging support only, to allow the
+                // debugging instrumentation code to work. Taking the reference
+                // of a function in ACIR is useless.
+                let id = self.acir_context.add_constant(function_id.to_usize());
+                AcirValue::Var(id, AcirType::field())
+            }
             Value::ForeignFunction(_) => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
@@ -1602,30 +1626,6 @@ impl Context {
                 let result_type = Self::array_element_type(dfg, result_ids[1]);
 
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)
-            }
-            Intrinsic::Sort => {
-                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-                // We flatten the inputs and retrieve the bit_size of the elements
-                let mut input_vars = Vec::new();
-                let mut bit_size = 0;
-                for input in inputs {
-                    for (var, typ) in input.flatten() {
-                        input_vars.push(var);
-                        if bit_size == 0 {
-                            bit_size = typ.bit_size();
-                        } else {
-                            assert_eq!(
-                                bit_size,
-                                typ.bit_size(),
-                                "cannot sort element of different bit size"
-                            );
-                        }
-                    }
-                }
-                // Generate the sorted output variables
-                let out_vars = self.acir_context.sort(input_vars, bit_size)?;
-
-                Ok(self.convert_vars_to_values(out_vars, dfg, result_ids))
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {

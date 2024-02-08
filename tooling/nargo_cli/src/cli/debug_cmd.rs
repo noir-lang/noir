@@ -4,9 +4,10 @@ use acvm::acir::native_types::WitnessMap;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
+use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::ops::compile_program;
+use nargo::ops::compile_program_with_debug_instrumenter;
 use nargo::package::Package;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -15,7 +16,9 @@ use noirc_abi::InputMap;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };
+use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::graph::CrateName;
+use noirc_frontend::hir::ParsedFiles;
 
 use super::compile_cmd::report_errors;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
@@ -46,6 +49,10 @@ pub(crate) fn run(
     args: DebugCommand,
     config: NargoConfig,
 ) -> Result<(), CliError> {
+    // Override clap default for compiler option flag
+    let mut args = args.clone();
+    args.compile_options.instrument_debug = true;
+
     let toml_path = get_package_manifest(&config.program_dir)?;
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(
@@ -61,7 +68,7 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let mut parsed_files = parse_all(&workspace_file_manager);
 
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
@@ -70,12 +77,16 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let compilation_result = compile_program(
+    let debug_instrumenter =
+        instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
+
+    let compilation_result = compile_program_with_debug_instrumenter(
         &workspace_file_manager,
         &parsed_files,
         package,
         &args.compile_options,
         None,
+        debug_instrumenter,
     );
 
     let compiled_program = report_errors(
@@ -88,6 +99,36 @@ pub(crate) fn run(
     let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
+}
+
+/// Add debugging instrumentation to all parsed files belonging to the package
+/// being compiled
+pub(crate) fn instrument_package_files(
+    parsed_files: &mut ParsedFiles,
+    file_manager: &FileManager,
+    package: &Package,
+) -> DebugInstrumenter {
+    // Start off at the entry path and read all files in the parent directory.
+    let entry_path_parent = package
+        .entry_path
+        .parent()
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path))
+        .clone();
+
+    let mut debug_instrumenter = DebugInstrumenter::default();
+
+    for (file_id, parsed_file) in parsed_files.iter_mut() {
+        let file_path =
+            file_manager.path(*file_id).expect("Parsed file ID not found in file manager");
+        for ancestor in file_path.ancestors() {
+            if ancestor == entry_path_parent {
+                // file is in package
+                debug_instrumenter.instrument_module(&mut parsed_file.0);
+            }
+        }
+    }
+
+    debug_instrumenter
 }
 
 fn run_async(
