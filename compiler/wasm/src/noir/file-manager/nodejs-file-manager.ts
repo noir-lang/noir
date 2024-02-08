@@ -18,8 +18,9 @@ export async function readdirRecursive(dir: string): Promise<string[]> {
 }
 
 /**
- * Creates a new FileManager instance based on nodejs fs
- * @param dataDir - where to store files
+ * Creates a new FileManager instance based on fs in node and memfs in the browser (via webpack alias)
+ *
+ * @param dataDir - root of the file system
  */
 export function createNodejsFileManager(dataDir: string): FileManager {
   return new FileManager(

@@ -4,18 +4,14 @@ export { Abi, WitnessMap } from '@noir-lang/noirc_abi';
 
 export interface Backend {
   /**
-   * @description Generates a final proof (not meant to be verified in another circuit) */
-  generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData>;
-
-  /**
-   * @description Generates an intermediate proof (meant to be verified in another circuit) */
-  generateIntermediateProof(decompressedWitness: Uint8Array): Promise<ProofData>;
+   * @description Generates a proof */
+  generateProof(decompressedWitness: Uint8Array): Promise<ProofData>;
 
   /**
    *
    * @description Retrieves the artifacts from a proof in the Field format
    */
-  generateIntermediateProofArtifacts(
+  generateRecursiveProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs: number,
   ): Promise<{
@@ -28,11 +24,8 @@ export interface Backend {
   }>;
 
   /**
-   * @description Verifies a final proof */
-  verifyFinalProof(proofData: ProofData): Promise<boolean>;
-
-  /** @description Verifies an intermediate proof */
-  verifyIntermediateProof(proofData: ProofData): Promise<boolean>;
+   * @description Verifies a proof */
+  verifyProof(proofData: ProofData): Promise<boolean>;
 
   /**
    * @description Destroys the backend */

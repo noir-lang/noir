@@ -120,6 +120,23 @@ pub(super) fn decompose_constrain(
                 }
             }
 
+            (
+                Value::Instruction { instruction: instruction_lhs, .. },
+                Value::Instruction { instruction: instruction_rhs, .. },
+            ) => {
+                match (&dfg[*instruction_lhs], &dfg[*instruction_rhs]) {
+                    // Casting two values just to enforce an equality on them.
+                    //
+                    // This is equivalent to enforcing equality on the original values.
+                    (Instruction::Cast(original_lhs, _), Instruction::Cast(original_rhs, _))
+                        if dfg.type_of_value(*original_lhs) == dfg.type_of_value(*original_rhs) =>
+                    {
+                        vec![Instruction::Constrain(*original_lhs, *original_rhs, msg.clone())]
+                    }
+
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                }
+            }
             _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
         }
     }

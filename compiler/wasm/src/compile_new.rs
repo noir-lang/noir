@@ -94,7 +94,7 @@ impl CompilerContext {
         program_width: usize,
     ) -> Result<JsCompileResult, JsCompileError> {
         let compile_options = CompileOptions::default();
-        let np_language = acvm::ExpressionWidth::Bounded { width: program_width };
+        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
 
         let root_crate_id = *self.context.root_crate_id();
 
@@ -120,7 +120,7 @@ impl CompilerContext {
         program_width: usize,
     ) -> Result<JsCompileResult, JsCompileError> {
         let compile_options = CompileOptions::default();
-        let np_language = acvm::ExpressionWidth::Bounded { width: program_width };
+        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
         let root_crate_id = *self.context.root_crate_id();
 
         let compiled_contract =
