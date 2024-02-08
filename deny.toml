@@ -98,4 +98,7 @@ unknown-git = "deny"
 #
 # crates.io rejects git dependencies so anything depending on these is unpublishable and you'll ruin my day
 # when I find out.
-allow-git = ["https://github.com/jfecher/chumsky"]
+allow-git = [
+    "https://github.com/jfecher/chumsky",
+    "https://github.com/noir-lang/clap-markdown",
+]
