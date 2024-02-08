@@ -14,7 +14,6 @@ contract Uniswap {
         },
     };
     use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context},
         oracle::{context::get_portal_address},
         state_vars::{map::Map, public_state::PublicState},
     };

@@ -21,7 +21,6 @@ contract Token {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        context::{PrivateContext, PublicContext, Context},
         hash::{compute_secret_hash},
         state_vars::{map::Map, public_state::PublicState, set::Set},
         protocol_types::{
@@ -328,7 +327,11 @@ contract Token {
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
         if (storage_slot == storage.pending_shields.get_storage_slot()) {
-            note_utils::compute_note_hash_and_nullifier(TransparentNote::deserialize_content, note_header, serialized_note)
+            note_utils::compute_note_hash_and_nullifier(
+                TransparentNote::deserialize_content,
+                note_header,
+                serialized_note
+            )
         } else {
             note_utils::compute_note_hash_and_nullifier(TokenNote::deserialize_content, note_header, serialized_note)
         }

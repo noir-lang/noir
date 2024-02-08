@@ -22,7 +22,6 @@ contract Token {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        context::{PrivateContext, PublicContext, Context},
         hash::{compute_secret_hash},
         state_vars::{map::Map, public_state::PublicState, stable_public_state::StablePublicState,  set::Set},
         protocol_types::{

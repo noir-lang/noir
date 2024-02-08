@@ -244,10 +244,10 @@ contract DocsExample {
     }
 
     /// Macro equivalence section
-    use dep::aztec::abi;
-    use dep::aztec::abi::Hasher;
-    use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::abi::PrivateCircuitPublicInputs;
+    use dep::aztec::hasher::Hasher;
+
+    use dep::aztec::protocol_types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs;
+    use dep::aztec::context::inputs::PrivateContextInputs;
 
     // docs:start:simple_macro_example
     #[aztec(private)]
@@ -270,7 +270,7 @@ contract DocsExample {
         b: Field // The actual return type of our circuit is the PrivateCircuitPublicInputs struct, this will be the 
         // input to our kernel! 
         // docs:start:context-example-return
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+    ) -> distinct pub PrivateCircuitPublicInputs {
         // docs:end:context-example-return
         // ************************************************************
         // The hasher is a structure used to generate a hash of the circuits inputs. 

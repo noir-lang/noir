@@ -25,15 +25,9 @@ contract CardGame {
         },
     };
 
-    use dep::aztec::{
-        abi,
-        abi::{
-            Hasher, PrivateContextInputs,
-        },
-        note::{
-            note_header::NoteHeader,
-            utils as note_utils,
-        },
+    use dep::aztec::note::{
+        note_header::NoteHeader,
+        utils as note_utils,
     };
 
     use crate::cards::{

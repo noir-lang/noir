@@ -1,5 +1,5 @@
 use crate::{
-    abi::PrivateContextInputs,
+    context::inputs::PrivateContextInputs,
     key::nullifier_key::validate_nullifier_key_against_address,
     messaging::process_l1_to_l2_message,
     oracle::{
@@ -40,9 +40,7 @@ use dep::protocol_types::{
         NUM_FIELDS_PER_SHA256,
         RETURN_VALUES_LENGTH,
     },
-    contract_class::ContractClassId,
     contrakt::{
-        deployment_data::ContractDeploymentData,
         storage_read::StorageRead,
         storage_update_request::StorageUpdateRequest,
     },

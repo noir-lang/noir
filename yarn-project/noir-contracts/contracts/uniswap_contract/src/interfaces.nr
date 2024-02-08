@@ -7,7 +7,7 @@ use dep::aztec::protocol_types::{
         },
     };
 use dep::aztec::{
-  context::{ PrivateContext, PublicContext, Context },
+  context::{ PrivateContext, PublicContext },
 };
 
 struct Token {

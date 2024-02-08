@@ -9,7 +9,7 @@ For developers coming from solidity, this concept will be similar to how the glo
 `Aztec` has two execution environments, Private and Public. Each execution environment contains a different global variables object. 
 
 ## Private Global Variables 
-#include_code private-global-variables /yarn-project/aztec-nr/aztec/src/abi.nr rust
+#include_code private-global-variables /yarn-project/aztec-nr/aztec/src/context/globals/private_global_variables.nr rust
 
 The private global variables contain:
 ### Chain Id
@@ -27,7 +27,7 @@ context.version();
 
 
 ## Public Global Variables
-#include_code public-global-variables /yarn-project/aztec-nr/aztec/src/abi.nr rust
+#include_code global-variables /yarn-project/noir-protocol-circuits/src/crates/types/src/abis/global_variables.nr rust
 
 The public global variables contain the values present in the `private global variables` described above, with the addition of:
 

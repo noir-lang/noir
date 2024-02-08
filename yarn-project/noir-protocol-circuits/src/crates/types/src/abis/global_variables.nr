@@ -16,6 +16,7 @@ use crate::{
     },
 };
 
+// docs:start:global-variables
 struct GlobalVariables {
     chain_id : Field,
     version : Field,
@@ -24,6 +25,7 @@ struct GlobalVariables {
     coinbase : EthAddress,
     fee_recipient : AztecAddress,
 }
+// docs:end:global-variables
 
 impl Serialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
     fn serialize(self) -> [Field; GLOBAL_VARIABLES_LENGTH] {

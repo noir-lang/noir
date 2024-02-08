@@ -1,5 +1,5 @@
 use crate::{
-    abi::PublicContextInputs,
+    context::inputs::PublicContextInputs,
     messaging::process_l1_to_l2_message,
     oracle::{
         arguments,

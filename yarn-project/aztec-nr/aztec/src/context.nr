@@ -1,9 +1,12 @@
-mod private;
-mod public;
+mod globals;
+mod inputs;
+
+mod private_context;
+mod public_context;
 mod avm;
 
-use public::PublicContext;
-use private::PrivateContext;
+use private_context::PrivateContext;
+use public_context::PublicContext;
 use avm::AVMContext;
 
 struct Context {
