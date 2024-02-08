@@ -130,6 +130,10 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         self.vm.write_memory_at(ptr, value);
     }
 
+    pub fn get_call_stack(&self) -> Vec<usize> {
+        self.vm.get_call_stack()
+    }
+
     pub(super) fn solve(&mut self) -> Result<BrilligSolverStatus, OpcodeResolutionError> {
         let status = self.vm.process_opcodes();
         self.handle_vm_status(status)
