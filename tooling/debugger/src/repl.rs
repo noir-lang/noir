@@ -86,8 +86,11 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     fn show_stack_frame(&self, index: usize, location: &OpcodeLocation) {
         let opcodes = self.context.get_opcodes();
         match location {
-            OpcodeLocation::Acir(ip) => {
-                println!("Frame #{index}, opcode {}: {}", ip, opcodes[*ip])
+            OpcodeLocation::Acir(instruction_pointer) => {
+                println!(
+                    "Frame #{index}, opcode {}: {}",
+                    instruction_pointer, opcodes[*instruction_pointer]
+                )
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 let Opcode::Brillig(ref brillig) = opcodes[*acir_index] else {

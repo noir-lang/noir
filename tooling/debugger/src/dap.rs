@@ -257,8 +257,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     ..StackFrame::default()
                 }
             })
-            .collect::<Vec<_>>()
-            .into_iter()
             .rev()
             .collect()
     }

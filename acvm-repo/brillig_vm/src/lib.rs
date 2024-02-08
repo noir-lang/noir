@@ -181,7 +181,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     pub fn get_call_stack(&self) -> Vec<usize> {
         self.call_stack
             .iter()
-            .map(|v| v.to_usize())
+            .map(|program_counter| program_counter.to_usize())
             .chain(std::iter::once(self.program_counter))
             .collect()
     }
