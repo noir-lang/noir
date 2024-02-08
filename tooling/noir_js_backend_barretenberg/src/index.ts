@@ -55,7 +55,6 @@ export class BarretenbergBackend implements Backend {
       this.acirComposer,
       this.acirUncompressedBytecode,
       gunzip(compressedWitness),
-      false,
     );
 
     const splitIndex = proofWithPublicInputs.length - numBytesInProofWithoutPublicInputs;
@@ -117,7 +116,7 @@ export class BarretenbergBackend implements Backend {
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
     // TODO: Change once `@aztec/bb.js` version is updated to use methods without isRecursive flag
-    return await this.api.acirVerifyProof(this.acirComposer, proof, false);
+    return await this.api.acirVerifyProof(this.acirComposer, proof);
   }
 
   async destroy(): Promise<void> {
