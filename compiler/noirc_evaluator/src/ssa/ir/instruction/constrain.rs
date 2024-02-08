@@ -125,7 +125,7 @@ pub(super) fn decompose_constrain(
                 Value::Instruction { instruction: instruction_rhs, .. },
             ) => {
                 match (&dfg[*instruction_lhs], &dfg[*instruction_rhs]) {
-                    // Here's we're casting two values just to enforce an equality on them.
+                    // Casting two values just to enforce an equality on them.
                     //
                     // This is equivalent to enforcing equality on the original values.
                     (Instruction::Cast(original_lhs, _), Instruction::Cast(original_rhs, _))
