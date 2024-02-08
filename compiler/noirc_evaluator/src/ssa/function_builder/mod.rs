@@ -344,8 +344,8 @@ impl FunctionBuilder {
         // We need at least one more bit for the case where rhs == bit_size
         let div_type = Type::unsigned(bit_size + 1);
         let casted_lhs = self.insert_cast(lhs, div_type.clone());
-        let casted_rhs = self.insert_cast(pow, div_type);
-        let div_result = self.insert_binary(casted_lhs, BinaryOp::Div, casted_rhs);
+        let casted_pow = self.insert_cast(pow, div_type);
+        let div_result = self.insert_binary(casted_lhs, BinaryOp::Div, casted_pow);
         // We have to cast back to the original type
         self.insert_cast(div_result, lhs_typ)
     }
