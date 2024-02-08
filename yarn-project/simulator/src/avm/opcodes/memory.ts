@@ -3,6 +3,7 @@ import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';
 import { Opcode, OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
+import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
 import { TwoOperandInstruction } from './instruction_impl.js';
 
@@ -152,9 +153,14 @@ export class Mov extends Instruction {
   }
 
   async execute(context: AvmContext): Promise<void> {
-    const a = context.machineState.memory.get(this.srcOffset);
+    const [srcOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.srcOffset, this.dstOffset],
+      context.machineState.memory,
+    );
 
-    context.machineState.memory.set(this.dstOffset, a);
+    const a = context.machineState.memory.get(srcOffset);
+
+    context.machineState.memory.set(dstOffset, a);
 
     context.machineState.incrementPc();
   }

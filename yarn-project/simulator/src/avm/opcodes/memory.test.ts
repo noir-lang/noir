@@ -4,6 +4,7 @@ import { AvmContext } from '../avm_context.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { initContext, initExecutionEnvironment } from '../fixtures/index.js';
+import { Addressing, AddressingMode } from './addressing_mode.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
 describe('Memory instructions', () => {
@@ -302,6 +303,16 @@ describe('Memory instructions', () => {
 
       expect(actual).toEqual(new Uint16(27n));
       expect(tag).toEqual(TypeTag.UINT16);
+    });
+
+    it('Should support INDIRECT addressing', async () => {
+      context.machineState.memory.set(0, new Uint16(55));
+      context.machineState.memory.set(10, new Uint32(20));
+      const addressing = new Addressing([/*srcOffset*/ AddressingMode.DIRECT, /*dstOffset*/ AddressingMode.INDIRECT]);
+      await new Mov(/*indirect=*/ addressing.toWire(), /*srcOffset=*/ 0, /*dstOffset=*/ 10).execute(context);
+
+      expect(context.machineState.memory.get(1)).toBeUndefined();
+      expect(context.machineState.memory.get(20)).toEqual(new Uint16(55n));
     });
 
     it('Should move field elements on different memory cells', async () => {

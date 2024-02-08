@@ -470,7 +470,7 @@ Addition (a + b)
 - **Opcode**: 0x00
 - **Category**: Compute - Arithmetic
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -491,7 +491,7 @@ Subtraction (a - b)
 - **Opcode**: 0x01
 - **Category**: Compute - Arithmetic
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -512,7 +512,7 @@ Multiplication (a * b)
 - **Opcode**: 0x02
 - **Category**: Compute - Arithmetic
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -533,7 +533,7 @@ Unsigned division (a / b)
 - **Opcode**: 0x03
 - **Category**: Compute - Arithmetic
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -554,7 +554,7 @@ Equality check (a == b)
 - **Opcode**: 0x04
 - **Category**: Compute - Comparators
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -575,7 +575,7 @@ Less-than check (a < b)
 - **Opcode**: 0x05
 - **Category**: Compute - Comparators
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -596,7 +596,7 @@ Less-than-or-equals check (a <= b)
 - **Opcode**: 0x06
 - **Category**: Compute - Comparators
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -617,7 +617,7 @@ Bitwise AND (a & b)
 - **Opcode**: 0x07
 - **Category**: Compute - Bitwise
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -638,7 +638,7 @@ Bitwise OR (a | b)
 - **Opcode**: 0x08
 - **Category**: Compute - Bitwise
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -659,7 +659,7 @@ Bitwise XOR (a ^ b)
 - **Opcode**: 0x09
 - **Category**: Compute - Bitwise
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -680,7 +680,7 @@ Bitwise NOT (inversion)
 - **Opcode**: 0x0a
 - **Category**: Compute - Bitwise
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's input
@@ -700,7 +700,7 @@ Bitwise leftward shift (a << b)
 - **Opcode**: 0x0b
 - **Category**: Compute - Bitwise
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -721,7 +721,7 @@ Bitwise rightward shift (a >> b)
 - **Opcode**: 0x0c
 - **Category**: Compute - Bitwise
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
@@ -742,7 +742,7 @@ Type cast
 - **Opcode**: 0x0d
 - **Category**: Type Conversions
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **dstTag**: The [tag/size](./state-model#tags-and-tagged-memory) to tag the destination with but not to check inputs against.
 - **Args**: 
 	- **aOffset**: memory offset of word to cast
@@ -762,7 +762,7 @@ Get the address of the currently executing l2 contract
 - **Opcode**: 0x0e
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.address`
@@ -779,7 +779,7 @@ Get the _storage_ address of the currently executing context
 - **Opcode**: 0x0f
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.storageAddress`
@@ -797,7 +797,7 @@ Get the transaction's origination address
 - **Opcode**: 0x10
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.origin`
@@ -814,7 +814,7 @@ Get the address of the sender (caller of the current context)
 - **Opcode**: 0x11
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.sender`
@@ -831,7 +831,7 @@ Get the address of the l1 portal contract
 - **Opcode**: 0x12
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.portal`
@@ -848,7 +848,7 @@ Get the fee to be paid per "L1 gas" - constant for entire transaction
 - **Opcode**: 0x13
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.feePerL1Gas`
@@ -865,7 +865,7 @@ Get the fee to be paid per "L2 gas" - constant for entire transaction
 - **Opcode**: 0x14
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.feePerL2Gas`
@@ -882,7 +882,7 @@ Get the fee to be paid per "DA gas" - constant for entire transaction
 - **Opcode**: 0x15
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.feePerDaGas`
@@ -899,7 +899,7 @@ Get how many contract calls deep the current call context is
 - **Opcode**: 0x16
 - **Category**: Execution Environment
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.contractCallDepth`
@@ -917,7 +917,7 @@ Get this rollup's L1 chain ID
 - **Opcode**: 0x17
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.chainId`
@@ -934,7 +934,7 @@ Get this rollup's L2 version ID
 - **Opcode**: 0x18
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.version`
@@ -951,7 +951,7 @@ Get this L2 block's number
 - **Opcode**: 0x19
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.blocknumber`
@@ -968,7 +968,7 @@ Get this L2 block's timestamp
 - **Opcode**: 0x1a
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.timestamp`
@@ -985,7 +985,7 @@ Get the block's beneficiary address
 - **Opcode**: 0x1b
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.coinbase`
@@ -1002,7 +1002,7 @@ Total amount of "L1 gas" that a block can consume
 - **Opcode**: 0x1c
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.l1GasLimit`
@@ -1019,7 +1019,7 @@ Total amount of "L2 gas" that a block can consume
 - **Opcode**: 0x1d
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.l2GasLimit`
@@ -1036,7 +1036,7 @@ Total amount of "DA gas" that a block can consume
 - **Opcode**: 0x1e
 - **Category**: Execution Environment - Globals
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.environment.globals.daGasLimit`
@@ -1053,7 +1053,7 @@ Copy calldata into memory
 - **Opcode**: 0x1f
 - **Category**: Execution Environment - Calldata
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **cdOffset**: offset into calldata to copy from
 	- **copySize**: number of words to copy
@@ -1073,7 +1073,7 @@ Remaining "L1 gas" for this call (after this instruction)
 - **Opcode**: 0x20
 - **Category**: Machine State - Gas
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.machineState.l1GasLeft`
@@ -1090,7 +1090,7 @@ Remaining "L2 gas" for this call (after this instruction)
 - **Opcode**: 0x21
 - **Category**: Machine State - Gas
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.MachineState.l2GasLeft`
@@ -1107,7 +1107,7 @@ Remaining "DA gas" for this call (after this instruction)
 - **Opcode**: 0x22
 - **Category**: Machine State - Gas
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = context.machineState.daGasLeft`
@@ -1139,7 +1139,7 @@ Conditionally jump to a location in the bytecode
 - **Opcode**: 0x24
 - **Category**: Machine State - Control Flow
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **loc**: target location conditionally jump to
 	- **condOffset**: memory offset of the operations 'conditional' input
@@ -1187,7 +1187,7 @@ Set a memory word from a constant in the bytecode
 - **Opcode**: 0x27
 - **Category**: Machine State - Memory
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 	- **inTag**: The [type/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for SET.
 - **Args**: 
 	- **const**: an N-bit constant value from the bytecode to store in memory (any type except `field`)
@@ -1207,7 +1207,7 @@ Move a word from source memory location to destination
 - **Opcode**: 0x28
 - **Category**: Machine State - Memory
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **srcOffset**: memory offset of word to move
 	- **dstOffset**: memory offset specifying where to store that word
@@ -1225,7 +1225,7 @@ Move a word (conditionally chosen) from one memory location to another (`d = con
 - **Opcode**: 0x29
 - **Category**: Machine State - Memory
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **aOffset**: memory offset of word 'a' to conditionally move
 	- **bOffset**: memory offset of word 'b' to conditionally move
@@ -1246,7 +1246,7 @@ Get the block header as of the specified block number
 - **Opcode**: 0x2a
 - **Category**: World State
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **blockNumOffset**: memory offset of the block number input
 	- **dstOffset**: memory offset specifying where to store operation's result's 0th word
@@ -1264,7 +1264,7 @@ Load a word from storage
 - **Opcode**: 0x2b
 - **Category**: World State - Public Storage
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **slotOffset**: memory offset of the storage slot to load from
 	- **dstOffset**: memory offset specifying where to store operation's result
@@ -1283,7 +1283,7 @@ Write a word to storage
 - **Opcode**: 0x2c
 - **Category**: World State - Public Storage
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **srcOffset**: memory offset of the word to store
 	- **slotOffset**: memory offset containing the storage slot to store to
@@ -1301,7 +1301,7 @@ Reads an L1-to-L2 message
 - **Opcode**: 0x2d
 - **Category**: World State - Messaging
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **msgKeyOffset**: memory offset of the message's key
 	- **dstOffset**: memory offset to place the 0th word of the message content
@@ -1320,7 +1320,7 @@ Send an L2-to-L1 message
 - **Opcode**: 0x2e
 - **Category**: World State - Messaging
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **msgOffset**: memory offset of the message content
 	- **msgSize**: number of words in the message
@@ -1337,7 +1337,7 @@ Emit a new note hash to be inserted into the notes tree
 - **Opcode**: 0x2f
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **noteHashOffset**: memory offset of the note hash
 - **Expression**: `context.worldState.newHashes.append(M[noteHashOffset])`
@@ -1353,7 +1353,7 @@ Emit a new nullifier to be inserted into the nullifier tree
 - **Opcode**: 0x30
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **nullifierOffset**: memory offset of nullifier
 - **Expression**: `context.worldState.nullifiers.append(M[nullifierOffset])`
@@ -1369,7 +1369,7 @@ Emit an unencrypted log
 - **Opcode**: 0x31
 - **Category**: Accrued Substate - Logging
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **logOffset**: memory offset of the data to log
 	- **logSize**: number of words to log
@@ -1386,7 +1386,7 @@ Call into another contract
 - **Opcode**: 0x32
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
 	- **addrOffset**: address of the contract to call
@@ -1424,7 +1424,7 @@ Call into another contract, disallowing World State and Accrued Substate modific
 - **Opcode**: 0x33
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
 	- **addrOffset**: address of the contract to call
@@ -1460,7 +1460,7 @@ Halt execution within this context (without revert), optionally returning some d
 - **Opcode**: 0x34
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **retOffset**: memory offset of first word to return
 	- **retSize**: number of words to return
@@ -1482,7 +1482,7 @@ Halt execution within this context as `reverted`, optionally returning some data
 - **Opcode**: 0x35
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. 0th bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **retOffset**: memory offset of first word to return
 	- **retSize**: number of words to return
