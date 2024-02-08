@@ -140,6 +140,7 @@ impl Context<'_> {
         rhs: ValueId,
         bit_size: u32,
     ) -> ValueId {
+        let lhs_typ = self.function.dfg.type_of_value(lhs);
         let base = self.field_constant(FieldElement::from(2_u128));
         // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
         let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
