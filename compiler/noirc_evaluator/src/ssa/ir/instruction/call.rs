@@ -238,7 +238,6 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
-        Intrinsic::Sort => simplify_sort(dfg, arguments),
         Intrinsic::AsField => {
             let instruction = Instruction::Cast(
                 arguments[0],
@@ -580,23 +579,6 @@ fn simplify_signature(
 
             let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
             SimplifyResult::SimplifiedTo(valid_signature)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-fn simplify_sort(dfg: &mut DataFlowGraph, arguments: &[ValueId]) -> SimplifyResult {
-    match dfg.get_array_constant(arguments[0]) {
-        Some((input, _)) => {
-            let inputs: Option<Vec<FieldElement>> =
-                input.iter().map(|id| dfg.get_numeric_constant(*id)).collect();
-
-            let Some(mut sorted_inputs) = inputs else { return SimplifyResult::None };
-            sorted_inputs.sort_unstable();
-
-            let (_, element_type) = dfg.get_numeric_constant_with_type(input[0]).unwrap();
-            let result_array = make_constant_array(dfg, sorted_inputs, element_type);
-            SimplifyResult::SimplifiedTo(result_array)
         }
         _ => SimplifyResult::None,
     }
