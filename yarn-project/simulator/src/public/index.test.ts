@@ -88,7 +88,7 @@ describe('ACIR public execution simulator', () => {
         const execution: PublicExecution = { contractAddress, functionData, args, callContext };
         const result = await executor.simulate(execution, GlobalVariables.empty());
 
-        const recipientBalanceStorageSlot = computeSlotForMapping(new Fr(6n), recipient.toField());
+        const recipientBalanceStorageSlot = computeSlotForMapping(new Fr(6n), recipient);
         const totalSupplyStorageSlot = new Fr(4n);
 
         const expectedBalance = new Fr(previousBalance.value + mintAmount);
@@ -110,7 +110,7 @@ describe('ACIR public execution simulator', () => {
         ]);
 
         const mintersStorageSlot = new Fr(2n);
-        const isMinterStorageSlot = computeSlotForMapping(mintersStorageSlot, msgSender.toField());
+        const isMinterStorageSlot = computeSlotForMapping(mintersStorageSlot, msgSender);
         // Note: There is only 1 storage read (for the isMinter value) because the other 2 reads get overwritten by
         // the updates
         expect(result.contractStorageReads).toEqual([
@@ -152,8 +152,8 @@ describe('ACIR public execution simulator', () => {
           startSideEffectCounter: 0,
         });
 
-        recipientStorageSlot = computeSlotForMapping(new Fr(6n), recipient.toField());
-        senderStorageSlot = computeSlotForMapping(new Fr(6n), Fr.fromBuffer(sender.toBuffer()));
+        recipientStorageSlot = computeSlotForMapping(new Fr(6n), recipient);
+        senderStorageSlot = computeSlotForMapping(new Fr(6n), sender);
 
         publicContracts.getBytecode.mockResolvedValue(Buffer.from(transferArtifact.bytecode, 'base64'));
 

@@ -316,7 +316,7 @@ describe('Private Execution test suite', () => {
 
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
-      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField()));
+      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
 
       const newCommitments = sideEffectArrayToValueArray(
         nonEmptySideEffects(result.callStackItem.publicInputs.newCommitments),
@@ -336,7 +336,7 @@ describe('Private Execution test suite', () => {
 
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
-      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField()));
+      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
 
       const newCommitments = sideEffectArrayToValueArray(
         nonEmptySideEffects(result.callStackItem.publicInputs.newCommitments),
@@ -353,8 +353,8 @@ describe('Private Execution test suite', () => {
       const amountToTransfer = 100n;
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create');
 
-      const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField());
-      const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient.toField());
+      const storageSlot = computeSlotForMapping(new Fr(1n), owner);
+      const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient);
 
       const notes = [buildNote(60n, owner, storageSlot), buildNote(80n, owner, storageSlot)];
       oracle.getNotes.mockResolvedValue(notes);
@@ -407,7 +407,7 @@ describe('Private Execution test suite', () => {
       const balance = 160n;
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create');
 
-      const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField());
+      const storageSlot = computeSlotForMapping(new Fr(1n), owner);
 
       const notes = [buildNote(balance, owner, storageSlot)];
       oracle.getNotes.mockResolvedValue(notes);
@@ -905,7 +905,7 @@ describe('Private Execution test suite', () => {
 
       expect(result.newNotes).toHaveLength(1);
       const noteAndSlot = result.newNotes[0];
-      expect(noteAndSlot.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField()));
+      expect(noteAndSlot.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
 
       expect(noteAndSlot.note.items[0]).toEqual(new Fr(amountToTransfer));
 
@@ -915,7 +915,7 @@ describe('Private Execution test suite', () => {
       expect(newCommitments).toHaveLength(1);
 
       const commitment = newCommitments[0];
-      const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField());
+      const storageSlot = computeSlotForMapping(new Fr(1n), owner);
       const innerNoteHash = await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, noteAndSlot.note);
       expect(commitment).toEqual(innerNoteHash);
 
@@ -986,7 +986,7 @@ describe('Private Execution test suite', () => {
 
       expect(execInsert.newNotes).toHaveLength(1);
       const noteAndSlot = execInsert.newNotes[0];
-      expect(noteAndSlot.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField()));
+      expect(noteAndSlot.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
 
       expect(noteAndSlot.note.items[0]).toEqual(new Fr(amountToTransfer));
 
@@ -996,7 +996,7 @@ describe('Private Execution test suite', () => {
       expect(newCommitments).toHaveLength(1);
 
       const commitment = newCommitments[0];
-      const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField());
+      const storageSlot = computeSlotForMapping(new Fr(1n), owner);
       const innerNoteHash = await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, noteAndSlot.note);
       expect(commitment).toEqual(innerNoteHash);
 
@@ -1042,7 +1042,7 @@ describe('Private Execution test suite', () => {
 
       expect(result.newNotes).toHaveLength(1);
       const noteAndSlot = result.newNotes[0];
-      expect(noteAndSlot.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField()));
+      expect(noteAndSlot.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
 
       expect(noteAndSlot.note.items[0]).toEqual(new Fr(amountToTransfer));
 
@@ -1052,7 +1052,7 @@ describe('Private Execution test suite', () => {
       expect(newCommitments).toHaveLength(1);
 
       const commitment = newCommitments[0];
-      const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField());
+      const storageSlot = computeSlotForMapping(new Fr(1n), owner);
       expect(commitment).toEqual(
         await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, noteAndSlot.note),
       );
