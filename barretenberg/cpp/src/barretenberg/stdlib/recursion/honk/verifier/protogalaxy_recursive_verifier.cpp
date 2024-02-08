@@ -188,8 +188,6 @@ template <class VerifierInstances>
 void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::verify_folding_proof(const HonkProof& proof)
 {
     using Transcript = typename Flavor::Transcript;
-    using ElementNative = typename Flavor::Curve::ElementNative;
-    using AffineElementNative = typename Flavor::Curve::AffineElementNative;
     using ScalarNative = typename Flavor::Curve::ScalarFieldNative;
 
     transcript = std::make_shared<Transcript>(builder, proof);
@@ -244,18 +242,19 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::verify_folding_proof(cons
     WitnessCommitments acc_witness_commitments;
     auto witness_labels = commitment_labels.get_witness();
     size_t comm_idx = 0;
-    auto random_generator = Commitment::from_witness(builder, AffineElementNative(ElementNative::random_element()));
     for (auto& expected_comm : acc_witness_commitments.get_all()) {
-        expected_comm = random_generator;
+        std::vector<FF> scalars;
+        std::vector<Commitment> commitments;
         size_t inst = 0;
         for (auto& instance : instances) {
-            expected_comm = expected_comm + instance->witness_commitments.get_all()[comm_idx] * lagranges[inst];
+            scalars.emplace_back(lagranges[inst]);
+            commitments.emplace_back(instance->witness_commitments.get_all()[comm_idx]);
             inst++;
         }
+        expected_comm = Commitment::batch_mul(commitments, scalars);
         auto comm = transcript->template receive_from_prover<Commitment>("next_" + witness_labels[comm_idx]);
-        auto res = expected_comm - comm;
-        random_generator.x.assert_equal(res.x);
-        random_generator.y.assert_equal(res.y);
+        comm.x.assert_equal(expected_comm.x);
+        comm.y.assert_equal(expected_comm.y);
         comm_idx++;
     }
 
@@ -321,15 +320,17 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::verify_folding_proof(cons
     size_t vk_idx = 0;
     for (auto& expected_vk : acc_vk->get_all()) {
         size_t inst = 0;
-        expected_vk = random_generator;
+        std::vector<FF> scalars;
+        std::vector<Commitment> commitments;
         for (auto& instance : instances) {
-            expected_vk = expected_vk + instance->verification_key->get_all()[vk_idx] * lagranges[inst];
+            scalars.emplace_back(lagranges[inst]);
+            commitments.emplace_back(instance->verification_key->get_all()[vk_idx]);
             inst++;
         }
+        expected_vk = Commitment::batch_mul(commitments, scalars);
         auto vk = transcript->template receive_from_prover<Commitment>("next_" + vk_labels[vk_idx]);
-        auto res = expected_vk - vk;
-        random_generator.x.assert_equal(res.x);
-        random_generator.y.assert_equal(res.y);
+        vk.x.assert_equal(expected_vk.x);
+        vk.y.assert_equal(expected_vk.y);
         vk_idx++;
     }
 }
