@@ -34,7 +34,7 @@ TEST_F(MockCircuits, PinFunctionSizes)
     run_test(false);
 }
 
-TEST_F(MockCircuits, PinKernelSizes)
+TEST_F(MockCircuits, PinRecursionKernelSizes)
 {
     const auto run_test = [](bool large) {
         {
@@ -45,7 +45,7 @@ TEST_F(MockCircuits, PinKernelSizes)
             GoblinMockCircuits::construct_mock_function_circuit(app_circuit, large);
             auto function_accum = goblin.accumulate(app_circuit);
             GoblinUltraCircuitBuilder kernel_circuit{ goblin.op_queue };
-            GoblinMockCircuits::construct_mock_kernel_circuit(kernel_circuit, function_accum, kernel_accum);
+            GoblinMockCircuits::construct_mock_recursion_kernel_circuit(kernel_circuit, function_accum, kernel_accum);
             GoblinUltraComposer composer;
             auto instance = composer.create_instance(kernel_circuit);
             if (large) {

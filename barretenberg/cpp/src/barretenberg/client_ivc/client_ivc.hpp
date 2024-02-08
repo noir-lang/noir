@@ -23,9 +23,9 @@ class ClientIVC {
 
     // A full proof for the IVC scheme
     struct Proof {
-        Goblin::Proof goblin_proof;
         FoldProof fold_proof; // final fold proof
         HonkProof decider_proof;
+        Goblin::Proof goblin_proof;
     };
 
   private:
@@ -46,5 +46,7 @@ class ClientIVC {
     Proof prove();
 
     bool verify(Proof& proof);
+
+    HonkProof decider_prove() const;
 };
 } // namespace bb

@@ -49,7 +49,7 @@ class GoblinBench : public benchmark::Fixture {
             // Construct and accumulate the mock kernel circuit
             // Note: in first round, kernel_accum is empty since there is no previous kernel to recursively verify
             GoblinUltraCircuitBuilder circuit_builder{ goblin.op_queue };
-            GoblinMockCircuits::construct_mock_kernel_circuit(circuit_builder, function_accum, kernel_accum);
+            GoblinMockCircuits::construct_mock_recursion_kernel_circuit(circuit_builder, function_accum, kernel_accum);
             kernel_accum = goblin.accumulate(circuit_builder);
         }
     }
