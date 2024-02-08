@@ -18,10 +18,28 @@ fn main(x : Field, y : Field) {
 }
 ```
 
+> Assertions only work for predicate operations, such as `==`. If there's any ambiguity on the operation, the program will fail to compile. For example, it is unclear if `assert(x + y)` would check for `x + y == 0` or simply would return `true`.
+
 You can optionally provide a message to be logged when the assertion fails:
 
 ```rust
 assert(x == y, "x and y are not equal");
 ```
 
-> Assertions only work for predicate operations, such as `==`. If there's any ambiguity on the operation, the program will fail to compile. For example, it is unclear if `assert(x + y)` would check for `x + y == 0` or simply would return `true`.
+Aside string literals, the optional message can be a format string or any other type supported as input for Noir's [print](../standard_library/logging.md) functions. This feature lets you incorporate runtime variables into your failed assertion logs:
+
+```rust
+assert(x == y, f"Expected x == y, but got {x} == {y}");
+```
+
+Using a variable as an assertion message directly:
+
+```rust
+struct myStruct {
+  myField: Field
+}
+
+let s = myStruct { myField: y };
+assert(s.myField == x, s);
+```
+

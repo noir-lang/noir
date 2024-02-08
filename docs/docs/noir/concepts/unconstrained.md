@@ -40,7 +40,7 @@ Total ACIR opcodes generated for language PLONKCSat { width: 3 }: 91
 Backend circuit size: 3619
 ```
 
-A lot of the operations in this function are optimized away by the compiler (all the bit-shifts turn into divisions by constants). However we can save a bunch of gates by casting to u8 a bit earlier. This automatically truncates the bit-shifted value to fit in a u8 which allows us to remove the XOR against 0xff. This saves us ~480 gates in total.
+A lot of the operations in this function are optimized away by the compiler (all the bit-shifts turn into divisions by constants). However we can save a bunch of gates by casting to u8 a bit earlier. This automatically truncates the bit-shifted value to fit in a u8 which allows us to remove the AND against 0xff. This saves us ~480 gates in total.
 
 ```rust
 fn main(num: u72) -> pub [u8; 8] {

@@ -4,9 +4,11 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor, NargoError};
+use crate::foreign_calls::DefaultDebugForeignCallExecutor;
+use nargo::{artifacts::debug::DebugArtifact, NargoError};
 
 use easy_repl::{command, CommandStatus, Repl};
+use noirc_printable_type::PrintableValueDisplay;
 use std::cell::RefCell;
 
 use crate::source_code_printer::print_source_code_location;
@@ -27,21 +29,22 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
+        let foreign_call_executor =
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let context = DebugContext::new(
             blackbox_solver,
             circuit,
             debug_artifact,
             initial_witness.clone(),
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            foreign_call_executor,
         );
-        Self {
-            context,
-            blackbox_solver,
-            circuit,
-            debug_artifact,
-            initial_witness,
-            last_result: DebugCommandResult::Ok,
-        }
+        let last_result = if context.get_current_opcode_location().is_none() {
+            // handle circuit with no opcodes
+            DebugCommandResult::Done
+        } else {
+            DebugCommandResult::Ok
+        };
+        Self { context, blackbox_solver, circuit, debug_artifact, initial_witness, last_result }
     }
 
     pub fn show_current_vm_status(&self) {
@@ -73,8 +76,8 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                         );
                     }
                 }
-
-                print_source_code_location(self.debug_artifact, &location);
+                let locations = self.context.get_source_location_for_opcode_location(&location);
+                print_source_code_location(self.debug_artifact, &locations);
             }
         }
     }
@@ -211,12 +214,14 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     fn restart_session(&mut self) {
         let breakpoints: Vec<OpcodeLocation> =
             self.context.iterate_breakpoints().copied().collect();
+        let foreign_call_executor =
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, self.debug_artifact));
         self.context = DebugContext::new(
             self.blackbox_solver,
             self.circuit,
             self.debug_artifact,
             self.initial_witness.clone(),
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            foreign_call_executor,
         );
         for opcode_location in breakpoints {
             self.context.add_breakpoint(opcode_location);
@@ -280,6 +285,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             return;
         }
         self.context.write_brillig_memory(index, field_value);
+    }
+
+    pub fn show_vars(&self) {
+        let vars = self.context.get_variables();
+        for (var_name, value, var_type) in vars.iter() {
+            let printable_value =
+                PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
+            println!("{var_name}:{var_type:?} = {}", printable_value);
+        }
     }
 
     fn is_solved(&self) -> bool {
@@ -430,6 +444,16 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "update a Brillig memory cell with the given value",
                 (index: usize, value: String) => |index, value| {
                     ref_context.borrow_mut().write_brillig_memory(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "vars",
+            command! {
+                "show variable values available at this point in execution",
+                () => || {
+                    ref_context.borrow_mut().show_vars();
                     Ok(CommandStatus::Done)
                 }
             },

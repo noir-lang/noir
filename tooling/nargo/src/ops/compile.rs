@@ -1,5 +1,8 @@
 use fm::FileManager;
-use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
+use noirc_driver::{
+    link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
+};
+use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 
 use crate::errors::CompileError;
@@ -69,7 +72,28 @@ pub fn compile_program(
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
+    compile_program_with_debug_instrumenter(
+        file_manager,
+        parsed_files,
+        package,
+        compile_options,
+        cached_program,
+        DebugInstrumenter::default(),
+    )
+}
+
+pub fn compile_program_with_debug_instrumenter(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    compile_options: &CompileOptions,
+    cached_program: Option<CompiledProgram>,
+    debug_instrumenter: DebugInstrumenter,
+) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    link_to_debug_crate(&mut context, crate_id);
+    context.debug_instrumenter = debug_instrumenter;
+
     noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)
 }
 

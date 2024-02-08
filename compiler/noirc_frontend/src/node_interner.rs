@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Deref;
 
@@ -5,12 +6,17 @@ use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
+use petgraph::algo::tarjan_scc;
+use petgraph::prelude::DiGraph;
+use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -42,6 +48,7 @@ type StructAttributes = Vec<SecondaryAttribute>;
 pub struct NodeInterner {
     pub(crate) nodes: Arena<Node>,
     pub(crate) func_meta: HashMap<FuncId, FuncMeta>,
+
     function_definition_ids: HashMap<FuncId, DefinitionId>,
 
     // For a given function ID, this gives the function's modifiers which includes
@@ -51,6 +58,14 @@ pub struct NodeInterner {
 
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
+
+    /// This graph tracks dependencies between different global definitions.
+    /// This is used to ensure the absense of dependency cycles for globals and types.
+    dependency_graph: DiGraph<DependencyId, ()>,
+
+    /// To keep track of where each DependencyId is in `dependency_graph`, we need
+    /// this separate graph to map between the ids and indices.
+    dependency_graph_indices: HashMap<DependencyId, PetGraphIndex>,
 
     // Map each `Index` to it's own location
     pub(crate) id_to_location: HashMap<Index, Location>,
@@ -150,6 +165,24 @@ pub struct NodeInterner {
 
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
+}
+
+/// A dependency in the dependency graph may be a type or a definition.
+/// Types can depend on definitions too. E.g. `Foo` depends on `COUNT` in:
+///
+/// ```struct
+/// global COUNT = 3;
+///
+/// struct Foo {
+///     array: [Field; COUNT],
+/// }
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum DependencyId {
+    Struct(StructId),
+    Global(StmtId),
+    Function(FuncId),
+    Alias(TypeAliasId),
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -440,6 +473,8 @@ impl Default for NodeInterner {
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
             func_id_to_trait: HashMap::new(),
+            dependency_graph: petgraph::graph::DiGraph::new(),
+            dependency_graph_indices: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
@@ -1445,6 +1480,143 @@ impl NodeInterner {
 
     pub(crate) fn ordering_type(&self) -> Type {
         self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
+    }
+
+    /// Register that `dependent` depends on `dependency`.
+    /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
+    pub fn add_type_dependency(&mut self, dependent: StructId, dependency: StructId) {
+        self.add_dependency(DependencyId::Struct(dependent), DependencyId::Struct(dependency));
+    }
+
+    pub fn add_type_global_dependency(&mut self, dependent: StructId, dependency: StmtId) {
+        self.add_dependency(DependencyId::Struct(dependent), DependencyId::Global(dependency));
+    }
+
+    fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
+        let dependent_index = self.get_or_insert_dependency(dependent);
+        let dependency_index = self.get_or_insert_dependency(dependency);
+        self.dependency_graph.update_edge(dependent_index, dependency_index, ());
+    }
+
+    fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
+        if let Some(index) = self.dependency_graph_indices.get(&id) {
+            return *index;
+        }
+
+        let index = self.dependency_graph.add_node(id);
+        self.dependency_graph_indices.insert(id, index);
+        index
+    }
+
+    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<(CompilationError, FileId)> {
+        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
+        let mut errors = Vec::new();
+
+        let mut push_error = |item: String, scc: &[_], i, location: Location| {
+            let cycle = self.get_cycle_error_string(scc, i);
+            let span = location.span;
+            let error = ResolverError::DependencyCycle { item, cycle, span };
+            errors.push((error.into(), location.file));
+        };
+
+        for scc in strongly_connected_components {
+            if scc.len() > 1 {
+                // If a SCC contains a type, type alias, or global, it must be the only element in the SCC
+                for (i, index) in scc.iter().enumerate() {
+                    match self.dependency_graph[*index] {
+                        DependencyId::Struct(struct_id) => {
+                            let struct_type = self.get_struct(struct_id);
+                            let struct_type = struct_type.borrow();
+                            push_error(struct_type.name.to_string(), &scc, i, struct_type.location);
+                            break;
+                        }
+                        DependencyId::Global(global_id) => {
+                            let let_stmt = match self.statement(&global_id) {
+                                HirStatement::Let(let_stmt) => let_stmt,
+                                other => unreachable!(
+                                    "Expected global to be a `let` statement, found {other:?}"
+                                ),
+                            };
+
+                            let (name, location) =
+                                self.pattern_name_and_location(&let_stmt.pattern);
+                            push_error(name, &scc, i, location);
+                        }
+                        DependencyId::Alias(alias_id) => {
+                            let alias = self.get_type_alias(alias_id);
+                            push_error(alias.name.to_string(), &scc, i, alias.location);
+                        }
+                        // Mutually recursive functions are allowed
+                        DependencyId::Function(_) => (),
+                    }
+                }
+            }
+        }
+
+        errors
+    }
+
+    /// Build up a string starting from the given item containing each item in the dependency
+    /// cycle. The final result will resemble `foo -> bar -> baz -> foo`, always going back to the
+    /// element at the given start index.
+    fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
+        let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
+            DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
+            DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
+            DependencyId::Alias(id) => {
+                Cow::Borrowed(self.get_type_alias(id).name.0.contents.as_ref())
+            }
+            DependencyId::Global(id) => {
+                let let_stmt = match self.statement(&id) {
+                    HirStatement::Let(let_stmt) => let_stmt,
+                    other => {
+                        unreachable!("Expected global to be a `let` statement, found {other:?}")
+                    }
+                };
+                Cow::Owned(self.pattern_name_and_location(&let_stmt.pattern).0)
+            }
+        };
+
+        let mut cycle = index_to_string(scc[start_index]).to_string();
+
+        for i in 0..scc.len() {
+            cycle += " -> ";
+            cycle += &index_to_string(scc[(start_index + i + 1) % scc.len()]);
+        }
+
+        cycle
+    }
+
+    /// Returns the name and location of this pattern.
+    /// If this pattern is a tuple or struct the 'name' will be a string representation of the
+    /// entire pattern. Similarly, the location will be the merged location of all fields.
+    fn pattern_name_and_location(
+        &self,
+        pattern: &crate::hir_def::stmt::HirPattern,
+    ) -> (String, Location) {
+        match pattern {
+            crate::hir_def::stmt::HirPattern::Identifier(ident) => {
+                let definition = self.definition(ident.id);
+                (definition.name.clone(), definition.location)
+            }
+            crate::hir_def::stmt::HirPattern::Mutable(pattern, _) => {
+                self.pattern_name_and_location(pattern)
+            }
+            crate::hir_def::stmt::HirPattern::Tuple(fields, location) => {
+                let fields = vecmap(fields, |field| self.pattern_name_and_location(field).0);
+
+                let fields = fields.join(", ");
+                (format!("({fields})"), *location)
+            }
+            crate::hir_def::stmt::HirPattern::Struct(typ, fields, location) => {
+                let fields = vecmap(fields, |(field_name, field)| {
+                    let field = self.pattern_name_and_location(field).0;
+                    format!("{field_name}: {field}")
+                });
+                let fields = fields.join(", ");
+                (format!("{typ} {{ {fields} }}"), *location)
+            }
+        }
     }
 }
 

@@ -2,7 +2,7 @@ use super::expr::HirIdent;
 use crate::node_interner::ExprId;
 use crate::{Ident, Type};
 use fm::FileId;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on
 /// the Statement AST node. Unlike the AST node, any nested nodes
@@ -55,14 +55,14 @@ pub struct HirAssignStatement {
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<String>);
+pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<ExprId>);
 
 #[derive(Debug, Clone, Hash)]
 pub enum HirPattern {
     Identifier(HirIdent),
-    Mutable(Box<HirPattern>, Span),
-    Tuple(Vec<HirPattern>, Span),
-    Struct(Type, Vec<(Ident, HirPattern)>, Span),
+    Mutable(Box<HirPattern>, Location),
+    Tuple(Vec<HirPattern>, Location),
+    Struct(Type, Vec<(Ident, HirPattern)>, Location),
 }
 
 impl HirPattern {
@@ -92,9 +92,9 @@ impl HirPattern {
     pub fn span(&self) -> Span {
         match self {
             HirPattern::Identifier(ident) => ident.location.span,
-            HirPattern::Mutable(_, span)
-            | HirPattern::Tuple(_, span)
-            | HirPattern::Struct(_, _, span) => *span,
+            HirPattern::Mutable(_, location)
+            | HirPattern::Tuple(_, location)
+            | HirPattern::Struct(_, _, location) => location.span,
         }
     }
 }

@@ -3,8 +3,15 @@ use dep::std;
 fn main(x: Field, y: pub Field) {
     let string = "i: {i}, j: {j}";
     std::println(string);
+
+    // TODO: fmtstr cannot be printed
+    // let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
+    // let fmt_fmt_str = f"fmtstr: {fmt_str}, i: {x}";
+    // std::println(fmt_fmt_str);
+
     // A `fmtstr` lets you easily perform string interpolation.
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
+
     let fmt_str = string_identity(fmt_str);
     std::println(fmt_str);
 
