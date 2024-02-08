@@ -8,20 +8,18 @@ LIFECYCLE_POLICY='{
   "rules": [
     {
       "rulePriority": 1,
-      "description": "No more than 200 cache images.",
+      "description": "No more than 1000 images, regardless of tag status.",
       "selection": {
-        "tagStatus": "tagged",
-        "tagPrefixList": ["cache-"],
+        "tagStatus": "any",
         "countType": "imageCountMoreThan",
-        "countNumber": 200
+        "countNumber": 1000
       },
       "action": {
         "type": "expire"
       }
     }
   ]
-}
-'
+}'
 
 REPOSITORY=$1
 REGION=$2
