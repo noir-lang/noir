@@ -97,7 +97,7 @@ impl BrilligArtifact {
         // Replace STOP with RETURN because this is not the end of the program now.
         let stop_position = byte_code
             .iter()
-            .position(|opcode| matches!(opcode, BrilligOpcode::Stop))
+            .position(|opcode| matches!(opcode, BrilligOpcode::Stop { .. }))
             .expect("Trying to link with a function that does not have a stop opcode");
 
         byte_code[stop_position] = BrilligOpcode::Return;

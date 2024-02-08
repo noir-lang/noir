@@ -124,7 +124,7 @@ pub fn monomorphize_debug(
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, return_visibility, .. } =
+    let FuncMeta { return_distinctness, return_visibility, kind, .. } =
         monomorphizer.interner.function_meta(&main);
 
     let (debug_variables, debug_types) = monomorphizer.debug_type_tracker.extract_vars_and_types();
@@ -134,6 +134,7 @@ pub fn monomorphize_debug(
         *return_distinctness,
         monomorphizer.return_location,
         *return_visibility,
+        *kind == FunctionKind::Recursive,
         debug_variables,
         debug_types,
     )
@@ -214,6 +215,9 @@ impl<'interner> Monomorphizer<'interner> {
                             FunctionAttribute::Oracle(name) => Definition::Oracle(name),
                             _ => unreachable!("Oracle function must have an oracle attribute"),
                         }
+                    }
+                    FunctionKind::Recursive => {
+                        unreachable!("Only main can be specified as recursive, which should already be checked");
                     }
                 }
             }

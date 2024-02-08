@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use arena::{Arena, Index};
 use fm::FileId;
@@ -1120,6 +1121,34 @@ impl NodeInterner {
         Ok(impl_kind)
     }
 
+    /// Given a `ObjectType: TraitId` pair, find all implementations without taking constraints into account or
+    /// applying any type bindings. Useful to look for a specific trait in a type that is used in a macro.
+    pub fn lookup_all_trait_implementations(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+    ) -> Vec<&TraitImplKind> {
+        let trait_impl = self.trait_implementation_map.get(&trait_id);
+
+        trait_impl
+            .map(|trait_impl| {
+                trait_impl
+                    .iter()
+                    .filter_map(|(typ, impl_kind)| match &typ {
+                        Type::Forall(_, typ) => {
+                            if typ.deref() == object_type {
+                                Some(impl_kind)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or(vec![])
+    }
+
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
     pub fn try_lookup_trait_implementation(
         &self,
@@ -1341,7 +1370,6 @@ impl NodeInterner {
         force_type_check: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
-
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {

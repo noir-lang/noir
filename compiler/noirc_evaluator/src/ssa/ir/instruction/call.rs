@@ -440,7 +440,7 @@ fn simplify_black_box_func(
             SimplifyResult::None
         }
         BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntNeg
+        | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
         | BlackBoxFunc::BigIntDiv
         | BlackBoxFunc::RecursiveAggregation

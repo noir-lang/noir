@@ -421,7 +421,7 @@ impl<'a> Resolver<'a> {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
             }
-            FunctionKind::Normal => {
+            FunctionKind::Normal | FunctionKind::Recursive => {
                 let expr_id = self.intern_block(func.def.body);
                 self.interner.push_expr_location(expr_id, func.def.span, self.file);
                 HirFunction::unchecked_from_expr(expr_id)
@@ -941,6 +941,12 @@ impl<'a> Resolver<'a> {
             && func.def.return_visibility == Visibility::Private
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
+        }
+        // '#[recursive]' attribute is only allowed for entry point functions
+        if !self.is_entry_point_function(func) && func.kind == FunctionKind::Recursive {
+            self.push_err(ResolverError::MisplacedRecursiveAttribute {
+                ident: func.name_ident().clone(),
+            });
         }
 
         if !self.distinct_allowed(func)
