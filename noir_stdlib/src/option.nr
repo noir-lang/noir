@@ -56,6 +56,12 @@ impl<T> Option<T> {
         }
     }
 
+    /// Asserts `self.is_some()` with a provided custom message and returns the contained `Some` value
+    fn expect<N, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
+        assert(self.is_some(), message);
+        self._value
+    }
+
     /// If self is `Some(x)`, this returns `Some(f(x))`. Otherwise, this returns `None`.
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> Option<U> {
         if self._is_some {

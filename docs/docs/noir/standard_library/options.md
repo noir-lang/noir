@@ -56,6 +56,10 @@ Returns the wrapped value if `self.is_some()`. Otherwise, returns the given defa
 
 Returns the wrapped value if `self.is_some()`. Otherwise, calls the given function to return a default value.
 
+### expect
+
+Asserts `self.is_some()` with a provided custom message and returns the contained `Some` value. The custom message is expected to be a format string.
+
 ### map
 
 If self is `Some(x)`, this returns `Some(f(x))`. Otherwise, this returns `None`.

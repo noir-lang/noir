@@ -9,6 +9,7 @@ use codespan_reporting::files::{Files, SimpleFile};
 
 use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
+use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 
 use dap::errors::ServerError;
 use dap::events::StoppedEventBody;
@@ -25,7 +26,6 @@ use dap::types::{
     StoppedEventReason, Thread,
 };
 use nargo::artifacts::debug::DebugArtifact;
-use nargo::ops::DefaultForeignCallExecutor;
 
 use fm::FileId;
 use noirc_driver::CompiledProgram;
@@ -57,7 +57,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             circuit,
             debug_artifact,
             initial_witness,
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact)),
         );
         Self {
             server,
@@ -125,9 +125,9 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     pub fn run_loop(&mut self) -> Result<(), ServerError> {
-        self.running = true;
+        self.running = self.context.get_current_opcode_location().is_some();
 
-        if matches!(self.context.get_current_source_location(), None) {
+        if self.running && matches!(self.context.get_current_source_location(), None) {
             // TODO: remove this? This is to ensure that the tool has a proper
             // source location to show when first starting the debugger, but
             // maybe the default behavior should be to start executing until the
