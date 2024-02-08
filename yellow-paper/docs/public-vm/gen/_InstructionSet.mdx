@@ -576,7 +576,7 @@ Less-than check (a < b)
 - **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
@@ -597,7 +597,7 @@ Less-than-or-equals check (a <= b)
 - **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
@@ -618,7 +618,7 @@ Bitwise AND (a & b)
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
@@ -639,7 +639,7 @@ Bitwise OR (a | b)
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
@@ -660,7 +660,7 @@ Bitwise XOR (a ^ b)
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
@@ -681,7 +681,7 @@ Bitwise NOT (inversion)
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's input
 	- **dstOffset**: memory offset specifying where to store operation's result
@@ -701,7 +701,7 @@ Bitwise leftward shift (a << b)
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input
@@ -722,7 +722,7 @@ Bitwise rightward shift (a >> b)
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.
+	- **inTag**: The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with. `field` type is NOT supported for this instruction.
 - **Args**: 
 	- **aOffset**: memory offset of the operation's left input
 	- **bOffset**: memory offset of the operation's right input

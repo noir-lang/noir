@@ -110,19 +110,11 @@ describe('Comparators', () => {
       expect(actual).toEqual([new Uint32(0), new Uint32(1), new Uint32(0)]);
     });
 
-    it('Works on field elements', async () => {
-      context.machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(0)]);
-
-      [
-        new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 0, /*dstOffset=*/ 10),
-        new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 11),
-        new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(context));
-
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
-      expect(actual).toEqual([new Field(0), new Field(1), new Field(0)]);
+    it('Does not work on field elements', async () => {
+      await expect(() =>
+        new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 10).execute(context),
+      ).rejects.toThrow(TagCheckError);
     });
-
     it('InTag is checked', async () => {
       context.machineState.memory.setSlice(0, [new Field(1), new Uint32(2), new Uint16(3)]);
 
@@ -174,17 +166,10 @@ describe('Comparators', () => {
       expect(actual).toEqual([new Uint32(1), new Uint32(1), new Uint32(0)]);
     });
 
-    it('Works on field elements', async () => {
-      context.machineState.memory.setSlice(0, [new Field(1), new Field(2), new Field(0)]);
-
-      [
-        new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 0, /*dstOffset=*/ 10),
-        new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 11),
-        new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
-      ].forEach(i => i.execute(context));
-
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
-      expect(actual).toEqual([new Field(1), new Field(1), new Field(0)]);
+    it('Does not work on field elements', async () => {
+      await expect(() =>
+        new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 10).execute(context),
+      ).rejects.toThrow(TagCheckError);
     });
 
     it('InTag is checked', async () => {

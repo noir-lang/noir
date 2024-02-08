@@ -8,6 +8,7 @@ const TOPICS_IN_SECTIONS = [
 ];
 
 const IN_TAG_DESCRIPTION = "The [tag/size](./state-model#tags-and-tagged-memory) to check inputs against and tag the destination with.";
+const IN_TAG_DESCRIPTION_NO_FIELD = IN_TAG_DESCRIPTION + " `field` type is NOT supported for this instruction.";
 const DST_TAG_DESCRIPTION = "The [tag/size](./state-model#tags-and-tagged-memory) to tag the destination with but not to check inputs against.";
 const INDIRECT_FLAG_DESCRIPTION = "Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.";
 
@@ -113,7 +114,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Comparators",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
@@ -132,7 +133,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Comparators",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
@@ -151,7 +152,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Bitwise",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
@@ -170,7 +171,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Bitwise",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
@@ -189,7 +190,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Bitwise",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
@@ -208,7 +209,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Bitwise",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's input"},
@@ -226,7 +227,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Bitwise",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
@@ -245,7 +246,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Bitwise",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},

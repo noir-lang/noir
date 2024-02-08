@@ -42,8 +42,16 @@ export class InstructionExecutionError extends AvmExecutionError {
  * Error thrown on failed AVM memory tag check.
  */
 export class TagCheckError extends AvmExecutionError {
-  constructor(offset: number, gotTag: string, expectedTag: string) {
-    super(`Memory offset ${offset} has tag ${gotTag}, expected ${expectedTag}`);
+  public static forOffset(offset: number, gotTag: string, expectedTag: string): TagCheckError {
+    return new TagCheckError(`Tag mismatch at offset ${offset}, got ${gotTag}, expected ${expectedTag}`);
+  }
+
+  public static forTag(gotTag: string, expectedTag: string): TagCheckError {
+    return new TagCheckError(`Tag mismatch, got ${gotTag}, expected ${expectedTag}`);
+  }
+
+  constructor(message: string) {
+    super(message);
     this.name = 'TagCheckError';
   }
 }

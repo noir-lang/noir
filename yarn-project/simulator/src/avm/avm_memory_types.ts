@@ -11,7 +11,6 @@ export abstract class MemoryValue {
   public abstract div(rhs: MemoryValue): MemoryValue;
 
   public abstract equals(rhs: MemoryValue): boolean;
-  public abstract lt(rhs: MemoryValue): boolean;
 
   // We need this to be able to build an instance of the subclasses.
   public abstract build(n: bigint): MemoryValue;
@@ -32,6 +31,8 @@ export abstract class IntegralValue extends MemoryValue {
   public abstract or(rhs: IntegralValue): IntegralValue;
   public abstract xor(rhs: IntegralValue): IntegralValue;
   public abstract not(): IntegralValue;
+
+  public abstract lt(rhs: MemoryValue): boolean;
 }
 
 // TODO: Optimize calculation of mod, etc. Can only do once per class?
@@ -200,10 +201,6 @@ export class Field extends MemoryValue {
     return this.rep.equals(rhs.rep);
   }
 
-  public lt(rhs: Field): boolean {
-    return this.rep.lt(rhs.rep);
-  }
-
   public toBigInt(): bigint {
     return this.rep.toBigInt();
   }
@@ -284,7 +281,13 @@ export class TaggedMemory {
    */
   public checkTag(tag: TypeTag, offset: number) {
     if (this.getTag(offset) !== tag) {
-      throw new TagCheckError(offset, TypeTag[this.getTag(offset)], TypeTag[tag]);
+      throw TagCheckError.forOffset(offset, TypeTag[this.getTag(offset)], TypeTag[tag]);
+    }
+  }
+
+  public static checkIsIntegralTag(tag: TypeTag) {
+    if (![TypeTag.UINT8, TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64, TypeTag.UINT128].includes(tag)) {
+      throw TagCheckError.forTag(TypeTag[tag], 'integral');
     }
   }
 
