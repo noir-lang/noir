@@ -5,7 +5,7 @@ Summary
  - [pess-dubious-typecast](#pess-dubious-typecast) (8 results) (Medium)
  - [reentrancy-events](#reentrancy-events) (1 results) (Low)
  - [timestamp](#timestamp) (4 results) (Low)
- - [pess-public-vs-external](#pess-public-vs-external) (4 results) (Low)
+ - [pess-public-vs-external](#pess-public-vs-external) (5 results) (Low)
  - [assembly](#assembly) (5 results) (Informational)
  - [dead-code](#dead-code) (13 results) (Informational)
  - [solc-version](#solc-version) (1 results) (Informational)
@@ -13,6 +13,7 @@ Summary
  - [similar-names](#similar-names) (1 results) (Informational)
  - [unused-state](#unused-state) (2 results) (Informational)
  - [constable-states](#constable-states) (1 results) (Optimization)
+ - [pess-multiple-storage-read](#pess-multiple-storage-read) (2 results) (Optimization)
 ## pess-unprotected-setter
 Impact: High
 Confidence: Medium
@@ -171,20 +172,27 @@ src/core/messagebridge/Inbox.sol#L102-L113
 Impact: Low
 Confidence: Medium
  - [ ] ID-16
+The following public functions could be turned into external in [FrontierMerkle](src/core/messagebridge/frontier_tree/Frontier.sol#L7-L85) contract:
+	[FrontierMerkle.constructor(uint256)](src/core/messagebridge/frontier_tree/Frontier.sol#L19-L27)
+
+src/core/messagebridge/frontier_tree/Frontier.sol#L7-L85
+
+
+ - [ ] ID-17
 The following public functions could be turned into external in [Registry](src/core/messagebridge/Registry.sol#L22-L129) contract:
 	[Registry.constructor()](src/core/messagebridge/Registry.sol#L29-L33)
 
 src/core/messagebridge/Registry.sol#L22-L129
 
 
- - [ ] ID-17
+ - [ ] ID-18
 The following public functions could be turned into external in [Rollup](src/core/Rollup.sol#L27-L103) contract:
 	[Rollup.constructor(IRegistry,IAvailabilityOracle)](src/core/Rollup.sol#L39-L44)
 
 src/core/Rollup.sol#L27-L103
 
 
- - [ ] ID-18
+ - [ ] ID-19
 The following public functions could be turned into external in [Outbox](src/core/messagebridge/Outbox.sol#L21-L149) contract:
 	[Outbox.constructor(address)](src/core/messagebridge/Outbox.sol#L29-L31)
 	[Outbox.get(bytes32)](src/core/messagebridge/Outbox.sol#L78-L85)
@@ -193,7 +201,7 @@ The following public functions could be turned into external in [Outbox](src/cor
 src/core/messagebridge/Outbox.sol#L21-L149
 
 
- - [ ] ID-19
+ - [ ] ID-20
 The following public functions could be turned into external in [Inbox](src/core/messagebridge/Inbox.sol#L21-L231) contract:
 	[Inbox.constructor(address)](src/core/messagebridge/Inbox.sol#L30-L32)
 	[Inbox.contains(bytes32)](src/core/messagebridge/Inbox.sol#L174-L176)
@@ -204,21 +212,21 @@ src/core/messagebridge/Inbox.sol#L21-L231
 ## assembly
 Impact: Informational
 Confidence: High
- - [ ] ID-20
+ - [ ] ID-21
 [Decoder.computeRoot(bytes32[])](src/core/libraries/decoders/Decoder.sol#L373-L392) uses assembly
 	- [INLINE ASM](src/core/libraries/decoders/Decoder.sol#L380-L382)
 
 src/core/libraries/decoders/Decoder.sol#L373-L392
 
 
- - [ ] ID-21
+ - [ ] ID-22
 [TxsDecoder.decode(bytes)](src/core/libraries/decoders/TxsDecoder.sol#L71-L184) uses assembly
 	- [INLINE ASM](src/core/libraries/decoders/TxsDecoder.sol#L98-L104)
 
 src/core/libraries/decoders/TxsDecoder.sol#L71-L184
 
 
- - [ ] ID-22
+ - [ ] ID-23
 [Decoder.computeConsumables(bytes)](src/core/libraries/decoders/Decoder.sol#L164-L301) uses assembly
 	- [INLINE ASM](src/core/libraries/decoders/Decoder.sol#L196-L202)
 	- [INLINE ASM](src/core/libraries/decoders/Decoder.sol#L289-L295)
@@ -226,14 +234,14 @@ src/core/libraries/decoders/TxsDecoder.sol#L71-L184
 src/core/libraries/decoders/Decoder.sol#L164-L301
 
 
- - [ ] ID-23
+ - [ ] ID-24
 [TxsDecoder.computeRoot(bytes32[])](src/core/libraries/decoders/TxsDecoder.sol#L256-L275) uses assembly
 	- [INLINE ASM](src/core/libraries/decoders/TxsDecoder.sol#L263-L265)
 
 src/core/libraries/decoders/TxsDecoder.sol#L256-L275
 
 
- - [ ] ID-24
+ - [ ] ID-25
 [MessagesDecoder.decode(bytes)](src/core/libraries/decoders/MessagesDecoder.sol#L52-L102) uses assembly
 	- [INLINE ASM](src/core/libraries/decoders/MessagesDecoder.sol#L81-L83)
 	- [INLINE ASM](src/core/libraries/decoders/MessagesDecoder.sol#L94-L96)
@@ -244,79 +252,79 @@ src/core/libraries/decoders/MessagesDecoder.sol#L52-L102
 ## dead-code
 Impact: Informational
 Confidence: Medium
- - [ ] ID-25
+ - [ ] ID-26
 [Decoder.computeConsumables(bytes)](src/core/libraries/decoders/Decoder.sol#L164-L301) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L164-L301
 
 
- - [ ] ID-26
+ - [ ] ID-27
 [Inbox._errIncompatibleEntryArguments(bytes32,uint64,uint64,uint32,uint32,uint32,uint32)](src/core/messagebridge/Inbox.sol#L212-L230) is never used and should be removed
 
 src/core/messagebridge/Inbox.sol#L212-L230
 
 
- - [ ] ID-27
+ - [ ] ID-28
 [Decoder.slice(bytes,uint256,uint256)](src/core/libraries/decoders/Decoder.sol#L401-L407) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L401-L407
 
 
- - [ ] ID-28
+ - [ ] ID-29
 [Outbox._errNothingToConsume(bytes32)](src/core/messagebridge/Outbox.sol#L115-L117) is never used and should be removed
 
 src/core/messagebridge/Outbox.sol#L115-L117
 
 
- - [ ] ID-29
+ - [ ] ID-30
 [Decoder.computeRoot(bytes32[])](src/core/libraries/decoders/Decoder.sol#L373-L392) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L373-L392
 
 
- - [ ] ID-30
+ - [ ] ID-31
 [Hash.sha256ToField(bytes32)](src/core/libraries/Hash.sol#L59-L61) is never used and should be removed
 
 src/core/libraries/Hash.sol#L59-L61
 
 
- - [ ] ID-31
+ - [ ] ID-32
 [Decoder.computeKernelLogsHash(uint256,bytes)](src/core/libraries/decoders/Decoder.sol#L335-L365) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L335-L365
 
 
- - [ ] ID-32
+ - [ ] ID-33
 [Decoder.read4(bytes,uint256)](src/core/libraries/decoders/Decoder.sol#L415-L417) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L415-L417
 
 
- - [ ] ID-33
+ - [ ] ID-34
 [Decoder.computeStateHash(uint256,uint256,bytes)](src/core/libraries/decoders/Decoder.sol#L146-L154) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L146-L154
 
 
- - [ ] ID-34
+ - [ ] ID-35
 [Decoder.computePublicInputHash(bytes,bytes32,bytes32)](src/core/libraries/decoders/Decoder.sol#L118-L125) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L118-L125
 
 
- - [ ] ID-35
+ - [ ] ID-36
 [Inbox._errNothingToConsume(bytes32)](src/core/messagebridge/Inbox.sol#L197-L199) is never used and should be removed
 
 src/core/messagebridge/Inbox.sol#L197-L199
 
 
- - [ ] ID-36
+ - [ ] ID-37
 [Decoder.getL2BlockNumber(bytes)](src/core/libraries/decoders/Decoder.sol#L132-L134) is never used and should be removed
 
 src/core/libraries/decoders/Decoder.sol#L132-L134
 
 
- - [ ] ID-37
+ - [ ] ID-38
 [Outbox._errIncompatibleEntryArguments(bytes32,uint64,uint64,uint32,uint32,uint32,uint32)](src/core/messagebridge/Outbox.sol#L130-L148) is never used and should be removed
 
 src/core/messagebridge/Outbox.sol#L130-L148
@@ -325,13 +333,13 @@ src/core/messagebridge/Outbox.sol#L130-L148
 ## solc-version
 Impact: Informational
 Confidence: High
- - [ ] ID-38
+ - [ ] ID-39
 solc-0.8.21 is not recommended for deployment
 
 ## low-level-calls
 Impact: Informational
 Confidence: High
- - [ ] ID-39
+ - [ ] ID-40
 Low level call in [Inbox.withdrawFees()](src/core/messagebridge/Inbox.sol#L148-L153):
 	- [(success) = msg.sender.call{value: balance}()](src/core/messagebridge/Inbox.sol#L151)
 
@@ -341,7 +349,7 @@ src/core/messagebridge/Inbox.sol#L148-L153
 ## similar-names
 Impact: Informational
 Confidence: Medium
- - [ ] ID-40
+ - [ ] ID-41
 Variable [Rollup.AVAILABILITY_ORACLE](src/core/Rollup.sol#L30) is too similar to [Rollup.constructor(IRegistry,IAvailabilityOracle)._availabilityOracle](src/core/Rollup.sol#L39)
 
 src/core/Rollup.sol#L30
@@ -350,13 +358,13 @@ src/core/Rollup.sol#L30
 ## unused-state
 Impact: Informational
 Confidence: High
- - [ ] ID-41
+ - [ ] ID-42
 [Decoder.END_TREES_BLOCK_HEADER_OFFSET](src/core/libraries/decoders/Decoder.sol#L103-L104) is never used in [Decoder](src/core/libraries/decoders/Decoder.sol#L72-L418)
 
 src/core/libraries/decoders/Decoder.sol#L103-L104
 
 
- - [ ] ID-42
+ - [ ] ID-43
 [Decoder.BLOCK_HEADER_OFFSET](src/core/libraries/decoders/Decoder.sol#L107-L108) is never used in [Decoder](src/core/libraries/decoders/Decoder.sol#L72-L418)
 
 src/core/libraries/decoders/Decoder.sol#L107-L108
@@ -365,9 +373,24 @@ src/core/libraries/decoders/Decoder.sol#L107-L108
 ## constable-states
 Impact: Optimization
 Confidence: High
- - [ ] ID-43
+ - [ ] ID-44
 [Rollup.lastWarpedBlockTs](src/core/Rollup.sol#L37) should be constant 
 
 src/core/Rollup.sol#L37
+
+
+## pess-multiple-storage-read
+Impact: Optimization
+Confidence: High
+ - [ ] ID-45
+In a function [FrontierMerkle.root()](src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72) variable [FrontierMerkle.DEPTH](src/core/messagebridge/frontier_tree/Frontier.sol#L8) is read multiple times
+
+src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72
+
+
+ - [ ] ID-46
+In a function [FrontierMerkle.root()](src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72) variable [FrontierMerkle.frontier](src/core/messagebridge/frontier_tree/Frontier.sol#L13) is read multiple times
+
+src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72
 
 
