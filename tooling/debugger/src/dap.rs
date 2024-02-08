@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
-use acvm::brillig_vm::Registers;
 use acvm::BlackBoxFunctionSolver;
 use codespan_reporting::files::{Files, SimpleFile};
 
@@ -45,7 +44,6 @@ pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
 enum ScopeReferences {
     Locals = 1,
     WitnessMap = 2,
-    BrilligRegisters = 3,
     InvalidScope = 0,
 }
 
@@ -54,7 +52,6 @@ impl From<i64> for ScopeReferences {
         match value {
             1 => Self::Locals,
             2 => Self::WitnessMap,
-            3 => Self::BrilligRegisters,
             _ => Self::InvalidScope,
         }
     }
@@ -595,11 +592,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     variables_reference: ScopeReferences::WitnessMap as i64,
                     ..Scope::default()
                 },
-                Scope {
-                    name: String::from("Brillig Registers"),
-                    variables_reference: ScopeReferences::BrilligRegisters as i64,
-                    ..Scope::default()
-                },
             ],
         })))?;
         Ok(())
@@ -633,21 +625,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             .collect()
     }
 
-    fn build_brillig_registers(&self) -> Vec<Variable> {
-        self.context
-            .get_brillig_registers()
-            .unwrap_or(&Registers { inner: vec![] })
-            .inner
-            .iter()
-            .enumerate()
-            .map(|(index, value)| Variable {
-                name: format!("R{index}"),
-                value: format!("{value:?}"),
-                ..Variable::default()
-            })
-            .collect()
-    }
-
     fn handle_variables(&mut self, req: Request) -> Result<(), ServerError> {
         let Command::Variables(ref args) = req.command else {
             unreachable!("handle_variables called on a different request");
@@ -656,7 +633,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         let variables: Vec<_> = match scope {
             ScopeReferences::Locals => self.build_local_variables(),
             ScopeReferences::WitnessMap => self.build_witness_map(),
-            ScopeReferences::BrilligRegisters => self.build_brillig_registers(),
             _ => {
                 eprintln!(
                     "handle_variables with an unknown variables_reference {}",
