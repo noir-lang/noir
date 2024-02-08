@@ -25,7 +25,7 @@ import {
   computeVarArgsHash,
   siloCommitment,
 } from '@aztec/circuits.js/abis';
-import { makeContractDeploymentData } from '@aztec/circuits.js/factories';
+import { makeContractDeploymentData, makeHeader } from '@aztec/circuits.js/factories';
 import {
   FunctionArtifact,
   FunctionSelector,
@@ -1164,6 +1164,33 @@ describe('Private Execution test suite', () => {
       await expect(
         runSimulator({ artifact, msgSender: owner, args, txContext: { chainId, version: unexpectedVersion } }),
       ).rejects.toThrowError('Invalid version');
+    });
+  });
+
+  describe('Historical header in private context', () => {
+    let artifact: FunctionArtifact;
+
+    beforeAll(() => {
+      artifact = getFunctionArtifact(TestContractArtifact, 'assert_header_private');
+      oracle.getFunctionArtifact.mockImplementation(() => Promise.resolve(artifact));
+
+      header = makeHeader();
+
+      oracle.getHeader.mockClear();
+      oracle.getHeader.mockResolvedValue(header);
+    });
+
+    it('Header is correctly set', () => {
+      const args = [header.hash()];
+
+      expect(() => runSimulator({ artifact, msgSender: owner, args })).not.toThrow();
+    });
+
+    it('Throws when header is not as expected', async () => {
+      const unexpectedHeaderHash = Fr.random();
+      const args = [unexpectedHeaderHash];
+
+      await expect(runSimulator({ artifact, msgSender: owner, args })).rejects.toThrowError('Invalid header hash');
     });
   });
 });

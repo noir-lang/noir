@@ -7,6 +7,7 @@ import {
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
 } from '@aztec/circuits.js';
+import { makeHeader } from '@aztec/circuits.js/factories';
 import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
@@ -42,7 +43,9 @@ describe('ACIR public execution simulator', () => {
     publicContracts = mock<PublicContractsDB>();
     commitmentsDb = mock<CommitmentsDB>();
 
-    header = Header.empty();
+    const randomInt = Math.floor(Math.random() * 1000000);
+    header = makeHeader(randomInt);
+
     executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
   }, 10000);
 
@@ -716,6 +719,52 @@ describe('ACIR public execution simulator', () => {
           );
         });
       });
+    });
+  });
+
+  describe('Historical header in public context', () => {
+    let contractAddress: AztecAddress;
+    let callContext: CallContext;
+    let assertHeaderPublicArtifact: FunctionArtifact;
+    let functionData: FunctionData;
+
+    beforeAll(() => {
+      contractAddress = AztecAddress.random();
+      callContext = CallContext.from({
+        msgSender: AztecAddress.random(),
+        storageContractAddress: AztecAddress.random(),
+        portalContractAddress: EthAddress.ZERO,
+        functionSelector: FunctionSelector.empty(),
+        isContractDeployment: false,
+        isDelegateCall: false,
+        isStaticCall: false,
+        startSideEffectCounter: 0,
+      });
+      assertHeaderPublicArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_header_public')!;
+      functionData = FunctionData.fromAbi(assertHeaderPublicArtifact);
+    });
+
+    beforeEach(() => {
+      publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertHeaderPublicArtifact.bytecode, 'base64'));
+    });
+
+    it('Header is correctly set', () => {
+      const args = encodeArguments(assertHeaderPublicArtifact, [header.hash()]);
+
+      const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+      executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
+
+      expect(() => executor.simulate(execution, GlobalVariables.empty())).not.toThrow();
+    });
+
+    it('Throws when header is not as expected', async () => {
+      const unexpectedHeaderHash = Fr.random();
+      const args = encodeArguments(assertHeaderPublicArtifact, [unexpectedHeaderHash]);
+
+      const execution: PublicExecution = { contractAddress, functionData, args, callContext };
+      executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
+
+      await expect(executor.simulate(execution, GlobalVariables.empty())).rejects.toThrowError('Invalid header hash');
     });
   });
 });

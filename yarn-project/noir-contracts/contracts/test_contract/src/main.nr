@@ -13,11 +13,6 @@ contract Test {
         },
         hash::hash_args,
     };
-    // The following import is here in order to make the event macro work because the macro doesn't add the import.
-    // It doesn't add the import because in the future we will re-export all the types via aztec-nr and aztec-nr is
-    // already auto-imported by the macros.
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3590): Remove this once the issue is fixed.
-    use dep::aztec::protocol_types;
     // docs:start:unencrypted_import
     use dep::aztec::log::emit_unencrypted_log;
     // docs:end:unencrypted_import
@@ -322,6 +317,16 @@ contract Test {
         assert(context.timestamp() == timestamp, "Invalid timestamp");
         assert(context.coinbase() == coinbase, "Invalid coinbase");
         assert(context.fee_recipient() == fee_recipient, "Invalid fee recipient");
+    }
+
+    #[aztec(private)]
+    fn assert_header_private(header_hash: Field) {
+        assert(context.historical_header.hash() == header_hash, "Invalid header hash");
+    }
+
+    #[aztec(public)]
+    fn assert_header_public(header_hash: Field) {
+        assert(context.historical_header.hash() == header_hash, "Invalid header hash");
     }
 
     unconstrained fn get_constant() -> pub Field {
