@@ -1174,4 +1174,14 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         "#;
         assert_eq!(get_program_errors(src).len(), 1);
     }
+
+    #[test]
+    fn deny_cyclic_globals() {
+        let src = r#"
+            global A = B;
+            global B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
 }
