@@ -336,11 +336,18 @@ impl FunctionBuilder {
         rhs: ValueId,
         bit_size: u32,
     ) -> ValueId {
+        let lhs_typ = self.type_of_value(lhs);
         let base = self.field_constant(FieldElement::from(2_u128));
         // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
         let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
         let pow = self.pow(base, rhs_unsigned);
-        self.insert_binary(lhs, BinaryOp::Div, pow)
+        // We need at least one more bit for the case where rhs == bit_size
+        let div_type = Type::unsigned(bit_size + 1);
+        let casted_lhs = self.insert_cast(lhs, div_type.clone());
+        let casted_pow = self.insert_cast(pow, div_type);
+        let div_result = self.insert_binary(casted_lhs, BinaryOp::Div, casted_pow);
+        // We have to cast back to the original type
+        self.insert_cast(div_result, lhs_typ)
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs

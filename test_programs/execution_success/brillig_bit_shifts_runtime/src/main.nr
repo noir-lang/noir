@@ -1,4 +1,4 @@
-fn main(x: u64, y: u64) {
+unconstrained fn main(x: u64, y: u64) {
     // runtime shifts on compile-time known values
     assert(64 << y == 128);
     assert(64 >> y == 32);
