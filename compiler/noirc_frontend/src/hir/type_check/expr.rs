@@ -169,6 +169,7 @@ impl<'interner> TypeChecker<'interner> {
                     (typ, *arg, self.interner.expr_span(arg))
                 });
 
+                // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
                 for (typ, _, _) in args.iter() {
                     if is_current_func_constrained
                         && is_unconstrained_call
@@ -182,7 +183,20 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let span = self.interner.expr_span(expr_id);
-                self.bind_function_type(function, args, span)
+                let return_type = self.bind_function_type(function, args, span);
+
+                // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
+                if is_current_func_constrained
+                    && is_unconstrained_call
+                    && return_type.contains_slice()
+                {
+                    self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
+                        span: self.interner.expr_span(expr_id),
+                    });
+                    return Type::Error;
+                }
+
+                return_type
             }
             HirExpression::MethodCall(mut method_call) => {
                 let mut object_type = self.check_expression(&method_call.object).follow_bindings();
