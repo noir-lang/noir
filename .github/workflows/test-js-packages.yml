@@ -390,7 +390,7 @@ jobs:
 
   test-integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-large
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
