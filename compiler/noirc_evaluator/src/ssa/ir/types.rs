@@ -60,6 +60,11 @@ pub(crate) enum Type {
 }
 
 impl Type {
+    /// Returns whether the `Type` represents an native field type.
+    pub(crate) fn is_native_field(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::NativeField))
+    }
+
     /// Returns whether the `Type` represents an unsigned numeric type.
     pub(crate) fn is_unsigned(&self) -> bool {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))

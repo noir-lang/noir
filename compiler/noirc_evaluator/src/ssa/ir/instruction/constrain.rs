@@ -120,6 +120,113 @@ pub(super) fn decompose_constrain(
                 }
             }
 
+            (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
+            | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
+                if typ.is_native_field() | typ.is_unsigned() =>
+            {
+                match dfg[*instruction] {
+                    Instruction::Binary(Binary { lhs: binary_lhs, rhs: binary_rhs, operator })
+                        if dfg.is_constant(binary_lhs) || dfg.is_constant(binary_rhs) =>
+                    {
+                        // Replace an assertion on the output of a binary instruction
+                        //
+                        // v2 = add v0, Field 1
+                        // constrain v2 == Field 3
+                        //
+                        // with an assertion in terms of the non-constant input to the binary instruction
+                        //
+                        // v2 = add v0, Field 1
+                        // constrain v0 == Field 2
+                        //
+                        // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+
+                        fn calculate_binary_input(
+                            operator: BinaryOp,
+                            result: FieldElement,
+                            known_input: FieldElement,
+                            typ: &Type,
+                            lhs_is_known: bool,
+                        ) -> Option<FieldElement> {
+                            match operator {
+                                BinaryOp::Add => Some(result - known_input),
+                                BinaryOp::Sub => {
+                                    if lhs_is_known {
+                                        Some(known_input - result)
+                                    } else {
+                                        Some(result + known_input)
+                                    }
+                                }
+                                BinaryOp::Mul => {
+                                    if typ.is_native_field() {
+                                        Some(result / known_input)
+                                    } else {
+                                        // TODO: simplify integer division
+                                        if result == known_input {
+                                            Some(FieldElement::one())
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                }
+                                BinaryOp::Div => {
+                                    if typ.is_native_field() {
+                                        if lhs_is_known {
+                                            // k / x == r => x == k / r
+                                            Some(known_input / result)
+                                        } else {
+                                            // x / k == r => x == k * r
+                                            Some(known_input * result)
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                }
+
+                                BinaryOp::Xor => Some(result.xor(&known_input, typ.bit_size())),
+
+                                BinaryOp::Eq => {
+                                    unreachable!("This should be handled by the boolean solver")
+                                }
+                                BinaryOp::Mod | BinaryOp::Lt | BinaryOp::And | BinaryOp::Or => None, // These operations lose information so can't be reversed.
+                            }
+                        }
+
+                        let (variable, value) = match (
+                            dfg.get_numeric_constant(binary_lhs),
+                            dfg.get_numeric_constant(binary_rhs),
+                        ) {
+                            (Some(known_input), _) => (
+                                binary_rhs,
+                                calculate_binary_input(operator, *constant, known_input, typ, true),
+                            ),
+                            (_, Some(known_input)) => (
+                                binary_lhs,
+                                calculate_binary_input(
+                                    operator,
+                                    *constant,
+                                    known_input,
+                                    typ,
+                                    false,
+                                ),
+                            ),
+                            _ => {
+                                unreachable!("Checked that one of the addition inputs is constant")
+                            }
+                        };
+
+                        if let Some(value) = value {
+                            let value = dfg.make_constant(value, typ.clone());
+                            vec![Instruction::Constrain(variable, value, msg.clone())]
+                        } else {
+                            vec![Instruction::Constrain(lhs, rhs, msg.clone())]
+                        }
+                    }
+
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                }
+            }
+
             _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
         }
     }
