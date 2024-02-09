@@ -501,6 +501,17 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Mov { destination, source });
     }
 
+    /// Cast truncates the value to the given bit size and converts the type of the value in memory to that bit size.
+    pub(crate) fn cast_instruction(
+        &mut self,
+        destination: MemoryAddress,
+        source: MemoryAddress,
+        bit_size: u32,
+    ) {
+        self.debug_show.cast_instruction(destination, source, bit_size);
+        self.push_opcode(BrilligOpcode::Cast { destination, source, bit_size });
+    }
+
     /// Processes a binary instruction according `operation`.
     ///
     /// This method will compute lhs <operation> rhs

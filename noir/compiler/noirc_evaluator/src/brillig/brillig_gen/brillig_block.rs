@@ -24,7 +24,7 @@ use num_bigint::BigUint;
 
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
-use super::brillig_fn::FunctionContext;
+use super::brillig_fn::{get_bit_size_from_ssa_type, FunctionContext};
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligBlock<'block> {
@@ -85,16 +85,6 @@ impl<'block> BrilligBlock<'block> {
             block.terminator().expect("block is expected to be constructed");
 
         self.convert_ssa_terminator(terminator_instruction, dfg);
-    }
-
-    fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
-        match typ {
-            Type::Numeric(num_type) => match num_type {
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => *bit_size,
-                NumericType::NativeField => FieldElement::max_num_bits(),
-            },
-            _ => unreachable!("ICE bitwise not on a non numeric type"),
-        }
     }
 
     /// Creates a unique global label for a block.
@@ -324,7 +314,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg.instruction_results(instruction_id)[0],
                     dfg,
                 );
-                let bit_size = Self::get_bit_size_from_ssa_type(&dfg.type_of_value(*value));
+                let bit_size = get_bit_size_from_ssa_type(&dfg.type_of_value(*value));
                 self.brillig_context.not_instruction(condition_register, bit_size, result_register);
             }
             Instruction::Call { func, arguments } => match &dfg[*func] {
@@ -547,7 +537,7 @@ impl<'block> BrilligBlock<'block> {
                     *bit_size,
                 );
             }
-            Instruction::Cast(value, _) => {
+            Instruction::Cast(value, typ) => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_register = self.variables.define_register_variable(
                     self.function_context,
@@ -556,7 +546,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let source_register = self.convert_ssa_register_value(*value, dfg);
-                self.convert_cast(destination_register, source_register);
+                self.convert_cast(destination_register, source_register, typ);
             }
             Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -1136,11 +1126,11 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
     /// Casting is only necessary when shrinking the bit size of a numeric value.
-    fn convert_cast(&mut self, destination: MemoryAddress, source: MemoryAddress) {
+    fn convert_cast(&mut self, destination: MemoryAddress, source: MemoryAddress, typ: &Type) {
         // We assume that `source` is a valid `target_type` as it's expected that a truncate instruction was emitted
         // to ensure this is the case.
 
-        self.brillig_context.mov_instruction(destination, source);
+        self.brillig_context.cast_instruction(destination, source, get_bit_size_from_ssa_type(typ));
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
@@ -1186,7 +1176,7 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.const_instruction(
                         register_index,
                         (*constant).into(),
-                        Self::get_bit_size_from_ssa_type(typ),
+                        get_bit_size_from_ssa_type(typ),
                     );
                     new_variable
                 }

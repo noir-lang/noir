@@ -488,6 +488,16 @@ struct BrilligOpcode {
         static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
     };
 
+    struct Cast {
+        Circuit::MemoryAddress destination;
+        Circuit::MemoryAddress source;
+        uint32_t bit_size;
+
+        friend bool operator==(const Cast&, const Cast&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Cast bincodeDeserialize(std::vector<uint8_t>);
+    };
+
     struct JumpIfNot {
         Circuit::MemoryAddress condition;
         uint64_t location;
@@ -612,6 +622,7 @@ struct BrilligOpcode {
 
     std::variant<BinaryFieldOp,
                  BinaryIntOp,
+                 Cast,
                  JumpIfNot,
                  JumpIf,
                  Jump,
@@ -5187,6 +5198,63 @@ Circuit::BrilligOpcode::BinaryIntOp serde::Deserializable<Circuit::BrilligOpcode
     obj.bit_size = serde::Deserializable<decltype(obj.bit_size)>::deserialize(deserializer);
     obj.lhs = serde::Deserializable<decltype(obj.lhs)>::deserialize(deserializer);
     obj.rhs = serde::Deserializable<decltype(obj.rhs)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Circuit {
+
+inline bool operator==(const BrilligOpcode::Cast& lhs, const BrilligOpcode::Cast& rhs)
+{
+    if (!(lhs.destination == rhs.destination)) {
+        return false;
+    }
+    if (!(lhs.source == rhs.source)) {
+        return false;
+    }
+    if (!(lhs.bit_size == rhs.bit_size)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> BrilligOpcode::Cast::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<BrilligOpcode::Cast>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline BrilligOpcode::Cast BrilligOpcode::Cast::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<BrilligOpcode::Cast>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Circuit
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Circuit::BrilligOpcode::Cast>::serialize(const Circuit::BrilligOpcode::Cast& obj,
+                                                                  Serializer& serializer)
+{
+    serde::Serializable<decltype(obj.destination)>::serialize(obj.destination, serializer);
+    serde::Serializable<decltype(obj.source)>::serialize(obj.source, serializer);
+    serde::Serializable<decltype(obj.bit_size)>::serialize(obj.bit_size, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Circuit::BrilligOpcode::Cast serde::Deserializable<Circuit::BrilligOpcode::Cast>::deserialize(
+    Deserializer& deserializer)
+{
+    Circuit::BrilligOpcode::Cast obj;
+    obj.destination = serde::Deserializable<decltype(obj.destination)>::deserialize(deserializer);
+    obj.source = serde::Deserializable<decltype(obj.source)>::deserialize(deserializer);
+    obj.bit_size = serde::Deserializable<decltype(obj.bit_size)>::deserialize(deserializer);
     return obj;
 }
 
