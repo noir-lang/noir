@@ -47,9 +47,6 @@ jobs:
           name: nextest-archive
           path: nextest-archive.tar.zst
 
-      - name: Run tests
-        run: cargo nextest run --workspace --locked --release
-
   test:
     name: Run tests
     runs-on: ubuntu-latest
