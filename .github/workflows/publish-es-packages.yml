@@ -104,7 +104,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: acvm-js
-          path: ./tooling/noirc_abi_wasm/outputs/out/acvm_js
+          path: ./acvm-repo/acvm_js/outputs/out/acvm_js
           retention-days: 3
           
   publish-es-packages:
