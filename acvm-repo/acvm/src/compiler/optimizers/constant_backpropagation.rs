@@ -29,7 +29,7 @@ pub(crate) struct ConstantBackpropagationOptimizer {
 }
 
 impl ConstantBackpropagationOptimizer {
-    /// Creates a new `ConstantBackpropOptimizer`
+    /// Creates a new `ConstantBackpropagationOptimizer`
     pub(crate) fn new(circuit: Circuit) -> Self {
         Self { circuit }
     }
