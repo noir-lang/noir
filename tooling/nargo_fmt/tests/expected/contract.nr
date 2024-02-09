@@ -23,8 +23,16 @@ contract Benchmarking {
     impl Storage {
         fn init(context: Context) -> pub Self {
             Storage {
-                notes: Map::new(context, 1, |context, slot| { Set::new(context, slot, ValueNoteMethods) }),
-                balances: Map::new(context, 2, |context, slot| { PublicState::new(context, slot, FieldSerializationMethods) }),
+                notes: Map::new(
+                    context,
+                    1,
+                    |context, slot| { Set::new(context, slot, ValueNoteMethods) }
+                ),
+                balances: Map::new(
+                    context,
+                    2,
+                    |context, slot| { PublicState::new(context, slot, FieldSerializationMethods) }
+                )
             }
         }
     }

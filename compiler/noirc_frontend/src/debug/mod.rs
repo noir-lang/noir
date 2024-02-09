@@ -181,7 +181,11 @@ impl DebugInstrumenter {
             .iter()
             .map(|(id, is_mut)| {
                 if *is_mut {
-                    ast::Pattern::Mutable(Box::new(ast::Pattern::Identifier(id.clone())), id.span())
+                    ast::Pattern::Mutable(
+                        Box::new(ast::Pattern::Identifier(id.clone())),
+                        id.span(),
+                        true,
+                    )
                 } else {
                     ast::Pattern::Identifier(id.clone())
                 }
@@ -562,7 +566,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Identifier(id) => {
                 vars.push((id.clone(), is_mut));
             }
-            ast::Pattern::Mutable(pattern, _) => {
+            ast::Pattern::Mutable(pattern, _, _) => {
                 stack.push_back((pattern, true));
             }
             ast::Pattern::Tuple(patterns, _) => {
