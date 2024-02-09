@@ -1,7 +1,10 @@
+// The low and high decomposition of the field modulus
 global PLO: Field = 53438638232309528389504892708671455233;
 global PHI: Field = 64323764613183177041862057485226039389;
+
 global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
+/// A hint for decomposing a single field into two 16 byte fields.
 unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
     let x_bytes = x.to_le_bytes(32);
 
@@ -18,14 +21,20 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
     (low, high)
 }
 
+/// Decompose a single field into two 16 byte fields.
 pub fn decompose(x: Field) -> (Field, Field) {
+    // Take hints of the decomposition
     let (xlo, xhi) = decompose_unsafe(x);
     let borrow = lt_unsafe(PLO, xlo, 16);
 
+    // Range check the limbs
     xlo.assert_max_bit_size(128);
     xhi.assert_max_bit_size(128);
 
+    // Check that the decomposition is correct
     assert_eq(x, xlo + TWO_POW_128 * xhi);
+
+    // Check that (xlo < plo && xhi <= phi) || (xlo >= plo && xhi < phi)
     let rlo = PLO - xlo + (borrow as Field) * TWO_POW_128;
     let rhi = PHI - xhi - (borrow as Field);
 
@@ -59,11 +68,13 @@ unconstrained fn lte_unsafe(x: Field, y: Field, num_bytes: u32) -> bool {
 }
 
 pub fn assert_gt(a: Field, b: Field) {
+    // Decompose a and b
     let (alo, ahi) = decompose(a);
     let (blo, bhi) = decompose(b);
 
     let borrow = lte_unsafe(alo, blo, 16);
 
+    // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
     let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
     let rhi = ahi - bhi - (borrow as Field);
 
