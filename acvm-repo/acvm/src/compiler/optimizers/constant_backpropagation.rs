@@ -207,25 +207,20 @@ impl ConstantBackpropOptimizer {
                     }
                 }
 
-                Opcode::Directive(directive) => {
-                    let directive = match directive {
-                        Directive::ToLeRadix { a, b, radix } => Directive::ToLeRadix {
-                            a: remap_expression(&known_witnesses, a),
-                            b,
-                            radix,
-                        },
-                    };
-
-                    if directive
-                        .get_outputs_vec()
-                        .iter()
-                        .all(|output| known_witnesses.contains_key(output))
-                    {
+                Opcode::Directive(Directive::ToLeRadix { a, b, radix }) => {
+                    if b.iter().all(|output| known_witnesses.contains_key(output)) {
                         continue;
                     } else {
-                        match solve_directives(&mut known_witnesses, &directive) {
+                        let directive = Directive::ToLeRadix { a, b, radix };
+                        let result = solve_directives(&mut known_witnesses, &directive);
+                        let Directive::ToLeRadix { a, b, radix } = directive;
+                        match result {
                             Ok(()) => continue,
-                            Err(_) => Opcode::Directive(directive),
+                            Err(_) => Opcode::Directive(Directive::ToLeRadix {
+                                a: remap_expression(&known_witnesses, a),
+                                b,
+                                radix,
+                            }),
                         }
                     }
                 }
