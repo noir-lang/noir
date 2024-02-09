@@ -18,6 +18,9 @@ jobs:
   build-noirc_abi_wasm:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.71.1
 
