@@ -41,5 +41,10 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      - name: Install nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest@0.9.67
+
       - name: Run tests
-        run: cargo test --workspace --locked --release
+        run: cargo nextest run --workspace --locked --release
