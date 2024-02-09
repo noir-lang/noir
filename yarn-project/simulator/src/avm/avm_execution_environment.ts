@@ -1,4 +1,4 @@
-import { GlobalVariables } from '@aztec/circuits.js';
+import { FunctionSelector, GlobalVariables } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -35,6 +35,8 @@ export class AvmExecutionEnvironment {
     public readonly isDelegateCall: boolean,
 
     public readonly calldata: Fr[],
+
+    public readonly temporaryFunctionSelector: FunctionSelector,
   ) {}
 
   public deriveEnvironmentForNestedCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
@@ -52,6 +54,7 @@ export class AvmExecutionEnvironment {
       this.isStaticCall,
       this.isDelegateCall,
       /*calldata=*/ calldata,
+      this.temporaryFunctionSelector,
     );
   }
 
@@ -70,6 +73,7 @@ export class AvmExecutionEnvironment {
       /*isStaticCall=*/ true,
       this.isDelegateCall,
       /*calldata=*/ calldata,
+      this.temporaryFunctionSelector,
     );
   }
 
@@ -88,6 +92,7 @@ export class AvmExecutionEnvironment {
       this.isStaticCall,
       /*isDelegateCall=*/ true,
       /*calldata=*/ calldata,
+      this.temporaryFunctionSelector,
     );
   }
 }

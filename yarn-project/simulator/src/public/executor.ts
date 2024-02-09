@@ -2,6 +2,15 @@ import { GlobalVariables, Header, PublicCircuitPublicInputs } from '@aztec/circu
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { Oracle, acvm, extractCallStack, extractReturnWitness } from '../acvm/index.js';
+import { AvmContext } from '../avm/avm_context.js';
+import { AvmMachineState } from '../avm/avm_machine_state.js';
+import { AvmSimulator } from '../avm/avm_simulator.js';
+import { HostStorage } from '../avm/journal/host_storage.js';
+import { AvmWorldStateJournal } from '../avm/journal/index.js';
+import {
+  temporaryConvertAvmResults,
+  temporaryCreateAvmExecutionEnvironment,
+} from '../avm/temporary_executor_migration.js';
 import { ExecutionError, createSimulationError } from '../common/errors.js';
 import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
@@ -120,5 +129,30 @@ export class PublicExecutor {
     } catch (err) {
       throw createSimulationError(err instanceof Error ? err : new Error('Unknown error during public execution'));
     }
+  }
+
+  /**
+   * Executes a public execution request in the avm.
+   * @param execution - The execution to run.
+   * @param globalVariables - The global variables to use.
+   * @returns The result of the run plus all nested runs.
+   */
+  public async simulateAvm(
+    execution: PublicExecution,
+    globalVariables: GlobalVariables,
+  ): Promise<PublicExecutionResult> {
+    // Temporary code to construct the AVM context
+    // These data structures will permiate across the simulator when the public executor is phased out
+    const hostStorage = new HostStorage(this.stateDb, this.contractsDb, this.commitmentsDb);
+    const worldStateJournal = new AvmWorldStateJournal(hostStorage);
+    const executionEnv = temporaryCreateAvmExecutionEnvironment(execution, globalVariables);
+    const machineState = new AvmMachineState(0, 0, 0);
+
+    const context = new AvmContext(worldStateJournal, executionEnv, machineState);
+    const simulator = new AvmSimulator(context);
+
+    const result = await simulator.execute();
+    const newWorldState = context.worldState.flush();
+    return temporaryConvertAvmResults(execution, newWorldState, result);
   }
 }

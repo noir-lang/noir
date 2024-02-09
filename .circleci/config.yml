@@ -830,6 +830,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_card_game.test.ts
 
+  e2e-avm-simulator:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: AVM_ENABLED=1 cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_avm_simulator.test.ts
+
   pxe:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1275,6 +1286,7 @@ workflows:
       - e2e-persistence: *e2e_test
       - e2e-browser: *e2e_test
       - e2e-card-game: *e2e_test
+      - e2e-avm-simulator: *e2e_test
       - pxe: *e2e_test
       - cli-docs-sandbox: *e2e_test
       - guides-writing-an-account-contract: *e2e_test
@@ -1313,6 +1325,7 @@ workflows:
             - e2e-persistence
             - e2e-browser
             - e2e-card-game
+            - e2e-avm-simulator
             - pxe
             - boxes-blank
             - boxes-blank-react

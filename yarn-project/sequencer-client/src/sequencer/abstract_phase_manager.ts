@@ -47,6 +47,8 @@ import {
 } from '@aztec/simulator';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
+import { env } from 'process';
+
 import { getVerificationKeys } from '../mocks/verification_keys.js';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
@@ -157,7 +159,15 @@ export abstract class AbstractPhaseManager {
       while (executionStack.length) {
         const current = executionStack.pop()!;
         const isExecutionRequest = !isPublicExecutionResult(current);
-        const result = isExecutionRequest ? await this.publicExecutor.simulate(current, this.globalVariables) : current;
+
+        // NOTE: temporary glue to incorporate avm execution calls
+        const simulator = (execution: PublicExecution, globalVariables: GlobalVariables) =>
+          env.AVM_ENABLED
+            ? this.publicExecutor.simulateAvm(execution, globalVariables)
+            : this.publicExecutor.simulate(execution, globalVariables);
+
+        const result = isExecutionRequest ? await simulator(current, this.globalVariables) : current;
+
         newUnencryptedFunctionLogs.push(result.unencryptedLogs);
         const functionSelector = result.execution.functionData.selector.toString();
         this.log(

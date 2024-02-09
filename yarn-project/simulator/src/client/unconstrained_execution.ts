@@ -7,7 +7,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { extractReturnWitness } from '../acvm/deserialize.js';
 import { Oracle, acvm, extractCallStack, toACVMWitness } from '../acvm/index.js';
 import { ExecutionError } from '../common/errors.js';
-import { AcirSimulator } from '../index.js';
+import { AcirSimulator } from './simulator.js';
 import { ViewDataOracle } from './view_data_oracle.js';
 
 // docs:start:execute_unconstrained_function

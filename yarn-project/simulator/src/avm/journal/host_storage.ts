@@ -1,4 +1,4 @@
-import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js';
+import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../public/db.js';
 
 /**
  * Host storage

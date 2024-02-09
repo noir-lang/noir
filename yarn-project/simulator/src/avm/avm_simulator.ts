@@ -1,4 +1,3 @@
-import { FunctionSelector } from '@aztec/circuits.js';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { strict as assert } from 'assert';
@@ -72,7 +71,8 @@ export class AvmSimulator {
    */
   private async fetchAndDecodeBytecode(): Promise<Instruction[]> {
     // NOTE: the following is mocked as getPublicBytecode does not exist yet
-    const selector = new FunctionSelector(0);
+
+    const selector = this.context.environment.temporaryFunctionSelector;
     const bytecode = await this.context.worldState.hostStorage.contractsDb.getBytecode(
       this.context.environment.address,
       selector,
