@@ -37,8 +37,8 @@ impl Value {
     /// Panics: If `Value` cannot fit into a u64 or `Value` does
     //// not fit into a usize.
     pub fn to_usize(&self) -> usize {
-        usize::try_from(self.inner.try_to_u64().expect("register does not fit into u64"))
-            .expect("register does not fit into usize")
+        usize::try_from(self.inner.try_to_u64().expect("value does not fit into u64"))
+            .expect("value does not fit into usize")
     }
 }
 

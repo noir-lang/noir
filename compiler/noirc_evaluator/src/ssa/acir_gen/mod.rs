@@ -679,11 +679,11 @@ impl Context {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         index: ValueId,
-        array: ValueId,
+        array_id: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
-        let value_type = dfg.type_of_value(array);
+        let value_type = dfg.type_of_value(array_id);
         // Compiler sanity checks
         assert!(
             !value_type.is_nested_slice(),
@@ -693,7 +693,7 @@ impl Context {
             unreachable!("ICE: expected array or slice type");
         };
 
-        match self.convert_value(array, dfg) {
+        match self.convert_value(array_id, dfg) {
             AcirValue::Var(acir_var, _) => {
                 return Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
@@ -1482,6 +1482,9 @@ impl Context {
                 rhs,
                 bit_count,
                 self.current_side_effects_enabled_var,
+            ),
+            BinaryOp::Shl | BinaryOp::Shr => unreachable!(
+                "ICE - bit shift operators do not exist in ACIR and should have been replaced"
             ),
         }
     }

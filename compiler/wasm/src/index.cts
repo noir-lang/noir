@@ -5,6 +5,36 @@ import { LogData, LogFn } from './utils';
 import { CompilationResult } from './types/noir_artifact';
 import { inflateDebugSymbols } from './noir/debug';
 
+/**
+ * Compiles a Noir project
+ *
+ * @param fileManager - The file manager to use
+ * @param projectPath - The path to the project inside the file manager. Defaults to the root of the file manager
+ * @param logFn - A logging function. If not provided, console.log will be used
+ * @param debugLogFn - A debug logging function. If not provided, logFn will be used
+ *
+ * @example
+ * ```typescript
+ * // Node.js
+ *
+ * import { compile, createFileManager } from '@noir-lang/noir_wasm';
+ *
+ * const fm = createFileManager(myProjectPath);
+ * const myCompiledCode = await compile(fm);
+ * ```
+ *
+ * ```typescript
+ * // Browser
+ *
+ * import { compile, createFileManager } from '@noir-lang/noir_wasm';
+ *
+ * const fm = createFileManager('/');
+ * for (const path of files) {
+ *   await fm.writeFile(path, await getFileAsStream(path));
+ * }
+ * const myCompiledCode = await compile(fm);
+ * ```
+ */
 async function compile(
   fileManager: FileManager,
   projectPath?: string,

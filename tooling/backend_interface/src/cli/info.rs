@@ -1,4 +1,5 @@
-use acvm::ExpressionWidth;
+use acvm::acir::circuit::ExpressionWidth;
+
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 

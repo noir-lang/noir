@@ -21,10 +21,10 @@ it('end-to-end proof creation and verification (outer)', async () => {
   //
   // Proof creation
   const prover = new Backend(assert_lt_program);
-  const proof = await prover.generateFinalProof(witness);
+  const proof = await prover.generateProof(witness);
 
   // Proof verification
-  const isValid = await prover.verifyFinalProof(proof);
+  const isValid = await prover.verifyProof(proof);
   expect(isValid).to.be.true;
 });
 
@@ -40,13 +40,14 @@ it('end-to-end proof creation and verification (outer) -- Program API', async ()
   // Initialize program
   const program = new Noir(assert_lt_program, backend);
   // Generate proof
-  const proof = await program.generateFinalProof(inputs);
+  const proof = await program.generateProof(inputs);
 
   // Proof verification
-  const isValid = await program.verifyFinalProof(proof);
+  const isValid = await program.verifyProof(proof);
   expect(isValid).to.be.true;
 });
 
+// TODO: maybe switch to using assert_statement_recursive here to test both options
 it('end-to-end proof creation and verification (inner)', async () => {
   // Noir.Js part
   const inputs = {
@@ -62,10 +63,10 @@ it('end-to-end proof creation and verification (inner)', async () => {
   //
   // Proof creation
   const prover = new Backend(assert_lt_program);
-  const proof = await prover.generateIntermediateProof(witness);
+  const proof = await prover.generateProof(witness);
 
   // Proof verification
-  const isValid = await prover.verifyIntermediateProof(proof);
+  const isValid = await prover.verifyProof(proof);
   expect(isValid).to.be.true;
 });
 
@@ -83,10 +84,10 @@ it('end-to-end proving and verification with different instances', async () => {
   // bb.js part
   const prover = new Backend(assert_lt_program);
 
-  const proof = await prover.generateFinalProof(witness);
+  const proof = await prover.generateProof(witness);
 
   const verifier = new Backend(assert_lt_program);
-  const proof_is_valid = await verifier.verifyFinalProof(proof);
+  const proof_is_valid = await verifier.verifyProof(proof);
   expect(proof_is_valid).to.be.true;
 });
 
@@ -115,14 +116,14 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   const prover = new Backend(assert_lt_program);
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
-  const proofOuter = await prover.generateFinalProof(witness);
-  const _proofInner = await prover.generateIntermediateProof(witness);
+  const proofOuter = await prover.generateProof(witness);
+  const _proofInner = await prover.generateProof(witness);
 
   // Proof verification
   //
-  const isValidOuter = await prover.verifyFinalProof(proofOuter);
+  const isValidOuter = await prover.verifyProof(proofOuter);
   expect(isValidOuter).to.be.true;
   // We can also try verifying an inner proof and it will fail.
-  const isValidInner = await prover.verifyIntermediateProof(_proofInner);
+  const isValidInner = await prover.verifyProof(_proofInner);
   expect(isValidInner).to.be.true;
 });

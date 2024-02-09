@@ -1,5 +1,5 @@
+use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::native_types::WitnessMap;
-use acvm::ExpressionWidth;
 use backend_interface::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
@@ -44,7 +44,10 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
         .parse::<usize>()
         .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
 
-    Ok(ExpressionWidth::from(width))
+    match width {
+        0 => Ok(ExpressionWidth::Unbounded),
+        _ => Ok(ExpressionWidth::Bounded { width }),
+    }
 }
 
 struct LoadError(&'static str);
