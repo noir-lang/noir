@@ -82,8 +82,7 @@ impl ConstantBackpropagationOptimizer {
         known_witnesses.into()
     }
 
-    /// Returns a `Circuit` where each Witness is only range constrained
-    /// once to the lowest number `bit size` possible.
+    /// Returns a `Circuit` where with any constant witnesses replaced with the constant they resolve to.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn backpropagate_constants(
         circuit: Circuit,
@@ -102,8 +101,7 @@ impl ConstantBackpropagationOptimizer {
         }
     }
 
-    /// Returns a `Circuit` where each Witness is only range constrained
-    /// once to the lowest number `bit size` possible.
+    /// Applies a single round of constant backpropagation to a `Circuit`.
     pub(crate) fn backpropagate_constants_iteration(
         mut self,
         order_list: Vec<usize>,
