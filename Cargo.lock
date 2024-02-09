@@ -2843,7 +2843,6 @@ dependencies = [
  "rexpect",
  "serde_json",
  "tempfile",
- "test-binary",
  "thiserror",
 ]
 
