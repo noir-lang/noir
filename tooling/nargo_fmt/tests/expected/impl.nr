@@ -7,6 +7,8 @@ impl Type<A, B> {}
 impl Type {
     fn method(self) {}
 
+    fn method(mut self) {}
+
     fn method(&mut self) {}
 }
 
