@@ -157,10 +157,36 @@ fn main() {
 }
 ```
 
+### assert_max_bit_size
+
+Adds a constraint to specify that the field can be represented with `bit_size` number of bits
+
+```rust
+fn assert_max_bit_size(self, bit_size: u32)
+```
+
+example:
+
+```rust
+fn main() {
+    let field = 2
+    field.assert_max_bit_size(32);
+}
+```
+
 ### sgn0
 
 Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ \{0, ..., p-1\} is even, otherwise sgn0(x mod p) = 1.
 
 ```rust
 fn sgn0(self) -> u1
+```
+
+
+### lt
+
+Returns true if the field is less than the other field
+
+```rust
+pub fn lt(self, another: Field) -> bool
 ```
