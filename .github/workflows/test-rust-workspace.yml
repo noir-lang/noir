@@ -76,4 +76,4 @@ jobs:
       - name: Run tests
         run: |
           ~/.cargo/bin/cargo-nextest nextest run --workspace --archive-file nextest-archive.tar.zst \
-            -E "${{ matrix.test-filter }"
+            -E "${{ matrix.test-filter }}"
