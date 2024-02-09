@@ -46,6 +46,34 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+  build-noirc-abi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: noirc-abi
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noirc_abi
+        run: yarn workspace @noir-lang/noirc_abi build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+          retention-days: 10
+
+
   build-noir-wasm:
     needs: [build-noirc-abi]
     runs-on: ubuntu-latest
@@ -114,33 +142,6 @@ jobs:
           name: acvm-js
           path: ./tooling/noirc_abi_wasm/outputs/out/acvm_js
           retention-days: 3
-
-  build-noirc-abi:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.71.1
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: noirc-abi
-          cache-on-failure: true
-          save-if: ${{ github.event_name != 'merge_group' }}
-
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
-      - name: Build noirc_abi
-        run: yarn workspace @noir-lang/noirc_abi build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
-          retention-days: 10
 
   test-acvm_js-node:
     needs: [build-acvm-js]
