@@ -43,7 +43,6 @@ jobs:
           retention-days: 10
 
   build-noir_wasm:
-    needs: [build-noirc_abi_wasm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -59,14 +58,11 @@ jobs:
           key: noir-wasm
           save-if: false
 
-      - name: Download noirc_abi_wasm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
-
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
 
       - name: Build noir_wasm
         run: ./.github/scripts/noir-wasm-build.sh
