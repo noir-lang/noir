@@ -47,7 +47,6 @@ jobs:
           retention-days: 3
 
   build-noir-wasm:
-    needs: [build-noirc-abi]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -64,14 +63,11 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Download noirc_abi_wasm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
-
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
 
       - name: Build noir_wasm
         run: yarn workspace @noir-lang/noir_wasm build
