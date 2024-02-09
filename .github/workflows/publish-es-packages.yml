@@ -34,7 +34,7 @@ jobs:
         run: |
           nix build -L .#noirc_abi_wasm
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
           path: |
@@ -59,7 +59,7 @@ jobs:
           save-if: false
 
       - name: Download noirc_abi_wasm package artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -71,7 +71,7 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: noir_wasm
           path: |
@@ -98,7 +98,7 @@ jobs:
         run: |
           nix build -L .#acvm_js
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acvm_js
           path: |
@@ -114,17 +114,17 @@ jobs:
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: acvm_js
           path: acvm-repo/acvm_js
       
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: noir_wasm
           path: compiler/wasm
       
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
           path: tooling/noirc_abi_wasm

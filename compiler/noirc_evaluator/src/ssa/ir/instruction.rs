@@ -36,7 +36,6 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// of this is println.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
-    Sort,
     ArrayLen,
     AssertConstant,
     SlicePushBack,
@@ -57,7 +56,6 @@ pub(crate) enum Intrinsic {
 impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
@@ -90,8 +88,7 @@ impl Intrinsic {
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
-            Intrinsic::Sort
-            | Intrinsic::ArrayLen
+            Intrinsic::ArrayLen
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
             | Intrinsic::SlicePopBack
@@ -111,7 +108,6 @@ impl Intrinsic {
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
-            "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
@@ -157,7 +153,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<String>),
+    Constrain(ValueId, ValueId, Option<Box<ConstrainError>>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -326,7 +322,17 @@ impl Instruction {
                 max_bit_size: *max_bit_size,
             },
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                Instruction::Constrain(f(*lhs), f(*rhs), assert_message.clone())
+                // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
+                let lhs = f(*lhs);
+                let rhs = f(*rhs);
+                let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
+                    ConstrainError::Dynamic(call_instr) => {
+                        let new_instr = call_instr.map_values(f);
+                        Box::new(ConstrainError::Dynamic(new_instr))
+                    }
+                    _ => error.clone(),
+                });
+                Instruction::Constrain(lhs, rhs, assert_message)
             }
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
@@ -376,9 +382,14 @@ impl Instruction {
             | Instruction::Load { address: value } => {
                 f(*value);
             }
-            Instruction::Constrain(lhs, rhs, _) => {
+            Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
+                if let Some(error) = assert_error.as_ref() {
+                    if let ConstrainError::Dynamic(call_instr) = error.as_ref() {
+                        call_instr.for_each_value(f);
+                    }
+                }
             }
 
             Instruction::Store { address, value } => {
@@ -425,9 +436,10 @@ impl Instruction {
                     // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                     // there is no Not on FieldElement, so we'd need to convert between u128. This
                     // would be incorrect however since the extra bits on the field would not be flipped.
-                    Value::NumericConstant { constant, typ } if *typ == Type::bool() => {
-                        let value = constant.is_zero() as u128;
-                        SimplifiedTo(dfg.make_constant(value.into(), Type::bool()))
+                    Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
+                        // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
+                        let value = !constant.to_u128() % (1 << typ.bit_size());
+                        SimplifiedTo(dfg.make_constant(value.into(), typ.clone()))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
@@ -441,7 +453,7 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(lhs, rhs, msg) => {
-                let constraints = decompose_constrain(*lhs, *rhs, msg.clone(), dfg);
+                let constraints = decompose_constrain(*lhs, *rhs, msg, dfg);
                 if constraints.is_empty() {
                     Remove
                 } else {
@@ -475,6 +487,9 @@ impl Instruction {
                 None
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
+                if bit_size == max_bit_size {
+                    return SimplifiedTo(*value);
+                }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                     let integer_modulus = 2_u128.pow(*bit_size);
                     let truncated = numeric_constant.to_u128() % integer_modulus;
@@ -548,6 +563,28 @@ impl Instruction {
                 None
             }
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub(crate) enum ConstrainError {
+    // These are errors which have been hardcoded during SSA gen
+    Static(String),
+    // These are errors which come from runtime expressions specified by a Noir program
+    // We store an `Instruction` as we want this Instruction to be atomic in SSA with
+    // a constrain instruction, and leave codegen of this instruction to lower level passes.
+    Dynamic(Instruction),
+}
+
+impl From<String> for ConstrainError {
+    fn from(value: String) -> Self {
+        ConstrainError::Static(value)
+    }
+}
+
+impl From<String> for Box<ConstrainError> {
+    fn from(value: String) -> Self {
+        Box::new(value.into())
     }
 }
 

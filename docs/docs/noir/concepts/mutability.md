@@ -1,9 +1,9 @@
 ---
 title: Mutability
 description:
-  Learn about mutable variables, constants, and globals in Noir programming language. Discover how
+  Learn about mutable variables in Noir. Discover how
   to declare, modify, and use them in your programs.
-keywords: [noir programming language, mutability in noir, mutable variables, constants, globals]
+keywords: [noir programming language, mutability in noir, mutable variables]
 sidebar_position: 8
 ---
 
@@ -49,45 +49,73 @@ fn helper(mut x: i32) {
 }
 ```
 
-## Comptime Values
+## Non-local mutability
 
-:::warning
-
-The 'comptime' keyword was removed in version 0.10. The comptime keyword and syntax are currently still kept and parsed for backwards compatibility, but are now deprecated and will issue a warning when used. `comptime` has been removed because it is no longer needed for accessing arrays.
-
-:::
-
-## Globals
-
-Noir also supports global variables. However, they must be known at compile-time. The global type can also be inferred by the compiler entirely. Globals can also be used to specify array
-annotations for function parameters and can be imported from submodules.
+Non-local mutability can be achieved through the mutable reference type `&mut T`:
 
 ```rust
-global N: Field = 5; // Same as `global N: Field = 5`
-
-fn main(x : Field, y : [Field; N]) {
-    let res = x * N;
-
-    assert(res == y[0]);
-
-    let res2 = x * my_submodule::N;
-    assert(res != res2);
+fn set_to_zero(x: &mut Field) {
+    *x = 0;
 }
 
-mod my_submodule {
-    use dep::std;
-
-    global N: Field = 10;
-
-    fn my_helper() -> Field {
-        let x = N;
-        x
-    }
+fn main() {
+    let mut y = 42;
+    set_to_zero(&mut y);
+    assert(*y == 0);
 }
 ```
 
-## Why only local mutability?
+When creating a mutable reference, the original variable being referred to (`y` in this
+example) must also be mutable. Since mutable references are a reference type, they must
+be explicitly dereferenced via `*` to retrieve the underlying value. Note that this yields
+a copy of the value, so mutating this copy will not change the original value behind the
+reference:
 
-Witnesses in a proving system are immutable in nature. Noir aims to _closely_ mirror this setting
-without applying additional overhead to the user. Modeling a mutable reference is not as
-straightforward as on conventional architectures and would incur some possibly unexpected overhead.
+```rust
+fn main() {
+    let mut x = 1;
+    let x_ref = &mut x;
+
+    let mut y = *x_ref;
+    let y_ref = &mut y;
+
+    x = 2;
+    *x_ref = 3;
+
+    y = 4;
+    *y_ref = 5;
+
+    assert(x == 3);
+    assert(*x_ref == 3);
+    assert(y == 5);
+    assert(*y_ref == 5);
+}
+```
+
+Note that types in Noir are actually deeply immutable so the copy that occurs when
+dereferencing is only a conceptual copy - no additional constraints will occur.
+
+Mutable references can also be stored within structs. Note that there is also
+no lifetime parameter on these unlike rust. This is because the allocated memory
+always lasts the entire program - as if it were an array of one element.
+
+```rust
+struct Foo {
+    x: &mut Field
+}
+
+impl Foo {
+    fn incr(mut self) {
+        *self.x += 1;
+    }
+}
+
+fn main() {
+    let foo = Foo { x: &mut 0 };
+    foo.incr();
+    assert(*foo.x == 1);
+}
+```
+
+In general, you should avoid non-local & shared mutability unless it is needed. Sticking
+to only local mutability will improve readability and potentially improve compiler optimizations as well.

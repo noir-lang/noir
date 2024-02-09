@@ -43,12 +43,7 @@ pub struct Parameters(pub Vec<Param>);
 impl Parameters {
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
-        let mut spans = vecmap(&self.0, |param| match &param.0 {
-            HirPattern::Identifier(ident) => ident.location.span,
-            HirPattern::Mutable(_, span) => *span,
-            HirPattern::Tuple(_, span) => *span,
-            HirPattern::Struct(_, _, span) => *span,
-        });
+        let mut spans = vecmap(&self.0, |param| param.0.span());
 
         let merged_span = spans.pop().unwrap();
         for span in spans {

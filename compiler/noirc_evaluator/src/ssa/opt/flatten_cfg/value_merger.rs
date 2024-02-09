@@ -4,35 +4,26 @@ use fxhash::FxHashMap as HashMap;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph},
-    instruction::{BinaryOp, Instruction, Intrinsic},
+    instruction::{BinaryOp, Instruction},
     types::Type,
-    value::{Value, ValueId},
+    value::ValueId,
 };
-
-use crate::ssa::opt::flatten_cfg::Store;
 
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
-    store_values: Option<&'a HashMap<ValueId, Store>>,
-    outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
-    slice_sizes: HashMap<ValueId, usize>,
+    // Maps SSA array values with a slice type to their size.
+    // This must be computed before merging values.
+    slice_sizes: &'a mut HashMap<ValueId, usize>,
 }
 
 impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        store_values: Option<&'a HashMap<ValueId, Store>>,
-        outer_block_stores: Option<&'a HashMap<ValueId, ValueId>>,
+        slice_sizes: &'a mut HashMap<ValueId, usize>,
     ) -> Self {
-        ValueMerger {
-            dfg,
-            block,
-            store_values,
-            outer_block_stores,
-            slice_sizes: HashMap::default(),
-        }
+        ValueMerger { dfg, block, slice_sizes }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -184,11 +175,13 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_len = self.get_slice_length(then_value_id);
-        self.slice_sizes.insert(then_value_id, then_len);
+        let then_len = *self.slice_sizes.get(&then_value_id).unwrap_or_else(|| {
+            panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
+        });
 
-        let else_len = self.get_slice_length(else_value_id);
-        self.slice_sizes.insert(else_value_id, else_len);
+        let else_len = *self.slice_sizes.get(&else_value_id).unwrap_or_else(|| {
+            panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
+        });
 
         let len = then_len.max(else_len);
 
@@ -218,8 +211,10 @@ impl<'a> ValueMerger<'a> {
                     }
                 };
 
-                let then_element = get_element(then_value_id, typevars.clone(), then_len);
-                let else_element = get_element(else_value_id, typevars, else_len);
+                let then_element =
+                    get_element(then_value_id, typevars.clone(), then_len * element_types.len());
+                let else_element =
+                    get_element(else_value_id, typevars, else_len * element_types.len());
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -231,82 +226,6 @@ impl<'a> ValueMerger<'a> {
         }
 
         self.dfg.make_array(merged, typ)
-    }
-
-    fn get_slice_length(&mut self, value_id: ValueId) -> usize {
-        let value = &self.dfg[value_id];
-        match value {
-            Value::Array { array, .. } => array.len(),
-            Value::Instruction { instruction: instruction_id, .. } => {
-                let instruction = &self.dfg[*instruction_id];
-                match instruction {
-                    // TODO(#3188): A slice can be the result of an ArrayGet when it is the
-                    // fetched from a slice of slices or as a struct field.
-                    // However, we need to incorporate nested slice support in flattening
-                    // in order for this to be valid
-                    // Instruction::ArrayGet { array, .. } => {}
-                    Instruction::ArraySet { array, .. } => {
-                        let array = *array;
-                        let len = self.get_slice_length(array);
-                        self.slice_sizes.insert(array, len);
-                        len
-                    }
-                    Instruction::Load { address } => {
-                        let outer_block_stores = self.outer_block_stores.expect("ICE: A map of previous stores is required in order to resolve a slice load");
-                        let store_values = self.store_values.expect("ICE: A map of previous stores is required in order to resolve a slice load");
-                        let store_value = outer_block_stores
-                            .get(address)
-                            .expect("ICE: load in merger should have store from outer block");
-
-                        if let Some(len) = self.slice_sizes.get(store_value) {
-                            return *len;
-                        }
-
-                        let store_value = if let Some(store) = store_values.get(address) {
-                            if let Some(len) = self.slice_sizes.get(&store.new_value) {
-                                return *len;
-                            }
-
-                            store.new_value
-                        } else {
-                            *store_value
-                        };
-
-                        self.get_slice_length(store_value)
-                    }
-                    Instruction::Call { func, arguments } => {
-                        let slice_contents = arguments[1];
-                        let func = &self.dfg[*func];
-                        match func {
-                            Value::Intrinsic(intrinsic) => match intrinsic {
-                                Intrinsic::SlicePushBack
-                                | Intrinsic::SlicePushFront
-                                | Intrinsic::SliceInsert => {
-                                    // `get_slice_length` needs to be called here as it is borrows self as mutable
-                                    let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
-                                    initial_len + 1
-                                }
-                                Intrinsic::SlicePopBack
-                                | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRemove => {
-                                    // `get_slice_length` needs to be called here as it is borrows self as mutable
-                                    let initial_len = self.get_slice_length(slice_contents);
-                                    self.slice_sizes.insert(slice_contents, initial_len);
-                                    initial_len - 1
-                                }
-                                _ => {
-                                    unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
-                                }
-                            },
-                            _ => unreachable!("ICE: Expected intrinsic value but got {func:?}"),
-                        }
-                    }
-                    _ => unreachable!("ICE: Got unexpected instruction: {instruction:?}"),
-                }
-            }
-            _ => unreachable!("ICE: Got unexpected value when resolving slice length {value:?}"),
-        }
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.

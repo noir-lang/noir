@@ -48,6 +48,7 @@ termcolor = "1.1.2"
 color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
 dap.workspace = true
+clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 
 # Backends
 backend-interface = { path = "../backend_interface" }
@@ -83,3 +84,6 @@ harness = false
 [[bench]]
 name = "iai"
 harness = false
+
+[features]
+codegen-docs = ["dep:clap-markdown"]

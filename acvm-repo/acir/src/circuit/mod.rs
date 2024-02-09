@@ -56,6 +56,10 @@ pub struct Circuit {
     // Note: This should be a BTreeMap, but serde-reflect is creating invalid
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
+    //
+    // TODO: These are only used for constraints that are explicitly created during code generation (such as index out of bounds on slices)
+    // TODO: We should move towards having all the checks being evaluated in the same manner
+    // TODO: as runtime assert messages specified by the user. This will also be a breaking change as the `Circuit` structure will change.
     pub assert_messages: Vec<(OpcodeLocation, String)>,
 
     /// States whether the backend should use a SNARK recursion friendly prover.

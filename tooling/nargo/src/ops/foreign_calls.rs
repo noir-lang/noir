@@ -9,13 +9,69 @@ pub trait ForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError>;
+    ) -> Result<NargoForeignCallResult, ForeignCallError>;
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum NargoForeignCallResult {
+    BrilligOutput(ForeignCallResult),
+    ResolvedAssertMessage(String),
+}
+
+impl NargoForeignCallResult {
+    pub fn get_assert_message(self) -> Option<String> {
+        match self {
+            Self::ResolvedAssertMessage(msg) => Some(msg),
+            _ => None,
+        }
+    }
+
+    pub fn get_brillig_output(self) -> Option<ForeignCallResult> {
+        match self {
+            Self::BrilligOutput(foreign_call_result) => Some(foreign_call_result),
+            _ => None,
+        }
+    }
+}
+
+impl From<ForeignCallResult> for NargoForeignCallResult {
+    fn from(value: ForeignCallResult) -> Self {
+        Self::BrilligOutput(value)
+    }
+}
+
+impl From<String> for NargoForeignCallResult {
+    fn from(value: String) -> Self {
+        Self::ResolvedAssertMessage(value)
+    }
+}
+
+impl From<Value> for NargoForeignCallResult {
+    fn from(value: Value) -> Self {
+        let foreign_call_result: ForeignCallResult = value.into();
+        foreign_call_result.into()
+    }
+}
+
+impl From<Vec<Value>> for NargoForeignCallResult {
+    fn from(values: Vec<Value>) -> Self {
+        let foreign_call_result: ForeignCallResult = values.into();
+        foreign_call_result.into()
+    }
+}
+
+impl From<Vec<ForeignCallParam>> for NargoForeignCallResult {
+    fn from(values: Vec<ForeignCallParam>) -> Self {
+        let foreign_call_result: ForeignCallResult = values.into();
+        foreign_call_result.into()
+    }
 }
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
-pub(crate) enum ForeignCall {
+pub enum ForeignCall {
     Print,
+    AssertMessage,
     CreateMock,
     SetMockParams,
     SetMockReturns,
@@ -33,6 +89,7 @@ impl ForeignCall {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             ForeignCall::Print => "print",
+            ForeignCall::AssertMessage => "assert_message",
             ForeignCall::CreateMock => "create_mock",
             ForeignCall::SetMockParams => "set_mock_params",
             ForeignCall::SetMockReturns => "set_mock_returns",
@@ -44,6 +101,7 @@ impl ForeignCall {
     pub(crate) fn lookup(op_name: &str) -> Option<ForeignCall> {
         match op_name {
             "print" => Some(ForeignCall::Print),
+            "assert_message" => Some(ForeignCall::AssertMessage),
             "create_mock" => Some(ForeignCall::CreateMock),
             "set_mock_params" => Some(ForeignCall::SetMockParams),
             "set_mock_returns" => Some(ForeignCall::SetMockReturns),
@@ -134,13 +192,32 @@ impl DefaultForeignCallExecutor {
 
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
         let skip_newline = foreign_call_inputs[0].unwrap_value().is_zero();
-        let display_values: PrintableValueDisplay = foreign_call_inputs
-            .split_first()
-            .ok_or(ForeignCallError::MissingForeignCallInputs)?
-            .1
-            .try_into()?;
-        print!("{display_values}{}", if skip_newline { "" } else { "\n" });
+
+        let foreign_call_inputs =
+            foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?.1;
+        let display_string = Self::format_printable_value(foreign_call_inputs, skip_newline)?;
+
+        print!("{display_string}");
+
         Ok(())
+    }
+
+    fn execute_assert_message(
+        foreign_call_inputs: &[ForeignCallParam],
+    ) -> Result<NargoForeignCallResult, ForeignCallError> {
+        let display_string = Self::format_printable_value(foreign_call_inputs, true)?;
+        Ok(display_string.into())
+    }
+
+    fn format_printable_value(
+        foreign_call_inputs: &[ForeignCallParam],
+        skip_newline: bool,
+    ) -> Result<String, ForeignCallError> {
+        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
+
+        let result = format!("{display_values}{}", if skip_newline { "" } else { "\n" });
+
+        Ok(result)
     }
 }
 
@@ -148,15 +225,16 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo,
-    ) -> Result<ForeignCallResult, ForeignCallError> {
+    ) -> Result<NargoForeignCallResult, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
             Some(ForeignCall::Print) => {
                 if self.show_output {
                     Self::execute_print(&foreign_call.inputs)?;
                 }
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
+            Some(ForeignCall::AssertMessage) => Self::execute_assert_message(&foreign_call.inputs),
             Some(ForeignCall::CreateMock) => {
                 let mock_oracle_name = Self::parse_string(&foreign_call.inputs[0]);
                 assert!(ForeignCall::lookup(&mock_oracle_name).is_none());
@@ -164,7 +242,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 self.mocked_responses.push(MockedCall::new(id, mock_oracle_name));
                 self.last_mock_id += 1;
 
-                Ok(ForeignCallResult { values: vec![Value::from(id).into()] })
+                Ok(Value::from(id).into())
             }
             Some(ForeignCall::SetMockParams) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -172,7 +250,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .params = Some(params.to_vec());
 
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::SetMockReturns) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -180,7 +258,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .result = ForeignCallResult { values: params.to_vec() };
 
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::SetMockTimes) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -194,12 +272,12 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
                     .times_left = Some(times);
 
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::ClearMock) => {
                 let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.mocked_responses.retain(|response| response.id != id);
-                Ok(ForeignCallResult { values: vec![] })
+                Ok(ForeignCallResult::default().into())
             }
             None => {
                 let mock_response_position = self
@@ -222,7 +300,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                             }
                         }
 
-                        Ok(ForeignCallResult { values: result })
+                        Ok(result.into())
                     }
                     (None, Some(external_resolver)) => {
                         let encoded_params: Vec<_> =
@@ -235,7 +313,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                         let parsed_response: ForeignCallResult = response.result()?;
 
-                        Ok(parsed_response)
+                        Ok(parsed_response.into())
                     }
                     (None, None) => panic!("Unknown foreign call {}", foreign_call_name),
                 }
@@ -255,7 +333,6 @@ mod tests {
     use jsonrpc_core::Result as RpcResult;
     use jsonrpc_derive::rpc;
     use jsonrpc_http_server::{Server, ServerBuilder};
-    use serial_test::serial;
 
     use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 
@@ -291,15 +368,15 @@ mod tests {
         let mut io = jsonrpc_core::IoHandler::new();
         io.extend_with(OracleResolverImpl.to_delegate());
 
+        // Choosing port 0 results in a random port being assigned.
         let server = ServerBuilder::new(io)
-            .start_http(&"127.0.0.1:5555".parse().expect("Invalid address"))
+            .start_http(&"127.0.0.1:0".parse().expect("Invalid address"))
             .expect("Could not start server");
 
         let url = format!("http://{}", server.address());
         (server, url)
     }
 
-    #[serial]
     #[test]
     fn test_oracle_resolver_echo() {
         let (server, url) = build_oracle_server();
@@ -312,12 +389,11 @@ mod tests {
         };
 
         let result = executor.execute(&foreign_call);
-        assert_eq!(result.unwrap(), ForeignCallResult { values: foreign_call.inputs });
+        assert_eq!(result.unwrap(), ForeignCallResult { values: foreign_call.inputs }.into());
 
         server.close();
     }
 
-    #[serial]
     #[test]
     fn test_oracle_resolver_sum() {
         let (server, url) = build_oracle_server();

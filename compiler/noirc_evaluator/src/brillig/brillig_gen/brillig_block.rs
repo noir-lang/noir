@@ -5,6 +5,7 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::instruction::ConstrainError;
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -267,7 +268,30 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                 );
 
-                self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                let assert_message = if let Some(error) = assert_message {
+                    match error.as_ref() {
+                        ConstrainError::Static(string) => Some(string.clone()),
+                        ConstrainError::Dynamic(call_instruction) => {
+                            let Instruction::Call { func, arguments } = call_instruction else {
+                                unreachable!("expected a call instruction")
+                            };
+
+                            let Value::Function(func_id) =  &dfg[*func]  else {
+                                unreachable!("expected a function value")
+                            };
+
+                            self.convert_ssa_function_call(*func_id, arguments, dfg, &[]);
+
+                            // Dynamic assert messages are handled in the generated function call.
+                            // We then don't need to attach one to the constrain instruction.
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                self.brillig_context.constrain_instruction(condition, assert_message);
                 self.brillig_context.deallocate_register(condition);
             }
             Instruction::Allocate => {
@@ -378,7 +402,8 @@ impl<'block> BrilligBlock<'block> {
                     }
                 }
                 Value::Function(func_id) => {
-                    self.convert_ssa_function_call(*func_id, arguments, dfg, instruction_id);
+                    let result_ids = dfg.instruction_results(instruction_id);
+                    self.convert_ssa_function_call(*func_id, arguments, dfg, result_ids);
                 }
                 Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
                     // Slices are represented as a tuple of (length, slice contents).
@@ -650,15 +675,13 @@ impl<'block> BrilligBlock<'block> {
         func_id: FunctionId,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
-        instruction_id: InstructionId,
+        result_ids: &[ValueId],
     ) {
         // Convert the arguments to registers casting those to the types of the receiving function
         let argument_registers: Vec<MemoryAddress> = arguments
             .iter()
             .flat_map(|argument_id| self.convert_ssa_value(*argument_id, dfg).extract_registers())
             .collect();
-
-        let result_ids = dfg.instruction_results(instruction_id);
 
         // Create label for the function that will be called
         let label_of_function_to_call = FunctionContext::function_id_to_function_label(func_id);
@@ -1243,7 +1266,23 @@ impl<'block> BrilligBlock<'block> {
                     new_variable
                 }
             }
-            Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => {
+            Value::Function(_) => {
+                // For the debugger instrumentation we want to allow passing
+                // around values representing function pointers, even though
+                // there is no interaction with the function possible given that
+                // value.
+                let new_variable =
+                    self.variables.allocate_constant(self.brillig_context, value_id, dfg);
+                let register_index = new_variable.extract_register();
+
+                self.brillig_context.const_instruction(
+                    register_index,
+                    value_id.to_usize().into(),
+                    32,
+                );
+                new_variable
+            }
+            Value::Intrinsic(_) | Value::ForeignFunction(_) => {
                 todo!("ICE: Cannot convert value {value:?}")
             }
         }
@@ -1429,6 +1468,8 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             BinaryOp::And => BinaryIntOp::And,
             BinaryOp::Or => BinaryIntOp::Or,
             BinaryOp::Xor => BinaryIntOp::Xor,
+            BinaryOp::Shl => BinaryIntOp::Shl,
+            BinaryOp::Shr => BinaryIntOp::Shr,
         };
 
         BrilligBinaryOp::Integer { op: operation, bit_size }

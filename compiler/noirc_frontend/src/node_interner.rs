@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Deref;
 
@@ -5,12 +6,17 @@ use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
+use petgraph::algo::tarjan_scc;
+use petgraph::prelude::DiGraph;
+use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -42,6 +48,7 @@ type StructAttributes = Vec<SecondaryAttribute>;
 pub struct NodeInterner {
     pub(crate) nodes: Arena<Node>,
     pub(crate) func_meta: HashMap<FuncId, FuncMeta>,
+
     function_definition_ids: HashMap<FuncId, DefinitionId>,
 
     // For a given function ID, this gives the function's modifiers which includes
@@ -51,6 +58,14 @@ pub struct NodeInterner {
 
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
+
+    /// This graph tracks dependencies between different global definitions.
+    /// This is used to ensure the absense of dependency cycles for globals and types.
+    dependency_graph: DiGraph<DependencyId, ()>,
+
+    /// To keep track of where each DependencyId is in `dependency_graph`, we need
+    /// this separate graph to map between the ids and indices.
+    dependency_graph_indices: HashMap<DependencyId, PetGraphIndex>,
 
     // Map each `Index` to it's own location
     pub(crate) id_to_location: HashMap<Index, Location>,
@@ -126,7 +141,9 @@ pub struct NodeInterner {
     /// checking.
     field_indices: HashMap<ExprId, usize>,
 
-    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    // Maps GlobalId -> GlobalInfo
+    // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    globals: Vec<GlobalInfo>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -150,6 +167,24 @@ pub struct NodeInterner {
 
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
+}
+
+/// A dependency in the dependency graph may be a type or a definition.
+/// Types can depend on definitions too. E.g. `Foo` depends on `COUNT` in:
+///
+/// ```struct
+/// global COUNT = 3;
+///
+/// struct Foo {
+///     array: [Field; COUNT],
+/// }
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum DependencyId {
+    Struct(StructId),
+    Global(GlobalId),
+    Function(FuncId),
+    Alias(TypeAliasId),
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -244,6 +279,17 @@ impl DefinitionId {
 impl From<DefinitionId> for Index {
     fn from(id: DefinitionId) -> Self {
         Index::from_raw_parts(id.0, u64::MAX)
+    }
+}
+
+/// An ID for a global value
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+pub struct GlobalId(usize);
+
+impl GlobalId {
+    // Dummy id for error reporting
+    pub fn dummy_id() -> Self {
+        GlobalId(std::usize::MAX)
     }
 }
 
@@ -397,7 +443,7 @@ impl DefinitionInfo {
 pub enum DefinitionKind {
     Function(FuncId),
 
-    Global(ExprId),
+    Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
@@ -418,7 +464,7 @@ impl DefinitionKind {
     pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
@@ -427,8 +473,12 @@ impl DefinitionKind {
 
 #[derive(Debug, Clone)]
 pub struct GlobalInfo {
+    pub id: GlobalId,
+    pub definition_id: DefinitionId,
     pub ident: Ident,
     pub local_id: LocalModuleId,
+    pub location: Location,
+    pub let_statement: StmtId,
 }
 
 impl Default for NodeInterner {
@@ -440,6 +490,8 @@ impl Default for NodeInterner {
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
             func_id_to_trait: HashMap::new(),
+            dependency_graph: petgraph::graph::DiGraph::new(),
+            dependency_graph_indices: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
@@ -455,7 +507,7 @@ impl Default for NodeInterner {
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
-            globals: HashMap::new(),
+            globals: Vec::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -617,26 +669,41 @@ impl NodeInterner {
         self.type_ref_locations.push((typ, location));
     }
 
-    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
+    fn push_global(
+        &mut self,
+        ident: Ident,
+        local_id: LocalModuleId,
+        let_statement: StmtId,
+        file: FileId,
+    ) -> GlobalId {
+        let id = GlobalId(self.globals.len());
+        let location = Location::new(ident.span(), file);
+        let name = ident.to_string();
+        let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+        self.globals.push(GlobalInfo {
+            id,
+            definition_id,
+            ident,
+            local_id,
+            let_statement,
+            location,
+        });
+        id
     }
 
-    /// Intern an empty global stmt. Used for collecting globals
-    pub fn push_empty_global(&mut self) -> StmtId {
-        self.push_stmt(HirStatement::Error)
+    pub fn next_global_id(&mut self) -> GlobalId {
+        GlobalId(self.globals.len())
     }
 
-    pub fn update_global(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
-        let def =
-            self.nodes.get_mut(stmt_id.0).expect("ice: all function ids should have definitions");
-
-        let stmt = match def {
-            Node::Statement(stmt) => stmt,
-            _ => {
-                panic!("ice: all global ids should correspond to a statement in the interner")
-            }
-        };
-        *stmt = hir_stmt;
+    /// Intern an empty global. Used for collecting globals before they're defined
+    pub fn push_empty_global(
+        &mut self,
+        name: Ident,
+        local_id: LocalModuleId,
+        file: FileId,
+    ) -> GlobalId {
+        let statement = self.push_stmt(HirStatement::Error);
+        self.push_global(name, local_id, statement, file)
     }
 
     /// Intern an empty function.
@@ -816,19 +883,19 @@ impl NodeInterner {
         }
     }
 
-    /// Returns the interned let statement corresponding to `stmt_id`
-    pub fn let_statement(&self, stmt_id: &StmtId) -> HirLetStatement {
-        let def =
-            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
+    /// Try to get the `HirLetStatement` which defines a given global value
+    pub fn get_global_let_statement(&self, global: GlobalId) -> Option<HirLetStatement> {
+        let global = self.get_global(global);
+        let def = self.nodes.get(global.let_statement.0)?;
 
         match def {
-            Node::Statement(hir_stmt) => {
-                match hir_stmt {
-                    HirStatement::Let(let_stmt) => let_stmt.clone(),
-                    _ => panic!("ice: all let statement ids should correspond to a let statement in the interner"),
+            Node::Statement(hir_stmt) => match hir_stmt {
+                HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
+                _ => {
+                    panic!("ice: all globals should correspond to a let statement in the interner")
                 }
             },
-            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+            _ => panic!("ice: all globals should correspond to a statement in the interner"),
         }
     }
 
@@ -894,12 +961,17 @@ impl NodeInterner {
         &self.type_aliases[id.0]
     }
 
-    pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
-        self.globals.get(stmt_id).cloned()
+    pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
+        &self.globals[global_id.0]
     }
 
-    pub fn get_all_globals(&self) -> HashMap<StmtId, GlobalInfo> {
-        self.globals.clone()
+    pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
+        let global = self.get_global(global_id);
+        self.definition(global.definition_id)
+    }
+
+    pub fn get_all_globals(&self) -> &[GlobalInfo] {
+        &self.globals
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
@@ -933,6 +1005,12 @@ impl NodeInterner {
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
+    }
+
+    /// Replaces the HirStatement at the given StmtId with a new HirStatement
+    pub fn replace_statement(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
+        let old = self.nodes.get_mut(stmt_id.0).unwrap();
+        *old = Node::Statement(hir_stmt);
     }
 
     pub fn next_type_variable_id(&self) -> TypeVariableId {
@@ -1445,6 +1523,105 @@ impl NodeInterner {
 
     pub(crate) fn ordering_type(&self) -> Type {
         self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
+    }
+
+    /// Register that `dependent` depends on `dependency`.
+    /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
+    pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: StructId) {
+        self.add_dependency(dependent, DependencyId::Struct(dependency));
+    }
+
+    pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
+        self.add_dependency(dependent, DependencyId::Global(dependency));
+    }
+
+    pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
+        self.add_dependency(dependent, DependencyId::Function(dependency));
+    }
+
+    fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
+        let dependent_index = self.get_or_insert_dependency(dependent);
+        let dependency_index = self.get_or_insert_dependency(dependency);
+        self.dependency_graph.update_edge(dependent_index, dependency_index, ());
+    }
+
+    fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
+        if let Some(index) = self.dependency_graph_indices.get(&id) {
+            return *index;
+        }
+
+        let index = self.dependency_graph.add_node(id);
+        self.dependency_graph_indices.insert(id, index);
+        index
+    }
+
+    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<(CompilationError, FileId)> {
+        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
+        let mut errors = Vec::new();
+
+        let mut push_error = |item: String, scc: &[_], i, location: Location| {
+            let cycle = self.get_cycle_error_string(scc, i);
+            let span = location.span;
+            let error = ResolverError::DependencyCycle { item, cycle, span };
+            errors.push((error.into(), location.file));
+        };
+
+        for scc in strongly_connected_components {
+            if scc.len() > 1 {
+                // If a SCC contains a type, type alias, or global, it must be the only element in the SCC
+                for (i, index) in scc.iter().enumerate() {
+                    match self.dependency_graph[*index] {
+                        DependencyId::Struct(struct_id) => {
+                            let struct_type = self.get_struct(struct_id);
+                            let struct_type = struct_type.borrow();
+                            push_error(struct_type.name.to_string(), &scc, i, struct_type.location);
+                            break;
+                        }
+                        DependencyId::Global(global_id) => {
+                            let global = self.get_global(global_id);
+                            let name = global.ident.to_string();
+                            push_error(name, &scc, i, global.location);
+                            break;
+                        }
+                        DependencyId::Alias(alias_id) => {
+                            let alias = self.get_type_alias(alias_id);
+                            push_error(alias.name.to_string(), &scc, i, alias.location);
+                            break;
+                        }
+                        // Mutually recursive functions are allowed
+                        DependencyId::Function(_) => (),
+                    }
+                }
+            }
+        }
+
+        errors
+    }
+
+    /// Build up a string starting from the given item containing each item in the dependency
+    /// cycle. The final result will resemble `foo -> bar -> baz -> foo`, always going back to the
+    /// element at the given start index.
+    fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
+        let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
+            DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
+            DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
+            DependencyId::Alias(id) => {
+                Cow::Borrowed(self.get_type_alias(id).name.0.contents.as_ref())
+            }
+            DependencyId::Global(id) => {
+                Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
+            }
+        };
+
+        let mut cycle = index_to_string(scc[start_index]).to_string();
+
+        // Reversing the dependencies here matches the order users would expect for the error message
+        for i in (0..scc.len()).rev() {
+            cycle += " -> ";
+            cycle += &index_to_string(scc[(start_index + i) % scc.len()]);
+        }
+
+        cycle
     }
 }
 
