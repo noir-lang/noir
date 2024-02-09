@@ -67,7 +67,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build noirc_abi
-        run: yarn workspace @noir-lang/noirc_abi build
+        run: ./.github/scripts/noirc-abi-build.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -105,7 +105,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build noir_wasm
-        run: yarn workspace @noir-lang/noir_wasm build
+        run: ./.github/scripts/noirc-wasm-build.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
