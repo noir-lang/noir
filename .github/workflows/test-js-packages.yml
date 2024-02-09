@@ -388,8 +388,8 @@ jobs:
       - name: Run noir_codegen tests
         run: yarn workspace @noir-lang/noir_codegen test
 
-  test-integration:
-    name: Integration Tests
+  test-integration-node:
+    name: Integration Tests (Node)
     runs-on: ubuntu-latest
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
@@ -433,6 +433,48 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Setup `integration-tests`
+        run: |
+          # Note the lack of spaces between package names.
+          PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js"
+          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
+
+      - name: Run `integration-tests`
+        working-directory: ./compiler/integration-tests
+        run: |
+          yarn test:node
+
+  test-integration-browser:
+    name: Integration Tests (Browser)
+    runs-on: ubuntu-latest
+    needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download acvm_js package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+
+      - name: Download noir_wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: ./compiler/wasm
+
+      - name: Download noirc_abi package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
 
@@ -443,8 +485,9 @@ jobs:
           yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
+        working-directory: ./compiler/integration-tests
         run: |
-          yarn test:integration
+          yarn test:browser
   
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -461,7 +504,8 @@ jobs:
       - test-noir-js
       - test-noir-wasm
       - test-noir-codegen
-      - test-integration
+      - test-integration-node
+      - test-integration-browser
     
     steps:
         - name: Report overall success
