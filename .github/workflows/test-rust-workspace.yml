@@ -52,7 +52,7 @@ jobs:
           field: 'workspace.members'
         
       - id: set-matrix
-        run: echo "::set-output name=matrix::{\"package\":[${{steps.read_toml.outputs.value}}]}"
+        run: echo "::set-output name=matrix::{\"package\":${{steps.read_toml.outputs.value}}}"
 
 
   test:
