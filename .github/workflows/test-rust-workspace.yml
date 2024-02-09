@@ -74,5 +74,4 @@ jobs:
       - name: Run tests
         run: |
           cargo nextest run --archive-file nextest-archive.tar.zst \
-            -E "${{ matrix.test-filter }}" \
             --partition count:${{ matrix.partition }}/4
