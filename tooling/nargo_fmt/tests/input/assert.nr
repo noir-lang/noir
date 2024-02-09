@@ -4,5 +4,5 @@ fn main(x: Field) {
         x,
         1
     );
-    assert_eq( x, message );
+    assert( x, message );
 }
