@@ -460,6 +460,7 @@ uint<Builder, Native> uint<Builder, Native>::logic_operator(const uint& other, c
     const uint256_t rhs = other.get_value();
     uint256_t out = 0;
 
+    // Compute the value of the result
     switch (op_type) {
     case AND: {
         out = lhs & rhs;
@@ -473,11 +474,14 @@ uint<Builder, Native> uint<Builder, Native>::logic_operator(const uint& other, c
     }
     }
 
+    // If both inputs are constants, just output a new constant uint with the result
     if (is_constant() && other.is_constant()) {
         // returns a constant uint.
         return uint<Builder, Native>(ctx, out);
     }
 
+    // If one of the inputs is a constant, we need to create a witness from it, because we can only perform logical
+    // constraints between witnesses
     const uint32_t lhs_idx = is_constant() ? ctx->add_variable(lhs) : witness_index;
     const uint32_t rhs_idx = other.is_constant() ? ctx->add_variable(rhs) : other.witness_index;
 
