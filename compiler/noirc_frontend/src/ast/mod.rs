@@ -45,7 +45,7 @@ pub enum UnresolvedTypeData {
     Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
-    Named(Path, Vec<UnresolvedType>, bool),
+    Named(Path, Vec<UnresolvedType>, /*is_synthesized*/ bool),
 
     /// A Trait as return type or parameter of function, including its generics
     TraitAsType(Path, Vec<UnresolvedType>),

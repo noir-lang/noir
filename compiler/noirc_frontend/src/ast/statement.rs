@@ -428,7 +428,7 @@ pub enum ConstrainKind {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
     Identifier(Ident),
-    Mutable(Box<Pattern>, Span, bool),
+    Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
 }
