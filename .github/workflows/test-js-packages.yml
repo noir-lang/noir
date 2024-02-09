@@ -46,6 +46,37 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+  build-noirc-abi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: noirc-abi
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build noirc_abi
+        run: ./.github/scripts/noirc-abi-build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+          retention-days: 10
+
+
   build-noir-wasm:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -70,7 +101,7 @@ jobs:
         run: yarn workspace @noir-lang/types build
 
       - name: Build noir_wasm
-        run: yarn workspace @noir-lang/noir_wasm build
+        run: ./.github/scripts/noir-wasm-build.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -89,55 +120,27 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          key: acvm-js
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build acvm-js
-        run: |
-          nix build -L .#acvm_js
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f result/acvm_js)" >> $GITHUB_ENV
+      - name: Build acvm_js
+        run: ./.github/scripts/acvm_js-build.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: acvm-js
-          path: ${{ env.UPLOAD_PATH }}
+          path: ./acvm-repo/acvm_js/outputs/out/acvm_js
           retention-days: 3
-
-  build-noirc-abi:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Setup Nix
-        uses: ./.github/actions/nix
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
-
-      - name: Build noirc_abi_wasm
-        run: |
-          nix build -L .#noirc_abi_wasm
-
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: noirc_abi_wasm
-          path: ${{ env.UPLOAD_PATH }}
-          retention-days: 10
 
   test-acvm_js-node:
     needs: [build-acvm-js]
