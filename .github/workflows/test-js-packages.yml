@@ -93,25 +93,26 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          key: acvm-js
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build acvm-js
-        run: |
-          nix build -L .#acvm_js
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f result/acvm_js)" >> $GITHUB_ENV
+      - name: Build acvm_js
+        run: yarn workspace @noir-lang/acvm_js build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: acvm-js
-          path: ${{ env.UPLOAD_PATH }}
+          path: ./tooling/noirc_abi_wasm/outputs/out/acvm_js
           retention-days: 3
 
   build-noirc-abi:
@@ -119,28 +120,26 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
+      - uses: Swatinem/rust-cache@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+          key: noirc-abi
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build noirc_abi_wasm
-        run: |
-          nix build -L .#noirc_abi_wasm
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
-      - name: Dereference symlink
-        run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
+      - name: Build noirc_abi
+        run: yarn workspace @noir-lang/noirc_abi build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: ${{ env.UPLOAD_PATH }}
+          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
           retention-days: 10
 
   test-acvm_js-node:
