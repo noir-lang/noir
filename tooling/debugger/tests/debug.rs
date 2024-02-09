@@ -24,8 +24,7 @@ mod tests {
         dbg_session
             .execute(
                 &format!(
-                    "{} debug --program-dir {} --force-brillig --expression-width 3",
-                    nargo_bin, test_program_dir
+                    "{nargo_bin} debug --program-dir {test_program_dir} --force-brillig --expression-width 3"
                 ),
                 ".*\\Starting debugger.*",
             )
