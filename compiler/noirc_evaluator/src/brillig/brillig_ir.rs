@@ -916,8 +916,11 @@ impl BrilligContext {
         //
         // This means that the arguments will be in the first `n` registers after
         // the number of reserved registers.
-        let (sources, destinations) =
+        let (sources, destinations): (Vec<_>, Vec<_>) =
             arguments.iter().enumerate().map(|(i, argument)| (*argument, self.register(i))).unzip();
+        destinations
+            .iter()
+            .for_each(|destination| self.registers.ensure_register_is_allocated(*destination));
         self.mov_registers_to_registers_instruction(sources, destinations);
         saved_registers
     }
