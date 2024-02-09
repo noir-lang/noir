@@ -57,10 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # cargo nextest's run phase does not
-      # require Cargo. You can choose to install Rust if your tests require it, of course.
-      # Instead, create ~/.cargo/bin as required by the install action.
-      - run: mkdir -p ~/.cargo/bin
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+        with:
+          targets: x86_64-unknown-linux-gnu
+
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
