@@ -50,7 +50,7 @@ pub enum BlackBoxFunc {
     /// BigInt addition
     BigIntAdd,
     /// BigInt subtraction
-    BigIntNeg,
+    BigIntSub,
     /// BigInt multiplication
     BigIntMul,
     /// BigInt division
@@ -91,7 +91,7 @@ impl BlackBoxFunc {
             BlackBoxFunc::RecursiveAggregation => "recursive_aggregation",
             BlackBoxFunc::EcdsaSecp256r1 => "ecdsa_secp256r1",
             BlackBoxFunc::BigIntAdd => "bigint_add",
-            BlackBoxFunc::BigIntNeg => "bigint_neg",
+            BlackBoxFunc::BigIntSub => "bigint_sub",
             BlackBoxFunc::BigIntMul => "bigint_mul",
             BlackBoxFunc::BigIntDiv => "bigint_div",
             BlackBoxFunc::BigIntFromLeBytes => "bigint_from_le_bytes",
@@ -120,7 +120,7 @@ impl BlackBoxFunc {
             "keccakf1600" => Some(BlackBoxFunc::Keccakf1600),
             "recursive_aggregation" => Some(BlackBoxFunc::RecursiveAggregation),
             "bigint_add" => Some(BlackBoxFunc::BigIntAdd),
-            "bigint_neg" => Some(BlackBoxFunc::BigIntNeg),
+            "bigint_sub" => Some(BlackBoxFunc::BigIntSub),
             "bigint_mul" => Some(BlackBoxFunc::BigIntMul),
             "bigint_div" => Some(BlackBoxFunc::BigIntDiv),
             "bigint_from_le_bytes" => Some(BlackBoxFunc::BigIntFromLeBytes),

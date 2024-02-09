@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use acvm::ExpressionWidth;
+use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -97,12 +97,14 @@ pub struct CompileOptions {
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};
-
     let width = input
         .parse::<usize>()
         .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
 
-    Ok(ExpressionWidth::from(width))
+    match width {
+        0 => Ok(ExpressionWidth::Unbounded),
+        _ => Ok(ExpressionWidth::Bounded { width }),
+    }
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics

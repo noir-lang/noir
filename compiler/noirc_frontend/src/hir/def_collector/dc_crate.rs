@@ -15,7 +15,7 @@ use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId, TraitId, TypeAliasId};
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
@@ -109,7 +109,7 @@ pub struct UnresolvedTypeAlias {
 pub struct UnresolvedGlobal {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub stmt_id: StmtId,
+    pub global_id: GlobalId,
     pub stmt_def: LetStatement,
 }
 
@@ -317,7 +317,7 @@ impl DefCollector {
         // Must resolve structs before we resolve globals.
         errors.extend(resolve_structs(context, def_collector.collected_types, crate_id));
 
-        // We must wait to resolve non-integer globals until after we resolve structs since structs
+        // We must wait to resolve non-integer globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
         resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
         errors.extend(resolved_globals.errors);
@@ -436,15 +436,15 @@ fn filter_literal_globals(
 
 fn type_check_globals(
     interner: &mut NodeInterner,
-    global_ids: Vec<(FileId, StmtId)>,
+    global_ids: Vec<(FileId, GlobalId)>,
 ) -> Vec<(CompilationError, fm::FileId)> {
     global_ids
-        .iter()
-        .flat_map(|(file_id, stmt_id)| {
-            TypeChecker::check_global(stmt_id, interner)
+        .into_iter()
+        .flat_map(|(file_id, global_id)| {
+            TypeChecker::check_global(global_id, interner)
                 .iter()
                 .cloned()
-                .map(|e| (e.into(), *file_id))
+                .map(|e| (e.into(), file_id))
                 .collect::<Vec<_>>()
         })
         .collect()
@@ -455,12 +455,12 @@ fn type_check_functions(
     file_func_ids: Vec<(FileId, FuncId)>,
 ) -> Vec<(CompilationError, fm::FileId)> {
     file_func_ids
-        .iter()
+        .into_iter()
         .flat_map(|(file, func)| {
-            type_check_func(interner, *func)
+            type_check_func(interner, func)
                 .iter()
                 .cloned()
-                .map(|e| (e.into(), *file))
+                .map(|e| (e.into(), file))
                 .collect::<Vec<_>>()
         })
         .collect()

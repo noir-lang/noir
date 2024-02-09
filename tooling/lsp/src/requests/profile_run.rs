@@ -3,7 +3,7 @@ use std::{
     future::{self, Future},
 };
 
-use acvm::ExpressionWidth;
+use acvm::acir::circuit::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
