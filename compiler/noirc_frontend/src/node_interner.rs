@@ -29,7 +29,7 @@ use crate::hir_def::{
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
-    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -90,11 +90,12 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     struct_attributes: HashMap<StructId, StructAttributes>,
-    // Type Aliases map.
+
+    // Maps TypeAliasId -> Shared<TypeAlias>
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    pub(crate) type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
 
     // Trait map.
     //
@@ -604,7 +605,7 @@ impl NodeInterner {
     pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
-        self.type_aliases.push(TypeAliasType::new(
+        self.type_aliases.push(TypeAlias::new(
             type_id,
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
@@ -957,8 +958,8 @@ impl NodeInterner {
         self.traits.get(&id)
     }
 
-    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
-        &self.type_aliases[id.0]
+    pub fn get_type_alias(&self, id: TypeAliasId) -> Shared<TypeAlias> {
+        self.type_aliases[id.0].clone()
     }
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
@@ -1537,6 +1538,10 @@ impl NodeInterner {
 
     pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
         self.add_dependency(dependent, DependencyId::Function(dependency));
+    }
+
+    pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
+        self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
     fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {

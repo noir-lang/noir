@@ -44,13 +44,18 @@ pub enum Type {
     /// The unit type `()`.
     Unit,
 
+    /// A tuple type with the given list of fields in the order they appear in source code.
+    Tuple(Vec<Type>),
+
     /// A user-defined struct type. The `Shared<StructType>` field here refers to
     /// the shared definition for each instance of this struct type. The `Vec<Type>`
     /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
 
-    /// A tuple type with the given list of fields in the order they appear in source code.
-    Tuple(Vec<Type>),
+    /// A user-defined alias to another type. Similar to a Struct, this carries a shared
+    /// reference to the definition of the alias along with any generics that may have
+    /// been applied to the alias.
+    Alias(Shared<TypeAlias>, Vec<Type>),
 
     /// TypeVariables are stand-in variables for some type which is not yet known.
     /// They are not to be confused with NamedGenerics. While the later mostly works
@@ -309,7 +314,7 @@ impl std::fmt::Display for StructType {
 
 /// Wrap around an unsolved type
 #[derive(Debug, Clone, Eq)]
-pub struct TypeAliasType {
+pub struct TypeAlias {
     pub name: Ident,
     pub id: TypeAliasId,
     pub typ: Type,
@@ -317,19 +322,19 @@ pub struct TypeAliasType {
     pub location: Location,
 }
 
-impl std::hash::Hash for TypeAliasType {
+impl std::hash::Hash for TypeAlias {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
-impl PartialEq for TypeAliasType {
+impl PartialEq for TypeAlias {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl std::fmt::Display for TypeAliasType {
+impl std::fmt::Display for TypeAlias {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)?;
 
@@ -342,15 +347,15 @@ impl std::fmt::Display for TypeAliasType {
     }
 }
 
-impl TypeAliasType {
+impl TypeAlias {
     pub fn new(
         id: TypeAliasId,
         name: Ident,
         location: Location,
         typ: Type,
         generics: Generics,
-    ) -> TypeAliasType {
-        TypeAliasType { id, typ, name, location, generics }
+    ) -> TypeAlias {
+        TypeAlias { id, typ, name, location, generics }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
