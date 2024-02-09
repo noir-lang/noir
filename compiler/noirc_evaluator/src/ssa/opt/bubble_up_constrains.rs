@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ssa::{
     ir::{
+        function::RuntimeType,
         instruction::{ConstrainError, Instruction, InstructionId},
         value::ValueId,
     },
@@ -14,6 +15,11 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn bubble_up_constrains(mut self) -> Ssa {
         for function in self.functions.values_mut() {
+            // We only bubble up constraints in ACIR functions
+            if function.runtime() == RuntimeType::Brillig {
+                continue;
+            }
+
             for block in function.reachable_blocks() {
                 let instructions = function.dfg[block].take_instructions();
                 let mut filtered_instructions = Vec::with_capacity(instructions.len());
