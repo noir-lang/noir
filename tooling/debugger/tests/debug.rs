@@ -14,20 +14,21 @@ mod tests {
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
-        let mock_backend_path =
-            path_to_mock_backend().into_string().expect("Cannot parse mock_backend path");
-
         let mut dbg_session = spawn_bash(Some(10000)).expect("Could not start bash session");
 
+        // Set backend to `/dev/null` to force an error if nargo tries to speak to a backend.
         dbg_session
-            .send_line(&format!("export NARGO_BACKEND_PATH={}", mock_backend_path))
+            .send_line("export NARGO_BACKEND_PATH=/dev/null")
             .expect("Could not export NARGO_BACKEND_PATH.");
         dbg_session.wait_for_prompt().expect("Could not export NARGO_BACKEND_PATH.");
 
         // Start debugger and test that it loads for the given program.
         dbg_session
             .execute(
-                &format!("{} debug --program-dir {} --force-brillig", nargo_bin, test_program_dir),
+                &format!(
+                    "{} debug --program-dir {} --force-brillig --expression-width 3",
+                    nargo_bin, test_program_dir
+                ),
                 ".*\\Starting debugger.*",
             )
             .expect("Could not start debugger");
