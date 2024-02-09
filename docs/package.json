@@ -18,7 +18,6 @@
     "@noir-lang/noir_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
     "@noir-lang/types": "workspace:*",
-    "@signorecello/noir_playground": "^0.7.0",
     "axios": "^1.4.0",
     "clsx": "^1.2.1",
     "hast-util-is-element": "^1.1.0",
