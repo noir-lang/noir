@@ -40,7 +40,7 @@ jobs:
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nargo
           path: ./dist/*
@@ -77,7 +77,7 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: noir_wasm
           path: |
@@ -108,7 +108,7 @@ jobs:
         run: echo "UPLOAD_PATH=$(readlink -f result/acvm_js)" >> $GITHUB_ENV
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: acvm-js
           path: ${{ env.UPLOAD_PATH }}
@@ -137,7 +137,7 @@ jobs:
         run: echo "UPLOAD_PATH=$(readlink -f ./result/noirc_abi_wasm)" >> $GITHUB_ENV
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
           path: ${{ env.UPLOAD_PATH }}

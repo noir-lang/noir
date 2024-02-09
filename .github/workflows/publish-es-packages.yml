@@ -34,7 +34,7 @@ jobs:
         run: |
           nix build -L .#noirc_abi_wasm
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
           path: |
@@ -71,7 +71,7 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: noir_wasm
           path: |
@@ -98,7 +98,7 @@ jobs:
         run: |
           nix build -L .#acvm_js
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acvm_js
           path: |
