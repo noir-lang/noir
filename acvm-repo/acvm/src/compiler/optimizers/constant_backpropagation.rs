@@ -118,21 +118,12 @@ impl ConstantBackpropOptimizer {
     /// Returns a `Circuit` where each Witness is only range constrained
     /// once to the lowest number `bit size` possible.
     pub(crate) fn backpropagate_constants_iteration(
-        self,
+        mut self,
         order_list: Vec<usize>,
     ) -> (Circuit, Vec<usize>) {
         let mut known_witnesses = self.gather_known_witnesses();
 
-        let Circuit {
-            current_witness_index,
-            opcodes,
-            private_parameters,
-            public_parameters,
-            return_values,
-            assert_messages,
-            expression_width,
-            recursive,
-        } = self.circuit;
+        let opcodes = std::mem::take(&mut self.circuit.opcodes);
 
         fn remap_expression(known_witnesses: &WitnessMap, expression: Expression) -> Expression {
             GeneralOptimizer::optimize(ExpressionSolver::evaluate(&expression, known_witnesses))
@@ -243,18 +234,8 @@ impl ConstantBackpropOptimizer {
             new_order_list.push(order_list[idx]);
         }
 
-        (
-            Circuit {
-                current_witness_index,
-                opcodes: new_opcodes,
-                private_parameters,
-                public_parameters,
-                return_values,
-                assert_messages,
-                expression_width,
-                recursive,
-            },
-            new_order_list,
-        )
+        self.circuit.opcodes = new_opcodes;
+
+        (self.circuit, new_order_list)
     }
 }
