@@ -4,7 +4,6 @@ use crate::{
         note_header::NoteHeader,
         note_interface::NoteInterface,
     },
-    utils::arr_copy_slice,
 };
 
 use dep::protocol_types::{
@@ -15,6 +14,7 @@ use dep::protocol_types::{
         GENERATOR_INDEX__SILOED_COMMITMENT,
     },
     hash::pedersen_hash,
+    utils::arr_copy_slice,
 };
 
 fn compute_siloed_hash(contract_address: AztecAddress, inner_note_hash: Field) -> Field {

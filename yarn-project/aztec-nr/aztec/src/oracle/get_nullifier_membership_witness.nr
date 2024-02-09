@@ -5,8 +5,8 @@ use dep::protocol_types::{
     },
     constants::NULLIFIER_TREE_HEIGHT,
     hash::pedersen_hash,
+    utils::arr_copy_slice,
 };
-use crate::utils::arr_copy_slice;
 
 // INDEX_LENGTH + NULLIFIER_LEAF_PREIMAGE_LENGTH + NULLIFIER_TREE_HEIGHT
 global NULLIFIER_MEMBERSHIP_WITNESS: Field = 24;

@@ -1,41 +1,72 @@
-use crate::abis::public_data_tree_leaf::{PublicDataTreeLeaf, PublicDataTreeLeafPreimage};
-use crate::abis::constant_rollup_data::ConstantRollupData;
-use crate::abis::base_or_merge_rollup_public_inputs::{BaseOrMergeRollupPublicInputs, BASE_ROLLUP_TYPE};
-use crate::base::state_diff_hints::StateDiffHints;
-use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
-use crate::components;
-use dep::types::utils::uint256::U256;
-use dep::types::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
-use dep::types::abis::public_data_update_request::PublicDataUpdateRequest;
-use dep::types::abis::public_data_read::PublicDataRead;
-use dep::types::mocked::{AggregationObject, Proof};
-use dep::types::constants::{
-    NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
-    NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
-    CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-    PUBLIC_DATA_TREE_HEIGHT,
-    MAX_NEW_CONTRACTS_PER_TX,
-    NOTE_HASH_SUBTREE_HEIGHT,
-    CONTRACT_SUBTREE_HEIGHT,
-    NUM_FIELDS_PER_SHA256,
-    MAX_NEW_COMMITMENTS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_TX,
-    MAX_NEW_NULLIFIERS_PER_TX,
-    NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
-    MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-    NUM_UNENCRYPTED_LOGS_HASHES_PER_TX,
-    NULLIFIER_SUBTREE_HEIGHT,
-    NULLIFIER_TREE_HEIGHT,
-    PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
-    PUBLIC_DATA_SUBTREE_HEIGHT,
+use crate::{
+    abis::{
+        constant_rollup_data::ConstantRollupData,
+        base_or_merge_rollup_public_inputs::{
+            BaseOrMergeRollupPublicInputs,
+            BASE_ROLLUP_TYPE,
+        },
+    },
+    base::state_diff_hints::StateDiffHints,
+    components,
+    merkle_tree::{
+        calculate_empty_tree_root,
+        calculate_subtree,
+    },
 };
-use dep::types::abis::previous_kernel_data::PreviousKernelData;
-use dep::types::abis::membership_witness::{NullifierMembershipWitness, PublicDataMembershipWitness, MembershipWitness};
-use dep::types::abis::membership_witness::ArchiveRootMembershipWitness;
-use dep::types::abis::side_effect::{SideEffect, SideEffectLinkedToNoteHash};
-use dep::types::abis::nullifier_leaf_preimage::NullifierLeafPreimage;
-use dep::types::partial_state_reference::PartialStateReference;
+use dep::types::{
+    abis::{
+        append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+        membership_witness::{
+            ArchiveRootMembershipWitness,
+            MembershipWitness,
+            NullifierMembershipWitness,
+            PublicDataMembershipWitness,
+        },
+        nullifier_leaf_preimage::NullifierLeafPreimage,
+        public_data_update_request::PublicDataUpdateRequest,
+        public_data_read::PublicDataRead,
+        previous_kernel_data::PreviousKernelData,
+        side_effect::{
+            SideEffect,
+            SideEffectLinkedToNoteHash,
+        },
+    },
+    constants::{
+        NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
+        NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
+        CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
+        PUBLIC_DATA_TREE_HEIGHT,
+        MAX_NEW_CONTRACTS_PER_TX,
+        NOTE_HASH_SUBTREE_HEIGHT,
+        CONTRACT_SUBTREE_HEIGHT,
+        NUM_FIELDS_PER_SHA256,
+        MAX_NEW_COMMITMENTS_PER_TX,
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+        MAX_PUBLIC_DATA_READS_PER_TX,
+        MAX_NEW_NULLIFIERS_PER_TX,
+        NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
+        MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+        NUM_UNENCRYPTED_LOGS_HASHES_PER_TX,
+        NULLIFIER_SUBTREE_HEIGHT,
+        NULLIFIER_TREE_HEIGHT,
+        PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
+        PUBLIC_DATA_SUBTREE_HEIGHT,
+    },
+    mocked::{
+        AggregationObject,
+        Proof
+    },
+    partial_state_reference::PartialStateReference,
+    public_data_tree_leaf::PublicDataTreeLeaf,
+    public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
+    utils::{
+        field::{
+            full_field_less_than,
+            full_field_greater_than,
+        },
+        uint256::U256,
+    },
+};
 
 struct BaseRollupInputs {
     kernel_data: PreviousKernelData,
@@ -520,15 +551,6 @@ fn consistent_call_data_hash_full_fields() {
     );
 }
 
-// TODO to radix returns u8, so we cannot use bigger radixes. It'd be ideal to use a radix of the maximum range-constrained integer noir supports
-pub fn full_field_less_than(lhs: Field, rhs: Field) -> bool {
-    lhs.lt(rhs)
-}
-
-pub fn full_field_greater_than(lhs: Field, rhs: Field) -> bool {
-    rhs.lt(lhs)
-}
-
 #[test]
 fn test_u256_less_than() {
     assert(full_field_less_than(1, 1000));
@@ -549,58 +571,77 @@ fn test_u256_greater_than() {
 
 mod tests {
     use crate::{
+        abis::{
+            constant_rollup_data::ConstantRollupData,
+            base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs,
+        },
         base::{
+            state_diff_hints::StateDiffHints,
             base_rollup_inputs::{
                 CALL_DATA_HASH_FULL_FIELDS,
                 CALL_DATA_HASH_LOG_FIELDS,
                 BaseRollupInputs,
-                full_field_less_than,
             },
-            state_diff_hints::StateDiffHints,
         },
-        merkle_tree::{calculate_subtree, calculate_empty_tree_root},
-        abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs,
-        abis::public_data_tree_leaf::{PublicDataTreeLeafPreimage, PublicDataTreeLeaf},
-        abis::constant_rollup_data::ConstantRollupData,
-        tests::merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes},
+        merkle_tree::{
+            calculate_empty_tree_root,
+            calculate_subtree,
+        },
         components,
-    };
-    use dep::types::constants::{
-        CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-        CONTRACT_TREE_HEIGHT,
-        CONTRACT_SUBTREE_HEIGHT,
-        ARCHIVE_HEIGHT,
-        MAX_PUBLIC_DATA_READS_PER_TX,
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        MAX_NEW_COMMITMENTS_PER_TX,
-        MAX_NEW_NULLIFIERS_PER_TX,
-        MAX_NEW_CONTRACTS_PER_TX,
-        NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
-        NOTE_HASH_TREE_HEIGHT,
-        NOTE_HASH_SUBTREE_HEIGHT,
-        NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
-        NULLIFIER_TREE_HEIGHT,
-        NULLIFIER_SUBTREE_HEIGHT,
-        PUBLIC_DATA_TREE_HEIGHT,
-        PUBLIC_DATA_SUBTREE_HEIGHT,
-        PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
-        NUM_FIELDS_PER_SHA256,
+        tests::merkle_tree_utils::{
+            NonEmptyMerkleTree,
+            compute_zero_hashes,
+        },
     };
     use dep::types::{
-        abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-        abis::membership_witness::ArchiveRootMembershipWitness,
-        abis::membership_witness::{NullifierMembershipWitness, PublicDataMembershipWitness},
-        abis::new_contract_data::NewContractData,
-        abis::nullifier_leaf_preimage::NullifierLeafPreimage,
-        abis::public_data_read::PublicDataRead,
-        abis::public_data_update_request::PublicDataUpdateRequest,
-        abis::previous_kernel_data::PreviousKernelData,
-        abis::side_effect::SideEffect,
-        tests::previous_kernel_data_builder::PreviousKernelDataBuilder,
-        address::{AztecAddress, EthAddress},
+        abis::{
+            append_only_tree_snapshot::AppendOnlyTreeSnapshot,
+            membership_witness::{
+                ArchiveRootMembershipWitness,
+                NullifierMembershipWitness,
+                PublicDataMembershipWitness,
+            },
+            new_contract_data::NewContractData,
+            nullifier_leaf_preimage::NullifierLeafPreimage,
+            public_data_read::PublicDataRead,
+            public_data_update_request::PublicDataUpdateRequest,
+            previous_kernel_data::PreviousKernelData,
+            side_effect::SideEffect,
+        },
+        address::{
+            AztecAddress,
+            EthAddress,
+        },
+        constants::{
+            CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
+            CONTRACT_TREE_HEIGHT,
+            CONTRACT_SUBTREE_HEIGHT,
+            ARCHIVE_HEIGHT,
+            MAX_PUBLIC_DATA_READS_PER_TX,
+            MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+            MAX_NEW_COMMITMENTS_PER_TX,
+            MAX_NEW_NULLIFIERS_PER_TX,
+            MAX_NEW_CONTRACTS_PER_TX,
+            NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
+            NOTE_HASH_TREE_HEIGHT,
+            NOTE_HASH_SUBTREE_HEIGHT,
+            NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
+            NULLIFIER_TREE_HEIGHT,
+            NULLIFIER_SUBTREE_HEIGHT,
+            PUBLIC_DATA_TREE_HEIGHT,
+            PUBLIC_DATA_SUBTREE_HEIGHT,
+            PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
+            NUM_FIELDS_PER_SHA256,
+        },
         contract_class::ContractClassId,
-        utils::uint256::U256,
         partial_state_reference::PartialStateReference,
+        public_data_tree_leaf::PublicDataTreeLeaf,
+        public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
+        tests::previous_kernel_data_builder::PreviousKernelDataBuilder,
+        utils::{
+            field::full_field_less_than,
+            uint256::U256,
+        }
     };
     use dep::std::option::Option;
 

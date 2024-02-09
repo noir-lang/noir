@@ -1,6 +1,11 @@
 use dep::std::merkle::compute_merkle_root;
-use dep::protocol_types::header::Header;
-
+use dep::protocol_types::{
+    header::Header,
+    utils::field::{
+        full_field_less_than,
+        full_field_greater_than,
+    },
+};
 use crate::{
     context::PrivateContext,
     note::{
@@ -8,10 +13,6 @@ use crate::{
         note_interface::NoteInterface,
     },
     oracle::get_nullifier_membership_witness::get_low_nullifier_membership_witness,
-    utils::{
-        full_field_less_than,
-        full_field_greater_than,
-    },
 };
 
 pub fn _nullifier_non_inclusion(nullifier: Field, header: Header) {

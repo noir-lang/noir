@@ -1,34 +1,16 @@
 use dep::protocol_types::{
     constants::PUBLIC_DATA_TREE_HEIGHT,
     hash::pedersen_hash,
-    traits::{Hash, Serialize}
+    public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
+    traits::{
+        Hash,
+        Serialize,
+    },
+    utils::arr_copy_slice,
 };
-use crate::utils::arr_copy_slice;
 
 global LEAF_PREIMAGE_LENGTH: Field = 4;
-// TODO: move this to constants_gen.nr so that it gets computed as INDEX_LENGTH + LEAF_DATA_LENGTH + PUBLIC_DATA_TREE_HEIGHT
 global PUBLIC_DATA_WITNESS: Field = 45;
-
-// TODO(#3470) replace with /mnt/user-data/jan/aztec-packages/yarn-project/noir-protocol-circuits/src/crates/rollup-lib/src/abis/public_data_tree_leaf.nr
-struct PublicDataTreeLeafPreimage {
-    slot : Field,
-    value: Field,
-    next_index : u32,
-    next_slot :Field,
-}
-
-impl Serialize<LEAF_PREIMAGE_LENGTH> for PublicDataTreeLeafPreimage {
-    fn serialize(self) -> [Field; LEAF_PREIMAGE_LENGTH] {
-        [self.slot, self.value, self.next_index as Field, self.next_slot]
-    }
-}
-
-impl Hash for PublicDataTreeLeafPreimage {
-    fn hash(self) -> Field {
-        // Performs the same hashing as StandardIndexedTree::encodeLeaf(...)
-        pedersen_hash(self.serialize(), 0)
-    }
-}
 
 struct PublicDataWitness {
     index: Field,

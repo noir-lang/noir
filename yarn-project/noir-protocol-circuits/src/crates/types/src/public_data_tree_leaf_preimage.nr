@@ -1,5 +1,4 @@
-use dep::std::cmp::Eq;
-use dep::types::traits::{Empty, Hash};
+use crate::traits::{Empty, Hash};
 
 struct PublicDataTreeLeafPreimage {
     slot : Field,
@@ -32,31 +31,5 @@ impl Hash for PublicDataTreeLeafPreimage {
 impl PublicDataTreeLeafPreimage {
     pub fn is_empty(self) -> bool {
         (self.slot == 0) & (self.value == 0) & (self.next_slot == 0) & (self.next_index == 0)
-    }
-}
-
-struct PublicDataTreeLeaf {
-    slot: Field,
-    value: Field,
-}
-
-impl Eq for PublicDataTreeLeaf {
-    fn eq(self, other: Self) -> bool {
-        (self.slot == other.slot) & (self.value == other.value)
-    }
-}
-
-impl Empty for PublicDataTreeLeaf  {    
-    fn empty() -> Self {
-        Self {
-            slot: 0,
-            value: 0,
-        }
-    }
-}
-
-impl PublicDataTreeLeaf {
-    pub fn is_empty(self) -> bool {
-        (self.slot == 0) & (self.value == 0)
     }
 }

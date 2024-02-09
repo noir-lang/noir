@@ -1,9 +1,11 @@
-use dep::protocol_types::constants::{
-    ARCHIVE_HEIGHT,
-    CONTRACT_TREE_HEIGHT,
-    NOTE_HASH_TREE_HEIGHT,
+use dep::protocol_types::{
+    constants::{
+        ARCHIVE_HEIGHT,
+        CONTRACT_TREE_HEIGHT,
+        NOTE_HASH_TREE_HEIGHT,
+    },
+    utils::arr_copy_slice,
 };
-use crate::utils::arr_copy_slice;
 
 global CONTRACT_TREE_ID = 0;
 global NOTE_HASH_TREE_ID = 2;

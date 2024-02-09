@@ -3,10 +3,10 @@ use crate::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
 };
-use crate::utils::arr_copy_slice;
 
 use dep::protocol_types::{
     address::AztecAddress,
+    utils::arr_copy_slice,
 };
 
 #[oracle(notifyCreatedNote)]
