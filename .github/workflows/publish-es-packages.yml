@@ -98,7 +98,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build acvm_js
-        run: yarn workspace @noir-lang/acvm_js build
+        run: ./.github/scripts/acvm_js-build.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
