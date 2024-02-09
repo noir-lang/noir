@@ -720,7 +720,63 @@ jobs:
       - name: Test
         working-directory: /usr/src/noir
         run: |
-          ./.github/scripts/integration-test.sh
+          ./.github/scripts/integration-test-node.sh
+
+  test-integration-browser:
+    name: Integration test browser
+    runs-on: ubuntu-latest
+    needs: [
+      build-base-js,
+      build-noir-wasm,
+      build-noirc-abi,
+      build-acvm_js,
+      build-noir-js-types,
+      build-noir_js,
+      build-barretenberg-backend
+    ]
+    container:
+      image: ghcr.io/noir-lang/noir:${{ github.sha }}-js
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
+    steps:
+      - name: Download noir wasm
+        uses: actions/download-artifact@v4
+        with:
+          name: noir_wasm
+          path: /usr/src/noir/compiler/wasm
+      - name: Download noirc abi
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: /usr/src/noir/tooling/noirc_abi_wasm
+      - name: Download acvm js
+        uses: actions/download-artifact@v4
+        with:
+          name: acvm_js
+          path: /usr/src/noir/acvm-repo/acvm_js
+      - name: Download noir js types
+        uses: actions/download-artifact@v4
+        with:
+          name: noir-js-types
+          path: |
+            /usr/src/noir/tooling/noir_js_types/lib
+      - name: Download noir js
+        uses: actions/download-artifact@v4
+        with:
+          name: noir_js
+          path:
+            /usr/src/noir/tooling/noir_js/lib
+      - name: Download Barretenberg backend
+        uses: actions/download-artifact@v4
+        with:
+          name: barretenberg-backend
+          path:
+            /usr/src/noir/tooling/noir_js_backend_barretenberg/lib
+      - name: Test
+        working-directory: /usr/src/noir
+        run: |
+          ./.github/scripts/integration-test-browser.sh
 
   tests-end:
     name: End
@@ -733,6 +789,7 @@ jobs:
       - test-noir-wasm
       - test-noir-wasm-browser
       - test-integration
+      - test-integration-browser
       - test-noir_codegen
       - test-acvm_js
       - test-acvm_js-browser
