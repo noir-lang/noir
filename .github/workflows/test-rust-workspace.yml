@@ -53,8 +53,7 @@ jobs:
     needs: [build-test-artifacts]
     strategy:
       matrix:
-        test-filter: ["package(noir_debugger)",  "not package(noir_debugger)"]
-        partition: [1, 2]
+        partition: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       
@@ -76,4 +75,4 @@ jobs:
         run: |
           cargo nextest run --archive-file nextest-archive.tar.zst \
             -E "${{ matrix.test-filter }}" \
-            --partition count:${{ matrix.partition }}/2
+            --partition count:${{ matrix.partition }}/4
