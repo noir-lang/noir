@@ -104,6 +104,18 @@ void native_pedersen_eight_hash_bench(State& state) noexcept
 }
 BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);
 
+void native_pedersen_hash_pair_bench(State& state) noexcept
+{
+    std::vector<grumpkin::fq> elements(2);
+    for (size_t i = 0; i < 2; ++i) {
+        elements[i] = grumpkin::fq::random_element();
+    }
+    for (auto _ : state) {
+        crypto::pedersen_hash::hash(elements);
+    }
+}
+BENCHMARK(native_pedersen_hash_pair_bench)->Unit(benchmark::kMillisecond)->MinTime(3);
+
 void construct_pedersen_witnesses_bench(State& state) noexcept
 {
     bb::srs::init_crs_factory(BARRETENBERG_SRS_PATH);

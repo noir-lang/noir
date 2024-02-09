@@ -1,11 +1,11 @@
 #pragma once
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 
+#include "barretenberg/crypto/merkle_tree/hash_path.hpp"
 #include "barretenberg/goblin/goblin.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
-#include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
@@ -58,7 +58,7 @@ using bn254 = bb::stdlib::bn254<Builder>;
 using secp256k1_ct = bb::stdlib::secp256k1<Builder>;
 using secp256r1_ct = bb::stdlib::secp256r1<Builder>;
 
-using hash_path_ct = bb::stdlib::merkle_tree::hash_path<Builder>;
+using hash_path_ct = bb::crypto::merkle_tree::hash_path<Builder>;
 
 using schnorr_signature_bits_ct = bb::stdlib::schnorr_signature_bits<Builder>;
 

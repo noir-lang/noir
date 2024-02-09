@@ -3,16 +3,16 @@
 #include "../notes/native/index.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
+#include "barretenberg/crypto/merkle_tree/index.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
-#include "barretenberg/stdlib/merkle_tree/index.hpp"
 #include "index.hpp"
 
 namespace bb::join_split_example::proofs::join_split {
 
 using namespace bb;
 // using namespace bb::stdlib::types;
-using namespace bb::stdlib::merkle_tree;
+using namespace bb::crypto::merkle_tree;
 using namespace bb::join_split_example::proofs::notes::native;
 using key_pair = join_split_example::fixtures::grumpkin_key_pair;
 
@@ -32,7 +32,7 @@ class join_split_js_parity_tests : public ::testing::Test {
     virtual void SetUp()
     {
         store = std::make_unique<MemoryStore>();
-        tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
+        tree = std::make_unique<MerkleTree<MemoryStore, PedersenHashPolicy>>(*store, 32);
     }
 
     void append_notes(std::vector<value::value_note> const& notes)
@@ -56,7 +56,7 @@ class join_split_js_parity_tests : public ::testing::Test {
     }
 
     std::unique_ptr<MemoryStore> store;
-    std::unique_ptr<MerkleTree<MemoryStore>> tree;
+    std::unique_ptr<MerkleTree<MemoryStore, PedersenHashPolicy>> tree;
 };
 
 TEST_F(join_split_js_parity_tests, test_full_proof)

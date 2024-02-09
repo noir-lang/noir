@@ -1,1 +1,0 @@
-barretenberg_module(stdlib_merkle_tree stdlib_primitives stdlib_blake3s stdlib_pedersen_hash)

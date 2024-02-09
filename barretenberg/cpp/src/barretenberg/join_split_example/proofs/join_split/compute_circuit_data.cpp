@@ -1,7 +1,7 @@
 #include "compute_circuit_data.hpp"
 #include "../notes/native/index.hpp"
+#include "barretenberg/crypto/merkle_tree/hash_path.hpp"
 #include "barretenberg/join_split_example/types.hpp"
-#include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 #include "join_split_circuit.hpp"
 #include "sign_join_split_tx.hpp"
 
@@ -10,7 +10,7 @@ namespace bb::join_split_example::proofs::join_split {
 using namespace bb::join_split_example::proofs::join_split;
 using namespace bb::stdlib;
 using namespace bb::join_split_example::proofs::notes::native;
-using namespace bb::stdlib::merkle_tree;
+using namespace bb::crypto::merkle_tree;
 
 join_split_tx noop_tx()
 {

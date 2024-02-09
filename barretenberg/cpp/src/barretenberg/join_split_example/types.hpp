@@ -4,10 +4,10 @@
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
 
+#include "barretenberg/crypto/merkle_tree/hash_path.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
-#include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
@@ -37,7 +37,7 @@ using pedersen_commitment = bb::stdlib::pedersen_commitment<Builder>;
 using pedersen_hash = bb::stdlib::pedersen_hash<Builder>;
 using bn254 = bb::stdlib::bn254<Builder>;
 
-using hash_path_ct = bb::stdlib::merkle_tree::hash_path<Builder>;
+using hash_path_ct = bb::crypto::merkle_tree::hash_path<Builder>;
 
 using schnorr_signature_bits = bb::stdlib::schnorr_signature_bits<Builder>;
 

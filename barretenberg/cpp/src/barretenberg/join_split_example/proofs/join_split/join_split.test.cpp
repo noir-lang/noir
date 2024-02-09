@@ -5,15 +5,15 @@
 #include "../notes/native/index.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
+#include "barretenberg/crypto/merkle_tree/index.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
-#include "barretenberg/stdlib/merkle_tree/index.hpp"
 #include "index.hpp"
 #include "join_split_circuit.hpp"
 
 namespace bb::join_split_example::proofs::join_split {
 
-using namespace bb::stdlib::merkle_tree;
+using namespace bb::crypto::merkle_tree;
 
 /* Old join-split tests below. The value of having all of these logic tests is unclear, but we'll
    leave them around, at least for a while. */
@@ -27,7 +27,7 @@ constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
 
 using namespace bb;
 using namespace bb::stdlib;
-using namespace bb::stdlib::merkle_tree;
+using namespace bb::crypto::merkle_tree;
 using namespace bb::join_split_example::proofs::notes::native;
 using key_pair = join_split_example::fixtures::grumpkin_key_pair;
 
@@ -53,7 +53,7 @@ class join_split_tests : public ::testing::Test {
     virtual void SetUp()
     {
         store = std::make_unique<MemoryStore>();
-        tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
+        tree = std::make_unique<MerkleTree<MemoryStore, PedersenHashPolicy>>(*store, 32);
         user = join_split_example::fixtures::create_user_context();
 
         default_value_note = { .value = 100,
@@ -302,7 +302,7 @@ class join_split_tests : public ::testing::Test {
 
     join_split_example::fixtures::user_context user;
     std::unique_ptr<MemoryStore> store;
-    std::unique_ptr<MerkleTree<MemoryStore>> tree;
+    std::unique_ptr<MerkleTree<MemoryStore, PedersenHashPolicy>> tree;
     bridge_call_data empty_bridge_call_data = { .bridge_address_id = 0,
                                                 .input_asset_id_a = 0,
                                                 .input_asset_id_b = 0,

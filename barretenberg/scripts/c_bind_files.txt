@@ -1,5 +1,6 @@
 ./cpp/src/barretenberg/crypto/pedersen_commitment/c_bind.hpp
 ./cpp/src/barretenberg/crypto/pedersen_hash/c_bind.hpp
+./cpp/src/barretenberg/crypto/poseidon2/c_bind.hpp
 ./cpp/src/barretenberg/crypto/blake2s/c_bind.hpp
 ./cpp/src/barretenberg/crypto/schnorr/c_bind.hpp
 ./cpp/src/barretenberg/crypto/aes128/c_bind.hpp

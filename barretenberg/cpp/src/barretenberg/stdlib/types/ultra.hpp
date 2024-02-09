@@ -1,11 +1,11 @@
 #pragma once
+#include "barretenberg/crypto/merkle_tree/hash_path.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
-#include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
@@ -51,11 +51,6 @@ using pedersen_commitment = stdlib::pedersen_commitment<Builder>;
 using cycle_group_ct = stdlib::cycle_group<Builder>;
 using bn254 = stdlib::bn254<Builder>;
 using secp256k1_ct = stdlib::secp256k1<Builder>;
-
-namespace merkle_tree {
-using namespace stdlib::merkle_tree;
-using hash_path = stdlib::merkle_tree::hash_path<Builder>;
-} // namespace merkle_tree
 
 using schnorr_signature_bits = stdlib::schnorr_signature_bits<Builder>;
 

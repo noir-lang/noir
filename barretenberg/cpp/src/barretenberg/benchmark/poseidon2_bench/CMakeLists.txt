@@ -1,0 +1,1 @@
+barretenberg_module(poseidon2_bench crypto_poseidon2)

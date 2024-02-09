@@ -4,15 +4,15 @@
 #include "../notes/circuit/claim/claim_note.hpp"
 #include "../notes/circuit/value/compute_nullifier.hpp"
 #include "../notes/circuit/value/value_note.hpp"
+#include "barretenberg/crypto/merkle_tree/membership.hpp"
 #include "barretenberg/join_split_example/types.hpp"
-#include "barretenberg/stdlib/merkle_tree/membership.hpp"
 #include "verify_signature.hpp"
 
 namespace bb::join_split_example::proofs::join_split {
 
 using namespace bb::plonk;
 using namespace notes::circuit;
-using namespace bb::stdlib::merkle_tree;
+using namespace bb::crypto::merkle_tree;
 using namespace bb::crypto;
 
 /**
@@ -31,7 +31,7 @@ field_ct process_input_note(field_ct const& account_private_key,
     const bool_ct valid_value = note.value == 0 || is_note_in_use;
     valid_value.assert_equal(true, "padding note non zero");
 
-    const bool_ct exists = bb::stdlib::merkle_tree::check_membership(
+    const bool_ct exists = bb::crypto::merkle_tree::check_membership(
         merkle_root, hash_path, note.commitment, index.value.decompose_into_bits(DATA_TREE_DEPTH));
     const bool_ct valid = exists || is_propagated || !is_note_in_use;
     valid.assert_equal(true, "input note not a member");
@@ -217,7 +217,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         const auto account_alias_hash = inputs.alias_hash;
         const auto account_note_data = account::account_note(account_alias_hash.value, account_public_key, signer);
         const bool_ct signing_key_exists =
-            stdlib::merkle_tree::check_membership(inputs.merkle_root,
+            crypto::merkle_tree::check_membership(inputs.merkle_root,
                                                   inputs.account_note_path,
                                                   account_note_data.commitment,
                                                   inputs.account_note_index.value.decompose_into_bits(DATA_TREE_DEPTH));
@@ -288,8 +288,8 @@ void join_split_circuit(Builder& builder, join_split_tx const& tx)
         .signing_pub_key = group_ct::from_witness(&builder, tx.signing_pub_key),
         .signature = stdlib::schnorr_convert_signature(&builder, tx.signature),
         .merkle_root = witness_ct(&builder, tx.old_data_root),
-        .input_path1 = stdlib::merkle_tree::create_witness_hash_path(builder, tx.input_path[0]),
-        .input_path2 = stdlib::merkle_tree::create_witness_hash_path(builder, tx.input_path[1]),
+        .input_path1 = crypto::merkle_tree::create_witness_hash_path(builder, tx.input_path[0]),
+        .input_path2 = crypto::merkle_tree::create_witness_hash_path(builder, tx.input_path[1]),
         .account_note_index =
             suint_ct(witness_ct(&builder, tx.account_note_index), DATA_TREE_DEPTH, "account_note_index"),
         .account_note_path = merkle_tree::create_witness_hash_path(builder, tx.account_note_path),

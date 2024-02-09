@@ -2,6 +2,10 @@
 #include <benchmark/benchmark.h>
 #include <cstddef>
 
+#include "barretenberg/crypto/merkle_tree/membership.hpp"
+#include "barretenberg/crypto/merkle_tree/memory_store.hpp"
+#include "barretenberg/crypto/merkle_tree/memory_tree.hpp"
+#include "barretenberg/crypto/merkle_tree/merkle_tree.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
@@ -9,10 +13,6 @@
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/hash/keccak/keccak.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256.hpp"
-#include "barretenberg/stdlib/merkle_tree/membership.hpp"
-#include "barretenberg/stdlib/merkle_tree/memory_store.hpp"
-#include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
-#include "barretenberg/stdlib/merkle_tree/merkle_tree.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"

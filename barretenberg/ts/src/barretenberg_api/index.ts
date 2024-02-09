@@ -39,11 +39,47 @@ export class BarretenbergApi {
     return out[0];
   }
 
+  async pedersenHashes(inputsBuffer: Fr[], hashIndex: number): Promise<Fr> {
+    const inArgs = [inputsBuffer, hashIndex].map(serializeBufferable);
+    const outTypes: OutputType[] = [Fr];
+    const result = await this.wasm.callWasmExport(
+      'pedersen_hashes',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
   async pedersenHashBuffer(inputBuffer: Uint8Array, hashIndex: number): Promise<Fr> {
     const inArgs = [inputBuffer, hashIndex].map(serializeBufferable);
     const outTypes: OutputType[] = [Fr];
     const result = await this.wasm.callWasmExport(
       'pedersen_hash_buffer',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
+  async poseidonHash(inputsBuffer: Fr[]): Promise<Fr> {
+    const inArgs = [inputsBuffer].map(serializeBufferable);
+    const outTypes: OutputType[] = [Fr];
+    const result = await this.wasm.callWasmExport(
+      'poseidon_hash',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
+  async poseidonHashes(inputsBuffer: Fr[]): Promise<Fr> {
+    const inArgs = [inputsBuffer].map(serializeBufferable);
+    const outTypes: OutputType[] = [Fr];
+    const result = await this.wasm.callWasmExport(
+      'poseidon_hashes',
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );
@@ -551,11 +587,47 @@ export class BarretenbergApiSync {
     return out[0];
   }
 
+  pedersenHashes(inputsBuffer: Fr[], hashIndex: number): Fr {
+    const inArgs = [inputsBuffer, hashIndex].map(serializeBufferable);
+    const outTypes: OutputType[] = [Fr];
+    const result = this.wasm.callWasmExport(
+      'pedersen_hashes',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
   pedersenHashBuffer(inputBuffer: Uint8Array, hashIndex: number): Fr {
     const inArgs = [inputBuffer, hashIndex].map(serializeBufferable);
     const outTypes: OutputType[] = [Fr];
     const result = this.wasm.callWasmExport(
       'pedersen_hash_buffer',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
+  poseidonHash(inputsBuffer: Fr[]): Fr {
+    const inArgs = [inputsBuffer].map(serializeBufferable);
+    const outTypes: OutputType[] = [Fr];
+    const result = this.wasm.callWasmExport(
+      'poseidon_hash',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
+  poseidonHashes(inputsBuffer: Fr[]): Fr {
+    const inArgs = [inputsBuffer].map(serializeBufferable);
+    const outTypes: OutputType[] = [Fr];
+    const result = this.wasm.callWasmExport(
+      'poseidon_hashes',
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );

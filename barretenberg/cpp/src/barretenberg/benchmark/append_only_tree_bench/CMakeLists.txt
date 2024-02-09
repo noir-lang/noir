@@ -1,0 +1,1 @@
+barretenberg_module(append_only_tree_bench crypto_poseidon2 crypto_merkle_tree)

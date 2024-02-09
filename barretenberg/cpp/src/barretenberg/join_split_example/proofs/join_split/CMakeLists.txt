@@ -8,4 +8,4 @@ barretenberg_module(
   stdlib_pedersen_commitment
   stdlib_schnorr
   stdlib_primitives
-  stdlib_merkle_tree)
+  crypto_merkle_tree)

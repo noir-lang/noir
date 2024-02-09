@@ -3,7 +3,6 @@ stdlib_aes128_tests
 stdlib_blake2s_tests
 stdlib_blake3s_tests
 stdlib_ecdsa_tests
-stdlib_merkle_tree_tests
 stdlib_pedersen_commitment_tests
 stdlib_pedersen_hash_tests
 stdlib_poseidon2_tests
