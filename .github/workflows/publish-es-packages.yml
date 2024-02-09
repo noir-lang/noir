@@ -59,7 +59,7 @@ jobs:
           save-if: false
 
       - name: Download noirc_abi_wasm package artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -114,17 +114,17 @@ jobs:
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: acvm_js
           path: acvm-repo/acvm_js
       
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: noir_wasm
           path: compiler/wasm
       
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
           path: tooling/noirc_abi_wasm
