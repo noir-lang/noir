@@ -18,30 +18,17 @@ use acir::{
 };
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 
-/// `RangeOptimizer` will remove redundant range constraints.
+/// `ConstantBackpropagationOptimizer` will attempt to determine any constant witnesses within the program.
+/// It does this by attempting to solve the program without any inputs (i.e. using an empty witness map),
+/// any values which it can determine are then enforced to be constant values.
 ///
-/// # Example
-///
-/// Suppose we had the following pseudo-code:
-///
-/// ```noir
-/// let z1 = x as u16;
-/// let z2 = x as u32;
-/// ```
-/// It is clear that if `x` fits inside of a 16-bit integer,
-/// it must also fit inside of a 32-bit integer.
-///
-/// The generated ACIR may produce two range opcodes however;
-/// - One for the 16 bit range constraint of `x`
-/// - One for the 32-bit range constraint of `x`
-///
-/// This optimization pass will keep the 16-bit range constraint
-/// and remove the 32-bit range constraint opcode.
-pub(crate) struct ConstantBackpropOptimizer {
+/// The optimizer will then replace any witnesses wherever they appear within the circuit with these constant values.
+/// This is repeated until the circuit stabilizes.
+pub(crate) struct ConstantBackpropagationOptimizer {
     circuit: Circuit,
 }
 
-impl ConstantBackpropOptimizer {
+impl ConstantBackpropagationOptimizer {
     /// Creates a new `ConstantBackpropOptimizer`
     pub(crate) fn new(circuit: Circuit) -> Self {
         Self { circuit }
