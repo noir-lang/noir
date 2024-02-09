@@ -1613,7 +1613,7 @@ impl<'a> Resolver<'a> {
                 let id = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 HirPattern::Identifier(id)
             }
-            Pattern::Mutable(pattern, span) => {
+            Pattern::Mutable(pattern, span, _) => {
                 if let Some(first_mut) = mutable {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }

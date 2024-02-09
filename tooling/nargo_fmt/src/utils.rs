@@ -148,7 +148,7 @@ impl HasItem for Param {
             Visibility::DataBus => "call_data",
         };
 
-        if self.typ.is_synthesized() {
+        if self.pattern.is_synthesized() || self.typ.is_synthesized() {
             pattern.to_string()
         } else {
             let ty = rewrite::typ(visitor, shape, self.typ);

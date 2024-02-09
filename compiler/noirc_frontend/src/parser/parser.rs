@@ -381,24 +381,24 @@ fn self_parameter() -> impl NoirParser<Param> {
             Token::Ident(ref word) if word == "self" => Ok(span),
             _ => Err(ParserError::expected_label(ParsingRuleLabel::Parameter, found, span)),
         }))
-        .map(|(pattern_keyword, span)| {
-            let ident = Ident::new("self".to_string(), span);
-            let path = Path::from_single("Self".to_owned(), span);
-            let mut self_type = UnresolvedTypeData::Named(path, vec![], true).with_span(span);
+        .map(|(pattern_keyword, ident_span)| {
+            let ident = Ident::new("self".to_string(), ident_span);
+            let path = Path::from_single("Self".to_owned(), ident_span);
+            let mut self_type = UnresolvedTypeData::Named(path, vec![], true).with_span(ident_span);
             let mut pattern = Pattern::Identifier(ident);
 
             match pattern_keyword {
                 Some((Token::Ampersand, _)) => {
-                    self_type =
-                        UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(span);
+                    self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
+                        .with_span(ident_span);
                 }
                 Some((Token::Keyword(_), span)) => {
-                    pattern = Pattern::Mutable(Box::new(pattern), span);
+                    pattern = Pattern::Mutable(Box::new(pattern), span.merge(ident_span), true);
                 }
                 _ => (),
             }
 
-            Param { pattern, typ: self_type, visibility: Visibility::Private, span }
+            Param { span: pattern.span(), pattern, typ: self_type, visibility: Visibility::Private }
         })
 }
 
@@ -894,7 +894,7 @@ fn pattern() -> impl NoirParser<Pattern> {
 
         let mut_pattern = keyword(Keyword::Mut)
             .ignore_then(pattern.clone())
-            .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
+            .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span, false));
 
         let short_field = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
         let long_field = ident().then_ignore(just(Token::Colon)).then(pattern.clone());

@@ -150,7 +150,7 @@ fn pattern(name: &str) -> Pattern {
 }
 
 fn mutable(name: &str) -> Pattern {
-    Pattern::Mutable(Box::new(pattern(name)), Span::default())
+    Pattern::Mutable(Box::new(pattern(name)), Span::default(), true)
 }
 
 fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
