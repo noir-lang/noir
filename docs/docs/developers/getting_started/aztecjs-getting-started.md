@@ -1,5 +1,5 @@
 ---
-title: Getting Started with Aztec.js
+title: An introduction to Aztec.js
 ---
 
 import Image from "@theme/IdealImage";
@@ -375,4 +375,4 @@ That's it! We have successfully deployed a token contract to an instance of the 
 
 ## Next Steps
 
-Learn more about writing Aztec.nr contracts in the [Aztec.nr getting started guide](./aztecnr-getting-started.md).
+Learn more about writing Aztec.nr contracts on the [next page](./aztecnr-getting-started.md).

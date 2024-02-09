@@ -60,4 +60,4 @@ Once this has completed, the L2 block is retrieved and pulled down to the PXE so
 
 ## Next Steps
 
-Check out our section on [Writing your own Account Contract](./writing_an_account_contract.md) leveraging our account abstraction
+Check out our section on [Writing your own Account Contract](../contracts/writing_contracts/accounts/write_accounts_contract.md) leveraging our account abstraction

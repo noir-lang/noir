@@ -19,7 +19,7 @@ cd your/aztec/project
 aztec-cli update . --contract src/contract1 --contract src/contract2
 ```
 
-The sandbox must be running for the update command to work. Make sure it is [installed and running](../developers/cli/sandbox-reference.md).
+The sandbox must be running for the update command to work. Make sure it is [installed and running](../developers/sandbox/references/sandbox-reference.md).
 
 3. Refer [Migration Notes](../misc/migration_notes.md) on any breaking changes that might affect your dapp
 

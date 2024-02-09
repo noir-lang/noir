@@ -2,64 +2,23 @@
 title: Aztec.js
 ---
 
-If you are looking for the API reference, go [here](../../apis/aztec-js/index.md).
+If you are looking for the Aztec.js API reference, go [here](../../apis/aztec-js/index.md).
 
 ## Introduction
-
 Aztec.js is a library that provides APIs for managing accounts and interacting with contracts on the Aztec network. It communicates with the [Private eXecution Environment (PXE)](https://docs.aztec.network/apis/pxe/interfaces/PXE) through a `PXE` implementation, allowing developers to easily register new accounts, deploy contracts, view functions, and send transactions.
 
-## Usage
+## Guides
 
-### Create a new account
+- [How to create a new account](./guides/create_account.md)
+- [How to deploy a smart contract](./guides/deploy_contract.md)
+- [How to send a transaction](./guides/send_transaction.md)
+- [How to call a view function](./guides/call_view_function.md)
 
-```typescript
-import { getSchnorrAccount } from "@aztec/aztec.js";
-import { GrumpkinPrivateKey } from "@aztec/circuit-types";
+## References
 
-const encryptionPrivateKey = GrumpkinPrivateKey.random();
-const signingPrivateKey = GrumpkinPrivateKey.random();
-const wallet = getSchnorrAccount(
-  pxe,
-  encryptionPrivateKey,
-  signingPrivateKey
-).waitDeploy();
-console.log(`New account deployed at ${wallet.getAddress()}`);
-```
+- [Aztec.js Reference](../../apis/aztec-js/index.md)
+- [Accounts Reference](../../apis/accounts/index.md)
 
-### Deploy a contract
+## Tutorials
 
-```typescript
-import { Contract } from "@aztec/aztec.js";
-
-const contract = await Contract.deploy(wallet, MyContractArtifact, [
-  ...constructorArgs,
-])
-  .send()
-  .deployed();
-console.log(`Contract deployed at ${contract.address}`);
-```
-
-### Send a transaction
-
-```typescript
-import { Contract } from "@aztec/aztec.js";
-
-const contract = await Contract.at(contractAddress, MyContractArtifact, wallet);
-const tx = await contract.methods
-  .transfer(amount, recipientAddress)
-  .send()
-  .wait();
-console.log(
-  `Transferred ${amount} to ${recipientAddress} on block ${tx.blockNumber}`
-);
-```
-
-### Call a view function
-
-```typescript
-import { Contract } from "@aztec/aztec.js";
-
-const contract = await Contract.at(contractAddress, MyContractArtifact, wallet);
-const balance = await contract.methods.getBalance(wallet.getAddress()).view();
-console.log(`Account balance is ${balance}`);
-```
+- [An example of testing with Aztec.js](../tutorials/testing.md)

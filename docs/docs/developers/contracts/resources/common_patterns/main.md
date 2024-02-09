@@ -95,7 +95,7 @@ This pattern is discussed in detail in [writing a token contract section in the 
 
 When you send someone a note, the note hash gets added to the [note hash tree](../../../../learn/concepts/storage/trees/main.md#note-hash-tree). To spend the note, the receiver needs to get the note itself (the note hash preimage). There are two ways you can get a hold of your notes:
 
-1. When sending someone a note, use `emit_encrypted_log` (the function encrypts the log in such a way that only a recipient can decrypt it). PXE then tries to decrypt all the encrypted logs, and stores the successfully decrypted one. [More info here](../../syntax/events.md)
+1. When sending someone a note, use `emit_encrypted_log` (the function encrypts the log in such a way that only a recipient can decrypt it). PXE then tries to decrypt all the encrypted logs, and stores the successfully decrypted one. [More info here](../../writing_contracts/events/emit_event.md)
 2. Manually using `pxe.addNote()` - If you choose to not emit logs to save gas or when creating a note in the public domain and want to consume it in private domain (`emit_encrypted_log` shouldn't be called in the public domain because everything is public), like in the previous section where we created a TransparentNote in public.
 
 #include_code pxe_add_note yarn-project/end-to-end/src/e2e_cheat_codes.test.ts typescript

@@ -131,7 +131,7 @@ Create a private function called `cast_vote`:
 
 In this function, we do not create a nullifier with the address directly. This would leak privacy as it would be easy to reverse-engineer. We must add some randomness or some form of secret, like [nullifier secrets](../../learn/concepts/accounts/keys.md#nullifier-secrets).
 
-To do this, we make an [oracle call](../contracts/syntax/functions/oracles.md) to fetch the caller's secret key, hash it to create a nullifier, and push the nullifier to Aztec. The `secret.high` and `secret.low` values here refer to how we divide a large [Grumpkin scalar](https://github.com/AztecProtocol/aztec-packages/blob/7fb35874eae3f2cad5cb922282a619206573592c/noir/noir_stdlib/src/grumpkin_scalar.nr) value into its higher and lower parts. This allows for faster cryptographic computations so our hash can still be secure but is calculated faster.
+To do this, we make an [oracle call](../contracts/writing_contracts/oracles/main.md) to fetch the caller's secret key, hash it to create a nullifier, and push the nullifier to Aztec. The `secret.high` and `secret.low` values here refer to how we divide a large [Grumpkin scalar](https://github.com/AztecProtocol/aztec-packages/blob/7fb35874eae3f2cad5cb922282a619206573592c/noir/noir_stdlib/src/grumpkin_scalar.nr) value into its higher and lower parts. This allows for faster cryptographic computations so our hash can still be secure but is calculated faster.
 
 After pushing the nullifier, we update the `tally` to reflect this vote. As we know from before, a private function cannot update public state directly, so we are calling a public function.
 
@@ -187,7 +187,7 @@ This will create a new directory called `target` and a JSON artifact inside it. 
 aztec-cli codegen target -o src/artifacts --ts
 ```
 
-Once it is compiled you can [deploy](../contracts/deploying.md) it to the sandbox. Ensure your [sandbox is running](../cli/sandbox-reference.md) and run this in the same dir as before:
+Once it is compiled you can [deploy](../contracts/deploying_contracts/how_to_deploy_contract.md) it to the sandbox. Ensure your [sandbox is running](../sandbox/references/sandbox-reference.md) and run this in the same dir as before:
 
 ```bash
 aztec-cli deploy ./target/private_voting-Voting.json --args $ADMIN_ADDRESS
@@ -217,7 +217,7 @@ aztec-cli call get_vote --contract-artifact ./target/private_voting-Voting.json 
 
 This should return `1n`.
 
-You can follow this pattern to test `end_vote()` and access control of other functions. Find more information about calling functions from the CLI [here](../cli/cli-commands.md).
+You can follow this pattern to test `end_vote()` and access control of other functions. Find more information about calling functions from the CLI [here](../sandbox/references/cli-commands.md).
 
 ## Next steps
 

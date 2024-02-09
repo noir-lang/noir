@@ -12,7 +12,7 @@ If this is your first time using Aztec, and you want to get started by learning 
 
 ## Learn
 
-If you want to read more about the high level concepts of Aztec before writing some code, head to the [Concepts section](../../learn/about_aztec/technical_overview.md).
+If you want to read more about the high level concepts of Aztec before writing some code, head over to the [Core Components section](../../learn/about_aztec/technical_overview.md).
 
 ## In this section
 

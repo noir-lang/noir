@@ -1,5 +1,5 @@
 ---
-title: Setup
+title: How to setup a new contract project
 ---
 
 import { AztecPackagesVersion } from "@site/src/components/Version";
@@ -85,5 +85,5 @@ You are now ready to write your own contracts!
 
 ## Next Steps
 
-- Read up about how to [write a contract](./syntax/main.md) OR
-- Follow a [tutorial](../tutorials/main.md)
+- Follow a [tutorial](../tutorials/main.md) OR
+- Read more 

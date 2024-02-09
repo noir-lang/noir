@@ -14,7 +14,7 @@ It simulates three types of functions:
 
 Private functions are simulated and proved client-side, and verified client-side in the private kernel circuit.
 
-They are run with the assistance of a DB oracle that provides any private data requested by the function. You can read more about oracle functions in the smart contract section [here](../../../developers/contracts/syntax/functions/oracles.md).
+They are run with the assistance of a DB oracle that provides any private data requested by the function. You can read more about oracle functions in the smart contract section [here](../../../developers/contracts/writing_contracts/oracles/main.md).
 
 Private functions can call other private functions and can request to call a public function. The public function execution will be performed by the sequencer asynchronously, so private functions don't have direct access to the return values of public functions.
 

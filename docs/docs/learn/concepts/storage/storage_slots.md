@@ -62,4 +62,4 @@ By doing this address-siloing at the kernel circuit we *force* the inserted comm
 To ensure that nullifiers don't collide across contracts we also force this contract siloing at the kernel level.
 :::
 
-For an example of this see [developer documentation storage slots](./../../../developers/contracts/syntax/storage/storage_slots.md).
+For an example of this see [developer documentation storage slots](../../../developers/contracts/writing_contracts/storage/main.md).

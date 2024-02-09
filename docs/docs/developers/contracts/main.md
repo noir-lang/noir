@@ -1,6 +1,10 @@
-import DocCardList from '@theme/DocCardList';
+---
+title: Smart Contracts
+---
 
-# Aztec.nr
+This section is a collection of how-to guides and references for building smart contracts with Aztec.nr. 
+
+If you are looking for an overview of how smart contracts work, head to the [Concepts section](../../learn/concepts/smart_contracts/main.md).
 
 ## What is Aztec.nr?
 
@@ -8,7 +12,7 @@ import DocCardList from '@theme/DocCardList';
 
 ## Nomenclature
 
-[**Noir**](https://noir-lang.org/) is a domain specific language for creating and verifying proofs. It's design choices are influenced heavily by Rust.
+[**Noir**](https://noir-lang.org/) is a domain specific language for creating and verifying proofs. Its design choices are influenced heavily by Rust.
 
 A **smart contract** is just a collection of persistent state variables, and a collection of functions which may edit those state variables.
 
@@ -20,7 +24,7 @@ An **Aztec smart contract** is a smart contract with **private** state variables
 
 ## Install aztec-nargo
 
-To write an Aztec.nr contract, you need to the compiler, `aztec-nargo` which is installed when you install the sandbox. See install instructions [here](../cli/sandbox-reference.md).
+To write an Aztec.nr contract, you need to the compiler, `aztec-nargo` which is installed when you install the sandbox. See install instructions [here](../sandbox/references/sandbox-reference.md).
 
 :::info
 For those coming from vanilla Noir, the version used for aztec.nr is tracked separately to nargo for vanilla Noir. Be sure to use `aztec-nargo` to compile your contracts.
@@ -44,7 +48,7 @@ There are a number of tools to make writing Aztec.nr contracts in Noir more plea
 
 ## Tutorials
 
-See the [Token Contract tutorial](../tutorials/writing_token_contract.md) for more info on getting set up to write contracts.
+See the [Private Voting tutorial](../tutorials/writing_private_voting_contract.md) for more info on getting set up to write contracts.
 
 ## Learn more
 

@@ -8,7 +8,7 @@ We will be using typescript to write our tests, and rely on the [`aztec.js`](htt
 
 ## A simple example
 
-Let's start with a simple example for a test using the [Sandbox](../cli/sandbox-reference.md). We will create two accounts and deploy a token contract in a setup step, and then issue a transfer from one user to another.
+Let's start with a simple example for a test using the [Sandbox](../sandbox/references/sandbox-reference.md). We will create two accounts and deploy a token contract in a setup step, and then issue a transfer from one user to another.
 
 #include_code sandbox-example /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
@@ -17,7 +17,7 @@ This test sets up the environment by creating a client to the Private Execution 
 Once we have this setup, the test itself is simple. We check the balance of the `recipient` user to ensure it has no tokens, send and await a deployment transaction, and then check the balance again to ensure it was increased. Note that all numeric values are represented as [native bigints](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) to avoid loss of precision.
 
 :::info
-We are using the `Token` contract's typescript interface. Follow the [typescript interface section](../contracts/compiling.md#typescript-interfaces) to get type-safe methods for deploying and interacting with the token contract.
+We are using the `Token` contract's typescript interface. Follow the [typescript interface section](../contracts/compiling_contracts/how_to_compile_contract.md#typescript-interfaces) to get type-safe methods for deploying and interacting with the token contract.
 :::
 
 To run the test, first make sure the Sandbox is running on port 8080, and then [run your tests using jest](https://jestjs.io/docs/getting-started#running-from-command-line). Your test should pass, and you should see the following output in the Sandbox logs, where each chunk corresponds to a transaction. Note how this test run has a total of four transactions: two for deploying the account contracts for the `owner` and `recipient`, another for deploying the token contract, and a last one for actually executing the transfer.
@@ -148,7 +148,7 @@ In the near future, transactions where a public function call fails will get min
 
 We can check private or public state directly rather than going through view-only methods, as we did in the initial example by calling `token.methods.balance().view()`. Bear in mind that directly accessing contract storage will break any kind of encapsulation.
 
-To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/syntax/storage/main.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the [`CheatCodes`](./../testing/cheat_codes.md) utility class:
+To query storage directly, you'll need to know the slot you want to access. This can be checked in the [contract's `Storage` definition](../contracts/writing_contracts/storage/main.md) directly for most data types. However, when it comes to mapping types, as in most EVM languages, we'll need to calculate the slot for a given key. To do this, we'll use the [`CheatCodes`](../sandbox/references/cheat_codes.md) utility class:
 
 #include_code calc-slot /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
@@ -170,7 +170,7 @@ We can query the Private eXecution Environment (PXE) for all notes encrypted for
 
 ### Logs
 
-Last but not least, we can check the logs of [events](../contracts/syntax/events.md) emitted by our contracts. Contracts in Aztec can emit both [encrypted](../contracts/syntax/events.md#encrypted-events) and [unencrypted](../contracts/syntax/events.md#unencrypted-events) events.
+Last but not least, we can check the logs of [events](../contracts/writing_contracts/events/emit_event.md) emitted by our contracts. Contracts in Aztec can emit both [encrypted](../contracts/writing_contracts/events/emit_event.md#encrypted-events) and [unencrypted](../contracts/writing_contracts/events/emit_event.md#unencrypted-events) events.
 
 :::info
 At the time of this writing, only unencrypted events can be queried directly. Encrypted events are always assumed to be encrypted notes.
@@ -184,7 +184,7 @@ We can query the PXE for the unencrypted logs emitted in the block where our tra
 
 ## Cheats
 
-The [`CheatCodes`](./../testing/cheat_codes.md) class, which we used for [calculating the storage slot above](#state), also includes a set of cheat methods for modifying the chain state that can be handy for testing.
+The [`CheatCodes`](../sandbox/references/cheat_codes.md) class, which we used for [calculating the storage slot above](#state), also includes a set of cheat methods for modifying the chain state that can be handy for testing.
 
 ### Set next block timestamp
 

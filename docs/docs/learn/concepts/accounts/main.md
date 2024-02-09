@@ -1,4 +1,6 @@
-# Accounts
+---
+title: Accounts
+---
 
 **Every account in Aztec is a smart contract** which defines the rules for whether a transaction is or is not valid. This allows implementing different schemes for transaction signing, nonce management, and fee payments. However, encryption and nullifying keys, which are specific to private blockchains, are still enshrined at the protocol level.
 
@@ -68,7 +70,7 @@ def entryPoint(payload):
         enqueueCall(to, data, value, gasLimit);
 ```
 
-Read more about how to write an account contract [here](../../../developers/wallets/writing_an_account_contract.md).
+Read more about how to write an account contract [here](../../../developers/contracts/writing_contracts/accounts/write_accounts_contract.md).
 
 ### Account contracts and wallets
 

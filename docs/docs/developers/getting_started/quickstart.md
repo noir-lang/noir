@@ -95,6 +95,6 @@ Congratulations! You are all set up with the Aztec sandbox!
 
 ## What's next?
 
-To start writing your first Aztec.nr smart contract, go to the [next page](aztecnr-getting-started.md).
+To deploy and interact with a contract using Aztec.js, go to the [next page](aztecnr-getting-started.md).
 
-You can also dig more into the sandbox and CLI [here](../cli/main.md).
+You can also dig more into the sandbox and CLI [here](../sandbox/main.md).

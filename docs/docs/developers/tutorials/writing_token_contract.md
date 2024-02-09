@@ -18,7 +18,7 @@ We are going to start with a blank project and fill in the token contract source
 
 ## Requirements
 
-You will need to have `aztec-nargo` installed in order to compile Aztec.nr contracts. See the [sandbox reference](../cli/sandbox-reference.md) for installation instructions.
+You will need to have `aztec-nargo` installed in order to compile Aztec.nr contracts. See the [sandbox reference](../sandbox/references/sandbox-reference.md) for installation instructions.
 
 You should also install the [Noir Language Support extension](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir) for VS Code.
 
@@ -223,7 +223,7 @@ The main thing to note from this types folder is the `TransparentNote` definitio
 
 ### Note on private state
 
-Private state in Aztec is all [UTXOs](https://en.wikipedia.org/wiki/Unspent_transaction_output) under the hood. Handling UTXOs is largely abstracted away from developers, but there are some unique things for developers to be aware of when creating and managing private state in an Aztec contract. See [State Variables](../contracts/syntax/storage/main.md) to learn more about public and private state in Aztec.
+Private state in Aztec is all [UTXOs](https://en.wikipedia.org/wiki/Unspent_transaction_output) under the hood. Handling UTXOs is largely abstracted away from developers, but there are some unique things for developers to be aware of when creating and managing private state in an Aztec contract. See [State Variables](../contracts/writing_contracts/storage/main.md) to learn more about public and private state in Aztec.
 
 ## Contract Storage
 
@@ -242,7 +242,7 @@ Reading through the storage variables:
 - `pending_shields` is a `Set` of `TransparentNote`s stored in private state. What is stored publicly is a set of commitments to `TransparentNote`s.
 - `public_balances` is a mapping field elements in public state and represents the publicly viewable balances of accounts.
 
-You can read more about it [here](../contracts/syntax/storage/main.md).
+You can read more about it [here](../contracts/writing_contracts/storage/main.md).
 
 ## Functions
 
@@ -452,7 +452,7 @@ If you don't yet have any private state variables defined put there a placeholde
 
 ## Compiling
 
-Now that the contract is complete, you can compile it with `aztec-nargo`. See the [Sandbox reference page](../cli/sandbox-reference.md) for instructions on setting it up.
+Now that the contract is complete, you can compile it with `aztec-nargo`. See the [Sandbox reference page](../sandbox/references/sandbox-reference.md) for instructions on setting it up.
 
 Run the following command in the directory where your `Nargo.toml` file is located:
 

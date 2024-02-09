@@ -22,7 +22,7 @@ const sidebars = {
     // ABOUT AZTEC
 
     {
-      type: "html",
+      type: "html", 
       className: "sidebar-title",
       value: "LEARN",
       defaultStyle: true,
@@ -254,93 +254,194 @@ const sidebars = {
       type: "category",
       link: {
         type: "doc",
-        id: "developers/cli/main",
+        id: "developers/sandbox/main",
       },
       items: [
-        "developers/cli/cli-commands",
-        "developers/cli/sandbox-reference",
-        "developers/cli/run_more_than_one_pxe_sandbox",
+        {
+          label: "Guides",
+          type: "category",
+          items: [
+            "developers/sandbox/guides/blank_box",
+            "developers/sandbox/guides/run_more_than_one_pxe_sandbox",
+            "developers/wallets/creating_schnorr_accounts",
+          ],
+        },
+        {
+          label: "References",
+          type: "category",
+          items: [
+            "developers/sandbox/references/cli-commands",
+            "developers/sandbox/references/sandbox-reference",
+            "developers/sandbox/references/cheat_codes",
+            {
+              label: "PXE Reference",
+              type: "doc",
+              id: "apis/pxe/interfaces/PXE",
+            },
+          ],
+
+        },
+       
       ],
     },
     {
-      label: "Aztec.nr Contracts",
+      label: "Smart Contracts",
       type: "category",
       link: {
         type: "doc",
         id: "developers/contracts/main",
       },
       items: [
-        "developers/contracts/workflow",
         "developers/contracts/setup",
-        "developers/contracts/layout",
         {
-          label: "Syntax",
+          label: "Writing Contracts",
           type: "category",
-          link: {
-            type: "doc",
-            id: "developers/contracts/syntax/main",
-          },
           items: [
+            "developers/contracts/writing_contracts/layout",
+            "developers/contracts/writing_contracts/example_contract",
+            {
+              label: "Functions and Constructors",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "developers/contracts/writing_contracts/functions/main",
+              },
+              items: [
+                "developers/contracts/writing_contracts/functions/context",
+                "developers/contracts/writing_contracts/functions/public_private_unconstrained",
+                "developers/contracts/writing_contracts/functions/visibility",
+                "developers/contracts/writing_contracts/functions/call_functions",
+                "developers/contracts/writing_contracts/functions/write_constructor",
+                "developers/contracts/writing_contracts/functions/inner_workings",
+              ],
+            },
             {
               label: "Storage",
               type: "category",
               link: {
                 type: "doc",
-                id: "developers/contracts/syntax/storage/main",
+                id: "developers/contracts/writing_contracts/storage/main",
               },
               items: [
-                "developers/contracts/syntax/storage/private_state",
-                "developers/contracts/syntax/storage/public_state",
-                "developers/contracts/syntax/storage/storage_slots",
+                "developers/contracts/writing_contracts/storage/define_storage",
+                "developers/contracts/writing_contracts/storage/storage_slots",
               ],
             },
-            "developers/contracts/syntax/events",
             {
-              label: "Functions",
+              label: "Accounts and Account Contracts",
+              type: "category",
+              items: [
+                "developers/contracts/writing_contracts/accounts/write_accounts_contract",
+      
+              ],
+            },
+            {
+              label: "Events",
+              type: "category",
+              items: [
+                "developers/contracts/writing_contracts/events/emit_event",
+              ],
+            },
+            {
+              label: "Oracles",
               type: "category",
               link: {
                 type: "doc",
-                id: "developers/contracts/syntax/functions/main",
+                id: "developers/contracts/writing_contracts/oracles/main",
               },
               items: [
-                "developers/contracts/syntax/functions/public_private_unconstrained",
-                "developers/contracts/syntax/functions/visibility",
-                "developers/contracts/syntax/functions/constructor",
-                "developers/contracts/syntax/functions/calling_functions",
-                "developers/contracts/syntax/functions/oracles",
-                "developers/contracts/syntax/functions/inner_workings",
+                "developers/contracts/writing_contracts/oracles/inbuilt_oracles",
+                "developers/contracts/writing_contracts/oracles/pop_capsule",
               ],
             },
-            "developers/contracts/syntax/oracles",
             {
-              label: "Proving Historical Blockchain Data",
+              label: "Portals",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "developers/contracts/writing_contracts/portals/portals",
+              },
+              items: [
+                "developers/contracts/writing_contracts/portals/deploy_with_portal",
+                "developers/contracts/writing_contracts/portals/communicate_with_portal",
+              ],
+            },
+            {
+              label: "Historical Data",
               type: "category",
               items: [
-                "developers/contracts/syntax/historical_access/how_to_prove_history",
-                "developers/contracts/syntax/historical_access/history_lib_reference",
+                {
+                  label: "Historical Blockchain Data (Archive Tree)",
+                  type: "category",
+                  link: {
+                    type: "doc",
+                    id: "developers/contracts/writing_contracts/historical_data/slow_updates_tree/main",
+                  },
+                  items: [
+                    "developers/contracts/writing_contracts/historical_data/archive_tree/how_to_prove_history",
+                  ],
+                },
               ],
             },
-            "developers/contracts/syntax/slow_updates_tree",
-
-            "developers/contracts/syntax/context",
-            "developers/contracts/syntax/globals",
+            {
+              label: "Access public data from private state (Slow Updates Tree)",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "developers/contracts/writing_contracts/historical_data/slow_updates_tree/main",
+              },
+              items: [
+                "developers/contracts/writing_contracts/historical_data/slow_updates_tree/implement_slow_updates",
+              ],
+            },
+           
           ],
         },
-        "developers/contracts/compiling",
-        "developers/contracts/deploying",
-        "developers/contracts/artifacts",
         {
-          label: "Portals",
+          label: "Compiling Contracts",
           type: "category",
-          link: {
-            type: "doc",
-            id: "developers/contracts/portals/main",
-          },
           items: [
-            "developers/contracts/portals/data_structures",
-            "developers/contracts/portals/registry",
-            "developers/contracts/portals/inbox",
-            "developers/contracts/portals/outbox",
+            "developers/contracts/compiling_contracts/how_to_compile_contract",
+            "developers/contracts/compiling_contracts/artifacts",
+                     ],
+        },
+        {
+          label: "Deploying Contracts",
+          type: "category",
+          items: [
+            "developers/contracts/deploying_contracts/how_to_deploy_contract",
+                     ],
+        },
+         "developers/contracts/testing_contracts/main",
+        {
+          label: "References",
+          type: "category",
+          items: [
+            "developers/contracts/references/globals",
+            {
+              label: "Storage Reference",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "developers/contracts/references/storage/main",
+              },
+              items: [
+                "developers/contracts/references/storage/private_state",
+                "developers/contracts/references/storage/public_state"
+              ],
+            },
+            {
+              label: "Portals Reference",
+              type: "category",
+              items: [
+                "developers/contracts/references/portals/data_structures",
+                "developers/contracts/references/portals/inbox",
+                "developers/contracts/references/portals/outbox",
+                "developers/contracts/references/portals/registry",
+              ],
+            },
+            "developers/contracts/references/history_lib_reference",
+            "developers/contracts/references/slow_updates_tree",
           ],
         },
         {
@@ -386,8 +487,39 @@ const sidebars = {
 
     {
       label: "Aztec.js",
-      type: "doc",
-      id: "developers/aztecjs/main",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "developers/aztecjs/main",
+      },
+      items: [
+        {
+          label: "Guides",
+          type: "category",
+          items: [
+            "developers/aztecjs/guides/create_account",
+            "developers/aztecjs/guides/deploy_contract",
+            "developers/aztecjs/guides/send_transaction",
+            "developers/aztecjs/guides/call_view_function",
+          ],
+        },
+        { 
+          label: "References",
+          type: "category",
+          items: [
+            {
+              label: "Aztec.js",
+              type: "category",
+              items: [{ dirName: "apis/aztec-js", type: "autogenerated" }],
+            },
+            {
+              label: "Accounts",
+              type: "category",
+              items: [{ dirName: "apis/accounts", type: "autogenerated" }],
+            },
+       ],
+    },
+    ],
     },
     {
       label: "Debugging",
@@ -406,16 +538,6 @@ const sidebars = {
       type: "doc",
       id: "developers/updating",
     },
-
-    {
-      label: "Testing",
-      type: "category",
-      link: {
-        type: "doc",
-        id: "developers/testing/main",
-      },
-      items: ["developers/testing/cheat_codes"],
-    },
     {
       label: "Wallets",
       type: "category",
@@ -425,8 +547,6 @@ const sidebars = {
       },
       items: [
         "developers/wallets/architecture",
-        "developers/wallets/writing_an_account_contract",
-        "developers/wallets/creating_schnorr_accounts",
       ],
     },
 
@@ -437,28 +557,6 @@ const sidebars = {
     },*/
     "developers/privacy/main",
     "developers/limitations/main",
-
-    {
-      label: "API Reference",
-      type: "category",
-      items: [
-        {
-          label: "Private Execution Environment (PXE)",
-          type: "doc",
-          id: "apis/pxe/interfaces/PXE",
-        },
-        {
-          label: "Aztec.js",
-          type: "category",
-          items: [{ dirName: "apis/aztec-js", type: "autogenerated" }],
-        },
-        {
-          label: "Accounts",
-          type: "category",
-          items: [{ dirName: "apis/accounts", type: "autogenerated" }],
-        },
-      ],
-    },
 
     {
       type: "html",

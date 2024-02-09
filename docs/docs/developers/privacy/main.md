@@ -49,7 +49,7 @@ Any time a private function makes a call to a public function, information is le
 
 ### Crossing the public -> private boundary
 
-If a public function sends a message to be consumed by a private function, the act of consuming that message might be leaked if not following recommended patterns. See [here](../contracts/portals/inbox.md) for more details.
+If a public function sends a message to be consumed by a private function, the act of consuming that message might be leaked if not following recommended patterns. See [here](../contracts/references/portals/inbox.md) for more details.
 
 ### Timing of transactions
 

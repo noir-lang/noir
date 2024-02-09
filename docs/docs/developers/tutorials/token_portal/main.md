@@ -4,7 +4,7 @@ title: Build a Token Bridge
 
 import Image from "@theme/IdealImage";
 
-In this tutorial, we will learn how to build the entire flow of a cross-chain token using portals. If this is your first time hearing the word portal, you’ll want to read [this](../../contracts/portals/main).
+In this tutorial, we will learn how to build the entire flow of a cross-chain token using portals. If this is your first time hearing the word portal, you’ll want to read [this](../../../learn/concepts/communication/cross_chain_calls.md).
 
 ## A refresher on Portals
 
