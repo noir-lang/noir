@@ -47,47 +47,14 @@ export class BarretenbergBackend implements Backend {
     }
   }
 
-  /**
-   * Generate a final proof. This is the proof for the circuit which will verify
-   * intermediate proofs and or can be seen as the proof created for regular circuits.
-   */
-  async generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData> {
-    // The settings for this proof are the same as the settings for a "normal" proof
-    // i.e. one that is not in the recursive setting.
-    const makeEasyToVerifyInCircuit = false;
-    return this.generateProof(decompressedWitness, makeEasyToVerifyInCircuit);
-  }
-
-  /**
-   * Generates an intermediate proof. This is the proof that can be verified
-   * in another circuit.
-   *
-   * This is sometimes referred to as a recursive proof.
-   * We avoid this terminology as the only property of this proof
-   * that matters is the fact that it is easy to verify in another circuit.
-   * We _could_ choose to verify this proof outside of a circuit just as easily.
-   *
-   * @example
-   * ```typescript
-   * const intermediateProof = await backend.generateIntermediateProof(witness);
-   * ```
-   */
-  async generateIntermediateProof(witness: Uint8Array): Promise<ProofData> {
-    // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
-    // generate the proof using components that will make the proof
-    // easier to verify in a circuit.
-    const makeEasyToVerifyInCircuit = true;
-    return this.generateProof(witness, makeEasyToVerifyInCircuit);
-  }
-
-  /** @ignore */
-  async generateProof(compressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
+  /** @description Generates a proof */
+  async generateProof(compressedWitness: Uint8Array): Promise<ProofData> {
     await this.instantiate();
+    // TODO: Change once `@aztec/bb.js` version is updated to use methods without isRecursive flag
     const proofWithPublicInputs = await this.api.acirCreateProof(
       this.acirComposer,
       this.acirUncompressedBytecode,
       gunzip(compressedWitness),
-      makeEasyToVerifyInCircuit,
     );
 
     const splitIndex = proofWithPublicInputs.length - numBytesInProofWithoutPublicInputs;
@@ -105,17 +72,17 @@ export class BarretenbergBackend implements Backend {
    * Instead of passing the proof and verification key as a byte array, we pass them
    * as fields which makes it cheaper to verify in a circuit.
    *
-   * The proof that is passed here will have been created using the `generateIntermediateProof`
-   * method.
+   * The proof that is passed here will have been created using a circuit
+   * that has the #[recursive] attribute on its `main` method.
    *
    * The number of public inputs denotes how many public inputs are in the inner proof.
    *
    * @example
    * ```typescript
-   * const artifacts = await backend.generateIntermediateProofArtifacts(proof, numOfPublicInputs);
+   * const artifacts = await backend.generateRecursiveProofArtifacts(proof, numOfPublicInputs);
    * ```
    */
-  async generateIntermediateProofArtifacts(
+  async generateRecursiveProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs = 0,
   ): Promise<{
@@ -143,31 +110,13 @@ export class BarretenbergBackend implements Backend {
     };
   }
 
-  async verifyFinalProof(proofData: ProofData): Promise<boolean> {
+  /** @description Verifies a proof */
+  async verifyProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputs(proofData);
-    const makeEasyToVerifyInCircuit = false;
-    const verified = await this.verifyProof(proof, makeEasyToVerifyInCircuit);
-    return verified;
-  }
-
-  /**
-   *
-   * @example
-   * ```typescript
-   * const isValidIntermediate = await backend.verifyIntermediateProof(proof);
-   * ```
-   */
-  async verifyIntermediateProof(proofData: ProofData): Promise<boolean> {
-    const proof = reconstructProofWithPublicInputs(proofData);
-    const makeEasyToVerifyInCircuit = true;
-    return this.verifyProof(proof, makeEasyToVerifyInCircuit);
-  }
-
-  /** @ignore */
-  async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<boolean> {
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
-    return await this.api.acirVerifyProof(this.acirComposer, proof, makeEasyToVerifyInCircuit);
+    // TODO: Change once `@aztec/bb.js` version is updated to use methods without isRecursive flag
+    return await this.api.acirVerifyProof(this.acirComposer, proof);
   }
 
   async destroy(): Promise<void> {

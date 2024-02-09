@@ -174,21 +174,10 @@ impl RuntimeError {
                     location.span,
                 )
             }
-            RuntimeError::UnconstrainedSliceReturnToConstrained { .. } => {
-                let primary_message = self.to_string();
-                let location =
-                    self.call_stack().back().expect("Expected RuntimeError to have a location");
-
-                Diagnostic::simple_error(
-                    primary_message,
-                    "If attempting to return a `Vec` type, `Vec` contains a slice internally.".to_string(),
-                    location.span,
-                )
-            }
             _ => {
                 let message = self.to_string();
                 let location =
-                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+                    self.call_stack().back().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }

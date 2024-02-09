@@ -153,11 +153,10 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Call(call_expr) => {
                 // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
                 // These flags are later used to type check calls to unconstrained functions from constrained functions
-                let current_func = self
-                    .current_function
-                    .expect("Can only have call expression inside of a function body");
-                let func_mod = self.interner.function_modifiers(&current_func);
-                let is_current_func_constrained = !func_mod.is_unconstrained;
+                let current_func = self.current_function;
+                let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
+                let is_current_func_constrained =
+                    func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
                 let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
 
                 self.check_if_deprecated(&call_expr.func);
@@ -169,20 +168,33 @@ impl<'interner> TypeChecker<'interner> {
                     (typ, *arg, self.interner.expr_span(arg))
                 });
 
-                for (typ, _, _) in args.iter() {
-                    if is_current_func_constrained
-                        && is_unconstrained_call
-                        && matches!(&typ, Type::MutableReference(_))
-                    {
-                        self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
-                            span: self.interner.expr_span(expr_id),
-                        });
-                        return Type::Error;
+                // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
+                if is_current_func_constrained && is_unconstrained_call {
+                    for (typ, _, _) in args.iter() {
+                        if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                            self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
+                                span: self.interner.expr_span(expr_id),
+                            });
+                            return Type::Error;
+                        }
                     }
                 }
 
                 let span = self.interner.expr_span(expr_id);
-                self.bind_function_type(function, args, span)
+                let return_type = self.bind_function_type(function, args, span);
+
+                // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
+                if is_current_func_constrained
+                    && is_unconstrained_call
+                    && return_type.contains_slice()
+                {
+                    self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
+                        span: self.interner.expr_span(expr_id),
+                    });
+                    return Type::Error;
+                }
+
+                return_type
             }
             HirExpression::MethodCall(mut method_call) => {
                 let mut object_type = self.check_expression(&method_call.object).follow_bindings();
