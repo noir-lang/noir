@@ -13,18 +13,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.runner }}
+  # This job exists mostly to populate the build cache with everything necessary.
+  build-test-artifacts:
+    name: Build test artifacts
+    runs-on: ubuntu-latest
     timeout-minutes: 30
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu
-            runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
 
     steps:
       - name: Checkout
@@ -33,13 +26,58 @@ jobs:
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.71.1
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-unknown-linux-gnu
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}
+          key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      - name: Build test artifacts
+        run: cargo test --workspace --locked --release  --no-run
+
+  build-packages-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: SebRollen/toml-action@v1.0.2
+        id: read_toml
+        with:
+          file: 'Cargo.toml'
+          field: 'workspace.members'
+        
+      - id: set-matrix
+        run: echo "::set-output name=matrix::{\"package\":[${{steps.read_toml.outputs.value}}]}"
+
+
+  test:
+    name: Test package ${{ matrix.package }}
+    needs: [build-packages-matrix, build-test-artifacts]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.build-packages-matrix.outputs.matrix)}}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          save-if: false
+
       - name: Run tests
-        run: cargo test --workspace --locked --release
+        run: cargo test --package ${{matrix.package}} --locked --release
