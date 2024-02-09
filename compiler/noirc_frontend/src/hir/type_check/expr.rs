@@ -156,7 +156,7 @@ impl<'interner> TypeChecker<'interner> {
                 let current_func = self.current_function;
                 let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
                 let is_current_func_constrained =
-                    func_mod.map_or(false, |func_mod| !func_mod.is_unconstrained);
+                    func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
                 let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
 
                 self.check_if_deprecated(&call_expr.func);
