@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build-test-artifacts:
-    name: Test on ubuntu
+    name: Build test artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
