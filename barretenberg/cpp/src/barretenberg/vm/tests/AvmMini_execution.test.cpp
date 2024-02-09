@@ -12,9 +12,16 @@
 #include <string>
 #include <utility>
 
+namespace tests_avm {
+
 using namespace bb;
+using namespace avm_trace;
 using namespace testing;
+
+using bb::utils::hex_to_bytes;
+
 namespace {
+
 void gen_proof_and_validate(std::vector<uint8_t> const& bytecode,
                             std::vector<Row>&& trace,
                             std::vector<FF> const& calldata)
@@ -31,10 +38,6 @@ void gen_proof_and_validate(std::vector<uint8_t> const& bytecode,
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 } // namespace
-
-namespace tests_avm {
-using namespace avm_trace;
-using bb::utils::hex_to_bytes;
 
 class AvmMiniExecutionTests : public ::testing::Test {
   public:

@@ -1,10 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 
 namespace avm_trace {
-using std::size_t;
 
 /**
  * All AVM opcodes (Keep in sync with TS counterpart code opcodes.ts)

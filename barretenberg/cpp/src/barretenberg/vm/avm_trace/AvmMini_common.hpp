@@ -4,11 +4,11 @@
 #include "barretenberg/proof_system/circuit_builder/generated/AvmMini_circuit_builder.hpp"
 #include <cstdint>
 
+namespace avm_trace {
+
 using Flavor = bb::AvmMiniFlavor;
 using FF = Flavor::FF;
 using Row = bb::AvmMiniFullRow<bb::fr>;
-
-namespace avm_trace {
 
 // Number of rows
 static const size_t AVM_TRACE_SIZE = 256;
