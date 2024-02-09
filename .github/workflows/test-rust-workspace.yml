@@ -79,7 +79,7 @@ jobs:
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
-    name: End
+    name: Rust End
     runs-on: ubuntu-latest
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
