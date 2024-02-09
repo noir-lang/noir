@@ -158,17 +158,14 @@ impl From<ResolverError> for Diagnostic {
                         let len = missing_fields.len() - 3;
                         let len_plural = if len != 1 {"s"} else {""};
 
-                        truncated_fields_error = format!(" and {len} other field{pluar}");
-                        missing_fields
-                        .into_iter()
-                        .take(3)
-                        .collect::<Vec<_>>()
-                        .join(", ")
+                        let truncated_fields = format!(" and {len} other field{len_plural}");
+                        missing_fields.truncate(3);
+                        format!("{}{}", fields.join(", "), missing_fields)
                     }
                 };
 
                 Diagnostic::simple_error(
-                    format!("missing field{plural} {remaining_fields_names}{truncated_fields_error} in struct {struct_definition}"),
+                    format!("missing field{plural} {remaining_fields_names} in struct {struct_definition}"),
                     String::new(),
                     span,
                 )
