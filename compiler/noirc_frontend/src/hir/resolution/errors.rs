@@ -150,14 +150,13 @@ impl From<ResolverError> for Diagnostic {
             }
             ResolverError::MissingFields { span, missing_fields, struct_definition } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
-                let mut truncated_fields_error = String::new();
                 let remaining_fields_names = match &missing_fields[..] {
                     [field1] => field1.clone(),
                     [field1, field2] => format!("{field1} and {field2}"),
                     [field1, field2, field3] => format!("{field1}, {field2} and {field3}"),
                     _ => {
                         let len = missing_fields.len() - 3;
-                        let pluar = if len != 1 {"s"} else {""};
+                        let len_plural = if len != 1 {"s"} else {""};
 
                         truncated_fields_error = format!(" and {len} other field{pluar}");
                         missing_fields
