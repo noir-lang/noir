@@ -333,7 +333,6 @@ mod tests {
     use jsonrpc_core::Result as RpcResult;
     use jsonrpc_derive::rpc;
     use jsonrpc_http_server::{Server, ServerBuilder};
-    use serial_test::serial;
 
     use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 
@@ -369,15 +368,15 @@ mod tests {
         let mut io = jsonrpc_core::IoHandler::new();
         io.extend_with(OracleResolverImpl.to_delegate());
 
+        // Choosing port 0 results in a random port being assigned.
         let server = ServerBuilder::new(io)
-            .start_http(&"127.0.0.1:5555".parse().expect("Invalid address"))
+            .start_http(&"127.0.0.1:0".parse().expect("Invalid address"))
             .expect("Could not start server");
 
         let url = format!("http://{}", server.address());
         (server, url)
     }
 
-    #[serial]
     #[test]
     fn test_oracle_resolver_echo() {
         let (server, url) = build_oracle_server();
@@ -395,7 +394,6 @@ mod tests {
         server.close();
     }
 
-    #[serial]
     #[test]
     fn test_oracle_resolver_sum() {
         let (server, url) = build_oracle_server();
