@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use arena::{Arena, Index};
 use fm::FileId;
@@ -140,7 +141,9 @@ pub struct NodeInterner {
     /// checking.
     field_indices: HashMap<ExprId, usize>,
 
-    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    // Maps GlobalId -> GlobalInfo
+    // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    globals: Vec<GlobalInfo>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -179,7 +182,7 @@ pub struct NodeInterner {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
     Struct(StructId),
-    Global(StmtId),
+    Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
 }
@@ -276,6 +279,17 @@ impl DefinitionId {
 impl From<DefinitionId> for Index {
     fn from(id: DefinitionId) -> Self {
         Index::from_raw_parts(id.0, u64::MAX)
+    }
+}
+
+/// An ID for a global value
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+pub struct GlobalId(usize);
+
+impl GlobalId {
+    // Dummy id for error reporting
+    pub fn dummy_id() -> Self {
+        GlobalId(std::usize::MAX)
     }
 }
 
@@ -429,7 +443,7 @@ impl DefinitionInfo {
 pub enum DefinitionKind {
     Function(FuncId),
 
-    Global(ExprId),
+    Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
@@ -450,7 +464,7 @@ impl DefinitionKind {
     pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
@@ -459,8 +473,12 @@ impl DefinitionKind {
 
 #[derive(Debug, Clone)]
 pub struct GlobalInfo {
+    pub id: GlobalId,
+    pub definition_id: DefinitionId,
     pub ident: Ident,
     pub local_id: LocalModuleId,
+    pub location: Location,
+    pub let_statement: StmtId,
 }
 
 impl Default for NodeInterner {
@@ -489,7 +507,7 @@ impl Default for NodeInterner {
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
-            globals: HashMap::new(),
+            globals: Vec::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -651,26 +669,41 @@ impl NodeInterner {
         self.type_ref_locations.push((typ, location));
     }
 
-    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
+    fn push_global(
+        &mut self,
+        ident: Ident,
+        local_id: LocalModuleId,
+        let_statement: StmtId,
+        file: FileId,
+    ) -> GlobalId {
+        let id = GlobalId(self.globals.len());
+        let location = Location::new(ident.span(), file);
+        let name = ident.to_string();
+        let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+        self.globals.push(GlobalInfo {
+            id,
+            definition_id,
+            ident,
+            local_id,
+            let_statement,
+            location,
+        });
+        id
     }
 
-    /// Intern an empty global stmt. Used for collecting globals
-    pub fn push_empty_global(&mut self) -> StmtId {
-        self.push_stmt(HirStatement::Error)
+    pub fn next_global_id(&mut self) -> GlobalId {
+        GlobalId(self.globals.len())
     }
 
-    pub fn update_global(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
-        let def =
-            self.nodes.get_mut(stmt_id.0).expect("ice: all function ids should have definitions");
-
-        let stmt = match def {
-            Node::Statement(stmt) => stmt,
-            _ => {
-                panic!("ice: all global ids should correspond to a statement in the interner")
-            }
-        };
-        *stmt = hir_stmt;
+    /// Intern an empty global. Used for collecting globals before they're defined
+    pub fn push_empty_global(
+        &mut self,
+        name: Ident,
+        local_id: LocalModuleId,
+        file: FileId,
+    ) -> GlobalId {
+        let statement = self.push_stmt(HirStatement::Error);
+        self.push_global(name, local_id, statement, file)
     }
 
     /// Intern an empty function.
@@ -850,19 +883,19 @@ impl NodeInterner {
         }
     }
 
-    /// Returns the interned let statement corresponding to `stmt_id`
-    pub fn let_statement(&self, stmt_id: &StmtId) -> HirLetStatement {
-        let def =
-            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
+    /// Try to get the `HirLetStatement` which defines a given global value
+    pub fn get_global_let_statement(&self, global: GlobalId) -> Option<HirLetStatement> {
+        let global = self.get_global(global);
+        let def = self.nodes.get(global.let_statement.0)?;
 
         match def {
-            Node::Statement(hir_stmt) => {
-                match hir_stmt {
-                    HirStatement::Let(let_stmt) => let_stmt.clone(),
-                    _ => panic!("ice: all let statement ids should correspond to a let statement in the interner"),
+            Node::Statement(hir_stmt) => match hir_stmt {
+                HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
+                _ => {
+                    panic!("ice: all globals should correspond to a let statement in the interner")
                 }
             },
-            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+            _ => panic!("ice: all globals should correspond to a statement in the interner"),
         }
     }
 
@@ -928,12 +961,17 @@ impl NodeInterner {
         &self.type_aliases[id.0]
     }
 
-    pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
-        self.globals.get(stmt_id).cloned()
+    pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
+        &self.globals[global_id.0]
     }
 
-    pub fn get_all_globals(&self) -> HashMap<StmtId, GlobalInfo> {
-        self.globals.clone()
+    pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
+        let global = self.get_global(global_id);
+        self.definition(global.definition_id)
+    }
+
+    pub fn get_all_globals(&self) -> &[GlobalInfo] {
+        &self.globals
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
@@ -967,6 +1005,12 @@ impl NodeInterner {
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
+    }
+
+    /// Replaces the HirStatement at the given StmtId with a new HirStatement
+    pub fn replace_statement(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
+        let old = self.nodes.get_mut(stmt_id.0).unwrap();
+        *old = Node::Statement(hir_stmt);
     }
 
     pub fn next_type_variable_id(&self) -> TypeVariableId {
@@ -1075,6 +1119,34 @@ impl NodeInterner {
 
         Type::apply_type_bindings(bindings);
         Ok(impl_kind)
+    }
+
+    /// Given a `ObjectType: TraitId` pair, find all implementations without taking constraints into account or
+    /// applying any type bindings. Useful to look for a specific trait in a type that is used in a macro.
+    pub fn lookup_all_trait_implementations(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+    ) -> Vec<&TraitImplKind> {
+        let trait_impl = self.trait_implementation_map.get(&trait_id);
+
+        trait_impl
+            .map(|trait_impl| {
+                trait_impl
+                    .iter()
+                    .filter_map(|(typ, impl_kind)| match &typ {
+                        Type::Forall(_, typ) => {
+                            if typ.deref() == object_type {
+                                Some(impl_kind)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or(vec![])
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1298,7 +1370,6 @@ impl NodeInterner {
         force_type_check: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
-
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
@@ -1456,12 +1527,16 @@ impl NodeInterner {
 
     /// Register that `dependent` depends on `dependency`.
     /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
-    pub fn add_type_dependency(&mut self, dependent: StructId, dependency: StructId) {
-        self.add_dependency(DependencyId::Struct(dependent), DependencyId::Struct(dependency));
+    pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: StructId) {
+        self.add_dependency(dependent, DependencyId::Struct(dependency));
     }
 
-    pub fn add_type_global_dependency(&mut self, dependent: StructId, dependency: StmtId) {
-        self.add_dependency(DependencyId::Struct(dependent), DependencyId::Global(dependency));
+    pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
+        self.add_dependency(dependent, DependencyId::Global(dependency));
+    }
+
+    pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
+        self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
     fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
@@ -1503,20 +1578,15 @@ impl NodeInterner {
                             break;
                         }
                         DependencyId::Global(global_id) => {
-                            let let_stmt = match self.statement(&global_id) {
-                                HirStatement::Let(let_stmt) => let_stmt,
-                                other => unreachable!(
-                                    "Expected global to be a `let` statement, found {other:?}"
-                                ),
-                            };
-
-                            let (name, location) =
-                                self.pattern_name_and_location(&let_stmt.pattern);
-                            push_error(name, &scc, i, location);
+                            let global = self.get_global(global_id);
+                            let name = global.ident.to_string();
+                            push_error(name, &scc, i, global.location);
+                            break;
                         }
                         DependencyId::Alias(alias_id) => {
                             let alias = self.get_type_alias(alias_id);
                             push_error(alias.name.to_string(), &scc, i, alias.location);
+                            break;
                         }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
@@ -1539,56 +1609,19 @@ impl NodeInterner {
                 Cow::Borrowed(self.get_type_alias(id).name.0.contents.as_ref())
             }
             DependencyId::Global(id) => {
-                let let_stmt = match self.statement(&id) {
-                    HirStatement::Let(let_stmt) => let_stmt,
-                    other => {
-                        unreachable!("Expected global to be a `let` statement, found {other:?}")
-                    }
-                };
-                Cow::Owned(self.pattern_name_and_location(&let_stmt.pattern).0)
+                Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
             }
         };
 
         let mut cycle = index_to_string(scc[start_index]).to_string();
 
-        for i in 0..scc.len() {
+        // Reversing the dependencies here matches the order users would expect for the error message
+        for i in (0..scc.len()).rev() {
             cycle += " -> ";
-            cycle += &index_to_string(scc[(start_index + i + 1) % scc.len()]);
+            cycle += &index_to_string(scc[(start_index + i) % scc.len()]);
         }
 
         cycle
-    }
-
-    /// Returns the name and location of this pattern.
-    /// If this pattern is a tuple or struct the 'name' will be a string representation of the
-    /// entire pattern. Similarly, the location will be the merged location of all fields.
-    fn pattern_name_and_location(
-        &self,
-        pattern: &crate::hir_def::stmt::HirPattern,
-    ) -> (String, Location) {
-        match pattern {
-            crate::hir_def::stmt::HirPattern::Identifier(ident) => {
-                let definition = self.definition(ident.id);
-                (definition.name.clone(), definition.location)
-            }
-            crate::hir_def::stmt::HirPattern::Mutable(pattern, _) => {
-                self.pattern_name_and_location(pattern)
-            }
-            crate::hir_def::stmt::HirPattern::Tuple(fields, location) => {
-                let fields = vecmap(fields, |field| self.pattern_name_and_location(field).0);
-
-                let fields = fields.join(", ");
-                (format!("({fields})"), *location)
-            }
-            crate::hir_def::stmt::HirPattern::Struct(typ, fields, location) => {
-                let fields = vecmap(fields, |(field_name, field)| {
-                    let field = self.pattern_name_and_location(field).0;
-                    format!("{field_name}: {field}")
-                });
-                let fields = fields.join(", ");
-                (format!("{typ} {{ {fields} }}"), *location)
-            }
-        }
     }
 }
 

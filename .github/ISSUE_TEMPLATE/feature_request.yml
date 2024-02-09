@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         ## Description
-        Thanks for taking the time to create the Issue, and welcome to the Noirot family!
+        Thanks for taking the time to create the Issue and welcome to the Noir community!
   - type: textarea
     id: problem
     attributes:
@@ -21,11 +21,31 @@ body:
       description: Describe how you think it should work. Supply pseudocode / step-by-step examples if applicable.
     validations:
       required: true
-  - type: textarea
-    id: alternatives
+  - type: dropdown
+    id: impact
     attributes:
-      label: Alternatives Considered
-      description: Describe less-happy cases you have considered, if any.
+      label: Project Impact
+      description: How does this affect a project you or others are working on? 
+      options:
+        - "Nice-to-have"
+        - "Blocker"
+  - type: textarea
+    id: impact_context
+    attributes:
+      label: Impact Context
+      description: If a nice-to-have / blocker, supplement how does this Issue affect the project.
+  - type: dropdown
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Is there a workaround for this Issue? 
+      options:
+        - "Yes"
+  - type: textarea
+    id: workaround_description
+    attributes:
+      label: Workaround Description
+      description: If yes, supplement how could the Issue be worked around.
   - type: textarea
     id: additional
     attributes:
@@ -42,11 +62,8 @@ body:
       description: Fellow contributors are happy to provide support where applicable.
       multiple: false
       options:
-        - "No"
         - "Maybe"
         - "Yes"
-    validations:
-      required: true
   - type: textarea
     id: pr-support
     attributes:

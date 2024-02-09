@@ -37,6 +37,9 @@
     "build:nix": "nix build -L .#noirc_abi_wasm",
     "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noirc_abi_wasm/nodejs ./ && cp -rL ./result/noirc_abi_wasm/web ./"
   },
+  "dependencies": {
+    "@noir-lang/types": "workspace:*"
+  },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@web/dev-server-esbuild": "^0.3.6",

@@ -1,4 +1,4 @@
-import { Abi, AbiType } from '@noir-lang/noirc_abi';
+import { Abi, AbiType } from '@noir-lang/types';
 
 /**
  * A named type.

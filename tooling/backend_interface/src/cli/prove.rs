@@ -13,7 +13,6 @@ use super::string_from_stderr;
 /// The proof will be written to the specified output file.
 pub(crate) struct ProveCommand {
     pub(crate) crs_path: PathBuf,
-    pub(crate) is_recursive: bool,
     pub(crate) bytecode_path: PathBuf,
     pub(crate) witness_path: PathBuf,
 }
@@ -32,10 +31,6 @@ impl ProveCommand {
             .arg(self.witness_path)
             .arg("-o")
             .arg("-");
-
-        if self.is_recursive {
-            command.arg("-r");
-        }
 
         let output = command.output()?;
         if output.status.success() {
@@ -61,7 +56,7 @@ fn prove_command() -> Result<(), BackendError> {
     std::fs::File::create(&witness_path).expect("file should be created");
 
     let crs_path = backend.backend_directory();
-    let prove_command = ProveCommand { crs_path, bytecode_path, witness_path, is_recursive: false };
+    let prove_command = ProveCommand { crs_path, bytecode_path, witness_path };
 
     let proof = prove_command.run(backend.binary_path())?;
     assert_eq!(proof, "proof".as_bytes());
