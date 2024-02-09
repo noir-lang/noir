@@ -141,7 +141,7 @@ impl BaseRollupInputs {
 
         BaseOrMergeRollupPublicInputs {
             rollup_type : BASE_ROLLUP_TYPE,
-            rollup_subtree_height : 0,
+            height_in_block_tree : 0,
             aggregation_object : aggregation_object,
             constants : self.constants,
             start: self.start,
@@ -1300,7 +1300,7 @@ mod tests {
     unconstrained fn subtree_height_is_0() {
         let outputs = BaseRollupInputsBuilder::new().execute();
 
-        assert_eq(outputs.rollup_subtree_height, 0);
+        assert_eq(outputs.height_in_block_tree, 0);
     }
 
     #[test]

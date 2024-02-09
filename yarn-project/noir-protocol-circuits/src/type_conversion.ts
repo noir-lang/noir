@@ -1223,7 +1223,7 @@ export function mapBaseOrMergeRollupPublicInputsToNoir(
 ): BaseOrMergeRollupPublicInputsNoir {
   return {
     rollup_type: mapFieldToNoir(new Fr(baseOrMergeRollupPublicInputs.rollupType)),
-    rollup_subtree_height: mapFieldToNoir(new Fr(baseOrMergeRollupPublicInputs.rollupSubtreeHeight)),
+    height_in_block_tree: mapFieldToNoir(new Fr(baseOrMergeRollupPublicInputs.rollupSubtreeHeight)),
     aggregation_object: {},
     constants: mapConstantRollupDataToNoir(baseOrMergeRollupPublicInputs.constants),
     start: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.start),
@@ -1270,7 +1270,7 @@ export function mapBaseOrMergeRollupPublicInputsFromNoir(
 ): BaseOrMergeRollupPublicInputs {
   return new BaseOrMergeRollupPublicInputs(
     mapNumberFromNoir(baseOrMergeRollupPublicInputs.rollup_type),
-    mapFieldFromNoir(baseOrMergeRollupPublicInputs.rollup_subtree_height),
+    mapFieldFromNoir(baseOrMergeRollupPublicInputs.height_in_block_tree),
     AggregationObject.makeFake(),
     mapConstantRollupDataFromNoir(baseOrMergeRollupPublicInputs.constants),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.start),

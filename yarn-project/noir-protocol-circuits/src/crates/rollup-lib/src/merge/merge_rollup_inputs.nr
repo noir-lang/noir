@@ -30,7 +30,7 @@ impl MergeRollupInputs {
 
         let public_inputs = BaseOrMergeRollupPublicInputs {
             rollup_type : MERGE_ROLLUP_TYPE,
-            rollup_subtree_height : current_height + 1,
+            height_in_block_tree : current_height + 1,
             aggregation_object : aggregation_object,
             constants : left.constants,
             start : left.start,
@@ -60,8 +60,8 @@ mod tests {
     #[test(should_fail_with="input proofs are of different rollup heights")]
     fn different_height_fails() {
         let mut inputs = default_merge_rollup_inputs();
-        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_subtree_height = 0;
-        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_subtree_height = 1;
+        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.height_in_block_tree = 0;
+        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.height_in_block_tree = 1;
         let _output = inputs.merge_rollup_circuit();
     }
 
@@ -111,19 +111,19 @@ mod tests {
         let mut outputs = inputs.merge_rollup_circuit();
         assert_eq(outputs.rollup_type, 1);
         assert_eq(
-            outputs.rollup_subtree_height, inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_subtree_height + 1
+            outputs.height_in_block_tree, inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.height_in_block_tree + 1
         );
 
         // set inputs to have a merge rollup type and set the rollup height and test again.
         inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_type = 1;
-        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_subtree_height = 1;
+        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.height_in_block_tree = 1;
 
         inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_type = 1;
-        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_subtree_height = 1;
+        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.height_in_block_tree = 1;
 
         outputs = inputs.merge_rollup_circuit();
         assert_eq(outputs.rollup_type, 1);
-        assert_eq(outputs.rollup_subtree_height, 2);
+        assert_eq(outputs.height_in_block_tree, 2);
     }
 
     #[test]

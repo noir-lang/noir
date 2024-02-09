@@ -40,9 +40,9 @@ pub fn assert_both_input_proofs_of_same_height_and_return(
     right: BaseOrMergeRollupPublicInputs
 ) -> Field {
     assert(
-        left.rollup_subtree_height == right.rollup_subtree_height, "input proofs are of different rollup heights"
+        left.height_in_block_tree == right.height_in_block_tree, "input proofs are of different rollup heights"
     );
-    left.rollup_subtree_height
+    left.height_in_block_tree
 }
 
 /**
