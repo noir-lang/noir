@@ -1,12 +1,16 @@
-use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
+use acvm::brillig_vm::brillig::{
+    HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray,
+};
 use serde::{Deserialize, Serialize};
+
+use crate::ssa::ir::types::Type;
 
 /// The representation of a noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligArray {
-    pub(crate) pointer: RegisterIndex,
+    pub(crate) pointer: MemoryAddress,
     pub(crate) size: usize,
-    pub(crate) rc: RegisterIndex,
+    pub(crate) rc: MemoryAddress,
 }
 
 impl BrilligArray {
@@ -18,7 +22,7 @@ impl BrilligArray {
         2
     }
 
-    pub(crate) fn extract_registers(self) -> Vec<RegisterIndex> {
+    pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
         vec![self.pointer, self.rc]
     }
 }
@@ -26,9 +30,9 @@ impl BrilligArray {
 /// The representation of a noir slice in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligVector {
-    pub(crate) pointer: RegisterIndex,
-    pub(crate) size: RegisterIndex,
-    pub(crate) rc: RegisterIndex,
+    pub(crate) pointer: MemoryAddress,
+    pub(crate) size: MemoryAddress,
+    pub(crate) rc: MemoryAddress,
 }
 
 impl BrilligVector {
@@ -40,7 +44,7 @@ impl BrilligVector {
         3
     }
 
-    pub(crate) fn extract_registers(self) -> Vec<RegisterIndex> {
+    pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
         vec![self.pointer, self.size, self.rc]
     }
 }
@@ -48,13 +52,13 @@ impl BrilligVector {
 /// The representation of a noir value in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) enum BrilligVariable {
-    Simple(RegisterIndex),
+    Simple(MemoryAddress),
     BrilligArray(BrilligArray),
     BrilligVector(BrilligVector),
 }
 
 impl BrilligVariable {
-    pub(crate) fn extract_register(self) -> RegisterIndex {
+    pub(crate) fn extract_register(self) -> MemoryAddress {
         match self {
             BrilligVariable::Simple(register_index) => register_index,
             _ => unreachable!("ICE: Expected register, got {self:?}"),
@@ -75,7 +79,7 @@ impl BrilligVariable {
         }
     }
 
-    pub(crate) fn extract_registers(self) -> Vec<RegisterIndex> {
+    pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
         match self {
             BrilligVariable::Simple(register_index) => vec![register_index],
             BrilligVariable::BrilligArray(array) => array.extract_registers(),
@@ -83,17 +87,26 @@ impl BrilligVariable {
         }
     }
 
-    pub(crate) fn to_register_or_memory(self) -> RegisterOrMemory {
+    pub(crate) fn to_register_or_memory(self) -> ValueOrArray {
         match self {
-            BrilligVariable::Simple(register_index) => {
-                RegisterOrMemory::RegisterIndex(register_index)
-            }
-            BrilligVariable::BrilligArray(array) => {
-                RegisterOrMemory::HeapArray(array.to_heap_array())
-            }
+            BrilligVariable::Simple(register_index) => ValueOrArray::MemoryAddress(register_index),
+            BrilligVariable::BrilligArray(array) => ValueOrArray::HeapArray(array.to_heap_array()),
             BrilligVariable::BrilligVector(vector) => {
-                RegisterOrMemory::HeapVector(vector.to_heap_vector())
+                ValueOrArray::HeapVector(vector.to_heap_vector())
             }
         }
+    }
+}
+
+pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
+    match typ {
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple,
+        Type::Array(elem_type, size) => HeapValueType::Array {
+            value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
+            size: typ.element_size() * size,
+        },
+        Type::Slice(elem_type) => HeapValueType::Vector {
+            value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
+        },
     }
 }

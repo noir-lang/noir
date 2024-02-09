@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, StmtId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
 
 use super::ModuleId;
 
@@ -10,7 +10,7 @@ pub enum ModuleDefId {
     TypeId(StructId),
     TypeAliasId(TypeAliasId),
     TraitId(TraitId),
-    GlobalId(StmtId),
+    GlobalId(GlobalId),
 }
 
 impl ModuleDefId {
@@ -42,9 +42,9 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_global(&self) -> Option<StmtId> {
+    pub fn as_global(&self) -> Option<GlobalId> {
         match self {
-            ModuleDefId::GlobalId(stmt_id) => Some(*stmt_id),
+            ModuleDefId::GlobalId(global_id) => Some(*global_id),
             _ => None,
         }
     }
@@ -88,9 +88,9 @@ impl From<TypeAliasId> for ModuleDefId {
     }
 }
 
-impl From<StmtId> for ModuleDefId {
-    fn from(stmt_id: StmtId) -> Self {
-        ModuleDefId::GlobalId(stmt_id)
+impl From<GlobalId> for ModuleDefId {
+    fn from(global_id: GlobalId) -> Self {
+        ModuleDefId::GlobalId(global_id)
     }
 }
 
@@ -162,13 +162,13 @@ impl TryFromModuleDefId for TraitId {
     }
 }
 
-impl TryFromModuleDefId for StmtId {
+impl TryFromModuleDefId for GlobalId {
     fn try_from(id: ModuleDefId) -> Option<Self> {
         id.as_global()
     }
 
     fn dummy_id() -> Self {
-        StmtId::dummy_id()
+        GlobalId::dummy_id()
     }
 
     fn description() -> String {

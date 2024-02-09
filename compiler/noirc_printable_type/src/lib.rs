@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum PrintableType {
     Field,
@@ -50,6 +50,7 @@ pub enum PrintableValue {
     String(String),
     Vec(Vec<PrintableValue>),
     Struct(BTreeMap<String, PrintableValue>),
+    Other,
 }
 
 /// In order to display a `PrintableValue` we need a `PrintableType` to accurately
@@ -69,6 +70,9 @@ pub enum ForeignCallError {
 
     #[error("Failed calling external resolver. {0}")]
     ExternalResolverError(#[from] jsonrpc::Error),
+
+    #[error("Assert message resolved after an unsatisified constrain. {0}")]
+    ResolvedAssertMessage(String),
 }
 
 impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
@@ -293,7 +297,7 @@ fn format_field_string(field: FieldElement) -> String {
 }
 
 /// Assumes that `field_iterator` contains enough [FieldElement] in order to decode the [PrintableType]
-fn decode_value(
+pub fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     typ: &PrintableType,
 ) -> PrintableValue {

@@ -3,8 +3,15 @@ use dep::std;
 fn main(x: Field, y: pub Field) {
     let string = "i: {i}, j: {j}";
     std::println(string);
+
+    // TODO: fmtstr cannot be printed
+    // let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
+    // let fmt_fmt_str = f"fmtstr: {fmt_str}, i: {x}";
+    // std::println(fmt_fmt_str);
+
     // A `fmtstr` lets you easily perform string interpolation.
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
+
     let fmt_str = string_identity(fmt_str);
     std::println(fmt_str);
 
@@ -49,6 +56,12 @@ fn main(x: Field, y: pub Field) {
     std::println(tuples_nested);
 
     regression_2906();
+
+    let first_array = [1, 2, 3];
+    let second_array = [4, 5, 6];
+    let arrays_nested = [first_array, second_array];
+    std::println(f"first_array: {first_array}, second_array: {second_array}");
+    std::println(f"arrays_nested: {arrays_nested}");
 
     let free_lambda = |x| x + 1;
     let sentinel: u32 = 8888;

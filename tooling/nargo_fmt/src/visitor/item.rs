@@ -6,7 +6,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    rewrite,
+    rewrite::{self, UseTree},
     utils::{last_line_contains_single_line_comment, last_line_used_width, FindToken},
     visitor::expr::{format_seq, NewlineMode},
 };
@@ -208,8 +208,13 @@ impl super::FmtVisitor<'_> {
                         self.last_position = span.end();
                     }
                 }
-                ItemKind::Import(_)
-                | ItemKind::Struct(_)
+                ItemKind::Import(use_tree) => {
+                    let use_tree =
+                        UseTree::from_ast(use_tree).rewrite_top_level(self, self.shape());
+                    self.push_rewrite(use_tree, span);
+                    self.last_position = span.end();
+                }
+                ItemKind::Struct(_)
                 | ItemKind::Trait(_)
                 | ItemKind::TraitImpl(_)
                 | ItemKind::TypeAlias(_)

@@ -18,9 +18,10 @@ use std::{
 };
 
 use crate::{
+    debug::DebugInstrumenter,
     hir_def::{
         expr::*,
-        function::{FunctionSignature, Parameters},
+        function::{FuncMeta, FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -31,8 +32,11 @@ use crate::{
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
+use self::debug_types::DebugTypeTracker;
 
 pub mod ast;
+mod debug;
+pub mod debug_types;
 pub mod printer;
 
 struct LambdaContext {
@@ -67,7 +71,7 @@ struct Monomorphizer<'interner> {
     finished_functions: BTreeMap<FuncId, Function>,
 
     /// Used to reference existing definitions in the HIR
-    interner: &'interner NodeInterner,
+    interner: &'interner mut NodeInterner,
 
     lambda_envs_stack: Vec<LambdaContext>,
 
@@ -77,6 +81,8 @@ struct Monomorphizer<'interner> {
     is_range_loop: bool,
 
     return_location: Option<Location>,
+
+    debug_type_tracker: DebugTypeTracker,
 }
 
 type HirType = crate::Type;
@@ -93,8 +99,17 @@ type HirType = crate::Type;
 /// this function. Typically, this is the function named "main" in the source project,
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 #[tracing::instrument(level = "trace", skip(main, interner))]
-pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
-    let mut monomorphizer = Monomorphizer::new(interner);
+pub fn monomorphize(main: node_interner::FuncId, interner: &mut NodeInterner) -> Program {
+    monomorphize_debug(main, interner, &DebugInstrumenter::default())
+}
+
+pub fn monomorphize_debug(
+    main: node_interner::FuncId,
+    interner: &mut NodeInterner,
+    debug_instrumenter: &DebugInstrumenter,
+) -> Program {
+    let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
+    let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker);
     let function_sig = monomorphizer.compile_main(main);
 
     while !monomorphizer.queue.is_empty() {
@@ -109,19 +124,24 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let meta = interner.function_meta(&main);
+    let FuncMeta { return_distinctness, return_visibility, kind, .. } =
+        monomorphizer.interner.function_meta(&main);
 
+    let (debug_variables, debug_types) = monomorphizer.debug_type_tracker.extract_vars_and_types();
     Program::new(
         functions,
         function_sig,
-        meta.return_distinctness,
+        *return_distinctness,
         monomorphizer.return_location,
-        meta.return_visibility,
+        *return_visibility,
+        *kind == FunctionKind::Recursive,
+        debug_variables,
+        debug_types,
     )
 }
 
 impl<'interner> Monomorphizer<'interner> {
-    fn new(interner: &'interner NodeInterner) -> Self {
+    fn new(interner: &'interner mut NodeInterner, debug_type_tracker: DebugTypeTracker) -> Self {
         Monomorphizer {
             globals: HashMap::new(),
             locals: HashMap::new(),
@@ -133,6 +153,7 @@ impl<'interner> Monomorphizer<'interner> {
             lambda_envs_stack: Vec::new(),
             is_range_loop: false,
             return_location: None,
+            debug_type_tracker,
         }
     }
 
@@ -195,6 +216,9 @@ impl<'interner> Monomorphizer<'interner> {
                             _ => unreachable!("Oracle function must have an oracle attribute"),
                         }
                     }
+                    FunctionKind::Recursive => {
+                        unreachable!("Only main can be specified as recursive, which should already be checked");
+                    }
                 }
             }
         }
@@ -230,7 +254,7 @@ impl<'interner> Monomorphizer<'interner> {
             the_trait.self_type_typevar.force_bind(self_type);
         }
 
-        let meta = self.interner.function_meta(&f);
+        let meta = self.interner.function_meta(&f).clone();
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
 
@@ -240,14 +264,13 @@ impl<'interner> Monomorphizer<'interner> {
             Type::TraitAsType(..) => &body_return_type,
             _ => meta.return_type(),
         });
-
-        let parameters = self.parameters(&meta.parameters);
-
-        let body = self.expr(body_expr_id);
         let unconstrained = modifiers.is_unconstrained
             || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
 
+        let parameters = self.parameters(&meta.parameters);
+        let body = self.expr(body_expr_id);
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
+
         self.push_function(id, function);
     }
 
@@ -366,7 +389,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let rhs = self.expr(infix.rhs);
                 let operator = infix.operator.kind;
                 let location = self.interner.expr_location(&expr);
-
                 if self.interner.get_selected_impl_for_expression(expr).is_some() {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
@@ -479,7 +501,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0);
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(expr), location, constrain.2)
+                let assert_message =
+                    constrain.2.map(|assert_msg_expr| Box::new(self.expr(assert_msg_expr)));
+                ast::Expression::Constrain(Box::new(expr), location, assert_message)
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
@@ -706,7 +730,12 @@ impl<'interner> Monomorphizer<'interner> {
                     ident_expression
                 }
             }
-            DefinitionKind::Global(expr_id) => self.expr(*expr_id),
+            DefinitionKind::Global(global_id) => {
+                let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
+                    unreachable!("Globals should have a corresponding let statement by monomorphization")
+                };
+                self.expr(let_.expression)
+            }
             DefinitionKind::Local(_) => self.lookup_captured_expr(ident.id).unwrap_or_else(|| {
                 let ident = self.local_ident(&ident).unwrap();
                 ast::Expression::Ident(ident)
@@ -917,6 +946,9 @@ impl<'interner> Monomorphizer<'interner> {
         let original_func = Box::new(self.expr(call.func));
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+
+        self.patch_debug_instrumentation_call(&call, &mut arguments);
+
         let return_type = self.interner.id_type(id);
         let return_type = self.convert_type(&return_type);
 
@@ -929,6 +961,9 @@ impl<'interner> Monomorphizer<'interner> {
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident
                     self.append_printable_type_info(&hir_arguments[1], &mut arguments);
+                } else if name.as_str() == "assert_message" {
+                    // The first argument to the `assert_message` oracle is the expression passed as a mesage to an `assert` or `assert_eq` statement
+                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -1024,7 +1059,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // The caller needs information as to whether it is handling a format string or a single type
                 arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
             }
-            _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
+            _ => unreachable!("logging expr {:?} is not supported", hir_argument),
         }
     }
 
@@ -1033,10 +1068,10 @@ impl<'interner> Monomorphizer<'interner> {
         // since they cannot be passed from ACIR into Brillig
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
-                unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
+                unreachable!("println and format strings do not support slices. Convert the slice to an array before passing it to println");
             }
         } else if matches!(typ, HirType::MutableReference(_)) {
-            unreachable!("println does not support mutable references.");
+            unreachable!("println and format strings do not support mutable references.");
         }
 
         let printable_type: PrintableType = typ.into();

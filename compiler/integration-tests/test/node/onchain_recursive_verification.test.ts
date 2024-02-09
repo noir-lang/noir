@@ -16,7 +16,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   const fm = createFileManager(basePath);
   const innerCompilationResult = await compile(
     fm,
-    join(basePath, './test_programs/execution_success/assert_statement'),
+    join(basePath, './test_programs/execution_success/assert_statement_recursive'),
   );
   if (!('program' in innerCompilationResult)) {
     throw new Error('Compilation failed');
@@ -38,17 +38,17 @@ it(`smart contract can verify a recursive proof`, async () => {
   const inner = new Noir(innerProgram);
 
   const inner_prover_toml = readFileSync(
-    join(basePath, `./test_programs/execution_success/assert_statement/Prover.toml`),
+    join(basePath, `./test_programs/execution_success/assert_statement_recursive/Prover.toml`),
   ).toString();
 
   const inner_inputs = toml.parse(inner_prover_toml);
 
   const { witness: main_witness } = await inner.execute(inner_inputs);
-  const intermediate_proof = await inner_backend.generateIntermediateProof(main_witness);
+  const intermediate_proof = await inner_backend.generateProof(main_witness);
 
-  expect(await inner_backend.verifyIntermediateProof(intermediate_proof)).to.be.true;
+  expect(await inner_backend.verifyProof(intermediate_proof)).to.be.true;
 
-  const { proofAsFields, vkAsFields, vkHash } = await inner_backend.generateIntermediateProofArtifacts(
+  const { proofAsFields, vkAsFields, vkHash } = await inner_backend.generateRecursiveProofArtifacts(
     intermediate_proof,
     1, // 1 public input
   );
@@ -65,8 +65,8 @@ it(`smart contract can verify a recursive proof`, async () => {
     key_hash: vkHash,
   };
 
-  const recursion_proof = await recursion.generateFinalProof(recursion_inputs);
-  expect(await recursion.verifyFinalProof(recursion_proof)).to.be.true;
+  const recursion_proof = await recursion.generateProof(recursion_inputs);
+  expect(await recursion.verifyProof(recursion_proof)).to.be.true;
 
   // Smart contract verification
 

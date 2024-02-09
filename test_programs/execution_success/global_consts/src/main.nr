@@ -5,7 +5,10 @@ global M: Field = 32;
 global L: Field = 10; // Unused globals currently allowed
 global N: Field = 5;
 global T_LEN = 2; // Type inference is allowed on globals
-//global N: Field = 5; // Uncomment to see duplicate globals error 
+
+// Globals can reference other globals
+global DERIVED = M + L;
+
 struct Dummy {
      x: [Field; N],
      y: [Field; foo::MAGIC_NUMBER]
@@ -70,6 +73,7 @@ fn main(
 
     foo::from_foo(d);
     baz::from_baz(c);
+    assert(DERIVED == M + L);
 }
 
 fn multiplyByM(x: Field) -> Field {
