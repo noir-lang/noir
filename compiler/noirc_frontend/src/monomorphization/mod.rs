@@ -1595,37 +1595,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         bindings
     }
-
-    fn pattern_to_string(&self, pat: &HirPattern) -> String {
-        match pat {
-            HirPattern::Identifier(hir_id) => self.interner.definition(hir_id.id).name.clone(),
-            HirPattern::Mutable(mpat, _) => format!("mut {}", self.pattern_to_string(mpat)),
-            HirPattern::Tuple(pats, _) => format!(
-                "({})",
-                pats.iter()
-                    .map(|tpat| self.pattern_to_string(tpat))
-                    .collect::<Vec<String>>()
-                    .join(",")
-            ),
-            HirPattern::Struct(Type::Struct(sh_stype, _field_types), fields, _) => {
-                let stype = sh_stype.borrow();
-                format!(
-                    "{} {{ {} }}",
-                    &stype.name.0.contents,
-                    fields
-                        .iter()
-                        .map(|(id, pat)| {
-                            format!("{}: {}", &id.0.contents, self.pattern_to_string(pat))
-                        })
-                        .collect::<Vec<String>>()
-                        .join(", "),
-                )
-            }
-            HirPattern::Struct(typ, _, _) => {
-                panic!("unexpected type of struct: {typ:?}");
-            }
-        }
-    }
 }
 
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {

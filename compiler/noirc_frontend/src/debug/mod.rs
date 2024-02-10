@@ -83,8 +83,7 @@ impl DebugInstrumenter {
         }
         self.scope.push(HashMap::default());
         let fn_id = self.insert_var(func_name);
-        let enter_fn =
-            Self::call_fn("enter", vec![uint_expr(fn_id.0 as u128, func.span)], func.span);
+        let enter_fn = build_debug_call_stmt("enter", fn_id, func.span);
 
         let set_fn_params = func
             .parameters
@@ -148,7 +147,7 @@ impl DebugInstrumenter {
 
         // exit fn for fn scopes
         if let Some(fn_id) = opt_fn_id {
-            statements.push(Self::call_fn("exit", vec![uint_expr(fn_id.0 as u128, span)], span));
+            statements.push(build_debug_call_stmt("exit", fn_id, span));
         }
 
         // return the saved value in __debug_expr, or unit otherwise
@@ -174,21 +173,6 @@ impl DebugInstrumenter {
             }
         };
         statements.push(last_stmt);
-    }
-
-    fn call_fn(fname: &str, arguments: Vec<ast::Expression>, span: Span) -> ast::Statement {
-        let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
-            func: Box::new(ast::Expression {
-                kind: ast::ExpressionKind::Variable(ast::Path {
-                    segments: vec![ident(&format!["__debug_fn_{fname}"], span)],
-                    kind: PathKind::Plain,
-                    span,
-                }),
-                span,
-            }),
-            arguments,
-        }));
-        ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
     }
 
     fn walk_let_statement(&mut self, let_stmt: &ast::LetStatement, span: &Span) -> ast::Statement {
@@ -601,6 +585,21 @@ fn build_assign_member_stmt(
             indexes.iter().rev().cloned().collect(),
         ]
         .concat(),
+    }));
+    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
+}
+
+fn build_debug_call_stmt(fname: &str, fn_id: SourceVarId, span: Span) -> ast::Statement {
+    let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
+        func: Box::new(ast::Expression {
+            kind: ast::ExpressionKind::Variable(ast::Path {
+                segments: vec![ident(&format!["__debug_fn_{fname}"], span)],
+                kind: PathKind::Plain,
+                span,
+            }),
+            span,
+        }),
+        arguments: vec![uint_expr(fn_id.0 as u128, span)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
 }
