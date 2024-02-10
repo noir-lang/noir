@@ -85,49 +85,52 @@ enum NargoCommand {
 pub(crate) fn start_cli() -> eyre::Result<()> {
     #[cfg(feature = "codegen-docs")]
     return codegen_docs();
+    
+    #[allow(unreachable_code)]    
+    {
+        let NargoCli { command, mut config } = NargoCli::parse();
 
-    let NargoCli { command, mut config } = NargoCli::parse();
+        // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
+        if !config.program_dir.is_absolute() {
+            config.program_dir = std::env::current_dir().unwrap().join(config.program_dir);
+        }
 
-    // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
-    if !config.program_dir.is_absolute() {
-        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir);
-    }
+        // Search through parent directories to find package root if necessary.
+        if !matches!(
+            command,
+            NargoCommand::New(_)
+                | NargoCommand::Init(_)
+                | NargoCommand::Lsp(_)
+                | NargoCommand::Backend(_)
+                | NargoCommand::Dap(_)
+        ) {
+            config.program_dir = find_package_root(&config.program_dir)?;
+        }
 
-    // Search through parent directories to find package root if necessary.
-    if !matches!(
-        command,
-        NargoCommand::New(_)
-            | NargoCommand::Init(_)
-            | NargoCommand::Lsp(_)
-            | NargoCommand::Backend(_)
-            | NargoCommand::Dap(_)
-    ) {
-        config.program_dir = find_package_root(&config.program_dir)?;
-    }
+        let active_backend = get_active_backend();
+        let backend = crate::backends::Backend::new(active_backend);
 
-    let active_backend = get_active_backend();
-    let backend = crate::backends::Backend::new(active_backend);
+        match command {
+            NargoCommand::New(args) => new_cmd::run(&backend, args, config),
+            NargoCommand::Init(args) => init_cmd::run(args, config),
+            NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
+            NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
+            NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
+            NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
+            NargoCommand::Export(args) => export_cmd::run(&backend, args, config),
+            NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
+            NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
+            NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
+            NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
+            NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
+            NargoCommand::Backend(args) => backend_cmd::run(args),
+            NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
+            NargoCommand::Dap(args) => dap_cmd::run(&backend, args, config),
+            NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
+        }?;
 
-    match command {
-        NargoCommand::New(args) => new_cmd::run(&backend, args, config),
-        NargoCommand::Init(args) => init_cmd::run(args, config),
-        NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
-        NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
-        NargoCommand::Debug(args) => debug_cmd::run(&backend, args, config),
-        NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
-        NargoCommand::Export(args) => export_cmd::run(&backend, args, config),
-        NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
-        NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
-        NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
-        NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
-        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
-        NargoCommand::Backend(args) => backend_cmd::run(args),
-        NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
-        NargoCommand::Dap(args) => dap_cmd::run(&backend, args, config),
-        NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
-    }?;
-
-    Ok(())
+        Ok(())
+   }
 }
 
 #[cfg(feature = "codegen-docs")]
