@@ -341,10 +341,10 @@ mod curvegroup {
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
             
-            for i in 0..N {
+            for i in 0..bits.len() {
                 out = self.add(
                     self.add(out, out),
-                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
+                    if(bits[bits.len() - i - 1] == 0) {Point::zero()} else {p});
             }
 
             out
@@ -353,14 +353,7 @@ mod curvegroup {
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
             let N_BITS = crate::field::modulus_num_bits();
-
-            // TODO: temporary workaround until issue 1354 is solved
-            let mut n_as_bits: [u1; 254] = [0; 254];
-            let tmp = n.to_le_bits(N_BITS as u32);
-            for i in 0..254 {
-               n_as_bits[i] = tmp[i]; 
-            }
-
+            let n_as_bits = n.to_le_bits(N_BITS as u32);
             self.bit_mul(n_as_bits, p)
         }
 
