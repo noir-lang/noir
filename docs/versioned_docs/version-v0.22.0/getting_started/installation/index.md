@@ -43,3 +43,18 @@ Done. That's it. You should have the latest version working. You can check with 
 You can also install nightlies, specific versions
 or branches, check out the [noirup repository](https://github.com/noir-lang/noirup) for more
 information.
+
+
+:::warn
+If you encounter the following error:
+
+```
+The backend encountered an error: "/home/codespace/.nargo/backends/acvm-backend-barretenberg/backend_binary: error while loading shared libraries: libc++.so.1: cannot open shared object file: No such file or directory\n"
+```
+
+Install the `libc++-dev` library with:
+
+```bash
+sudo apt install libc++-dev
+```
+:::
