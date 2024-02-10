@@ -85,8 +85,8 @@ enum NargoCommand {
 pub(crate) fn start_cli() -> eyre::Result<()> {
     #[cfg(feature = "codegen-docs")]
     return codegen_docs();
-    
-    #[allow(unreachable_code)]    
+
+    #[allow(unreachable_code)]
     {
         let NargoCli { command, mut config } = NargoCli::parse();
 
@@ -122,7 +122,9 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
             NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
             NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
-            NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
+            NargoCommand::CodegenVerifier(args) => {
+                codegen_verifier_cmd::run(&backend, args, config)
+            }
             NargoCommand::Backend(args) => backend_cmd::run(args),
             NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
             NargoCommand::Dap(args) => dap_cmd::run(&backend, args, config),
@@ -130,7 +132,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         }?;
 
         Ok(())
-   }
+    }
 }
 
 #[cfg(feature = "codegen-docs")]
