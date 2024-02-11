@@ -1,7 +1,9 @@
 # AVM Circuit
 The AVM circuit's purpose is to prove execution of a sequence of instructions for a public execution request. Regardless of whether execution succeeds or reverts, the circuit always generates a valid proof of execution.
 
-## Circuit Architecture
+## Introduction
+
+### Circuit Architecture Outline
 The circuit is comprised of the following components:
 - **Bytecode Table**: includes bytecode for all calls, indexed by call pointer and program counter.
 - **Instruction Controller**: fetches an instruction from the Bytecode Table. Decodes the instructions into sub-operations to be forwarded to other modules.
@@ -72,7 +74,7 @@ User code (AVM bytecode) has no concept of "registers", and so instructions ofte
 
 Three intermediate registers exist: $I_a$, $I_b$, and $I_c$.
 
-> Refer to ["AVM State Model"](./state-model) for more details on the absence of "external registers" in the AVM.
+> Refer to ["AVM State Model"](./memory-model) for more details on the absence of "external registers" in the AVM.
 
 ## Control Flow Unit
 Processes updates to the program counter and call pointer to ensure that execution proceeds properly from one instruction to the next.
@@ -109,7 +111,7 @@ When decoded, instructions that operate on memory map to some Memory Controller 
 
 ### User Memory
 
-This table tracks all memory `Read` or `Write` operations. As introduced in the ["Memory State Model"](./state-model.md), a memory cell is indexed by a 32-bit unsigned integer (`u32`), i.e., the memory capacity is of $2^{32}$ words. Each word is associated with a tag defining its type (`uninitialized`, `u8`, `u16`, `u32`, `u64`, `u128`, `field`). At the beginning of a new call, each memory cell is of type `uninitialized` and has value 0.
+This table tracks all memory `Read` or `Write` operations. As introduced in the ["Memory State Model"](./memory-model.md), a memory cell is indexed by a 32-bit unsigned integer (`u32`), i.e., the memory capacity is of $2^{32}$ words. Each word is associated with a tag defining its type (`uninitialized`, `u8`, `u16`, `u32`, `u64`, `u128`, `field`). At the beginning of a new call, each memory cell is of type `uninitialized` and has value 0.
 
 The main property enforcement of this table concerns read/write consistency of every memory cell. This must ensure:
 
@@ -155,40 +157,52 @@ ZK circuit proof systems generally define some mechanism for "public inputs" for
 
 ### AVM public inputs structure
 The VM circuit's I/O (`AvmPublicInputs`) is defined below:
+
 ```
-AvmSideEffects {
-    newNoteHashes,
-    newNullifiers,
-    newL2ToL1Messages,
-    unencryptedLogs,
+AvmSessionInputs {
+    // Initializes Execution Environment
+    origin: AztecAddress,
+    feePerL1Gas: field,
+    feePerL2Gas: field,
+    feePerDaGas: field,
+    globals: PublicGlobalVariables,
+    address: AztecAddress,
+    storageAddress: AztecAddress,
+    sender: AztecAddress,
+    portal: AztecAddress,
+    contractCallDepth: field,
+    isStaticCall: boolean,
+    isDelegateCall: boolean,
+    // Initializes Machine State
+    l1GasLeft: field,
+    l2GasLeft: field,
+    daGasLeft: field,
 }
-AvmPublicInputs {
-    initialEnvironment: ExecutionEnvironment & {l1GasLeft, l2GasLeft, daGasLeft},
-    calldata: [],
-    sideEffects: AvmSideEffects,
-    storageAccesses,
-    gasResults: {l1GasLeft, l2GasLeft, daGasLeft},
+AvmSessionResults {
+    l1GasLeft: field,
+    l2GasLeft: field,
+    daGasLeft: field,
+    reverted: boolean,
+}
+AvmSessionPublicInputs {
+    sessionInputs: AvmSessionInputs,
+    calldata: [field; MAX_CALLDATA_LENGTH],
+    worldStateAccessTrace: WorldStateAccessTrace,
+    accruedSubstate: AccruedSubstate,
+    sessionResults: AvmSessionResults,
 }
 ```
-> The `ExecutionEnvironment` structure is defined in [the AVM's high level specification](./avm.md).
+> The `ExecutionEnvironment` structure is defined in [the AVM's high level specification](./avm.md). `initialEnvironment` here omits `calldata` and `bytecode`.
+
+> The `WorldStateAccessTrace` and `AccruedSubstate` types are defined in ["State"](./state). Their vectors are assigned constant/maximum lengths when used as circuit inputs.
 
 ### AVM public input columns
 The `AvmPublicInputs` structure is represented in the VM trace via the following public input columns:
-1. `initialEnvironment` has a dedicated column and is used to initialize the initial call's `AvmContext.ExecutionEnvironment` and `AvmContext.MachineState`
-1. `calldata` has its own dedicated public input column
-1. `sideEffects: AvmSideEffects`
-    - This represents the final `AccruedSubstate` of the initial contract call
-    - There is a separate sub-table (columns) for each side-effect vector
-        - Each row in the `newNoteHashes` sub-table contains `{contractAddress, noteHash}`
-        - Each row in the `newNullifiers` sub-table contains `{contractAddress, nullifier}`
-        - Each row in the `newL2ToL1Messages` sub-table contains `{contractAddress, wordIndex, messageWord}`
-            - where a message containing N words takes up N entries with increasing `wordIndex`
-        - Each row in the `unencryptedLogs` sub-table contains `{contractAddress, wordIndex, logWord}`
-            - where a log containing N words takes up N entries with increasing `wordIndex`
-    - Side effects are present in the trace in execution-order
-1. `storageAccesses`
-    - This contains the first and last public storage access for each slot that is accessed during execution
-    - Each row in the `storageAccesses` sub-table contains `{contractAddress, slot, value}`
-    - Storage accesses are present in the trace in execution-order
-1. `gasResults: AvmGasResults`
-    - This is derived from the _final_ `AvmContext.MachineState` of the initial contract call
+1. `sessionInputs` has a dedicated column and is used to initialize the initial call's `AvmContext.ExecutionEnvironment` and `AvmContext.MachineState`.
+1. `calldata` occupies its own public input column as it is handled differently from the rest of the `ExecutionEnvironment`. It is used to initialize the initial call's `AvmContext.ExecutionEnvironment.calldata`.
+    - Equivalence is enforced between this `calldata` column and the "input call pointer"'s memory. Through this mechanism, the initial call's `calldata` is placed in a region memory that can be referenced via the `CALLDATACOPY` instruction from within the initial call.
+1. `worldStateAccessTrace` is a trace of all world state accesses. Each of its component vectors has a dedicated set of public input columns (a sub-table). An instruction that reads or writes world state must match a trace entry. The [trace type definition in the "State" section] lists, for each trace vector, the instruction that populate its entries.
+1. `accruedSubstate` contains the final `AccruedSubstate`.
+    - This includes the accrued substate of all _unreverted_ sub-contexts.
+    - Reverted substate is not present in the Circuit I/O as it does not require further validation/processing by downstream circuits.
+1. `sessionResults` has a dedicated column and represents the core "results" of the AVM session processed by this circuit (remaining gas, reverted).
