@@ -1416,15 +1416,13 @@ impl<'a> Resolver<'a> {
                                         span,
                                         self.interner.function_visibility(id),
                                     );
-                                    if let Some(func_meta) = self.interner.func_meta.get(&id) {
-                                        self.interner.add_reference(
-                                            (DependencyId::Function(id), func_meta.location),
-                                            (
-                                                DependencyId::FunctionCall(hir_ident.id),
-                                                hir_ident.location,
-                                            ),
-                                        );
-                                    }
+                                }
+
+                                if let Some(func_meta) = self.interner.func_meta.get(&id) {
+                                    self.interner.add_reference(
+                                        (DependencyId::Function(id), func_meta.location),
+                                        (DependencyId::FunctionCall, hir_ident.location),
+                                    );
                                 }
                             }
                             DefinitionKind::Global(_) => {}

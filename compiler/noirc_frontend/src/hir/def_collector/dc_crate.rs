@@ -15,7 +15,9 @@ use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker};
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{
+    DependencyId, FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId,
+};
 
 use crate::parser::{ParserError, SortedModule};
 use crate::{
@@ -23,9 +25,10 @@ use crate::{
     NoirTypeAlias, Path, PathKind, Type, TypeBindings, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType,
 };
+
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Span};
+use noirc_errors::{CustomDiagnostic, Location, Span};
 use std::collections::{BTreeMap, HashMap};
 
 use std::vec;
@@ -268,6 +271,7 @@ impl DefCollector {
 
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in def_collector.collected_imports {
+            let module_id = collected_import.module_id;
             match resolve_import(crate_id, collected_import, &context.def_maps) {
                 Ok(resolved_import) => {
                     // Populate module namespaces according to the imports used
@@ -277,6 +281,9 @@ impl DefCollector {
                     for ns in resolved_import.resolved_namespace.iter_defs() {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), ns, resolved_import.is_prelude);
+
+                        let file_id = current_def_map.file_id(module_id);
+                        add_import_refrence(ns, &name, &mut context.def_interner, file_id);
 
                         if let Err((first_def, second_def)) = result {
                             let err = DefCollectorErrorKind::Duplicate {
@@ -379,6 +386,27 @@ impl DefCollector {
         errors.extend(type_check_functions(&mut context.def_interner, functions));
         errors
     }
+}
+
+fn add_import_refrence(
+    ns: crate::macros_api::ModuleDefId,
+    name: &Ident,
+    interner: &mut NodeInterner,
+    file_id: FileId,
+) {
+    if name.span().start() == 0 && name.span().end() == 0 {
+        // We ignore empty spans at 0 lcoation, this must be Stdlib
+        return;
+    }
+    match ns {
+        crate::macros_api::ModuleDefId::FunctionId(func_id) => {
+            interner.add_reference_for(
+                DependencyId::Function(func_id),
+                (DependencyId::FunctionCall, Location::new(name.span(), file_id)),
+            );
+        }
+        _ => (),
+    };
 }
 
 fn inject_prelude(

@@ -188,9 +188,11 @@ pub struct NodeInterner {
 pub enum DependencyId {
     Struct(StructId),
     Global(StmtId),
+    GlobalDefinition(DefinitionId),
+    GlobalReference,
     Function(FuncId),
     Alias(TypeAliasId),
-    CallExpression(ExprId),
+    FunctionCall,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -767,6 +769,10 @@ impl NodeInterner {
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
         };
+        self.add_definiton((
+            DependencyId::Function(id),
+            Location::new(function.name.span(), location.file),
+        ));
         self.push_function_definition(id, modifiers, module, location)
     }
 
