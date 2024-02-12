@@ -146,21 +146,7 @@ impl super::FmtVisitor<'_> {
         for Item { kind, span } in module.items {
             match kind {
                 ItemKind::Function(func) => {
-                    self.format_missing_indent(span.start(), true);
-
-                    if std::mem::take(&mut self.ignore_next_node) {
-                        self.push_str(self.slice(span));
-                        self.last_position = span.end();
-                        continue;
-                    }
-
-                    let (fn_before_block, force_brace_newline) =
-                        self.format_fn_before_block(func.clone(), span.start());
-
-                    self.push_str(&fn_before_block);
-                    self.push_str(if force_brace_newline { "\n" } else { " " });
-
-                    self.visit_block(func.def.body, func.def.span);
+                    self.visit_function(span, func);
                 }
                 ItemKind::Submodules(module) => {
                     self.format_missing_indent(span.start(), true);
@@ -191,6 +177,37 @@ impl super::FmtVisitor<'_> {
                     self.close_block((self.last_position..span.end() - 1).into());
                     self.last_position = span.end();
                 }
+                ItemKind::Impl(impl_) => {
+                    self.format_missing_indent(span.start(), true);
+
+                    if std::mem::take(&mut self.ignore_next_node) {
+                        self.push_str(self.slice(span));
+                        self.last_position = span.end();
+                        continue;
+                    }
+
+                    let slice =
+                        self.slice(self.last_position..impl_.object_type.span.unwrap().end());
+                    let after_brace = self.span_after(span, Token::LeftBrace).start();
+                    self.last_position = after_brace;
+
+                    self.push_str(&format!("{slice} "));
+
+                    if impl_.methods.is_empty() {
+                        self.visit_empty_block((after_brace - 1..span.end()).into());
+                        continue;
+                    } else {
+                        self.push_str("{");
+                        self.indent.block_indent(self.config);
+
+                        for (method, span) in impl_.methods {
+                            self.visit_function(span, method);
+                        }
+
+                        self.close_block((self.last_position..span.end() - 1).into());
+                        self.last_position = span.end();
+                    }
+                }
                 ItemKind::Import(use_tree) => {
                     let use_tree =
                         UseTree::from_ast(use_tree).rewrite_top_level(self, self.shape());
@@ -200,7 +217,6 @@ impl super::FmtVisitor<'_> {
                 ItemKind::Struct(_)
                 | ItemKind::Trait(_)
                 | ItemKind::TraitImpl(_)
-                | ItemKind::Impl(_)
                 | ItemKind::TypeAlias(_)
                 | ItemKind::Global(_)
                 | ItemKind::ModuleDecl(_) => {
@@ -209,5 +225,19 @@ impl super::FmtVisitor<'_> {
                 }
             }
         }
+    }
+
+    fn visit_function(&mut self, span: Span, func: NoirFunction) {
+        self.format_missing_indent(span.start(), true);
+        if std::mem::take(&mut self.ignore_next_node) {
+            self.push_str(self.slice(span));
+            self.last_position = span.end();
+            return;
+        }
+        let (fn_before_block, force_brace_newline) =
+            self.format_fn_before_block(func.clone(), span.start());
+        self.push_str(&fn_before_block);
+        self.push_str(if force_brace_newline { "\n" } else { " " });
+        self.visit_block(func.def.body, func.def.span);
     }
 }

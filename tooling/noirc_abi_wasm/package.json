@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.23.0",
+  "version": "0.24.0",
   "license": "(MIT OR Apache-2.0)",
   "homepage": "https://noir-lang.org/",
   "repository": {
@@ -45,7 +45,7 @@
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
-    "eslint": "^8.50.0",
+    "eslint": "^8.56.0",
     "mocha": "^10.2.0"
   }
 }

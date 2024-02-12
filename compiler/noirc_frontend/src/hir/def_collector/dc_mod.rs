@@ -125,7 +125,7 @@ impl<'a> ModCollector<'a> {
                 trait_id: None,
             };
 
-            for method in r#impl.methods {
+            for (method, _) in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
                 let location = Location::new(method.span(), self.file_id);
                 context.def_interner.push_function(func_id, &method.def, module_id, location);

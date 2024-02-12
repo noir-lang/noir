@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.23.0",
+  "version": "0.24.0",
   "license": "(MIT OR Apache-2.0)",
   "main": "dist/main.js",
   "types": "./dist/types/src/index.d.cts",
@@ -63,11 +63,14 @@
     "browserify-fs": "^1.0.0",
     "chai": "^4.3.10",
     "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-prettier": "^5.0.0",
     "html-webpack-plugin": "^5.5.4",
     "memfs": "^4.6.0",
     "mocha": "^10.2.0",
     "mocha-each": "^2.0.1",
     "path-browserify": "^1.0.1",
+    "prettier": "3.0.3",
     "process": "^0.11.10",
     "readable-stream": "^4.4.2",
     "sinon": "^17.0.1",

@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/acvm_js",
-  "version": "0.39.0",
+  "version": "0.40.0",
   "publishConfig": {
     "access": "public"
   },
@@ -44,7 +44,7 @@
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
     "chai": "^4.3.7",
-    "eslint": "^8.50.0",
+    "eslint": "^8.56.0",
     "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.2.0",
     "prettier": "3.0.3",
