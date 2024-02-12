@@ -82,10 +82,8 @@ enum NargoCommand {
     Dap(dap_cmd::DapCommand),
 }
 
+#[cfg(not(feature = "codegen-docs"))]
 pub(crate) fn start_cli() -> eyre::Result<()> {
-    #[cfg(feature = "codegen-docs")]
-    return codegen_docs();
-
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
@@ -131,7 +129,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 }
 
 #[cfg(feature = "codegen-docs")]
-fn codegen_docs() -> eyre::Result<()> {
+pub(crate) fn start_cli() -> eyre::Result<()> {
     let markdown: String = clap_markdown::help_markdown::<NargoCli>();
     println!("{markdown}");
     Ok(())
