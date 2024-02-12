@@ -4476,6 +4476,7 @@ __metadata:
     mocha-each: ^2.0.1
     pako: ^2.1.0
     path-browserify: ^1.0.1
+    prettier: 3.0.3
     process: ^0.11.10
     readable-stream: ^4.4.2
     sinon: ^17.0.1
