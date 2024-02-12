@@ -133,10 +133,8 @@ fn on_rename_inner(
         span: noirc_errors::Span::single_char(byte_index as u32),
     };
 
-    let rename_changes = interner
-        .find_rename_symbols_at(search_for_location)
-        // .get_definition_location_from(search_for_location, false)
-        .and_then(|locations| {
+    let rename_changes =
+        interner.find_rename_symbols_at(search_for_location).and_then(|locations| {
             let rs = locations.iter().fold(
                 HashMap::new(),
                 |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
@@ -152,7 +150,7 @@ fn on_rename_inner(
 
                     acc.entry(lsp_location.uri).or_insert_with(Vec::new).push(edit);
 
-                    return acc;
+                    acc
                 },
             );
             Some(rs)
