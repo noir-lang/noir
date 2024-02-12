@@ -278,7 +278,7 @@ impl DefinitionId {
 
 impl From<DefinitionId> for Index {
     fn from(id: DefinitionId) -> Self {
-        Index(id.0, generational_arena::Index::from_raw_parts(0,0))
+        Index(id.0, generational_arena::Index::from_raw_parts(0, 0))
     }
 }
 
@@ -301,7 +301,7 @@ impl StmtId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StmtId {
-        StmtId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(0,0)))
+        StmtId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(0, 0)))
     }
 }
 
@@ -310,7 +310,7 @@ pub struct ExprId(Index);
 
 impl ExprId {
     pub fn empty_block_id() -> ExprId {
-        ExprId(Index(0, generational_arena::Index::from_raw_parts(0,0)))
+        ExprId(Index(0, generational_arena::Index::from_raw_parts(0, 0)))
     }
 }
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -321,7 +321,7 @@ impl FuncId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(0,0)))
+        FuncId(Index(std::usize::MAX, generational_arena::Index::from_raw_parts(0, 0)))
     }
 }
 

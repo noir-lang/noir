@@ -16,13 +16,9 @@ pub struct Arena<T> {
 
 impl<T> Default for Arena<T> {
     fn default() -> Self {
-        Self {
-            vec: Vec::new(),
-            _arena: generational_arena::Arena::default(),
-        }
+        Self { vec: Vec::new(), _arena: generational_arena::Arena::default() }
     }
 }
-
 
 impl<T> core::ops::Index<Index> for Arena<T> {
     type Output = T;
@@ -79,11 +75,8 @@ impl<T> Arena<T> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (Index, &T)> {
-        self.vec
-            .iter()
-            .enumerate()
-            .map(|(index, item)| (Index(index, generational_arena::Index::from_raw_parts(index, 0)), item))
+        self.vec.iter().enumerate().map(|(index, item)| {
+            (Index(index, generational_arena::Index::from_raw_parts(index, 0)), item)
+        })
     }
-
 }
-
