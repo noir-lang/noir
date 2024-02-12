@@ -109,17 +109,21 @@ mod affine {
 
         // Point addition
         pub fn add(self, p1: Point, p2: Point) -> Point {
+            assert(self.contains(p1));
+            assert(self.contains(p2));
             self.into_tecurve().add(p1.into_tecurve(), p2.into_tecurve()).into_montcurve()
         }
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
+            assert(self.contains(p));
             self.into_tecurve().bit_mul(bits, p.into_tecurve()).into_montcurve()
         }
 
         // Scalar multiplication (p + ... + p n times)
         fn mul(self, n: Field, p: Point) -> Point {
+            assert(self.contains(p));
             self.into_tecurve().mul(n, p.into_tecurve()).into_montcurve()
         }
         
@@ -128,6 +132,8 @@ mod affine {
             let mut out = Point::zero();
 
             for i in 0..N {
+                assert(self.contains(p[i]));
+
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
@@ -136,6 +142,8 @@ mod affine {
 
         // Point subtraction
         fn subtract(self, p1: Point, p2: Point) -> Point {
+            assert(self.contains(p1));
+            assert(self.contains(p2));
             self.add(p1, p2.negate())
         }
 
@@ -157,11 +165,14 @@ mod affine {
 
         // Point mapping into equivalent Short Weierstraß curve
         pub fn map_into_swcurve(self, p: Point) -> SWPoint {
+            assert(self.contains(p));
             if p.is_zero() {
                 SWPoint::zero()
             } else {
-                SWPoint::new((3*p.x + self.j)/(3*self.k),
-                             p.y/self.k)
+                SWPoint::new(
+                    (3*p.x + self.j)/(3*self.k),
+                    p.y/self.k
+                )
             }
         }
 
@@ -171,7 +182,9 @@ mod affine {
             let j = self.j;
             let k = self.k;
             
-            Point {x: (3*k*x - j)/3, y: y*k, infty}
+            let result = Point {x: (3*k*x - j)/3, y: y*k, infty}
+            assert(self.contains(result));
+            result
         }
 
         // Elligator 2 map-to-curve method; see <https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html#name-elligator-2-method>.
@@ -312,17 +325,21 @@ mod curvegroup {
 
         // Point addition
         pub fn add(self, p1: Point, p2: Point) -> Point {
+            assert(self.contains(p1));
+            assert(self.contains(p2));
             self.into_affine().add(p1.into_affine(), p2.into_affine()).into_group()
         }
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
+            assert(self.contains(p));
             self.into_tecurve().bit_mul(bits, p.into_tecurve()).into_montcurve()
         }
         
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
+            assert(self.contains(p));
             self.into_tecurve().mul(n, p.into_tecurve()).into_montcurve()
         }
         
@@ -331,6 +348,8 @@ mod curvegroup {
             let mut out = Point::zero();
 
             for i in 0..N {
+                assert(self.contains(p));
+
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
@@ -339,6 +358,8 @@ mod curvegroup {
 
         // Point subtraction
         pub fn subtract(self, p1: Point, p2: Point) -> Point {
+            assert(self.contains(p1));
+            assert(self.contains(p2));
             self.add(p1, p2.negate())
         }
 

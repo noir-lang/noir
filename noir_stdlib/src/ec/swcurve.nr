@@ -97,11 +97,15 @@ mod affine {
         
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
         pub fn add(self, p1: Point, p2: Point) -> Point {
+            assert(self.contains(p1));
+            assert(self.contains(p2));
             self.mixed_add(p1, p2.into_group()).into_affine()
         }
 
         // Mixed point addition, i.e. first argument in affine, second in CurveGroup coordinates.
         fn mixed_add(self, p1: Point, p2: curvegroup::Point) -> curvegroup::Point {
+            assert(self.contains(p1));
+            assert(self.into_group().contains(p2));
             if p1.is_zero() {
                 p2
             } else if p2.is_zero() {
@@ -136,11 +140,13 @@ mod affine {
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
+            assert(self.contains(p));
             self.into_group().bit_mul(bits, p.into_group()).into_affine()
         }
         
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
+            assert(self.contains(p));
             self.into_group().mul(n, p.into_group()).into_affine()
         }
 
@@ -149,6 +155,8 @@ mod affine {
             let mut out = Point::zero();
 
             for i in 0..N {
+                assert(self.contains(p[i]));
+
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
@@ -157,6 +165,8 @@ mod affine {
 
         // Point subtraction
         pub fn subtract(self, p1: Point, p2: Point) -> Point {
+            assert(self.contains(p1));
+            assert(self.contains(p2));
             self.add(p1, p2.negate())
         }
 
@@ -279,6 +289,8 @@ mod curvegroup {
         
         // Addition
         pub fn add(self, p1: Point, p2: Point) -> Point {
+            assert(self.contains(p1));
+            assert(self.contains(p2));
 
             if p1.is_zero() {
                 p2
@@ -312,6 +324,7 @@ mod curvegroup {
 
         // Point doubling
         pub fn double(self, p: Point) -> Point {
+            assert(self.contains(p));
             let Point {x, y, z} = p;
             
             if p.is_zero() {
@@ -332,6 +345,7 @@ mod curvegroup {
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
+            assert(self.contains(p));
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -345,6 +359,7 @@ mod curvegroup {
 
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
+            assert(self.contains(p));
             let N_BITS = crate::field::modulus_num_bits();
 
             // TODO: temporary workaround until issue 1354 is solved
@@ -362,6 +377,8 @@ mod curvegroup {
             let mut out = Point::zero();
 
             for i in 0..N {
+                assert(self.contains(p[i]));
+
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
