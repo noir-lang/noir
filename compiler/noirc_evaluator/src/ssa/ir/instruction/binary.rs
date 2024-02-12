@@ -141,6 +141,23 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if operand_type.is_unsigned() {
+                    // lhs % 2**bit_size is equivalent to truncating `lhs` to `bit_size` bits.
+                    // We then convert to a truncation for consistency, allowing more optimizations.
+                    if let Some(modulus) = rhs {
+                        let modulus = modulus.to_u128();
+                        if modulus.is_power_of_two() {
+                            let bit_size = modulus.ilog2();
+                            return SimplifyResult::SimplifiedToInstruction(
+                                Instruction::Truncate {
+                                    value: self.lhs,
+                                    bit_size,
+                                    max_bit_size: operand_type.bit_size(),
+                                },
+                            );
+                        }
+                    }
+                }
             }
             BinaryOp::Eq => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
