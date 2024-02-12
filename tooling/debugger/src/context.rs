@@ -169,6 +169,9 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         &self,
         opcode_location: &OpcodeLocation,
     ) -> Vec<Location> {
+        // TODO: this assumes we're debugging a program (ie. the DebugArtifact
+        // will contain a single DebugInfo), but this assumption doesn't hold
+        // for contracts
         self.debug_artifact.debug_symbols[0]
             .opcode_location(opcode_location)
             .map(|source_locations| {
