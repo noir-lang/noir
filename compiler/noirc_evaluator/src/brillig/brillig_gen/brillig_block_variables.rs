@@ -19,6 +19,7 @@ use super::brillig_fn::FunctionContext;
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,
+    block_parameters: HashSet<ValueId>,
     available_constants: HashMap<ValueId, BrilligVariable>,
 }
 
@@ -26,7 +27,8 @@ impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
     pub(crate) fn new(live_in: HashSet<ValueId>, all_block_parameters: HashSet<ValueId>) -> Self {
         BlockVariables {
-            available_variables: live_in.into_iter().chain(all_block_parameters).collect(),
+            available_variables: live_in.into_iter().chain(all_block_parameters.clone()).collect(),
+            block_parameters: all_block_parameters,
             ..Default::default()
         }
     }
@@ -81,8 +83,23 @@ impl BlockVariables {
     }
 
     /// Removes a variable so it's not used anymore within this block.
-    pub(crate) fn remove_variable(&mut self, value_id: &ValueId) {
-        self.available_variables.remove(value_id);
+    pub(crate) fn remove_variable(
+        &mut self,
+        value_id: &ValueId,
+        function_context: &mut FunctionContext,
+        brillig_context: &mut BrilligContext,
+    ) {
+        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+        // Block parameters should not be deallocated
+        if !self.block_parameters.contains(value_id) {
+            let variable = function_context
+                .ssa_value_allocations
+                .get(value_id)
+                .expect("ICE: Variable allocation not found");
+            variable.extract_registers().iter().for_each(|register| {
+                brillig_context.deallocate_register(*register);
+            });
+        }
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
