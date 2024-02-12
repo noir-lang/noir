@@ -1,0 +1,6 @@
+[package]
+name = "brillig_cow_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

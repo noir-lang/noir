@@ -490,7 +490,7 @@ impl<'a> Resolver<'a> {
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args) => self.resolve_named_type(path, args, new_variables),
+            Named(path, args, _) => self.resolve_named_type(path, args, new_variables),
             TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
 
             Tuple(fields) => {
@@ -1613,7 +1613,7 @@ impl<'a> Resolver<'a> {
                 let id = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 HirPattern::Identifier(id)
             }
-            Pattern::Mutable(pattern, span) => {
+            Pattern::Mutable(pattern, span, _) => {
                 if let Some(first_mut) = mutable {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
@@ -1862,7 +1862,7 @@ impl<'a> Resolver<'a> {
         }
 
         for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
-            if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
+            if let UnresolvedTypeData::Named(constraint_path, _, _) = &typ.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
                 if constraint_path.segments.len() == 1
                     && path.segments[0] != constraint_path.last_segment()
@@ -2024,7 +2024,7 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
                 }
             }
-            UnresolvedTypeData::Named(path, generics) => {
+            UnresolvedTypeData::Named(path, generics, _) => {
                 // Since the type is named, we need to resolve it to see what it actually refers to
                 // in order to check whether it is valid. Since resolving it may lead to a
                 // resolution error, we have to truncate our error count to the previous count just
