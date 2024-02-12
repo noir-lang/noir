@@ -398,15 +398,12 @@ fn add_import_refrence(
         // We ignore empty spans at 0 lcoation, this must be Stdlib
         return;
     }
-    match ns {
-        crate::macros_api::ModuleDefId::FunctionId(func_id) => {
-            interner.add_reference_for(
-                DependencyId::Function(func_id),
-                (DependencyId::FunctionCall, Location::new(name.span(), file_id)),
-            );
-        }
-        _ => (),
-    };
+    if let crate::macros_api::ModuleDefId::FunctionId(func_id) = ns {
+        interner.add_reference_for(
+            DependencyId::Function(func_id),
+            (DependencyId::FunctionCall, Location::new(name.span(), file_id)),
+        );
+    }
 }
 
 fn inject_prelude(
