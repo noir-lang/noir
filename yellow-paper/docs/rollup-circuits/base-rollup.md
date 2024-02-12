@@ -42,13 +42,21 @@ class GlobalVariables {
     fee_recipient: Address
 }
 
+class ContentCommitment {
+    tx_tree_height: Fr
+    txs_hash: Fr[2]
+    in_hash: Fr[2]
+    out_hash: Fr[2]
+}
+
 class Header {
     last_archive: Snapshot
-    body_hash: Fr[2]
+    content_commitment: ContentCommitment
     state: StateReference
     global_variables: GlobalVariables
 }
-Header *.. Body : body_hash
+Header *.. Body : txs_hash
+Header *-- ContentCommitment: content_commitment
 Header *-- StateReference : state
 Header *-- GlobalVariables : global_variables
 
@@ -81,7 +89,6 @@ TxEffect *-- "m" PublicDataWrite: public_writes
 TxEffect *-- Logs : logs
 
 class Body {
-    l1_to_l2_messages: List~Fr~
     tx_effects: List~TxEffect~
 }
 Body *-- "m" TxEffect
@@ -195,12 +202,12 @@ class StateDiffHints {
 }
 
 class BaseRollupInputs {
-  historical_header_membership_witnesses: List~HeaderMembershipWitness~
-  kernel_data: List~KernelData~
+  historical_header_membership_witnesses: HeaderMembershipWitness
+  kernel_data: KernelData
   partial: PartialStateReference
   state_diff_hints: StateDiffHints
 }
-BaseRollupInputs *-- "m" KernelData : kernelData
+BaseRollupInputs *-- KernelData : kernelData
 BaseRollupInputs *-- PartialStateReference : partial
 BaseRollupInputs *-- StateDiffHints : state_diff_hints
 BaseRollupInputs *-- ConstantRollupData : constants
@@ -229,28 +236,21 @@ Fee structs and contract deployment structs will need to be revised, in line wit
 ```python
 def BaseRollupCircuit(
   state_diff_hints: StateDiffHints,
-  historical_header_membership_witnesses: HeaderMembershipWitness[],
-  kernel_data: KernelData[],
+  historical_header_membership_witnesses: HeaderMembershipWitness,
+  kernel_data: KernelData,
   partial: PartialStateReference,
   constants: ConstantRollupData,
 ) -> BaseOrMergeRollupPublicInputs:
 
-  tx_hashes = Fr[][2]
-  contracts = Fr[]
   public_data_tree_root = partial.public_data_tree
-  for i in len(kernel_data):
-    tx_hash, _c, public_data_tree_root = kernel_checks(
-      kernel_data[i],
-      constants,
-      public_data_tree_root,
-      historical_header_membership_witnesses[i],
-    )
-    tx_hashes.push(tx_hash)
-    contracts.push_array(_c)
-
-  note_hash_subtree = MerkleTree(
-    [...note_hashes for kernel_data.public_inputs.end.note_hashes in kernel_data]
+  tx_hash, contracts, public_data_tree_root = kernel_checks(
+    kernel_data,
+    constants,
+    public_data_tree_root,
+    historical_header_membership_witnesses,
   )
+
+  note_hash_subtree = MerkleTree(kernel_data.public_inputs.end.note_hashes)
   note_hash_snapshot = merkle_insertion(
     partial.note_hash_tree.root,
     note_hash_subtree.root,
@@ -263,7 +263,7 @@ def BaseRollupCircuit(
   # The sorting can be checked with a permutation
   nullifier_snapshot = successor_merkle_batch_insertion(
     partial.nullifier_tree.root,
-    [...nullifiers for kernel_data.public_inputs.end.nullifiers in kernel_data],
+    kernel_data.public_inputs.end.nullifiers,
     state_diff_hints.sorted_nullifiers,
     state_diff_hints.sorted_nullifier_indexes,
     state_diff_hints.nullifier_subtree_sibling_path,
@@ -282,16 +282,13 @@ def BaseRollupCircuit(
     CONTRACTS_TREE_HEIGHT,
   )
 
-  txs_hash = SHA256(tx_hashes)
-  out_hash = SHA256(
-    [...l2_to_l1_messages for kernel_data.public_inputs.end.l2_to_l1_messages in kernel_data]
-  )
+  out_hash = SHA256(kernel_data.public_inputs.end.l2_to_l1_messages)
 
   return BaseOrMergeRollupPublicInputs(
     type=0,
     height_in_block_tree=0,
     aggregation_object=
-    txs_hash=txs_hash
+    txs_hash=tx_hash
     out_hash=out_hash
     start=partial,
     end=PartialStateReference(

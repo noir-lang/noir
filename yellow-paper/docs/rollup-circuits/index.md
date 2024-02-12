@@ -6,16 +6,21 @@ title: Rollup Circuits
 
 Together with the [validating light node](../l1-smart-contracts/index.md) the rollup circuits must ensure that incoming blocks are valid, that state is progressed correctly and that anyone can rebuild the state.
 
-To support this, we construct a single proof for the entire block, which is then verified by the validating light node. This single proof is constructed by recursively merging proofs together in a binary tree structure. This structure allows us to keep the workload of each individual proof small, while making it very parallelizable. This works very well for the case where we want many actors to be able to participate in the proof generation.
+To support this, we construct a single proof for the entire block, which is then verified by the validating light node. 
+This single proof is constructed by recursively merging proofs together in a binary tree structure. 
+This structure allows us to keep the workload of each individual proof small, while making it very parallelizable. 
+This works very well for the case where we want many actors to be able to participate in the proof generation.
 
-The tree structure is outlined below, but the general idea is that we have a tree where all the leaves are transactions (kernel proofs) and through $\log(n)$ steps we can then "compress" them down to just a single root proof. Note that we have two different types of "merger" circuit, namely:
+The tree structure is outlined below, but the general idea is that we have a tree where all the leaves are transactions (kernel proofs) and through $\log(n)$ steps we can then "compress" them down to just a single root proof. 
+Note that we have two different types of "merger" circuit, namely:
 
 - The merge rollup
   - Merges two base rollup proofs OR two merge rollup proofs
 - The root rollup
   - Merges two merge rollup proofs
 
-In the diagram the size of the tree is limited for show, but a larger tree will have more layers of merge rollups proofs. Circles mark the different types of proofs, while squares mark the different circuit types.
+In the diagram the size of the tree is limited for show, but a larger tree will have more layers of merge rollups proofs. 
+Circles mark the different types of proofs, while squares mark the different circuit types.
 
 ```mermaid
 graph BT
@@ -43,7 +48,6 @@ graph BT
     B2_p --> M1_c
     B3_p --> M1_c
 
-
     B0_c[Base 0]
     B1_c[Base 1]
     B2_c[Base 2]
@@ -57,18 +61,10 @@ graph BT
     K1((Kernel 1))
     K2((Kernel 2))
     K3((Kernel 3))
-    K4((Kernel 4))
-    K5((Kernel 5))
-    K6((Kernel 6))
-    K7((Kernel 7))
     K0 --> B0_c
-    K1 --> B0_c
-    K2 --> B1_c
-    K3 --> B1_c
-    K4 --> B2_c
-    K5 --> B2_c
-    K6 --> B3_c
-    K7 --> B3_c
+    K1 --> B1_c
+    K2 --> B2_c
+    K3 --> B3_c
 
     style R_p fill:#1976D2;
     style M0_p fill:#1976D2;
@@ -81,18 +77,15 @@ graph BT
     style K1 fill:#1976D2;
     style K2 fill:#1976D2;
     style K3 fill:#1976D2;
-    style K4 fill:#1976D2;
-    style K5 fill:#1976D2;
-    style K6 fill:#1976D2;
-    style K7 fill:#1976D2;
 ```
 
 To understand what the circuits are doing and what checks they need to apply it is useful to understand what data is going into the circuits and what data is coming out.
 
-Below is a figure of the data structures thrown around for the block proof creation. Note that the diagram does not include much of the operations for kernels, but mainly the data structures that are used for the rollup circuits.
+Below is a figure of the data structures thrown around for the block proof creation. 
+Note that the diagram does not include much of the operations for kernels, but mainly the data structures that are used for the rollup circuits.
 
 <!-- Missing `FeeContext` class definition in the diagram below -->
-<!-- Missing `BaseRollupInputs` class definition in the diagram below -->
+<!-- Missing `BaseRollupInputs` class definition in the diagram below  (Lasse: This is already in the diagram?) -->
 <!-- Perhaps `KernelPublicInputs` needs to be renamed to specify which kernel circuits these public inputs apply to. Is it all public kernel circuits, for example? -->
 
 <!-- NOTE: If you're editing this diagram, there will be other diagrams (e.g. in the state / circuits sections) that will need to be updated too. There are also class definitions in other sections which will need to be updated. -->
@@ -123,13 +116,21 @@ class GlobalVariables {
     fee_recipient: Address
 }
 
+class ContentCommitment {
+    tx_tree_height: Fr
+    txs_hash: Fr[2]
+    in_hash: Fr[2]
+    out_hash: Fr[2]
+}
+
 class Header {
     last_archive: Snapshot
-    body_hash: Fr[2]
+    content_commitment: ContentCommitment
     state: StateReference
     global_variables: GlobalVariables
 }
-Header *.. Body : body_hash
+Header *.. Body : txs_hash
+Header *-- ContentCommitment: content_commitment
 Header *-- StateReference : state
 Header *-- GlobalVariables : global_variables
 
@@ -162,7 +163,6 @@ TxEffect *-- "m" PublicDataWrite: public_writes
 TxEffect *-- Logs : logs
 
 class Body {
-    l1_to_l2_messages: List~Fr~
     tx_effects: List~TxEffect~
 }
 Body *-- "m" TxEffect
@@ -276,12 +276,12 @@ class StateDiffHints {
 }
 
 class BaseRollupInputs {
-  historical_header_membership_witnesses: List~HeaderMembershipWitness~
-  kernel_data: List~KernelData~
+  historical_header_membership_witnesses: HeaderMembershipWitness
+  kernel_data: KernelData
   partial: PartialStateReference
   state_diff_hints: StateDiffHints
 }
-BaseRollupInputs *-- "m" KernelData : kernelData
+BaseRollupInputs *-- KernelData : kernelData
 BaseRollupInputs *-- PartialStateReference : partial
 BaseRollupInputs *-- StateDiffHints : state_diff_hints
 BaseRollupInputs *-- ConstantRollupData : constants
@@ -313,9 +313,8 @@ class MergeRollupInputs {
 MergeRollupInputs *-- ChildRollupData: left
 MergeRollupInputs *-- ChildRollupData: right
 
-
 class RootRollupInputs {
-    l1_to_l2_msgs: List~Fr~
+    l1_to_l2_roots: MessageCompressionBaseOrMergePublicInputs
     l1_to_l2_msgs_sibling_path: List~Fr~
     parent: Header,
     parent_sibling_path: List~Fr~
@@ -323,9 +322,26 @@ class RootRollupInputs {
     left: ChildRollupData
     right: ChildRollupData
 }
+RootRollupInputs *-- MessageCompressionBaseOrMergePublicInputs: l1_to_l2_roots
 RootRollupInputs *-- ChildRollupData: left
 RootRollupInputs *-- ChildRollupData: right
 RootRollupInputs *-- Header : parent
+
+class MessageCompressionBaseInputs {
+    l1_to_l2_msgs: List~Fr~
+}
+
+class MessageCompressionBaseOrMergePublicInputs {
+    sha_root: Fr[2]
+    converted_root: Fr
+}
+
+class MessageCompressionMergeInputs {
+    left: MessageCompressionBaseInputs
+    right: MessageCompressionBaseInputs
+}
+MessageCompressionMergeInputs *-- MessageCompressionBaseOrMergePublicInputs: left
+MessageCompressionMergeInputs *-- MessageCompressionBaseOrMergePublicInputs: right
 
 
 class RootRollupPublicInputs {
@@ -337,7 +353,8 @@ RootRollupPublicInputs *--Header : header
 ```
 
 :::info CombinedAccumulatedData
-Note that the `CombinedAccumulatedData` contains elements that we won't be using throughout the rollup circuits. However, as the data is used for the kernel proofs (when it is build recursively), we will include it here anyway.
+Note that the `CombinedAccumulatedData` contains elements that we won't be using throughout the rollup circuits. 
+However, as the data is used for the kernel proofs (when it is build recursively), we will include it here anyway.
 :::
 
 :::warning TODO  
@@ -348,13 +365,18 @@ Since the diagram can be quite overwhelming, we will go through the different da
 
 ### Higher-level tasks
 
-Before looking at the circuits individually, it can however be a good idea to recall the reason we had them in the first place. For this, we are especially interested in the tasks that span multiple circuits and proofs.
+Before looking at the circuits individually, it can however be a good idea to recall the reason we had them in the first place. 
+For this, we are especially interested in the tasks that span multiple circuits and proofs.
 
 #### State consistency
 
-While the individual kernels are validated on their own, they might rely on state changes earlier in the block. For the block to be correctly validated, this means that when validating kernel $n$, it must be executed on top of the state after all kernels $<n$ have been applied. For example, when kernel $3$ is executed, it must be executed on top of the state after kernels $0$, $1$ and $2$ have been applied. If this is not the case, the kernel proof might be valid, but the state changes invalid which could lead to double spends.
+While the individual kernels are validated on their own, they might rely on state changes earlier in the block. 
+For the block to be correctly validated, this means that when validating kernel $n$, it must be executed on top of the state after all kernels $<n$ have been applied. 
+For example, when kernel $3$ is executed, it must be executed on top of the state after kernels $0$, $1$ and $2$ have been applied. 
+If this is not the case, the kernel proof might be valid, but the state changes invalid which could lead to double spends.
 
-It is therefore of the highest importance that the circuits ensure that the state is progressed correctly across circuit types and proofs. Logically, taking a few of the kernels from the above should be executed/proven as shown below, $k_n$ applied on top of the state that applied $k_{n-1}$
+It is therefore of the highest importance that the circuits ensure that the state is progressed correctly across circuit types and proofs.
+Logically, taking a few of the kernels from the above should be executed/proven as shown below, $k_n$ applied on top of the state that applied $k_{n-1}$
 
 ```mermaid
 graph LR
@@ -382,12 +404,21 @@ graph LR
 
 #### State availability
 
-To ensure that state is made available, we could broadcast all of a block's input data as public inputs of the final root rollup proof, but a proof with so many public inputs would be very expensive to verify onchain. Instead we reduce the proof's public inputs by committing to the block's body by iteratively computing a `TxsHash` and `OutHash` at each rollup circuit iteration. AT the final iteration a `body_hash` is computed committing to the complete body.
+To ensure that state is made available, we could broadcast all of a block's input data as public inputs of the final root rollup proof, but a proof with so many public inputs would be very expensive to verify onchain. 
 
-To check that this body is published an Aztec node can reconstruct the `body_hash` from available data. Since we define finality as the point where the block is validated and included in the state of the [validating light node](../l1-smart-contracts/index.md), we can define a block as being "available" if the validating light node can reconstruct the commitment `body_hash`.
+Instead, we can reduce the number of public inputs by committing to the block's body and iteratively "build" up the commitment at each rollup circuit iteration.
+At the very end, we will have a commitment to the transactions that were included in the block (`TxsHash`), the messages that were sent from L2 to L1 (`OutHash`) and the messages that were sent from L1 to L2 (`InHash`).
 
-Since we strive to minimize the compute requirements to prove blocks, we amortize the commitment cost across the full tree. We can do so by building merkle trees of partial "commitments", whose roots are ultimately computed in the final root rollup circuit. The `body_hash` is then computed from the roots of these trees, together with incoming messages.
-Below, we outline the `TxsHash` merkle tree that is based on the `TxEffect`s and a `OutHash` which is based on the `l2_to_l1_msgs` (cross-chain messages) for each transaction. While the `TxsHash` implicitly includes the `l2_to_l1_msgs` we construct it separately since the `l2_to_l1_msgs` must be available to the L1 contract directly and not just proven available. This is not a concern when using L1 calldata as the data layer, but is a concern when using alternative data layers such as [Celestia](https://celestia.org/) or [Blobs](https://eips.ethereum.org/EIPS/eip-4844).
+To check that the body is published an Aztec node can simply reconstruct the hashes from available data. 
+Since we define finality as the point where the block is validated and included in the state of the [validating light node](../l1-smart-contracts/index.md), we can define a block as being "available" if the validating light node can reconstruct the commitment hashes.
+
+Since the `InHash` is directly computed by the `Inbox` contract on L1, the data is obviously available to the contract without doing any more work.
+Furthermore, the `OutHash` is a computed from a subset of the data in `TxsHash` so if it is possible to reconstruct `TxsHash` it is also possible to reconstruct `OutHash`.
+
+Since we strive to minimize the compute requirements to prove blocks, we amortize the commitment cost across the full tree. 
+We can do so by building merkle trees of partial "commitments", whose roots are ultimately computed in the final root rollup circuit. 
+Below, we outline the `TxsHash` merkle tree that is based on the `TxEffect`s and a `OutHash` which is based on the `l2_to_l1_msgs` (cross-chain messages) for each transaction.
+While the `TxsHash` implicitly includes the `OutHash` we need it separately such that it can be passed to the `Outbox` for consumption by the portals with minimal work.
 
 ```mermaid
 graph BT
@@ -457,34 +488,42 @@ graph BT
     K7 --> B3
 ```
 
-The roots of these trees, together with incoming messages, makes up the `body_hash`.
-
 ```mermaid
 graph BT
-    R[body_hash]
-    M0[TxsHash]
-    M1[OutHash]
-    M2[InHash]
-
-    M3[l1_to_l2_messages]
+    R[InHash]
+    M0[Hash 0-1]
+    M1[Hash 2-3]
+    B0[Hash 0.0-0.1]
+    B1[Hash 1.0-1.1]
+    B2[Hash 2.0-2.1]
+    B3[Hash 3.0-3.1]
+    K0[l1_to_l2_msgs 0.0]
+    K1[l1_to_l2_msgs 0.1]
+    K2[l1_to_l2_msgs 1.0]
+    K3[l1_to_l2_msgs 1.1]
+    K4[l1_to_l2_msgs 2.0]
+    K5[l1_to_l2_msgs 2.1]
+    K6[l1_to_l2_msgs 3.0]
+    K7[l1_to_l2_msgs 3.1]
 
     M0 --> R
     M1 --> R
-    M2 --> R
-    M3 --> M2
+    B0 --> M0
+    B1 --> M0
+    B2 --> M1
+    B3 --> M1
+    K0 --> B0
+    K1 --> B0
+    K2 --> B1
+    K3 --> B1
+    K4 --> B2
+    K5 --> B2
+    K6 --> B3
+    K7 --> B3
 ```
 
-```python
-def body_hash(body: Body):
-    txs_hash = merkle_tree(body.txs, SHA256).root
-    out_hash = merkle_tree([tx.l1_to_l2_msgs for tx in body.txs], SHA256).root
-    in_hash = SHA256(body.l1_to_l2_messages)
-    return SHA256(txs_hash, out_hash, in_hash)
-```
-
-:::info SHA256
-SHA256 is used since as the hash function since it will likely be reconstructed outside the circuit in a resource constrained environment (Ethereum L1).
-:::
+While the `TxsHash` merely require the data to be published and known to L1, the `InHash` and `OutHash` needs to be computable on L1 as well. 
+This reason require them to be efficiently computable on L1 while still being non-horrible inside a snark - leading us to rely on SHA256.
 
 ## Next Steps
 

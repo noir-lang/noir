@@ -116,7 +116,7 @@ const sidebars = {
       type: "category",
       link: { type: "doc", id: "l1-smart-contracts/index" },
       items: [
-        "l1-smart-contracts/proposal",
+        "l1-smart-contracts/frontier",
       ],
     },
     {
