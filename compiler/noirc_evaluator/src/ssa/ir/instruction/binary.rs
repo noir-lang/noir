@@ -38,6 +38,10 @@ pub(crate) enum BinaryOp {
     Or,
     /// Bitwise xor (^)
     Xor,
+    /// Bitshift left (<<)
+    Shl,
+    /// Bitshift right (>>)
+    Shr,
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -53,6 +57,8 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::And => write!(f, "and"),
             BinaryOp::Or => write!(f, "or"),
             BinaryOp::Xor => write!(f, "xor"),
+            BinaryOp::Shl => write!(f, "shl"),
+            BinaryOp::Shr => write!(f, "shr"),
         }
     }
 }
@@ -215,7 +221,27 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(zero);
                 }
             }
-        }
+            BinaryOp::Shl => return SimplifyResult::None,
+            BinaryOp::Shr => {
+                // Bit shifts by constants can be treated as divisions.
+                if let Some(rhs_const) = rhs {
+                    if rhs_const >= FieldElement::from(operand_type.bit_size() as u128) {
+                        // Shifting by the full width of the operand type, any `lhs` goes to zero.
+                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                        return SimplifyResult::SimplifiedTo(zero);
+                    }
+
+                    // `two_pow_rhs` is limited to be at most `2 ^ {operand_bitsize - 1}` so it fits in `operand_type`.
+                    let two_pow_rhs = FieldElement::from(2u128).pow(&rhs_const);
+                    let two_pow_rhs = dfg.make_constant(two_pow_rhs, operand_type);
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                        BinaryOp::Div,
+                        self.lhs,
+                        two_pow_rhs,
+                    ));
+                }
+            }
+        };
         SimplifyResult::None
     }
 }
@@ -314,6 +340,8 @@ impl BinaryOp {
             BinaryOp::And => None,
             BinaryOp::Or => None,
             BinaryOp::Xor => None,
+            BinaryOp::Shl => None,
+            BinaryOp::Shr => None,
         }
     }
 
@@ -329,6 +357,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
+            BinaryOp::Shl => |x, y| Some(x << y),
+            BinaryOp::Shr => |x, y| Some(x >> y),
         }
     }
 
@@ -344,6 +374,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as i128),
             BinaryOp::Lt => |x, y| Some((x < y) as i128),
+            BinaryOp::Shl => |x, y| Some(x << y),
+            BinaryOp::Shr => |x, y| Some(x >> y),
         }
     }
 }

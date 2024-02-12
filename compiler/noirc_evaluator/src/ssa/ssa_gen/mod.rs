@@ -14,10 +14,7 @@ use noirc_frontend::{
 
 use crate::{
     errors::{InternalError, RuntimeError},
-    ssa::{
-        function_builder::data_bus::DataBusBuilder,
-        ir::{instruction::Intrinsic, types::NumericType},
-    },
+    ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
 };
 
 use self::{
@@ -38,7 +35,10 @@ use super::{
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
+pub(crate) fn generate_ssa(
+    program: Program,
+    force_brillig_runtime: bool,
+) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
@@ -56,7 +56,11 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let mut function_context = FunctionContext::new(
         main.name.clone(),
         &main.parameters,
-        if main.unconstrained { RuntimeType::Brillig } else { RuntimeType::Acir },
+        if force_brillig_runtime || main.unconstrained {
+            RuntimeType::Brillig
+        } else {
+            RuntimeType::Acir
+        },
         &context,
     );
 
@@ -383,8 +387,9 @@ impl<'a> FunctionContext<'a> {
         length: Option<super::ir::value::ValueId>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
+        let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = self.builder.field_constant(type_size as u128);
+        let type_size = self.builder.numeric_constant(type_size as u128, Type::unsigned(64));
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
@@ -421,20 +426,10 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         length: Option<super::ir::value::ValueId>,
     ) {
-        let array_len = length.expect("ICE: a length must be supplied for indexing slices");
-        // Check the type of the index value for valid comparisons
-        let array_len = match self.builder.type_of_value(index) {
-            Type::Numeric(numeric_type) => match numeric_type {
-                // If the index itself is an integer, keep the array length as a Field
-                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
-                // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
-                // Thus, we cast the array length to a u64 before performing the less than comparison
-                NumericType::NativeField => self
-                    .builder
-                    .insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 })),
-            },
-            _ => unreachable!("ICE: array index must be a numeric type"),
-        };
+        let index = self.make_array_index(index);
+        // We convert the length as an array index type for comparison
+        let array_len = self
+            .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
@@ -692,6 +687,12 @@ impl<'a> FunctionContext<'a> {
         let Some(assert_message_expr) = assert_message else {
             return Ok(None)
         };
+
+        if let ast::Expression::Literal(ast::Literal::Str(assert_message)) =
+            assert_message_expr.as_ref()
+        {
+            return Ok(Some(Box::new(ConstrainError::Static(assert_message.to_string()))));
+        }
 
         let ast::Expression::Call(call) = assert_message_expr.as_ref() else {
             return Err(InternalError::Unexpected {

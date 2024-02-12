@@ -552,22 +552,6 @@ impl<'a> FunctionContext<'a> {
     ) -> Values {
         let result_type = self.builder.type_of_value(lhs);
         let mut result = match operator {
-            BinaryOpKind::ShiftLeft => {
-                let bit_size = match result_type {
-                    Type::Numeric(NumericType::Signed { bit_size })
-                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                    _ => unreachable!("ICE: left-shift attempted on non-integer"),
-                };
-                self.builder.insert_wrapping_shift_left(lhs, rhs, bit_size)
-            }
-            BinaryOpKind::ShiftRight => {
-                let bit_size = match result_type {
-                    Type::Numeric(NumericType::Signed { bit_size })
-                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                    _ => unreachable!("ICE: right-shift attempted on non-integer"),
-                };
-                self.builder.insert_shift_right(lhs, rhs, bit_size)
-            }
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(result_type, Type::Array(..)) =>
             {
@@ -740,10 +724,15 @@ impl<'a> FunctionContext<'a> {
     /// Create a const offset of an address for an array load or store
     pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
         if offset != 0 {
-            let offset = self.builder.field_constant(offset);
+            let offset = self.builder.numeric_constant(offset, self.builder.type_of_value(address));
             address = self.builder.insert_binary(address, BinaryOp::Add, offset);
         }
         address
+    }
+
+    /// Array indexes are u64s. This function casts values used as indexes to u64.
+    pub(super) fn make_array_index(&mut self, index: ValueId) -> ValueId {
+        self.builder.insert_cast(index, Type::unsigned(64))
     }
 
     /// Define a local variable to be some Values that can later be retrieved
@@ -989,12 +978,14 @@ impl<'a> FunctionContext<'a> {
         index: ValueId,
         location: Location,
     ) -> ValueId {
-        let element_size = self.builder.field_constant(self.element_size(array));
+        let index = self.make_array_index(index);
+        let element_size =
+            self.builder.numeric_constant(self.element_size(array), Type::unsigned(64));
 
         // The actual base index is the user's index * the array element type's size
         let mut index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        let one = self.builder.field_constant(FieldElement::one());
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::unsigned(64));
 
         new_value.for_each(|value| {
             let value = value.eval(self);
@@ -1134,9 +1125,8 @@ fn convert_operator(op: noirc_frontend::BinaryOpKind) -> BinaryOp {
         BinaryOpKind::And => BinaryOp::And,
         BinaryOpKind::Or => BinaryOp::Or,
         BinaryOpKind::Xor => BinaryOp::Xor,
-        BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft => unreachable!(
-            "ICE - bit shift operators do not exist in SSA and should have been replaced"
-        ),
+        BinaryOpKind::ShiftLeft => BinaryOp::Shl,
+        BinaryOpKind::ShiftRight => BinaryOp::Shr,
     }
 }
 

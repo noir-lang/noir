@@ -18,31 +18,31 @@ jobs:
   build-noirc_abi_wasm:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
+      - name: Checkout Noir repo
         uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          ref: ${{ inputs.noir-ref }}
+          key: noirc-abi
+          save-if: false
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
 
-      - name: Build wasm package
-        run: |
-          nix build -L .#noirc_abi_wasm
+      - name: Build noirc_abi
+        run: ./.github/scripts/noirc-abi-build.sh
 
-      - uses: actions/upload-artifact@v3
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: |
-            result/noirc_abi_wasm/nodejs
-            result/noirc_abi_wasm/web
+          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+          retention-days: 10
 
   build-noir_wasm:
-    needs: [build-noirc_abi_wasm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -58,20 +58,17 @@ jobs:
           key: noir-wasm
           save-if: false
 
-      - name: Download noirc_abi_wasm package artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm
-
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
+
       - name: Build noir_wasm
-        run: yarn workspace @noir-lang/noir_wasm build
+        run: ./.github/scripts/noir-wasm-build.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: noir_wasm
           path: |
@@ -84,26 +81,27 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.noir-ref }}
 
-      - name: Setup Nix
-        uses: ./.github/actions/nix
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix-cache-name: "noir"
-          cachix-auth-token: ${{ secrets.CACHIXAUTHTOKEN }}
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
 
-      - name: Build wasm package
-        run: |
-          nix build -L .#acvm_js
-
-      - uses: actions/upload-artifact@v3
+      - uses: Swatinem/rust-cache@v2
         with:
-          name: acvm_js
-          path: |
-            result/acvm_js/nodejs
-            result/acvm_js/web
+          key: acvm-js
+          save-if: false
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Build acvm_js
+        run: ./.github/scripts/acvm_js-build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js/outputs/out/acvm_js
+          retention-days: 3
           
   publish-es-packages:
     runs-on: ubuntu-latest
@@ -114,17 +112,17 @@ jobs:
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: acvm_js
           path: acvm-repo/acvm_js
       
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: noir_wasm
           path: compiler/wasm
       
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: noirc_abi_wasm
           path: tooling/noirc_abi_wasm

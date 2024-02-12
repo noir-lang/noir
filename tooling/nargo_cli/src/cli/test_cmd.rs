@@ -160,7 +160,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 
         let test_status = run_test(
             blackbox_solver,
-            &context,
+            &mut context,
             test_function,
             show_output,
             foreign_call_resolver_url,

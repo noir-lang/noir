@@ -38,7 +38,7 @@
     "@typescript-eslint/parser": "^6.7.3",
     "chai": "^4.3.7",
     "cspell": "^8.3.2",
-    "eslint": "^8.50.0",
+    "eslint": "^8.56.0",
     "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.2.0",
     "prettier": "3.0.3",

@@ -89,13 +89,12 @@ impl<'a> ModCollector<'a> {
         for global in globals {
             let name = global.pattern.name_ident().clone();
 
-            // First create dummy function in the DefInterner
-            // So that we can get a StmtId
-            let stmt_id = context.def_interner.push_empty_global();
+            let global_id =
+                context.def_interner.push_empty_global(name.clone(), self.module_id, self.file_id);
 
             // Add the statement to the scope so its path can be looked up later
-            let result =
-                self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .declare_global(name, global_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
@@ -109,7 +108,7 @@ impl<'a> ModCollector<'a> {
             self.def_collector.collected_globals.push(UnresolvedGlobal {
                 file_id: self.file_id,
                 module_id: self.module_id,
-                stmt_id,
+                global_id,
                 stmt_def: global,
             });
         }
@@ -126,7 +125,7 @@ impl<'a> ModCollector<'a> {
                 trait_id: None,
             };
 
-            for method in r#impl.methods {
+            for (method, _) in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
                 let location = Location::new(method.span(), self.file_id);
                 context.def_interner.push_function(func_id, &method.def, module_id, location);
@@ -440,11 +439,15 @@ impl<'a> ModCollector<'a> {
                         }
                     }
                     TraitItem::Constant { name, .. } => {
-                        let stmt_id = context.def_interner.push_empty_global();
+                        let global_id = context.def_interner.push_empty_global(
+                            name.clone(),
+                            trait_id.0.local_id,
+                            self.file_id,
+                        );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [trait_id.0.local_id.0]
-                            .declare_global(name.clone(), stmt_id)
+                            .declare_global(name.clone(), global_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedConst,

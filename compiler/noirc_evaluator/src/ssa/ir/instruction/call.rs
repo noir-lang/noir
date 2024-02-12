@@ -1,3 +1,4 @@
+use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
@@ -238,7 +239,6 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
-        Intrinsic::Sort => simplify_sort(dfg, arguments),
         Intrinsic::AsField => {
             let instruction = Instruction::Cast(
                 arguments[0],
@@ -319,6 +319,8 @@ fn simplify_slice_push_back(
     for elem in &arguments[2..] {
         slice.push_back(*elem);
     }
+    let slice_size = slice.len();
+    let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
 
     let set_last_slice_value_instr =
@@ -327,7 +329,11 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
 
-    let mut value_merger = ValueMerger::new(dfg, block, None, None);
+    let mut slice_sizes = HashMap::default();
+    slice_sizes.insert(set_last_slice_value, slice_size / element_size);
+    slice_sizes.insert(new_slice, slice_size / element_size);
+
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes);
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
@@ -434,7 +440,7 @@ fn simplify_black_box_func(
             SimplifyResult::None
         }
         BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntNeg
+        | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
         | BlackBoxFunc::BigIntDiv
         | BlackBoxFunc::RecursiveAggregation
@@ -580,23 +586,6 @@ fn simplify_signature(
 
             let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
             SimplifyResult::SimplifiedTo(valid_signature)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-fn simplify_sort(dfg: &mut DataFlowGraph, arguments: &[ValueId]) -> SimplifyResult {
-    match dfg.get_array_constant(arguments[0]) {
-        Some((input, _)) => {
-            let inputs: Option<Vec<FieldElement>> =
-                input.iter().map(|id| dfg.get_numeric_constant(*id)).collect();
-
-            let Some(mut sorted_inputs) = inputs else { return SimplifyResult::None };
-            sorted_inputs.sort_unstable();
-
-            let (_, element_type) = dfg.get_numeric_constant_with_type(input[0]).unwrap();
-            let result_array = make_constant_array(dfg, sorted_inputs, element_type);
-            SimplifyResult::SimplifiedTo(result_array)
         }
         _ => SimplifyResult::None,
     }

@@ -1,21 +1,44 @@
-import { Abi } from '@noir-lang/noirc_abi';
+export type Field = string | number | boolean;
+export type InputValue = Field | InputMap | (Field | InputMap)[];
+export type InputMap = { [key: string]: InputValue };
 
-export { Abi, WitnessMap } from '@noir-lang/noirc_abi';
+export type Visibility = 'public' | 'private' | 'databus';
+export type Sign = 'unsigned' | 'signed';
+export type AbiType =
+  | { kind: 'field' }
+  | { kind: 'boolean' }
+  | { kind: 'string'; length: number }
+  | { kind: 'integer'; sign: Sign; width: number }
+  | { kind: 'array'; length: number; type: AbiType }
+  | { kind: 'tuple'; fields: AbiType[] }
+  | { kind: 'struct'; path: string; fields: { name: string; type: AbiType }[] };
+
+export type AbiParameter = {
+  name: string;
+  type: AbiType;
+  visibility: Visibility;
+};
+
+// Map from witness index to hex string value of witness.
+export type WitnessMap = Map<number, string>;
+
+export type Abi = {
+  parameters: AbiParameter[];
+  param_witnesses: Record<string, { start: number; end: number }[]>;
+  return_type: { abi_type: AbiType; visibility: Visibility } | null;
+  return_witnesses: number[];
+};
 
 export interface Backend {
   /**
-   * @description Generates a final proof (not meant to be verified in another circuit) */
-  generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData>;
-
-  /**
-   * @description Generates an intermediate proof (meant to be verified in another circuit) */
-  generateIntermediateProof(decompressedWitness: Uint8Array): Promise<ProofData>;
+   * @description Generates a proof */
+  generateProof(decompressedWitness: Uint8Array): Promise<ProofData>;
 
   /**
    *
    * @description Retrieves the artifacts from a proof in the Field format
    */
-  generateIntermediateProofArtifacts(
+  generateRecursiveProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs: number,
   ): Promise<{
@@ -28,11 +51,8 @@ export interface Backend {
   }>;
 
   /**
-   * @description Verifies a final proof */
-  verifyFinalProof(proofData: ProofData): Promise<boolean>;
-
-  /** @description Verifies an intermediate proof */
-  verifyIntermediateProof(proofData: ProofData): Promise<boolean>;
+   * @description Verifies a proof */
+  verifyProof(proofData: ProofData): Promise<boolean>;
 
   /**
    * @description Destroys the backend */

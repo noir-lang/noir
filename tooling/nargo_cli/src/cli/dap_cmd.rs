@@ -1,9 +1,9 @@
+use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::native_types::WitnessMap;
-use acvm::ExpressionWidth;
 use backend_interface::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::ops::compile_program;
+use nargo::ops::compile_program_with_debug_instrumenter;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -24,6 +24,7 @@ use dap::types::Capabilities;
 use serde_json::Value;
 
 use super::compile_cmd::report_errors;
+use super::debug_cmd::instrument_package_files;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
@@ -43,7 +44,10 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
         .parse::<usize>()
         .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
 
-    Ok(ExpressionWidth::from(width))
+    match width {
+        0 => Ok(ExpressionWidth::Unbounded),
+        _ => Ok(ExpressionWidth::Bounded { width }),
+    }
 }
 
 struct LoadError(&'static str);
@@ -84,11 +88,21 @@ fn load_and_compile_project(
 
     let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let mut parsed_files = parse_all(&workspace_file_manager);
 
-    let compile_options = CompileOptions::default();
-    let compilation_result =
-        compile_program(&workspace_file_manager, &parsed_files, package, &compile_options, None);
+    let compile_options =
+        CompileOptions { instrument_debug: true, force_brillig: true, ..CompileOptions::default() };
+
+    let debug_state = instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
+
+    let compilation_result = compile_program_with_debug_instrumenter(
+        &workspace_file_manager,
+        &parsed_files,
+        package,
+        &compile_options,
+        None,
+        debug_state,
+    );
 
     let compiled_program = report_errors(
         compilation_result,

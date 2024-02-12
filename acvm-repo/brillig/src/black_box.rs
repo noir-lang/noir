@@ -1,4 +1,4 @@
-use crate::{opcodes::HeapVector, HeapArray, RegisterIndex};
+use crate::{opcodes::HeapVector, HeapArray, MemoryAddress};
 use serde::{Deserialize, Serialize};
 
 /// These opcodes provide an equivalent of ACIR blackbox functions.
@@ -36,7 +36,7 @@ pub enum BlackBoxOp {
         public_key_x: HeapArray,
         public_key_y: HeapArray,
         signature: HeapArray,
-        result: RegisterIndex,
+        result: MemoryAddress,
     },
     /// Verifies a ECDSA signature over the secp256r1 curve.
     EcdsaSecp256r1 {
@@ -44,75 +44,75 @@ pub enum BlackBoxOp {
         public_key_x: HeapArray,
         public_key_y: HeapArray,
         signature: HeapArray,
-        result: RegisterIndex,
+        result: MemoryAddress,
     },
     /// Verifies a Schnorr signature over a curve which is "pairing friendly" with the curve on which the Brillig bytecode is defined.
     SchnorrVerify {
-        public_key_x: RegisterIndex,
-        public_key_y: RegisterIndex,
+        public_key_x: MemoryAddress,
+        public_key_y: MemoryAddress,
         message: HeapVector,
         signature: HeapVector,
-        result: RegisterIndex,
+        result: MemoryAddress,
     },
     /// Calculates a Pedersen commitment to the inputs.
     PedersenCommitment {
         inputs: HeapVector,
-        domain_separator: RegisterIndex,
+        domain_separator: MemoryAddress,
         output: HeapArray,
     },
     /// Calculates a Pedersen hash to the inputs.
     PedersenHash {
         inputs: HeapVector,
-        domain_separator: RegisterIndex,
-        output: RegisterIndex,
+        domain_separator: MemoryAddress,
+        output: MemoryAddress,
     },
     /// Performs scalar multiplication over the embedded curve.
     FixedBaseScalarMul {
-        low: RegisterIndex,
-        high: RegisterIndex,
+        low: MemoryAddress,
+        high: MemoryAddress,
         result: HeapArray,
     },
     /// Performs addition over the embedded curve.
     EmbeddedCurveAdd {
-        input1_x: RegisterIndex,
-        input1_y: RegisterIndex,
-        input2_x: RegisterIndex,
-        input2_y: RegisterIndex,
+        input1_x: MemoryAddress,
+        input1_y: MemoryAddress,
+        input2_x: MemoryAddress,
+        input2_y: MemoryAddress,
         result: HeapArray,
     },
     BigIntAdd {
-        lhs: RegisterIndex,
-        rhs: RegisterIndex,
-        output: RegisterIndex,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        output: MemoryAddress,
     },
-    BigIntNeg {
-        lhs: RegisterIndex,
-        rhs: RegisterIndex,
-        output: RegisterIndex,
+    BigIntSub {
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        output: MemoryAddress,
     },
     BigIntMul {
-        lhs: RegisterIndex,
-        rhs: RegisterIndex,
-        output: RegisterIndex,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        output: MemoryAddress,
     },
     BigIntDiv {
-        lhs: RegisterIndex,
-        rhs: RegisterIndex,
-        output: RegisterIndex,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        output: MemoryAddress,
     },
     BigIntFromLeBytes {
         inputs: HeapVector,
         modulus: HeapVector,
-        output: RegisterIndex,
+        output: MemoryAddress,
     },
     BigIntToLeBytes {
-        input: RegisterIndex,
+        input: MemoryAddress,
         output: HeapVector,
     },
     Poseidon2Permutation {
         message: HeapVector,
         output: HeapArray,
-        len: RegisterIndex,
+        len: MemoryAddress,
     },
     Sha256Compression {
         input: HeapVector,
