@@ -197,6 +197,32 @@ impl Binary {
                     let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
+                if operand_type.is_unsigned() {
+                    // It's common in other programming languages to truncate values to a certain bit size using
+                    // a bitwise AND with a bit mask. However this operation is quite inefficient inside a snark.
+                    //
+                    // We then replace this bitwise operation with an equivalent truncation instruction.
+                    match (lhs, rhs) {
+                        (Some(bitmask), None) | (None, Some(bitmask)) => {
+                            // This substitution requires the bitmask to retain all of the lower bits.
+                            // The bitmask must then be one less than a power of 2.
+                            let bitmask_plus_one = bitmask.to_u128() + 1;
+                            if bitmask_plus_one.is_power_of_two() {
+                                let value = if lhs.is_some() { self.rhs } else { self.lhs };
+                                let num_bits = bitmask_plus_one.ilog2();
+                                return SimplifyResult::SimplifiedToInstruction(
+                                    Instruction::Truncate {
+                                        value,
+                                        bit_size: num_bits,
+                                        max_bit_size: operand_type.bit_size(),
+                                    },
+                                );
+                            }
+                        }
+
+                        _ => (),
+                    }
+                }
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
