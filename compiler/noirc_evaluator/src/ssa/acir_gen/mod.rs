@@ -227,7 +227,7 @@ impl Context {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
-        dbg!("got input witness");
+
         self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
         for instruction_id in entry_block.instructions() {
@@ -239,7 +239,7 @@ impl Context {
                 last_array_uses,
             )?);
         }
-        dbg!("about to finish ACIR");
+
         warnings.extend(self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?);
         Ok(self.acir_context.finish(input_witness, warnings))
     }
@@ -2129,12 +2129,21 @@ impl Context {
     /// Maps an ssa value list, for which some values may be references to arrays, by inlining
     /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
     /// that correspond to other values.
-    fn flatten_value_list(&mut self, arguments: &[ValueId], dfg: &DataFlowGraph) -> Result<Vec<AcirVar>, InternalError> {
+    fn flatten_value_list(
+        &mut self,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Result<Vec<AcirVar>, InternalError> {
         let mut acir_vars = Vec::with_capacity(arguments.len());
         for value_id in arguments {
             let value = self.convert_value(*value_id, dfg);
-            self.acir_context.flatten_value(&mut acir_vars, value)?;
+            // self.acir_context.flatten_value(&mut flattened_values, value)?;
+
+            acir_vars.append(
+                &mut self.acir_context.flatten(value)?.iter().map(|(var, _)| *var).collect(),
+            );
         }
+        // let acir_vars = flattened_values.iter().map(|(var, _)| *var).collect();
         Ok(acir_vars)
     }
 
