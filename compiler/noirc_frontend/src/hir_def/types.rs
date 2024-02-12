@@ -997,13 +997,10 @@ impl Type {
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(new_target_id) => {
+                        // Bind to the most specific type variable kind
                         let clone_kind = if only_integer {
-                            // Integer is more specific than TypeVariable so we bind the type
-                            // variable to Integer instead.
                             TypeVariableKind::Integer
                         } else {
-                            // IntegerOrField is more specific than TypeVariable so we bind the type
-                            // variable to IntegerOrField instead.
                             TypeVariableKind::IntegerOrField
                         };
                         let clone = Type::TypeVariable(var.clone(), clone_kind);
