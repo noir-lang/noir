@@ -25,6 +25,8 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
     static constexpr size_t LENGTH = domain_end - domain_start;
     using View = UnivariateView<Fr, domain_end, domain_start>;
 
+    using value_type = Fr; // used to get the type of the elements consistently with std::array
+
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/714) Try out std::valarray?
     std::array<Fr, LENGTH> evaluations;
 
@@ -337,6 +339,13 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
         result *= full_numerator_value;
         return result;
     };
+
+    // Begin iterators
+    auto begin() { return evaluations.begin(); }
+    auto begin() const { return evaluations.begin(); }
+    // End iterators
+    auto end() { return evaluations.end(); }
+    auto end() const { return evaluations.end(); }
 };
 
 template <typename B, class Fr, size_t domain_end, size_t domain_start = 0>
@@ -497,3 +506,8 @@ template <typename T, typename U, std::size_t N> std::array<T, N> array_to_array
 };
 
 } // namespace bb
+
+namespace std {
+template <typename T, size_t N> struct tuple_size<bb::Univariate<T, N>> : std::integral_constant<std::size_t, N> {};
+
+} // namespace std

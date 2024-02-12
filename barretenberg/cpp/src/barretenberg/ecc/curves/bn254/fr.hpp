@@ -66,6 +66,9 @@ class Bn254FrParams {
     // used in msgpack schema serialization
     static constexpr char schema_name[] = "fr";
     static constexpr bool has_high_2adicity = true;
+
+    // This is a BN254 scalar, so it represents one BN254 scalar
+    static constexpr size_t NUM_BN254_SCALARS = 1;
 };
 
 using fr = field<Bn254FrParams>;

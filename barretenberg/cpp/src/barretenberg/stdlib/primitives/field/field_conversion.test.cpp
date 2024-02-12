@@ -1,4 +1,5 @@
 #include "barretenberg/stdlib/primitives/field/field_conversion.hpp"
+#include "barretenberg/common/zip_view.hpp"
 #include <gtest/gtest.h>
 
 namespace bb::stdlib::field_conversion_tests {
@@ -12,34 +13,22 @@ template <typename Builder> class StdlibFieldConversionTests : public ::testing:
   public:
     template <typename T> void check_conversion(Builder& builder, T x)
     {
-        size_t len = bb::stdlib::field_conversion::calc_num_bn254_frs<T>();
-        auto frs = bb::stdlib::field_conversion::convert_to_bn254_frs(x);
+        size_t len = bb::stdlib::field_conversion::calc_num_bn254_frs<Builder, T>();
+        auto frs = bb::stdlib::field_conversion::convert_to_bn254_frs<Builder, T>(x);
         EXPECT_EQ(len, frs.size());
         auto y = bb::stdlib::field_conversion::convert_from_bn254_frs<Builder, T>(builder, frs);
         EXPECT_EQ(x.get_value(), y.get_value());
     }
 
-    template <typename T> void check_conversion_array(Builder& builder, T x)
+    template <typename T> void check_conversion_iterable(Builder& builder, T x)
     {
-        size_t len = bb::stdlib::field_conversion::calc_num_bn254_frs<T>();
-        auto frs = bb::stdlib::field_conversion::convert_to_bn254_frs(x);
+        size_t len = bb::stdlib::field_conversion::calc_num_bn254_frs<Builder, T>();
+        auto frs = bb::stdlib::field_conversion::convert_to_bn254_frs<Builder, T>(x);
         EXPECT_EQ(len, frs.size());
         auto y = bb::stdlib::field_conversion::convert_from_bn254_frs<Builder, T>(builder, frs);
         EXPECT_EQ(x.size(), y.size());
-        for (size_t i = 0; i < x.size(); i++) {
-            EXPECT_EQ(x[i].get_value(), y[i].get_value());
-        }
-    }
-
-    template <typename T> void check_conversion_univariate(Builder& builder, T x)
-    {
-        size_t len = bb::stdlib::field_conversion::calc_num_bn254_frs<T>();
-        auto frs = bb::stdlib::field_conversion::convert_to_bn254_frs(x);
-        EXPECT_EQ(len, frs.size());
-        auto y = bb::stdlib::field_conversion::convert_from_bn254_frs<Builder, T>(builder, frs);
-        EXPECT_EQ(x.evaluations.size(), y.evaluations.size());
-        for (size_t i = 0; i < x.evaluations.size(); i++) {
-            EXPECT_EQ(x.evaluations[i].get_value(), y.evaluations[i].get_value());
+        for (auto [val1, val2] : zip_view(x, y)) {
+            EXPECT_EQ(val1.get_value(), val2.get_value());
         }
     }
 };
@@ -132,7 +121,7 @@ TYPED_TEST(StdlibFieldConversionTests, FieldConversionArrayBn254Fr)
     std::array<fr<Builder>, 4> x1{
         fr<Builder>(&builder, 1), fr<Builder>(&builder, 2), fr<Builder>(&builder, 3), fr<Builder>(&builder, 4)
     };
-    this->check_conversion_array(builder, x1);
+    this->check_conversion_iterable(builder, x1);
 
     std::array<fr<Builder>, 7> x2{ fr<Builder>(&builder, bb::fr::modulus_minus_two),
                                    fr<Builder>(&builder, bb::fr::modulus_minus_two - 123),
@@ -141,7 +130,7 @@ TYPED_TEST(StdlibFieldConversionTests, FieldConversionArrayBn254Fr)
                                    fr<Builder>(&builder, 367032),
                                    fr<Builder>(&builder, 12985028),
                                    fr<Builder>(&builder, bb::fr::modulus_minus_two - 125015028) };
-    this->check_conversion_array(builder, x2);
+    this->check_conversion_iterable(builder, x2);
 }
 
 /**
@@ -167,7 +156,7 @@ TYPED_TEST(StdlibFieldConversionTests, FieldConversionArrayGrumpkinFr)
             &builder,
             static_cast<grumpkin::fr>(std::string("018555a8eb50cf07f64b019ebaf3af3c925c93e631f3ecd455db07bbb52bbdd3"))),
     };
-    this->check_conversion_array(builder, x1);
+    this->check_conversion_iterable(builder, x1);
 }
 
 /**
@@ -182,7 +171,7 @@ TYPED_TEST(StdlibFieldConversionTests, FieldConversionUnivariateBn254Fr)
     Univariate<fr<Builder>, 4> x{
         { fr<Builder>(&builder, 1), fr<Builder>(&builder, 2), fr<Builder>(&builder, 3), fr<Builder>(&builder, 4) }
     };
-    this->check_conversion_univariate(builder, x);
+    this->check_conversion_iterable(builder, x);
 }
 
 /**
@@ -208,7 +197,7 @@ TYPED_TEST(StdlibFieldConversionTests, FieldConversionUnivariateGrumpkinFr)
                       static_cast<grumpkin::fr>(
                           std::string("2bf1eaf87f7d27e8dc4056e9af975985bccc89077a21891d6c7b6ccce0631f95"))) }
     };
-    this->check_conversion_univariate(builder, x);
+    this->check_conversion_iterable(builder, x);
 }
 
 /**

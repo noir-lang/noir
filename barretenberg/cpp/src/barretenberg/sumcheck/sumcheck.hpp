@@ -123,7 +123,7 @@ template <typename Flavor> class SumcheckProver {
              zip_view(multivariate_evaluations.get_all(), partially_evaluated_polynomials.get_all())) {
             eval = poly[0];
         }
-        transcript->send_to_verifier("Sumcheck:evaluations", multivariate_evaluations);
+        transcript->send_to_verifier("Sumcheck:evaluations", multivariate_evaluations.get_all());
 
         return { multivariate_challenge, multivariate_evaluations };
     };
