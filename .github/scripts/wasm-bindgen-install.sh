@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -eu
 
-cd $(dirname "$0")/..
+cd $(dirname "$0")
 
-./.github/scripts/cargo-binstall-install.sh
+./cargo-binstall-install.sh
 
 # Install wasm-bindgen-cli.
 if [ "$(wasm-bindgen --version | cut -d' ' -f2)" != "0.2.86" ]; then
