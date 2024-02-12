@@ -5,7 +5,7 @@ contract SchnorrHardcodedAccount {
     use dep::aztec::context::PrivateContext;
 
     use dep::authwit::{
-        entrypoint::{EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE}, account::AccountActions,
+        entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
         auth_witness::get_auth_witness
     };
 
@@ -19,9 +19,9 @@ contract SchnorrHardcodedAccount {
 
     // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts
     #[aztec(private)]
-    fn entrypoint(payload: pub EntrypointPayload) {
+    fn entrypoint(app_payload: pub AppPayload, fee_payload: pub FeePayload) {
         let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.entrypoint(payload);
+        actions.entrypoint(app_payload, fee_payload);
     }
 
     #[aztec(private)]

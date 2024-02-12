@@ -5,7 +5,7 @@ contract SchnorrSingleKeyAccount {
     use dep::std::{option::Option};
     use dep::aztec::context::{PrivateContext, PublicContext, Context};
 
-    use dep::authwit::{entrypoint::EntrypointPayload, account::AccountActions};
+    use dep::authwit::{entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions};
 
     use crate::{util::recover_address, auth_oracle::get_auth_witness};
 
@@ -16,9 +16,9 @@ contract SchnorrSingleKeyAccount {
 
     // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts
     #[aztec(private)]
-    fn entrypoint(payload: pub EntrypointPayload) {
+    fn entrypoint(app_payload: pub AppPayload, fee_payload: pub FeePayload) {
         let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.entrypoint(payload);
+        actions.entrypoint(app_payload, fee_payload);
     }
 
     #[aztec(private)]

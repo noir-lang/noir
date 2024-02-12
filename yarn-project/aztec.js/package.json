@@ -12,6 +12,7 @@
     "./deployment": "./dest/api/deployment.js",
     "./eth_address": "./dest/api/eth_address.js",
     "./ethereum": "./dest/api/ethereum.js",
+    "./fee": "./dest/api/fee.js",
     "./fields": "./dest/api/fields.js",
     "./init": "./dest/api/init.js",
     "./log_id": "./dest/api/log_id.js",

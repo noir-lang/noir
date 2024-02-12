@@ -1,10 +1,14 @@
+import { FeeOptions } from '@aztec/aztec.js/account';
+import { Fr } from '@aztec/aztec.js/fields';
 import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/circuit-types';
-import { Fr, GeneratorIndex } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 
-// These must match the values defined in yarn-project/aztec-nr/aztec/src/entrypoint.nr
+// These must match the values defined in:
+// - yarn-project/aztec-nr/aztec/src/entrypoint/app.nr
 const ACCOUNT_MAX_CALLS = 4;
+// - and yarn-project/aztec-nr/aztec/src/entrypoint/fee.nr
+const FEE_MAX_CALLS = 2;
 
 /** Encoded function call for account contract entrypoint */
 type EntrypointFunctionCall = {
@@ -23,7 +27,7 @@ type EntrypointFunctionCall = {
 };
 
 /** Encoded payload for the account contract entrypoint */
-export type EntrypointPayload = {
+type EntrypointPayload = {
   // eslint-disable-next-line camelcase
   /** Encoded function calls to execute */
   function_calls: EntrypointFunctionCall[];
@@ -31,16 +35,24 @@ export type EntrypointPayload = {
   nonce: Fr;
 };
 
-/** Assembles an entrypoint payload from a set of private and public function calls */
-export function buildPayload(calls: FunctionCall[]): {
-  /** The payload for the entrypoint function */
+/** Represents a generic payload to be executed in the context of an account contract */
+export type PayloadWithArguments = {
+  /** The payload to be run */
   payload: EntrypointPayload;
-  /** The packed arguments of functions called */
+  /** The packed arguments for the function calls */
   packedArguments: PackedArguments[];
-} {
+};
+
+/**
+ * Builds a payload to be sent to the account contract
+ * @param calls - The function calls to run
+ * @param maxCalls - The maximum number of call expected to be run. Used for padding
+ * @returns A payload object and packed arguments
+ */
+function buildPayload(calls: FunctionCall[], maxCalls: number): PayloadWithArguments {
   const nonce = Fr.random();
 
-  const paddedCalls = padArrayEnd(calls, emptyFunctionCall(), ACCOUNT_MAX_CALLS);
+  const paddedCalls = padArrayEnd(calls, emptyFunctionCall(), maxCalls);
   const packedArguments: PackedArguments[] = [];
   for (const call of paddedCalls) {
     packedArguments.push(PackedArguments.fromArgs(call.args));
@@ -67,15 +79,26 @@ export function buildPayload(calls: FunctionCall[]): {
   };
 }
 
-/** Hashes an entrypoint payload to a 32-byte buffer (useful for signing) */
-export function hashPayload(payload: EntrypointPayload) {
+/** Assembles an entrypoint app payload from a set of private and public function calls */
+export function buildAppPayload(calls: FunctionCall[]): PayloadWithArguments {
+  return buildPayload(calls, ACCOUNT_MAX_CALLS);
+}
+
+/** Creates the payload for paying the fee for a transaction */
+export function buildFeePayload(feeOpts?: FeeOptions): PayloadWithArguments {
+  const calls = feeOpts?.paymentMethod.getFunctionCalls(new Fr(feeOpts.maxFee)) ?? [];
+  return buildPayload(calls, FEE_MAX_CALLS);
+}
+
+/** Hashes a payload to a 32-byte buffer */
+export function hashPayload(payload: EntrypointPayload, generatorIndex: number) {
   return pedersenHash(
     flattenPayload(payload).map(fr => fr.toBuffer()),
-    GeneratorIndex.SIGNATURE_PAYLOAD,
+    generatorIndex,
   );
 }
 
-/** Flattens an entrypoint payload */
+/** Flattens an payload */
 function flattenPayload(payload: EntrypointPayload) {
   return [
     ...payload.function_calls.flatMap(call => [

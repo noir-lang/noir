@@ -1,7 +1,7 @@
 use dep::aztec::context::{PrivateContext, PublicContext, Context};
 use dep::aztec::state_vars::{map::Map, public_state::PublicState};
 
-use crate::entrypoint::EntrypointPayload;
+use crate::entrypoint::{app::AppPayload, fee::FeePayload};
 use crate::auth::IS_VALID_SELECTOR;
 
 struct AccountActions {
@@ -54,12 +54,18 @@ impl AccountActions {
     }
 
     // docs:start:entrypoint
-    pub fn entrypoint(self, payload: EntrypointPayload) {
-        let message_hash = payload.hash();
+    pub fn entrypoint(self, app_payload: AppPayload, fee_payload: FeePayload) {
         let valid_fn = self.is_valid_impl;
-        let private_context = self.context.private.unwrap();
-        assert(valid_fn(private_context, message_hash));
-        payload.execute_calls(private_context);
+        let mut private_context = self.context.private.unwrap();
+
+        let fee_hash = fee_payload.hash();
+        assert(valid_fn(private_context, fee_hash));
+        fee_payload.execute_calls(private_context);
+        private_context.capture_max_non_revertible_side_effect_counter();
+
+        let app_hash = app_payload.hash();
+        assert(valid_fn(private_context, app_hash));
+        app_payload.execute_calls(private_context);
     }
     // docs:end:entrypoint
 

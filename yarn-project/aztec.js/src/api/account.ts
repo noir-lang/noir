@@ -5,6 +5,7 @@ export {
   EntrypointInterface,
   Salt,
   Wallet,
+  FeeOptions,
 } from '../account/index.js';
 
 export { AccountManager } from '../account_manager/index.js';

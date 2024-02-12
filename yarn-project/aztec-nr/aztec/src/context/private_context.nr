@@ -156,6 +156,13 @@ impl PrivateContext {
         priv_circuit_pub_inputs
     }
 
+    pub fn capture_max_non_revertible_side_effect_counter(&mut self) {
+        assert(
+            self.max_non_revertible_side_effect_counter == 0, "Already captured the non-revertible side effect counter"
+        );
+        self.max_non_revertible_side_effect_counter = self.side_effect_counter;
+    }
+
     pub fn push_read_request(&mut self, read_request: Field) {
         let side_effect = SideEffect { value: read_request, counter: self.side_effect_counter };
         self.read_requests.push(side_effect);
@@ -196,7 +203,7 @@ impl PrivateContext {
 
     // docs:start:context_message_portal
     pub fn message_portal(&mut self, content: Field) {
-        // docs:end:context_message_portal 
+        // docs:end:context_message_portal
         self.new_l2_to_l1_msgs.push(content);
     }
 

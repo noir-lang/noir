@@ -8,7 +8,7 @@ You will learn:
 
 - How to write a custom account contract in Aztec.nr
 - The entrypoint function for transaction authentication and call execution
-- The AccountActions module and EntrypointPayload struct, necessary inclusions for any account contract
+- The AccountActions module and entrypoint payload structs, necessary inclusions for any account contract
 - Customizing authorization validation within the `is_valid` function (using Schnorr signatures as an example)
 - Typescript glue code to format and authenticate transactions
 - Deploying and testing the account contract
@@ -43,14 +43,16 @@ Public Key:  0x0ede151adaef1cfcc1b3e152ea39f00c5cda3f3857cef00decb049d283672dc71
 
 :::
 
-The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding auth witness from an oracle to validate it. You will find this logic implemented in the `AccountActions` module, which uses the `EntrypointPayload` struct:
+The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding auth witness from an oracle to validate it. You will find this logic implemented in the `AccountActions` module, which use the `AppPayload` and `FeePayload` structs:
 
 #include_code entrypoint yarn-project/aztec-nr/authwit/src/account.nr rust
 
-#include_code entrypoint-struct yarn-project/aztec-nr/authwit/src/entrypoint.nr rust
+#include_code app-payload-struct yarn-project/aztec-nr/authwit/src/entrypoint/app.nr rust
+
+#include_code fee-payload-struct yarn-project/aztec-nr/authwit/src/entrypoint/fee.nr rust
 
 :::info
-Using the `AccountActions` module and the `EntrypointPayload` struct is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, using these modules can save you a lot of time when writing a new account contract, both in Noir and in Typescript.
+Using the `AccountActions` module and the payload structs is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, using these modules can save you a lot of time when writing a new account contract, both in Noir and in Typescript.
 :::
 
 The `AccountActions` module provides default implementations for most of the account contract methods needed, but it requires a function for validating an auth witness. In this function you will customize how your account validates an action: whether it is using a specific signature scheme, a multi-party approval, a password, etc.
@@ -100,5 +102,3 @@ To make sure that we are actually validating the provided signature in our accou
 #include_code account-contract-fails yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 
 Lo and behold, we get `Error: Assertion failed: 'verification == true'` when running the snippet above, pointing to the line in our account contract where we verify the Schnorr signature.
-
-

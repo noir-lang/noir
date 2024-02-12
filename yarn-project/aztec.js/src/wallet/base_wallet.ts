@@ -21,6 +21,7 @@ import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress }
 import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { NodeInfo } from '@aztec/types/interfaces';
 
+import { FeeOptions } from '../account/interface.js';
 import { Wallet } from '../account/wallet.js';
 
 /**
@@ -31,7 +32,7 @@ export abstract class BaseWallet implements Wallet {
 
   abstract getCompleteAddress(): CompleteAddress;
 
-  abstract createTxExecutionRequest(execs: FunctionCall[]): Promise<TxExecutionRequest>;
+  abstract createTxExecutionRequest(execs: FunctionCall[], fee?: FeeOptions): Promise<TxExecutionRequest>;
 
   abstract createAuthWitness(message: Fr): Promise<AuthWitness>;
 
