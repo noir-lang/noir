@@ -11,7 +11,7 @@ use crate::instructions::AvmInstruction;
 /// assuming the 0th ACIR opcode is the wrapper.
 pub fn extract_brillig_from_acir(opcodes: &Vec<Opcode>) -> &Brillig {
     if opcodes.len() != 1 {
-        panic!("There should only be one brillig opcode");
+        panic!("An AVM program should be contained entirely in only a single ACIR opcode flagged as 'Brillig'");
     }
     let opcode = &opcodes[0];
     match opcode {

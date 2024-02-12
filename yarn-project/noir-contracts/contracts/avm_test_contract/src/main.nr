@@ -16,6 +16,41 @@ contract AvmTest {
         argA + argB
     }
 
+    #[aztec(public-vm)]
+    fn setOpcodeUint8() -> pub u8 {
+        8 as u8
+    }
+
+    // Bit size 16 in Noir is deprecated.
+    // #[aztec(public-vm)]
+    // fn setOpcodeUint16() -> pub u16 {
+    //     60000 as u16
+    // }
+
+    #[aztec(public-vm)]
+    fn setOpcodeUint32() -> pub u32 {
+        1 << 30 as u32
+    }
+
+    #[aztec(public-vm)]
+    fn setOpcodeUint64() -> pub u64 {
+        1 << 60 as u64
+    }
+
+    // Can't return this since it doesn't fit in a Noir field.
+    // #[aztec(public-vm)]
+    // fn setOpcodeUint128() -> pub u128 {
+    //     1 << 120 as u128
+    // }
+
+    // Field should fit in 128 bits
+    // ACIR only supports fields of up to 126 bits!
+    // Same with internal fields for unconstrained functions, apprently.
+    #[aztec(public-vm)]
+    fn setOpcodeSmallField() -> pub Field {
+        200 as Field
+    }
+
     /************************************************************************
      * AvmContext functions
      ************************************************************************/

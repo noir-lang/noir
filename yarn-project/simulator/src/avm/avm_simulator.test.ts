@@ -11,7 +11,7 @@ import { initContext, initExecutionEnvironment, initGlobalVariables } from './fi
 import { Add, CalldataCopy, Return } from './opcodes/index.js';
 import { encodeToBytecode } from './serialization/bytecode_serialization.js';
 
-describe('avm', () => {
+describe('AVM simulator', () => {
   it('Should execute bytecode that performs basic addition', async () => {
     const calldata: Fr[] = [new Fr(1), new Fr(2)];
 
@@ -34,8 +34,7 @@ describe('avm', () => {
     expect(returnData).toEqual([new Fr(3)]);
   });
 
-  describe('testing transpiled Noir contracts', () => {
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/4361): sync wire format w/transpiler.
+  describe('Transpiled Noir contracts', () => {
     it('Should execute contract function that performs addition', async () => {
       const calldata: Fr[] = [new Fr(1), new Fr(2)];
 
@@ -53,8 +52,34 @@ describe('avm', () => {
       expect(results.reverted).toBe(false);
 
       const returnData = results.output;
-      expect(returnData.length).toBe(1);
       expect(returnData).toEqual([new Fr(3)]);
+    });
+
+    describe.each([
+      ['avm_setOpcodeUint8', 8n],
+      // ['avm_setOpcodeUint16', 60000n],
+      ['avm_setOpcodeUint32', 1n << 30n],
+      ['avm_setOpcodeUint64', 1n << 60n],
+      // ['avm_setOpcodeUint128', 1n << 120n],
+      ['avm_setOpcodeSmallField', 200n],
+    ])('Should execute contract SET functions', (name: string, res: bigint) => {
+      it(`Should execute contract function '${name}'`, async () => {
+        // Decode bytecode into instructions
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === name)!;
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext();
+        jest
+          .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        const results = await new AvmSimulator(context).execute();
+
+        expect(results.reverted).toBe(false);
+
+        const returnData = results.output;
+        expect(returnData).toEqual([new Fr(res)]);
+      });
     });
 
     describe('Test env getters from noir contract', () => {
@@ -83,7 +108,6 @@ describe('avm', () => {
         expect(results.reverted).toBe(false);
 
         const returnData = results.output;
-        expect(returnData.length).toBe(1);
         expect(returnData).toEqual([value.toField()]);
       };
 
