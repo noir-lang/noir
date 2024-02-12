@@ -1400,16 +1400,24 @@ impl AcirContext {
     }
 
     /// Recursive helper for flatten_values to flatten a single AcirValue into the result vector.
-    pub(crate) fn flatten_value(acir_vars: &mut Vec<AcirVar>, value: AcirValue) {
+    pub(crate) fn flatten_value(&mut self, acir_vars: &mut Vec<AcirVar>, value: AcirValue) -> Result<(), InternalError> {
         match value {
             AcirValue::Var(acir_var, _) => acir_vars.push(acir_var),
             AcirValue::Array(array) => {
                 for value in array {
-                    Self::flatten_value(acir_vars, value);
+                    self.flatten_value(acir_vars, value)?;
                 }
             }
-            AcirValue::DynamicArray(_) => unreachable!("Cannot flatten a dynamic array"),
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                let mut values = try_vecmap(0..len, |i| {
+                    let index_var = self.add_constant(i);
+
+                    Ok::<AcirVar, InternalError>(self.read_from_memory(block_id, &index_var)?)
+                })?;
+                acir_vars.append(&mut values);
+            }
         }
+        Ok(())
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
