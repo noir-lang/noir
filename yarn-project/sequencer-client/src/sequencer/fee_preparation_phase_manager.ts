@@ -1,5 +1,5 @@
 import { Tx } from '@aztec/circuit-types';
-import { GlobalVariables, Header, Proof, PublicCallRequest, PublicKernelPublicInputs } from '@aztec/circuits.js';
+import { GlobalVariables, Header, Proof, PublicCallRequest, PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
 import { MerkleTreeOperations } from '@aztec/world-state';
@@ -30,7 +30,6 @@ export class FeePreparationPhaseManager extends AbstractPhaseManager {
     super(db, publicExecutor, publicKernel, publicProver, globalVariables, historicalHeader);
   }
 
-  // this is a no-op for now
   extractEnqueuedPublicCalls(_tx: Tx): PublicCallRequest[] {
     return [];
   }
@@ -38,13 +37,13 @@ export class FeePreparationPhaseManager extends AbstractPhaseManager {
   // this is a no-op for now
   async handle(
     tx: Tx,
-    previousPublicKernelOutput?: PublicKernelPublicInputs,
+    previousPublicKernelOutput?: PublicKernelCircuitPublicInputs,
     previousPublicKernelProof?: Proof,
   ): Promise<{
     /**
      * the output of the public kernel circuit for this phase
      */
-    publicKernelOutput?: PublicKernelPublicInputs;
+    publicKernelOutput?: PublicKernelCircuitPublicInputs;
     /**
      * the proof of the public kernel circuit for this phase
      */

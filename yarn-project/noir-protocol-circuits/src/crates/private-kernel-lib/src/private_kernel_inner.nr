@@ -2,21 +2,21 @@ use crate::common;
 use dep::std::unsafe;
 use dep::types::{
     abis::{
-        previous_kernel_data::PreviousKernelData,
+        kernel_data::PrivateKernelInnerData,
         private_kernel::private_call_data::PrivateCallData,
-        kernel_circuit_public_inputs::{KernelCircuitPublicInputs, KernelCircuitPublicInputsBuilder},
+        kernel_circuit_public_inputs::{PrivateKernelInnerCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
     mocked::verify_previous_kernel_state,
 };
 
-struct PrivateKernelInputsInner {
-    previous_kernel: PreviousKernelData,
+struct PrivateKernelInnerCircuitPrivateInputs {
+    previous_kernel: PrivateKernelInnerData,
     private_call: PrivateCallData,
 }
 
-impl PrivateKernelInputsInner {
-    fn pop_and_validate_this_private_call_hash(self, public_inputs: &mut KernelCircuitPublicInputsBuilder){
+impl PrivateKernelInnerCircuitPrivateInputs {
+    fn pop_and_validate_this_private_call_hash(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder){
         let call_request = public_inputs.end.private_call_stack.pop();
         common::validate_call_against_request(self.private_call, call_request);
     }
@@ -35,8 +35,8 @@ impl PrivateKernelInputsInner {
         assert(self.previous_kernel.public_inputs.is_private, "Can only verify a private kernel snark in the private kernel circuit");
     }
 
-    pub fn native_private_kernel_circuit_inner(self) -> KernelCircuitPublicInputs {
-        let mut public_inputs : KernelCircuitPublicInputsBuilder = unsafe::zeroed();
+    pub fn native_private_kernel_circuit_inner(self) -> PrivateKernelInnerCircuitPublicInputs {
+        let mut public_inputs : PrivateKernelCircuitPublicInputsBuilder = unsafe::zeroed();
         public_inputs.is_private = true;
 
         common::validate_previous_kernel_values(self.previous_kernel.public_inputs.end);
@@ -73,23 +73,23 @@ impl PrivateKernelInputsInner {
 
         public_inputs.aggregation_object = updated_aggregation_object;
 
-        public_inputs.finish()
+        public_inputs.to_inner()
     }
 }
 
 mod tests {
-    use crate::private_kernel_inner::PrivateKernelInputsInner;
+    use crate::private_kernel_inner::PrivateKernelInnerCircuitPrivateInputs;
     use dep::types::constants::{
         MAX_READ_REQUESTS_PER_CALL,
         MAX_NEW_COMMITMENTS_PER_TX,
     };
     use dep::types::{
         abis::{
-            kernel_circuit_public_inputs::KernelCircuitPublicInputs,
+            kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
             side_effect::{SideEffect, SideEffectLinkedToNoteHash},
         },
         tests::{
-            previous_kernel_data_builder::PreviousKernelDataBuilder,
+            kernel_data_builder::PreviousKernelDataBuilder,
             private_call_data_builder::PrivateCallDataBuilder,
         },
         address::AztecAddress,
@@ -128,15 +128,15 @@ mod tests {
             *self
         }
 
-        pub fn execute(&mut self) -> KernelCircuitPublicInputs {
+        pub fn execute(&mut self) -> PrivateKernelInnerCircuitPublicInputs {
             let private_call = self.private_call.finish();
             // Update the previous_kernel's private_call_stack with the current call_stack_item.
             let hash = private_call.call_stack_item.hash();
             let is_delegate_call = private_call.call_stack_item.public_inputs.call_context.is_delegate_call;
             self.previous_kernel.push_private_call_request(hash, is_delegate_call);
-            let previous_kernel = self.previous_kernel.finish();
+            let previous_kernel = self.previous_kernel.to_private_kernel_inner_data();
 
-            let kernel = PrivateKernelInputsInner {
+            let kernel = PrivateKernelInnerCircuitPrivateInputs {
                 previous_kernel,
                 private_call,
             };
@@ -226,9 +226,9 @@ mod tests {
         let hash = private_call.call_stack_item.hash();
         // Set the first call stack hash to a wrong value (the correct hash + 1).
         builder.previous_kernel.push_private_call_request(hash + 1, false);
-        let previous_kernel = builder.previous_kernel.finish();
+        let previous_kernel = builder.previous_kernel.to_private_kernel_inner_data();
 
-        let kernel = PrivateKernelInputsInner { previous_kernel, private_call };
+        let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call };
 
         let _ = kernel.native_private_kernel_circuit_inner();
     }
@@ -268,9 +268,9 @@ mod tests {
         // Caller context is empty for regular calls.
         let is_delegate_call = false;
         builder.previous_kernel.push_private_call_request(hash, is_delegate_call);
-        let previous_kernel = builder.previous_kernel.finish();
+        let previous_kernel = builder.previous_kernel.to_private_kernel_inner_data();
 
-        let kernel = PrivateKernelInputsInner { previous_kernel, private_call };
+        let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call };
 
         let _ = kernel.native_private_kernel_circuit_inner();
     }

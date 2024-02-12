@@ -2,62 +2,84 @@ use crate::abis::{
     combined_accumulated_data::{
         CombinedAccumulatedData,
         FinalAccumulatedData,
-        AccumulatedMetaData,
-        AccumulatedMetaDataBuilder,
+        AccumulatedNonRevertibleData,
         CombinedAccumulatedDataBuilder,
     },
     combined_constant_data::CombinedConstantData
 };
 use crate::mocked::AggregationObject;
 
-struct KernelCircuitPublicInputs {
+struct PrivateKernelInnerCircuitPublicInputs {
     aggregation_object: AggregationObject,
-    meta_hwm: Field,
+    max_non_revertible_side_effect_counter: u32,
     end: CombinedAccumulatedData,
     constants: CombinedConstantData,
     is_private: bool,
 }
 
-struct KernelCircuitPublicInputsFinal {
+struct PrivateKernelTailCircuitPublicInputs {
     aggregation_object: AggregationObject,
-    meta_hwm: Field,
-    end_meta: AccumulatedMetaData,
-    // TODO(fees) change this to end_app_logic
+    end_non_revertible: AccumulatedNonRevertibleData,
     end: FinalAccumulatedData,
     constants: CombinedConstantData,
     is_private: bool,
 }
 
-struct KernelCircuitPublicInputsBuilder {
+struct PublicKernelCircuitPublicInputs {
     aggregation_object: AggregationObject,
-    meta_hwm: Field,
-    end_meta: AccumulatedMetaDataBuilder,
+    end_non_revertible: AccumulatedNonRevertibleData,
+    end: CombinedAccumulatedData,
+    constants: CombinedConstantData,
+    is_private: bool,
+}
+
+struct PrivateKernelCircuitPublicInputsBuilder {
+    aggregation_object: AggregationObject,
+    max_non_revertible_side_effect_counter: u32,
     end: CombinedAccumulatedDataBuilder,
     constants: CombinedConstantData,
     is_private: bool,
 }
 
-impl KernelCircuitPublicInputsBuilder {
-    pub fn finish(self) -> KernelCircuitPublicInputs {
-        KernelCircuitPublicInputs {
+impl PrivateKernelCircuitPublicInputsBuilder {
+    pub fn to_inner(self) -> PrivateKernelInnerCircuitPublicInputs {
+        PrivateKernelInnerCircuitPublicInputs {
             aggregation_object: self.aggregation_object,
-            meta_hwm: self.meta_hwm,
+            max_non_revertible_side_effect_counter: self.max_non_revertible_side_effect_counter,
             end: self.end.finish(),
             constants: self.constants,
             is_private: self.is_private,
         }
     }
 
-    pub fn to_final(self) -> KernelCircuitPublicInputsFinal {
-        let meta = self.end_meta.finish();
-        let app = self.end.to_final();
-        KernelCircuitPublicInputsFinal {
+    pub fn to_tail(self, end_non_revertible: AccumulatedNonRevertibleData) -> PrivateKernelTailCircuitPublicInputs {
+        PrivateKernelTailCircuitPublicInputs {
             aggregation_object: self.aggregation_object,
-            meta_hwm: self.meta_hwm,
-            end_meta: meta,
-            end: app,
+            end_non_revertible: end_non_revertible,
+            end: self.end.to_final(),
             constants: self.constants,
             is_private: self.is_private,
         }
     }
 }
+
+struct PublicKernelCircuitPublicInputsBuilder {
+    aggregation_object: AggregationObject,
+    end_non_revertible: AccumulatedNonRevertibleData,
+    end: CombinedAccumulatedDataBuilder,
+    constants: CombinedConstantData,
+    is_private: bool,
+}
+
+impl PublicKernelCircuitPublicInputsBuilder {
+    pub fn to_inner(self) -> PublicKernelCircuitPublicInputs {
+        PublicKernelCircuitPublicInputs {
+            aggregation_object: self.aggregation_object,
+            end_non_revertible: self.end_non_revertible,
+            end: self.end.finish(),
+            constants: self.constants,
+            is_private: self.is_private,
+        }
+    }
+}
+

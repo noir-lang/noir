@@ -5,9 +5,9 @@ import {
   FunctionData,
   FunctionSelector,
   Point,
-  PrivateKernelInputsInit,
-  PrivateKernelInputsInner,
-  PrivateKernelInputsOrdering,
+  PrivateKernelInitCircuitPrivateInputs,
+  PrivateKernelInnerCircuitPrivateInputs,
+  PrivateKernelTailCircuitPrivateInputs,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
   SideEffect,
@@ -26,7 +26,7 @@ import { fileURLToPath } from '@aztec/foundation/url';
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 
-import { executeInit, executeInner, executeOrdering } from './index.js';
+import { executeInit, executeInner, executeTail } from './index.js';
 
 describe('Private kernel', () => {
   let logger: DebugLogger;
@@ -44,7 +44,7 @@ describe('Private kernel', () => {
 
     const filepath = resolve(dirname(fileURLToPath(import.meta.url)), './fixtures/nested-call-private-kernel-init.hex');
     const serialized = Buffer.from(readFileSync(filepath).toString(), 'hex');
-    const kernelInputs = PrivateKernelInputsInit.fromBuffer(serialized);
+    const kernelInputs = PrivateKernelInitCircuitPrivateInputs.fromBuffer(serialized);
 
     // We check that the test data is for a contract deployment
     expect(kernelInputs.txRequest.txContext.isContractDeploymentTx).toBe(true);
@@ -65,7 +65,7 @@ describe('Private kernel', () => {
       './fixtures/nested-call-private-kernel-inner.hex',
     );
     const serialized = Buffer.from(readFileSync(filepath).toString(), 'hex');
-    const kernelInputs = PrivateKernelInputsInner.fromBuffer(serialized);
+    const kernelInputs = PrivateKernelInnerCircuitPrivateInputs.fromBuffer(serialized);
 
     const kernelOutputs = await executeInner(kernelInputs);
 
@@ -81,9 +81,9 @@ describe('Private kernel', () => {
       './fixtures/nested-call-private-kernel-ordering.hex',
     );
     const serialized = Buffer.from(readFileSync(filepath).toString(), 'hex');
-    const kernelInputs = PrivateKernelInputsOrdering.fromBuffer(serialized);
+    const kernelInputs = PrivateKernelTailCircuitPrivateInputs.fromBuffer(serialized);
 
-    const kernelOutputs = await executeOrdering(kernelInputs);
+    const kernelOutputs = await executeTail(kernelInputs);
 
     expect(kernelOutputs).toMatchSnapshot();
   });

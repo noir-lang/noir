@@ -1,11 +1,11 @@
 import { CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
-  KernelCircuitPublicInputs,
-  KernelCircuitPublicInputsFinal,
   PrivateCircuitPublicInputs,
-  PrivateKernelInputsInit,
-  PrivateKernelInputsInner,
-  PrivateKernelInputsOrdering,
+  PrivateKernelInitCircuitPrivateInputs,
+  PrivateKernelInnerCircuitPrivateInputs,
+  PrivateKernelInnerCircuitPublicInputs,
+  PrivateKernelTailCircuitPrivateInputs,
+  PrivateKernelTailCircuitPublicInputs,
   Proof,
   makeEmptyProof,
 } from '@aztec/circuits.js';
@@ -13,7 +13,7 @@ import { siloCommitment } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
-import { executeInit, executeInner, executeOrdering } from '@aztec/noir-protocol-circuits';
+import { executeInit, executeInner, executeTail } from '@aztec/noir-protocol-circuits';
 
 /**
  * Represents the output of the proof creation process for init and inner private kernel circuit.
@@ -23,7 +23,7 @@ export interface ProofOutput {
   /**
    * The public inputs required for the proof generation process.
    */
-  publicInputs: KernelCircuitPublicInputs;
+  publicInputs: PrivateKernelInnerCircuitPublicInputs;
   /**
    * The zk-SNARK proof for the kernel execution.
    */
@@ -38,7 +38,7 @@ export interface ProofOutputFinal {
   /**
    * The public inputs required for the proof generation process.
    */
-  publicInputs: KernelCircuitPublicInputsFinal;
+  publicInputs: PrivateKernelTailCircuitPublicInputs;
   /**
    * The zk-SNARK proof for the kernel execution.
    */
@@ -64,7 +64,7 @@ export interface ProofCreator {
    * @param privateKernelInputsInit - The private data structure for the initial iteration.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofInit(privateKernelInputsInit: PrivateKernelInputsInit): Promise<ProofOutput>;
+  createProofInit(privateKernelInputsInit: PrivateKernelInitCircuitPrivateInputs): Promise<ProofOutput>;
 
   /**
    * Creates a proof output for a given previous kernel data and private call data for an inner iteration.
@@ -72,15 +72,15 @@ export interface ProofCreator {
    * @param privateKernelInputsInner - The private input data structure for the inner iteration.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofInner(privateKernelInputsInner: PrivateKernelInputsInner): Promise<ProofOutput>;
+  createProofInner(privateKernelInputsInner: PrivateKernelInnerCircuitPrivateInputs): Promise<ProofOutput>;
 
   /**
    * Creates a proof output based on the last inner kernel iteration kernel data for the final ordering iteration.
    *
-   * @param privateKernelInputsOrdering - The private input data structure for the final ordering iteration.
+   * @param privateKernelInputsTail - The private input data structure for the final ordering iteration.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofOrdering(privateKernelInputsOrdering: PrivateKernelInputsOrdering): Promise<ProofOutputFinal>;
+  createProofTail(privateKernelInputsTail: PrivateKernelTailCircuitPrivateInputs): Promise<ProofOutputFinal>;
 }
 
 /**
@@ -101,7 +101,7 @@ export class KernelProofCreator implements ProofCreator {
     );
   }
 
-  public async createProofInit(privateInputs: PrivateKernelInputsInit): Promise<ProofOutput> {
+  public async createProofInit(privateInputs: PrivateKernelInitCircuitPrivateInputs): Promise<ProofOutput> {
     const [duration, result] = await elapsed(() => executeInit(privateInputs));
     this.log(`Simulated private kernel init`, {
       eventName: 'circuit-simulation',
@@ -119,7 +119,7 @@ export class KernelProofCreator implements ProofCreator {
     };
   }
 
-  public async createProofInner(privateInputs: PrivateKernelInputsInner): Promise<ProofOutput> {
+  public async createProofInner(privateInputs: PrivateKernelInnerCircuitPrivateInputs): Promise<ProofOutput> {
     const [duration, result] = await elapsed(() => executeInner(privateInputs));
     this.log(`Simulated private kernel inner`, {
       eventName: 'circuit-simulation',
@@ -137,8 +137,8 @@ export class KernelProofCreator implements ProofCreator {
     };
   }
 
-  public async createProofOrdering(privateInputs: PrivateKernelInputsOrdering): Promise<ProofOutputFinal> {
-    const [duration, result] = await elapsed(() => executeOrdering(privateInputs));
+  public async createProofTail(privateInputs: PrivateKernelTailCircuitPrivateInputs): Promise<ProofOutputFinal> {
+    const [duration, result] = await elapsed(() => executeTail(privateInputs));
     this.log(`Simulated private kernel ordering`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-ordering',

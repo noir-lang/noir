@@ -6,7 +6,7 @@ import {
   MergeRollupInputs,
   Proof,
   PublicCircuitPublicInputs,
-  PublicKernelPublicInputs,
+  PublicKernelCircuitPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -68,7 +68,7 @@ export class EmptyPublicProver implements PublicProver {
    * Creates an empty proof for the given input.
    * @param _publicInputs - Public inputs obtained via simulation.
    */
-  async getPublicKernelCircuitProof(_publicInputs: PublicKernelPublicInputs): Promise<Proof> {
+  async getPublicKernelCircuitProof(_publicInputs: PublicKernelCircuitPublicInputs): Promise<Proof> {
     return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }
 }

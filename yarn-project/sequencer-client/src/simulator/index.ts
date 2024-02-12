@@ -2,8 +2,8 @@ import {
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
   MergeRollupInputs,
-  PublicKernelInputs,
-  PublicKernelPublicInputs,
+  PublicKernelCircuitPrivateInputs,
+  PublicKernelCircuitPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -41,11 +41,13 @@ export interface PublicKernelCircuitSimulator {
    * @param inputs - Inputs to the circuit.
    * @returns The public inputs as outputs of the simulation.
    */
-  publicKernelCircuitPrivateInput(inputs: PublicKernelInputs): Promise<PublicKernelPublicInputs>;
+  publicKernelCircuitPrivateInput(inputs: PublicKernelCircuitPrivateInputs): Promise<PublicKernelCircuitPublicInputs>;
   /**
    * Simulates the public kernel circuit (with no previous public kernel circuit run) from its inputs.
    * @param inputs - Inputs to the circuit.
    * @returns The public inputs as outputs of the simulation.
    */
-  publicKernelCircuitNonFirstIteration(inputs: PublicKernelInputs): Promise<PublicKernelPublicInputs>;
+  publicKernelCircuitNonFirstIteration(
+    inputs: PublicKernelCircuitPrivateInputs,
+  ): Promise<PublicKernelCircuitPublicInputs>;
 }

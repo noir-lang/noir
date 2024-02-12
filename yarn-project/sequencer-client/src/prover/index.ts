@@ -4,7 +4,7 @@ import {
   MergeRollupInputs,
   Proof,
   PublicCircuitPublicInputs,
-  PublicKernelPublicInputs,
+  PublicKernelCircuitPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -49,5 +49,5 @@ export interface PublicProver {
    * Creates a proof for the given input.
    * @param publicInputs - Public inputs obtained via simulation.
    */
-  getPublicKernelCircuitProof(publicInputs: PublicKernelPublicInputs): Promise<Proof>;
+  getPublicKernelCircuitProof(publicInputs: PublicKernelCircuitPublicInputs): Promise<Proof>;
 }

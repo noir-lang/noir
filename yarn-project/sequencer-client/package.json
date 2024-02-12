@@ -23,14 +23,6 @@
   "inherits": [
     "../package.common.json"
   ],
-  "jest": {
-    "preset": "ts-jest/presets/default-esm",
-    "moduleNameMapper": {
-      "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
-    },
-    "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
-    "rootDir": "./src"
-  },
   "dependencies": {
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",

@@ -1,4 +1,9 @@
-import { MAX_NEW_CONTRACTS_PER_TX, PrivateKernelPublicInputsFinal, Proof, PublicCallRequest } from '@aztec/circuits.js';
+import {
+  MAX_NEW_CONTRACTS_PER_TX,
+  PrivateKernelTailCircuitPublicInputs,
+  Proof,
+  PublicCallRequest,
+} from '@aztec/circuits.js';
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
 import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -17,7 +22,7 @@ export class Tx {
     /**
      * Output of the private kernel circuit for this tx.
      */
-    public readonly data: PrivateKernelPublicInputsFinal,
+    public readonly data: PrivateKernelTailCircuitPublicInputs,
     /**
      * Proof from the private kernel circuit.
      */
@@ -70,7 +75,7 @@ export class Tx {
   static fromBuffer(buffer: Buffer | BufferReader): Tx {
     const reader = BufferReader.asReader(buffer);
     return new Tx(
-      reader.readObject(PrivateKernelPublicInputsFinal),
+      reader.readObject(PrivateKernelTailCircuitPublicInputs),
       reader.readObject(Proof),
       reader.readObject(TxL2Logs),
       reader.readObject(TxL2Logs),
@@ -126,7 +131,7 @@ export class Tx {
    * @returns A Tx class object.
    */
   public static fromJSON(obj: any) {
-    const publicInputs = PrivateKernelPublicInputsFinal.fromBuffer(Buffer.from(obj.data, 'hex'));
+    const publicInputs = PrivateKernelTailCircuitPublicInputs.fromBuffer(Buffer.from(obj.data, 'hex'));
     const encryptedLogs = TxL2Logs.fromBuffer(Buffer.from(obj.encryptedLogs, 'hex'));
     const unencryptedLogs = TxL2Logs.fromBuffer(Buffer.from(obj.unencryptedLogs, 'hex'));
     const proof = Buffer.from(obj.proof, 'hex');
@@ -199,7 +204,7 @@ export class Tx {
    * @returns The cloned transaction.
    */
   static clone(tx: Tx): Tx {
-    const publicInputs = PrivateKernelPublicInputsFinal.fromBuffer(tx.data.toBuffer());
+    const publicInputs = PrivateKernelTailCircuitPublicInputs.fromBuffer(tx.data.toBuffer());
     const proof = Proof.fromBuffer(tx.proof.toBuffer());
     const encryptedLogs = TxL2Logs.fromBuffer(tx.encryptedLogs.toBuffer());
     const unencryptedLogs = TxL2Logs.fromBuffer(tx.unencryptedLogs.toBuffer());

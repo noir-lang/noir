@@ -1,6 +1,6 @@
 import { ContractDataSource, L1ToL2MessageSource, Tx } from '@aztec/circuit-types';
 import { TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
-import { GlobalVariables, Header, Proof, PublicKernelPublicInputs } from '@aztec/circuits.js';
+import { GlobalVariables, Header, Proof, PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
@@ -85,7 +85,7 @@ export class PublicProcessor {
     const failed: FailedTx[] = [];
 
     for (const tx of txs) {
-      let phase: AbstractPhaseManager | null = new FeePreparationPhaseManager(
+      let phase: AbstractPhaseManager | undefined = new FeePreparationPhaseManager(
         this.db,
         this.publicExecutor,
         this.publicKernel,
@@ -95,7 +95,7 @@ export class PublicProcessor {
         this.publicContractsDB,
         this.publicStateDB,
       );
-      let publicKernelOutput: PublicKernelPublicInputs | undefined = undefined;
+      let publicKernelOutput: PublicKernelCircuitPublicInputs | undefined = undefined;
       let publicKernelProof: Proof | undefined = undefined;
       const timer = new Timer();
       try {

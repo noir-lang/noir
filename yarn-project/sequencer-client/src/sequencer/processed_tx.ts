@@ -4,7 +4,7 @@ import {
   Fr,
   Header,
   Proof,
-  PublicKernelPublicInputs,
+  PublicKernelCircuitPublicInputs,
   makeEmptyProof,
 } from '@aztec/circuits.js';
 
@@ -16,7 +16,7 @@ export type ProcessedTx = Pick<Tx, 'proof' | 'encryptedLogs' | 'unencryptedLogs'
   /**
    * Output of the public kernel circuit for this tx.
    */
-  data: PublicKernelPublicInputs;
+  data: PublicKernelCircuitPublicInputs;
   /**
    * Hash of the transaction.
    */
@@ -49,18 +49,19 @@ export type FailedTx = {
  */
 export async function makeProcessedTx(
   tx: Tx,
-  kernelOutput?: PublicKernelPublicInputs,
+  kernelOutput?: PublicKernelCircuitPublicInputs,
   proof?: Proof,
 ): Promise<ProcessedTx> {
   return {
     hash: await tx.getTxHash(),
     data:
       kernelOutput ??
-      new PublicKernelPublicInputs(
+      new PublicKernelCircuitPublicInputs(
         tx.data.aggregationObject,
-        tx.data.metaHwm,
+        tx.data.endNonRevertibleData,
         CombinedAccumulatedData.fromFinalAccumulatedData(tx.data.end),
         tx.data.constants,
+        tx.data.isPrivate,
       ),
     proof: proof ?? tx.proof,
     encryptedLogs: tx.encryptedLogs,
@@ -75,7 +76,7 @@ export async function makeProcessedTx(
  * @returns A processed empty tx.
  */
 export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): Promise<ProcessedTx> {
-  const emptyKernelOutput = PublicKernelPublicInputs.empty();
+  const emptyKernelOutput = PublicKernelCircuitPublicInputs.empty();
   emptyKernelOutput.constants.historicalHeader = header;
   emptyKernelOutput.constants.txContext.chainId = chainId;
   emptyKernelOutput.constants.txContext.version = version;

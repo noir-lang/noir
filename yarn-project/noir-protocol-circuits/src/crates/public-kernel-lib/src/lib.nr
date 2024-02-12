@@ -4,8 +4,8 @@ mod common;
 mod hash;
 mod utils;
 
-mod public_kernel_private_previous;
-mod public_kernel_public_previous;
+mod public_kernel_setup;
+mod public_kernel_app_logic;
 
-use public_kernel_private_previous::PublicKernelPrivatePreviousInputs;
-use public_kernel_public_previous::PublicKernelPublicPreviousInputs;
+use public_kernel_setup::PublicKernelSetupCircuitPrivateInputs;
+use public_kernel_app_logic::PublicKernelAppLogicCircuitPrivateInputs;

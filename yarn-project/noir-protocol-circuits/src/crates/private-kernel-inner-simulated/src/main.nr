@@ -1,6 +1,6 @@
-use dep::private_kernel_lib::PrivateKernelInputsInner;
-use dep::types::KernelCircuitPublicInputs;
+use dep::private_kernel_lib::PrivateKernelInnerCircuitPrivateInputs;
+use dep::types::PrivateKernelInnerCircuitPublicInputs;
 
-unconstrained fn main(input: PrivateKernelInputsInner) -> distinct pub KernelCircuitPublicInputs {
+unconstrained fn main(input: PrivateKernelInnerCircuitPrivateInputs) -> distinct pub PrivateKernelInnerCircuitPublicInputs {
     input.native_private_kernel_circuit_inner()
 }

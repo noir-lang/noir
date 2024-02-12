@@ -4,7 +4,10 @@ use dep::types::{
     abis::{
         combined_constant_data::CombinedConstantData,
         private_kernel::private_call_data::PrivateCallData,
-        kernel_circuit_public_inputs::{KernelCircuitPublicInputs, KernelCircuitPublicInputsBuilder},
+        kernel_circuit_public_inputs::{
+            PrivateKernelInnerCircuitPublicInputs,
+            PrivateKernelTailCircuitPublicInputs,
+            PrivateKernelCircuitPublicInputsBuilder},
         side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     },
     address::{AztecAddress, PublicKeysHash, compute_initialization_hash},
@@ -14,17 +17,18 @@ use dep::types::{
 };
 
 // Initialization struct for private inputs to the private kernel
-struct PrivateKernelInputsInit {
+struct PrivateKernelInitCircuitPrivateInputs {
     tx_request: TxRequest,
     private_call: PrivateCallData,
 }
 
-impl PrivateKernelInputsInit {
-    fn initialize_end_values(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
+impl PrivateKernelInitCircuitPrivateInputs {
+    fn initialize_end_values(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
         public_inputs.constants = CombinedConstantData {
             historical_header: self.private_call.call_stack_item.public_inputs.historical_header,
             tx_context: self.tx_request.tx_context,
         };
+        public_inputs.max_non_revertible_side_effect_counter = self.private_call.call_stack_item.public_inputs.max_non_revertible_side_effect_counter;
     }
 
     // Confirm that the TxRequest (user's intent) 
@@ -65,7 +69,7 @@ impl PrivateKernelInputsInit {
         assert(call_context.storage_contract_address.eq(call_stack_item.contract_address), "Storage contract address must be that of the called contract");
     }
 
-    fn update_end_values(self, public_inputs: &mut KernelCircuitPublicInputsBuilder) {
+    fn update_end_values(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
         // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
         public_inputs.end.new_nullifiers.push(SideEffectLinkedToNoteHash{
             value: self.tx_request.hash(),
@@ -79,8 +83,8 @@ impl PrivateKernelInputsInit {
         // https://github.com/AztecProtocol/aztec-packages/issues/660
     }
 
-    pub fn native_private_kernel_circuit_initial(self) -> KernelCircuitPublicInputs {
-        let mut public_inputs: KernelCircuitPublicInputsBuilder = unsafe::zeroed();
+    pub fn native_private_kernel_circuit_initial(self) -> PrivateKernelInnerCircuitPublicInputs {
+        let mut public_inputs: PrivateKernelCircuitPublicInputsBuilder = unsafe::zeroed();
         public_inputs.is_private = true;
         
         self.initialize_end_values(&mut public_inputs);
@@ -112,18 +116,18 @@ impl PrivateKernelInputsInit {
 
         public_inputs.aggregation_object = updated_aggregation_object;
 
-        public_inputs.finish()
+        public_inputs.to_inner()
     }
 }
 
 mod tests {
-    use crate::private_kernel_init::PrivateKernelInputsInit;
+    use crate::private_kernel_init::PrivateKernelInitCircuitPrivateInputs;
     use dep::types::constants::{
         MAX_READ_REQUESTS_PER_CALL,
     };
     use dep::types::{
         abis::{
-            kernel_circuit_public_inputs::KernelCircuitPublicInputs,
+            kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
             nullifier_key_validation_request::NullifierKeyValidationRequest,
             private_kernel::private_call_data::PrivateCallData,
             side_effect::{SideEffect, SideEffectLinkedToNoteHash},
@@ -165,8 +169,8 @@ mod tests {
             }
         }
 
-        pub fn execute(self) -> KernelCircuitPublicInputs {
-            let kernel = PrivateKernelInputsInit {
+        pub fn execute(self) -> PrivateKernelInnerCircuitPublicInputs {
+            let kernel = PrivateKernelInitCircuitPrivateInputs {
                 tx_request: self.tx_request,
                 private_call: self.private_call.finish(),
             };
@@ -182,7 +186,7 @@ mod tests {
     pub fn validate_deployed_contract_address(
         tx_request: TxRequest,
         private_call: PrivateCallDataBuilder,
-        public_inputs: KernelCircuitPublicInputs
+        public_inputs: PrivateKernelInnerCircuitPublicInputs
     ) {
         assert_eq(public_inputs.end.new_contracts.len(), 1);
         let cdd = tx_request.tx_context.contract_deployment_data;
@@ -204,7 +208,7 @@ mod tests {
         assert(public_inputs.end.new_contracts[0].contract_address.eq(contract_address));
     }
 
-    pub fn validate_no_new_deployed_contract(public_inputs: KernelCircuitPublicInputs) {
+    pub fn validate_no_new_deployed_contract(public_inputs: PrivateKernelInnerCircuitPublicInputs) {
         for new_contract in public_inputs.end.new_contracts {
             assert(new_contract.is_empty());
         }

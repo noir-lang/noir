@@ -5,7 +5,7 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   Proof,
 } from '@aztec/circuits.js';
-import { makePrivateKernelPublicInputsFinal, makePublicCallRequest } from '@aztec/circuits.js/factories';
+import { makePrivateKernelTailCircuitPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { times } from '@aztec/foundation/collection';
 import { randomBytes } from '@aztec/foundation/crypto';
@@ -30,7 +30,7 @@ export const randomTxHash = (): TxHash => new TxHash(randomBytes(32));
 
 export const mockTx = (seed = 1) => {
   return new Tx(
-    makePrivateKernelPublicInputsFinal(seed),
+    makePrivateKernelTailCircuitPublicInputs(seed),
     new Proof(Buffer.alloc(0)),
     TxL2Logs.random(8, 3), // 8 priv function invocations creating 3 encrypted logs each
     TxL2Logs.random(11, 2), // 8 priv + 3 pub function invocations creating 2 unencrypted logs each

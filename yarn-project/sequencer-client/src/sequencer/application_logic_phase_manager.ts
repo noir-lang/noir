@@ -1,5 +1,5 @@
 import { Tx } from '@aztec/circuit-types';
-import { GlobalVariables, Header, Proof, PublicCallRequest, PublicKernelPublicInputs } from '@aztec/circuits.js';
+import { GlobalVariables, Header, Proof, PublicCallRequest, PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
 import { isArrayEmpty } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
@@ -42,13 +42,13 @@ export class ApplicationLogicPhaseManager extends AbstractPhaseManager {
 
   async handle(
     tx: Tx,
-    previousPublicKernelOutput?: PublicKernelPublicInputs,
+    previousPublicKernelOutput?: PublicKernelCircuitPublicInputs,
     previousPublicKernelProof?: Proof,
   ): Promise<{
     /**
      * the output of the public kernel circuit for this phase
      */
-    publicKernelOutput?: PublicKernelPublicInputs;
+    publicKernelOutput?: PublicKernelCircuitPublicInputs;
     /**
      * the proof of the public kernel circuit for this phase
      */
@@ -63,7 +63,7 @@ export class ApplicationLogicPhaseManager extends AbstractPhaseManager {
       this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
       const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs] = await this.processEnqueuedPublicCalls(
         this.extractEnqueuedPublicCalls(tx),
-        outputAndProof.publicKernelOutput,
+        outputAndProof.publicKernelPublicInput,
         outputAndProof.publicKernelProof,
       );
       tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);

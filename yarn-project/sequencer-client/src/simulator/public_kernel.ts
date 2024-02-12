@@ -1,8 +1,8 @@
 import { CircuitSimulationStats } from '@aztec/circuit-types/stats';
-import { PublicKernelInputs, PublicKernelPublicInputs } from '@aztec/circuits.js';
+import { PublicKernelCircuitPrivateInputs, PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
-import { executePublicKernelPrivatePrevious, executePublicKernelPublicPrevious } from '@aztec/noir-protocol-circuits';
+import { executePublicKernelAppLogic, executePublicKernelSetup } from '@aztec/noir-protocol-circuits';
 
 import { PublicKernelCircuitSimulator } from './index.js';
 
@@ -17,11 +17,13 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
    * @param input - Inputs to the circuit.
    * @returns The public inputs as outputs of the simulation.
    */
-  public async publicKernelCircuitPrivateInput(input: PublicKernelInputs): Promise<PublicKernelPublicInputs> {
+  public async publicKernelCircuitPrivateInput(
+    input: PublicKernelCircuitPrivateInputs,
+  ): Promise<PublicKernelCircuitPublicInputs> {
     if (!input.previousKernel.publicInputs.isPrivate) {
       throw new Error(`Expected private kernel previous inputs`);
     }
-    const [duration, result] = await elapsed(() => executePublicKernelPrivatePrevious(input));
+    const [duration, result] = await elapsed(() => executePublicKernelSetup(input));
     this.log(`Simulated public kernel circuit with private input`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-private-input',
@@ -37,11 +39,13 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
    * @param input - Inputs to the circuit.
    * @returns The public inputs as outputs of the simulation.
    */
-  public async publicKernelCircuitNonFirstIteration(input: PublicKernelInputs): Promise<PublicKernelPublicInputs> {
+  public async publicKernelCircuitNonFirstIteration(
+    input: PublicKernelCircuitPrivateInputs,
+  ): Promise<PublicKernelCircuitPublicInputs> {
     if (input.previousKernel.publicInputs.isPrivate) {
       throw new Error(`Expected public kernel previous inputs`);
     }
-    const [duration, result] = await elapsed(() => executePublicKernelPublicPrevious(input));
+    const [duration, result] = await elapsed(() => executePublicKernelAppLogic(input));
     this.log(`Simulated public kernel circuit non-first iteration`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-non-first-iteration',

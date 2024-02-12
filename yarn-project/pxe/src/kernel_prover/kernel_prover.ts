@@ -11,12 +11,12 @@ import {
   MAX_READ_REQUESTS_PER_CALL,
   MAX_READ_REQUESTS_PER_TX,
   NullifierKeyValidationRequestContext,
-  PreviousKernelData,
   PrivateCallData,
-  PrivateKernelInputsInit,
-  PrivateKernelInputsInner,
-  PrivateKernelInputsOrdering,
-  PrivateKernelPublicInputs,
+  PrivateKernelInitCircuitPrivateInputs,
+  PrivateKernelInnerCircuitPrivateInputs,
+  PrivateKernelInnerCircuitPublicInputs,
+  PrivateKernelInnerData,
+  PrivateKernelTailCircuitPrivateInputs,
   ReadRequestMembershipWitness,
   SideEffect,
   SideEffectLinkedToNoteHash,
@@ -92,7 +92,7 @@ export class KernelProver {
     let previousVerificationKey = VerificationKey.makeFake();
 
     let output: ProofOutput = {
-      publicInputs: PrivateKernelPublicInputs.empty(),
+      publicInputs: PrivateKernelInnerCircuitPublicInputs.empty(),
       proof: makeEmptyProof(),
     };
 
@@ -138,19 +138,19 @@ export class KernelProver {
       );
 
       if (firstIteration) {
-        const proofInput = new PrivateKernelInputsInit(txRequest, privateCallData);
+        const proofInput = new PrivateKernelInitCircuitPrivateInputs(txRequest, privateCallData);
         pushTestData('private-kernel-inputs-init', proofInput);
         output = await this.proofCreator.createProofInit(proofInput);
       } else {
         const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(previousVerificationKey);
-        const previousKernelData = new PreviousKernelData(
+        const previousKernelData = new PrivateKernelInnerData(
           output.publicInputs,
           output.proof,
           previousVerificationKey,
           Number(previousVkMembershipWitness.leafIndex),
           assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
         );
-        const proofInput = new PrivateKernelInputsInner(previousKernelData, privateCallData);
+        const proofInput = new PrivateKernelInnerCircuitPrivateInputs(previousKernelData, privateCallData);
         pushTestData('private-kernel-inputs-inner', proofInput);
         output = await this.proofCreator.createProofInner(proofInput);
       }
@@ -162,7 +162,7 @@ export class KernelProver {
     }
 
     const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(previousVerificationKey);
-    const previousKernelData = new PreviousKernelData(
+    const previousKernelData = new PrivateKernelInnerData(
       output.publicInputs,
       output.proof,
       previousVerificationKey,
@@ -191,7 +191,7 @@ export class KernelProver {
       output.publicInputs.end.nullifierKeyValidationRequests,
     );
 
-    const privateInputs = new PrivateKernelInputsOrdering(
+    const privateInputs = new PrivateKernelTailCircuitPrivateInputs(
       previousKernelData,
       sortedCommitments,
       sortedCommitmentsIndexes,
@@ -202,7 +202,7 @@ export class KernelProver {
       masterNullifierSecretKeys,
     );
     pushTestData('private-kernel-inputs-ordering', privateInputs);
-    const outputFinal = await this.proofCreator.createProofOrdering(privateInputs);
+    const outputFinal = await this.proofCreator.createProofTail(privateInputs);
 
     // Only return the notes whose commitment is in the commitments of the final proof.
     const finalNewCommitments = outputFinal.publicInputs.end.newCommitments;

@@ -71,7 +71,7 @@ struct FinalAccumulatedData {
     new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
 }
 
-struct AccumulatedMetaData {
+struct AccumulatedNonRevertibleData {
     new_commitments: [SideEffect; MAX_NEW_COMMITMENTS_PER_TX_META],
     new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX_META],
     public_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX_META],
@@ -157,18 +157,3 @@ impl CombinedAccumulatedDataBuilder {
     }
 }
 
-struct AccumulatedMetaDataBuilder {
-    new_commitments: BoundedVec<SideEffect, MAX_NEW_COMMITMENTS_PER_TX_META>,
-    new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_TX_META>,
-    public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX_META>,
-}
-
-impl AccumulatedMetaDataBuilder {
-    pub fn finish(self) -> AccumulatedMetaData {
-        AccumulatedMetaData {
-            new_commitments: self.new_commitments.storage,
-            new_nullifiers: self.new_nullifiers.storage,
-            public_call_stack: self.public_call_stack.storage,
-        }
-    }
-}

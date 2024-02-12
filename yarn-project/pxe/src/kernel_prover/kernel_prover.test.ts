@@ -2,14 +2,14 @@ import { FunctionL2Logs, Note } from '@aztec/circuit-types';
 import {
   FunctionData,
   FunctionSelector,
-  KernelCircuitPublicInputs,
-  KernelCircuitPublicInputsFinal,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_READ_REQUESTS_PER_CALL,
   MembershipWitness,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
+  PrivateKernelInnerCircuitPublicInputs,
+  PrivateKernelTailCircuitPublicInputs,
   ReadRequestMembershipWitness,
   SideEffect,
   TxRequest,
@@ -80,7 +80,7 @@ describe('Kernel Prover', () => {
   };
 
   const createProofOutput = (newNoteIndices: number[]) => {
-    const publicInputs = KernelCircuitPublicInputs.empty();
+    const publicInputs = PrivateKernelInnerCircuitPublicInputs.empty();
     const commitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => SideEffect.empty());
     for (let i = 0; i < newNoteIndices.length; i++) {
       commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
@@ -94,7 +94,7 @@ describe('Kernel Prover', () => {
   };
 
   const createProofOutputFinal = (newNoteIndices: number[]) => {
-    const publicInputs = KernelCircuitPublicInputsFinal.empty();
+    const publicInputs = PrivateKernelTailCircuitPublicInputs.empty();
     const commitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => SideEffect.empty());
     for (let i = 0; i < newNoteIndices.length; i++) {
       commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
@@ -155,7 +155,7 @@ describe('Kernel Prover', () => {
     );
     proofCreator.createProofInit.mockResolvedValue(createProofOutput([]));
     proofCreator.createProofInner.mockResolvedValue(createProofOutput([]));
-    proofCreator.createProofOrdering.mockResolvedValue(createProofOutputFinal([]));
+    proofCreator.createProofTail.mockResolvedValue(createProofOutputFinal([]));
 
     prover = new KernelProver(oracle, proofCreator);
   });
@@ -197,7 +197,7 @@ describe('Kernel Prover', () => {
     proofCreator.createProofInit.mockResolvedValueOnce(createProofOutput([1, 2, 3]));
     proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 4]));
     proofCreator.createProofInner.mockResolvedValueOnce(createProofOutput([1, 3, 5, 6]));
-    proofCreator.createProofOrdering.mockResolvedValueOnce(createProofOutputFinal([1, 3, 5, 6]));
+    proofCreator.createProofTail.mockResolvedValueOnce(createProofOutputFinal([1, 3, 5, 6]));
 
     const executionResult = {
       ...resultA,
