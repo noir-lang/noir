@@ -142,7 +142,7 @@ fn resolve_trait_methods(
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let return_type = resolver.resolve_type(return_type.get_type().into_owned());
 
-            let generics = vecmap(resolver.get_generics(), |(_, type_var, _)| type_var.clone());
+            let generics = vecmap(resolver.get_generics(), |(_, type_var, _, _)| type_var.clone());
 
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
@@ -455,7 +455,7 @@ pub(crate) fn resolve_trait_impls(
                 methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
             });
 
-            let impl_generics = vecmap(impl_generics, |(_, type_variable, _)| type_variable);
+            let impl_generics = vecmap(impl_generics, |(_, type_variable, _, _)| type_variable);
 
             if let Err((prev_span, prev_file)) = interner.add_trait_implementation(
                 self_type.clone(),

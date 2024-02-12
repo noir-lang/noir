@@ -70,7 +70,9 @@ pub enum Type {
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
-    NamedGeneric(TypeVariable, Rc<String>),
+    ///
+    /// The `bool` refers to whether to `prevent_numeric`, i.e. for `N?`.
+    NamedGeneric(TypeVariable, Rc<String>, bool),
 
     /// A functions with arguments, a return type and environment.
     /// the environment should be `Unit` by default,
@@ -86,6 +88,8 @@ pub enum Type {
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphization it
     /// will be and thus needs the full TypeVariable link.
+    ///
+    /// TODO: before merge do we need N? here?
     Forall(Generics, Box<Type>),
 
     /// A type-level integer. Included to let an Array's size type variable
@@ -134,7 +138,7 @@ impl Type {
             | Type::Unit
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(..)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -591,12 +595,16 @@ impl Type {
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
         // True if the given type is a NamedGeneric with the target_id
         let named_generic_id_matches_target = |typ: &Type| {
-            if let Type::NamedGeneric(type_variable, _) = typ {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(_) => {
-                        unreachable!("Named generics should not be bound until monomorphization")
+            if let Type::NamedGeneric(type_variable, _, prevent_numeric) = typ {
+                if prevent_numeric {
+                    false
+                } else {
+                    match &*type_variable.borrow() {
+                        TypeBinding::Bound(_) => {
+                            unreachable!("Named generics should not be bound until monomorphization")
+                        }
+                        TypeBinding::Unbound(id) => target_id == *id,
                     }
-                    TypeBinding::Unbound(id) => target_id == *id,
                 }
             } else {
                 false
@@ -611,7 +619,7 @@ impl Type {
             | Type::Error
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::NotConstant
             | Type::Forall(_, _)
             | Type::TraitAsType(..) => false,
@@ -666,7 +674,7 @@ impl Type {
 
             Type::FmtString(_, _)
             | Type::TypeVariable(_, _)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -691,7 +699,7 @@ impl Type {
     pub fn generic_count(&self) -> usize {
         match self {
             Type::Forall(generics, _) => generics.len(),
-            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _) => {
+            Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _, _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
                     TypeBinding::Unbound(_) => 0,
@@ -1008,7 +1016,7 @@ impl Type {
 
     fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
         match self {
-            Type::TypeVariable(var, _) | Type::NamedGeneric(var, _) => Some(var.1.clone()),
+            Type::TypeVariable(var, _) | Type::NamedGeneric(var, _, _) => Some(var.1.clone()),
             _ => None,
         }
     }

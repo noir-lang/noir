@@ -507,7 +507,7 @@ impl<'a> Resolver<'a> {
                 let env = Box::new(self.resolve_type_inner(*env, new_variables));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _, _) => {
                         Type::Function(args, ret, env)
                     }
                     _ => {
@@ -654,7 +654,7 @@ impl<'a> Resolver<'a> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some((name, var, _, prevent_numeric)) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(var.clone(), name.clone(), prevent_numeric));
+                return Some(Type::NamedGeneric(var.clone(), name.clone(), *prevent_numeric));
             }
         }
 
@@ -684,7 +684,8 @@ impl<'a> Resolver<'a> {
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
                 // wont be bound over but this one has no name since we do not currently
                 // require users to explicitly be generic over array lengths.
-                Type::NamedGeneric(typevar, Rc::new("".into()))
+                let prevent_numeric = true;
+                Type::NamedGeneric(typevar, Rc::new("".into()), prevent_numeric)
             }
             Some(length) => self.convert_expression_type(length),
         }
@@ -1080,14 +1081,16 @@ impl<'a> Resolver<'a> {
             | Type::Error
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::NotConstant
             | Type::TraitAsType(..)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
+                if let Type::NamedGeneric(type_variable, name, prevent_numeric) = length.as_ref() {
+                    if !prevent_numeric {
+                        found.insert(name.to_string(), type_variable.clone());
+                    }
                 }
                 Self::find_numeric_generics_in_type(element_type, found);
             }
@@ -1107,8 +1110,8 @@ impl<'a> Resolver<'a> {
 
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
+                    if let Type::NamedGeneric(type_variable, name, prevent_numeric) = generic {
+                        if struct_type.borrow().generic_is_numeric(i) && !prevent_numeric {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1118,13 +1121,17 @@ impl<'a> Resolver<'a> {
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
+                if let Type::NamedGeneric(type_variable, name, prevent_numeric) = length.as_ref() {
+                    if !prevent_numeric {
+                        found.insert(name.to_string(), type_variable.clone());
+                    }
                 }
             }
             Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
+                if let Type::NamedGeneric(type_variable, name, prevent_numeric) = length.as_ref() {
+                    if !prevent_numeric {
+                        found.insert(name.to_string(), type_variable.clone());
+                    }
                 }
                 Self::find_numeric_generics_in_type(fields, found);
             }

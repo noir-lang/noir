@@ -920,7 +920,7 @@ impl<'interner> TypeChecker<'interner> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => {
+            Type::NamedGeneric(_, _, _) => {
                 let func_meta = self.interner.function_meta(
                     &self.current_function.expect("unexpected method outside a function"),
                 );
