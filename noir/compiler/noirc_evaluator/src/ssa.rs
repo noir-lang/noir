@@ -40,12 +40,13 @@ pub(crate) fn optimize_into_acir(
     program: Program,
     print_ssa_passes: bool,
     print_brillig_trace: bool,
+    force_brillig_output: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let ssa = SsaBuilder::new(program, print_ssa_passes)?
+    let ssa = SsaBuilder::new(program, print_ssa_passes, force_brillig_output)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
@@ -59,9 +60,14 @@ pub(crate) fn optimize_into_acir(
         // and this pass is missed, slice merging will fail inside of flattening.
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
+        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
+        .run_pass(
+            Ssa::fold_constants_using_constraints,
+            "After Constant Folding With Constraint Info:",
+        )
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
         .finish();
 
@@ -83,11 +89,18 @@ pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
+    force_brillig_output: bool,
 ) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
+    let debug_variables = program.debug_variables.clone();
+    let debug_types = program.debug_types.clone();
     let func_sig = program.main_function_signature.clone();
     let recursive = program.recursive;
-    let mut generated_acir =
-        optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
+    let mut generated_acir = optimize_into_acir(
+        program,
+        enable_ssa_logging,
+        enable_brillig_logging,
+        force_brillig_output,
+    )?;
     let opcodes = generated_acir.take_opcodes();
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
@@ -122,7 +135,7 @@ pub fn create_circuit(
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let mut debug_info = DebugInfo::new(locations);
+    let mut debug_info = DebugInfo::new(locations, debug_variables, debug_types);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
@@ -172,8 +185,12 @@ struct SsaBuilder {
 }
 
 impl SsaBuilder {
-    fn new(program: Program, print_ssa_passes: bool) -> Result<SsaBuilder, RuntimeError> {
-        let ssa = ssa_gen::generate_ssa(program)?;
+    fn new(
+        program: Program,
+        print_ssa_passes: bool,
+        force_brillig_runtime: bool,
+    ) -> Result<SsaBuilder, RuntimeError> {
+        let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
         Ok(SsaBuilder { print_ssa_passes, ssa }.print("Initial SSA:"))
     }
 

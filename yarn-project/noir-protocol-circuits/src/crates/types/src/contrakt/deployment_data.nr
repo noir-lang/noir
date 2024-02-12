@@ -1,17 +1,7 @@
 use crate::{
-    address::EthAddress,
-    contract_class::ContractClassId,
-    constants::{
-        CONTRACT_DEPLOYMENT_DATA_LENGTH,
-        GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA,
-    },
-    grumpkin_point::GrumpkinPoint,
-    hash::pedersen_hash,
-    traits::{
-        Deserialize,
-        Hash,
-        Serialize,
-    },
+    address::EthAddress, contract_class::ContractClassId,
+    constants::{CONTRACT_DEPLOYMENT_DATA_LENGTH, GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA},
+    grumpkin_point::GrumpkinPoint, hash::pedersen_hash, traits::{Deserialize, Hash, Serialize}
 };
 
 // docs:start:contract-deployment-data

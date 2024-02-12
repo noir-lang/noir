@@ -1,11 +1,6 @@
-use crate::abis::{
-    membership_witness::ReadRequestMembershipWitness,
-    side_effect::SideEffect,
-};
+use crate::abis::{membership_witness::ReadRequestMembershipWitness, side_effect::SideEffect};
 use crate::tests::fixtures;
-use crate::constants::{
-        MAX_READ_REQUESTS_PER_CALL,
-};
+use crate::constants::{MAX_READ_REQUESTS_PER_CALL};
 
 pub fn generate_read_requests(how_many: Field) -> (BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_CALL>, BoundedVec<ReadRequestMembershipWitness, MAX_READ_REQUESTS_PER_CALL>) {
     generate_read_requests_with_config(how_many, false, [0; MAX_READ_REQUESTS_PER_CALL])

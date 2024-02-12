@@ -1,17 +1,8 @@
 use dep::aztec::protocol_types::address::AztecAddress;
 use dep::aztec::{
-    note::{
-        note_header::NoteHeader,
-        note_interface::NoteInterface,
-        utils::compute_note_hash_for_consumption,
-    },
-    oracle::{
-        nullifier_key::get_nullifier_secret_key,
-        get_public_key::get_public_key,
-    },
-    log::emit_encrypted_log,
-    hash::pedersen_hash,
-    context::PrivateContext,
+    note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
+    oracle::{nullifier_key::get_nullifier_secret_key, get_public_key::get_public_key},
+    log::emit_encrypted_log, hash::pedersen_hash, context::PrivateContext
 };
 
 global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 5;
@@ -120,13 +111,6 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
 
 impl EcdsaPublicKeyNote {
     pub fn new(x: [u8; 32], y: [u8; 32], owner: AztecAddress) -> Self {
-        EcdsaPublicKeyNote {
-            x,
-            y,
-            owner,
-            header: NoteHeader::empty(),
-        }
+        EcdsaPublicKeyNote { x, y, owner, header: NoteHeader::empty() }
     }
-
-   
 }

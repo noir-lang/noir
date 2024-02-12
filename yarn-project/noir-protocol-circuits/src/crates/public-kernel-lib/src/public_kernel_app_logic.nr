@@ -1,5 +1,5 @@
 use dep::types::abis::public_call_data::PublicCallData;
-use dep::types::abis::kernel_data::{ PublicKernelData };
+use dep::types::abis::kernel_data::{PublicKernelData};
 use dep::types::PublicKernelCircuitPublicInputs;
 use dep::types::abis::kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder;
 use crate::common;
@@ -12,13 +12,13 @@ struct PublicKernelAppLogicCircuitPrivateInputs {
 
 impl PublicKernelAppLogicCircuitPrivateInputs {
 
-// this is the only difference between the two PublicKernels' logic:
+    // this is the only difference between the two PublicKernels' logic:
     fn validate_inputs(self) {
         let previous_call_is_private = self.previous_kernel.public_inputs.is_private;
-        assert(previous_call_is_private == false,
-            "Previous kernel must be public when in this public kernel version");
+        assert(
+            previous_call_is_private == false, "Previous kernel must be public when in this public kernel version"
+        );
     }
-
 
     fn public_kernel_app_logic(self) -> PublicKernelCircuitPublicInputs {
         // construct the circuit outputs
@@ -37,7 +37,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
         let call_request = public_inputs.end.public_call_stack.pop();
         common::validate_call_against_request(self.public_call, call_request);
 
-        common::update_public_end_values(self.public_call,&mut public_inputs);
+        common::update_public_end_values(self.public_call, &mut public_inputs);
 
         common::accumulate_unencrypted_logs(
             self.public_call,
@@ -54,37 +54,21 @@ mod tests {
     use crate::{
         public_kernel_app_logic::PublicKernelAppLogicCircuitPrivateInputs,
         utils::{
-            assert_eq_public_data_reads,
-            assert_eq_public_data_update_requests,
-            compute_public_data_reads,
-            compute_public_data_update_requests,
-        },
+        assert_eq_public_data_reads, assert_eq_public_data_update_requests, compute_public_data_reads,
+        compute_public_data_update_requests
+    }
     };
     use dep::types::{
         abis::{
-            kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
-            public_data_read::PublicDataRead,
-            public_data_update_request::PublicDataUpdateRequest,
-            side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-        },
-        hash::{
-            compute_l2_to_l1_hash,
-            compute_logs_hash,
-            silo_commitment,
-            silo_nullifier,
-        },
-        tests::{
-            kernel_data_builder::PreviousKernelDataBuilder,
-            public_call_data_builder::PublicCallDataBuilder,
-        },
-        utils::{
-            arrays::array_eq,
-        },
+        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, public_data_read::PublicDataRead,
+        public_data_update_request::PublicDataUpdateRequest,
+        side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    },
+        hash::{compute_l2_to_l1_hash, compute_logs_hash, silo_commitment, silo_nullifier},
+        tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},
+        utils::{arrays::array_eq}
     };
-    use dep::types::constants::{
-        MAX_PUBLIC_DATA_READS_PER_CALL,
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-    };
+    use dep::types::constants::{MAX_PUBLIC_DATA_READS_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL};
 
     struct PublicKernelAppLogicCircuitPrivateInputsBuilder {
         previous_kernel: PreviousKernelDataBuilder,
@@ -95,11 +79,8 @@ mod tests {
         pub fn new() -> Self {
             let previous_kernel = PreviousKernelDataBuilder::new().is_public();
             let public_call = PublicCallDataBuilder::new();
-            
-            PublicKernelAppLogicCircuitPrivateInputsBuilder {
-                previous_kernel,
-                public_call,
-            }
+
+            PublicKernelAppLogicCircuitPrivateInputsBuilder { previous_kernel, public_call }
         }
 
         pub fn is_delegate_call(&mut self) -> Self {
@@ -115,7 +96,7 @@ mod tests {
         pub fn get_current_public_data_update_requests(self) -> [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL] {
             compute_public_data_update_requests(
                 self.public_call.contract_address,
-                self.public_call.public_inputs.contract_storage_update_requests.storage,
+                self.public_call.public_inputs.contract_storage_update_requests.storage
             )
         }
 
@@ -127,10 +108,7 @@ mod tests {
             self.previous_kernel.push_public_call_request(hash, is_delegate_call);
             let previous_kernel = self.previous_kernel.to_public_kernel_data();
 
-            let kernel = PublicKernelAppLogicCircuitPrivateInputs {
-                previous_kernel,
-                public_call,
-            };
+            let kernel = PublicKernelAppLogicCircuitPrivateInputs { previous_kernel, public_call };
 
             kernel.public_kernel_app_logic()
         }

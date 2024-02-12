@@ -1,8 +1,5 @@
 use dep::std::cmp::Eq;
-use dep::types::abis::{
-    global_variables::GlobalVariables,
-    append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-};
+use dep::types::abis::{global_variables::GlobalVariables, append_only_tree_snapshot::AppendOnlyTreeSnapshot};
 
 struct ConstantRollupData {
     // Archive tree snapshot at the very beginning of the entire rollup.

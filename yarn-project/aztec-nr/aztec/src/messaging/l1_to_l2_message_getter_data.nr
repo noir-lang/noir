@@ -1,11 +1,5 @@
 use crate::messaging::l1_to_l2_message::L1ToL2Message;
-use dep::protocol_types::{
-    constants::{
-        L1_TO_L2_MSG_TREE_HEIGHT,
-        L1_TO_L2_MESSAGE_LENGTH,
-    },
-    utils::arr_copy_slice,
-};
+use dep::protocol_types::{constants::{L1_TO_L2_MSG_TREE_HEIGHT, L1_TO_L2_MESSAGE_LENGTH}, utils::arr_copy_slice};
 
 struct L1ToL2MessageGetterData {
     message: L1ToL2Message,

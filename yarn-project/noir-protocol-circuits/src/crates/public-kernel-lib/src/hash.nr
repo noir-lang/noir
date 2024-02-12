@@ -1,7 +1,4 @@
-use dep::types::{
-    address::AztecAddress,
-    constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
-};
+use dep::types::{address::AztecAddress, constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX};
 
 pub fn compute_public_data_tree_index(contract_address: AztecAddress, storage_slot: Field) -> Field {
     dep::std::hash::pedersen_hash_with_separator(

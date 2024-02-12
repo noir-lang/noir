@@ -1,22 +1,12 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract StatefulTest {
-    use dep::aztec::protocol_types::{
-        address::AztecAddress,
-        abis::function_selector::FunctionSelector,
-    };
+    use dep::aztec::protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector};
     use dep::std::option::Option;
-    use dep::value_note::{
-        balance_utils,
-        utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNote},
-    };
+    use dep::value_note::{balance_utils, utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
-        note::{
-            note_header::NoteHeader,
-            utils as note_utils,
-        },
-        state_vars::{map::Map, public_state::PublicState, set::Set},
+        note::{note_header::NoteHeader, utils as note_utils},
+        state_vars::{map::Map, public_state::PublicState, set::Set}
     };
 
     struct Storage {

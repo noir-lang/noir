@@ -1,20 +1,10 @@
 use dep::protocol_types::{
-    constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX,
-    hash::pedersen_hash,
-        address::{
-        AztecAddress
-    },
-    header::Header,
-    utils::field::full_field_less_than,
+    constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX, hash::pedersen_hash, address::{AztecAddress},
+    header::Header, utils::field::full_field_less_than
 };
 use dep::std::merkle::compute_merkle_root;
 
-use crate::{
-    context::PrivateContext,
-    oracle::get_public_data_witness::{
-        get_public_data_witness,
-    },
-};
+use crate::{context::PrivateContext, oracle::get_public_data_witness::{get_public_data_witness}};
 
 fn _public_value_inclusion(
     value: Field,

@@ -1,15 +1,6 @@
 use crate::{
-    constants::{
-        CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH,
-        GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST,
-    },
-    hash::pedersen_hash,
-    traits::{
-        Deserialize,
-        Hash,
-        Empty,
-        Serialize,
-    },
+    constants::{CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH, GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST},
+    hash::pedersen_hash, traits::{Deserialize, Hash, Empty, Serialize}
 };
 use dep::std::cmp::Eq;
 

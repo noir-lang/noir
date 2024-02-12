@@ -1,28 +1,16 @@
 use crate::{
     abis::{
-        call_context::CallContext,
-        call_request::{CallerContext, CallRequest},
-        function_data::FunctionData,
-        public_call_data::PublicCallData,
-        public_call_stack_item::PublicCallStackItem,
-        public_circuit_public_inputs::PublicCircuitPublicInputs,
-    },
+    call_context::CallContext, call_request::{CallerContext, CallRequest}, function_data::FunctionData,
+    public_call_data::PublicCallData, public_call_stack_item::PublicCallStackItem,
+    public_circuit_public_inputs::PublicCircuitPublicInputs
+},
     address::{AztecAddress, EthAddress},
-    contrakt::{
-        storage_read::StorageRead,
-        storage_update_request::StorageUpdateRequest,
-    },
-    mocked::Proof,
-    tests::{
-        fixtures,
-        public_circuit_public_inputs_builder::PublicCircuitPublicInputsBuilder,
-    },
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, mocked::Proof,
+    tests::{fixtures, public_circuit_public_inputs_builder::PublicCircuitPublicInputsBuilder}
 };
 use crate::constants::{
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_DATA_READS_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-    NUM_FIELDS_PER_SHA256,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256
 };
 
 struct PublicCallDataBuilder {
@@ -57,7 +45,7 @@ impl PublicCallDataBuilder {
             is_contract_deployment: false,
             start_side_effect_counter: 0,  // needed?
         };
-        
+
         PublicCallDataBuilder {
             contract_address,
             public_inputs,
@@ -66,7 +54,7 @@ impl PublicCallDataBuilder {
             public_call_stack: dep::std::unsafe::zeroed(),
             proof: Proof {},
             portal_contract_address,
-            bytecode_hash: contract_function.acir_hash,
+            bytecode_hash: contract_function.acir_hash
         }
     }
 
@@ -115,8 +103,7 @@ impl PublicCallDataBuilder {
                     caller_context,
                     // todo: real values?
                     start_side_effect_counter: i as u32,
-                    end_side_effect_counter: (i + 1) as u32,
-
+                    end_side_effect_counter: (i + 1) as u32
                 };
                 self.public_inputs.public_call_stack_hashes.push(hash);
                 self.public_call_stack.push(call_request);
@@ -132,7 +119,7 @@ impl PublicCallDataBuilder {
                     // The default storage slot is its index + 1.
                     storage_slot: value_offset + i + 1,
                     // The default value is its index + 999.
-                    current_value: value_offset + i + 999,
+                    current_value: value_offset + i + 999
                 };
                 self.public_inputs.contract_storage_reads.push(read_request);
             }
@@ -157,7 +144,7 @@ impl PublicCallDataBuilder {
                     // The default value is its index + 567.
                     old_value: value_offset + i + 567,
                     // The default value is its index + 890.
-                    new_value: value_offset + i + 890,
+                    new_value: value_offset + i + 890
                 };
                 self.public_inputs.contract_storage_update_requests.push(update_request);
             }
@@ -183,12 +170,12 @@ impl PublicCallDataBuilder {
                 contract_address: self.contract_address,
                 function_data: self.function_data,
                 is_execution_request: self.is_execution_request,
-                public_inputs: self.public_inputs.finish(),
+                public_inputs: self.public_inputs.finish()
             },
             public_call_stack: self.public_call_stack.storage,
             proof: self.proof,
             portal_contract_address: self.portal_contract_address,
-            bytecode_hash: self.bytecode_hash,
+            bytecode_hash: self.bytecode_hash
         }
     }
 }

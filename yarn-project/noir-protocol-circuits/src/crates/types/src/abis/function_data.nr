@@ -1,15 +1,7 @@
 use crate::{
     abis::function_selector::FunctionSelector,
-    constants::{
-        GENERATOR_INDEX__FUNCTION_DATA,
-        FUNCTION_DATA_LENGTH,
-    },
-    hash::pedersen_hash,
-    traits::{
-        Serialize,
-        Hash,
-        Deserialize,
-    },
+    constants::{GENERATOR_INDEX__FUNCTION_DATA, FUNCTION_DATA_LENGTH}, hash::pedersen_hash,
+    traits::{Serialize, Hash, Deserialize}
 };
 
 struct FunctionData {

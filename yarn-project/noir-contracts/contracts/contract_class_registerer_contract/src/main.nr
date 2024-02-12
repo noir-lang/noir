@@ -3,13 +3,15 @@ mod events;
 contract ContractClassRegisterer {
     use dep::std::option::Option;
     use dep::aztec::protocol_types::{
-        address::{ AztecAddress, EthAddress },
-        contract_class::ContractClassId,
-        constants::{ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, FUNCTION_TREE_HEIGHT, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS, REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE},
+        address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
+        constants::{
+        ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, FUNCTION_TREE_HEIGHT,
+        MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS, REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE
+    },
         traits::{Serialize}
     };
 
-    use dep::aztec::log::{ emit_unencrypted_log, emit_unencrypted_log_from_private};
+    use dep::aztec::log::{emit_unencrypted_log, emit_unencrypted_log_from_private};
 
     use crate::events::{
         class_registered::ContractClassRegistered,

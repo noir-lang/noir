@@ -1,13 +1,6 @@
 use crate::{
-    constants::{
-        GENERATOR_INDEX__CONTRACT_ADDRESS,
-        GENERATOR_INDEX__PARTIAL_ADDRESS,
-        GENERATOR_INDEX__CONSTRUCTOR
-    },
-    hash::pedersen_hash,
-    contract_class::ContractClassId,
-    utils,
-    grumpkin_point::GrumpkinPoint,
+    constants::{GENERATOR_INDEX__CONTRACT_ADDRESS, GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__CONSTRUCTOR},
+    hash::pedersen_hash, contract_class::ContractClassId, utils, grumpkin_point::GrumpkinPoint
 };
 use dep::std::cmp::Eq;
 use crate::traits::{Empty, ToField, Serialize, Deserialize};
@@ -52,19 +45,29 @@ impl Deserialize<AZTEC_ADDRESS_SERIALIZED_LEN> for AztecAddress {
 
 impl AztecAddress {
     pub fn zero() -> Self {
-        Self {
-            inner: 0
-        }
+        Self { inner: 0 }
     }
 
-    pub fn from_field(field : Field) -> Self {
-        Self {
-            inner : field
-        }
+    pub fn from_field(field: Field) -> Self {
+        Self { inner: field }
     }
 
-    pub fn compute_from_public_key(pub_key: GrumpkinPoint, contract_class_id: ContractClassId, salt: Field, initialization_hash: Field, portal_contract_address: EthAddress) -> AztecAddress {
-        AztecAddress::compute(PublicKeysHash::compute(pub_key), PartialAddress::compute(contract_class_id, salt, initialization_hash, portal_contract_address))
+    pub fn compute_from_public_key(
+        pub_key: GrumpkinPoint,
+        contract_class_id: ContractClassId,
+        salt: Field,
+        initialization_hash: Field,
+        portal_contract_address: EthAddress
+    ) -> AztecAddress {
+        AztecAddress::compute(
+            PublicKeysHash::compute(pub_key),
+            PartialAddress::compute(
+                contract_class_id,
+                salt,
+                initialization_hash,
+                portal_contract_address
+            )
+        )
     }
 
     pub fn compute(pub_keys_hash: PublicKeysHash, partial_address: PartialAddress) -> AztecAddress {
@@ -79,16 +82,14 @@ impl AztecAddress {
     pub fn is_zero(self) -> bool {
         self.inner == 0
     }
-    
+
     pub fn assert_is_zero(self) {
         assert(self.to_field() == 0);
     }
 
-    pub fn conditional_assign(predicate: bool, lhs : Self, rhs : Self) -> Self{
+    pub fn conditional_assign(predicate: bool, lhs: Self, rhs: Self) -> Self {
         let result = utils::conditional_assign(predicate, rhs.to_field(), lhs.to_field());
-        Self {
-            inner : result
-        }
+        Self { inner: result }
     }
 }
 
@@ -130,17 +131,13 @@ impl Deserialize<ETH_ADDRESS_SERIALIZED_LEN> for EthAddress {
     }
 }
 
-impl EthAddress{
+impl EthAddress {
     pub fn zero() -> Self {
-        Self {
-            inner: 0
-        }
+        Self { inner: 0 }
     }
 
-    pub fn from_field(field : Field) -> Self {
-        Self {
-            inner : field
-        }
+    pub fn from_field(field: Field) -> Self {
+        Self { inner: field }
     }
 
     pub fn is_zero(self) -> bool {
@@ -151,11 +148,9 @@ impl EthAddress{
         assert(self.to_field() == 0);
     }
 
-    pub fn conditional_assign(predicate: bool, lhs : Self, rhs : Self) -> Self{
+    pub fn conditional_assign(predicate: bool, lhs: Self, rhs: Self) -> Self {
         let result = utils::conditional_assign(predicate, rhs.to_field(), lhs.to_field());
-        Self {
-            inner : result
-        }
+        Self { inner: result }
     }
 }
 
@@ -171,25 +166,36 @@ impl ToField for PartialAddress {
 }
 
 impl PartialAddress {
-    pub fn from_field(field : Field) -> Self {
-        Self {
-            inner : field
-        }
+    pub fn from_field(field: Field) -> Self {
+        Self { inner: field }
     }
 
-    pub fn compute(contract_class_id: ContractClassId, salt: Field, initialization_hash: Field, portal_contract_address: EthAddress) -> Self {
-        PartialAddress::compute_from_salted_initialization_hash(contract_class_id, SaltedInitializationHash::compute(salt, initialization_hash, portal_contract_address))
-    }
-
-    pub fn compute_from_salted_initialization_hash(contract_class_id: ContractClassId, salted_initialization_hash: SaltedInitializationHash) -> Self {
-        PartialAddress::from_field(
-            pedersen_hash([
-                contract_class_id.to_field(),
-                salted_initialization_hash.to_field()
-            ], GENERATOR_INDEX__PARTIAL_ADDRESS)
+    pub fn compute(
+        contract_class_id: ContractClassId,
+        salt: Field,
+        initialization_hash: Field,
+        portal_contract_address: EthAddress
+    ) -> Self {
+        PartialAddress::compute_from_salted_initialization_hash(
+            contract_class_id,
+            SaltedInitializationHash::compute(salt, initialization_hash, portal_contract_address)
         )
     }
 
+    pub fn compute_from_salted_initialization_hash(
+        contract_class_id: ContractClassId,
+        salted_initialization_hash: SaltedInitializationHash
+    ) -> Self {
+        PartialAddress::from_field(
+            pedersen_hash(
+                [
+            contract_class_id.to_field(),
+            salted_initialization_hash.to_field()
+        ],
+                GENERATOR_INDEX__PARTIAL_ADDRESS
+            )
+        )
+    }
 
     pub fn to_field(self) -> Field {
         self.inner
@@ -212,19 +218,20 @@ impl ToField for SaltedInitializationHash {
 }
 
 impl SaltedInitializationHash {
-    pub fn from_field(field : Field) -> Self {
-        Self {
-            inner : field
-        }
+    pub fn from_field(field: Field) -> Self {
+        Self { inner: field }
     }
 
-    pub fn compute(salt : Field, initialization_hash: Field, portal_contract_address: EthAddress) -> Self {
+    pub fn compute(salt: Field, initialization_hash: Field, portal_contract_address: EthAddress) -> Self {
         SaltedInitializationHash::from_field(
-            pedersen_hash([
-                salt,
-                initialization_hash,
-                portal_contract_address.to_field(),
-            ], GENERATOR_INDEX__PARTIAL_ADDRESS)
+            pedersen_hash(
+                [
+            salt,
+            initialization_hash,
+            portal_contract_address.to_field()
+        ],
+                GENERATOR_INDEX__PARTIAL_ADDRESS
+            )
         )
     }
 
@@ -261,18 +268,19 @@ impl Deserialize<1> for PublicKeysHash {
 }
 
 impl PublicKeysHash {
-    pub fn from_field(field : Field) -> Self {
-        Self {
-            inner : field
-        }
+    pub fn from_field(field: Field) -> Self {
+        Self { inner: field }
     }
 
     pub fn compute(public_key: GrumpkinPoint) -> Self {
         PublicKeysHash::from_field(
-            pedersen_hash([
-                public_key.x,
-                public_key.y,
-            ], GENERATOR_INDEX__PARTIAL_ADDRESS)
+            pedersen_hash(
+                [
+            public_key.x,
+            public_key.y
+        ],
+                GENERATOR_INDEX__PARTIAL_ADDRESS
+            )
         )
     }
 

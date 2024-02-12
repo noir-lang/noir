@@ -1,9 +1,6 @@
 use crate::context::{PrivateContext, PublicContext};
 use crate::oracle;
-use dep::protocol_types::{
-    address::AztecAddress,
-    grumpkin_point::GrumpkinPoint,
-};
+use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 
 pub fn emit_encrypted_log<N>(
     context: &mut PrivateContext,

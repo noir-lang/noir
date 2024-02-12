@@ -1,20 +1,8 @@
 use crate::{
-    abis::{
-        function_data::FunctionData,
-        private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    },
+    abis::{function_data::FunctionData, private_circuit_public_inputs::PrivateCircuitPublicInputs},
     address::AztecAddress,
-    constants::{
-        GENERATOR_INDEX__CALL_STACK_ITEM,
-        PRIVATE_CALL_STACK_ITEM_LENGTH,
-    },
-    hash::pedersen_hash,
-    traits::{
-        Deserialize,
-        Hash,
-        Serialize,
-    },
-    utils::reader::Reader,
+    constants::{GENERATOR_INDEX__CALL_STACK_ITEM, PRIVATE_CALL_STACK_ITEM_LENGTH}, hash::pedersen_hash,
+    traits::{Deserialize, Hash, Serialize}, utils::reader::Reader
 };
 
 struct PrivateCallStackItem {

@@ -1,7 +1,4 @@
-use dep::aztec::protocol_types::{
-  utils::field::field_from_bytes,
-  traits::{Serialize, Deserialize}  
-};
+use dep::aztec::protocol_types::{utils::field::field_from_bytes, traits::{Serialize, Deserialize}};
 use dep::std;
 
 // A Fixedsize Compressed String.
@@ -22,27 +19,27 @@ impl Deserialize<1> for FieldCompressedString {
   }
 }
 
-impl FieldCompressedString{
-  pub fn is_eq(self, other: FieldCompressedString) -> bool {
-    self.value == other.value
-  }
-
-  pub fn from_field(input_field: Field) -> Self {
-    Self {value: input_field}
-  }
-
-  pub fn from_string(input_string: str<31>) -> Self {
-    Self {value: field_from_bytes(input_string.as_bytes(), true)}
-  }
-
-  pub fn to_bytes(self) -> [u8; 31] {
-    let mut result = [0; 31];
-    let bytes = self.value.to_be_bytes(31);
-    for i in 0..31 {
-        result[i] = bytes[i];
+impl FieldCompressedString {
+    pub fn is_eq(self, other: FieldCompressedString) -> bool {
+        self.value == other.value
     }
-    result
-  }
+
+    pub fn from_field(input_field: Field) -> Self {
+        Self { value: input_field }
+    }
+
+    pub fn from_string(input_string: str<31>) -> Self {
+        Self { value: field_from_bytes(input_string.as_bytes(), true) }
+    }
+
+    pub fn to_bytes(self) -> [u8; 31] {
+        let mut result = [0; 31];
+        let bytes = self.value.to_be_bytes(31);
+        for i in 0..31 {
+            result[i] = bytes[i];
+        }
+        result
+    }
 }
 
 // The general Compressed String.
@@ -54,49 +51,49 @@ struct CompressedString<N, M> {
 }
 
 impl<N, M> CompressedString<N, M> {
-  pub fn from_string(input_string: str<M>) -> Self {
-    let mut fields = [0; N];
-    let byts = input_string.as_bytes();
+    pub fn from_string(input_string: str<M>) -> Self {
+        let mut fields = [0; N];
+        let byts = input_string.as_bytes();
 
-    let mut r_index = 0 as u32;
+        let mut r_index = 0 as u32;
 
-    for i in 0..N {
-      let mut temp = [0 as u8; 31];
-      for j in 0..31 {
-        if r_index < M {
-          temp[j] = byts[r_index];
-          r_index += 1;
+        for i in 0..N {
+            let mut temp = [0 as u8; 31];
+            for j in 0..31 {
+                if r_index < M {
+                    temp[j] = byts[r_index];
+                    r_index += 1;
+                }
+            }
+
+            fields[i] = field_from_bytes(temp, true);
         }
-      }
 
-      fields[i] = field_from_bytes(temp, true);
+        Self { value: fields }
     }
 
-    Self { value: fields }
-  }
-
-  pub fn to_bytes(self) -> [u8; M] {
-    let mut result = [0; M];
-    let mut w_index = 0 as u32;
-    for i in 0..N {
-      let bytes = self.value[i].to_be_bytes(31);
-      for j in 0..31 {
-        if w_index < M {
-          result[w_index] = bytes[j];
-          w_index += 1;
+    pub fn to_bytes(self) -> [u8; M] {
+        let mut result = [0; M];
+        let mut w_index = 0 as u32;
+        for i in 0..N {
+            let bytes = self.value[i].to_be_bytes(31);
+            for j in 0..31 {
+                if w_index < M {
+                    result[w_index] = bytes[j];
+                    w_index += 1;
+                }
+            }
         }
-      }
+        result
     }
-    result
-  }
 
-  pub fn serialize(self) -> [Field; N] {
-    self.value
-  }
+    pub fn serialize(self) -> [Field; N] {
+        self.value
+    }
 
-  pub fn deserialize(input: [Field; N]) -> Self {
-    Self { value: input }
-  }
+    pub fn deserialize(input: [Field; N]) -> Self {
+        Self { value: input }
+    }
 }
 
 #[test]

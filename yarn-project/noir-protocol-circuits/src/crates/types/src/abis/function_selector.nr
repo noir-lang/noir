@@ -35,15 +35,11 @@ impl FunctionSelector {
     }
 
     pub fn from_u32(value: u32) -> Self {
-        Self {
-            inner : value,
-        }
+        Self { inner: value }
     }
 
-    pub fn from_field(value : Field) -> Self {
-        Self {
-            inner : value as u32,
-        }
+    pub fn from_field(value: Field) -> Self {
+        Self { inner: value as u32 }
     }
 
     pub fn from_signature<N>(signature: str<N>) -> Self {

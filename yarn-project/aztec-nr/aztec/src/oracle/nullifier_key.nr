@@ -1,8 +1,4 @@
-use dep::protocol_types::{
-    address::AztecAddress,
-    grumpkin_point::GrumpkinPoint,
-    grumpkin_private_key::GrumpkinPrivateKey,
-};
+use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint, grumpkin_private_key::GrumpkinPrivateKey};
 
 struct NullifierKeyPair {
     account: AztecAddress,

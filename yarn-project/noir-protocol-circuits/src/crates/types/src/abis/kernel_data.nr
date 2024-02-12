@@ -1,10 +1,8 @@
 use crate::mocked::{Proof, VerificationKey};
 use crate::constants::VK_TREE_HEIGHT;
 use crate::abis::kernel_circuit_public_inputs::{
-    PrivateKernelInnerCircuitPublicInputs,
-    PrivateKernelTailCircuitPublicInputs,
+    PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
     PublicKernelCircuitPublicInputs
-
 };
 
 struct PrivateKernelInnerData {

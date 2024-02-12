@@ -4,21 +4,14 @@ mod root_rollup_public_inputs;
 use root_rollup_public_inputs::RootRollupPublicInputs;
 use dep::types::{
     abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-    constants::{
-        NUM_FIELDS_PER_SHA256,
-        NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-        L1_TO_L2_MSG_SUBTREE_HEIGHT,
-    },
-    header::Header,
-    state_reference::StateReference,
-    utils::uint256::U256,
+    constants::{NUM_FIELDS_PER_SHA256, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, L1_TO_L2_MSG_SUBTREE_HEIGHT},
+    header::Header, state_reference::StateReference, utils::uint256::U256
 };
 use crate::components;
 use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 
 impl RootRollupInputs {
     pub fn root_rollup_circuit(self) -> RootRollupPublicInputs {
-
         let left = self.previous_rollup_data[0].base_or_merge_rollup_public_inputs;
         let right = self.previous_rollup_data[1].base_or_merge_rollup_public_inputs;
 
@@ -41,19 +34,16 @@ impl RootRollupInputs {
             l1_to_l2_subtree_root,
             // TODO(Kev): For now we can add a test that this fits inside of 
             // a u8.
-            L1_TO_L2_MSG_SUBTREE_HEIGHT as u8 
+            L1_TO_L2_MSG_SUBTREE_HEIGHT as u8
         );
 
-        let state = StateReference {
-            l1_to_l2_message_tree : new_l1_to_l2_message_tree_snapshot,
-            partial: right.end,
-        };
+        let state = StateReference { l1_to_l2_message_tree: new_l1_to_l2_message_tree_snapshot, partial: right.end };
 
         let header = Header {
             last_archive: left.constants.last_archive,
             body_hash: components::compute_calldata_hash(self.previous_rollup_data),
             state,
-            global_variables : left.constants.global_variables
+            global_variables: left.constants.global_variables
         };
 
         // Build the block hash for this by hashing the header and then insert the new leaf to archive tree.
@@ -68,12 +58,12 @@ impl RootRollupInputs {
             0
         );
 
-        RootRollupPublicInputs{
+        RootRollupPublicInputs {
             aggregation_object,
             archive,
             header,
             // TODO(#3938): Nuke this once body hash/calldata hash is updated
-            l1_to_l2_messages_hash : compute_messages_hash(self.new_l1_to_l2_messages),
+            l1_to_l2_messages_hash: compute_messages_hash(self.new_l1_to_l2_messages)
         }
     }
 }
@@ -126,11 +116,8 @@ fn test_message_input_flattened_length() {
 
 mod tests {
     use crate::{
-        root::{
-            root_rollup_inputs::RootRollupInputs,
-            NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES,
-        },
-        tests::root_rollup_inputs::default_root_rollup_inputs,
+        root::{root_rollup_inputs::RootRollupInputs, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES},
+        tests::root_rollup_inputs::default_root_rollup_inputs
     };
     use dep::types::utils::uint256::U256;
     use dep::types::hash::accumulate_sha256;

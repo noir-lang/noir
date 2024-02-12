@@ -1,29 +1,18 @@
 use crate::{
     abis::{
-        call_context::CallContext,
-        nullifier_key_validation_request::NullifierKeyValidationRequest,
-        private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
+    call_context::CallContext, nullifier_key_validation_request::NullifierKeyValidationRequest,
+    private_circuit_public_inputs::PrivateCircuitPublicInputs,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+},
     address::{AztecAddress, compute_initialization_hash},
-    contrakt::deployment_data::ContractDeploymentData,
-    hash::{compute_constructor_hash, hash_args},
-    header::Header,
-    tests::{
-        fixtures,
-        testing_harness::build_contract_deployment_data,
-    },
+    contrakt::deployment_data::ContractDeploymentData, hash::{compute_constructor_hash, hash_args},
+    header::Header, tests::{fixtures, testing_harness::build_contract_deployment_data}
 };
 use crate::constants::{
-        MAX_READ_REQUESTS_PER_CALL,
-        MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
-        MAX_NEW_COMMITMENTS_PER_CALL,
-        MAX_NEW_NULLIFIERS_PER_CALL,
-        MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-        MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-        NUM_FIELDS_PER_SHA256,
-        RETURN_VALUES_LENGTH,
+    MAX_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
+    MAX_NEW_COMMITMENTS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, NUM_FIELDS_PER_SHA256,
+    RETURN_VALUES_LENGTH
 };
 
 struct PrivateCircuitPublicInputsBuilder {
@@ -84,7 +73,7 @@ impl PrivateCircuitPublicInputsBuilder {
                 contract_deployment_data.contract_class_id,
                 contract_deployment_data.contract_address_salt,
                 initialization_hash,
-                portal_contract_address,
+                portal_contract_address
             )
         } else {
             contract_data.address
@@ -98,7 +87,7 @@ impl PrivateCircuitPublicInputsBuilder {
             is_delegate_call: false,
             is_static_call: false,
             is_contract_deployment: is_constructor,
-            start_side_effect_counter: 0,
+            start_side_effect_counter: 0
         };
         public_inputs.call_context = call_context;
         public_inputs.args_hash = args_hash;
@@ -110,36 +99,28 @@ impl PrivateCircuitPublicInputsBuilder {
         public_inputs
     }
 
-    pub fn finish(self) ->  PrivateCircuitPublicInputs {
+    pub fn finish(self) -> PrivateCircuitPublicInputs {
         PrivateCircuitPublicInputs {
             call_context: self.call_context,
             args_hash: self.args_hash,
             return_values: self.return_values.storage,
             max_non_revertible_side_effect_counter: self.max_non_revertible_side_effect_counter,
-
             read_requests: self.read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
-
             new_commitments: self.new_commitments.storage,
             new_nullifiers: self.new_nullifiers.storage,
-
             private_call_stack_hashes: self.private_call_stack_hashes.storage,
             public_call_stack_hashes: self.public_call_stack_hashes.storage,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             end_side_effect_counter: 10,
-
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
-
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-
             historical_header: self.historical_header,
-
             contract_deployment_data: self.contract_deployment_data,
-
             chain_id: self.chain_id,
-            version: self.version,
+            version: self.version
         }
     }
 }

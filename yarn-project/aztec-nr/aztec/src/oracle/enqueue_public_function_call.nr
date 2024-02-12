@@ -1,7 +1,4 @@
-use dep::protocol_types::{
-    abis::function_selector::FunctionSelector,
-    address::AztecAddress,
-};
+use dep::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
 
 // contract_address + 
 // args_hash +

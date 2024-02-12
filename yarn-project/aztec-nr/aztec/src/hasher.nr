@@ -1,7 +1,4 @@
-use dep::protocol_types::{
-    hash::hash_args,
-    traits::Hash,
-};
+use dep::protocol_types::{hash::hash_args, traits::Hash};
 
 struct Hasher {
     fields: [Field],
@@ -14,7 +11,7 @@ impl Hash for Hasher {
 }
 
 impl Hasher {
-    pub fn new()-> Self {
+    pub fn new() -> Self {
         Self { fields: [] }
     }
 

@@ -1,9 +1,6 @@
 use crate::context::globals::public_global_variables::PublicGlobalVariables;
 
-use dep::protocol_types::{
-    abis::call_context::CallContext,
-    header::Header,
-};
+use dep::protocol_types::{abis::call_context::CallContext, header::Header};
 
 // PublicContextInputs are expected to be provided to each public function
 // docs:start:public-context-inputs

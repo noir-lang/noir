@@ -1,19 +1,13 @@
 use crate::abis::{
-    call_request::CallRequest,
-    private_call_stack_item::PrivateCallStackItem,
-    membership_witness::{
-        ContractLeafMembershipWitness,
-        FunctionLeafMembershipWitness,
-        ReadRequestMembershipWitness,
-    }
+    call_request::CallRequest, private_call_stack_item::PrivateCallStackItem,
+    membership_witness::{ContractLeafMembershipWitness, FunctionLeafMembershipWitness, ReadRequestMembershipWitness}
 };
-use crate::address::{ SaltedInitializationHash, PublicKeysHash, EthAddress };
-use crate::contract_class::{ ContractClassId };
+use crate::address::{SaltedInitializationHash, PublicKeysHash, EthAddress};
+use crate::contract_class::{ContractClassId};
 use crate::mocked::{Proof, VerificationKey};
 use crate::constants::{
-    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_READ_REQUESTS_PER_CALL,
+    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+    MAX_READ_REQUESTS_PER_CALL
 };
 
 struct PrivateCallData {

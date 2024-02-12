@@ -1,16 +1,7 @@
 use crate::{
-    abis::function_selector::FunctionSelector,
-    address::{EthAddress,AztecAddress},
-    constants::{
-        CALL_CONTEXT_LENGTH,
-        GENERATOR_INDEX__CALL_CONTEXT,
-    },
-    hash::pedersen_hash,
-    traits::{
-        Deserialize,
-        Hash,
-        Serialize,
-    },
+    abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress},
+    constants::{CALL_CONTEXT_LENGTH, GENERATOR_INDEX__CALL_CONTEXT}, hash::pedersen_hash,
+    traits::{Deserialize, Hash, Serialize}
 };
 
 // docs:start:call-context

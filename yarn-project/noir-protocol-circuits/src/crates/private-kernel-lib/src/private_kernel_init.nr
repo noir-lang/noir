@@ -2,18 +2,16 @@ use crate::common;
 use dep::std::unsafe;
 use dep::types::{
     abis::{
-        combined_constant_data::CombinedConstantData,
-        private_kernel::private_call_data::PrivateCallData,
-        kernel_circuit_public_inputs::{
-            PrivateKernelInnerCircuitPublicInputs,
-            PrivateKernelTailCircuitPublicInputs,
-            PrivateKernelCircuitPublicInputsBuilder},
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
+    combined_constant_data::CombinedConstantData, private_kernel::private_call_data::PrivateCallData,
+    kernel_circuit_public_inputs::{
+    PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
+    PrivateKernelCircuitPublicInputsBuilder
+},
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+},
     address::{AztecAddress, PublicKeysHash, compute_initialization_hash},
-    mocked::{Proof, verify_previous_kernel_state},
-    transaction::request::TxRequest,
-    traits::is_empty_array,
+    mocked::{Proof, verify_previous_kernel_state}, transaction::request::TxRequest,
+    traits::is_empty_array
 };
 
 // Initialization struct for private inputs to the private kernel
@@ -37,7 +35,7 @@ impl PrivateKernelInitCircuitPrivateInputs {
         let tx_request = self.tx_request;
         // Call stack item for the initial call
         let call_stack_item = self.private_call.call_stack_item;
-        
+
         // Checks to ensure that the user's intent matches the initial private call
         //
         // We use the word correct to denote whether it matches the user intent.
@@ -48,7 +46,9 @@ impl PrivateKernelInitCircuitPrivateInputs {
         //
         // Ensure we are calling the correct initial function in the contract
         let entry_point_function_matches = tx_request.function_data.hash() == call_stack_item.function_data.hash();
-        assert(entry_point_function_matches, "tx_request function_data must match call_stack_item function_data");
+        assert(
+            entry_point_function_matches, "tx_request function_data must match call_stack_item function_data"
+        );
         //
         // Ensure we are passing the correct arguments to the function.
         let args_match = tx_request.args_hash == call_stack_item.public_inputs.args_hash;
@@ -66,17 +66,14 @@ impl PrivateKernelInitCircuitPrivateInputs {
         assert(call_context.is_delegate_call == false, "Users cannot make a delegatecall");
         assert(call_context.is_static_call == false, "Users cannot make a static call");
         // The below also prevents delegatecall/staticcall in the base case
-        assert(call_context.storage_contract_address.eq(call_stack_item.contract_address), "Storage contract address must be that of the called contract");
+        assert(
+            call_context.storage_contract_address.eq(call_stack_item.contract_address), "Storage contract address must be that of the called contract"
+        );
     }
 
     fn update_end_values(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
         // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
-        public_inputs.end.new_nullifiers.push(SideEffectLinkedToNoteHash{
-            value: self.tx_request.hash(),
-            note_hash: 0,
-            counter: 0,
-        });
-
+        public_inputs.end.new_nullifiers.push(SideEffectLinkedToNoteHash { value: self.tx_request.hash(), note_hash: 0, counter: 0 });
         // Note that we do not need to nullify the transaction request nonce anymore.
         // Should an account want to additionally use nonces for replay protection or handling cancellations,
         // they will be able to do so in the account contract logic:
@@ -86,7 +83,7 @@ impl PrivateKernelInitCircuitPrivateInputs {
     pub fn native_private_kernel_circuit_initial(self) -> PrivateKernelInnerCircuitPublicInputs {
         let mut public_inputs: PrivateKernelCircuitPublicInputsBuilder = unsafe::zeroed();
         public_inputs.is_private = true;
-        
+
         self.initialize_end_values(&mut public_inputs);
 
         self.validate_inputs();
@@ -105,13 +102,15 @@ impl PrivateKernelInitCircuitPrivateInputs {
         self.update_end_values(&mut public_inputs);
         common::update_end_values(self.private_call, &mut public_inputs);
 
-        common::contract_logic(self.private_call,
-                          &mut public_inputs,
-                          self.tx_request.tx_context.contract_deployment_data,
-                          self.tx_request.function_data);
+        common::contract_logic(
+            self.private_call,
+            &mut public_inputs,
+            self.tx_request.tx_context.contract_deployment_data,
+            self.tx_request.function_data
+        );
 
         // TODO(David): What previous kernel proof are we talking about, since this is private-kernel-init
-        let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.aggregation_object,self.private_call.proof);
+        let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.aggregation_object, self.private_call.proof);
         assert(is_previous_state_valid);
 
         public_inputs.aggregation_object = updated_aggregation_object;
@@ -122,27 +121,19 @@ impl PrivateKernelInitCircuitPrivateInputs {
 
 mod tests {
     use crate::private_kernel_init::PrivateKernelInitCircuitPrivateInputs;
-    use dep::types::constants::{
-        MAX_READ_REQUESTS_PER_CALL,
-    };
+    use dep::types::constants::{MAX_READ_REQUESTS_PER_CALL};
     use dep::types::{
         abis::{
-            kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
-            nullifier_key_validation_request::NullifierKeyValidationRequest,
-            private_kernel::private_call_data::PrivateCallData,
-            side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-        },
-        grumpkin_point::GrumpkinPoint,
-        grumpkin_private_key::GrumpkinPrivateKey,
+        kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
+        nullifier_key_validation_request::NullifierKeyValidationRequest,
+        private_kernel::private_call_data::PrivateCallData,
+        side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    },
+        grumpkin_point::GrumpkinPoint, grumpkin_private_key::GrumpkinPrivateKey,
         address::{AztecAddress, compute_initialization_hash},
-        hash::{
-            compute_constructor_hash,
-            compute_logs_hash,
-            stdlib_recursion_verification_key_compress_native_vk,
-        },
-        tests::private_call_data_builder::PrivateCallDataBuilder,
-        transaction::request::TxRequest,
-        utils::arrays::array_length,
+        hash::{compute_constructor_hash, compute_logs_hash, stdlib_recursion_verification_key_compress_native_vk},
+        tests::private_call_data_builder::PrivateCallDataBuilder, transaction::request::TxRequest,
+        utils::arrays::array_length
     };
 
     struct PrivateKernelInitInputsBuilder {
@@ -163,17 +154,11 @@ mod tests {
             let private_call = PrivateCallDataBuilder::new(is_constructor);
             let tx_request = private_call.build_tx_request();
 
-            PrivateKernelInitInputsBuilder {
-                tx_request,
-                private_call,
-            }
+            PrivateKernelInitInputsBuilder { tx_request, private_call }
         }
 
         pub fn execute(self) -> PrivateKernelInnerCircuitPublicInputs {
-            let kernel = PrivateKernelInitCircuitPrivateInputs {
-                tx_request: self.tx_request,
-                private_call: self.private_call.finish(),
-            };
+            let kernel = PrivateKernelInitCircuitPrivateInputs { tx_request: self.tx_request, private_call: self.private_call.finish() };
 
             kernel.native_private_kernel_circuit_initial()
         }

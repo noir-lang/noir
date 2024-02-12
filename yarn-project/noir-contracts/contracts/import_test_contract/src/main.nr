@@ -5,12 +5,9 @@ mod test_contract_interface;
 contract ImportTest {
     use dep::aztec::protocol_types::address::AztecAddress;
     use crate::test_contract_interface::{
-        TestPrivateContextInterface,
-        TestPublicContextInterface,
-        AStructTestCodeGenStruct,
-        ADeepStructTestCodeGenStruct,
-        ANoteADeepStructTestCodeGenStruct,
-        ManyNotesADeepStructTestCodeGenStruct,
+        TestPrivateContextInterface, TestPublicContextInterface, AStructTestCodeGenStruct,
+        ADeepStructTestCodeGenStruct, ANoteADeepStructTestCodeGenStruct,
+        ManyNotesADeepStructTestCodeGenStruct
     };
 
     #[aztec(private)]

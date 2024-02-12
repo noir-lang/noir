@@ -4,10 +4,9 @@ contract SchnorrHardcodedAccount {
     use dep::std;
     use dep::aztec::context::PrivateContext;
 
-    use dep::authwit:: {
-        entrypoint::{ EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE },
-        account::AccountActions,
-        auth_witness::get_auth_witness,
+    use dep::authwit::{
+        entrypoint::{EntrypointPayload, ENTRYPOINT_PAYLOAD_SIZE}, account::AccountActions,
+        auth_witness::get_auth_witness
     };
 
     global public_key_x: Field = 0x0ede3d33c920df8fdf43f3e39ed38b0882c25b056620ef52fd016fe811aa2443;

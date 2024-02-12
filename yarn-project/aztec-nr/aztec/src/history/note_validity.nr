@@ -1,15 +1,10 @@
 use crate::{
     context::PrivateContext,
     history::{
-        note_inclusion::prove_note_inclusion,
-        note_inclusion::_note_inclusion,
-        nullifier_non_inclusion::prove_note_not_nullified,
-        nullifier_non_inclusion::_nullifier_non_inclusion,
-    },
-    note::{
-        utils::compute_siloed_nullifier,
-        note_interface::NoteInterface,
-    },
+    note_inclusion::prove_note_inclusion, note_inclusion::_note_inclusion,
+    nullifier_non_inclusion::prove_note_not_nullified, nullifier_non_inclusion::_nullifier_non_inclusion
+},
+    note::{utils::compute_siloed_nullifier, note_interface::NoteInterface}
 };
 
 pub fn prove_note_validity<Note, N>(note: Note, context: &mut PrivateContext) where Note: NoteInterface<N> {

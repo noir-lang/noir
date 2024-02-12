@@ -1,7 +1,4 @@
-use dep::protocol_types::address::{
-    AztecAddress,
-    EthAddress,
-};
+use dep::protocol_types::address::{AztecAddress, EthAddress};
 
 // Getters that will be converted by the transpiler into their
 // own opcodes
@@ -44,7 +41,6 @@ impl AvmContext {
 
     #[oracle(timestamp)]
     pub fn timestamp() -> Field {}
-
     // #[oracle(contractCallDepth)]
     // pub fn contract_call_depth() -> Field {}
 }

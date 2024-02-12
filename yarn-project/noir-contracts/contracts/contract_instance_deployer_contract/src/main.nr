@@ -3,17 +3,14 @@ mod events;
 contract ContractInstanceDeployer {
     use dep::std::option::Option;
     use dep::aztec::protocol_types::{
-        address::{ AztecAddress, EthAddress, PublicKeysHash, PartialAddress },
-        contract_class::ContractClassId,
-        constants::{DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE},
+        address::{AztecAddress, EthAddress, PublicKeysHash, PartialAddress},
+        contract_class::ContractClassId, constants::{DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE},
         traits::{Serialize}
     };
 
-    use dep::aztec::log::{ emit_unencrypted_log, emit_unencrypted_log_from_private};
+    use dep::aztec::log::{emit_unencrypted_log, emit_unencrypted_log_from_private};
 
-    use crate::events::{
-        instance_deployed::ContractInstanceDeployed,
-    };
+    use crate::events::{instance_deployed::ContractInstanceDeployed};
 
     #[aztec(private)]
     fn constructor() {}

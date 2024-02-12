@@ -7,10 +7,7 @@ use crate::oracle::get_l1_to_l2_message::get_l1_to_l2_message_call;
 
 use dep::std::merkle::compute_merkle_root;
 
-use dep::protocol_types::address::{
-    AztecAddress,
-    EthAddress,
-};
+use dep::protocol_types::address::{AztecAddress, EthAddress};
 
 // Returns the nullifier for the message
 pub fn process_l1_to_l2_message(

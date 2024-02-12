@@ -1,13 +1,10 @@
 use crate::common;
 use dep::types::abis::{
     kernel_circuit_public_inputs::{
-        PrivateKernelTailCircuitPublicInputs,
-        PublicKernelCircuitPublicInputs,
-        PublicKernelCircuitPublicInputsBuilder,
-
-    },
-    kernel_data::PublicKernelData,
-    public_call_data::PublicCallData,
+    PrivateKernelTailCircuitPublicInputs, PublicKernelCircuitPublicInputs,
+    PublicKernelCircuitPublicInputsBuilder
+},
+    kernel_data::PublicKernelData, public_call_data::PublicCallData
 };
 use dep::std::unsafe;
 
@@ -29,13 +26,15 @@ impl PublicKernelSetupCircuitPrivateInputs {
         let private_call_stack = self.previous_kernel.public_inputs.end.private_call_stack;
         for i in 0..private_call_stack.len() {
             let private_call = private_call_stack[i];
-            assert(private_call.is_empty(),
-                "Private call stack must be empty when executing in the public kernel");
+            assert(
+                private_call.is_empty(), "Private call stack must be empty when executing in the public kernel"
+            );
         }
 
         let previous_call_is_private = self.previous_kernel.public_inputs.is_private;
-        assert(previous_call_is_private == true,
-            "Previous kernel must be private when in this public kernel version");
+        assert(
+            previous_call_is_private == true, "Previous kernel must be private when in this public kernel version"
+        );
     }
 
     fn public_kernel_setup(self) -> PublicKernelCircuitPublicInputs {
@@ -55,7 +54,7 @@ impl PublicKernelSetupCircuitPrivateInputs {
         let call_request = public_inputs.end.public_call_stack.pop();
         common::validate_call_against_request(self.public_call, call_request);
 
-        common::update_public_end_values(self.public_call,&mut public_inputs);
+        common::update_public_end_values(self.public_call, &mut public_inputs);
 
         common::accumulate_unencrypted_logs(
             self.public_call,
@@ -72,42 +71,26 @@ mod tests {
     use crate::{
         public_kernel_setup::PublicKernelSetupCircuitPrivateInputs,
         utils::{
-            assert_eq_call_requests,
-            assert_eq_new_contracts,
-            assert_eq_public_data_reads,
-            assert_eq_public_data_update_requests,
-            compute_public_data_reads,
-            compute_public_data_update_requests,
-        },
+        assert_eq_call_requests, assert_eq_new_contracts, assert_eq_public_data_reads,
+        assert_eq_public_data_update_requests, compute_public_data_reads,
+        compute_public_data_update_requests
+    }
     };
     use dep::types::{
         abis::{
-            call_request::CallRequest,
-            function_selector::FunctionSelector,
-            kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
-            new_contract_data::NewContractData,
-            public_data_read::PublicDataRead,
-            public_data_update_request::PublicDataUpdateRequest,
-        },
-        address::{AztecAddress, EthAddress},
-        contract_class::ContractClassId,
-        contrakt::storage_read::StorageRead,
-        hash::compute_logs_hash,
-        tests::{
-            kernel_data_builder::PreviousKernelDataBuilder,
-            public_call_data_builder::PublicCallDataBuilder,
-        },
-        utils::{
-            arrays::{
-                array_eq,
-                array_length,
-            },
-        },
+        call_request::CallRequest, function_selector::FunctionSelector,
+        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
+        new_contract_data::NewContractData, public_data_read::PublicDataRead,
+        public_data_update_request::PublicDataUpdateRequest
+    },
+        address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
+        contrakt::storage_read::StorageRead, hash::compute_logs_hash,
+        tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},
+        utils::{arrays::{array_eq, array_length}}
     };
     use dep::types::constants::{
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-        MAX_PUBLIC_DATA_READS_PER_CALL,
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
+        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
     };
 
     struct PublicKernelSetupCircuitPrivateInputsBuilder {
@@ -119,11 +102,8 @@ mod tests {
         pub fn new() -> Self {
             let previous_kernel = PreviousKernelDataBuilder::new();
             let public_call = PublicCallDataBuilder::new();
-            
-            PublicKernelSetupCircuitPrivateInputsBuilder {
-                previous_kernel,
-                public_call,
-            }
+
+            PublicKernelSetupCircuitPrivateInputsBuilder { previous_kernel, public_call }
         }
 
         pub fn is_delegate_call(&mut self) -> Self {
@@ -145,7 +125,7 @@ mod tests {
         pub fn get_current_public_data_update_requests(self) -> [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL] {
             compute_public_data_update_requests(
                 self.public_call.contract_address,
-                self.public_call.public_inputs.contract_storage_update_requests.storage,
+                self.public_call.public_inputs.contract_storage_update_requests.storage
             )
         }
 
@@ -157,10 +137,7 @@ mod tests {
             self.previous_kernel.push_public_call_request(hash, is_delegate_call);
             let previous_kernel = self.previous_kernel.to_public_kernel_data();
 
-            let kernel = PublicKernelSetupCircuitPrivateInputs {
-                previous_kernel,
-                public_call,
-            };
+            let kernel = PublicKernelSetupCircuitPrivateInputs { previous_kernel, public_call };
 
             kernel.public_kernel_setup()
         }

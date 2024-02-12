@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../simulator"
-    },
-    {
       "path": "../circuit-types"
     },
     {
@@ -32,6 +29,9 @@
     },
     {
       "path": "../p2p"
+    },
+    {
+      "path": "../simulator"
     },
     {
       "path": "../types"

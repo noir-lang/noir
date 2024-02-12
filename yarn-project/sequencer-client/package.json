@@ -68,5 +68,13 @@
   "types": "./dest/index.d.ts",
   "engines": {
     "node": ">=18"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
+    },
+    "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
+    "rootDir": "./src"
   }
 }

@@ -1,24 +1,13 @@
 use dep::std::option::Option;
 
-use dep::protocol_types::{
-    address::AztecAddress,
-    constants::{
-        GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
-    },
-    hash::pedersen_hash,
-};
+use dep::protocol_types::{address::AztecAddress, constants::{GENERATOR_INDEX__INITIALIZATION_NULLIFIER}, hash::pedersen_hash};
 
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{
-    lifecycle::{create_note, destroy_note},
-    note_getter::{get_note, view_notes},
-    note_interface::NoteInterface,
-    note_viewer_options::NoteViewerOptions,
+    lifecycle::{create_note, destroy_note}, note_getter::{get_note, view_notes},
+    note_interface::NoteInterface, note_viewer_options::NoteViewerOptions
 };
-use crate::oracle::{
-    nullifier_key::get_nullifier_secret_key,
-    notes::check_nullifier_exists,
-};
+use crate::oracle::{nullifier_key::get_nullifier_secret_key, notes::check_nullifier_exists};
 use crate::state_vars::storage::Storage;
 
 // docs:start:struct
@@ -32,15 +21,9 @@ impl<T> Storage<T> for Singleton<T> {}
 
 impl<Note> Singleton<Note> {
     // docs:start:new
-    pub fn new(
-        context: Context,
-        storage_slot: Field,
-    ) -> Self {
+    pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Self {
-            context: context.private,
-            storage_slot,
-        }
+        Self { context: context.private, storage_slot }
     }
     // docs:end:new
 
@@ -53,7 +36,10 @@ impl<Note> Singleton<Note> {
     // Note: subsequent nullification of this state variable, via the `replace` method will not be leaky, if the `compute_nullifier()` method of the underlying note is designed to ensure privacy. 
     // For example, if the `compute_nullifier()` method injects the secret key of a note owner into the computed nullifier's preimage.
     pub fn compute_initialization_nullifier(self) -> Field {
-        pedersen_hash([self.storage_slot], GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
+        pedersen_hash(
+            [self.storage_slot],
+            GENERATOR_INDEX__INITIALIZATION_NULLIFIER
+        )
     }
 
     // docs:start:is_initialized
@@ -64,11 +50,7 @@ impl<Note> Singleton<Note> {
     // docs:end:is_initialized
 
     // docs:start:initialize
-    pub fn initialize<N>(
-        self,
-        note: &mut Note,
-        broadcast: bool,
-    ) where Note: NoteInterface<N> {
+    pub fn initialize<N>(self, note: &mut Note, broadcast: bool) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
@@ -80,11 +62,7 @@ impl<Note> Singleton<Note> {
     // docs:end:initialize
 
     // docs:start:replace
-    pub fn replace<N>(
-        self,
-        new_note: &mut Note,
-        broadcast: bool,
-    ) where Note: NoteInterface<N> {
+    pub fn replace<N>(self, new_note: &mut Note, broadcast: bool) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
         let prev_note = get_note(context, self.storage_slot);
 

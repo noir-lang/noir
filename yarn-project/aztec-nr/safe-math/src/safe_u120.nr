@@ -25,7 +25,8 @@ impl Serialize<SAFE_U120_SERIALIZED_LEN> for SafeU120 {
 impl Deserialize<SAFE_U120_SERIALIZED_LEN> for SafeU120 {
     // This is safe when reading from storage IF only correct safeu120 was written to storage
     fn deserialize(fields: [Field; SAFE_U120_SERIALIZED_LEN]) -> SafeU120 {
-        SafeU120 { value: fields[0] as u120 }
+        let value = fields[0] as u120;
+        SafeU120 { value }
     }
 }
 
@@ -50,9 +51,9 @@ impl SafeU120 {
         for i in 0..17 {
             assert(bytes[i] == 0, "Value too large for SafeU120");
         }
-        Self {
-            value: value as u120
-        }
+
+        let value = value as u120;
+        Self { value }
     }
 
     pub fn is_zero(

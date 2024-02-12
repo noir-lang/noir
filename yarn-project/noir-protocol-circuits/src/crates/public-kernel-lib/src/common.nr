@@ -1,36 +1,22 @@
 use dep::types::{
     abis::{
-        call_request::CallRequest,
-        public_call_stack_item::PublicCallStackItem,
-        combined_accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder},
-        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
-        new_contract_data::NewContractData,
-        kernel_data::{PrivateKernelTailData, PublicKernelData},
-        public_call_data::PublicCallData,
-        public_circuit_public_inputs::PublicCircuitPublicInputs,
-        public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
+    call_request::CallRequest, public_call_stack_item::PublicCallStackItem,
+    combined_accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder},
+    kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
+    new_contract_data::NewContractData, kernel_data::{PrivateKernelTailData, PublicKernelData},
+    public_call_data::PublicCallData, public_circuit_public_inputs::PublicCircuitPublicInputs,
+    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+},
     address::AztecAddress,
-    contrakt::{
-        storage_read::StorageRead,
-        storage_update_request::StorageUpdateRequest,
-    },
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     constants::{
-        MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-        MAX_NEW_COMMITMENTS_PER_CALL,
-        MAX_NEW_NULLIFIERS_PER_CALL,
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        MAX_PUBLIC_DATA_READS_PER_CALL,
-        NUM_FIELDS_PER_SHA256
-    },
+    MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_COMMITMENTS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_PUBLIC_DATA_READS_PER_CALL, NUM_FIELDS_PER_SHA256
+},
     hash::{silo_commitment, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
-    utils::{
-        arrays::{array_length, array_to_bounded_vec},
-    },
-    traits::is_empty_array
+    utils::{arrays::{array_length, array_to_bounded_vec}}, traits::is_empty_array
 };
 use crate::hash::{compute_public_data_tree_index, compute_public_data_tree_value};
 

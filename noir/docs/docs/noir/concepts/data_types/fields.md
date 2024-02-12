@@ -181,3 +181,12 @@ Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ \{0, ..., p-1\}
 ```rust
 fn sgn0(self) -> u1
 ```
+
+
+### lt
+
+Returns true if the field is less than the other field
+
+```rust
+pub fn lt(self, another: Field) -> bool
+```

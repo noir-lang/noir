@@ -152,8 +152,10 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
+mod capacity_tracker;
 pub(crate) mod value_merger;
 
+use capacity_tracker::SliceCapacityTracker;
 use value_merger::ValueMerger;
 
 impl Ssa {
@@ -184,17 +186,6 @@ struct Context<'f> {
     /// between inlining of branches.
     store_values: HashMap<ValueId, Store>,
 
-    /// Maps an address to the old and new value of the element at that address
-    /// The difference between this map and store_values is that this stores
-    /// the old and new value of an element from the outer block whose jmpif
-    /// terminator is being flattened.
-    ///
-    /// This map persists throughout the flattening process, where addresses
-    /// are overwritten as new stores are found. This overwriting is the desired behavior,
-    /// as we want the most update to date value to be stored at a given address as
-    /// we walk through blocks to flatten.
-    outer_block_stores: HashMap<ValueId, ValueId>,
-
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
     /// an if expression), they should not be merged with their previous value or stored value in
@@ -209,6 +200,10 @@ struct Context<'f> {
     /// condition. If we are under multiple conditions (a nested if), the topmost condition is
     /// the most recent condition combined with all previous conditions via `And` instructions.
     conditions: Vec<(BasicBlockId, ValueId)>,
+
+    /// Maps SSA array values with a slice type to their size.
+    /// This is maintained by appropriate calls to the `SliceCapacityTracker` and is used by the `ValueMerger`.
+    slice_sizes: HashMap<ValueId, usize>,
 }
 
 pub(crate) struct Store {
@@ -239,7 +234,7 @@ fn flatten_function_cfg(function: &mut Function) {
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
-        outer_block_stores: HashMap::default(),
+        slice_sizes: HashMap::default(),
     };
     context.flatten();
 }
@@ -262,21 +257,18 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
-        if let TerminatorInstruction::JmpIf { .. } =
-            self.inserter.function.dfg[block].unwrap_terminator()
-        {
-            // Find stores in the outer block and insert into the `outer_block_stores` map.
-            // Not using this map can lead to issues when attempting to merge slices.
-            // When inlining a branch end, only the then branch and the else branch are checked for stores.
-            // However, there are cases where we want to load a value that comes from the outer block
-            // that we are handling the terminator for here.
-            let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-            for instruction in instructions {
-                let (instruction, _) = self.inserter.map_instruction(instruction);
-                if let Instruction::Store { address, value } = instruction {
-                    self.outer_block_stores.insert(address, value);
-                }
-            }
+        // As we recursively flatten inner blocks, we need to track the slice information
+        // for the outer block before we start recursively inlining
+        let outer_block_instructions = self.inserter.function.dfg[block].instructions();
+        let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        for instruction in outer_block_instructions {
+            let results = self.inserter.function.dfg.instruction_results(*instruction);
+            let instruction = &self.inserter.function.dfg[*instruction];
+            capacity_tracker.collect_slice_information(
+                instruction,
+                &mut self.slice_sizes,
+                results.to_vec(),
+            );
         }
 
         match self.inserter.function.dfg[block].unwrap_terminator() {
@@ -494,12 +486,16 @@ impl<'f> Context<'f> {
         });
 
         let block = self.inserter.function.entry_block();
-        let mut value_merger = ValueMerger::new(
-            &mut self.inserter.function.dfg,
-            block,
-            Some(&self.store_values),
-            Some(&self.outer_block_stores),
-        );
+
+        // Make sure we have tracked the slice capacities of any block arguments
+        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        for (then_arg, else_arg) in args.iter() {
+            capacity_tracker.compute_slice_capacity(*then_arg, &mut self.slice_sizes);
+            capacity_tracker.compute_slice_capacity(*else_arg, &mut self.slice_sizes);
+        }
+
+        let mut value_merger =
+            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
@@ -538,18 +534,22 @@ impl<'f> Context<'f> {
             }
         }
 
+        // Most slice information is collected when instructions are inlined.
+        // We need to collect information on slice values here as we may possibly merge stores
+        // before any inlining occurs.
+        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        for (then_case, else_case, _) in new_map.values() {
+            capacity_tracker.compute_slice_capacity(*then_case, &mut self.slice_sizes);
+            capacity_tracker.compute_slice_capacity(*else_case, &mut self.slice_sizes);
+        }
+
         let then_condition = then_branch.condition;
         let else_condition = else_branch.condition;
 
         let block = self.inserter.function.entry_block();
 
-        let mut value_merger = ValueMerger::new(
-            &mut self.inserter.function.dfg,
-            block,
-            Some(&self.store_values),
-            Some(&self.outer_block_stores),
-        );
-
+        let mut value_merger =
+            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();
         for (address, (then_case, else_case, _)) in &new_map {
@@ -571,6 +571,16 @@ impl<'f> Context<'f> {
                     .insert(address, Store { old_value: *old_value, new_value: value });
             }
         }
+
+        // Collect any potential slice information on the stores we are merging
+        for (address, (_, _, _)) in &new_map {
+            let value = new_values[address];
+            let address = *address;
+            let instruction = Instruction::Store { address, value };
+
+            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+            capacity_tracker.collect_slice_information(&instruction, &mut self.slice_sizes, vec![]);
+        }
     }
 
     fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
@@ -579,8 +589,18 @@ impl<'f> Context<'f> {
                 store_value.new_value = new_value;
             } else {
                 let load = Instruction::Load { address };
+
                 let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
-                let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+                let old_value =
+                    self.insert_instruction_with_typevars(load.clone(), load_type).first();
+
+                // Need this or else we will be missing a the previous value of a slice that we wish to merge
+                let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+                capacity_tracker.collect_slice_information(
+                    &load,
+                    &mut self.slice_sizes,
+                    vec![old_value],
+                );
 
                 self.store_values.insert(address, Store { old_value, new_value });
             }
@@ -602,8 +622,15 @@ impl<'f> Context<'f> {
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
 
-        for instruction in instructions {
-            self.push_instruction(instruction);
+        for instruction in instructions.iter() {
+            let results = self.push_instruction(*instruction);
+            let (instruction, _) = self.inserter.map_instruction(*instruction);
+            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+            capacity_tracker.collect_slice_information(
+                &instruction,
+                &mut self.slice_sizes,
+                results,
+            );
         }
 
         self.handle_terminator(destination)
@@ -615,7 +642,7 @@ impl<'f> Context<'f> {
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    fn push_instruction(&mut self, id: InstructionId) {
+    fn push_instruction(&mut self, id: InstructionId) -> Vec<ValueId> {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
@@ -628,6 +655,8 @@ impl<'f> Context<'f> {
         if is_allocate {
             self.local_allocations.insert(results.first());
         }
+
+        results.results().into_owned()
     }
 
     /// If we are currently in a branch, we need to modify constrain instructions

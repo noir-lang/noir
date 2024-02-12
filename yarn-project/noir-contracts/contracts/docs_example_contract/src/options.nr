@@ -1,8 +1,5 @@
 use crate::types::card_note::{CardNote, CARD_NOTE_LEN};
-use dep::aztec::protocol_types::{
-    address::AztecAddress,
-    constants::MAX_READ_REQUESTS_PER_CALL,
-};
+use dep::aztec::protocol_types::{address::AztecAddress, constants::MAX_READ_REQUESTS_PER_CALL};
 use dep::aztec::note::note_getter_options::{NoteGetterOptions, Sort, SortOrder};
 use dep::std::option::Option;
 

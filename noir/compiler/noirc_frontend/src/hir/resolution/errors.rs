@@ -88,6 +88,8 @@ pub enum ResolverError {
     MisplacedRecursiveAttribute { ident: Ident },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
+    DependencyCycle { span: Span, item: String, cycle: String },
 }
 
 impl ResolverError {
@@ -142,33 +144,33 @@ impl From<ResolverError> for Diagnostic {
                 field.span(),
             ),
             ResolverError::NoSuchField { field, struct_definition } => {
-                let mut error = Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     format!("no such field {field} defined in struct {struct_definition}"),
                     String::new(),
                     field.span(),
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here with no {field} field"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
-            ResolverError::MissingFields { span, missing_fields, struct_definition } => {
+            ResolverError::MissingFields { span, mut missing_fields, struct_definition } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
-                let missing_fields = missing_fields.join(", ");
+                let remaining_fields_names = match &missing_fields[..] {
+                    [field1] => field1.clone(),
+                    [field1, field2] => format!("{field1} and {field2}"),
+                    [field1, field2, field3] => format!("{field1}, {field2} and {field3}"),
+                    _ => {
+                        let len = missing_fields.len() - 3;
+                        let len_plural = if len != 1 {"s"} else {""};
 
-                let mut error = Diagnostic::simple_error(
-                    format!("missing field{plural}: {missing_fields}"),
+                        let truncated_fields = format!(" and {len} other field{len_plural}");
+                        missing_fields.truncate(3);
+                        format!("{}{truncated_fields}", missing_fields.join(", "))
+                    }
+                };
+
+                Diagnostic::simple_error(
+                    format!("missing field{plural} {remaining_fields_names} in struct {struct_definition}"),
                     String::new(),
                     span,
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
             ResolverError::UnnecessaryMut { first_mut, second_mut } => {
                 let mut error = Diagnostic::simple_error(
@@ -332,6 +334,13 @@ impl From<ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
+            ResolverError::DependencyCycle { span, item, cycle } => {
+                Diagnostic::simple_error(
+                    "Dependency cycle found".into(),
+                    format!("'{item}' recursively depends on itself: {cycle}"),
+                    span,
+                )
+            },
         }
     }
 }

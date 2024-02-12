@@ -1,10 +1,7 @@
 use dep::aztec::context::PrivateContext;
 use dep::aztec::protocol_types::{
-  abis::function_selector::FunctionSelector,
-  address::AztecAddress,
-  constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD,
-  hash::pedersen_hash,
-  traits::{Hash, Serialize}
+    abis::function_selector::FunctionSelector, address::AztecAddress,
+    constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD, hash::pedersen_hash, traits::{Hash, Serialize}
 };
 
 global ACCOUNT_MAX_CALLS: Field = 4;
@@ -27,17 +24,23 @@ impl Serialize<FUNCTION_CALL_SIZE> for FunctionCall {
 }
 
 impl FunctionCall {
-  fn to_be_bytes(self) -> [u8; FUNCTION_CALL_SIZE_IN_BYTES] {
-    let mut bytes: [u8; FUNCTION_CALL_SIZE_IN_BYTES] = [0; FUNCTION_CALL_SIZE_IN_BYTES];
-    let args_hash_bytes = self.args_hash.to_be_bytes(32);
-    for i in 0..32 { bytes[i] = args_hash_bytes[i]; }
-    let function_selector_bytes = self.function_selector.to_field().to_be_bytes(32);
-    for i in 0..32 { bytes[i + 32] = function_selector_bytes[i]; }
-    let target_address_bytes = self.target_address.to_field().to_be_bytes(32);
-    for i in 0..32 { bytes[i + 64] = target_address_bytes[i]; }
-    bytes[96] = self.is_public as u8;
-    bytes
-  }
+    fn to_be_bytes(self) -> [u8; FUNCTION_CALL_SIZE_IN_BYTES] {
+        let mut bytes: [u8; FUNCTION_CALL_SIZE_IN_BYTES] = [0; FUNCTION_CALL_SIZE_IN_BYTES];
+        let args_hash_bytes = self.args_hash.to_be_bytes(32);
+        for i in 0..32 {
+            bytes[i] = args_hash_bytes[i];
+        }
+        let function_selector_bytes = self.function_selector.to_field().to_be_bytes(32);
+        for i in 0..32 {
+            bytes[i + 32] = function_selector_bytes[i];
+        }
+        let target_address_bytes = self.target_address.to_field().to_be_bytes(32);
+        for i in 0..32 {
+            bytes[i + 64] = target_address_bytes[i];
+        }
+        bytes[96] = self.is_public as u8;
+        bytes
+    }
 }
 
 // FUNCTION_CALL_SIZE * ACCOUNT_MAX_CALLS + 1
@@ -75,42 +78,38 @@ impl Hash for EntrypointPayload {
 }
 
 impl EntrypointPayload {
-  // Serializes the payload as an array of bytes. Useful for hashing with sha256.
-  fn to_be_bytes(self) -> [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] {
-    let mut bytes: [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = [0; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES];
+    // Serializes the payload as an array of bytes. Useful for hashing with sha256.
+    fn to_be_bytes(self) -> [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] {
+        let mut bytes: [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = [0; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES];
 
-    for i in 0..ACCOUNT_MAX_CALLS {
-      let item_bytes = self.function_calls[i].to_be_bytes();
-      for j in 0..FUNCTION_CALL_SIZE_IN_BYTES { 
-        bytes[i * FUNCTION_CALL_SIZE_IN_BYTES + j] = item_bytes[j];
-      }
-    }
-
-    let nonce_bytes = self.nonce.to_be_bytes(32);
-    let nonce_offset = FUNCTION_CALL_SIZE_IN_BYTES * ACCOUNT_MAX_CALLS;
-    for j in 0..32 {
-      bytes[nonce_offset + j] = nonce_bytes[j];
-    }
-    
-    bytes
-  }
-
-  // Executes all private and public calls 
-  // docs:start:entrypoint-execute-calls
-  fn execute_calls(self, context: &mut PrivateContext) {
-    for call in self.function_calls {
-      if !call.target_address.is_zero() {
-        if call.is_public {
-          context.call_public_function_with_packed_args(
-            call.target_address, call.function_selector, call.args_hash
-          );
-        } else {
-          let _result = context.call_private_function_with_packed_args(
-            call.target_address, call.function_selector, call.args_hash
-          );
+        for i in 0..ACCOUNT_MAX_CALLS {
+            let item_bytes = self.function_calls[i].to_be_bytes();
+            for j in 0..FUNCTION_CALL_SIZE_IN_BYTES {
+                bytes[i * FUNCTION_CALL_SIZE_IN_BYTES + j] = item_bytes[j];
+            }
         }
-      }
+
+        let nonce_bytes = self.nonce.to_be_bytes(32);
+        let nonce_offset = FUNCTION_CALL_SIZE_IN_BYTES * ACCOUNT_MAX_CALLS;
+        for j in 0..32 {
+            bytes[nonce_offset + j] = nonce_bytes[j];
+        }
+
+        bytes
     }
-  }
-  // docs:end:entrypoint-execute-calls
+
+    // Executes all private and public calls 
+    // docs:start:entrypoint-execute-calls
+    fn execute_calls(self, context: &mut PrivateContext) {
+        for call in self.function_calls {
+            if !call.target_address.is_zero() {
+                if call.is_public {
+                    context.call_public_function_with_packed_args(call.target_address, call.function_selector, call.args_hash);
+                } else {
+                    let _result = context.call_private_function_with_packed_args(call.target_address, call.function_selector, call.args_hash);
+                }
+            }
+        }
+    }
+    // docs:end:entrypoint-execute-calls
 }

@@ -1,42 +1,24 @@
 use crate::{
-    context::inputs::PublicContextInputs,
-    messaging::process_l1_to_l2_message,
-    oracle::{
-        arguments,
-        public_call::call_public_function_internal,
-    },
+    context::inputs::PublicContextInputs, messaging::process_l1_to_l2_message,
+    oracle::{arguments, public_call::call_public_function_internal}
 };
 use dep::protocol_types::{
     abis::{
-        global_variables::GlobalVariables,
-        function_selector::FunctionSelector,
-        private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        public_call_stack_item::PublicCallStackItem,
-        public_circuit_public_inputs::PublicCircuitPublicInputs,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
-    address::{
-        AztecAddress,
-        EthAddress,
-    },
+    global_variables::GlobalVariables, function_selector::FunctionSelector,
+    private_circuit_public_inputs::PrivateCircuitPublicInputs,
+    public_call_stack_item::PublicCallStackItem,
+    public_circuit_public_inputs::PublicCircuitPublicInputs,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+},
+    address::{AztecAddress, EthAddress},
     constants::{
-        MAX_NEW_COMMITMENTS_PER_CALL,
-        MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-        MAX_NEW_NULLIFIERS_PER_CALL,
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-        MAX_PUBLIC_DATA_READS_PER_CALL,
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-        MAX_READ_REQUESTS_PER_CALL,
-        NUM_FIELDS_PER_SHA256,
-        RETURN_VALUES_LENGTH,
-    },
-    contrakt::{
-        storage_read::StorageRead,
-        storage_update_request::StorageUpdateRequest,
-    },
-    hash::hash_args,
-    header::Header,
-    utils::reader::Reader,
+    MAX_NEW_COMMITMENTS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, MAX_READ_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256,
+    RETURN_VALUES_LENGTH
+},
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
+    hash::hash_args, header::Header, utils::reader::Reader
 };
 
 struct PublicContext {
@@ -69,29 +51,20 @@ impl PublicContext {
         let empty_storage_read = StorageRead::empty();
         let empty_storage_update = StorageUpdateRequest::empty();
         PublicContext {
-            inputs: inputs,
+            inputs,
             side_effect_counter: inputs.call_context.start_side_effect_counter,
-
-            args_hash: args_hash,
+            args_hash,
             return_values: BoundedVec::new(0),
-
             contract_storage_update_requests: BoundedVec::new(empty_storage_update),
             contract_storage_reads: BoundedVec::new(empty_storage_read),
             public_call_stack_hashes: BoundedVec::new(0),
-
             new_commitments: BoundedVec::new(SideEffect::empty()),
             new_nullifiers: BoundedVec::new(SideEffectLinkedToNoteHash::empty()),
-
             new_l2_to_l1_msgs: BoundedVec::new(0),
-
-
             unencrypted_logs_hash: BoundedVec::new(0),
             unencrypted_logs_preimages_length: 0,
-
             historical_header: inputs.historical_header,
-            prover_address: AztecAddress::zero(),
-
-            // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
+            prover_address: AztecAddress::zero() // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
             // encrypted_logs_preimages: Vec::new(),
             // unencrypted_logs_preimages: Vec::new(),
         }
@@ -142,7 +115,6 @@ impl PublicContext {
         let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
         let unencrypted_log_preimages_length = 0;
 
-
         // Compute the public call stack hashes
         let pub_circuit_pub_inputs = PublicCircuitPublicInputs {
             call_context: self.inputs.call_context, // Done
@@ -154,19 +126,16 @@ impl PublicContext {
             new_nullifiers: self.new_nullifiers.storage,
             public_call_stack_hashes: self.public_call_stack_hashes.storage,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
-            unencrypted_logs_hash: unencrypted_logs_hash,
-            unencrypted_log_preimages_length: unencrypted_log_preimages_length,
+            unencrypted_logs_hash,
+            unencrypted_log_preimages_length,
             historical_header: self.inputs.historical_header,
-            prover_address: self.prover_address,
+            prover_address: self.prover_address
         };
         pub_circuit_pub_inputs
     }
 
     pub fn push_new_note_hash(&mut self, note_hash: Field) {
-        let side_effect = SideEffect {
-            value: note_hash,
-            counter: self.side_effect_counter
-        };
+        let side_effect = SideEffect { value: note_hash, counter: self.side_effect_counter };
         self.new_commitments.push(side_effect);
         self.side_effect_counter = self.side_effect_counter + 1;
     }
@@ -189,7 +158,16 @@ impl PublicContext {
     // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
     pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field) {
         let this = (*self).this_address();
-        let nullifier = process_l1_to_l2_message(self.historical_header.state.l1_to_l2_message_tree.root, this, self.this_portal_address(), self.chain_id(), self.version(), msg_key, content, secret);
+        let nullifier = process_l1_to_l2_message(
+            self.historical_header.state.l1_to_l2_message_tree.root,
+            this,
+            self.this_portal_address(),
+            self.chain_id(),
+            self.version(),
+            msg_key,
+            content,
+            secret
+        );
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
         self.push_new_nullifier(nullifier, 0)
@@ -211,27 +189,18 @@ impl PublicContext {
         _self: Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT],
+        args: [Field; ARGS_COUNT]
     ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args(args);
         assert(args_hash == arguments::pack_arguments(args));
-        call_public_function_internal(
-            contract_address,
-            function_selector,
-            args_hash,
-        )
+        call_public_function_internal(contract_address, function_selector, args_hash)
     }
 
     pub fn call_public_function_no_args(
         _self: Self,
         contract_address: AztecAddress,
-        function_selector: FunctionSelector,
+        function_selector: FunctionSelector
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        call_public_function_internal(
-            contract_address,
-            function_selector,
-            0,
-        )
+        call_public_function_internal(contract_address, function_selector, 0)
     }
-
 }

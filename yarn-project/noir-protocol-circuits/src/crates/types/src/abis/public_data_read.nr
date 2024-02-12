@@ -1,6 +1,6 @@
 use crate::constants::GENERATOR_INDEX__PUBLIC_DATA_READ;
 use dep::std::cmp::Eq;
-use crate::traits::{Empty,Hash};
+use crate::traits::{Empty, Hash};
 
 struct PublicDataRead {
     leaf_slot : Field,

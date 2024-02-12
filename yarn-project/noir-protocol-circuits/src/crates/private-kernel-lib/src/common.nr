@@ -1,52 +1,32 @@
 use dep::std;
 use dep::types::{
     abis::{
-        call_request::CallRequest,
-        combined_accumulated_data::CombinedAccumulatedData,
-        function_data::FunctionData,
-        kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsBuilder,
-        membership_witness::ReadRequestMembershipWitness,
-        new_contract_data::NewContractData,
-        nullifier_key_validation_request::NullifierKeyValidationRequestContext,
-        private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        private_kernel::private_call_data::PrivateCallData,
-        kernel_data::{PrivateKernelInnerData, PrivateKernelTailData},
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
+    call_request::CallRequest, combined_accumulated_data::CombinedAccumulatedData,
+    function_data::FunctionData, kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsBuilder,
+    membership_witness::ReadRequestMembershipWitness, new_contract_data::NewContractData,
+    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+    private_circuit_public_inputs::PrivateCircuitPublicInputs,
+    private_kernel::private_call_data::PrivateCallData,
+    kernel_data::{PrivateKernelInnerData, PrivateKernelTailData},
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+},
     address::{AztecAddress, EthAddress, PartialAddress, compute_initialization_hash},
-    contract_class::ContractClassId,
-    contrakt::deployment_data::ContractDeploymentData,
+    contract_class::ContractClassId, contrakt::deployment_data::ContractDeploymentData,
     constants::{
-        MAX_NEW_NULLIFIERS_PER_CALL,
-        MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-        MAX_NEW_COMMITMENTS_PER_CALL,
-        MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-        MAX_READ_REQUESTS_PER_CALL,
-        MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
-    },
+    MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_COMMITMENTS_PER_CALL,
+    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_READ_REQUESTS_PER_CALL,
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
+},
     grumpkin_private_key::GrumpkinPrivateKey,
     hash::{
-        compute_constructor_hash,
-        compute_l2_to_l1_hash,
-        compute_logs_hash,
-        compute_new_contract_address_hash,
-        contract_tree_root_from_siblings,
-        function_tree_root_from_siblings,
-        pedersen_hash,
-        private_functions_root_from_siblings,
-        read_request_root_from_siblings,
-        silo_commitment,
-        silo_nullifier,
-        stdlib_recursion_verification_key_compress_native_vk,
-    },
-    utils::{
-        arrays::{
-            array_length,
-            array_to_bounded_vec,
-            validate_array,
-        },
-    },
-    traits::{is_empty, is_empty_array},
+    compute_constructor_hash, compute_l2_to_l1_hash, compute_logs_hash,
+    compute_new_contract_address_hash, contract_tree_root_from_siblings,
+    function_tree_root_from_siblings, pedersen_hash, private_functions_root_from_siblings,
+    read_request_root_from_siblings, silo_commitment, silo_nullifier,
+    stdlib_recursion_verification_key_compress_native_vk
+},
+    utils::{arrays::{array_length, array_to_bounded_vec, validate_array}},
+    traits::{is_empty, is_empty_array}
 };
 
 pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {

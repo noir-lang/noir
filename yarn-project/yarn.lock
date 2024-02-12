@@ -2790,7 +2790,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@portal:../noir/packages/backend_barretenberg::locator=%40aztec%2Faztec3-packages%40workspace%3A."
   dependencies:
-    "@aztec/bb.js": 0.21.0
+    "@aztec/bb.js": 0.23.0
     "@noir-lang/types": 0.23.0
     fflate: ^0.8.0
   languageName: node
@@ -2809,14 +2809,14 @@ __metadata:
 "@noir-lang/noirc_abi@portal:../noir/packages/noirc_abi::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noirc_abi@portal:../noir/packages/noirc_abi::locator=%40aztec%2Faztec3-packages%40workspace%3A."
+  dependencies:
+    "@noir-lang/types": 0.23.0
   languageName: node
   linkType: soft
 
 "@noir-lang/types@portal:../noir/packages/types::locator=%40aztec%2Faztec3-packages%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@portal:../noir/packages/types::locator=%40aztec%2Faztec3-packages%40workspace%3A."
-  dependencies:
-    "@noir-lang/noirc_abi": 0.23.0
   languageName: node
   linkType: soft
 

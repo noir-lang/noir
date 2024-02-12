@@ -2,17 +2,12 @@ mod util;
 mod auth_oracle;
 
 contract SchnorrSingleKeyAccount {
-    use dep::std::{
-        option::Option,
-    };
-    use dep::aztec::context::{ PrivateContext, PublicContext, Context };
+    use dep::std::{option::Option};
+    use dep::aztec::context::{PrivateContext, PublicContext, Context};
 
-    use dep::authwit::{
-        entrypoint::EntrypointPayload,
-        account::AccountActions,
-    };
+    use dep::authwit::{entrypoint::EntrypointPayload, account::AccountActions};
 
-    use crate::{ util::recover_address, auth_oracle::get_auth_witness };
+    use crate::{util::recover_address, auth_oracle::get_auth_witness};
 
     global ACCOUNT_ACTIONS_STORAGE_SLOT = 1;
 

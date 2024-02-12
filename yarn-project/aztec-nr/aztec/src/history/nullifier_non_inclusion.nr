@@ -1,18 +1,8 @@
 use dep::std::merkle::compute_merkle_root;
-use dep::protocol_types::{
-    header::Header,
-    utils::field::{
-        full_field_less_than,
-        full_field_greater_than,
-    },
-};
+use dep::protocol_types::{header::Header, utils::field::{full_field_less_than, full_field_greater_than}};
 use crate::{
-    context::PrivateContext,
-    note::{
-        utils::compute_siloed_nullifier,
-        note_interface::NoteInterface,
-    },
-    oracle::get_nullifier_membership_witness::get_low_nullifier_membership_witness,
+    context::PrivateContext, note::{utils::compute_siloed_nullifier, note_interface::NoteInterface},
+    oracle::get_nullifier_membership_witness::get_low_nullifier_membership_witness
 };
 
 pub fn _nullifier_non_inclusion(nullifier: Field, header: Header) {

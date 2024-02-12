@@ -1,17 +1,7 @@
 use dep::protocol_types::{
-    address::{
-        AztecAddress,
-        EthAddress,
-    },
-    constants::{
-        L1_TO_L2_MESSAGE_LENGTH,
-        GENERATOR_INDEX__NULLIFIER,
-        GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET,
-    },
-    hash::{
-        pedersen_hash,
-        sha256_to_field,
-    },
+    address::{AztecAddress, EthAddress},
+    constants::{L1_TO_L2_MESSAGE_LENGTH, GENERATOR_INDEX__NULLIFIER, GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET},
+    hash::{pedersen_hash, sha256_to_field}
 };
 
 struct L1ToL2Message {
@@ -39,11 +29,11 @@ impl L1ToL2Message {
             recipient: AztecAddress::from_field(fields[2]),
             version: fields[3],
             content: fields[4],
-            secret: secret,
+            secret,
             secret_hash: fields[5],
             deadline: fields[6] as u32,
             fee: fields[7] as u64,
-            tree_index: tree_index
+            tree_index
         }
     }
 
@@ -75,14 +65,17 @@ impl L1ToL2Message {
         }
 
         let message_hash = sha256_to_field(hash_bytes);
-        message_hash        
+        message_hash
     }
 
     // The nullifier of a l1 to l2 message is the hash of the message salted with the secret and tree index
     // docs:start:l1_to_l2_message_compute_nullifier
     pub fn compute_nullifier(self: Self) -> Field {
         let message_hash = self.hash();
-        pedersen_hash([message_hash, self.secret, self.tree_index], GENERATOR_INDEX__NULLIFIER)
+        pedersen_hash(
+            [message_hash, self.secret, self.tree_index],
+            GENERATOR_INDEX__NULLIFIER
+        )
     }
     // docs:end:l1_to_l2_message_compute_nullifier
 }

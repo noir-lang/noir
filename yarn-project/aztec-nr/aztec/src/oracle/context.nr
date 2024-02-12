@@ -1,7 +1,4 @@
-use dep::protocol_types::address::{
-    AztecAddress,
-    EthAddress,
-};
+use dep::protocol_types::address::{AztecAddress, EthAddress};
 
 #[oracle(getPortalContractAddress)]
 fn _get_portal_address(_contract_address: AztecAddress) -> EthAddress {}

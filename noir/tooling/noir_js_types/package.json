@@ -38,9 +38,6 @@
       "types": "./lib/esm/types.d.ts"
     }
   },
-  "dependencies": {
-    "@noir-lang/noirc_abi": "workspace:*"
-  },
   "devDependencies": {
     "@types/prettier": "^3",
     "eslint": "^8.50.0",

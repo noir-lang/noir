@@ -1,9 +1,7 @@
 use dep::std::cmp::Eq;
 use crate::{
-    address::AztecAddress,
-    traits::{Empty, Serialize, Deserialize},
-    grumpkin_point::GrumpkinPoint,
-    grumpkin_private_key::GrumpkinPrivateKey,
+    address::AztecAddress, traits::{Empty, Serialize, Deserialize}, grumpkin_point::GrumpkinPoint,
+    grumpkin_private_key::GrumpkinPrivateKey
 };
 
 global NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN = 4;
@@ -52,11 +50,7 @@ impl Deserialize<NULLIFIER_KEY_VALIDATION_REQUEST_SERIALIZED_LEN> for NullifierK
 
 impl NullifierKeyValidationRequest {
     pub fn to_context(self, contract_address: AztecAddress) -> NullifierKeyValidationRequestContext {
-        NullifierKeyValidationRequestContext {
-            public_key: self.public_key,
-            secret_key: self.secret_key,
-            contract_address,
-        }
+        NullifierKeyValidationRequestContext { public_key: self.public_key, secret_key: self.secret_key, contract_address }
     }
 }
 

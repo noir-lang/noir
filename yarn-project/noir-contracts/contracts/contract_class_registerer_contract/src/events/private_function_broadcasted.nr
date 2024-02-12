@@ -1,8 +1,11 @@
 use dep::aztec::protocol_types;
 use dep::aztec::protocol_types::{
-    contract_class::ContractClassId,
-    abis::function_selector::FunctionSelector,
-    constants::{FUNCTION_TREE_HEIGHT, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS, REGISTERER_PRIVATE_FUNCTION_BROADCASTED_MAGIC_VALUE},
+    contract_class::ContractClassId, abis::function_selector::FunctionSelector,
+    constants::{
+    FUNCTION_TREE_HEIGHT, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT,
+    MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS,
+    REGISTERER_PRIVATE_FUNCTION_BROADCASTED_MAGIC_VALUE
+},
     traits::{Serialize}
 };
 

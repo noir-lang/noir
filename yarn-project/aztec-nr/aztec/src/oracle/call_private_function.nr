@@ -1,10 +1,6 @@
 use dep::protocol_types::{
-    abis::{
-        function_selector::FunctionSelector,
-        private_call_stack_item::PrivateCallStackItem,
-    },
-    address::AztecAddress,
-    constants::PRIVATE_CALL_STACK_ITEM_LENGTH,
+    abis::{function_selector::FunctionSelector, private_call_stack_item::PrivateCallStackItem},
+    address::AztecAddress, constants::PRIVATE_CALL_STACK_ITEM_LENGTH
 };
 
 #[oracle(callPrivateFunction)]

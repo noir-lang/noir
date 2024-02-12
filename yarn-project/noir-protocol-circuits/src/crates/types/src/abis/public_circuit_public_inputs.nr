@@ -1,33 +1,14 @@
 use crate::{
-    abis::{
-        call_context::CallContext,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
+    abis::{call_context::CallContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash}},
     address::AztecAddress,
     constants::{
-        MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-        MAX_NEW_NULLIFIERS_PER_CALL,
-        MAX_NEW_COMMITMENTS_PER_CALL,
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-        MAX_PUBLIC_DATA_READS_PER_CALL,
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-        NUM_FIELDS_PER_SHA256,
-        RETURN_VALUES_LENGTH,
-        GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
-        PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
-    },
-    contrakt::{
-        storage_read::StorageRead,
-        storage_update_request::StorageUpdateRequest,
-    },
-    hash::pedersen_hash,
-    header::Header,
-    traits::{
-        Hash,
-        Serialize,
-        Deserialize,
-    },
-    utils::reader::Reader,
+    MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_COMMITMENTS_PER_CALL,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256, RETURN_VALUES_LENGTH,
+    GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH
+},
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
+    hash::pedersen_hash, header::Header, traits::{Hash, Serialize, Deserialize}, utils::reader::Reader
 };
 
 struct PublicCircuitPublicInputs{

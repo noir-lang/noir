@@ -9,7 +9,6 @@ struct MergeRollupInputs{
 
 impl MergeRollupInputs {
     pub fn merge_rollup_circuit(self) -> BaseOrMergeRollupPublicInputs {
-
         // TODO(Lasse): Verify the previous rollup proofs
         // TODO(Lasse): Check both previous rollup vks (in previous_rollup_data) against the permitted set of kernel vks.
         // we don't have a set of permitted kernel vks yet.
@@ -29,13 +28,13 @@ impl MergeRollupInputs {
         let new_calldata_hash = components::compute_calldata_hash(self.previous_rollup_data);
 
         let public_inputs = BaseOrMergeRollupPublicInputs {
-            rollup_type : MERGE_ROLLUP_TYPE,
-            height_in_block_tree : current_height + 1,
-            aggregation_object : aggregation_object,
-            constants : left.constants,
-            start : left.start,
-            end : right.end,
-            calldata_hash : new_calldata_hash,
+            rollup_type: MERGE_ROLLUP_TYPE,
+            height_in_block_tree: current_height + 1,
+            aggregation_object,
+            constants: left.constants,
+            start: left.start,
+            end: right.end,
+            calldata_hash: new_calldata_hash
         };
 
         public_inputs
@@ -45,7 +44,7 @@ impl MergeRollupInputs {
 mod tests {
     use crate::{
         merge::merge_rollup_inputs::MergeRollupInputs,
-        tests::merge_rollup_inputs::default_merge_rollup_inputs,
+        tests::merge_rollup_inputs::default_merge_rollup_inputs
     };
     use dep::types::hash::accumulate_sha256;
 

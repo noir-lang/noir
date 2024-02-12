@@ -1,7 +1,4 @@
-use crate::abis::{
-    function_data::FunctionData,
-    public_circuit_public_inputs::PublicCircuitPublicInputs,
-};
+use crate::abis::{function_data::FunctionData, public_circuit_public_inputs::PublicCircuitPublicInputs};
 use crate::address::AztecAddress;
 use crate::constants::GENERATOR_INDEX__CALL_STACK_ITEM;
 use crate::traits::Hash;
@@ -42,7 +39,7 @@ impl PublicCallStackItem {
             contract_address: self.contract_address,
             function_data: self.function_data,
             is_execution_request: true,
-            public_inputs: request_public_inputs,
+            public_inputs: request_public_inputs
         };
         call_stack_item
     }

@@ -1,7 +1,6 @@
 use dep::types::{
-    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-    constants::NUM_FIELDS_PER_SHA256,
-    partial_state_reference::PartialStateReference,
+    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot, constants::NUM_FIELDS_PER_SHA256,
+    partial_state_reference::PartialStateReference
 };
 use crate::abis::constant_rollup_data::ConstantRollupData;
 use dep::types::mocked::AggregationObject;

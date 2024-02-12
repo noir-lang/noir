@@ -1,7 +1,6 @@
 use crate::abis::{
-    function_data::FunctionData,
-    function_selector::FunctionSelector,
-    membership_witness::FunctionLeafMembershipWitness,
+    function_data::FunctionData, function_selector::FunctionSelector,
+    membership_witness::FunctionLeafMembershipWitness
 };
 
 struct ContractFunction {

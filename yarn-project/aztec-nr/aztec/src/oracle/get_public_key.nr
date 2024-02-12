@@ -1,11 +1,4 @@
-use dep::protocol_types::{
-    address::{
-        AztecAddress,
-        PartialAddress,
-        PublicKeysHash,
-    },
-    grumpkin_point::GrumpkinPoint,
-};
+use dep::protocol_types::{address::{AztecAddress, PartialAddress, PublicKeysHash}, grumpkin_point::GrumpkinPoint};
 
 #[oracle(getPublicKeyAndPartialAddress)]
 fn get_public_key_and_partial_address_oracle(_address: AztecAddress) -> [Field; 3] {}

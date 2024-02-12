@@ -37,5 +37,5 @@ impl<N> Reader<N> {
 
     pub fn finish(self) {
         assert(self.offset == self.data.len(), "Reader did not read all data");
-    } 
+    }
 }

@@ -1,10 +1,8 @@
 use crate::abis::{
     combined_accumulated_data::{
-        CombinedAccumulatedData,
-        FinalAccumulatedData,
-        AccumulatedNonRevertibleData,
-        CombinedAccumulatedDataBuilder,
-    },
+    CombinedAccumulatedData, FinalAccumulatedData, AccumulatedNonRevertibleData,
+    CombinedAccumulatedDataBuilder
+},
     combined_constant_data::CombinedConstantData
 };
 use crate::mocked::AggregationObject;
@@ -48,17 +46,20 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             max_non_revertible_side_effect_counter: self.max_non_revertible_side_effect_counter,
             end: self.end.finish(),
             constants: self.constants,
-            is_private: self.is_private,
+            is_private: self.is_private
         }
     }
 
-    pub fn to_tail(self, end_non_revertible: AccumulatedNonRevertibleData) -> PrivateKernelTailCircuitPublicInputs {
+    pub fn to_tail(
+        self,
+        end_non_revertible: AccumulatedNonRevertibleData
+    ) -> PrivateKernelTailCircuitPublicInputs {
         PrivateKernelTailCircuitPublicInputs {
             aggregation_object: self.aggregation_object,
-            end_non_revertible: end_non_revertible,
+            end_non_revertible,
             end: self.end.to_final(),
             constants: self.constants,
-            is_private: self.is_private,
+            is_private: self.is_private
         }
     }
 }
@@ -78,7 +79,7 @@ impl PublicKernelCircuitPublicInputsBuilder {
             end_non_revertible: self.end_non_revertible,
             end: self.end.finish(),
             constants: self.constants,
-            is_private: self.is_private,
+            is_private: self.is_private
         }
     }
 }

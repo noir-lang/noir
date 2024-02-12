@@ -1,19 +1,8 @@
 use dep::std::cmp::Eq;
 use crate::{
-    address::{
-        AztecAddress,
-        EthAddress,
-    },
-    constants::{
-        GENERATOR_INDEX__GLOBAL_VARIABLES,
-        GLOBAL_VARIABLES_LENGTH,
-    },
-    traits::{
-        Deserialize,
-        Empty,
-        Hash,
-        Serialize,
-    },
+    address::{AztecAddress, EthAddress},
+    constants::{GENERATOR_INDEX__GLOBAL_VARIABLES, GLOBAL_VARIABLES_LENGTH},
+    traits::{Deserialize, Empty, Hash, Serialize}
 };
 
 // docs:start:global-variables

@@ -1,31 +1,11 @@
 use crate::{
     abis::{
-        append_only_tree_snapshot::{
-            AppendOnlyTreeSnapshot,
-            APPEND_ONLY_TREE_SNAPSHOT_LENGTH,
-        },
-        global_variables::{
-            GlobalVariables,
-            GLOBAL_VARIABLES_LENGTH,
-        },
-    },
-    constants::{
-        GENERATOR_INDEX__BLOCK_HASH,
-        HEADER_LENGTH,
-        NUM_FIELDS_PER_SHA256,
-        STATE_REFERENCE_LENGTH,
-    },
-    hash::pedersen_hash,
-    state_reference::StateReference,
-    traits::{
-        Deserialize,
-        Empty,
-        Hash,
-        Serialize,
-    },
-    utils::{
-        arr_copy_slice,
-    },
+    append_only_tree_snapshot::{AppendOnlyTreeSnapshot, APPEND_ONLY_TREE_SNAPSHOT_LENGTH},
+    global_variables::{GlobalVariables, GLOBAL_VARIABLES_LENGTH}
+},
+    constants::{GENERATOR_INDEX__BLOCK_HASH, HEADER_LENGTH, NUM_FIELDS_PER_SHA256, STATE_REFERENCE_LENGTH},
+    hash::pedersen_hash, state_reference::StateReference, traits::{Deserialize, Empty, Hash, Serialize},
+    utils::{arr_copy_slice}
 };
 
 // docs:start:header

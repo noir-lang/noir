@@ -1,18 +1,10 @@
 use dep::std::option::Option;
-use dep::protocol_types::{
-    address::AztecAddress,
-    constants::{
-        GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
-    },
-    hash::pedersen_hash,
-};
+use dep::protocol_types::{address::AztecAddress, constants::{GENERATOR_INDEX__INITIALIZATION_NULLIFIER}, hash::pedersen_hash};
 
 use crate::context::{PrivateContext, Context};
 use crate::note::{
-    lifecycle::create_note,
-    note_getter::{get_note, view_notes},
-    note_interface::NoteInterface,
-    note_viewer_options::NoteViewerOptions,
+    lifecycle::create_note, note_getter::{get_note, view_notes}, note_interface::NoteInterface,
+    note_viewer_options::NoteViewerOptions
 };
 use crate::oracle::notes::check_nullifier_exists;
 use crate::state_vars::storage::Storage;
@@ -28,15 +20,9 @@ impl<T> Storage<T> for ImmutableSingleton<T> {}
 
 impl<Note> ImmutableSingleton<Note> {
     // docs:start:new
-    pub fn new(
-        context: Context,
-        storage_slot: Field,
-    ) -> Self {
+    pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Self {
-            context: context.private,
-            storage_slot,
-        }
+        Self { context: context.private, storage_slot }
     }
     // docs:end:new
 
@@ -47,7 +33,10 @@ impl<Note> ImmutableSingleton<Note> {
     // This is especially dangerous for initial assignment to elements of a `Map<AztecAddress, ImmutableSingleton>` type (for example), because the storage slot often also identifies an actor. 
     // e.g. the initial assignment to `my_map.at(msg.sender)` will leak: `msg.sender`, the fact that an element of `my_map` was assigned-to for the first time, and the contract_address.
     pub fn compute_initialization_nullifier(self) -> Field {
-        pedersen_hash([self.storage_slot], GENERATOR_INDEX__INITIALIZATION_NULLIFIER)
+        pedersen_hash(
+            [self.storage_slot],
+            GENERATOR_INDEX__INITIALIZATION_NULLIFIER
+        )
     }
 
     // docs:start:is_initialized
@@ -58,23 +47,14 @@ impl<Note> ImmutableSingleton<Note> {
     // docs:end:is_initialized
 
     // docs:start:initialize
-    pub fn initialize<N>(
-        self,
-        note: &mut Note, 
-        broadcast: bool,
-    ) where Note: NoteInterface<N> {
+    pub fn initialize<N>(self, note: &mut Note, broadcast: bool) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
 
         // Nullify the storage slot.
         let nullifier = self.compute_initialization_nullifier();
         context.push_new_nullifier(nullifier, 0);
 
-        create_note(
-            context,
-            self.storage_slot,
-            note,
-            broadcast,
-        );
+        create_note(context, self.storage_slot, note, broadcast);
     }
     // docs:end:initialize
 

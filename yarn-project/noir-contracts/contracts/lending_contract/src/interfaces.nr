@@ -96,11 +96,6 @@ impl Lending {
       FunctionSelector::from_signature("update_accumulator()"),
     );
 
-    Asset {
-      interest_accumulator: return_values[0] as u120,
-      last_updated_ts: return_values[1] as u120,
-      loan_to_value: return_values[2] as u120,
-      oracle: AztecAddress::from_field(return_values[3]),
-    }
+    Asset::deserialize(return_values)
   }
 }

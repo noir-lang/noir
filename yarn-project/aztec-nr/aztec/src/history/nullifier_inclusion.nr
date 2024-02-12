@@ -2,12 +2,8 @@ use dep::std::merkle::compute_merkle_root;
 use dep::protocol_types::header::Header;
 
 use crate::{
-    context::PrivateContext,
-    oracle::get_nullifier_membership_witness::get_nullifier_membership_witness,
-    note::{
-        utils::compute_siloed_nullifier,
-        note_interface::NoteInterface,
-    },
+    context::PrivateContext, oracle::get_nullifier_membership_witness::get_nullifier_membership_witness,
+    note::{utils::compute_siloed_nullifier, note_interface::NoteInterface}
 };
 
 fn _nullifier_inclusion(nullifier: Field, header: Header) {

@@ -1,38 +1,21 @@
 use crate::common;
-use dep::std::{
-    cmp::Eq,
-    option::Option,
-    unsafe,
-};
+use dep::std::{cmp::Eq, option::Option, unsafe};
 use dep::types::{
     abis::{
-        call_request::CallRequest,
-        combined_accumulated_data::AccumulatedNonRevertibleData,
-        nullifier_key_validation_request::NullifierKeyValidationRequestContext,
-        kernel_data::{PrivateKernelInnerData, PrivateKernelTailData},
-        kernel_circuit_public_inputs::{
-            PrivateKernelCircuitPublicInputsBuilder,
-            PrivateKernelTailCircuitPublicInputs,
-        },
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered},
-    },
+    call_request::CallRequest, combined_accumulated_data::AccumulatedNonRevertibleData,
+    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+    kernel_data::{PrivateKernelInnerData, PrivateKernelTailData},
+    kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputsBuilder, PrivateKernelTailCircuitPublicInputs},
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered}
+},
     constants::{
-        MAX_NEW_COMMITMENTS_PER_TX,
-        MAX_NEW_NULLIFIERS_PER_TX,
-        MAX_READ_REQUESTS_PER_TX,
-        MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-        MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX
-    },
+    MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_READ_REQUESTS_PER_TX,
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+    MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX
+},
     grumpkin_private_key::GrumpkinPrivateKey,
-    hash::{
-        compute_commitment_nonce,
-        compute_unique_siloed_commitment,
-    },
-    utils::{
-        arrays::{array_length, array_eq},
-    },
-    traits::{Empty, is_empty}
+    hash::{compute_commitment_nonce, compute_unique_siloed_commitment},
+    utils::{arrays::{array_length, array_eq}}, traits::{Empty, is_empty}
 };
 
 struct PrivateKernelTailCircuitPrivateInputs {
@@ -48,8 +31,9 @@ struct PrivateKernelTailCircuitPrivateInputs {
 
 impl PrivateKernelTailCircuitPrivateInputs {
     fn validate_inputs(self) {
-        assert_eq(array_length(self.previous_kernel.public_inputs.end.private_call_stack), 0,
-            "Private call stack must be empty when executing the ordering circuit");
+        assert_eq(
+            array_length(self.previous_kernel.public_inputs.end.private_call_stack), 0, "Private call stack must be empty when executing the ordering circuit"
+        );
     }
 
     fn validate_nullifier_keys(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
@@ -59,10 +43,14 @@ impl PrivateKernelTailCircuitPrivateInputs {
             if !is_empty(request) {
                 let master_secret_key = self.master_nullifier_secret_keys[i];
                 let computed_public_key = master_secret_key.derive_public_key();
-                assert(computed_public_key.eq(request.public_key), "Cannot derive nullifier public key from the master key.");
+                assert(
+                    computed_public_key.eq(request.public_key), "Cannot derive nullifier public key from the master key."
+                );
 
                 let computed_secret_key = common::compute_siloed_nullifier_secret_key(master_secret_key, request.contract_address);
-                assert(computed_secret_key.eq(request.secret_key), "Cannot derive siloed secret key from the master key.");
+                assert(
+                    computed_secret_key.eq(request.secret_key), "Cannot derive siloed secret key from the master key."
+                );
             }
         }
 
@@ -81,8 +69,12 @@ impl PrivateKernelTailCircuitPrivateInputs {
 
             if (read_request.value != 0) {
                 let commitment = new_commitments.get_unchecked(read_commitment_hint as Field);
-                assert_eq(read_request.value, commitment.value, "Hinted commitment does not match read request");
-                assert(read_request.counter > commitment.counter, "Read request counter must be greater than commitment counter");
+                assert_eq(
+                    read_request.value, commitment.value, "Hinted commitment does not match read request"
+                );
+                assert(
+                    read_request.counter > commitment.counter, "Read request counter must be greater than commitment counter"
+                );
             }
         }
 
@@ -113,8 +105,16 @@ impl PrivateKernelTailCircuitPrivateInputs {
     }
 
     fn sort_arrays(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
-        PrivateKernelTailCircuitPrivateInputs::assert_sorted_counters(public_inputs.end.new_commitments.storage, self.sorted_new_commitments, self.sorted_new_commitments_indexes);
-        PrivateKernelTailCircuitPrivateInputs::assert_sorted_counters(public_inputs.end.new_nullifiers.storage, self.sorted_new_nullifiers, self.sorted_new_nullifiers_indexes);
+        PrivateKernelTailCircuitPrivateInputs::assert_sorted_counters(
+            public_inputs.end.new_commitments.storage,
+            self.sorted_new_commitments,
+            self.sorted_new_commitments_indexes
+        );
+        PrivateKernelTailCircuitPrivateInputs::assert_sorted_counters(
+            public_inputs.end.new_nullifiers.storage,
+            self.sorted_new_nullifiers,
+            self.sorted_new_nullifiers_indexes
+        );
         public_inputs.end.new_commitments.storage = self.sorted_new_commitments;
         public_inputs.end.new_nullifiers.storage = self.sorted_new_nullifiers;
     }
@@ -136,10 +136,14 @@ impl PrivateKernelTailCircuitPrivateInputs {
             // Non-empty nullified_commitment implies transient nullifier which MUST be matched to a commitment below!
             // 0-valued nullified_commitment is empty and will be ignored
             if nullified_commitment != 0 {
-                assert(hint_pos < MAX_NEW_COMMITMENTS_PER_TX as u64, "New nullifier is transient but hint is invalid");
+                assert(
+                    hint_pos < MAX_NEW_COMMITMENTS_PER_TX as u64, "New nullifier is transient but hint is invalid"
+                );
                 let commitment = new_commitments[hint_pos];
                 assert_eq(nullified_commitment, commitment.value, "Hinted commitment does not match");
-                assert(nullifier.counter > commitment.counter, "Nullifier counter must be greater than commitment counter");
+                assert(
+                    nullifier.counter > commitment.counter, "Nullifier counter must be greater than commitment counter"
+                );
                 // match found!
                 // squash both the nullifier and the commitment
                 // (set to 0 here and then rearrange array after loop)
@@ -218,8 +222,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
         PrivateKernelTailCircuitPrivateInputs::apply_commitment_nonces(&mut public_inputs);
 
         // TODO(fees) populate this
-        let end_non_revertible : AccumulatedNonRevertibleData = unsafe::zeroed(); 
-
+        let end_non_revertible : AccumulatedNonRevertibleData = unsafe::zeroed();
 
         public_inputs.to_tail(end_non_revertible)
     }
@@ -228,22 +231,14 @@ impl PrivateKernelTailCircuitPrivateInputs {
 mod tests {
     use dep::std::cmp::Eq;
     use crate::private_kernel_tail::PrivateKernelTailCircuitPrivateInputs;
-    use dep::types::constants::{
-        MAX_READ_REQUESTS_PER_TX,
-        MAX_NEW_COMMITMENTS_PER_TX,
-        MAX_NEW_NULLIFIERS_PER_TX,
-    };
+    use dep::types::constants::{MAX_READ_REQUESTS_PER_TX, MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX};
     use dep::types::{
         abis::{
-            kernel_circuit_public_inputs::PrivateKernelTailCircuitPublicInputs,
-            side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered},
-        },
-        hash::compute_unique_siloed_commitments,
-        tests::kernel_data_builder::PreviousKernelDataBuilder,
-        utils::{
-            arrays::{array_eq, array_length},
-        },
-        traits::{Empty, is_empty, is_empty_array}
+        kernel_circuit_public_inputs::PrivateKernelTailCircuitPublicInputs,
+        side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered}
+    },
+        hash::compute_unique_siloed_commitments, tests::kernel_data_builder::PreviousKernelDataBuilder,
+        utils::{arrays::{array_eq, array_length}}, traits::{Empty, is_empty, is_empty_array}
     };
 
     struct PrivateKernelOrderingInputsBuilder {
@@ -257,7 +252,7 @@ mod tests {
             PrivateKernelOrderingInputsBuilder {
                 previous_kernel: PreviousKernelDataBuilder::new(),
                 read_commitment_hints: [0; MAX_READ_REQUESTS_PER_TX],
-                nullifier_commitment_hints: [0; MAX_NEW_NULLIFIERS_PER_TX],
+                nullifier_commitment_hints: [0; MAX_NEW_NULLIFIERS_PER_TX]
             }
         }
 
@@ -299,12 +294,13 @@ mod tests {
             self.nullifier_commitment_hints[nullifier_index] = commitment_index;
         }
 
-        fn sort_sideffects<T, N>(original: [T; N]) -> ([T; N],[u32; N]) where T: Ordered + Eq + Empty {
+        fn sort_sideffects<T, N>(original: [T; N]) -> ([T; N], [u32; N]) where T: Ordered + Eq + Empty {
             let mut indexes = [0; N];
             for i in 0..N {
                 indexes[i] = i as u32;
             }
-            let sorted_indexes = indexes.sort_via(|a_index: u32, b_index: u32| {
+            let sorted_indexes = indexes.sort_via(
+                |a_index: u32, b_index: u32| {
                 let a = original[a_index];
                 let b = original[b_index];
                 if is_empty(b) {
@@ -314,7 +310,8 @@ mod tests {
                 } else {
                     a.counter() < b.counter()
                 }
-            });
+            }
+            );
             let sorted_sideffects = sorted_indexes.map(|i: u32| original[i]);
             let mut reverse_map = [0; N];
             for i in 0..N {
@@ -343,7 +340,7 @@ mod tests {
                 sorted_new_nullifiers,
                 sorted_new_nullifiers_indexes,
                 nullifier_commitment_hints: sorted_nullifier_commitment_hints,
-                master_nullifier_secret_keys: dep::std::unsafe::zeroed(),
+                master_nullifier_secret_keys: dep::std::unsafe::zeroed()
             };
             kernel.native_private_kernel_circuit_ordering()
         }

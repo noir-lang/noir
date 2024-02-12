@@ -2,10 +2,7 @@
 
 contract AvmTest {
     // Libs
-    use dep::aztec::protocol_types::address::{
-        AztecAddress,
-        EthAddress,
-    };
+    use dep::aztec::protocol_types::address::{AztecAddress, EthAddress};
 
     // avm lib
     use dep::aztec::avm::context::AvmContext;

@@ -13,17 +13,11 @@ impl AppendOnlyTreeSnapshot {
     }
 
     pub fn deserialize(serialized: [Field; APPEND_ONLY_TREE_SNAPSHOT_LENGTH]) -> AppendOnlyTreeSnapshot {
-        AppendOnlyTreeSnapshot {
-            root : serialized[0],
-            next_available_leaf_index : serialized[1] as u32
-        }
+        AppendOnlyTreeSnapshot { root: serialized[0], next_available_leaf_index: serialized[1] as u32 }
     }
 
     pub fn zero() -> Self {
-        Self {
-            root: 0,
-            next_available_leaf_index: 0,
-        }
+        Self { root: 0, next_available_leaf_index: 0 }
     }
 }
 

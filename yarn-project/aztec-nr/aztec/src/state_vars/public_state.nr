@@ -19,13 +19,10 @@ impl<T> PublicState<T> {
     pub fn new(
         // Note: Passing the contexts to new(...) just to have an interface compatible with a Map.
         context: Context,
-        storage_slot: Field,
+        storage_slot: Field
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        PublicState {
-            context,
-            storage_slot,
-        }
+        PublicState { context, storage_slot }
     }
     // docs:end:public_state_struct_new
 

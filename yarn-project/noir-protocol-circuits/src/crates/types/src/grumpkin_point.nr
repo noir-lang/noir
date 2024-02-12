@@ -35,10 +35,7 @@ impl GrumpkinPoint {
     }
 
     pub fn zero() -> Self {
-        Self {
-            x: 0,
-            y: 0,
-        }
+        Self { x: 0, y: 0 }
     }
 
     pub fn is_zero(self) -> bool {

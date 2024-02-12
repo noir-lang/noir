@@ -1,12 +1,7 @@
 use dep::protocol_types::{
-    constants::PUBLIC_DATA_TREE_HEIGHT,
-    hash::pedersen_hash,
-    public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
-    traits::{
-        Hash,
-        Serialize,
-    },
-    utils::arr_copy_slice,
+    constants::PUBLIC_DATA_TREE_HEIGHT, hash::pedersen_hash,
+    public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage, traits::{Hash, Serialize},
+    utils::arr_copy_slice
 };
 
 global LEAF_PREIMAGE_LENGTH: Field = 4;
@@ -19,7 +14,10 @@ struct PublicDataWitness {
 }
 
 #[oracle(getPublicDataTreeWitness)]
-fn get_public_data_witness_oracle(_block_number: u32, _leaf_slot: Field) -> [Field; PUBLIC_DATA_WITNESS] {}
+fn get_public_data_witness_oracle(
+    _block_number: u32,
+    _leaf_slot: Field
+) -> [Field; PUBLIC_DATA_WITNESS] {}
 
 unconstrained pub fn get_public_data_witness(block_number: u32, leaf_slot: Field) -> PublicDataWitness {
     let fields = get_public_data_witness_oracle(block_number, leaf_slot);

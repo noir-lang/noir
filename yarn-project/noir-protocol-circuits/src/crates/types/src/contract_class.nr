@@ -1,12 +1,9 @@
 use crate::abis::{
-    function_data::FunctionData,
-    private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    public_circuit_public_inputs::PublicCircuitPublicInputs,
+    function_data::FunctionData, private_circuit_public_inputs::PrivateCircuitPublicInputs,
+    public_circuit_public_inputs::PublicCircuitPublicInputs
 };
 use crate::address::AztecAddress;
-use crate::constants::{
-    GENERATOR_INDEX__CONTRACT_LEAF,
-};
+use crate::constants::{GENERATOR_INDEX__CONTRACT_LEAF};
 use crate::traits::Hash;
 
 struct ContractClassId {
@@ -20,13 +17,20 @@ impl Eq for ContractClassId {
 }
 
 impl ContractClassId {
-    pub fn compute(artifact_hash: Field, private_functions_root: Field, public_bytecode_commitment: Field) -> Self {
-        let hash = dep::std::hash::pedersen_hash_with_separator([
+    pub fn compute(
+        artifact_hash: Field,
+        private_functions_root: Field,
+        public_bytecode_commitment: Field
+    ) -> Self {
+        let hash = dep::std::hash::pedersen_hash_with_separator(
+            [
             artifact_hash,
             private_functions_root,
-            public_bytecode_commitment,
-        ], GENERATOR_INDEX__CONTRACT_LEAF); // TODO(@spalladino): Update generator index
-        
+            public_bytecode_commitment
+        ],
+            GENERATOR_INDEX__CONTRACT_LEAF
+        ); // TODO(@spalladino): Update generator index
+
         ContractClassId::from_field(hash)
     }
 
@@ -34,7 +38,7 @@ impl ContractClassId {
         self.inner as Field
     }
 
-    pub fn from_field(value : Field) -> Self {
+    pub fn from_field(value: Field) -> Self {
         Self { inner: value }
     }
 

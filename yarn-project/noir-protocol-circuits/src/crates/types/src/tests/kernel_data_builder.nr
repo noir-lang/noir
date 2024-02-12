@@ -1,31 +1,23 @@
 use crate::{
     abis::{
-        call_context::CallContext,
-        call_request::{CallerContext, CallRequest},
-        combined_constant_data::CombinedConstantData,
-        combined_accumulated_data::{CombinedAccumulatedDataBuilder, AccumulatedNonRevertibleData},
-        kernel_circuit_public_inputs::{PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs, PublicKernelCircuitPublicInputs},
-        kernel_data::{PrivateKernelInnerData, PrivateKernelTailData, PublicKernelData},
-        public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
-    address::{AztecAddress, EthAddress},
-    header::Header,
+    call_context::CallContext, call_request::{CallerContext, CallRequest},
+    combined_constant_data::CombinedConstantData,
+    combined_accumulated_data::{CombinedAccumulatedDataBuilder, AccumulatedNonRevertibleData},
+    kernel_circuit_public_inputs::{
+    PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
+    PublicKernelCircuitPublicInputs
+},
+    kernel_data::{PrivateKernelInnerData, PrivateKernelTailData, PublicKernelData},
+    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+},
+    address::{AztecAddress, EthAddress}, header::Header,
     mocked::{AggregationObject, Proof, VerificationKey},
-    tests::{
-        fixtures,
-        testing_harness::build_tx_context,
-    },
-    transaction::context::TxContext,
+    tests::{fixtures, testing_harness::build_tx_context}, transaction::context::TxContext
 };
 use crate::constants::{
-        MAX_NEW_COMMITMENTS_PER_TX,
-        MAX_NEW_NULLIFIERS_PER_TX,
-        MAX_PUBLIC_DATA_READS_PER_TX,
-        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        NUM_FIELDS_PER_SHA256,
-        VK_TREE_HEIGHT,
+    MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, NUM_FIELDS_PER_SHA256, VK_TREE_HEIGHT
 };
 
 struct PreviousKernelDataBuilder {
@@ -45,11 +37,7 @@ struct PreviousKernelDataBuilder {
 impl PreviousKernelDataBuilder {
     pub fn new() -> Self {
         let mut end: CombinedAccumulatedDataBuilder = dep::std::unsafe::zeroed();
-        end.new_nullifiers.push(SideEffectLinkedToNoteHash{
-            value: 321,
-            note_hash: 0,
-            counter: 0
-        }); // 0th nullifier must be non-zero.
+        end.new_nullifiers.push(SideEffectLinkedToNoteHash { value: 321, note_hash: 0, counter: 0 }); // 0th nullifier must be non-zero.
 
         let tx_context = build_tx_context(false, 0);
 
@@ -64,7 +52,7 @@ impl PreviousKernelDataBuilder {
             vk: VerificationKey {},
             vk_index: 0,
             vk_path: [0; VK_TREE_HEIGHT],
-            sideffect_counter: 2,
+            sideffect_counter: 2
         }
     }
 
@@ -83,7 +71,7 @@ impl PreviousKernelDataBuilder {
                     // The default value is its index + 45.
                     old_value: value_offset + i + 45,
                     // The default value is its index + 678.
-                    new_value: value_offset + i + 678,
+                    new_value: value_offset + i + 678
                 };
                 self.end.public_data_update_requests.push(update_request);
             }
@@ -98,7 +86,7 @@ impl PreviousKernelDataBuilder {
                     // The default leaf index is its index + 34.
                     leaf_slot: value_offset + i + 34,
                     // The default value is its index + 5566.
-                    value: value_offset + i + 5566,
+                    value: value_offset + i + 5566
                 };
                 self.end.public_data_reads.push(read_request);
             }
@@ -114,10 +102,7 @@ impl PreviousKernelDataBuilder {
     pub fn add_read_request_for_transient_commitment(&mut self, commitment_index: Field) -> Field {
         let new_read_request_index = self.end.read_requests.len();
         let commitment = self.end.new_commitments.get(commitment_index);
-        let read_request = SideEffect {
-            value: commitment.value,
-            counter: self.next_sideffect_counter(),
-        };
+        let read_request = SideEffect { value: commitment.value, counter: self.next_sideffect_counter() };
         self.end.read_requests.push(read_request);
         new_read_request_index
     }
@@ -127,10 +112,9 @@ impl PreviousKernelDataBuilder {
         for i in 0..MAX_NEW_COMMITMENTS_PER_TX {
             if i as u64 < num_new_commitments as u64 {
                 // The default value is its index + 1.
-                self.end.new_commitments.push(SideEffect{
-                    value: i + mocked_value_offset,
-                    counter: self.next_sideffect_counter()
-                });
+                self.end.new_commitments.push(
+                    SideEffect { value: i + mocked_value_offset, counter: self.next_sideffect_counter() }
+                );
             }
         }
     }
@@ -141,11 +125,13 @@ impl PreviousKernelDataBuilder {
         for i in 1..MAX_NEW_NULLIFIERS_PER_TX {
             if i as u64 <= num_extra_nullifier as u64 {
                 // The default value is its index + the value of the first nullifier.
-                self.end.new_nullifiers.push(SideEffectLinkedToNoteHash{
+                self.end.new_nullifiers.push(
+                    SideEffectLinkedToNoteHash {
                     value: i + mocked_value_offset,
                     note_hash: first_nullifier.note_hash,
                     counter: self.next_sideffect_counter()
-                });
+                }
+                );
             }
         }
     }
@@ -184,7 +170,7 @@ impl PreviousKernelDataBuilder {
             caller_contract_address: self.contract_address,
             caller_context,
             start_side_effect_counter: counter,
-            end_side_effect_counter: end_counter,
+            end_side_effect_counter: end_counter
         }
     }
 
@@ -193,64 +179,37 @@ impl PreviousKernelDataBuilder {
             aggregation_object: AggregationObject {},
             max_non_revertible_side_effect_counter: 0,
             end: self.end.finish(),
-            constants: CombinedConstantData {
-                historical_header: self.historical_header,
-                tx_context: self.tx_context,
-            },
-            is_private: self.is_private,
+            constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context },
+            is_private: self.is_private
         };
-        PrivateKernelInnerData {
-            public_inputs,
-            proof: self.proof,
-            vk: self.vk,
-            vk_index: self.vk_index,
-            vk_path: self.vk_path,
-        }
+        PrivateKernelInnerData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 
     pub fn to_private_kernel_tail_data(self) -> PrivateKernelTailData {
         // TODO(fees) probably need to add this to the builder once it is implemented.
-        let end_non_revertible: AccumulatedNonRevertibleData =  dep::std::unsafe::zeroed();
+        let end_non_revertible: AccumulatedNonRevertibleData = dep::std::unsafe::zeroed();
         let public_inputs = PrivateKernelTailCircuitPublicInputs {
             aggregation_object: AggregationObject {},
-            end_non_revertible: end_non_revertible,
+            end_non_revertible,
             end: self.end.to_final(),
-            constants: CombinedConstantData {
-                historical_header: self.historical_header,
-                tx_context: self.tx_context,
-            },
-            is_private: self.is_private,
+            constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context },
+            is_private: self.is_private
         };
 
-        PrivateKernelTailData {
-            public_inputs,
-            proof: self.proof,
-            vk: self.vk,
-            vk_index: self.vk_index,
-            vk_path: self.vk_path,
-        }
+        PrivateKernelTailData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 
     pub fn to_public_kernel_data(self) -> PublicKernelData {
         // TODO(fees) probably need to add this to the builder once it is implemented.
-        let end_non_revertible: AccumulatedNonRevertibleData =  dep::std::unsafe::zeroed();
+        let end_non_revertible: AccumulatedNonRevertibleData = dep::std::unsafe::zeroed();
         let public_inputs = PublicKernelCircuitPublicInputs {
             aggregation_object: AggregationObject {},
-            end_non_revertible: end_non_revertible,
+            end_non_revertible,
             end: self.end.finish(),
-            constants: CombinedConstantData {
-                historical_header: self.historical_header,
-                tx_context: self.tx_context,
-            },
-            is_private: self.is_private,
+            constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context },
+            is_private: self.is_private
         };
 
-        PublicKernelData {
-            public_inputs,
-            proof: self.proof,
-            vk: self.vk,
-            vk_index: self.vk_index,
-            vk_path: self.vk_path,
-        }
+        PublicKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 }

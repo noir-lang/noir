@@ -1,8 +1,5 @@
 use dep::authwit::auth_witness;
-use dep::aztec::protocol_types::{
-    address::PartialAddress,
-    grumpkin_point::GrumpkinPoint,
-};
+use dep::aztec::protocol_types::{address::PartialAddress, grumpkin_point::GrumpkinPoint};
 
 struct AuthWitness {
     owner: GrumpkinPoint,
@@ -19,7 +16,7 @@ impl AuthWitness {
         Self {
             owner: GrumpkinPoint::new(values[0], values[1]),
             signature,
-            partial_address: PartialAddress::from_field(values[66]),
+            partial_address: PartialAddress::from_field(values[66])
         }
     }
 }

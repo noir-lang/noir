@@ -32,11 +32,16 @@ impl Deserialize<ASSET_SERIALIZED_LEN> for Asset {
     // Right now we are wasting so many writes. If changing last_updated_ts
     // we will end up rewriting all of them, wasting writes.
     fn deserialize(fields: [Field; ASSET_SERIALIZED_LEN]) -> Asset {
+        let interest_accumulator = fields[0] as u120;
+        let last_updated_ts = fields[1] as u120;
+        let loan_to_value = fields[2] as u120;
+        let oracle = AztecAddress::from_field(fields[3]);
+
         Asset {
-            interest_accumulator: fields[0] as u120,
-            last_updated_ts: fields[1] as u120,
-            loan_to_value: fields[2] as u120,
-            oracle: AztecAddress::from_field(fields[3])
+            interest_accumulator,
+            last_updated_ts,
+            loan_to_value,
+            oracle,
         }
     }
 }

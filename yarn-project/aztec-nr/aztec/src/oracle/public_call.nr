@@ -1,8 +1,4 @@
-use dep::protocol_types::{
-    abis::function_selector::FunctionSelector,
-    address::AztecAddress,
-    constants::RETURN_VALUES_LENGTH,
-};
+use dep::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, constants::RETURN_VALUES_LENGTH};
 
 #[oracle(callPublicFunction)]
 fn call_public_function_oracle(

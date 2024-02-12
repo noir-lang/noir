@@ -5,20 +5,13 @@
 // arise from code changes.
 
 contract Benchmarking {
-    use dep::value_note::{
-        utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNote},
-    };
+    use dep::value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote}};
 
     use dep::aztec::{
-        protocol_types::{
-            abis::function_selector::FunctionSelector,
-            address::AztecAddress,
-        },
+        protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
         context::{Context},
         note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        log::emit_unencrypted_log,
-        state_vars::{map::Map, public_state::PublicState, set::Set},
+        log::emit_unencrypted_log, state_vars::{map::Map, public_state::PublicState, set::Set}
     };
 
     struct Storage {

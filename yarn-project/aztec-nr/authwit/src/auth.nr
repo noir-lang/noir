@@ -1,19 +1,8 @@
 use dep::aztec::protocol_types::{
-    abis::function_selector::FunctionSelector,
-    address::AztecAddress,
-    constants::{
-        GENERATOR_INDEX__SIGNATURE_PAYLOAD,
-    },
-    hash::{
-        hash_args,
-        pedersen_hash,
-    },
+    abis::function_selector::FunctionSelector, address::AztecAddress,
+    constants::{GENERATOR_INDEX__SIGNATURE_PAYLOAD}, hash::{hash_args, pedersen_hash}
 };
-use dep::aztec::context::{
-    PrivateContext,
-    PublicContext,
-    Context,
-};
+use dep::aztec::context::{PrivateContext, PublicContext, Context};
 
 global IS_VALID_SELECTOR = 0xe86ab4ff;
 global IS_VALID_PUBLIC_SELECTOR = 0xf3661153;

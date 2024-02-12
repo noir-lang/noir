@@ -1,60 +1,32 @@
 // A demonstration of inclusion and non-inclusion proofs.
 contract InclusionProofs {
     use dep::aztec::protocol_types::{
-        abis::function_selector::FunctionSelector,
-        address::{
-            AztecAddress,
-            EthAddress,
-        },
-        grumpkin_point::GrumpkinPoint,
-        contract_class::ContractClassId,
+        abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress},
+        grumpkin_point::GrumpkinPoint, contract_class::ContractClassId
     };
     use dep::aztec::{
-        state_vars::{
-            map::Map,
-            set::Set,
-            public_state::PublicState,
-        },
-        context::Context,
+        state_vars::{map::Map, set::Set, public_state::PublicState}, context::Context,
         note::{
-            note_getter_options::NoteGetterOptions,
-            note_getter_options::NoteStatus,
-            note_header::NoteHeader,
-            utils as note_utils,
-        },
-       // docs:start:imports
-        history::{
-            contract_inclusion::{
-                prove_contract_inclusion,
-                prove_contract_inclusion_at,
-            },  
-            note_inclusion::{
-                prove_note_inclusion,
-                prove_note_inclusion_at,
-            },
-            note_validity::{
-                prove_note_validity,
-                prove_note_validity_at,
-            },
-            nullifier_inclusion::{
-                prove_nullifier_inclusion,
-                prove_nullifier_inclusion_at,
-                prove_note_is_nullified,
-                prove_note_is_nullified_at,
-            },
-            nullifier_non_inclusion::{
-                prove_nullifier_not_included,
-                prove_nullifier_not_included_at,
-                prove_note_not_nullified,
-                prove_note_not_nullified_at,
-            },
-            public_value_inclusion::{
-                prove_public_value_inclusion,
-                prove_public_value_inclusion_at,
-            },
-        },
-         // docs:end:imports
+        note_getter_options::NoteGetterOptions, note_getter_options::NoteStatus,
+        note_header::NoteHeader, utils as note_utils
+    }
     };
+    // docs:start:imports
+    use dep::aztec::history::{
+        contract_inclusion::{prove_contract_inclusion, prove_contract_inclusion_at},
+        note_inclusion::{prove_note_inclusion, prove_note_inclusion_at},
+        note_validity::{prove_note_validity, prove_note_validity_at},
+        nullifier_inclusion::{
+        prove_nullifier_inclusion, prove_nullifier_inclusion_at, prove_note_is_nullified,
+        prove_note_is_nullified_at
+    },
+        nullifier_non_inclusion::{
+        prove_nullifier_not_included, prove_nullifier_not_included_at, prove_note_not_nullified,
+        prove_note_not_nullified_at
+    },
+        public_value_inclusion::{prove_public_value_inclusion, prove_public_value_inclusion_at}
+    };
+    // docs:end:imports
     // docs:start:value_note_imports
     use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
     // docs:end:value_note_imports

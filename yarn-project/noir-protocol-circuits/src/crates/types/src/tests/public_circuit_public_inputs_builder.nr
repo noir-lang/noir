@@ -1,26 +1,16 @@
 use crate::{
     abis::{
-        call_context::CallContext,
-        public_circuit_public_inputs::PublicCircuitPublicInputs,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    },
+    call_context::CallContext, public_circuit_public_inputs::PublicCircuitPublicInputs,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+},
     address::AztecAddress,
-    contrakt::{
-        storage_read::StorageRead,
-        storage_update_request::StorageUpdateRequest,
-    },
-    header::Header,
-    tests::fixtures,
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
+    tests::fixtures
 };
 use crate::constants::{
-    MAX_NEW_COMMITMENTS_PER_CALL,
-    MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-    MAX_NEW_NULLIFIERS_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_DATA_READS_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-    NUM_FIELDS_PER_SHA256,
-    RETURN_VALUES_LENGTH,
+    MAX_NEW_COMMITMENTS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256, RETURN_VALUES_LENGTH
 };
 
 struct PublicCircuitPublicInputsBuilder {
@@ -61,7 +51,7 @@ impl PublicCircuitPublicInputsBuilder {
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
-            prover_address: self.prover_address,
+            prover_address: self.prover_address
         }
     }
 }

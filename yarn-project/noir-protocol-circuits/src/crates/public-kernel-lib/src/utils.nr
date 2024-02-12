@@ -1,19 +1,12 @@
 use crate::hash::{compute_public_data_tree_index, compute_public_data_tree_value};
 use dep::types::{
     abis::{
-        call_request::CallRequest,
-        new_contract_data::NewContractData,
-        public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest,
-    },
+    call_request::CallRequest, new_contract_data::NewContractData, public_data_read::PublicDataRead,
+    public_data_update_request::PublicDataUpdateRequest
+},
     address::AztecAddress,
-    contrakt::{
-        storage_read::StorageRead,
-        storage_update_request::StorageUpdateRequest,
-    },
-    utils::{
-        arrays::array_eq,
-    },
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
+    utils::{arrays::array_eq}
 };
 
 pub fn compute_public_data_reads<N>(

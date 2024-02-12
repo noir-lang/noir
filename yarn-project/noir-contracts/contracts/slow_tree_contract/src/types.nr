@@ -18,16 +18,16 @@ fn deserialize_membership_proof<N, M>(serialized: [Field; M]) -> MembershipProof
 
 impl<N, M> MembershipProof<N, M> {
     fn serialize(self: Self) -> [Field; M] {
-      let mut serialized = [0; M];
-      serialized[0] = self.index;
-      serialized[1] = self.value;
-      for i in 0..N {
-          serialized[2 + i] = self.sibling_path[i];
-      }
-      serialized
+        let mut serialized = [0; M];
+        serialized[0] = self.index;
+        serialized[1] = self.value;
+        for i in 0..N {
+            serialized[2 + i] = self.sibling_path[i];
+        }
+        serialized
     }
 
     fn deserialize(serialized: [Field; M]) -> Self {
-      deserialize_membership_proof(serialized)
+        deserialize_membership_proof(serialized)
     }
 }

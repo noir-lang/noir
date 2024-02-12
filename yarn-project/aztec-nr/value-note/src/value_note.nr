@@ -1,21 +1,8 @@
 use dep::aztec::{
-    protocol_types::{
-        address::AztecAddress,
-        traits::{Deserialize, Serialize}
-    },
-    note::{
-        note_header::NoteHeader,
-        note_interface::NoteInterface,
-        utils::compute_note_hash_for_consumption,
-    },
-    oracle::{
-        rand::rand,
-        nullifier_key::get_nullifier_secret_key,
-        get_public_key::get_public_key,
-    },
-    log::emit_encrypted_log,
-    hash::pedersen_hash,
-    context::PrivateContext,
+    protocol_types::{address::AztecAddress, traits::{Deserialize, Serialize}},
+    note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
+    oracle::{rand::rand, nullifier_key::get_nullifier_secret_key, get_public_key::get_public_key},
+    log::emit_encrypted_log, hash::pedersen_hash, context::PrivateContext
 };
 
 global VALUE_NOTE_LEN: Field = 3; // 3 plus a header.
@@ -99,11 +86,6 @@ impl ValueNote {
     pub fn new(value: Field, owner: AztecAddress) -> Self {
         let randomness = rand();
         let header = NoteHeader::empty();
-        ValueNote {
-            value,
-            owner,
-            randomness,
-            header,
-        }
+        ValueNote { value, owner, randomness, header }
     }
 }

@@ -38,10 +38,6 @@ impl NullifierLeafPreimage {
     }
 
     pub fn deserialize(fields: [Field; NULLIFIER_LEAF_PREIMAGE_LENGTH]) -> Self {
-        Self {
-            nullifier: fields[0],
-            next_nullifier: fields[1],
-            next_index: fields[2] as u32,
-        }
+        Self { nullifier: fields[0], next_nullifier: fields[1], next_index: fields[2] as u32 }
     }
 }

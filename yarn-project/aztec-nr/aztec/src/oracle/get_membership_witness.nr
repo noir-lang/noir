@@ -1,11 +1,4 @@
-use dep::protocol_types::{
-    constants::{
-        ARCHIVE_HEIGHT,
-        CONTRACT_TREE_HEIGHT,
-        NOTE_HASH_TREE_HEIGHT,
-    },
-    utils::arr_copy_slice,
-};
+use dep::protocol_types::{constants::{ARCHIVE_HEIGHT, CONTRACT_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT}, utils::arr_copy_slice};
 
 global CONTRACT_TREE_ID = 0;
 global NOTE_HASH_TREE_ID = 2;
@@ -24,9 +17,17 @@ struct MembershipWitness<N, M> {
 }
 
 #[oracle(getMembershipWitness)]
-fn get_membership_witness_oracle<M>(_block_number: u32, _tree_id: Field, _leaf_value: Field) -> [Field; M] {}
+fn get_membership_witness_oracle<M>(
+    _block_number: u32,
+    _tree_id: Field,
+    _leaf_value: Field
+) -> [Field; M] {}
 
-unconstrained pub fn get_membership_witness<N, M>(block_number: u32, tree_id: Field, leaf_value: Field) -> MembershipWitness<N, M> {
+unconstrained pub fn get_membership_witness<N, M>(
+    block_number: u32,
+    tree_id: Field,
+    leaf_value: Field
+) -> MembershipWitness<N, M> {
     let fields: [Field; M] = get_membership_witness_oracle(block_number, tree_id, leaf_value);
     MembershipWitness { index: fields[0], path: arr_copy_slice(fields, [0; N], 1) }
 }

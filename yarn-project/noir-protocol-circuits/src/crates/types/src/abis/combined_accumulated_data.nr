@@ -1,29 +1,18 @@
 use crate::{
     abis::{
-        call_request::CallRequest,
-        new_contract_data::NewContractData,
-        nullifier_key_validation_request::NullifierKeyValidationRequestContext,
-        public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest,
-        side_effect::{SideEffect, SideEffectLinkedToNoteHash},
-    }
+    call_request::CallRequest, new_contract_data::NewContractData,
+    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+}
 };
 use crate::constants::{
-    MAX_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-    MAX_NEW_COMMITMENTS_PER_TX,
-    MAX_NEW_NULLIFIERS_PER_TX,
-    MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-    MAX_NEW_CONTRACTS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_TX,
-    NUM_FIELDS_PER_SHA256,
-
-    MAX_NEW_COMMITMENTS_PER_TX_META,
-    MAX_NEW_NULLIFIERS_PER_TX_META,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX_META,
+    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_NEW_COMMITMENTS_PER_TX,
+    MAX_NEW_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX, NUM_FIELDS_PER_SHA256,
+    MAX_NEW_COMMITMENTS_PER_TX_META, MAX_NEW_NULLIFIERS_PER_TX_META,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX_META
 };
 
 struct CombinedAccumulatedData {
@@ -106,53 +95,44 @@ struct CombinedAccumulatedDataBuilder {
 impl CombinedAccumulatedDataBuilder {
     pub fn finish(self) -> CombinedAccumulatedData {
         CombinedAccumulatedData {
-
             read_requests: self.read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
-
             new_commitments: self.new_commitments.storage,
             new_nullifiers: self.new_nullifiers.storage,
-
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
-
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
-
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-
             new_contracts: self.new_contracts.storage,
-
             public_data_update_requests: self.public_data_update_requests.storage,
-
-            public_data_reads: self.public_data_reads.storage,
+            public_data_reads: self.public_data_reads.storage
         }
     }
 
     pub fn to_final(self) -> FinalAccumulatedData {
         assert_eq(self.read_requests.len, 0, "Final accumulated data: read requests not empty");
-        assert_eq(self.nullifier_key_validation_requests.len, 0, "Final accumulated data: nullifier key validation requests not empty");
-        assert_eq(self.public_data_update_requests.len, 0, "Final accumulated data: public data update requests not empty");
+        assert_eq(
+            self.nullifier_key_validation_requests.len, 0, "Final accumulated data: nullifier key validation requests not empty"
+        );
+        assert_eq(
+            self.public_data_update_requests.len, 0, "Final accumulated data: public data update requests not empty"
+        );
         assert_eq(self.public_data_reads.len, 0, "Final accumulated data: public data reads not empty");
 
         FinalAccumulatedData {
-
             new_commitments: self.new_commitments.storage,
             new_nullifiers: self.new_nullifiers.storage,
-
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
-
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
-
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-
-            new_contracts: self.new_contracts.storage,
+            new_contracts: self.new_contracts.storage
         }
     }
 }

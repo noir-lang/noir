@@ -63,11 +63,14 @@ contract Lending {
         assert(asset.last_updated_ts == 0);
         assert(asset.interest_accumulator == 0);
 
+        let last_updated_ts = context.timestamp() as u120;
+        let loan_to_value = loan_to_value as u120;
+
         asset_loc.write(
             Asset {
             interest_accumulator: 1000000000,
-            last_updated_ts: context.timestamp() as u120,
-            loan_to_value: loan_to_value as u120,
+            last_updated_ts,
+            loan_to_value,
             oracle
         }
         );
@@ -82,7 +85,8 @@ contract Lending {
         let asset_loc = storage.assets.at(0);
         let mut asset = asset_loc.read();
 
-        let dt: SafeU120 = SafeU120 { value: context.timestamp() as u120 }.sub(SafeU120 { value: asset.last_updated_ts });
+        let timestamp = context.timestamp() as u120;
+        let dt: SafeU120 = SafeU120 { value: timestamp }.sub(SafeU120 { value: asset.last_updated_ts });
 
         // Only update if time has passed.
         if (!dt.is_zero()) {

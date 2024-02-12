@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../simulator"
-    },
-    {
       "path": "../circuit-types"
     },
     {
@@ -35,6 +32,9 @@
     },
     {
       "path": "../protocol-contracts"
+    },
+    {
+      "path": "../simulator"
     },
     {
       "path": "../types"

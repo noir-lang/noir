@@ -1,13 +1,7 @@
 use dep::std::merkle::compute_merkle_root;
-use dep::protocol_types::{
-    constants::HEADER_LENGTH,
-    header::Header,
-};
+use dep::protocol_types::{constants::HEADER_LENGTH, header::Header};
 
-use crate::{
-    context::PrivateContext,
-    oracle::get_membership_witness::get_archive_membership_witness,
-};
+use crate::{context::PrivateContext, oracle::get_membership_witness::get_archive_membership_witness};
 
 #[oracle(getHeader)]
 fn get_header_at_oracle(_block_number: u32) -> [Field; HEADER_LENGTH] {}

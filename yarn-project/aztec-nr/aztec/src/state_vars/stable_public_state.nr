@@ -1,7 +1,5 @@
 use crate::context::{Context};
-use crate::oracle::{
-    storage::{storage_read, storage_write},
-};
+use crate::oracle::{storage::{storage_read, storage_write}};
 use crate::history::public_value_inclusion::prove_public_value_inclusion;
 use dep::std::option::Option;
 use dep::protocol_types::traits::{Deserialize, Serialize};
@@ -21,10 +19,7 @@ impl<T> StablePublicState<T> {
         storage_slot: Field
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Self {
-            context,
-            storage_slot,
-        }
+        Self { context, storage_slot }
     }
 
     // Intended to be only called once. 
@@ -59,10 +54,9 @@ impl<T> StablePublicState<T> {
                 fields[i],
                 self.storage_slot + i,
                 (*private_context).this_address(),
-                (*private_context),
+                (*private_context)
             )
         }
         T::deserialize(fields)
     }
-
 }

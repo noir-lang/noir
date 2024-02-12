@@ -3,11 +3,8 @@ use dep::protocol_types::header::Header;
 
 use crate::{
     context::PrivateContext,
-    note::{
-        utils::compute_note_hash_for_consumption,
-        note_interface::NoteInterface,
-    },
-    oracle::get_membership_witness::get_note_hash_membership_witness,
+    note::{utils::compute_note_hash_for_consumption, note_interface::NoteInterface},
+    oracle::get_membership_witness::get_note_hash_membership_witness
 };
 
 pub fn _note_inclusion<Note, N>(note: Note, header: Header) where Note: NoteInterface<N> {

@@ -14,6 +14,7 @@ impl Serialize<ASSET_SERIALIZED_LEN> for Asset {
 
 impl Deserialize<ASSET_SERIALIZED_LEN> for Asset {
     fn deserialize(fields: [Field; ASSET_SERIALIZED_LEN]) -> Asset {
-        Asset { price: fields[0] as u120 }
+        let price = fields[0] as u120;
+        Asset { price }
     }
 }

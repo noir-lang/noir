@@ -1,11 +1,7 @@
-use crate::context::{
-    PrivateContext,
-    PublicContext,
-};
+use crate::context::{PrivateContext, PublicContext};
 use crate::note::{
-    note_header::NoteHeader,
-    note_interface::NoteInterface,
-    utils::{compute_note_hash_for_insertion, compute_note_hash_for_consumption},
+    note_header::NoteHeader, note_interface::NoteInterface,
+    utils::{compute_note_hash_for_insertion, compute_note_hash_for_consumption}
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 
@@ -34,7 +30,11 @@ pub fn create_note<Note, N>(
     }
 }
 
-pub fn create_note_hash_from_public<Note, N>(context: &mut PublicContext, storage_slot: Field, note: &mut Note) where Note: NoteInterface<N> {
+pub fn create_note_hash_from_public<Note, N>(
+    context: &mut PublicContext,
+    storage_slot: Field,
+    note: &mut Note
+) where Note: NoteInterface<N> {
     let contract_address = (*context).this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, is_transient: true };

@@ -1,32 +1,22 @@
 use crate::{
     abis::{
-        call_request::{CallerContext, CallRequest},
-        private_call_stack_item::PrivateCallStackItem,
-        function_data::FunctionData,
-        membership_witness::{
-            ContractLeafMembershipWitness,
-            FunctionLeafMembershipWitness,
-            ReadRequestMembershipWitness,
-        },
-        private_circuit_public_inputs::{PrivateCircuitPublicInputs},
-        private_kernel::private_call_data::PrivateCallData,
-    },
+    call_request::{CallerContext, CallRequest}, private_call_stack_item::PrivateCallStackItem,
+    function_data::FunctionData,
+    membership_witness::{ContractLeafMembershipWitness, FunctionLeafMembershipWitness, ReadRequestMembershipWitness},
+    private_circuit_public_inputs::{PrivateCircuitPublicInputs},
+    private_kernel::private_call_data::PrivateCallData
+},
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
     mocked::{Proof, VerificationKey},
     tests::{
-        fixtures,
-        private_circuit_public_inputs_builder::PrivateCircuitPublicInputsBuilder,
-        testing_harness::build_tx_context,
-    },
-    transaction::{
-        request::TxRequest,
-    },
+    fixtures, private_circuit_public_inputs_builder::PrivateCircuitPublicInputsBuilder,
+    testing_harness::build_tx_context
+},
+    transaction::{request::TxRequest}
 };
 use crate::constants::{
-        MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-        MAX_READ_REQUESTS_PER_CALL,
-        NUM_FIELDS_PER_SHA256,
+    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+    MAX_READ_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256
 };
 
 struct PrivateCallDataBuilder {
@@ -61,7 +51,7 @@ impl PrivateCallDataBuilder {
             fixtures::contract_functions::default_private_function
         };
         let function_data = contract_function.data;
-        
+
         PrivateCallDataBuilder {
             contract_address: public_inputs.call_context.storage_contract_address,
             public_inputs,
@@ -78,7 +68,7 @@ impl PrivateCallDataBuilder {
             contract_class_public_bytecode_commitment: contract_data.public_bytecode_commitment,
             read_request_membership_witnesses: dep::std::unsafe::zeroed(),
             portal_contract_address: public_inputs.call_context.portal_contract_address,
-            acir_hash: contract_function.acir_hash,
+            acir_hash: contract_function.acir_hash
         }
     }
 
@@ -106,12 +96,15 @@ impl PrivateCallDataBuilder {
     }
 
     pub fn build_tx_request(self) -> TxRequest {
-        let tx_context = build_tx_context(self.public_inputs.call_context.is_contract_deployment, self.public_inputs.args_hash);
+        let tx_context = build_tx_context(
+            self.public_inputs.call_context.is_contract_deployment,
+            self.public_inputs.args_hash
+        );
         TxRequest {
             origin: self.contract_address,
             args_hash: self.public_inputs.args_hash,
             tx_context,
-            function_data: self.function_data,
+            function_data: self.function_data
         }
     }
 
@@ -131,7 +124,7 @@ impl PrivateCallDataBuilder {
         self,
         requests: BoundedVec<CallRequest, N>,
         num_requests: Field,
-        is_delegate_call: bool,
+        is_delegate_call: bool
     ) -> (BoundedVec<Field, N>, BoundedVec<CallRequest, N>) {
         let value_offset = requests.len();
         let mut caller_context = CallerContext::empty();
@@ -154,7 +147,7 @@ impl PrivateCallDataBuilder {
                     caller_context,
                     // TODO: populate these
                     start_side_effect_counter: 0,
-                    end_side_effect_counter:0,
+                    end_side_effect_counter: 0
                 };
                 hashes.push(hash);
                 call_requests.push(request);
@@ -189,7 +182,7 @@ impl PrivateCallDataBuilder {
         let call_stack_item = PrivateCallStackItem {
             contract_address: self.contract_address,
             function_data: self.function_data,
-            public_inputs: self.public_inputs.finish(),
+            public_inputs: self.public_inputs.finish()
         };
         call_stack_item.hash()
     }
@@ -198,7 +191,7 @@ impl PrivateCallDataBuilder {
         let call_stack_item = PrivateCallStackItem {
             contract_address: self.contract_address,
             function_data: self.function_data,
-            public_inputs: self.public_inputs.finish(),
+            public_inputs: self.public_inputs.finish()
         };
 
         PrivateCallData {
@@ -214,7 +207,7 @@ impl PrivateCallDataBuilder {
             contract_class_public_bytecode_commitment: self.contract_class_public_bytecode_commitment,
             read_request_membership_witnesses: self.read_request_membership_witnesses.storage,
             portal_contract_address: self.portal_contract_address,
-            acir_hash: self.acir_hash,
+            acir_hash: self.acir_hash
         }
     }
 }

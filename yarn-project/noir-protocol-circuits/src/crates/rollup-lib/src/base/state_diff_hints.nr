@@ -1,15 +1,10 @@
 use dep::types::{
-    abis::{
-        membership_witness::NullifierMembershipWitness,
-        nullifier_leaf_preimage::NullifierLeafPreimage,
-    },
+    abis::{membership_witness::NullifierMembershipWitness, nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
-        MAX_NEW_NULLIFIERS_PER_TX,
-        NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
-        NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
-        CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-        PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
-    },
+    MAX_NEW_NULLIFIERS_PER_TX, NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
+    NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
+    PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH
+}
 };
 
 struct StateDiffHints {

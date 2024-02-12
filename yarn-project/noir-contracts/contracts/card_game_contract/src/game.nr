@@ -19,6 +19,22 @@ impl PlayerEntry {
     }
 }
 
+global PLAYER_SERIALIZED_LEN: Field = 3;
+
+impl Deserialize<PLAYER_SERIALIZED_LEN> for PlayerEntry {
+    fn deserialize(fields: [Field; PLAYER_SERIALIZED_LEN]) -> PlayerEntry {
+        let address = AztecAddress::from_field(fields[0]);
+        let deck_strength = fields[1] as u32;
+        let points = fields[2] as u120;
+        
+        PlayerEntry {
+            address,
+            deck_strength,
+            points
+        }
+    }
+}
+
 global PLAYABLE_CARDS = 4;
 
 struct Game {
@@ -57,18 +73,10 @@ impl Serialize<GAME_SERIALIZED_LEN> for Game {
 
 impl Deserialize<GAME_SERIALIZED_LEN> for Game {
     fn deserialize(fields: [Field; GAME_SERIALIZED_LEN]) -> Game {
-        let players = [
-            PlayerEntry {
-                address: AztecAddress::from_field(fields[0]),
-                deck_strength: fields[1] as u32,
-                points: fields[2] as u120
-            },
-            PlayerEntry {
-                address: AztecAddress::from_field(fields[3]),
-                deck_strength: fields[4] as u32,
-                points: fields[5] as u120
-            }
-        ];
+        let player1 = PlayerEntry::deserialize([fields[0], fields[1], fields[2]]);
+        let player2 = PlayerEntry::deserialize([fields[3], fields[4], fields[5]]);
+        
+        let players = [player1, player2];
         let rounds_cards = [
             Card::from_field(fields[6]), Card::from_field(fields[7]),
             Card::from_field(fields[8]), Card::from_field(fields[9])

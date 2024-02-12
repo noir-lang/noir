@@ -1,10 +1,6 @@
 use dep::aztec::{
-    note::{
-        note_header::NoteHeader,
-        note_interface::NoteInterface,
-    },
-    hash::pedersen_hash,
-    context::PrivateContext,
+    note::{note_header::NoteHeader, note_interface::NoteInterface}, hash::pedersen_hash,
+    context::PrivateContext
 };
 
 global FIELD_NOTE_LEN: Field = 1;
@@ -61,10 +57,7 @@ impl NoteInterface<FIELD_NOTE_LEN> for FieldNote {
 
 impl FieldNote {
     pub fn new(value: Field) -> Self {
-        FieldNote {
-            value,
-            header: NoteHeader::empty(),
-        }
+        FieldNote { value, header: NoteHeader::empty() }
     }
 }
 
