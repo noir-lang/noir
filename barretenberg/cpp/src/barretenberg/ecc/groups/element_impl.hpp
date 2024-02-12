@@ -788,6 +788,7 @@ template <class Fq, class Fr, class T>
 std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomorphism(
     const std::span<affine_element<Fq, Fr, T>>& points, const Fr& exponent) noexcept
 {
+    BB_OP_COUNT_TIME();
     typedef affine_element<Fq, Fr, T> affine_element;
     const size_t num_points = points.size();
 

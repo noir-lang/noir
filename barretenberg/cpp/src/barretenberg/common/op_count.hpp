@@ -1,12 +1,15 @@
 
 #pragma once
 
+#include <memory>
 #ifndef BB_USE_OP_COUNT
 // require a semicolon to appease formatters
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_TRACK() (void)0
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_TRACK_NAME(name) (void)0
+#define BB_OP_COUNT_CYCLES() (void)0
+#define BB_OP_COUNT_TIME() (void)0
 #else
 /**
  * Provides an abstraction that counts operations based on function names.
@@ -37,20 +40,27 @@ template <std::size_t N> struct OperationLabel {
     char value[N];
 };
 
+struct OpStats {
+    std::size_t count = 0;
+    std::size_t time = 0;
+    std::size_t cycles = 0;
+};
+
 // Contains all statically known op counts
 struct GlobalOpCountContainer {
   public:
     struct Entry {
         std::string key;
         std::string thread_id;
-        std::size_t* count;
+        std::shared_ptr<OpStats> count;
     };
+    ~GlobalOpCountContainer();
     std::mutex mutex;
     std::vector<Entry> counts;
     void print() const;
     // NOTE: Should be called when other threads aren't active
     void clear();
-    void add_entry(const char* key, std::size_t* count);
+    void add_entry(const char* key, const std::shared_ptr<OpStats>& count);
     std::map<std::string, std::size_t> get_aggregate_counts() const;
 };
 
@@ -60,28 +70,77 @@ extern GlobalOpCountContainer GLOBAL_OP_COUNTS;
 template <OperationLabel Op> struct GlobalOpCount {
   public:
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-    static thread_local std::size_t* thread_local_count;
+    static thread_local std::shared_ptr<OpStats> stats;
 
+    static OpStats* ensure_stats()
+    {
+        if (BB_UNLIKELY(stats == nullptr)) {
+            stats = std::make_shared<OpStats>();
+            GLOBAL_OP_COUNTS.add_entry(Op.value, stats);
+        }
+        return stats.get();
+    }
     static constexpr void increment_op_count()
     {
+#ifndef BB_USE_OP_COUNT_TIME_ONLY
         if (std::is_constant_evaluated()) {
             // We do nothing if the compiler tries to run this
             return;
         }
-        if (BB_UNLIKELY(thread_local_count == nullptr)) {
-            thread_local_count = new std::size_t();
-            GLOBAL_OP_COUNTS.add_entry(Op.value, thread_local_count);
+        ensure_stats();
+        stats->count++;
+#endif
+    }
+    static constexpr void add_cycle_time(std::size_t cycles)
+    {
+#ifndef BB_USE_OP_COUNT_TRACK_ONLY
+        if (std::is_constant_evaluated()) {
+            // We do nothing if the compiler tries to run this
+            return;
         }
-        (*thread_local_count)++;
+        ensure_stats();
+        stats->cycles += cycles;
+#endif
+    }
+    static constexpr void add_clock_time(std::size_t time)
+    {
+#ifndef BB_USE_OP_COUNT_TRACK_ONLY
+        if (std::is_constant_evaluated()) {
+            // We do nothing if the compiler tries to run this
+            return;
+        }
+        ensure_stats();
+        stats->time += time;
+#endif
     }
 };
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-template <OperationLabel Op> thread_local std::size_t* GlobalOpCount<Op>::thread_local_count;
+template <OperationLabel Op> thread_local std::shared_ptr<OpStats> GlobalOpCount<Op>::stats;
 
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct OpCountCycleReporter {
+    OpStats* stats;
+    std::size_t cycles;
+    OpCountCycleReporter(OpStats* stats);
+    ~OpCountCycleReporter();
+};
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct OpCountTimeReporter {
+    OpStats* stats;
+    std::size_t time;
+    OpCountTimeReporter(OpStats* stats);
+    ~OpCountTimeReporter();
+};
 } // namespace bb::detail
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_TRACK() bb::detail::GlobalOpCount<__func__>::increment_op_count()
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_TRACK_NAME(name) bb::detail::GlobalOpCount<name>::increment_op_count()
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define BB_OP_COUNT_CYCLES()                                                                                           \
+    bb::detail::OpCountCycleReporter __bb_op_count_cyles(bb::detail::GlobalOpCount<__func__>::ensure_stats())
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define BB_OP_COUNT_TIME()                                                                                             \
+    bb::detail::OpCountTimeReporter __bb_op_count_time(bb::detail::GlobalOpCount<__func__>::ensure_stats())
 #endif
