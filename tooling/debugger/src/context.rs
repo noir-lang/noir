@@ -140,7 +140,12 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 }
                 line_to_opcodes[index].1
             }
-            Err(index) => line_to_opcodes[index].1,
+            Err(index) => {
+                if index >= line_to_opcodes.len() {
+                    return None;
+                }
+                line_to_opcodes[index].1
+            }
         };
         Some(found_index)
     }
