@@ -237,7 +237,7 @@ __metadata:
     "@aztec/kv-store": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
-    "@aztec/noir-contracts": "workspace:^"
+    "@aztec/noir-contracts.js": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/pxe": "workspace:^"
     "@jest/globals": ^29.5.0
@@ -333,7 +333,7 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
-    "@aztec/noir-contracts": "workspace:^"
+    "@aztec/noir-contracts.js": "workspace:^"
     "@aztec/types": "workspace:^"
     "@iarna/toml": ^2.2.5
     "@jest/globals": ^29.5.0
@@ -385,7 +385,7 @@ __metadata:
     "@aztec/kv-store": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
-    "@aztec/noir-contracts": "workspace:^"
+    "@aztec/noir-contracts.js": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/pxe": "workspace:^"
     "@aztec/sequencer-client": "workspace:^"
@@ -614,9 +614,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/noir-contracts@workspace:^, @aztec/noir-contracts@workspace:noir-contracts":
+"@aztec/noir-contracts.js@workspace:^, @aztec/noir-contracts.js@workspace:noir-contracts.js":
   version: 0.0.0-use.local
-  resolution: "@aztec/noir-contracts@workspace:noir-contracts"
+  resolution: "@aztec/noir-contracts.js@workspace:noir-contracts.js"
   dependencies:
     "@aztec/aztec.js": "workspace:^"
     "@jest/globals": ^29.5.0
@@ -629,9 +629,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/noir-protocol-circuits@workspace:^, @aztec/noir-protocol-circuits@workspace:noir-protocol-circuits":
+"@aztec/noir-protocol-circuits-types@workspace:^, @aztec/noir-protocol-circuits-types@workspace:noir-protocol-circuits-types":
   version: 0.0.0-use.local
-  resolution: "@aztec/noir-protocol-circuits@workspace:noir-protocol-circuits"
+  resolution: "@aztec/noir-protocol-circuits-types@workspace:noir-protocol-circuits-types"
   dependencies:
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
@@ -758,8 +758,8 @@ __metadata:
     "@aztec/key-store": "workspace:^"
     "@aztec/kv-store": "workspace:^"
     "@aztec/noir-compiler": "workspace:^"
-    "@aztec/noir-contracts": "workspace:^"
-    "@aztec/noir-protocol-circuits": "workspace:^"
+    "@aztec/noir-contracts.js": "workspace:^"
+    "@aztec/noir-protocol-circuits-types": "workspace:^"
     "@aztec/protocol-contracts": "workspace:^"
     "@aztec/simulator": "workspace:^"
     "@aztec/types": "workspace:^"
@@ -818,7 +818,7 @@ __metadata:
     "@aztec/kv-store": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
-    "@aztec/noir-protocol-circuits": "workspace:^"
+    "@aztec/noir-protocol-circuits-types": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/simulator": "workspace:^"
     "@aztec/types": "workspace:^"
@@ -856,7 +856,7 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/kv-store": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
-    "@aztec/noir-contracts": "workspace:^"
+    "@aztec/noir-contracts.js": "workspace:^"
     "@jest/globals": ^29.5.0
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js"
     "@types/jest": ^29.5.0

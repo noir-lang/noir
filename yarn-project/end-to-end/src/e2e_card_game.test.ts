@@ -12,7 +12,7 @@ import {
 import { computeNullifierSecretKey, computeSiloedNullifierSecretKey } from '@aztec/circuits.js';
 import { toBufferLE } from '@aztec/foundation/bigint-buffer';
 import { sha256 } from '@aztec/foundation/crypto';
-import { CardGameContract } from '@aztec/noir-contracts/CardGame';
+import { CardGameContract } from '@aztec/noir-contracts.js/CardGame';
 
 import { setup } from './fixtures/utils.js';
 

@@ -72,7 +72,7 @@ export ADDRESS2=<Account address printed by the above command>
 
 ## Deploying a Token Contract
 
-We will now deploy a token contract using the `deploy` command, and set an address of the admin via a constructor argument. You can find the contract we are deploying [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) (or write it for yourself in [this tutorial!](../../tutorials/writing_token_contract.md))
+We will now deploy a token contract using the `deploy` command, and set an address of the admin via a constructor argument. You can find the contract we are deploying [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) (or write it for yourself in [this tutorial!](../../tutorials/writing_token_contract.md))
 Make sure to replace this address with one of the two you created earlier.
 
 #include_code deploy yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
@@ -102,7 +102,7 @@ The `send` command expect the function name as the first unnamed argument and th
 
 #include_code send yarn-project/end-to-end/src/cli_docs_sandbox.test.ts bash
 
-We called the [`mint_public`](https://github.com/AztecProtocol/aztec-packages/blob/87fa621347e55f82e36c70515c1824161eee5282/yarn-project/noir-contracts/contracts/token_contract/src/main.nr#L157C10-L157C10) function and provided it with the 2 arguments it expects: the recipient's address and the amount to be minted. Make sure to replace all addresses in this command with yours.
+We called the [`mint_public`](https://github.com/AztecProtocol/aztec-packages/blob/87fa621347e55f82e36c70515c1824161eee5282/noir-projects/noir-contracts/contracts/token_contract/src/main.nr#L157C10-L157C10) function and provided it with the 2 arguments it expects: the recipient's address and the amount to be minted. Make sure to replace all addresses in this command with yours.
 
 The command output tells us the details of the transaction such as its hash and status. We can use this hash to query the receipt of the transaction at a later time:
 

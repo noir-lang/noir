@@ -6,7 +6,7 @@ In this section, we'll write the logic in our app that will interact with the co
 
 Let's start by showing our user's private balance for the token across their accounts. To do this, we can leverage the `balance_of_private` unconstrained view function of the token contract:
 
-#include_code balance_of_private yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code balance_of_private noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 :::info
 Note that this function will only return a valid response for accounts registered in the Private eXecution Environment (PXE), since it requires access to the [user's private state](../../wallets/main.md#private-state). In other words, you cannot query the private balance of another user for the token contract.
@@ -56,10 +56,10 @@ const wallet = await getSchnorrAccount(
 ).getWallet();
 ```
 
-For ease of use, `accounts` also ships with a helper `getInitialTestAccountsWallets` method that returns a wallet for each of the pre-initialized accounts in the Sandbox, so you can send transactions as any of them. 
+For ease of use, `accounts` also ships with a helper `getInitialTestAccountsWallets` method that returns a wallet for each of the pre-initialized accounts in the Sandbox, so you can send transactions as any of them.
 
 ```js
-import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
+import { getInitialTestAccountsWallets } from "@aztec/accounts/testing";
 ```
 
 We'll use one of these wallets to initialize the `Contract` instance that represents our private token contract, so every transaction sent through it will be sent through that wallet.

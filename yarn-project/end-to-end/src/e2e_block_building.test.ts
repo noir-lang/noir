@@ -14,8 +14,8 @@ import {
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { TestContract, TestContractArtifact } from '@aztec/noir-contracts/Test';
-import { TokenContract } from '@aztec/noir-contracts/Token';
+import { TestContract, TestContractArtifact } from '@aztec/noir-contracts.js/Test';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { setup } from './fixtures/utils.js';
 

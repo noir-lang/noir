@@ -11,7 +11,7 @@ import {
   sleep,
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
-import { BenchmarkingContract } from '@aztec/noir-contracts/Benchmarking';
+import { BenchmarkingContract } from '@aztec/noir-contracts.js/Benchmarking';
 import { PXEService, createPXEService } from '@aztec/pxe';
 
 import { mkdirpSync } from 'fs-extra';

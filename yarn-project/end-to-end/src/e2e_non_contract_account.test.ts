@@ -11,7 +11,7 @@ import {
   toBigInt,
 } from '@aztec/aztec.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
-import { TestContract } from '@aztec/noir-contracts/Test';
+import { TestContract } from '@aztec/noir-contracts.js/Test';
 
 import { setup } from './fixtures/utils.js';
 

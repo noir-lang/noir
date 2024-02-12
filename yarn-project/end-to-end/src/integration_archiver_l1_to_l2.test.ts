@@ -11,7 +11,7 @@ import {
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { initStoreForRollup, openTmpStore } from '@aztec/kv-store/utils';
-import { TokenContract } from '@aztec/noir-contracts/Token';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { Chain, HttpTransport, PublicClient } from 'viem';
 

@@ -14,7 +14,7 @@ import {
   computeMessageSecretHash,
   generatePublicKey,
 } from '@aztec/aztec.js';
-import { TokenContract } from '@aztec/noir-contracts/Token';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 

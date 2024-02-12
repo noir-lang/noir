@@ -11,7 +11,7 @@ import {
 import { Salt } from '@aztec/aztec.js/account';
 import { AztecAddress, CompleteAddress, Fq, Fr } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
-import { TokenContract } from '@aztec/noir-contracts/Token';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { jest } from '@jest/globals';
 import { mkdtemp } from 'fs/promises';

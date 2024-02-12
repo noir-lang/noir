@@ -1,5 +1,5 @@
 import { AztecAddress, Comparator, Fr, Wallet, toBigInt } from '@aztec/aztec.js';
-import { DocsExampleContract, TestContract } from '@aztec/noir-contracts';
+import { DocsExampleContract, TestContract } from '@aztec/noir-contracts.js';
 
 import { setup } from './fixtures/utils.js';
 

@@ -1,9 +1,0 @@
-[package]
-name = "stateful_test_contract"
-authors = [""]
-compiler_version = ">=0.18.0"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../aztec-nr/aztec" }
-value_note = { path = "../../../aztec-nr/value-note"}

@@ -9,18 +9,18 @@ This section contains some errors that you may encounter when writing and compil
 All smart contracts written in Aztec.nr need the `aztec` dependency. In your `Nargo.toml` under `[dependencies]`, add this:
 
 ```toml
-aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
+aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
 ```
 
 You can learn more about dependencies and their paths [here](../contracts/resources/dependencies.md).
 
 #### `compute_note_hash_and_nullifier function not found. Define it in your contract`
 
-Any smart contract that works with storage must include a [`compute_note_hash_and_nullifier`](https://github.com/AztecProtocol/aztec-packages/blob/6c20b45993ee9cbd319ab8351e2722e0c912f427/yarn-project/aztec-nr/aztec/src/note/utils.nr#L69) function to allow the PXE to process encrypted events.
+Any smart contract that works with storage must include a [`compute_note_hash_and_nullifier`](https://github.com/AztecProtocol/aztec-packages/blob/6c20b45993ee9cbd319ab8351e2722e0c912f427/noir-projects/aztec-nr/aztec/src/note/utils.nr#L69) function to allow the PXE to process encrypted events.
 
 This is an example of this function in the token contract:
 
-#include_code compute_note_hash_and_nullifier yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 This error may also show if the `compute_note_hash_and_nullifier` function is not correct or sits outside of the contract.
 

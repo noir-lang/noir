@@ -12,7 +12,7 @@ import {
   PXE,
   Wallet,
 } from '@aztec/aztec.js';
-import { ChildContract } from '@aztec/noir-contracts/Child';
+import { ChildContract } from '@aztec/noir-contracts.js/Child';
 
 import { randomBytes } from 'crypto';
 

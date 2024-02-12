@@ -27,7 +27,7 @@ For the sake of simplicity, we will hardcode the signing public key into the con
 
 Let's start with the account contract itself in Aztec.nr. Create [a new Aztec.nr contract project](../../main.md) that will contain a file with the code for the account contract, with a hardcoded public key:
 
-#include_code contract yarn-project/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
+#include_code contract noir-projects/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
 :::info
 You can use [the Aztec CLI](../../../sandbox/main.md) to generate a new keypair if you want to use a different one:
@@ -45,11 +45,11 @@ Public Key:  0x0ede151adaef1cfcc1b3e152ea39f00c5cda3f3857cef00decb049d283672dc71
 
 The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding auth witness from an oracle to validate it. You will find this logic implemented in the `AccountActions` module, which use the `AppPayload` and `FeePayload` structs:
 
-#include_code entrypoint yarn-project/aztec-nr/authwit/src/account.nr rust
+#include_code entrypoint noir-projects/aztec-nr/authwit/src/account.nr rust
 
-#include_code app-payload-struct yarn-project/aztec-nr/authwit/src/entrypoint/app.nr rust
+#include_code app-payload-struct noir-projects/aztec-nr/authwit/src/entrypoint/app.nr rust
 
-#include_code fee-payload-struct yarn-project/aztec-nr/authwit/src/entrypoint/fee.nr rust
+#include_code fee-payload-struct noir-projects/aztec-nr/authwit/src/entrypoint/fee.nr rust
 
 :::info
 Using the `AccountActions` module and the payload structs is not mandatory. You can package the instructions to be carried out by your account contract however you want. However, using these modules can save you a lot of time when writing a new account contract, both in Noir and in Typescript.
@@ -57,7 +57,7 @@ Using the `AccountActions` module and the payload structs is not mandatory. You 
 
 The `AccountActions` module provides default implementations for most of the account contract methods needed, but it requires a function for validating an auth witness. In this function you will customize how your account validates an action: whether it is using a specific signature scheme, a multi-party approval, a password, etc.
 
-#include_code is-valid yarn-project/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
+#include_code is-valid noir-projects/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
 For our account contract, we will take the hash of the action to authorize, request the corresponding auth witness from the oracle, and validate it against our hardcoded public key. If the signature is correct, we authorize the action.
 

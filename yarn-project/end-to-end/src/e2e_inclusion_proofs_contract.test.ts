@@ -11,7 +11,7 @@ import {
 } from '@aztec/aztec.js';
 import { NewContractData } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
-import { InclusionProofsContract } from '@aztec/noir-contracts/InclusionProofs';
+import { InclusionProofsContract } from '@aztec/noir-contracts.js/InclusionProofs';
 
 import { jest } from '@jest/globals';
 import { type MemDown, default as memdown } from 'memdown';

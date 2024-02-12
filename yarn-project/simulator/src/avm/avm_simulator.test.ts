@@ -1,7 +1,7 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { AvmTestContractArtifact } from '@aztec/noir-contracts';
+import { AvmTestContractArtifact } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 

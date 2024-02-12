@@ -6,12 +6,12 @@ From the description of storage slots [in the Concepts](./../../../../learn/conc
 
 For the case of the example, we will look at what is inserted into the note hashes tree when adding a note in the Token contract. Specifically, we are looking at the last part of the `transfer` function:
 
-#include_code increase_private_balance yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code increase_private_balance noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
-This function is creating a new note and inserting it into the balance set of the recipient `to`. Recall that to ensure privacy, only the note commitment is really inserted into the note hashes tree. To share the contents of the note with `to` the contract can emit an encrypted log (which this one does), or it can require an out-of-band data transfer sharing the information. Below, we will walk through the steps of how the note commitment is computed and inserted into the tree. For this, we don't care about the encrypted log, so we are going to ignore that part of the function call for now. 
+This function is creating a new note and inserting it into the balance set of the recipient `to`. Recall that to ensure privacy, only the note commitment is really inserted into the note hashes tree. To share the contents of the note with `to` the contract can emit an encrypted log (which this one does), or it can require an out-of-band data transfer sharing the information. Below, we will walk through the steps of how the note commitment is computed and inserted into the tree. For this, we don't care about the encrypted log, so we are going to ignore that part of the function call for now.
 
 Outlining it in more detail below as a sequence diagram, we can see how the calls make their way down the stack.
-In the end a siloed note hash is computed in the kernel. 
+In the end a siloed note hash is computed in the kernel.
 
 :::info
 Some of the syntax below is a little butchered to make it easier to follow variables without the full code.

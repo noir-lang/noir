@@ -14,7 +14,7 @@ import {
   getContractInstanceFromDeployParams,
   isContractDeployed,
 } from '@aztec/aztec.js';
-import { TestContractArtifact } from '@aztec/noir-contracts/Test';
+import { TestContractArtifact } from '@aztec/noir-contracts.js/Test';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId } from '@aztec/p2p';
 import { ConstantKeyPair, PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 

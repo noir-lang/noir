@@ -49,7 +49,7 @@ authors = [""]
 compiler_version = ">=0.18.0"
 
 [dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
+aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
 ```
 
 ## Initiate the contract and define imports
@@ -66,7 +66,7 @@ This defines a contract called `Voter`. Everything will sit inside this block.
 
 Inside this, paste these imports:
 
-#include_code imports yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code imports noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 We are using various utils within the Aztec library:
 
@@ -80,10 +80,10 @@ We are using various utils within the Aztec library:
 
 ## Set up storage
 
-Under these imports, we need to set up our contract storage. 
+Under these imports, we need to set up our contract storage.
 Define the storage struct like so:
 
-#include_code storage_struct yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code storage_struct noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 In this contract, we will store three vars:
 
@@ -99,7 +99,7 @@ All constructors must be private, and because the admin is in public storage, we
 
 Therefore our constructor must call a public function by using `context.call_public_function()`. Paste this under the `impl` storage block:
 
-#include_code constructor yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code constructor noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 `context.call_public_function()` takes three arguments:
 
@@ -109,7 +109,7 @@ Therefore our constructor must call a public function by using `context.call_pub
 
 We now need to write the `_initialize()` function:
 
-#include_code initialize yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code initialize noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 This function takes the admin argument and writes it to the storage. We are also using this function to set the `voteEnded` boolean as false in the same way.
 
@@ -127,7 +127,7 @@ To ensure someone only votes once, we will create a nullifier as part of the fun
 
 Create a private function called `cast_vote`:
 
-#include_code cast_vote yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code cast_vote noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 In this function, we do not create a nullifier with the address directly. This would leak privacy as it would be easy to reverse-engineer. We must add some randomness or some form of secret, like [nullifier secrets](../../learn/concepts/accounts/keys.md#nullifier-secrets).
 
@@ -137,7 +137,7 @@ After pushing the nullifier, we update the `tally` to reflect this vote. As we k
 
 Create this new public function like this:
 
-#include_code add_to_tally_public yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code add_to_tally_public noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 The first thing we do here is assert that the vote has not ended.
 
@@ -149,7 +149,7 @@ The code after the assertion will only run if the assertion is true. In this sni
 
 We will create a function that anyone can call that will return the number of votes at a given vote Id. Paste this in your contract:
 
-#include_code get_vote yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code get_vote noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 We set it as `unconstrained` and do not annotate it because it is only reading from state. You can read more about unconstrained functions [here](../../learn/concepts/pxe/acir_simulator.md#unconstrained-functions).
 
@@ -159,7 +159,7 @@ To ensure that only an admin can end a voting period, we can use another `assert
 
 Paste this function in your contract:
 
-#include_code end_vote yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code end_vote noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 Here, we are asserting that the `msg_sender()` is equal to the admin stored in public state. We have to create an `AztecAddress` type from the `msg_sender()` in order to do a direct comparison.
 
@@ -169,7 +169,7 @@ Every Aztec contract that has storage must have a `compute_note_hash_and_nullifi
 
 At the end of the contract, paste this:
 
-#include_code compute_note_hash_and_nullifier yarn-project/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
 We can simply return `[0,0,0,0]` because we are not creating any notes in our contract.
 

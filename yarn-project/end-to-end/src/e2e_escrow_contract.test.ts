@@ -18,8 +18,8 @@ import {
   getContractInstanceFromDeployParams,
 } from '@aztec/aztec.js';
 import { computePartialAddress } from '@aztec/circuits.js';
-import { EscrowContract, EscrowContractArtifact } from '@aztec/noir-contracts/Escrow';
-import { TokenContract } from '@aztec/noir-contracts/Token';
+import { EscrowContract, EscrowContractArtifact } from '@aztec/noir-contracts.js/Escrow';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { setup } from './fixtures/utils.js';
 

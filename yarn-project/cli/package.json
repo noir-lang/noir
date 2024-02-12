@@ -42,7 +42,7 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
-    "@aztec/noir-contracts": "workspace:^",
+    "@aztec/noir-contracts.js": "workspace:^",
     "@aztec/types": "workspace:^",
     "@iarna/toml": "^2.2.5",
     "@libp2p/peer-id-factory": "^3.0.4",

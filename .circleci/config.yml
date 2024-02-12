@@ -356,6 +356,17 @@ jobs:
           name: "Build and test"
           command: build l1-contracts
 
+  noir-projects:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build noir-projects
+
   boxes-files:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1207,14 +1218,20 @@ workflows:
 
       - boxes-files: *defaults
 
+      - noir-projects:
+          requires:
+            - avm-transpiler
+            - noir-ecr-manifest
+          <<: *defaults
+
       # Yarn Project
       - yarn-project-base:
           requires:
             - avm-transpiler
             - l1-contracts
             - bb-js
-            - noir-ecr-manifest
             - noir-packages
+            - noir-projects
             - boxes-files
           <<: *defaults
       - yarn-project:

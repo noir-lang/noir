@@ -8,7 +8,7 @@ import {
   createPXEClient,
   waitForPXE,
 } from '@aztec/aztec.js';
-import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
+import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
 const { PXE_URL = 'http://localhost:8080', ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 

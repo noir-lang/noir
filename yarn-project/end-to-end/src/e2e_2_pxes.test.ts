@@ -14,7 +14,7 @@ import {
   computeMessageSecretHash,
   retryUntil,
 } from '@aztec/aztec.js';
-import { ChildContract, TokenContract } from '@aztec/noir-contracts';
+import { ChildContract, TokenContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 

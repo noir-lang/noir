@@ -48,8 +48,8 @@ Inside `uniswap/Nargo.toml` paste this in `[dependencies]`:
 
 ```json
 [dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/authwit"}
+aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
+authwit = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/authwit"}
 ```
 
 ## L2 contracts
@@ -62,7 +62,7 @@ cd uniswap/src && touch util.nr && touch interfaces.nr
 
 Inside `interfaces.nr` paste this:
 
-#include_code interfaces yarn-project/noir-contracts/contracts/uniswap_contract/src/interfaces.nr rust
+#include_code interfaces noir-projects/noir-contracts/contracts/uniswap_contract/src/interfaces.nr rust
 
 This creates interfaces for the `Token` contract and `TokenBridge` contract
 

@@ -5,9 +5,9 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
 
 // These must match the values defined in:
-// - yarn-project/aztec-nr/aztec/src/entrypoint/app.nr
+// - noir-projects/aztec-nr/aztec/src/entrypoint/app.nr
 const ACCOUNT_MAX_CALLS = 4;
-// - and yarn-project/aztec-nr/aztec/src/entrypoint/fee.nr
+// - and noir-projects/aztec-nr/aztec/src/entrypoint/fee.nr
 const FEE_MAX_CALLS = 2;
 
 /** Encoded function call for account contract entrypoint */

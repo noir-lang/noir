@@ -16,29 +16,29 @@ There are generally 4 main components involved to make it easier to use a slow u
 
 This is the primary smart contract that will use the slow updates tree. In the example we use a [token with blacklisting features](./implement_slow_updates.md#exploring-an-example-integration-through-a-tokenblacklist-smart-contract).
 
-## Interface 
+## Interface
 
-This interface of the slow updates tree contract allows your contract to interact with the Slow Updates Tree contract. It provides methods for reading and updating values in the tree in both public and private contexts. You can find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_blacklist_contract/src/interfaces.nr).
+This interface of the slow updates tree contract allows your contract to interact with the Slow Updates Tree contract. It provides methods for reading and updating values in the tree in both public and private contexts. You can find it [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_blacklist_contract/src/interfaces.nr).
 
 ## SlowTree.nr contract
 
 This is a smart contract developed by Aztec that establishes and manages a slow updates tree structure. It allows developers to access and interact with the tree, such as reading and updating data.
 
-You can find it [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts/slow_tree_contract).
+You can find it [here](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts/slow_tree_contract).
 
 ## SlowMap type
 
-This is a type in the Aztec.nr library that is utilized by the SlowTree contract. It defines the underlying data structure for the slow updates tree, and handles storing both the current and pending values for each data entry. 
+This is a type in the Aztec.nr library that is utilized by the SlowTree contract. It defines the underlying data structure for the slow updates tree, and handles storing both the current and pending values for each data entry.
 
 You can find it [here](https://github.com/AztecProtocol/aztec-nr/blob/master/slow-updates-tree/src/slow_map.nr).
 
-The diagram below describes how these components work together. It does not contain all the functionality. 
+The diagram below describes how these components work together. It does not contain all the functionality.
 
 ```mermaid
 graph TD
     MSC[Main Smart Contract] --> INT[Interface]
     STC --> SMT
-    
+
     INT_RAP[read_at_pub] <--> STC_RAP[read_at_public]
     INT_RA[read_at] <--> STC_RA[read_at]
     INT_UAP[update_at_public] <--> STC_UAP[update_at_public]
@@ -46,21 +46,21 @@ graph TD
 
     STC_RA <--> VMP[verify_membership_proof]
     STC_UA <--> CR[compute_roots]
-    
+
     subgraph INT[Interface]
         INT_RAP
         INT_UAP
         INT_RA
         INT_UA
     end
-    
+
     subgraph STC[SlowTree.nr]
         STC_RAP
         STC_UAP
         STC_RA
         STC_UA
     end
-    
+
     subgraph SMT[SlowMap Type]
         Change{Epoch Over} -->|True| Current{Current}
         Change -->|False| Pending{Pending}

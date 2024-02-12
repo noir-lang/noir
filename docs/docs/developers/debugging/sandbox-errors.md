@@ -160,7 +160,7 @@ Circuits work by having a fixed size array. As such, we have limits on how many 
 - too many transient read requests in one tx
 - too many transient read request membership witnesses in one tx
 
-You can have a look at our current constants/limitations in [constants.nr](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-protocol-circuits/src/crates/types/src/constants.nr)
+You can have a look at our current constants/limitations in [constants.nr](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-protocol-circuits/src/crates/types/src/constants.nr)
 
 #### 7008 - MEMBERSHIP_CHECK_FAILED
 

@@ -1,18 +1,19 @@
 # Keys
 
 Typically, each account in Aztec is backed by two separate keys:
+
 - A **signing key** used for authenticating the owner of the account.
 - A **privacy master key** used for deriving encryption and nullifying keys for managing private state.
 
 ## Signing keys
 
-Signing keys allow their holder to act as their corresponding account in Aztec, similarly to the keys used for an Ethereum account. If a signing key is leaked, the user can potentially lose all their funds. 
+Signing keys allow their holder to act as their corresponding account in Aztec, similarly to the keys used for an Ethereum account. If a signing key is leaked, the user can potentially lose all their funds.
 
 Since Aztec implements full [signature abstraction](./main.md), signing keys depend on the account contract implementation for each user. Usually, an account contract will validate a signature of the incoming payload against a known public key.
 
 This is a snippet of our Schnorr Account contract implementation, which uses Schnorr signatures for authentication:
 
-#include_code entrypoint /yarn-project/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
+#include_code entrypoint /noir-projects/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
 
 Still, different accounts may use different signing schemes, may require multi-factor authentication, or _may not even use signing keys_ and instead rely on other authentication mechanisms. Read [how to write an account contract](../../../developers/contracts/writing_contracts/accounts/write_accounts_contract.md) for a full example of how to manage authentication.
 
@@ -65,13 +66,13 @@ A side effect of enshrining and encoding privacy keys into the account address i
 
 ### Encryption keys
 
-The privacy master key is used to derive encryption keys. Encryption keys, as their name implies, are used for encrypting private notes for a recipient, where the public key is used for encryption and the corresponding private key used for decryption. 
+The privacy master key is used to derive encryption keys. Encryption keys, as their name implies, are used for encrypting private notes for a recipient, where the public key is used for encryption and the corresponding private key used for decryption.
 
 In a future version, encryption keys will be differentiated between incoming and outgoing. When sending a note to another user, the sender will use the recipient's incoming encryption key for encrypting the data for them, and will optionally use their own outgoing encryption key for encrypting any data about the destination of that note. This is useful for reconstructing transaction history from on-chain data. For example, during a token transfer, the token contract may dictate that the sender encrypts the note with value with the recipient's incoming key, but also records the transfer with its own outgoing key for bookkeeping purposes.
 
 An application in Aztec.nr can access the encryption public key for a given address using the oracle call `get_public_key`, which you can then use for calls such as `emit_encrypted_log`:
 
-#include_code encrypted /yarn-project/aztec-nr/address-note/src/address_note.nr rust
+#include_code encrypted /noir-projects/aztec-nr/address-note/src/address_note.nr rust
 
 :::info
 In order to be able to provide the public encryption key for a given address, that public key needs to have been registered in advance. At the moment, there is no broadcasting mechanism for public keys, which means that you will need to manually register all addresses you intend to send encrypted notes to. You can do this via the `registerRecipient` method of the Private Execution Environment (PXE), callable either via aztec.js or the CLI.
@@ -84,7 +85,7 @@ In addition to deriving encryption keys, the privacy master key is used for deri
 
 An application in Aztec.nr can request a secret from the current user for computing the nullifier of a note via the `request_nullifier_secret_key` api:
 
-#include_code nullifier /yarn-project/aztec-nr/value-note/src/value_note.nr rust
+#include_code nullifier /noir-projects/aztec-nr/value-note/src/value_note.nr rust
 
 ### Scoped keys
 
@@ -100,7 +101,7 @@ In the case of nullifier secrets, there is also a security reason involved. Sinc
 
 ### Security considerations
 
-A leaked privacy master key means a loss of privacy for the affected user. An attacker who holds the privacy private key of a user can derive the encryption private keys to decrypt all past inbound and outbound private notes, and can derive the nullifier secrets to determine when these notes were consumed. 
+A leaked privacy master key means a loss of privacy for the affected user. An attacker who holds the privacy private key of a user can derive the encryption private keys to decrypt all past inbound and outbound private notes, and can derive the nullifier secrets to determine when these notes were consumed.
 
 Nevertheless, the attacker cannot steal the affected user's funds, since authentication and access control depend on the signing keys and are managed by the user's account contract.
 

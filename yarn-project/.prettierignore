@@ -1,9 +1,8 @@
 .yarn
 node_modules/
 dest/
-noir-contracts/**/*.json
+noir-contracts.js/**/*.json
 boxes/*/src/artifacts/*.json
 boxes/*/src/artifacts/*.ts
 boxes/*/src/contracts/target/*.json
-noir-protocol-circuits/src/target/*.json
 *.md

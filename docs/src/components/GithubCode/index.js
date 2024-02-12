@@ -12,7 +12,7 @@ import github from "prism-react-renderer/themes/github";
  * Inside a markdown file:
  *
  * import GithubCode from '../src/components/GithubCode';
- * <GithubCode owner="AztecProtocol" language="rust" repo="aztec-packages" branch="master" filePath="yarn-project/noir-contracts/contracts/token_contract/src/main.nr" startLine={2} endLine={30000} />
+ * <GithubCode owner="AztecProtocol" language="rust" repo="aztec-packages" branch="master" filePath="noir-projects/noir-contracts/contracts/token_contract/src/main.nr" startLine={2} endLine={30000} />
  */
 
 const GithubCode = ({

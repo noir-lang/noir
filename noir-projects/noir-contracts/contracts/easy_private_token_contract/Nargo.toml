@@ -1,0 +1,10 @@
+[package]
+name = "easy_private_token_contract"
+authors = [""]
+compiler_version = ">=0.18.0"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../aztec-nr/aztec" }
+value_note = { path = "../../../aztec-nr/value-note" }
+easy_private_state = { path = "../../../aztec-nr/easy-private-state" }

@@ -11,7 +11,7 @@ import {
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
-import { TestContract, TokenContract } from '@aztec/noir-contracts';
+import { TestContract, TokenContract } from '@aztec/noir-contracts.js';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getAddress, getContract, parseEther } from 'viem';
 

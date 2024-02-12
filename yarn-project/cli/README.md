@@ -3,7 +3,9 @@
 The Aztec CLI `aztec-cli` is a command-line interface (CLI) tool for interacting with Aztec. It provides various commands for deploying contracts, creating accounts, interacting with contracts, and retrieving blockchain data.
 
 ## Installation
+
 1. In your terminal, download the sandbox by running
+
 ```
 bash -i <(curl -s install.aztec.network)
 ```
@@ -387,6 +389,7 @@ Syntax:
 ```shell
 aztec-cli get-logs --fromBlock <number>
 ```
+
 Options:
 
 - `-u, --rpc-url <string>`: URL of PXE Service. Default: `http://localhost:8080`.
@@ -420,7 +423,7 @@ This command retrieves and displays the current Aztec L2 block number.
 
 ### example-contracts
 
-Lists the contracts available in [@aztec/noir-contracts](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts)
+Lists the contracts available in [@aztec/noir-contracts](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-contracts)
 
 Syntax:
 

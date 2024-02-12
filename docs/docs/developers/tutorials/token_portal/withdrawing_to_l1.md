@@ -8,7 +8,7 @@ This is where we have tokens on Aztec and want to withdraw them back to L1 (i.e.
 
 Go back to your `main.nr` and paste this:
 
-#include_code exit_to_l1_public /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code exit_to_l1_public /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 For this to work we import the `get_withdraw_content_hash` helper function from the `token_portal_content_hash_lib`.
 
@@ -25,9 +25,9 @@ The `exit_to_l1_public` function enables anyone to withdraw their L2 tokens back
 
 This function works very similarly to the public version, except here we burn user’s private notes. Under the public function in your `main.nr`, paste this:
 
-#include_code exit_to_l1_private /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code exit_to_l1_private /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
-#include_code assert_token_is_same /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code assert_token_is_same /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 Since this is a private method, it can't read what token is publicly stored. So instead the user passes a token address, and `_assert_token_is_same()` checks that this user provided address is same as the one in storage.
 
@@ -42,6 +42,7 @@ For both the public and private flow, we use the same mechanism to determine the
 After the transaction is completed on L2, the portal must call the outbox to successfully transfer funds to the user on L1. Like with deposits, things can be complex here. For example, what happens if the transaction was done on L2 to burn tokens but can’t be withdrawn to L1? Then the funds are lost forever! How do we prevent this?
 
 Paste this in your `TokenPortal.sol`:
+
 ```solidity
 #include_code token_portal_withdraw /l1-contracts/test/portals/TokenPortal.sol raw
 }
@@ -57,15 +58,14 @@ Before we can compile and use the contract, we need to add two additional functi
 
 We need a function that lets us read the token value. Paste this into `main.nr`:
 
-#include_code read_token /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code read_token /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 And the `compute_note_hash_and_nullifier` required on every contract:
 
 ```rust
-#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
+#include_code compute_note_hash_and_nullifier_placeholder /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
 }
 ```
-
 
 ## Compile code
 

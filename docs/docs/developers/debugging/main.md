@@ -11,7 +11,7 @@ On this section you can learn how to debug your Aztec.nr smart contracts and com
 You can log statements from Aztec.nr contracts that will show ups in the Sandbox.
 
 **Import debug_log**
-Import the [`debug_log`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/oracle/debug_log.nr) dependency from Aztec oracles:
+Import the [`debug_log`](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/aztec-nr/aztec/src/oracle/debug_log.nr) dependency from Aztec oracles:
 
 ```rust
 use dep::aztec::oracle::debug_log::{ debug_log };

@@ -44,6 +44,7 @@ export async function updateAztecNr(contractPath: string, tag: string, log: LogF
       });
 
       dep.tag = tag;
+      dep.directory = dep.directory?.replace('yarn-project/', 'noir-projects/');
     }
   }
 

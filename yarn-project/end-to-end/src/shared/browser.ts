@@ -3,7 +3,7 @@ import * as AztecAccountsSchnorr from '@aztec/accounts/schnorr';
 import * as AztecAccountsSingleKey from '@aztec/accounts/single_key';
 import * as AztecAccountsTesting from '@aztec/accounts/testing';
 import * as AztecJs from '@aztec/aztec.js';
-import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
+import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
 import { Server } from 'http';
 import Koa from 'koa';

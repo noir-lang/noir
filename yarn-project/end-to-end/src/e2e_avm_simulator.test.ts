@@ -1,5 +1,5 @@
 import { DebugLogger, Fr, Wallet } from '@aztec/aztec.js';
-import { AvmTestContract } from '@aztec/noir-contracts';
+import { AvmTestContract } from '@aztec/noir-contracts.js';
 
 import { setup } from './fixtures/utils.js';
 

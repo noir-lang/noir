@@ -12,8 +12,8 @@ import {
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { decodeFunctionSignature } from '@aztec/foundation/abi';
-import { ReaderContract } from '@aztec/noir-contracts/Reader';
-import { TokenContract } from '@aztec/noir-contracts/Token';
+import { ReaderContract } from '@aztec/noir-contracts.js/Reader';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { jest } from '@jest/globals';
 

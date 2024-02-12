@@ -12,8 +12,8 @@ import {
   Schnorr,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { SchnorrHardcodedAccountContractArtifact } from '@aztec/noir-contracts/SchnorrHardcodedAccount';
-import { TokenContract } from '@aztec/noir-contracts/Token';
+import { SchnorrHardcodedAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrHardcodedAccount';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { setup } from '../fixtures/utils.js';
 

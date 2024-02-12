@@ -2,7 +2,7 @@
 title: Common Patterns and Anti-Patterns
 ---
 
-There are many common patterns have been devised by the Aztec core engineering team and the work of the external community as we build Aztec.nr contracts internally (see some of them [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts)).
+There are many common patterns have been devised by the Aztec core engineering team and the work of the external community as we build Aztec.nr contracts internally (see some of them [here](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts)).
 
 This doc aims to summarize some of them!
 
@@ -38,7 +38,7 @@ E.g. you don't want a user to subscribe once they have subscribed already. Or yo
 
 Emit a nullifier in your function. By adding this nullifier into the tree, you prevent another nullifier from being added again. This is also why in authwit, we emit a nullifier, to prevent someone from reusing their approval.
 
-#include_code assert_valid_authwit_public /yarn-project/aztec-nr/authwit/src/auth.nr rust
+#include_code assert_valid_authwit_public /noir-projects/aztec-nr/authwit/src/auth.nr rust
 
 Note be careful to ensure that the nullifier is not deterministic and that no one could do a preimage analysis attack. More in [the anti pattern section on deterministic nullifiers](#deterministic-nullifiers)
 
@@ -65,9 +65,9 @@ contract Bridge {
         amount: Field,
     ) -> Field {
         ...
-    #include_code call_assert_token_is_same /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
+    #include_code call_assert_token_is_same /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
     }
-    #include_code assert_token_is_same /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
+    #include_code assert_token_is_same /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
 }
 ```
 
@@ -76,6 +76,7 @@ This leaks information about the private function being called and the data whic
 :::
 
 ### Writing public storage from private
+
 When calling a private function, you can update public state by calling a public function.
 
 In this situation, try to mark the public function as `internal`. This ensures your flow works as intended and that no one can call the public function without going through the private function first!
@@ -118,18 +119,18 @@ Notes are hashed and stored in the merkle tree. While notes do have a header wit
 
 Hence, it's necessary to add a "randomness" field to your note to prevent such attacks.
 
-#include_code address_note_def yarn-project/aztec-nr/address-note/src/address_note.nr rust
+#include_code address_note_def noir-projects/aztec-nr/address-note/src/address_note.nr rust
 
 ### Working with `compute_note_hash_and_nullifier()`
 
 Currently, if you have storage defined, the compiler will error if you don't have a `compute_note_hash_and_nullifier()` defined. Without this, the PXE can't process encrypted events and discover your notes.
 
 If your contract doesn't have anything to do with notes (e.g. operates solely in the public domain), you can do the following:
-#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier_placeholder /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 Otherwise, you need this method to help the PXE with processing your notes. In our [demo token contract](../../../tutorials/writing_token_contract.md#compute_note_hash_and_nullifier), we work with 2 kinds of notes: `ValueNote` and `TransparentNote`. Hence this method must define how to work with both:
 
-#include_code compute_note_hash_and_nullifier /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### L1 -- L2 interactions
 
@@ -171,4 +172,4 @@ In the [Prevent the same user flow from happening twice using nullifier](#preven
 
 E.g. for a voting contract, if your nullifier simply emits just the `user_address`, then privacy can easily be leaked as nullifiers are deterministic (have no randomness), especially if there are few users of the contract. So you need some kind of randomness. You can add the user's secret key into the nullifier to add randomness. We call this "nullifier secrets" as explained [here](../../../../learn/concepts/accounts/keys.md#nullifier-secrets). E.g.:
 
-#include_code nullifier /yarn-project/aztec-nr/value-note/src/value_note.nr rust
+#include_code nullifier /noir-projects/aztec-nr/value-note/src/value_note.nr rust

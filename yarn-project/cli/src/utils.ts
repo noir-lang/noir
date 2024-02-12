@@ -96,11 +96,11 @@ export async function deployAztecContracts(
 }
 
 /**
- * Gets all contracts available in \@aztec/noir-contracts.
+ * Gets all contracts available in \@aztec/noir-contracts.js.
  * @returns The contract ABIs.
  */
 export async function getExampleContractArtifacts(): Promise<ArtifactsType> {
-  const imports: any = await import('@aztec/noir-contracts');
+  const imports: any = await import('@aztec/noir-contracts.js');
   return Object.fromEntries(Object.entries(imports).filter(([key]) => key.endsWith('Artifact'))) as any;
 }
 

@@ -28,7 +28,7 @@
       "path": "../noir-compiler"
     },
     {
-      "path": "../noir-protocol-circuits"
+      "path": "../noir-protocol-circuits-types"
     },
     {
       "path": "../protocol-contracts"
@@ -40,7 +40,7 @@
       "path": "../types"
     },
     {
-      "path": "../noir-contracts"
+      "path": "../noir-contracts.js"
     }
   ],
   "include": ["src"]

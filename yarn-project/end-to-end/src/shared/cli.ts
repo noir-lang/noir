@@ -120,7 +120,7 @@ export const cliTestSuite = (
 
     it.each([
       ['an example Token contract', 'TokenContractArtifact', '0'],
-      ['a Nargo artifact', '../noir-contracts/target/token_contract-Token.json', '1'],
+      ['a Nargo artifact', '../noir-contracts.js/artifacts/token_contract-Token.json', '1'],
     ])(
       'deploys %s & sends transactions',
       async (_, artifact, salt) => {

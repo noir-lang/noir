@@ -1,6 +1,6 @@
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { Contract, createPXEClient, loadContractArtifact } from '@aztec/aztec.js';
-import TokenContractJson from '@aztec/noir-contracts/target/token_contract-Token' assert { type: 'json' };
+import TokenContractJson from '@aztec/noir-contracts.js/artifacts/token_contract-Token' assert { type: 'json' };
 
 import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';

@@ -1,7 +1,0 @@
-{
-  "scripts": {
-    "build": "yarn clean && yarn build:contracts && tsc -b",
-    "build:contracts": "./scripts/compile.sh && ./scripts/transpile.sh && ./scripts/generate-types.sh",
-    "clean": "rm -rf ./dest .tsbuildinfo ./src ./target"
-  }
-}

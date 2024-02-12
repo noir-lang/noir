@@ -66,6 +66,40 @@ impl NoteInterface<N> for MyCustomNote {
 }
 ```
 
+## 0.24.0
+
+### [js] Importing contracts in JS
+
+`@aztec/noir-contracts` is now `@aztec/noir-contracts.js`. You'll need to update your package.json & imports.
+
+Before:
+
+```js
+import { TokenContract } from "@aztec/noir-contracts/Token";
+```
+
+Now:
+
+```js
+import { TokenContract } from "@aztec/noir-contracts.js/Token";
+```
+
+### [Aztec.nr] aztec-nr contracts location change in Nargo.toml
+
+Aztec contracts are now moved outside of the `yarn-project` folder and into `noir-projects`, so you need to update your imports.
+
+Before:
+
+```rust
+easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.23.0", directory = "yarn-project/noir-contracts/src/contracts/easy_private_token_contract"}
+```
+
+Now, update the `yarn-project` folder for `noir-projects`:
+
+```rust
+easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.24.0", directory = "noir-projects/noir-contracts/contracts/easy_private_token_contract"}
+```
+
 ## 0.22.0
 
 ### `Note::compute_note_hash` renamed to `Note::compute_note_content_hash`

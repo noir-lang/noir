@@ -51,7 +51,7 @@ import {
   StatefulTestContractArtifact,
   TestContractArtifact,
   TokenContractArtifact,
-} from '@aztec/noir-contracts';
+} from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';

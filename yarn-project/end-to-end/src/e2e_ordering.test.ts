@@ -1,7 +1,7 @@
 // Test suite for testing proper ordering of side effects
 import { Fr, FunctionSelector, PXE, TxStatus, Wallet, toBigIntBE } from '@aztec/aztec.js';
-import { ChildContract } from '@aztec/noir-contracts/Child';
-import { ParentContract } from '@aztec/noir-contracts/Parent';
+import { ChildContract } from '@aztec/noir-contracts.js/Child';
+import { ParentContract } from '@aztec/noir-contracts.js/Parent';
 
 import { jest } from '@jest/globals';
 

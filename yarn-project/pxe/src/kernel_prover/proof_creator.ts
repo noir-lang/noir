@@ -13,7 +13,7 @@ import { siloCommitment } from '@aztec/circuits.js/abis';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
-import { executeInit, executeInner, executeTail } from '@aztec/noir-protocol-circuits';
+import { executeInit, executeInner, executeTail } from '@aztec/noir-protocol-circuits-types';
 
 /**
  * Represents the output of the proof creation process for init and inner private kernel circuit.

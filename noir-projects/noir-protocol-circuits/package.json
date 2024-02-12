@@ -1,0 +1,19 @@
+{
+  "name": "@aztec/noir-protocol-circuits",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./dest/index.js",
+    "./types": "./dest/types/index.js"
+  },
+  "scripts": {
+    "build": "yarn clean && yarn noir:build",
+    "clean": "rm -rf ./dest src/target",
+    "noir:build": "cd src && ../../../noir/target/release/nargo compile --silence-warnings",
+    "test": "cd src && ../../../../noir/target/release/nargo test"
+  },
+  "files": [
+    "dest",
+    "src"
+  ]
+}

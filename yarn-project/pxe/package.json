@@ -40,7 +40,7 @@
     "@aztec/key-store": "workspace:^",
     "@aztec/kv-store": "workspace:^",
     "@aztec/noir-compiler": "workspace:^",
-    "@aztec/noir-protocol-circuits": "workspace:^",
+    "@aztec/noir-protocol-circuits-types": "workspace:^",
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/simulator": "workspace:^",
     "@aztec/types": "workspace:^",
@@ -52,7 +52,7 @@
     "viem": "^1.2.5"
   },
   "devDependencies": {
-    "@aztec/noir-contracts": "workspace:^",
+    "@aztec/noir-contracts.js": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "@types/lodash.omit": "^4.5.7",

@@ -1,5 +1,5 @@
 import { TxStatus, Wallet } from '@aztec/aztec.js';
-import { DocsExampleContract } from '@aztec/noir-contracts';
+import { DocsExampleContract } from '@aztec/noir-contracts.js';
 
 import { setup } from './fixtures/utils.js';
 

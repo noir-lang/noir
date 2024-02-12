@@ -1,9 +1,0 @@
-[package]
-name = "escrow_contract"
-authors = [""]
-compiler_version = ">=0.18.0"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../aztec-nr/aztec" }
-address_note = { path = "../../../aztec-nr/address-note"}

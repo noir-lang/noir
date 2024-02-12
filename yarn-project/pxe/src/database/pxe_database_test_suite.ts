@@ -2,7 +2,7 @@ import { INITIAL_L2_BLOCK_NUM, NoteFilter, NoteStatus, randomTxHash } from '@azt
 import { AztecAddress, CompleteAddress } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/factories';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { BenchmarkingContractArtifact } from '@aztec/noir-contracts/Benchmarking';
+import { BenchmarkingContractArtifact } from '@aztec/noir-contracts.js/Benchmarking';
 import { SerializableContractInstance } from '@aztec/types/contracts';
 
 import { NoteDao } from './note_dao.js';

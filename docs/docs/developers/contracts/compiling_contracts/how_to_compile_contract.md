@@ -30,7 +30,7 @@ To generate them, include a `--ts` option in the `codegen` command with a path t
 aztec-cli codegen ./aztec-nargo/output/target/path -o src/artifacts --ts
 ```
 
-Below is typescript code generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) contract:
+Below is typescript code generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) contract:
 
 ```ts showLineNumbers
 export class TokenContract extends ContractBase {
@@ -127,7 +127,7 @@ To generate them, include a `--nr` option in the `codegen` command with a path t
 aztec-cli codegen ./aztec-nargo/output/target/path -o ./path/to/output/folder --nr
 ```
 
-Below is an example interface, also generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) contract:
+Below is an example interface, also generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) contract:
 
 ```rust
 impl TokenPrivateContextInterface {

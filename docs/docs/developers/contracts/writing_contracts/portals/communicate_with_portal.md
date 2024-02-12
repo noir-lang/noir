@@ -17,7 +17,7 @@ When sending messages, we need to specify quite a bit of information beyond just
 | Name        | Type                | Description                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ----------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Recipient   | `L2Actor`           | The message recipient. This **MUST** match the rollup version and an Aztec contract that is **attached** to the contract making this call. If the recipient is not attached to the caller, the message cannot be consumed by it.                                                                                                                                                                                                                      |
-| Deadline    | `uint256`           | The deadline for the message to be consumed. If the message has not been removed from the `Inbox` and included in a rollup block by this point, it can be _canceled_ by the portal (the portal must implement logic to cancel).                                                                                                                                                                                                                      |
+| Deadline    | `uint256`           | The deadline for the message to be consumed. If the message has not been removed from the `Inbox` and included in a rollup block by this point, it can be _canceled_ by the portal (the portal must implement logic to cancel).                                                                                                                                                                                                                       |
 | Content     | `field` (~254 bits) | The content of the message. This is the data that will be passed to the recipient. The content is limited to be a single field. If the content is small enough it can just be passed along, otherwise it should be hashed and the hash passed along (you can use our [`Hash`](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/libraries/Hash.sol) utilities with `sha256ToField` functions)                         |
 | Secret Hash | `field` (~254 bits) | A hash of a secret that is used when consuming the message on L2. Keep this preimage a secret to make the consumption private. To consume the message the caller must know the pre-image (the value that was hashed) - so make sure your app keeps track of the pre-images! Use the [`computeMessageSecretHash`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/utils/secrets.ts) to compute it from a secret. |
 | Fee         | `uint64`            | The fee to the sequencer for including the message. This is the amount of ETH that the sequencer will receive for including the message. Note that it is not a full `uint256` but only `uint64`                                                                                                                                                                                                                                                       |
@@ -39,17 +39,17 @@ To consume the message, we can use the `consume_l1_to_l2_message` function withi
 Note that while the `secret` and the `content` are both hashed, they are actually hashed with different hash functions!
 :::
 
-#include_code context_consume_l1_to_l2_message /yarn-project/aztec-nr/aztec/src/context/private_context.nr rust
+#include_code context_consume_l1_to_l2_message /noir-projects/aztec-nr/aztec/src/context/private_context.nr rust
 
-Computing the `content` must be done manually in its current form, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_bridge_contract/src/util.nr).
+Computing the `content` must be done manually in its current form, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_bridge_contract/src/util.nr).
 
-#include_code claim_public /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code claim_public /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 :::info
 The `content_hash` is a sha256 truncated to a field element (~ 254 bits). In Aztec-nr, you can use our `sha256_to_field()` to do a sha256 hash which fits in one field element
 :::
 
-#include_code mint_public_content_hash_nr /yarn-project/noir-contracts/contracts/token_portal_content_hash_lib/src/lib.nr rust
+#include_code mint_public_content_hash_nr /noir-projects/noir-contracts/contracts/token_portal_content_hash_lib/src/lib.nr rust
 
 In Solidity, you can use our `Hash.sha256ToField()` method:
 
@@ -75,7 +75,7 @@ The portal must ensure that the sender is as expected. One way to do this is to 
 
 To send a message to L1 from your Aztec contract, you must use the `message_portal` function on the `context`. When messaging to L1, only the `content` is required (as a `Field`).
 
-#include_code context_message_portal /yarn-project/aztec-nr/aztec/src/context/private_context.nr rust
+#include_code context_message_portal /noir-projects/aztec-nr/aztec/src/context/private_context.nr rust
 
 When sending a message from L2 to L1 we don't need to pass recipient, deadline, secret nor fees. Recipient is populated with the attached portal and the remaining values are not needed as the message is inserted into the outbox at the same time as it was included in a block (for the inbox it could be inserted and then only included in rollup block later).
 
@@ -85,7 +85,7 @@ Access control on the L1 portal contract is essential to prevent consumption of 
 
 As earlier, we can use a token bridge as an example. In this case, we are burning tokens on L2 and sending a message to the portal to free them on L1.
 
-#include_code exit_to_l1_private yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code exit_to_l1_private noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 When the transaction is included in a rollup block the message will be inserted into the `Outbox`, where the recipient portal can consume it from. When consuming, the `msg.sender` must match the `recipient` meaning that only portal can actually consume the message.
 
@@ -175,7 +175,7 @@ bytes memory message = abi.encodeWithSignature(
 
 This way, the message can be consumed by the portal contract, but only if the caller is the designated caller. By being a bit clever when specifying the designated caller, we can ensure that the calls are done in the correct order. For the Uniswap example, say that we have token portals implemented as we have done throughout this page, and a Uniswap portal implementing the designated caller.
 
-We require that the Uniswap portal is the caller of the withdrawal, and that the uniswap portal implementation is executing the withdrawal before the swap.  
+We require that the Uniswap portal is the caller of the withdrawal, and that the uniswap portal implementation is executing the withdrawal before the swap.
 The order of execution can be constrained in the contract. Since all of the messages are emitted to L1 in the same transaction, we can leverage transaction atomicity to ensure success of failure of all messages.
 
 Note, that crossing the L1/L2 chasm is asynchronous, so there could be a situation where the user has burned their assets on L2 but the swap fails on L1! This could be due to major price movements or the like. In such a case, the user could be stuck with funds on L1 that they cannot get back to L2 unless the portal contract implements a way to properly handle such errors.
@@ -188,4 +188,4 @@ Designated callers are enforced at the contract level for contracts that are not
 
 - Token bridge (Portal contract built for L1 -> L2, i.e., a non-native L2 asset)
   - [Portal contract](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/test/portals/TokenPortal.sol)
-  - [Aztec contract](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr)
+  - [Aztec contract](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr)

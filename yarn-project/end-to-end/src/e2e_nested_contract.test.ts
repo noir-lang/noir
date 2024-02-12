@@ -1,6 +1,6 @@
 import { AztecAddress, BatchCall, DebugLogger, Fr, PXE, Wallet, toBigIntBE } from '@aztec/aztec.js';
 import { getTestData, isGenerateTestDataEnabled } from '@aztec/foundation/testing';
-import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts';
+import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts.js';
 
 import { writeFileSync } from 'fs';
 
@@ -40,7 +40,7 @@ describe('e2e_nested_contract', () => {
           const privateKernelInputsInit = getTestData('private-kernel-inputs-init');
           const nestedCallPrivateKernelInput = privateKernelInputsInit[0];
           writeFileSync(
-            '../noir-protocol-circuits/src/fixtures/nested-call-private-kernel-init.hex',
+            '../noir-protocol-circuits-types/src/fixtures/nested-call-private-kernel-init.hex',
             nestedCallPrivateKernelInput.toBuffer().toString('hex'),
           );
         }
@@ -49,7 +49,7 @@ describe('e2e_nested_contract', () => {
           const privateKernelInputsInner = getTestData('private-kernel-inputs-inner');
           const nestedCallPrivateKernelInput = privateKernelInputsInner[privateKernelInputsInner.length - 1];
           writeFileSync(
-            '../noir-protocol-circuits/src/fixtures/nested-call-private-kernel-inner.hex',
+            '../noir-protocol-circuits-types/src/fixtures/nested-call-private-kernel-inner.hex',
             nestedCallPrivateKernelInput.toBuffer().toString('hex'),
           );
         }
@@ -58,7 +58,7 @@ describe('e2e_nested_contract', () => {
           const privateKernelInputsOrdering = getTestData('private-kernel-inputs-ordering');
           const nestedCallPrivateKernelInput = privateKernelInputsOrdering[0];
           writeFileSync(
-            '../noir-protocol-circuits/src/fixtures/nested-call-private-kernel-ordering.hex',
+            '../noir-protocol-circuits-types/src/fixtures/nested-call-private-kernel-ordering.hex',
             nestedCallPrivateKernelInput.toBuffer().toString('hex'),
           );
         }

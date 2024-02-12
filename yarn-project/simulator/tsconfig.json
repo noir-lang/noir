@@ -22,7 +22,7 @@
       "path": "../merkle-tree"
     },
     {
-      "path": "../noir-contracts"
+      "path": "../noir-contracts.js"
     }
   ],
   "include": ["src"]

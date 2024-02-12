@@ -3,7 +3,7 @@ import { CompleteAddress, FunctionData, Header } from '@aztec/circuits.js';
 import { FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
-import { StatefulTestContractArtifact } from '@aztec/noir-contracts/StatefulTest';
+import { StatefulTestContractArtifact } from '@aztec/noir-contracts.js/StatefulTest';
 
 import { mock } from 'jest-mock-extended';
 

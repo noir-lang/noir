@@ -8,23 +8,23 @@ In this step we will start writing our Aztec.nr bridge smart contract and write 
 
 In our `token-bridge` Aztec project in `aztec-contracts`, under `src` there is an example `main.nr` file. Paste this to define imports and initialize the constructor:
 
-#include_code token_bridge_imports /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code token_bridge_imports /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
-#include_code token_bridge_storage_and_constructor /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code token_bridge_storage_and_constructor /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 This imports Aztec-related dependencies and our helper file `token_interface.nr`.
 (The code above will give errors right now - this is because we haven't implemented util and token_interface yet.)
 
 In `token_interface.nr`, add this:
 
-#include_code token_bridge_token_interface /yarn-project/noir-contracts/contracts/token_bridge_contract/src/token_interface.nr rust
+#include_code token_bridge_token_interface /noir-projects/noir-contracts/contracts/token_bridge_contract/src/token_interface.nr rust
 
 ## Consume the L1 message
 
 In the previous step, we have moved our funds to the portal and created a L1->L2 message. Upon building the next rollup, the sequencer asks the inbox for any incoming messages and adds them to Aztec’s L1->L2 message tree, so an application on L2 can prove that the message exists and consumes it.
 
 In `main.nr`, now paste this `claim_public` function:
-#include_code claim_public /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code claim_public /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 The `claim_public` function enables anyone to consume the message on the user's behalf and mint tokens for them on L2. This is fine as the minting of tokens is done publicly anyway.
 
@@ -43,9 +43,9 @@ The `claim_public` function enables anyone to consume the message on the user's 
 
 Now we will create a function to mint the amount privately. Paste this into your `main.nr`
 
-#include_code claim_private /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code claim_private /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
-#include_code call_mint_on_token /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code call_mint_on_token /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 The `get_mint_private_content_hash` function is imported from the `token_portal_content_hash_lib`.
 

@@ -61,8 +61,8 @@ compiler_version = ">=0.18.0"
 type = "contract"
 
 [dependencies]
-aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-contracts/contracts/token_portal_content_hash_lib" }
+aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/aztec" }
+token_portal_content_hash_lib = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/noir-contracts/contracts/token_portal_content_hash_lib" }
 ```
 
 We will also be writing some helper functions that should exist elsewhere so we don't overcomplicated our contract. In `src` create two more files - one called `util.nr` and one called `token_interface` - so your dir structure should now look like this:
@@ -130,7 +130,7 @@ Inside the `packages` directory, run
 
 ```bash
 mkdir src && cd src && yarn init -yp
-yarn add typescript @aztec/aztec.js @aztec/accounts @aztec/noir-contracts @aztec/types @aztec/foundation @aztec/l1-artifacts viem@1.21.4 "@types/node@^20.8.2"
+yarn add typescript @aztec/aztec.js @aztec/accounts @aztec/noir-contracts.js @aztec/types @aztec/foundation @aztec/l1-artifacts viem@1.21.4 "@types/node@^20.8.2"
 yarn add -D jest @jest/globals ts-jest
 ```
 

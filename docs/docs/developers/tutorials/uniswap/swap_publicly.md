@@ -6,12 +6,12 @@ In this step we will create the flow for allowing a user to swap their tokens pu
 
 In `main.nr` paste this:
 
-#include_code swap_public yarn-project/noir-contracts/contracts/uniswap_contract/src/main.nr rust
+#include_code swap_public noir-projects/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 
 This uses a util function `compute_swap_public_content_hash()` - let's add that.
 
 In `util.nr`, add:
-#include_code uniswap_public_content_hash yarn-project/noir-contracts/contracts/uniswap_contract/src/util.nr rust
+#include_code uniswap_public_content_hash noir-projects/noir-contracts/contracts/uniswap_contract/src/util.nr rust
 
 **What’s happening here?**
 

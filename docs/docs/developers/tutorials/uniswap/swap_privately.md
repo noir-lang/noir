@@ -4,13 +4,13 @@ title: Swapping Privately
 
 In the `uniswap/src/main.nr` contract we created [previously](./l2_contract_setup.md) in `aztec-contracts/uniswap`, paste these functions:
 
-#include_code swap_private yarn-project/noir-contracts/contracts/uniswap_contract/src/main.nr rust
-#include_code assert_token_is_same yarn-project/noir-contracts/contracts/uniswap_contract/src/main.nr rust
+#include_code swap_private noir-projects/noir-contracts/contracts/uniswap_contract/src/main.nr rust
+#include_code assert_token_is_same noir-projects/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 
 This uses a util function `compute_swap_private_content_hash()` - let's add that.
 
 In `util.nr`, add:
-#include_code compute_swap_private_content_hash yarn-project/noir-contracts/contracts/uniswap_contract/src/util.nr rust
+#include_code compute_swap_private_content_hash noir-projects/noir-contracts/contracts/uniswap_contract/src/util.nr rust
 
 This flow works similarly to the public flow with a few notable changes:
 

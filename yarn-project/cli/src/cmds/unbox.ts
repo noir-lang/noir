@@ -63,8 +63,8 @@ export function unbox(boxName: string, directory: string | undefined, cliVersion
 function copyDependenciesToBox(dirName: string, destPath: string) {
   [
     'barretenberg/ts',
-    'yarn-project/aztec-nr',
-    'yarn-project/noir-protocol-circuits',
+    'aztec-nr',
+    'yarn-project/noir-protocol-circuits-types',
     'yarn-project/accounts',
     'yarn-project/aztec.js',
     'yarn-project/circuits.js',

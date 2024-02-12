@@ -1,5 +1,5 @@
 import { AztecAddress, Contract, loadContractArtifact } from '@aztec/aztec.js';
-import TokenContractJson from '@aztec/noir-contracts/target/token_contract-Token' assert { type: 'json' };
+import TokenContractJson from '@aztec/noir-contracts.js/artifacts/token_contract-Token' assert { type: 'json' };
 
 import { readFileSync } from 'fs';
 

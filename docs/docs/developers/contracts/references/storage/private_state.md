@@ -34,11 +34,11 @@ Notes are the fundamental elements in the private world.
 
 A note should implement the following traits:
 
-#include_code note_interface /yarn-project/aztec-nr/aztec/src/note/note_interface.nr rust
+#include_code note_interface /noir-projects/aztec-nr/aztec/src/note/note_interface.nr rust
 
-#include_code serialize /yarn-project/noir-protocol-circuits/src/crates/types/src/traits.nr rust
+#include_code serialize /noir-projects/noir-protocol-circuits/src/crates/types/src/traits.nr rust
 
-#include_code deserialize /yarn-project/noir-protocol-circuits/src/crates/types/src/traits.nr rust
+#include_code deserialize /noir-projects/noir-protocol-circuits/src/crates/types/src/traits.nr rust
 
 The interplay between a private state variable and its notes can be confusing. Here's a summary to aid intuition:
 
@@ -70,17 +70,17 @@ Interestingly, if a developer requires a private state to be modifiable by users
 
 Singleton is a private state variable that is unique in a way. When a Singleton is initialized, a note is created to represent its value. And the way to update the value is to destroy the current note, and create a new one with the updated value.
 
-Like for public state, we define the struct to have context and a storage slot. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr).
+Like for public state, we define the struct to have context and a storage slot. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/aztec-nr/aztec/src/state_vars/singleton.nr).
 
 An example of singleton usage in the account contracts is keeping track of public keys. The `Singleton` is added to the `Storage` struct as follows:
 
-#include_code storage-singleton-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-singleton-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `new`
 
 As part of the initialization of the `Storage` struct, the `Singleton` is created as follows at the specified storage slot.
 
-#include_code start_vars_singleton /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code start_vars_singleton /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `initialize`
 
@@ -102,9 +102,9 @@ Extend on what happens if you try to use non-initialized state.
 
 ### `is_initialized`
 
-An unconstrained method to check whether the Singleton has been initialized or not. It takes an optional owner and returns a boolean. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/singleton.nr).
+An unconstrained method to check whether the Singleton has been initialized or not. It takes an optional owner and returns a boolean. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/singleton.nr).
 
-#include_code singleton_is_initialized /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code singleton_is_initialized /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `replace`
 
@@ -112,7 +112,7 @@ To update the value of a `Singleton`, we can use the `replace` method. The metho
 
 An example of this is seen in a example card game, where we create a new note (a `CardNote`) containing some new data, and replace the current note with it:
 
-#include_code state_vars-SingletonReplace /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code state_vars-SingletonReplace /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 If two people are trying to modify the Singleton at the same time, only one will succeed as we don't allow duplicate nullifiers! Developers should put in place appropriate access controls to avoid race conditions (unless a race is intended!).
 
@@ -120,7 +120,7 @@ If two people are trying to modify the Singleton at the same time, only one will
 
 This function allows us to get the note of a Singleton, essentially reading the value.
 
-#include_code state_vars-SingletonGet /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code state_vars-SingletonGet /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 #### Nullifying Note reads
 
@@ -134,13 +134,13 @@ Functionally similar to [`get_note`](#get_note), but executed in unconstrained f
 
 ## `ImmutableSingleton<NoteType>`
 
-`ImmutableSingleton` represents a unique private state variable that, as the name suggests, is immutable. Once initialized, its value cannot be altered. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/immutable_singleton.nr).
+`ImmutableSingleton` represents a unique private state variable that, as the name suggests, is immutable. Once initialized, its value cannot be altered. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/immutable_singleton.nr).
 
 ### `new`
 
 As part of the initialization of the `Storage` struct, the `Singleton` is created as follows, here at storage slot 1.
 
-#include_code storage-immutable-singleton-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-immutable-singleton-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `initialize`
 
@@ -154,13 +154,13 @@ For example, if the storage slot depends on the an address then it is possible t
 
 Set the value of an ImmutableSingleton by calling the `initialize` method:
 
-#include_code initialize-immutable-singleton /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code initialize-immutable-singleton /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 Once initialized, an ImmutableSingleton's value remains unchangeable. This method can only be called once.
 
 ### `is_initialized`
 
-An unconstrained method to check if the ImmutableSingleton has been initialized. Takes an optional owner and returns a boolean. You can find the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/immutable_singleton.nr).
+An unconstrained method to check if the ImmutableSingleton has been initialized. Takes an optional owner and returns a boolean. You can find the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/immutable_singleton.nr).
 
 ### `get_note`
 
@@ -168,7 +168,7 @@ Similar to the `Singleton`, we can use the `get_note` method to read the value o
 
 Use this method to retrieve the value of an initialized ImmutableSingleton.
 
-#include_code get_note-immutable-singleton /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code get_note-immutable-singleton /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 Unlike a `Singleton`, the `get_note` function for an ImmutableSingleton doesn't nullify the current note in the background. This means that multiple accounts can concurrently call this function to read the value.
 
@@ -182,11 +182,11 @@ Functionally similar to `get_note`, but executed unconstrained and can be used b
 
 Set is used for managing a collection of notes. All notes in a Set are of the same `NoteType`. But whether these notes all belong to one entity, or are accessible and editable by different entities, is up to the developer. The set is a collection of notes inserted into the data-tree, but notes are never removed from the tree itself, they are only nullified.
 
-You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/state_vars/set.nr).
+You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/set.nr).
 
 And can be added to the `Storage` struct as follows. Here adding a set for a custom note, the TransparentNote (useful for [public -> private communication](../../writing_contracts/functions/call_functions.md)).
 
-#include_code storage-set-declaration /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-set-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `new`
 
@@ -194,7 +194,7 @@ The `new` method tells the contract how to operate on the underlying storage.
 
 We can initialize the set as follows:
 
-#include_code storage-set-init /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-set-init /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `insert`
 
@@ -202,7 +202,7 @@ Allows us to modify the storage by inserting a note into the set.
 
 A hash of the note will be generated, and inserted into the note hash tree, allowing us to later use in contract interactions. Recall that the content of the note should be shared with the owner to allow them to use it, as mentioned this can be done via an [encrypted log](../../writing_contracts/events/emit_event.md#encrypted-events), or offchain via web2, or completely offline.
 
-#include_code insert /yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+#include_code insert /noir-projects/aztec-nr/easy-private-state/src/easy_private_state.nr rust
 
 ### `insert_from_public`
 
@@ -210,7 +210,7 @@ The `insert_from_public` allow public function to insert notes into private stor
 
 The usage is similar to using the `insert` method with the difference that this one is called in public functions.
 
-#include_code insert_from_public /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code insert_from_public /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### `remove`
 
@@ -220,27 +220,27 @@ Nullifiers are emitted when reading values to make sure that they are up to date
 
 An example of how to use this operation is visible in the `easy_private_state`:
 
-#include_code remove /yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+#include_code remove /noir-projects/aztec-nr/easy-private-state/src/easy_private_state.nr rust
 
 ### `get_notes`
 
 This function returns the notes the account has access to.
 
-The kernel circuits are constrained to a maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/noir-protocol-circuits/src/crates/types/src/constants.nr) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
+The kernel circuits are constrained to a maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/src/crates/types/src/constants.nr) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
 
 Because of this limit, we should always consider using the second argument `NoteGetterOptions` to limit the number of notes we need to read and constrain in our programs. This is quite important as every extra call increases the time used to prove the program and we don't want to spend more time than necessary.
 
-An example of such options is using the [filter_notes_min_sum](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/value-note/src/filter.nr) to get "enough" notes to cover a given value. Essentially, this function will return just enough notes to cover the amount specified such that we don't need to read all our notes. For users with a lot of notes, this becomes increasingly important.
+An example of such options is using the [filter_notes_min_sum](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/value-note/src/filter.nr) to get "enough" notes to cover a given value. Essentially, this function will return just enough notes to cover the amount specified such that we don't need to read all our notes. For users with a lot of notes, this becomes increasingly important.
 
-#include_code get_notes /yarn-project/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+#include_code get_notes /noir-projects/aztec-nr/easy-private-state/src/easy_private_state.nr rust
 
 ### `view_notes`
 
 Functionally similar to [`get_notes`](#get_notes), but executed unconstrained and can be used by the wallet to fetch notes for use by front-ends etc.
 
-#include_code view_notes /yarn-project/aztec-nr/value-note/src/balance_utils.nr rust
+#include_code view_notes /noir-projects/aztec-nr/value-note/src/balance_utils.nr rust
 
-There's also a limit on the maximum number of notes that can be returned in one go. To find the current limit, refer to [this file](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/noir-protocol-circuits/src/crates/types/src/constants.nr) and look for `MAX_NOTES_PER_PAGE`.
+There's also a limit on the maximum number of notes that can be returned in one go. To find the current limit, refer to [this file](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/src/crates/types/src/constants.nr) and look for `MAX_NOTES_PER_PAGE`.
 
 The key distinction is that this method is unconstrained. It does not perform a check to verify if the notes actually exist, which is something the [`get_notes`](#get_notes) method does under the hood. Therefore, it should only be used in an unconstrained contract function.
 
@@ -250,7 +250,7 @@ This function requires a `NoteViewerOptions`. The `NoteViewerOptions` is essenti
 
 `NoteGetterOptions` encapsulates a set of configurable options for filtering and retrieving a selection of notes from a [data oracle](../../writing_contracts/oracles/main.md). Developers can design instances of `NoteGetterOptions`, to determine how notes should be filtered and returned to the functions of their smart contracts.
 
-You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/aztec-nr/aztec/src/note/note_getter_options.nr).
+You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/note/note_getter_options.nr).
 
 ### `selects: BoundedVec<Option<Select>, N>`
 
@@ -320,11 +320,11 @@ This method sets the status of notes to retrieve (active or nullified).
 
 The following code snippet creates an instance of `NoteGetterOptions`, which has been configured to find the cards that belong to `account_address`. The returned cards are sorted by their points in descending order, and the first `offset` cards with the highest points are skipped.
 
-#include_code state_vars-NoteGetterOptionsSelectSortOffset /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsSelectSortOffset /noir-projects/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 The first value of `.select` and `.sort` is the index of a field in a note type. For the note type `CardNote` that has the following fields:
 
-#include_code state_vars-CardNote /yarn-project/noir-contracts/contracts/docs_example_contract/src/types/card_note.nr rust
+#include_code state_vars-CardNote /noir-projects/noir-contracts/contracts/docs_example_contract/src/types/card_note.nr rust
 
 The indices are: 0 for `points`, 1 for `secret`, and 2 for `owner`.
 
@@ -334,21 +334,21 @@ In the example, `.select(2, account_address, Option::none())` matches the 2nd fi
 
 There can be as many conditions as the number of fields a note type has. The following example finds cards whose fields match the three given values:
 
-#include_code state_vars-NoteGetterOptionsMultiSelects /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsMultiSelects /noir-projects/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 While `selects` lets us find notes with specific values, `filter` lets us find notes in a more dynamic way. The function below picks the cards whose points are at least `min_points`, although this now can be done by using the select function with a GTE comparator:
 
-#include_code state_vars-OptionFilter /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-OptionFilter /noir-projects/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 We can use it as a filter to further reduce the number of the final notes:
 
-#include_code state_vars-NoteGetterOptionsFilter /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsFilter /noir-projects/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 One thing to remember is, `filter` will be applied on the notes after they are picked from the database, so it is more efficient to use select with comparators where possible. Another side effect of this is that it's possible that the actual notes we end up getting are fewer than the limit.
 
 The limit is `MAX_READ_REQUESTS_PER_CALL` by default. But we can set it to any value **smaller** than that:
 
-#include_code state_vars-NoteGetterOptionsPickOne /yarn-project/noir-contracts/contracts/docs_example_contract/src/options.nr rust
+#include_code state_vars-NoteGetterOptionsPickOne /noir-projects/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 
 #### Example 2
 
@@ -358,4 +358,4 @@ An example of how we can use a Comparator to select notes when calling a Noir co
 
 In this example, we use the above typescript code to invoke a call to our Noir contract below. This Noir contract function takes an input to match with, and a comparator to use when fetching and selecting notes from storage.
 
-#include_code state_vars-NoteGetterOptionsComparatorExampleNoir /yarn-project/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code state_vars-NoteGetterOptionsComparatorExampleNoir /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust

@@ -68,7 +68,7 @@ There are several optional arguments that can be passed:
 <Tabs groupId="deployment-methods">
 <TabItem value="cli" label="Aztec CLI">
 
-`aztec-cli deploy` takes 1 mandatory argument which is the path to the contract artifact file in a JSON format (e.g. `contracts/target/PrivateToken.json`). Alternatively you can pass the name of an example contract as exported by `@aztec/noir-contracts` (run `aztec-cli example-contracts` to see the full list of contracts available).
+`aztec-cli deploy` takes 1 mandatory argument which is the path to the contract artifact file in a JSON format (e.g. `contracts/target/PrivateToken.json`). Alternatively you can pass the name of an example contract as exported by `@aztec/noir-contracts.js` (run `aztec-cli example-contracts` to see the full list of contracts available).
 
 The command also takes the following optional arguments:
 
@@ -105,7 +105,7 @@ const tx = ExampleContract.deploy(pxe).send({
 
 ### Deploying token contract
 
-To give you a more complete example we will deploy a `Token` contract whose artifacts are included in the `@aztec/noir-contracts` package.
+To give you a more complete example we will deploy a `Token` contract whose artifacts are included in the `@aztec/noir-contracts.js` package.
 
 The contract has `admin` as a constructor argument.
 We will deploy the contract with the `aztec-cli` and pass the `admin` address as an argument.

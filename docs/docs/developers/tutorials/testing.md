@@ -12,7 +12,7 @@ Let's start with a simple example for a test using the [Sandbox](../sandbox/refe
 
 #include_code sandbox-example /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
-This test sets up the environment by creating a client to the Private Execution Environment (PXE) running on the Sandbox on port 8080. It then creates two new accounts, dubbed `owner` and `recipient`. Last, it deploys an instance of the [Token contract](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr), minting an initial 100 tokens to the owner.
+This test sets up the environment by creating a client to the Private Execution Environment (PXE) running on the Sandbox on port 8080. It then creates two new accounts, dubbed `owner` and `recipient`. Last, it deploys an instance of the [Token contract](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr), minting an initial 100 tokens to the owner.
 
 Once we have this setup, the test itself is simple. We check the balance of the `recipient` user to ensure it has no tokens, send and await a deployment transaction, and then check the balance again to ensure it was increased. Note that all numeric values are represented as [native bigints](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) to avoid loss of precision.
 
@@ -120,7 +120,7 @@ We can have private transactions that work fine locally, but are dropped by the 
 
 #### A public call fails locally
 
-Public function calls can be caught failing locally similar to how we catch private function calls. For this example, we use a [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) instead of a private one.
+Public function calls can be caught failing locally similar to how we catch private function calls. For this example, we use a [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) instead of a private one.
 
 :::info
 Keep in mind that public function calls behave as in EVM blockchains, in that they are executed by the sequencer and not locally. Local simulation helps alert the user of a potential failure, but the actual execution path of a public function call will depend on when it gets mined.
@@ -156,7 +156,7 @@ To query storage directly, you'll need to know the slot you want to access. This
 
 Private state in the Aztec Network is represented via sets of [private notes](../../learn/concepts/hybrid_state/main.md#private-state). In our token contract example, the balance of a user is represented as a set of unspent value notes, each with their own corresponding numeric value.
 
-#include_code value-note-def yarn-project/aztec-nr/value-note/src/value_note.nr rust
+#include_code value-note-def noir-projects/aztec-nr/value-note/src/value_note.nr rust
 
 We can query the Private eXecution Environment (PXE) for all notes encrypted for a given user in a contract slot. For this example, we'll get all notes encrypted for the `owner` user that are stored on the token contract address and on the slot we calculated earlier. To calculate the actual balance, we extract the `value` of each note, which is the first element, and sum them up.
 
@@ -164,7 +164,7 @@ We can query the Private eXecution Environment (PXE) for all notes encrypted for
 
 #### Querying public state
 
-[Public state](../../learn/concepts/hybrid_state/main.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/contracts/token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 6.
+[Public state](../../learn/concepts/hybrid_state/main.md#public-state) behaves as a key-value store, much like in the EVM. This scenario is much more straightforward, in that we can directly query the target slot and get the result back as a buffer. Note that we use the [`TokenContract`](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) in this example, which defines a mapping of public balances on slot 6.
 
 #include_code public-storage /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
@@ -190,7 +190,7 @@ The [`CheatCodes`](../sandbox/references/cheat_codes.md) class, which we used fo
 
 The `warp` method sets the time for next execution, both on L1 and L2. We can test this using an `isTimeEqual` function in a `Test` contract defined like the following:
 
-#include_code is-time-equal yarn-project/noir-contracts/contracts/test_contract/src/main.nr rust
+#include_code is-time-equal noir-projects/noir-contracts/contracts/test_contract/src/main.nr rust
 
 We can then call `warp` and rely on the `isTimeEqual` function to check that the timestamp was properly modified.
 

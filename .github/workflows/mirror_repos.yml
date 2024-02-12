@@ -45,14 +45,14 @@ jobs:
           token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
       - name: Push to aztec-nr repo
         run: |
-          SUBREPO_PATH=yarn-project/aztec-nr
+          SUBREPO_PATH=aztec-nr
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
 
           monorepo_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           # list all aztec-packages tags, take the "highest" version
           monorepo_tag="$(git tag --list aztec-packages-v* | sort --version-sort | tail -1)"
-          monorepo_protocol_circuits_path="yarn-project/noir-protocol-circuits"
+          monorepo_protocol_circuits_path="noir-packages/noir-protocol-circuits"
 
           # take all Nargo.toml files that reference noir-protocol-circuits
           nargo_files="$(find $SUBREPO_PATH -name 'Nargo.toml' | xargs grep --files-with-matches 'noir-protocol-circuits')"
@@ -60,7 +60,7 @@ jobs:
           # match lines like this:
           # protocol_types = { path = "../../noir-protocol-circuits/src/crates/types" }
           # and replace with
-          # protocol_types = { git="https://github.com/aztecprotocol/aztec-packages", tag="aztec-packages-v0.16.9", directory="yarn-project/noir-protocol-circuits/src/crates/types" }
+          # protocol_types = { git="https://github.com/aztecprotocol/aztec-packages", tag="aztec-packages-v0.16.9", directory="noir-projects/noir-protocol-circuits/src/crates/types" }
           for nargo_file in $nargo_files; do
             sed --regexp-extended --in-place \
               "s;path\s*=\s*\".*noir-protocol-circuits(.*)\";git=\"$monorepo_url\", tag=\"$monorepo_tag\", directory=\"$monorepo_protocol_circuits_path\1\";" \

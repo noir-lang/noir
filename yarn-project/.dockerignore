@@ -13,5 +13,5 @@
 
 ./accounts/src/artifacts
 
-noir-contracts/src
-noir-contracts/target
+noir-contracts.js/src
+noir-contracts.js/target

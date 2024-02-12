@@ -11,13 +11,7 @@ WORKDIR /usr/src/yarn-project
 ARG COMMIT_TAG=""
 RUN ./scripts/version_packages.sh
 # Productionify. See comment in yarn-project-base/Dockerfile.
-RUN yarn workspaces focus @aztec/cli @aztec/aztec @aztec/aztec-faucet @aztec/aztec.js --production && \
-  yarn cache clean && \
-  rm -rf /usr/src/barretenberg/ts/src && \
-  # TODO: Fix by extracting noir code out of yarn-project.
-  # This was just a "rm -rf ./**/src".
-  # Due to the mess of us needing to find noir code in noir-protocol-circuits/src/crates we have to do this...
-  find . -maxdepth 2 -name src -type d | grep -v "./noir-protocol-circuits" | xargs rm -rf
+RUN yarn workspaces focus @aztec/cli @aztec/aztec @aztec/aztec-faucet @aztec/aztec.js --production && yarn cache clean
 
 # We no longer need nargo.
 RUN rm -rf /usr/src/noir/target

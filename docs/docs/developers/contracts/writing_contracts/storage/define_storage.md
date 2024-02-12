@@ -24,7 +24,7 @@ If your contract uses storage (has Storage struct defined), you **MUST** include
 
 If you don't yet have any private state variables defined you can use this placeholder function:
 
-#include_code compute_note_hash_and_nullifier_placeholder /yarn-project/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
+#include_code compute_note_hash_and_nullifier_placeholder /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 :::
 
 Since Aztec.nr is written in Noir, which is state-less, we need to specify how the storage struct should be initialized to read and write data correctly. This is done by specifying an `init` function that is run in functions that rely on reading or altering the state variables. This `init` function must declare the Storage struct with an instantiation defining how variables are accessed and manipulated. The function MUST be called `init` for the Aztec.nr library to properly handle it (this will be relaxed in the future).

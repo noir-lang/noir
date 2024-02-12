@@ -8,7 +8,7 @@ import {
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
-import { executeBaseRollup, executeMergeRollup, executeRootRollup } from '@aztec/noir-protocol-circuits';
+import { executeBaseRollup, executeMergeRollup, executeRootRollup } from '@aztec/noir-protocol-circuits-types';
 
 import { RollupSimulator } from './index.js';
 

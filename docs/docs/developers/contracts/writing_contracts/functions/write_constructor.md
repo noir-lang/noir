@@ -30,7 +30,7 @@ fn constructor() {}
 
 Constructors are commonly used to set an admin, such as this example:
 
-#include_code constructor /yarn-project/noir-contracts/contracts/token_contract/src/main.nr rust
+#include_code constructor /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 Here, the constructor is calling a public function. It can also call a private function. Learn more about calling functions from functions [here](../functions/call_functions.md).
 

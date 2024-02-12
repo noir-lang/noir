@@ -8,9 +8,9 @@ major=${node_version%%.*}
 rest=${node_version#*.}
 minor=${rest%%.*}
 
-if (( major < 18 || ( major == 18 && minor < 19 ) )); then
-    echo "Node.js version is less than 18.19. Exiting."
-    exit 1
+if ((major < 18 || (major == 18 && minor < 19))); then
+  echo "Node.js version is less than 18.19. Exiting."
+  exit 1
 fi
 
 cd "$(dirname "$0")"
@@ -41,7 +41,7 @@ echo "Building noir compiler..."
 yarn workspace @aztec/noir-compiler build
 # Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
 echo "Building contracts from noir-contracts..."
-yarn workspace @aztec/noir-contracts build:contracts
+yarn workspace @aztec/noir-contracts.js build:contracts
 # Bundle compiled contracts into other packages
 echo "Copying account contracts..."
 yarn workspace @aztec/accounts build:copy-contracts
@@ -49,7 +49,7 @@ echo "Copying protocol contracts..."
 yarn workspace @aztec/protocol-contracts build:copy-contracts
 # Build protocol circuits. TODO: move pre yarn-project.
 echo "Building circuits from noir-protocol-circuits..."
-yarn workspace @aztec/noir-protocol-circuits build
+yarn workspace @aztec/noir-protocol-circuits-types build
 
 echo -e "\033[1mBuilding all packages...\033[0m"
 yarn build

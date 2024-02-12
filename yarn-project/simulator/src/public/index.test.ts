@@ -13,10 +13,10 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { ChildContractArtifact } from '@aztec/noir-contracts/Child';
-import { ParentContractArtifact } from '@aztec/noir-contracts/Parent';
-import { TestContractArtifact } from '@aztec/noir-contracts/Test';
-import { TokenContractArtifact } from '@aztec/noir-contracts/Token';
+import { ChildContractArtifact } from '@aztec/noir-contracts.js/Child';
+import { ParentContractArtifact } from '@aztec/noir-contracts.js/Parent';
+import { TestContractArtifact } from '@aztec/noir-contracts.js/Test';
+import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
