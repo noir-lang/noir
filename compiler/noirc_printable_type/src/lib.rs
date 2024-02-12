@@ -33,8 +33,8 @@ pub enum PrintableType {
         length: u64,
     },
     Function {
-        name: String,
-        arguments: Vec<(String, PrintableType)>,
+        arguments: Vec<PrintableType>,
+        return_type: Box<PrintableType>,
         env: Box<PrintableType>,
     },
     MutableReference {
@@ -178,11 +178,8 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function { name, arguments, .. }) => {
-            output.push_str(&format!(
-                "<<fn {name}({:?})>>",
-                arguments.iter().map(|(var_name, _)| { var_name })
-            ));
+        (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
+            output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
         }
         (_, PrintableType::MutableReference { .. }) => {
             output.push_str("<<mutable ref>>");
