@@ -10,7 +10,7 @@ Noir is in full-speed development. Things break fast, wild, and often. This page
 
 ### `backend encountered an error: libc++.so.1`
 
-Depending on your OS, you may encounter the following error when running `nargo prove`:
+Depending on your OS, you may encounter the following error when running `nargo prove` for the first time:
 
 ```text
 The backend encountered an error: "/home/codespace/.nargo/backends/acvm-backend-barretenberg/backend_binary: error while loading shared libraries: libc++.so.1: cannot open shared object file: No such file or directory\n"
