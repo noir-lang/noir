@@ -1562,7 +1562,7 @@ impl Type {
             Alias(def, args) => {
                 // We don't need to vecmap(args, follow_bindings) since we're recursively
                 // calling follow_bindings here already.
-                def.borrow().get_type(&args).follow_bindings()
+                def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
             TypeVariable(var, _) | NamedGeneric(var, _) => {
