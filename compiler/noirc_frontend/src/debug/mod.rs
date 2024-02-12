@@ -488,20 +488,20 @@ pub fn build_debug_crate_file() -> String {
 
             #[oracle(__debug_fn_enter)]
             unconstrained fn __debug_fn_enter_oracle(_fn_id: u32) {}
-            unconstrained fn __debug_fn_enter_inner(var_id: u32) {
-                __debug_fn_enter_oracle(var_id);
+            unconstrained fn __debug_fn_enter_inner(fn_id: u32) {
+                __debug_fn_enter_oracle(fn_id);
             }
-            pub fn __debug_fn_enter(var_id: u32) {
-                __debug_fn_enter_inner(var_id);
+            pub fn __debug_fn_enter(fn_id: u32) {
+                __debug_fn_enter_inner(fn_id);
             }
 
             #[oracle(__debug_fn_exit)]
             unconstrained fn __debug_fn_exit_oracle(_fn_id: u32) {}
-            unconstrained fn __debug_fn_exit_inner(var_id: u32) {
-                __debug_fn_exit_oracle(var_id);
+            unconstrained fn __debug_fn_exit_inner(fn_id: u32) {
+                __debug_fn_exit_oracle(fn_id);
             }
-            pub fn __debug_fn_exit(var_id: u32) {
-                __debug_fn_exit_inner(var_id);
+            pub fn __debug_fn_exit(fn_id: u32) {
+                __debug_fn_exit_inner(fn_id);
             }
 
             #[oracle(__debug_dereference_assign)]
