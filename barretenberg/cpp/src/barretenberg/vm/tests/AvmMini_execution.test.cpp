@@ -56,14 +56,14 @@ class AvmMiniExecutionTests : public ::testing::Test {
 // Parsing, trace generation and proving is verified.
 TEST_F(AvmMiniExecutionTests, basicAddReturn)
 {
-    std::string bytecode_hex = "00"        // ADD
-                               "01"        // U8
-                               "00000007"  // addr a 7
-                               "00000009"  // addr b 9
-                               "00000001"  // addr c 1
-                               "34"        // RETURN
-                               "00000000"  // ret offset 0
-                               "00000000"; // ret size 0
+    std::string bytecode_hex = to_hex(OpCode::ADD) +      // opcode ADD
+                               "01"                       // U8
+                               "00000007"                 // addr a 7
+                               "00000009"                 // addr b 9
+                               "00000001"                 // addr c 1
+                               + to_hex(OpCode::RETURN) + // opcode RETURN
+                               "00000000"                 // ret offset 0
+                               "00000000";                // ret size 0
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
@@ -92,22 +92,22 @@ TEST_F(AvmMiniExecutionTests, basicAddReturn)
 // Positive test for SET and SUB opcodes
 TEST_F(AvmMiniExecutionTests, setAndSubOpcodes)
 {
-    std::string bytecode_hex = "27"        // SET 39 = 0x27
-                               "02"        // U16
-                               "B813"      // val 47123
-                               "000000AA"  // dst_offset 170
-                               "27"        // SET 39 = 0x27
-                               "02"        // U16
-                               "9103"      // val 37123
-                               "00000033"  // dst_offset 51
-                               "01"        // SUB
-                               "02"        // U16
-                               "000000AA"  // addr a
-                               "00000033"  // addr b
-                               "00000001"  // addr c 1
-                               "34"        // RETURN
-                               "00000000"  // ret offset 0
-                               "00000000"; // ret size 0
+    std::string bytecode_hex = to_hex(OpCode::SET) +      // opcode SET
+                               "02"                       // U16
+                               "B813"                     // val 47123
+                               "000000AA"                 // dst_offset 170
+                               + to_hex(OpCode::SET) +    // opcode SET
+                               "02"                       // U16
+                               "9103"                     // val 37123
+                               "00000033"                 // dst_offset 51
+                               + to_hex(OpCode::SUB) +    // opcode SUB
+                               "02"                       // U16
+                               "000000AA"                 // addr a
+                               "00000033"                 // addr b
+                               "00000001"                 // addr c 1
+                               + to_hex(OpCode::RETURN) + // opcode RETURN
+                               "00000000"                 // ret offset 0
+                               "00000000";                // ret size 0
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
@@ -156,26 +156,26 @@ TEST_F(AvmMiniExecutionTests, setAndSubOpcodes)
 // the result at offset 1.
 TEST_F(AvmMiniExecutionTests, powerWithMulOpcodes)
 {
-    std::string bytecode_hex = "27"        // SET 39 = 0x27
-                               "04"        // U64
-                               "00000000"  // val 5 higher 32 bits
-                               "00000005"  // val 5 lower 32 bits
-                               "00000000"  // dst_offset 0
-                               "27"        // SET 39 = 0x27
-                               "04"        // U64
-                               "00000000"  // val 1 higher 32 bits
-                               "00000001"  // val 1 lower 32 bits
-                               "00000001"; // dst_offset 1
+    std::string bytecode_hex = to_hex(OpCode::SET) +   // opcode SET
+                               "04"                    // U64
+                               "00000000"              // val 5 higher 32 bits
+                               "00000005"              // val 5 lower 32 bits
+                               "00000000"              // dst_offset 0
+                               + to_hex(OpCode::SET) + // opcode SET
+                               "04"                    // U64
+                               "00000000"              // val 1 higher 32 bits
+                               "00000001"              // val 1 lower 32 bits
+                               "00000001";             // dst_offset 1
 
-    std::string const mul_hex = "02"        // MUL
-                                "04"        // U64
-                                "00000000"  // addr a
-                                "00000001"  // addr b
-                                "00000001"; // addr c 1
+    std::string const mul_hex = to_hex(OpCode::MUL) + // opcode MUL
+                                "04"                  // U64
+                                "00000000"            // addr a
+                                "00000001"            // addr b
+                                "00000001";           // addr c 1
 
-    std::string const ret_hex = "34"        // RETURN
-                                "00000000"  // ret offset 0
-                                "00000000"; // ret size 0
+    std::string const ret_hex = to_hex(OpCode::RETURN) + // opcode RETURN
+                                "00000000"               // ret offset 0
+                                "00000000";              // ret size 0
 
     for (int i = 0; i < 12; i++) {
         bytecode_hex.append(mul_hex);
@@ -232,25 +232,25 @@ TEST_F(AvmMiniExecutionTests, powerWithMulOpcodes)
 //                   0        1        2     3    4         5
 TEST_F(AvmMiniExecutionTests, simpleInternalCall)
 {
-    std::string bytecode_hex = "27"       // SET 39 = 0x27
-                               "03"       // U32
-                               "0D3D2518" // val 222111000 = 0xD3D2518
-                               "00000004" // dst_offset 4
-                               "25"       // INTERNALCALL 37
-                               "00000004" // jmp_dest
-                               "00"       // ADD
-                               "03"       // U32
-                               "00000004" // addr a 4
-                               "00000007" // addr b 7
-                               "00000009" // addr c9
-                               "34"       // RETURN
-                               "00000000" // ret offset 0
-                               "00000000" // ret size 0
-                               "27"       // SET 39 = 0x27
-                               "03"       // U32
-                               "075BCD15" // val 123456789 = 0x75BCD15
-                               "00000007" // dst_offset 7
-                               "26"       // INTERNALRETURN 38
+    std::string bytecode_hex = to_hex(OpCode::SET) +            // opcode SET
+                               "03"                             // U32
+                               "0D3D2518"                       // val 222111000 = 0xD3D2518
+                               "00000004"                       // dst_offset 4
+                               "25"                             // INTERNALCALL 37
+                               "00000004"                       // jmp_dest
+                               + to_hex(OpCode::ADD) +          // opcode ADD
+                               "03"                             // U32
+                               "00000004"                       // addr a 4
+                               "00000007"                       // addr b 7
+                               "00000009"                       // addr c9
+                               + to_hex(OpCode::RETURN) +       // opcode RETURN
+                               "00000000"                       // ret offset 0
+                               "00000000"                       // ret size 0
+                               + to_hex(OpCode::SET) +          // opcode SET
+                               "03"                             // U32
+                               "075BCD15"                       // val 123456789 = 0x75BCD15
+                               "00000007"                       // dst_offset 7
+                               + to_hex(OpCode::INTERNALRETURN) // opcode INTERNALRETURN
         ;
 
     auto bytecode = hex_to_bytes(bytecode_hex);
@@ -298,14 +298,14 @@ TEST_F(AvmMiniExecutionTests, simpleInternalCall)
 // BYTECODE(G): INTERNAL_CALL(6) SET(17,3) INTERNAL_CALL(4) INTERNAL_RETURN
 TEST_F(AvmMiniExecutionTests, nestedInternalCalls)
 {
-    auto internalCallHex = [](std::string const& dst_offset) {
-        return "25"
-               "000000" +
-               dst_offset;
+    auto internalCallInstructionHex = [](std::string const& dst_offset) {
+        return to_hex(OpCode::INTERNALCALL) // opcode INTERNALCALL
+               + "000000" + dst_offset;
     };
 
-    auto setHex = [](std::string const& val, std::string const& dst_offset) {
-        return "2701" // SET U8
+    auto setInstructionHex = [](std::string const& val, std::string const& dst_offset) {
+        return to_hex(OpCode::SET) // opcode SET
+               + "01"              // U8
                + val + "000000" + dst_offset;
     };
 
@@ -314,21 +314,18 @@ TEST_F(AvmMiniExecutionTests, nestedInternalCalls)
                                               "00000003"  // addr b 3
                                               "00000002"; // addr c 2
 
-    const std::string return_hex = "34"        // RETURN
-                                   "00000000"  // ret offset 0
-                                   "00000000"; // ret size 0
+    const std::string return_instruction_hex = to_hex(OpCode::RETURN) // opcode RETURN
+                                               + "00000000"           // ret offset 0
+                                                 "00000000";          // ret size 0
 
-    const std::string internal_ret_hex = "26";
-    const std::string add_hex = "00";
-    const std::string mul_hex = "02";
+    const std::string bytecode_f1 = to_hex(OpCode::ADD) + tag_address_arguments + to_hex(OpCode::INTERNALRETURN);
+    const std::string bytecode_f2 = to_hex(OpCode::MUL) + tag_address_arguments + to_hex(OpCode::INTERNALRETURN);
+    const std::string bytecode_g = internalCallInstructionHex("06") + setInstructionHex("11", "03") +
+                                   internalCallInstructionHex("04") + to_hex(OpCode::INTERNALRETURN);
 
-    const std::string bytecode_f1 = add_hex + tag_address_arguments + internal_ret_hex;
-    const std::string bytecode_f2 = mul_hex + tag_address_arguments + internal_ret_hex;
-    const std::string bytecode_g =
-        internalCallHex("06") + setHex("11", "03") + internalCallHex("04") + internal_ret_hex;
-
-    std::string bytecode_hex = setHex("04", "02") + setHex("07", "03") + internalCallHex("08") + return_hex +
-                               bytecode_f2 + bytecode_f1 + bytecode_g;
+    std::string bytecode_hex = setInstructionHex("04", "02") + setInstructionHex("07", "03") +
+                               internalCallInstructionHex("08") + return_instruction_hex + bytecode_f2 + bytecode_f1 +
+                               bytecode_g;
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
@@ -372,25 +369,25 @@ TEST_F(AvmMiniExecutionTests, nestedInternalCalls)
 //                        0         1    2    3     4
 TEST_F(AvmMiniExecutionTests, jumpAndCalldatacopy)
 {
-    std::string bytecode_hex = "1F"       // CALLDATACOPY 31 (no in_tag)
-                               "00000000" // cd_offset
-                               "00000002" // copy_size
-                               "0000000A" // dst_offset // M[10] = 13, M[11] = 156
-                               "23"       // JUMP 35
-                               "00000003" // jmp_dest (DIV located at 3)
-                               "01"       // SUB
-                               "06"       // FF
-                               "0000000B" // addr 11
-                               "0000000A" // addr 10
-                               "00000001" // addr c 1 (If executed would be 156 - 13 = 143)
-                               "03"       // DIV
-                               "06"       // FF
-                               "0000000B" // addr 11
-                               "0000000A" // addr 10
-                               "00000001" // addr c 1 (156 / 13 = 12)
-                               "34"       // RETURN
-                               "00000000" // ret offset 0
-                               "00000000" // ret size 0
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) + // opcode CALLDATACOPY (no in tag)
+                               "00000000"                     // cd_offset
+                               "00000002"                     // copy_size
+                               "0000000A"                     // dst_offset // M[10] = 13, M[11] = 156
+                               + to_hex(OpCode::JUMP) +       // opcode JUMP
+                               "00000003"                     // jmp_dest (DIV located at 3)
+                               + to_hex(OpCode::SUB) +        // opcode SUB
+                               "06"                           // FF
+                               "0000000B"                     // addr 11
+                               "0000000A"                     // addr 10
+                               "00000001"                     // addr c 1 (If executed would be 156 - 13 = 143)
+                               + to_hex(OpCode::DIV) +        // opcode DIV
+                               "06"                           // FF
+                               "0000000B"                     // addr 11
+                               "0000000A"                     // addr 10
+                               "00000001"                     // addr c 1 (156 / 13 = 12)
+                               + to_hex(OpCode::RETURN) +     // opcode RETURN
+                               "00000000"                     // ret offset 0
+                               "00000000"                     // ret size 0
         ;
 
     auto bytecode = hex_to_bytes(bytecode_hex);
@@ -436,14 +433,14 @@ TEST_F(AvmMiniExecutionTests, jumpAndCalldatacopy)
 // Negative test detecting an invalid opcode byte.
 TEST_F(AvmMiniExecutionTests, invalidOpcode)
 {
-    std::string bytecode_hex = "00"        // ADD
-                               "02"        // U16
-                               "00000007"  // addr a 7
-                               "00000009"  // addr b 9
-                               "00000001"  // addr c 1
-                               "AB"        // Invalid opcode byte
-                               "00000000"  // ret offset 0
-                               "00000000"; // ret size 0
+    std::string bytecode_hex = to_hex(OpCode::ADD) + // opcode ADD
+                               "02"                  // U16
+                               "00000007"            // addr a 7
+                               "00000009"            // addr b 9
+                               "00000001"            // addr c 1
+                               "AB"                  // Invalid opcode byte
+                               "00000000"            // ret offset 0
+                               "00000000";           // ret size 0
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     EXPECT_THROW_WITH_MESSAGE(Deserialization::parse(bytecode), "Invalid opcode");
@@ -452,14 +449,14 @@ TEST_F(AvmMiniExecutionTests, invalidOpcode)
 // Negative test detecting an invalid memmory instruction tag.
 TEST_F(AvmMiniExecutionTests, invalidInstructionTag)
 {
-    std::string bytecode_hex = "00"        // ADD
-                               "00"        // Wrong type
-                               "00000007"  // addr a 7
-                               "00000009"  // addr b 9
-                               "00000001"  // addr c 1
-                               "34"        // RETURN
-                               "00000000"  // ret offset 0
-                               "00000000"; // ret size 0
+    std::string bytecode_hex = to_hex(OpCode::ADD) +      // opcode ADD
+                               "00"                       // Wrong type
+                               "00000007"                 // addr a 7
+                               "00000009"                 // addr b 9
+                               "00000001"                 // addr c 1
+                               + to_hex(OpCode::RETURN) + // opcode RETURN
+                               "00000000"                 // ret offset 0
+                               "00000000";                // ret size 0
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     EXPECT_THROW_WITH_MESSAGE(Deserialization::parse(bytecode), "Instruction tag is invalid");
@@ -468,14 +465,14 @@ TEST_F(AvmMiniExecutionTests, invalidInstructionTag)
 // Negative test detecting SET opcode with instruction memory tag set to FF.
 TEST_F(AvmMiniExecutionTests, ffInstructionTagSetOpcode)
 {
-    std::string bytecode_hex = "00"        // ADD
-                               "05"        // U128
-                               "00000007"  // addr a 7
-                               "00000009"  // addr b 9
-                               "00000001"  // addr c 1
-                               "27"        // SET 39 = 0x27
-                               "06"        // tag FF
-                               "00002344"; //
+    std::string bytecode_hex = "00"                    // ADD
+                               "05"                    // U128
+                               "00000007"              // addr a 7
+                               "00000009"              // addr b 9
+                               "00000001"              // addr c 1
+                               + to_hex(OpCode::SET) + // opcode SET
+                               "06"                    // tag FF
+                               "00002344";             //
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     EXPECT_THROW_WITH_MESSAGE(Deserialization::parse(bytecode), "Instruction tag for SET opcode is invalid");
@@ -484,12 +481,12 @@ TEST_F(AvmMiniExecutionTests, ffInstructionTagSetOpcode)
 // Negative test detecting SET opcode without any operand.
 TEST_F(AvmMiniExecutionTests, SetOpcodeNoOperand)
 {
-    std::string bytecode_hex = "00"       // ADD
-                               "05"       // U128
-                               "00000007" // addr a 7
-                               "00000009" // addr b 9
-                               "00000001" // addr c 1
-                               "27";      // SET 39 = 0x27
+    std::string bytecode_hex = "00"                   // ADD
+                               "05"                   // U128
+                               "00000007"             // addr a 7
+                               "00000009"             // addr b 9
+                               "00000001"             // addr c 1
+                               + to_hex(OpCode::SET); // opcode SET
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     EXPECT_THROW_WITH_MESSAGE(Deserialization::parse(bytecode), "Operand for SET opcode is missing");
@@ -498,12 +495,12 @@ TEST_F(AvmMiniExecutionTests, SetOpcodeNoOperand)
 // Negative test detecting an incomplete instruction: missing instruction tag
 TEST_F(AvmMiniExecutionTests, truncatedInstructionNoTag)
 {
-    std::string bytecode_hex = "00"       // ADD
-                               "02"       // U16
-                               "00000007" // addr a 7
-                               "00000009" // addr b 9
-                               "00000001" // addr c 1
-                               "01";      // SUB
+    std::string bytecode_hex = to_hex(OpCode::ADD) +  // opcode ADD
+                               "02"                   // U16
+                               "00000007"             // addr a 7
+                               "00000009"             // addr b 9
+                               "00000001"             // addr c 1
+                               + to_hex(OpCode::SUB); // opcode SUB
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     EXPECT_THROW_WITH_MESSAGE(Deserialization::parse(bytecode), "Operand is missing");
@@ -512,15 +509,15 @@ TEST_F(AvmMiniExecutionTests, truncatedInstructionNoTag)
 // Negative test detecting an incomplete instruction: instruction tag present but an operand is missing
 TEST_F(AvmMiniExecutionTests, truncatedInstructionNoOperand)
 {
-    std::string bytecode_hex = "00"        // ADD
-                               "02"        // U16
-                               "00000007"  // addr a 7
-                               "00000009"  // addr b 9
-                               "00000001"  // addr c 1
-                               "01"        // SUB
-                               "04"        // U64
-                               "AB2373E7"  // addr a
-                               "FFFFFFBB"; // addr b and missing address for c = a-b
+    std::string bytecode_hex = to_hex(OpCode::ADD) +   // opcode ADD
+                               "02"                    // U16
+                               "00000007"              // addr a 7
+                               "00000009"              // addr b 9
+                               "00000001"              // addr c 1
+                               + to_hex(OpCode::SUB) + // opcode SUB
+                               "04"                    // U64
+                               "AB2373E7"              // addr a
+                               "FFFFFFBB";             // addr b and missing address for c = a-b
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     EXPECT_THROW_WITH_MESSAGE(Deserialization::parse(bytecode), "Operand is missing");
