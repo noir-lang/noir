@@ -51,6 +51,55 @@ If you are using the default proving backend with Noir, both even (e.g. _u2_, _i
 
 :::
 
+
+## 128 bits Unsigned Integers
+
+The built-in structure `U128` allows you to use 128-bit unsigned integers almost like a native integer type. However, there are some differences to keep in mind:
+- You cannot cast between a native integer and `U128`
+- There is a higher performance cost when using `U128`, compared to a native type.
+
+Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions.
+
+```rust
+fn main() {
+    let x = U128::from_integer(23);
+    let y = U128::from_hex("0x7");
+    let z = x + y;
+    assert(z.to_integer() == 30);
+}
+```
+
+`U128` is implemented with two 64 bits limbs, representing the low and high bits, which explains the performance cost. You should expect `U128` to be twice more costly for addition and four times more costly for multiplication.
+You can construct a U128 from its limbs:
+```rust
+fn main(x: u64, y: u64) {
+    let x = U128::from_u64s_be(x,y);
+    assert(z.hi == x as Field);
+    assert(z.lo == y as Field);
+}
+```
+
+Note that the limbs are stored as Field elements in order to avoid unnecessary conversions.
+Apart from this, most operations will work as usual:
+
+```rust
+fn main(x: U128, y: U128) {
+    // multiplication
+    let c = x * y;
+    // addition and subtraction
+    let c = c - x + y;
+    // division
+    let c = x / y;
+    // bit operation;
+    let c = x & y | y;
+    // bit shift
+    let c = x << y;
+    // comparisons;
+    let c = x < y;
+    let c = x == y;
+}
+```
+
 ## Overflows
 
 Computations that exceed the type boundaries will result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
@@ -108,6 +157,6 @@ Example of how it is used:
 use dep::std;
 
 fn main(x: u8, y: u8) -> pub u8 {
-    std::wrapping_add(x + y)
+    std::wrapping_add(x, y)
 }
 ```

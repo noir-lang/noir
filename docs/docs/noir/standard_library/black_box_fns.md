@@ -15,7 +15,7 @@ Here is a list of the current black box functions:
 - [SHA256](./cryptographic_primitives/hashes#sha256)
 - [Schnorr signature verification](./cryptographic_primitives/schnorr)
 - [Blake2s](./cryptographic_primitives/hashes#blake2s)
-- [Blake3](./cryptographic_primitives/hashes#blake2s)
+- [Blake3](./cryptographic_primitives/hashes#blake3)
 - [Pedersen Hash](./cryptographic_primitives/hashes#pedersen_hash)
 - [Pedersen Commitment](./cryptographic_primitives/hashes#pedersen_commitment)
 - [ECDSA signature verification](./cryptographic_primitives/ecdsa_sig_verification)

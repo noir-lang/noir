@@ -101,7 +101,7 @@ At this point in the tutorial, your folder structure should look like this:
 
 `npx create vite` is amazing but it creates a bunch of files we don't really need for our simple example. Actually, let's just delete everything except for `index.html`, `main.js` and `package.json`. I feel lighter already.
 
-![my heart is ready for you, noir.js](../../static/img/memes/titanic.jpeg)
+![my heart is ready for you, noir.js](@site/static/img/memes/titanic.jpeg)
 
 ## HTML
 
@@ -270,7 +270,7 @@ if (verification) display('logs', 'Verifying proof... ✅');
 
 You have successfully generated a client-side Noir web app!
 
-![coded app without math knowledge](../../static/img/memes/flextape.jpeg)
+![coded app without math knowledge](@site/static/img/memes/flextape.jpeg)
 
 ## Further Reading
 
