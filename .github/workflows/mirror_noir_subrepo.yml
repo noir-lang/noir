@@ -21,24 +21,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get noir master's last sync commit
-        id: last_merge_hash
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // NOTE: more robust heuristic needed if aztecbot opens different kinds of PRs
-            const response = await github.rest.search.commits({
-              q: 'author:AztecBot committer:web-flow repo:noir-lang/noir sort:committer-date'
-            });
-            console.log(response.data.items);
-            return response.data.items[0].sha;
-
       - name: Checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
-
 
       - name: Setup env
         run: |
@@ -55,7 +42,8 @@ jobs:
             LAST_MERGED_PR_HASH=`gh pr list --repo=noir-lang/noir --state merged --head aztec-packages --json headRefOid --jq=.[0].headRefOid`
             # Use a commit heuristic where we look at when .gitrepo first started to look at that commit state (through a push)
             COMMIT_HEURISTIC=$(git log -p -S"$LAST_MERGED_PR_HASH" --reverse --source --  noir/.gitrepo | grep -m 1 '^commit'  | awk '{print $2}' || true)
-            if [[ " $COMMIT_HEURISTIC" = "" ]] ; then
+            BASE_AZTEC_COMMIT=`git config --file=noir/.gitrepo subrepo.parent`
+            if [[ "$COMMIT_HEURISTIC" = "" ]] ; then
               # It it fails, just use our gitrepo parent commit (last time we pushed or pulled)
               COMMIT_HEURISTIC=$BASE_AZTEC_COMMIT
             fi
