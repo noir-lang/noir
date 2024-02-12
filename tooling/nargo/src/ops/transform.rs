@@ -1,4 +1,4 @@
-use acvm::ExpressionWidth;
+use acvm::acir::circuit::ExpressionWidth;
 use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
 

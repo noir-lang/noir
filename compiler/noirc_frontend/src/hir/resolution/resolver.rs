@@ -28,8 +28,8 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, NodeInterner, StmtId, StructId,
-    TraitId, TraitImplId, TraitMethodId,
+    DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
+    StructId, TraitId, TraitImplId, TraitMethodId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -93,8 +93,9 @@ pub struct Resolver<'a> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
-    /// If we're currently resolving fields in a struct type, this is set to that type.
-    current_struct_type: Option<StructId>,
+    /// The current dependency item we're resolving.
+    /// Used to link items to their dependencies in the dependency graph
+    current_item: Option<DependencyId>,
 
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
@@ -151,7 +152,7 @@ impl<'a> Resolver<'a> {
             errors: Vec::new(),
             lambda_stack: Vec::new(),
             current_trait_impl: None,
-            current_struct_type: None,
+            current_item: None,
             file,
             in_contract,
         }
@@ -188,6 +189,7 @@ impl<'a> Resolver<'a> {
         func_id: FuncId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
+        self.current_item = Some(DependencyId::Function(func_id));
 
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
@@ -342,21 +344,22 @@ impl<'a> Resolver<'a> {
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
         // We must first check whether an existing definition ID has been inserted as otherwise there will be multiple definitions for the same global statement.
         // This leads to an error in evaluation where the wrong definition ID is selected when evaluating a statement using the global. The check below prevents this error.
-        let mut stmt_id = None;
+        let mut global_id = None;
         let global = self.interner.get_all_globals();
-        for (global_stmt_id, global_info) in global {
+        for global_info in global {
             if global_info.ident == name
                 && global_info.local_id == self.path_resolver.local_module_id()
             {
-                stmt_id = Some(global_stmt_id);
+                global_id = Some(global_info.id);
             }
         }
 
-        let (ident, resolver_meta) = if let Some(id) = stmt_id {
-            let hir_let_stmt = self.interner.let_statement(&id);
-            let ident = hir_let_stmt.ident();
+        let (ident, resolver_meta) = if let Some(id) = global_id {
+            let global = self.interner.get_global(id);
+            let hir_ident = HirIdent::non_trait_method(global.definition_id, global.location);
+            let ident = hir_ident.clone();
             let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
-            (hir_let_stmt.ident(), resolver_meta)
+            (hir_ident, resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
             let id =
@@ -418,7 +421,7 @@ impl<'a> Resolver<'a> {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
             }
-            FunctionKind::Normal => {
+            FunctionKind::Normal | FunctionKind::Recursive => {
                 let expr_id = self.intern_block(func.def.body);
                 self.interner.push_expr_location(expr_id, func.def.span, self.file);
                 HirFunction::unchecked_from_expr(expr_id)
@@ -487,7 +490,7 @@ impl<'a> Resolver<'a> {
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args) => self.resolve_named_type(path, args, new_variables),
+            Named(path, args, _) => self.resolve_named_type(path, args, new_variables),
             TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
 
             Tuple(fields) => {
@@ -603,9 +606,9 @@ impl<'a> Resolver<'a> {
                     struct_type.borrow().to_string()
                 });
 
-                if let Some(current_struct) = self.current_struct_type {
+                if let Some(current_item) = self.current_item {
                     let dependency_id = struct_type.borrow().id;
-                    self.interner.add_type_dependency(current_struct, dependency_id);
+                    self.interner.add_type_dependency(current_item, dependency_id);
                 }
 
                 Type::Struct(struct_type, args)
@@ -660,10 +663,10 @@ impl<'a> Resolver<'a> {
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
             Ok(ModuleDefId::GlobalId(id)) => {
-                if let Some(current_struct) = self.current_struct_type {
-                    self.interner.add_type_global_dependency(current_struct, id);
+                if let Some(current_item) = self.current_item {
+                    self.interner.add_global_dependency(current_item, id);
                 }
-                Some(Type::Constant(self.eval_global_as_array_length(id)))
+                Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
         }
@@ -849,18 +852,20 @@ impl<'a> Resolver<'a> {
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        self.current_struct_type = Some(struct_id);
+        self.current_item = Some(DependencyId::Struct(struct_id));
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (generics, fields, self.errors)
     }
 
     fn resolve_local_globals(&mut self) {
-        for (stmt_id, global_info) in self.interner.get_all_globals() {
-            if global_info.local_id == self.path_resolver.local_module_id() {
-                let global_stmt = self.interner.let_statement(&stmt_id);
-                let definition = DefinitionKind::Global(global_stmt.expression);
-                self.add_global_variable_decl(global_info.ident, definition);
+        let globals = vecmap(self.interner.get_all_globals(), |global| {
+            (global.id, global.local_id, global.ident.clone())
+        });
+        for (id, local_module_id, name) in globals {
+            if local_module_id == self.path_resolver.local_module_id() {
+                let definition = DefinitionKind::Global(id);
+                self.add_global_variable_decl(name, definition);
             }
         }
     }
@@ -936,6 +941,12 @@ impl<'a> Resolver<'a> {
             && func.def.return_visibility == Visibility::Private
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
+        }
+        // '#[recursive]' attribute is only allowed for entry point functions
+        if !self.is_entry_point_function(func) && func.kind == FunctionKind::Recursive {
+            self.push_err(ResolverError::MisplacedRecursiveAttribute {
+                ident: func.name_ident().clone(),
+            });
         }
 
         if !self.distinct_allowed(func)
@@ -1124,9 +1135,15 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve_global_let(&mut self, let_stmt: crate::LetStatement) -> HirStatement {
-        let expression = self.resolve_expression(let_stmt.clone().expression);
-        let definition = DefinitionKind::Global(expression);
+    pub fn resolve_global_let(
+        &mut self,
+        let_stmt: crate::LetStatement,
+        global_id: GlobalId,
+    ) -> HirStatement {
+        self.current_item = Some(DependencyId::Global(global_id));
+        let expression = self.resolve_expression(let_stmt.expression);
+        let global_id = self.interner.next_global_id();
+        let definition = DefinitionKind::Global(global_id);
 
         HirStatement::Let(HirLetStatement {
             pattern: self.resolve_pattern(let_stmt.pattern, definition),
@@ -1407,6 +1424,10 @@ impl<'a> Resolver<'a> {
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
+                                if let Some(current_item) = self.current_item {
+                                    self.interner.add_function_dependency(current_item, id);
+                                }
+
                                 if self.interner.function_visibility(id)
                                     != FunctionVisibility::Public
                                 {
@@ -1425,7 +1446,11 @@ impl<'a> Resolver<'a> {
                                     );
                                 }
                             }
-                            DefinitionKind::Global(_) => {}
+                            DefinitionKind::Global(global_id) => {
+                                if let Some(current_item) = self.current_item {
+                                    self.interner.add_global_dependency(current_item, global_id);
+                                }
+                            }
                             DefinitionKind::GenericType(_) => {
                                 // Initialize numeric generics to a polymorphic integer type in case
                                 // they're used in expressions. We must do this here since the type
@@ -1597,7 +1622,7 @@ impl<'a> Resolver<'a> {
                 let id = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 HirPattern::Identifier(id)
             }
-            Pattern::Mutable(pattern, span) => {
+            Pattern::Mutable(pattern, span, _) => {
                 if let Some(first_mut) = mutable {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
@@ -1721,8 +1746,8 @@ impl<'a> Resolver<'a> {
         }
 
         if let Some(global) = TryFromModuleDefId::try_from(id) {
-            let let_stmt = self.interner.let_statement(&global);
-            return Ok(let_stmt.ident().id);
+            let global = self.interner.get_global(global);
+            return Ok(global.definition_id);
         }
 
         let expected = "global variable".into();
@@ -1846,7 +1871,7 @@ impl<'a> Resolver<'a> {
         }
 
         for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
-            if let UnresolvedTypeData::Named(constraint_path, _) = &typ.typ {
+            if let UnresolvedTypeData::Named(constraint_path, _, _) = &typ.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
                 if constraint_path.segments.len() == 1
                     && path.segments[0] != constraint_path.last_segment()
@@ -1904,10 +1929,11 @@ impl<'a> Resolver<'a> {
         self.interner.push_expr(hir_block)
     }
 
-    fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
-        let stmt = match self.interner.statement(&global) {
-            HirStatement::Let(let_expr) => let_expr,
-            _ => return 0,
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+        let Some(stmt) = self.interner.get_global_let_statement(global) else {
+            let path = path.clone();
+            self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+            return 0;
         };
 
         let length = stmt.expression;
@@ -2007,7 +2033,7 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
                 }
             }
-            UnresolvedTypeData::Named(path, generics) => {
+            UnresolvedTypeData::Named(path, generics, _) => {
                 // Since the type is named, we need to resolve it to see what it actually refers to
                 // in order to check whether it is valid. Since resolving it may lead to a
                 // resolution error, we have to truncate our error count to the previous count just

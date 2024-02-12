@@ -249,17 +249,21 @@ pub struct Program {
     pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
+    /// Indicates to a backend whether a SNARK-friendly prover should be used.  
+    pub recursive: bool,
     pub debug_variables: DebugVariables,
     pub debug_types: DebugTypes,
 }
 
 impl Program {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         functions: Vec<Function>,
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
         return_location: Option<Location>,
         return_visibility: Visibility,
+        recursive: bool,
         debug_variables: DebugVariables,
         debug_types: DebugTypes,
     ) -> Program {
@@ -269,6 +273,7 @@ impl Program {
             return_distinctness,
             return_location,
             return_visibility,
+            recursive,
             debug_variables,
             debug_types,
         }

@@ -5,8 +5,8 @@
     "private": true,
     "scripts": {
         "build": "echo Integration Test build step",
-        "test": "bash ./scripts/codegen-verifiers.sh && yarn test:browser && yarn test:node",
-        "test:node": "hardhat test test/node/**/*",
+        "test": "yarn test:browser && yarn test:node",
+        "test:node": "bash ./scripts/codegen-verifiers.sh && hardhat test test/node/**/*",
         "test:browser": "web-test-runner",
         "test:integration:browser": "web-test-runner test/browser/**/*.test.ts",
         "test:integration:browser:watch": "web-test-runner test/browser/**/*.test.ts --watch",

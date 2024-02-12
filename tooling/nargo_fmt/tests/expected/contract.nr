@@ -5,18 +5,14 @@
 contract Benchmarking {
     use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
 
-    use dep::value_note::{
-        utils::{increment, decrement},
-        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
-    };
+    use dep::value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods}};
 
     use dep::aztec::{
         context::{Context},
         note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        log::emit_unencrypted_log,
-        state_vars::{map::Map, public_state::PublicState, set::Set},
+        log::emit_unencrypted_log, state_vars::{map::Map, public_state::PublicState, set::Set},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
-        types::address::{AztecAddress},
+        types::address::{AztecAddress}
     };
 
     struct Storage {
@@ -27,8 +23,16 @@ contract Benchmarking {
     impl Storage {
         fn init(context: Context) -> pub Self {
             Storage {
-                notes: Map::new(context, 1, |context, slot| { Set::new(context, slot, ValueNoteMethods) }),
-                balances: Map::new(context, 2, |context, slot| { PublicState::new(context, slot, FieldSerializationMethods) }),
+                notes: Map::new(
+                    context,
+                    1,
+                    |context, slot| { Set::new(context, slot, ValueNoteMethods) }
+                ),
+                balances: Map::new(
+                    context,
+                    2,
+                    |context, slot| { PublicState::new(context, slot, FieldSerializationMethods) }
+                )
             }
         }
     }

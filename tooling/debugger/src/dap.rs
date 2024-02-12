@@ -18,12 +18,12 @@ use dap::requests::{Command, Request, SetBreakpointsArguments};
 use dap::responses::{
     ContinueResponse, DisassembleResponse, ResponseBody, ScopesResponse, SetBreakpointsResponse,
     SetExceptionBreakpointsResponse, SetInstructionBreakpointsResponse, StackTraceResponse,
-    ThreadsResponse,
+    ThreadsResponse, VariablesResponse,
 };
 use dap::server::Server;
 use dap::types::{
-    Breakpoint, DisassembledInstruction, Source, StackFrame, SteppingGranularity,
-    StoppedEventReason, Thread,
+    Breakpoint, DisassembledInstruction, Scope, Source, StackFrame, SteppingGranularity,
+    StoppedEventReason, Thread, Variable,
 };
 use nargo::artifacts::debug::DebugArtifact;
 
@@ -39,6 +39,22 @@ pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
     next_breakpoint_id: i64,
     instruction_breakpoints: Vec<(OpcodeLocation, i64)>,
     source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, i64)>>,
+}
+
+enum ScopeReferences {
+    Locals = 1,
+    WitnessMap = 2,
+    InvalidScope = 0,
+}
+
+impl From<i64> for ScopeReferences {
+    fn from(value: i64) -> Self {
+        match value {
+            1 => Self::Locals,
+            2 => Self::WitnessMap,
+            _ => Self::InvalidScope,
+        }
+    }
 }
 
 // BTreeMap<FileId, Vec<(usize, OpcodeLocation)>
@@ -132,7 +148,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             // source location to show when first starting the debugger, but
             // maybe the default behavior should be to start executing until the
             // first breakpoint set.
-            _ = self.context.next();
+            _ = self.context.next_into();
         }
 
         self.server.send_event(Event::Initialized)?;
@@ -176,7 +192,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
                     match granularity {
                         SteppingGranularity::Instruction => self.handle_step(req)?,
-                        _ => self.handle_next(req)?,
+                        _ => self.handle_next_into(req)?,
                     }
                 }
                 Command::StepOut(ref args) => {
@@ -184,7 +200,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
                     match granularity {
                         SteppingGranularity::Instruction => self.handle_step(req)?,
-                        _ => self.handle_next(req)?,
+                        _ => self.handle_next_out(req)?,
                     }
                 }
                 Command::Next(ref args) => {
@@ -192,18 +208,17 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         args.granularity.as_ref().unwrap_or(&SteppingGranularity::Statement);
                     match granularity {
                         SteppingGranularity::Instruction => self.handle_step(req)?,
-                        _ => self.handle_next(req)?,
+                        _ => self.handle_next_over(req)?,
                     }
                 }
                 Command::Continue(_) => {
                     self.handle_continue(req)?;
                 }
                 Command::Scopes(_) => {
-                    // FIXME: this needs a proper implementation when we can
-                    // show the parameters and variables
-                    self.server.respond(
-                        req.success(ResponseBody::Scopes(ScopesResponse { scopes: vec![] })),
-                    )?;
+                    self.handle_scopes(req)?;
+                }
+                Command::Variables(ref _args) => {
+                    self.handle_variables(req)?;
                 }
                 _ => {
                     eprintln!("ERROR: unhandled command: {:?}", req.command);
@@ -213,37 +228,38 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         Ok(())
     }
 
+    fn build_stack_trace(&self) -> Vec<StackFrame> {
+        self.context
+            .get_source_call_stack()
+            .iter()
+            .enumerate()
+            .map(|(index, (opcode_location, source_location))| {
+                let line_number =
+                    self.debug_artifact.location_line_number(*source_location).unwrap();
+                let column_number =
+                    self.debug_artifact.location_column_number(*source_location).unwrap();
+                StackFrame {
+                    id: index as i64,
+                    name: format!("frame #{index}"),
+                    source: Some(Source {
+                        path: self.debug_artifact.file_map[&source_location.file]
+                            .path
+                            .to_str()
+                            .map(String::from),
+                        ..Source::default()
+                    }),
+                    line: line_number as i64,
+                    column: column_number as i64,
+                    instruction_pointer_reference: Some(opcode_location.to_string()),
+                    ..StackFrame::default()
+                }
+            })
+            .rev()
+            .collect()
+    }
+
     fn handle_stack_trace(&mut self, req: Request) -> Result<(), ServerError> {
-        let opcode_location = self.context.get_current_opcode_location();
-        let source_location = self.context.get_current_source_location();
-        let frames = match source_location {
-            None => vec![],
-            Some(locations) => locations
-                .iter()
-                .enumerate()
-                .map(|(index, location)| {
-                    let line_number = self.debug_artifact.location_line_number(*location).unwrap();
-                    let column_number =
-                        self.debug_artifact.location_column_number(*location).unwrap();
-                    let ip_reference = opcode_location.map(|location| location.to_string());
-                    StackFrame {
-                        id: index as i64,
-                        name: format!("frame #{index}"),
-                        source: Some(Source {
-                            path: self.debug_artifact.file_map[&location.file]
-                                .path
-                                .to_str()
-                                .map(String::from),
-                            ..Source::default()
-                        }),
-                        line: line_number as i64,
-                        column: column_number as i64,
-                        instruction_pointer_reference: ip_reference,
-                        ..StackFrame::default()
-                    }
-                })
-                .collect(),
-        };
+        let frames = self.build_stack_trace();
         let total_frames = Some(frames.len() as i64);
         self.server.respond(req.success(ResponseBody::StackTrace(StackTraceResponse {
             stack_frames: frames,
@@ -315,9 +331,23 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         self.handle_execution_result(result)
     }
 
-    fn handle_next(&mut self, req: Request) -> Result<(), ServerError> {
-        let result = self.context.next();
-        eprintln!("INFO: stepped by statement with result {result:?}");
+    fn handle_next_into(&mut self, req: Request) -> Result<(), ServerError> {
+        let result = self.context.next_into();
+        eprintln!("INFO: stepped into by statement with result {result:?}");
+        self.server.respond(req.ack()?)?;
+        self.handle_execution_result(result)
+    }
+
+    fn handle_next_out(&mut self, req: Request) -> Result<(), ServerError> {
+        let result = self.context.next_out();
+        eprintln!("INFO: stepped out by statement with result {result:?}");
+        self.server.respond(req.ack()?)?;
+        self.handle_execution_result(result)
+    }
+
+    fn handle_next_over(&mut self, req: Request) -> Result<(), ServerError> {
+        let result = self.context.next_over();
+        eprintln!("INFO: stepped over by statement with result {result:?}");
         self.server.respond(req.ack()?)?;
         self.handle_execution_result(result)
     }
@@ -546,6 +576,73 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         self.server.respond(
             req.success(ResponseBody::SetBreakpoints(SetBreakpointsResponse { breakpoints })),
         )?;
+        Ok(())
+    }
+
+    fn handle_scopes(&mut self, req: Request) -> Result<(), ServerError> {
+        self.server.respond(req.success(ResponseBody::Scopes(ScopesResponse {
+            scopes: vec![
+                Scope {
+                    name: String::from("Locals"),
+                    variables_reference: ScopeReferences::Locals as i64,
+                    ..Scope::default()
+                },
+                Scope {
+                    name: String::from("Witness Map"),
+                    variables_reference: ScopeReferences::WitnessMap as i64,
+                    ..Scope::default()
+                },
+            ],
+        })))?;
+        Ok(())
+    }
+
+    fn build_local_variables(&self) -> Vec<Variable> {
+        let mut variables: Vec<_> = self
+            .context
+            .get_variables()
+            .iter()
+            .map(|(name, value, _var_type)| Variable {
+                name: String::from(*name),
+                value: format!("{:?}", *value),
+                ..Variable::default()
+            })
+            .collect();
+        variables.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
+        variables
+    }
+
+    fn build_witness_map(&self) -> Vec<Variable> {
+        self.context
+            .get_witness_map()
+            .clone()
+            .into_iter()
+            .map(|(witness, value)| Variable {
+                name: format!("_{}", witness.witness_index()),
+                value: format!("{value:?}"),
+                ..Variable::default()
+            })
+            .collect()
+    }
+
+    fn handle_variables(&mut self, req: Request) -> Result<(), ServerError> {
+        let Command::Variables(ref args) = req.command else {
+            unreachable!("handle_variables called on a different request");
+        };
+        let scope: ScopeReferences = args.variables_reference.into();
+        let variables: Vec<_> = match scope {
+            ScopeReferences::Locals => self.build_local_variables(),
+            ScopeReferences::WitnessMap => self.build_witness_map(),
+            _ => {
+                eprintln!(
+                    "handle_variables with an unknown variables_reference {}",
+                    args.variables_reference
+                );
+                vec![]
+            }
+        };
+        self.server
+            .respond(req.success(ResponseBody::Variables(VariablesResponse { variables })))?;
         Ok(())
     }
 }

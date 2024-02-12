@@ -4,4 +4,5 @@ fn main(x: Field) {
         x,
         1
     );
+    assert( x, message );
 }
