@@ -140,7 +140,7 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
 
     let new_contracts = kernel_data.new_contracts;
     calldata_hash_inputs[offset] = new_contracts[0].contract_address;
-    // TODO(#3938): make portal address 20 bytes here when updating the hashing
+
     calldata_hash_inputs[offset + 1] = new_contracts[0].portal_contract_address;
 
     offset += MAX_NEW_CONTRACTS_PER_TX * 2;
