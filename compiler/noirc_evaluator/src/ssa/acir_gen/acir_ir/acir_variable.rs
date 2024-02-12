@@ -1416,14 +1416,14 @@ impl AcirContext {
                 Ok(values)
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                Ok(try_vecmap(0..len, |i| {
+                try_vecmap(0..len, |i| {
                     let index_var = self.add_constant(i);
 
                     Ok::<(AcirVar, AcirType), InternalError>((
                         self.read_from_memory(block_id, &index_var)?,
                         AcirType::field(),
                     ))
-                })?)
+                })
             }
         }
     }
