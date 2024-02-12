@@ -48,7 +48,7 @@ impl NodeInterner {
         self.location_store.add_location(reference.1, reference_index);
     }
 
-    pub(crate) fn add_definiton(&mut self, referenced: (DependencyId, Location)) {
+    pub(crate) fn add_definition(&mut self, referenced: (DependencyId, Location)) {
         let referenced_index = self.get_or_insert_reference(referenced);
         self.location_store.add_location(referenced.1, referenced_index);
     }

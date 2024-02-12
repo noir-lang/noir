@@ -61,7 +61,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     /// This graph tracks dependencies between different global definitions.
-    /// This is used to ensure the absense of dependency cycles for globals and types.
+    /// This is used to ensure the absence of dependency cycles for globals and types.
     dependency_graph: DiGraph<DependencyId, ()>,
 
     /// To keep track of where each DependencyId is in `dependency_graph`, we need
@@ -800,7 +800,7 @@ impl NodeInterner {
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
         };
-        self.add_definiton((
+        self.add_definition((
             DependencyId::Function(id),
             Location::new(function.name.span(), location.file),
         ));
