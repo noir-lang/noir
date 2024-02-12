@@ -34,6 +34,7 @@ struct AcirFormat {
     std::vector<LogicConstraint> logic_constraints;
     std::vector<RangeConstraint> range_constraints;
     std::vector<Sha256Constraint> sha256_constraints;
+    std::vector<Sha256Compression> sha256_compression;
     std::vector<SchnorrConstraint> schnorr_constraints;
     std::vector<EcdsaSecp256k1Constraint> ecdsa_k1_constraints;
     std::vector<EcdsaSecp256r1Constraint> ecdsa_r1_constraints;
@@ -65,6 +66,7 @@ struct AcirFormat {
                    logic_constraints,
                    range_constraints,
                    sha256_constraints,
+                   sha256_compression,
                    schnorr_constraints,
                    ecdsa_k1_constraints,
                    ecdsa_r1_constraints,

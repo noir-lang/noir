@@ -32,6 +32,9 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
     for (const auto& constraint : constraint_system.sha256_constraints) {
         create_sha256_constraints(builder, constraint);
     }
+    for (const auto& constraint : constraint_system.sha256_compression) {
+        create_sha256_compression_constraints(builder, constraint);
+    }
 
     // Add schnorr constraints
     for (const auto& constraint : constraint_system.schnorr_constraints) {

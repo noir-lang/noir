@@ -139,6 +139,24 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, Aci
                                   }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::Sha256Compression>) {
+                af.sha256_compression.push_back(Sha256Compression{
+                    .inputs = map(arg.inputs,
+                                  [](auto& e) {
+                                      return Sha256Input{
+                                          .witness = e.witness.value,
+                                          .num_bits = e.num_bits,
+                                      };
+                                  }),
+                    .hash_values = map(arg.hash_values,
+                                       [](auto& e) {
+                                           return Sha256Input{
+                                               .witness = e.witness.value,
+                                               .num_bits = e.num_bits,
+                                           };
+                                       }),
+                    .result = map(arg.outputs, [](auto& e) { return e.value; }),
+                });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::Blake2s>) {
                 af.blake2s_constraints.push_back(Blake2sConstraint{
                     .inputs = map(arg.inputs,

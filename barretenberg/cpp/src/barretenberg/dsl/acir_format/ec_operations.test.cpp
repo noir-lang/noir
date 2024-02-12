@@ -54,6 +54,7 @@ TEST_F(EcOperations, TestECOperations)
         .logic_constraints = {},
         .range_constraints = {},
         .sha256_constraints = {},
+        .sha256_compression = {},
         .schnorr_constraints = {},
         .ecdsa_k1_constraints = {},
         .ecdsa_r1_constraints = {},
