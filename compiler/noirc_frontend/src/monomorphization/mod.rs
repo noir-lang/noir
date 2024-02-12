@@ -124,7 +124,7 @@ pub fn monomorphize_debug(
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_distinctness, return_visibility, .. } =
+    let FuncMeta { return_distinctness, return_visibility, kind, .. } =
         monomorphizer.interner.function_meta(&main);
 
     let (debug_variables, debug_types) = monomorphizer.debug_type_tracker.extract_vars_and_types();
@@ -134,6 +134,7 @@ pub fn monomorphize_debug(
         *return_distinctness,
         monomorphizer.return_location,
         *return_visibility,
+        *kind == FunctionKind::Recursive,
         debug_variables,
         debug_types,
     )
@@ -214,6 +215,9 @@ impl<'interner> Monomorphizer<'interner> {
                             FunctionAttribute::Oracle(name) => Definition::Oracle(name),
                             _ => unreachable!("Oracle function must have an oracle attribute"),
                         }
+                    }
+                    FunctionKind::Recursive => {
+                        unreachable!("Only main can be specified as recursive, which should already be checked");
                     }
                 }
             }
@@ -385,7 +389,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let rhs = self.expr(infix.rhs);
                 let operator = infix.operator.kind;
                 let location = self.interner.expr_location(&expr);
-
                 if self.interner.get_selected_impl_for_expression(expr).is_some() {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
@@ -727,7 +730,12 @@ impl<'interner> Monomorphizer<'interner> {
                     ident_expression
                 }
             }
-            DefinitionKind::Global(expr_id) => self.expr(*expr_id),
+            DefinitionKind::Global(global_id) => {
+                let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
+                    unreachable!("Globals should have a corresponding let statement by monomorphization")
+                };
+                self.expr(let_.expression)
+            }
             DefinitionKind::Local(_) => self.lookup_captured_expr(ident.id).unwrap_or_else(|| {
                 let ident = self.local_ident(&ident).unwrap();
                 ast::Expression::Ident(ident)

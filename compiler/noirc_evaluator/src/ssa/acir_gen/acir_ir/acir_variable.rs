@@ -11,7 +11,7 @@ use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
 use acvm::blackbox_solver;
-use acvm::brillig_vm::{brillig::Value, Registers, VMStatus, VM};
+use acvm::brillig_vm::{brillig::Value, VMStatus, VM};
 use acvm::{
     acir::{
         brillig::Opcode as BrilligOpcode,
@@ -319,6 +319,7 @@ impl AcirContext {
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
+            false,
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -631,18 +632,22 @@ impl AcirContext {
         bit_size: u32,
         predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
-        // lhs = rhs * q + r
-        //
-        // If predicate is zero, `q_witness` and `r_witness` will be 0
         let zero = self.add_constant(FieldElement::zero());
-        if self.var_to_expression(predicate)?.is_zero() {
-            return Ok((zero, zero));
-        }
+        let one = self.add_constant(FieldElement::one());
 
-        match (self.var_to_expression(lhs)?.to_const(), self.var_to_expression(rhs)?.to_const()) {
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+        let predicate_expr = self.var_to_expression(predicate)?;
+
+        match (lhs_expr.to_const(), rhs_expr.to_const(), predicate_expr.to_const()) {
+            // If predicate is zero, `quotient_var` and `remainder_var` will be 0.
+            (_, _, Some(predicate_const)) if predicate_const.is_zero() => {
+                return Ok((zero, zero));
+            }
+
             // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
-            (Some(lhs_const), Some(rhs_const)) if rhs_const != FieldElement::zero() => {
+            (Some(lhs_const), Some(rhs_const), _) if rhs_const != FieldElement::zero() => {
                 let quotient = lhs_const.to_u128() / rhs_const.to_u128();
                 let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
 
@@ -652,36 +657,29 @@ impl AcirContext {
             }
 
             // If `rhs` is one then the division is a noop.
-            (_, Some(rhs_const)) if rhs_const == FieldElement::one() => {
+            (_, Some(rhs_const), _) if rhs_const == FieldElement::one() => {
                 return Ok((lhs, zero));
             }
 
-            _ => (),
-        }
+            // After this point, we cannot perform the division at compile-time.
+            //
+            // We need to check that the rhs is not zero, otherwise when executing the brillig quotient,
+            // we may attempt to divide by zero and cause a VM panic.
+            //
+            // When the predicate is 0, the division always succeeds (as it is skipped).
+            // When the predicate is 1, the rhs must not be 0.
 
-        // Check that we the rhs is not zero.
-        // Otherwise, when executing the brillig quotient we may attempt to divide by zero, causing a VM panic.
-        //
-        // When the predicate is 0, the equation always passes.
-        // When the predicate is 1, the rhs must not be 0.
-        let one = self.add_constant(FieldElement::one());
+            // If the predicate is known to be active, we simply assert that an inverse must exist.
+            // This implies that `rhs != 0`.
+            (_, _, Some(predicate_const)) if predicate_const.is_one() => {
+                let _inverse = self.inv_var(rhs, one)?;
+            }
 
-        let rhs_expr = self.var_to_expression(rhs)?;
-        let rhs_is_nonzero_const = rhs_expr.is_const() && !rhs_expr.is_zero();
-        if !rhs_is_nonzero_const {
-            match self.var_to_expression(predicate)?.to_const() {
-                Some(predicate) if predicate.is_one() => {
-                    // If the predicate is known to be active, we simply assert that an inverse must exist.
-                    // This implies that `rhs != 0`.
-                    let _inverse = self.inv_var(rhs, one)?;
-                }
-
-                _ => {
-                    // Otherwise we must handle both potential cases.
-                    let rhs_is_zero = self.eq_var(rhs, zero)?;
-                    let rhs_is_not_zero = self.mul_var(rhs_is_zero, predicate)?;
-                    self.assert_eq_var(rhs_is_not_zero, zero, None)?;
-                }
+            // Otherwise we must handle both potential cases.
+            _ => {
+                let rhs_is_zero = self.eq_var(rhs, zero)?;
+                let rhs_is_zero_and_predicate_active = self.mul_var(rhs_is_zero, predicate)?;
+                self.assert_eq_var(rhs_is_zero_and_predicate_active, zero, None)?;
             }
         }
 
@@ -689,25 +687,13 @@ impl AcirContext {
         let mut max_q_bits = bit_size;
         let mut max_rhs_bits = bit_size;
         // when rhs is constant, we can better estimate the maximum bit sizes
-        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+        if let Some(rhs_const) = rhs_expr.to_const() {
             max_rhs_bits = rhs_const.num_bits();
             if max_rhs_bits != 0 {
                 if max_rhs_bits > bit_size {
                     return Ok((zero, zero));
                 }
                 max_q_bits = bit_size - max_rhs_bits + 1;
-            }
-        }
-
-        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
-        let mut avoid_overflow = false;
-        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
-            // q*b+r can overflow; we avoid this when b is constant
-            if self.var_to_expression(rhs)?.is_const() {
-                avoid_overflow = true;
-            } else {
-                // we do not support unbounded division
-                unreachable!("overflow in unbounded division");
             }
         }
 
@@ -721,6 +707,7 @@ impl AcirContext {
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
+                false,
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -761,7 +748,19 @@ impl AcirContext {
         let lhs_constraint = self.mul_var(lhs, predicate)?;
         self.assert_eq_var(lhs_constraint, rhs_constraint, None)?;
 
-        if let Some(rhs_const) = self.var_to_expression(rhs)?.to_const() {
+        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
+        let mut avoid_overflow = false;
+        if max_q_bits + max_rhs_bits >= FieldElement::max_num_bits() - 1 {
+            // q*b+r can overflow; we avoid this when b is constant
+            if rhs_expr.is_const() {
+                avoid_overflow = true;
+            } else {
+                // we do not support unbounded division
+                unreachable!("overflow in unbounded division");
+            }
+        }
+
+        if let Some(rhs_const) = rhs_expr.to_const() {
             if avoid_overflow {
                 // we compute q0 = p/rhs
                 let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
@@ -1199,7 +1198,7 @@ impl AcirContext {
                 (vec![state_len], Vec::new())
             }
             BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntNeg
+            | BlackBoxFunc::BigIntSub
             | BlackBoxFunc::BigIntMul
             | BlackBoxFunc::BigIntDiv => {
                 assert_eq!(inputs.len(), 4, "ICE - bigint operation requires 4 inputs");
@@ -1245,7 +1244,8 @@ impl AcirContext {
                 for i in const_inputs {
                     field_inputs.push(i?);
                 }
-                let modulus = self.big_int_ctx.modulus(field_inputs[0]);
+                let bigint = self.big_int_ctx.get(field_inputs[0]);
+                let modulus = self.big_int_ctx.modulus(bigint.modulus_id());
                 let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
                 output_count = bytes_len as usize;
                 (field_inputs, vec![FieldElement::from(bytes_len as u128)])
@@ -1441,6 +1441,7 @@ impl AcirContext {
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
         attempt_execution: bool,
+        unsafe_return_values: bool,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let b_inputs = try_vecmap(inputs, |i| -> Result<_, InternalError> {
             match i {
@@ -1452,10 +1453,8 @@ impl AcirContext {
                     }
                     Ok(BrilligInputs::Array(var_expressions))
                 }
-                AcirValue::DynamicArray(_) => {
-                    let mut var_expressions = Vec::new();
-                    self.brillig_array_input(&mut var_expressions, i)?;
-                    Ok(BrilligInputs::Array(var_expressions))
+                AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
+                    Ok(BrilligInputs::MemoryArray(block_id))
                 }
             }
         })?;
@@ -1515,10 +1514,13 @@ impl AcirContext {
             Ok(())
         }
 
-        for output_var in &outputs_var {
-            range_constraint_value(self, output_var)?;
+        // This is a hack to ensure that if we're compiling a brillig entrypoint function then
+        // we don't also add a number of range constraints.
+        if !unsafe_return_values {
+            for output_var in &outputs_var {
+                range_constraint_value(self, output_var)?;
+            }
         }
-
         Ok(outputs_var)
     }
 
@@ -1587,23 +1589,17 @@ impl AcirContext {
         inputs: &[BrilligInputs],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
-        let (registers, memory) = execute_brillig(code, inputs)?;
+        let mut memory = (execute_brillig(code, inputs)?).into_iter();
 
-        let outputs_var = vecmap(outputs_types.iter().enumerate(), |(index, output)| {
-            let register_value = registers.get(index.into());
-            match output {
-                AcirType::NumericType(_) => {
-                    let var = self.add_data(AcirVarData::Const(register_value.to_field()));
-                    AcirValue::Var(var, output.clone())
-                }
-                AcirType::Array(element_types, size) => {
-                    let mem_ptr = register_value.to_usize();
-                    self.brillig_constant_array_output(
-                        element_types,
-                        *size,
-                        &mut memory.iter().skip(mem_ptr),
-                    )
-                }
+        let outputs_var = vecmap(outputs_types.iter(), |output| match output {
+            AcirType::NumericType(_) => {
+                let var = self.add_data(AcirVarData::Const(
+                    memory.next().expect("Missing return data").to_field(),
+                ));
+                AcirValue::Var(var, output.clone())
+            }
+            AcirType::Array(element_types, size) => {
+                self.brillig_constant_array_output(element_types, *size, &mut memory)
             }
         });
 
@@ -1611,11 +1607,11 @@ impl AcirContext {
     }
 
     /// Recursively create [`AcirValue`]s for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn brillig_constant_array_output<'a>(
+    fn brillig_constant_array_output(
         &mut self,
         element_types: &[AcirType],
         size: usize,
-        memory_iter: &mut impl Iterator<Item = &'a Value>,
+        memory_iter: &mut impl Iterator<Item = Value>,
     ) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
@@ -1639,40 +1635,6 @@ impl AcirContext {
             }
         }
         AcirValue::Array(array_values)
-    }
-
-    /// Generate output variables that are constrained to be the sorted inputs
-    /// The outputs are the sorted inputs iff
-    /// outputs are sorted and
-    /// outputs are a permutation of the inputs
-    pub(crate) fn sort(
-        &mut self,
-        inputs: Vec<AcirVar>,
-        bit_size: u32,
-    ) -> Result<Vec<AcirVar>, RuntimeError> {
-        let len = inputs.len();
-        // Convert the inputs into expressions
-        let inputs_expr = try_vecmap(inputs, |input| self.var_to_expression(input))?;
-        // Generate output witnesses
-        let outputs_witness = vecmap(0..len, |_| self.acir_ir.next_witness_index());
-        let output_expr =
-            vecmap(&outputs_witness, |witness_index| Expression::from(*witness_index));
-        let outputs_var = vecmap(&outputs_witness, |witness_index| {
-            self.add_data(AcirVarData::Witness(*witness_index))
-        });
-
-        // Enforce the outputs to be a permutation of the inputs
-        self.acir_ir.permutation(&inputs_expr, &output_expr)?;
-
-        // Enforce the outputs to be sorted
-        let true_var = self.add_constant(true);
-        for i in 0..(outputs_var.len() - 1) {
-            let less_than_next_element =
-                self.more_than_eq_var(outputs_var[i + 1], outputs_var[i], bit_size)?;
-            self.assert_eq_var(less_than_next_element, true_var, None)?;
-        }
-
-        Ok(outputs_var)
     }
 
     /// Returns a Variable that is constrained to be the result of reading
@@ -1848,42 +1810,31 @@ pub(crate) struct AcirVar(usize);
 /// Returns the finished state of the Brillig VM if execution can complete.
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig(
-    code: &[BrilligOpcode],
-    inputs: &[BrilligInputs],
-) -> Option<(Registers, Vec<Value>)> {
+fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<Vec<Value>> {
     // Set input values
-    let mut input_register_values: Vec<Value> = Vec::with_capacity(inputs.len());
-    let mut input_memory: Vec<Value> = Vec::new();
+    let mut calldata: Vec<Value> = Vec::new();
+
     // Each input represents a constant or array of constants.
     // Iterate over each input and push it into registers and/or memory.
     for input in inputs {
         match input {
             BrilligInputs::Single(expr) => {
-                input_register_values.push(expr.to_const()?.into());
+                calldata.push(expr.to_const()?.into());
             }
             BrilligInputs::Array(expr_arr) => {
                 // Attempt to fetch all array input values
-                let memory_pointer = input_memory.len();
                 for expr in expr_arr.iter() {
-                    input_memory.push(expr.to_const()?.into());
+                    calldata.push(expr.to_const()?.into());
                 }
-
-                // Push value of the array pointer as a register
-                input_register_values.push(Value::from(memory_pointer));
+            }
+            BrilligInputs::MemoryArray(_) => {
+                return None;
             }
         }
     }
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(
-        input_registers,
-        input_memory,
-        code,
-        Vec::new(),
-        &blackbox_solver::StubbedBlackBoxSolver,
-    );
+    let mut vm = VM::new(calldata, code, Vec::new(), &blackbox_solver::StubbedBlackBoxSolver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();
@@ -1892,7 +1843,9 @@ fn execute_brillig(
     // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
     // If it's finished then we can omit the opcode and just write in the return values.
     match vm_status {
-        VMStatus::Finished => Some((vm.get_registers().clone(), vm.get_memory().to_vec())),
+        VMStatus::Finished { return_data_offset, return_data_size } => Some(
+            vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec(),
+        ),
         VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
         VMStatus::Failure { .. } => {
             // TODO: Return an error stating that the brillig function failed.

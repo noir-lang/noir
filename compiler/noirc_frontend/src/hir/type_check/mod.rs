@@ -15,7 +15,7 @@ pub use errors::TypeCheckError;
 
 use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement, traits::TraitConstraint},
-    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
+    node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
     Type,
 };
 
@@ -193,7 +193,10 @@ impl<'interner> TypeChecker<'interner> {
         (body_type, std::mem::take(&mut self.delayed_type_checks))
     }
 
-    pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
+    pub fn check_global(
+        id: GlobalId,
+        interner: &'interner mut NodeInterner,
+    ) -> Vec<TypeCheckError> {
         let mut this = Self {
             delayed_type_checks: Vec::new(),
             interner,
@@ -201,7 +204,8 @@ impl<'interner> TypeChecker<'interner> {
             trait_constraints: Vec::new(),
             current_function: None,
         };
-        this.check_statement(id);
+        let statement = this.interner.get_global(id).let_statement;
+        this.check_statement(&statement);
         this.errors
     }
 

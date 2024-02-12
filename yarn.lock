@@ -221,9 +221,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.16.0":
-  version: 0.16.0
-  resolution: "@aztec/bb.js@npm:0.16.0"
+"@aztec/bb.js@npm:0.23.0":
+  version: 0.23.0
+  resolution: "@aztec/bb.js@npm:0.23.0"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
@@ -231,21 +231,7 @@ __metadata:
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: 5f68b4ad16284a3a871e0ad21fea05aed670383bc639c9d07ab3bf9b7a9d15cc8a4e5cda404a9290775ad5023924739543a8aac37d602892dd1fb5087521970b
-  languageName: node
-  linkType: hard
-
-"@aztec/bb.js@npm:0.21.0":
-  version: 0.21.0
-  resolution: "@aztec/bb.js@npm:0.21.0"
-  dependencies:
-    comlink: ^4.4.1
-    commander: ^10.0.1
-    debug: ^4.3.4
-    tslib: ^2.4.0
-  bin:
-    bb.js: dest/node/main.js
-  checksum: a0fb97476f52025f3c31b7a5e890966ac375ed47c5cfd3434f5c3e4265af3c7566a162f37d6c56f394f44bfe4ba67e5002b7c5998ecc4f6abe70e04f5b8abe34
+  checksum: e7bd32a20575a2834fa8a0500becdfae88a8f4a031c0f1796713d64a8ec90e516e16360f19031efeec59d51ede78c50422982ee08911c062bfa3142819af01fc
   languageName: node
   linkType: hard
 
@@ -4175,30 +4161,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@monaco-editor/loader@npm:^1.4.0":
-  version: 1.4.0
-  resolution: "@monaco-editor/loader@npm:1.4.0"
-  dependencies:
-    state-local: ^1.0.6
-  peerDependencies:
-    monaco-editor: ">= 0.21.0 < 1"
-  checksum: 374ec0ea872ee15b33310e105a43217148161480d3955c5cece87d0f801754cd2c45a3f6c539a75da18a066c1615756fb87eaf1003f1df6a64a0cbce5d2c3749
-  languageName: node
-  linkType: hard
-
-"@monaco-editor/react@npm:4.6.0":
-  version: 4.6.0
-  resolution: "@monaco-editor/react@npm:4.6.0"
-  dependencies:
-    "@monaco-editor/loader": ^1.4.0
-  peerDependencies:
-    monaco-editor: ">= 0.25.0 < 1"
-    react: ^16.8.0 || ^17.0.0 || ^18.0.0
-    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0
-  checksum: 9d44e76c5baad6db5f84c90a5540fbd3c9af691b97d76cf2a99b3c8273004d0efe44c2572d80e9d975c9af10022c21e4a66923924950a5201e82017c8b20428c
-  languageName: node
-  linkType: hard
-
 "@noble/curves@npm:1.2.0":
   version: 1.2.0
   resolution: "@noble/curves@npm:1.2.0"
@@ -4395,13 +4357,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/acvm_js@npm:0.38.0":
-  version: 0.38.0
-  resolution: "@noir-lang/acvm_js@npm:0.38.0"
-  checksum: 42a5bba45135d1df0d0eb3f7b65439733e016580bad610e859e140638d42200d6b856ff11c4b30417b74ce011da7c39861aafb1c5b8c7211de2172aea449c635
-  languageName: node
-  linkType: hard
-
 "@noir-lang/acvm_js@workspace:*, @noir-lang/acvm_js@workspace:acvm-repo/acvm_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/acvm_js@workspace:acvm-repo/acvm_js"
@@ -4420,22 +4375,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/backend_barretenberg@npm:^0.22.0":
-  version: 0.22.0
-  resolution: "@noir-lang/backend_barretenberg@npm:0.22.0"
-  dependencies:
-    "@aztec/bb.js": 0.16.0
-    "@noir-lang/types": 0.22.0
-    fflate: ^0.8.0
-  checksum: ead456218ba61d925e0fc5b47d1b94272e980b44a220f1262fb6cdc73cff7cd4232ddc69dd67bb21e50f0b43e7696d4a96fde15e3eadc0bf223ec6d59e014e23
-  languageName: node
-  linkType: hard
-
 "@noir-lang/backend_barretenberg@workspace:*, @noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg":
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
-    "@aztec/bb.js": 0.21.0
+    "@aztec/bb.js": 0.23.0
     "@noir-lang/types": "workspace:*"
     "@types/node": ^20.6.2
     "@types/prettier": ^3
@@ -4475,17 +4419,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_js@npm:^0.22.0":
-  version: 0.22.0
-  resolution: "@noir-lang/noir_js@npm:0.22.0"
-  dependencies:
-    "@noir-lang/acvm_js": 0.38.0
-    "@noir-lang/noirc_abi": 0.22.0
-    "@noir-lang/types": 0.22.0
-  checksum: 3b0873ad87521415af11208bebe5690191d03fa06dcd515789f0a63f7641146cdcb01d292b208452856ea3967e196c8332cb2618e013f9e7e5ce7d6e09de043d
-  languageName: node
-  linkType: hard
-
 "@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
@@ -4509,13 +4442,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_wasm@npm:^0.22.0":
-  version: 0.22.0
-  resolution: "@noir-lang/noir_wasm@npm:0.22.0"
-  checksum: 7ac0ca170bf312df761d7ccfd32a67a27f88f15ad4eed1807864295d761d3b2176ffb82f4c6931e1bc06b225d6f738519962c79ffbce9a33d5ef8a6a2bdea82c
-  languageName: node
-  linkType: hard
-
 "@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@workspace:compiler/wasm"
@@ -4523,6 +4449,7 @@ __metadata:
     "@esm-bundle/chai": ^4.3.4-fix.0
     "@ltd/j-toml": ^1.38.0
     "@noir-lang/noirc_abi": "workspace:*"
+    "@noir-lang/types": "workspace:*"
     "@types/adm-zip": ^0.5.0
     "@types/chai": ^4
     "@types/mocha": ^10.0.6
@@ -4560,18 +4487,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noirc_abi@npm:0.22.0":
-  version: 0.22.0
-  resolution: "@noir-lang/noirc_abi@npm:0.22.0"
-  checksum: a250c6cc5ca37fcf02663f8d6b027776f0e58920fb8f8a84efcf74f079f235bb11bbad682ba332211d9b9a79b6a3eb7faede7701cd88582b682971a41ca6212d
-  languageName: node
-  linkType: hard
-
 "@noir-lang/noirc_abi@workspace:*, @noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm"
   dependencies:
     "@esm-bundle/chai": ^4.3.4-fix.0
+    "@noir-lang/types": "workspace:*"
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
@@ -4597,20 +4518,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/types@npm:0.22.0, @noir-lang/types@npm:^0.22.0":
-  version: 0.22.0
-  resolution: "@noir-lang/types@npm:0.22.0"
-  dependencies:
-    "@noir-lang/noirc_abi": 0.22.0
-  checksum: 5dd1badf0449c518e755172de1d2f2c1b95bfaf7b7328b7de00b8ce9ba68bd447ca65e827185da7d737e7e88dcaf296b29687ffe2e1f5b4d5cc31ce3e3b4f208
-  languageName: node
-  linkType: hard
-
 "@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
   version: 0.0.0-use.local
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
-    "@noir-lang/noirc_abi": "workspace:*"
     "@types/prettier": ^3
     eslint: ^8.50.0
     eslint-plugin-prettier: ^5.0.0
@@ -5323,26 +5234,6 @@ __metadata:
   version: 2.0.0
   resolution: "@sideway/pinpoint@npm:2.0.0"
   checksum: 0f4491e5897fcf5bf02c46f5c359c56a314e90ba243f42f0c100437935daa2488f20482f0f77186bd6bf43345095a95d8143ecf8b1f4d876a7bc0806aba9c3d2
-  languageName: node
-  linkType: hard
-
-"@signorecello/noir_playground@npm:^0.7.0":
-  version: 0.7.0
-  resolution: "@signorecello/noir_playground@npm:0.7.0"
-  dependencies:
-    "@monaco-editor/react": 4.6.0
-    "@noir-lang/backend_barretenberg": ^0.22.0
-    "@noir-lang/noir_js": ^0.22.0
-    "@noir-lang/noir_wasm": ^0.22.0
-    "@noir-lang/types": ^0.22.0
-    fflate: ^0.8.1
-    js-base64: ^3.7.5
-    monaco-editor: ^0.44.0
-    monaco-editor-textmate: ^4.0.0
-    monaco-textmate: ^3.0.1
-    onigasm: ^2.2.5
-    react-toastify: ^9.1.3
-  checksum: 360bd1dbc8964a6ab8a6e8d0eb0cd11d7446cc23bf63c253083b18b5d6d5ccf2ec6ca847614106cd93490bb815aac651a6e4584ac63ea0fda182cdb1aadf3f45
   languageName: node
   linkType: hard
 
@@ -10337,7 +10228,6 @@ __metadata:
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noirc_abi": "workspace:*"
     "@noir-lang/types": "workspace:*"
-    "@signorecello/noir_playground": ^0.7.0
     "@types/prettier": ^3
     axios: ^1.4.0
     clsx: ^1.2.1
@@ -11499,13 +11389,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-plist@npm:^0.1.2":
-  version: 0.1.3
-  resolution: "fast-plist@npm:0.1.3"
-  checksum: e879f548db3a1fc89c654c476e9c9846f4335fdcd2283ec99e5f234c897f5616cee2a0a4201bf4b64ab6269e75c09daafc3933bd4a038c85af943fac0f113caa
-  languageName: node
-  linkType: hard
-
 "fast-url-parser@npm:1.1.3":
   version: 1.1.3
   resolution: "fast-url-parser@npm:1.1.3"
@@ -11567,7 +11450,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fflate@npm:^0.8.0, fflate@npm:^0.8.1":
+"fflate@npm:^0.8.0":
   version: 0.8.1
   resolution: "fflate@npm:0.8.1"
   checksum: 7207e2d333243724485d2488095256b776184bd4545aa9967b655feaee5dc18e9525ed9b6d75f94cfd71d98fb285336f4902641683472f1d0c19a99137084cec
@@ -14077,13 +13960,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"js-base64@npm:^3.7.5":
-  version: 3.7.5
-  resolution: "js-base64@npm:3.7.5"
-  checksum: 67a78c8b1c47b73f1c6fba1957e9fe6fd9dc78ac93ac46cc2e43472dcb9cf150d126fb0e593192e88e0497354fa634d17d255add7cc6ee3c7b4d29870faa8e18
-  languageName: node
-  linkType: hard
-
 "js-sdsl@npm:^4.1.4":
   version: 4.4.2
   resolution: "js-sdsl@npm:4.4.2"
@@ -16249,34 +16125,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monaco-editor-textmate@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "monaco-editor-textmate@npm:4.0.0"
-  peerDependencies:
-    monaco-editor: 0.x.x
-    monaco-textmate: ^3.0.0
-  checksum: 9d3f5f24982f928c5f4b7c5c5170a549cb19eb1471eb157aa07bd97cf15cd75dd941585eeb6924b05c54109a55d48adc45191eda9db5d2793b1d8c462181c100
-  languageName: node
-  linkType: hard
-
-"monaco-editor@npm:^0.44.0":
-  version: 0.44.0
-  resolution: "monaco-editor@npm:0.44.0"
-  checksum: 6e561b23e5e9090cbdbb820dae5895a8bf9d537acc09281756a8c428960da0481461c72f387cc9a2e14bff69ab4359186c98df2dd29d6d109f1ab7189b573a35
-  languageName: node
-  linkType: hard
-
-"monaco-textmate@npm:^3.0.1":
-  version: 3.0.1
-  resolution: "monaco-textmate@npm:3.0.1"
-  dependencies:
-    fast-plist: ^0.1.2
-  peerDependencies:
-    onigasm: ^2.0.0
-  checksum: 0f2ec07ee3e9a37bb880e2aaef802f82cb666660b40fc3c7c3e35553d740aed34ae94399b06296fddf1f96efdaf27eaf347b39cb14bc08ccfb65162c52771d56
-  languageName: node
-  linkType: hard
-
 "mrmime@npm:^1.0.0":
   version: 1.0.1
   resolution: "mrmime@npm:1.0.1"
@@ -16705,15 +16553,6 @@ __metadata:
   dependencies:
     mimic-fn: ^4.0.0
   checksum: 0846ce78e440841335d4e9182ef69d5762e9f38aa7499b19f42ea1c4cd40f0b4446094c455c713f9adac3f4ae86f613bb5e30c99e52652764d06a89f709b3788
-  languageName: node
-  linkType: hard
-
-"onigasm@npm:^2.2.5":
-  version: 2.2.5
-  resolution: "onigasm@npm:2.2.5"
-  dependencies:
-    lru-cache: ^5.1.1
-  checksum: 97aedde610ef561f05853609d6a5b720ec1e123f867bdac1b38b5aeb3bc90ed60209678c75a5f0f9821aa793c720b6d17aabfb956e26ab115ee9b81d6e56bdf7
   languageName: node
   linkType: hard
 
@@ -18335,18 +18174,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-toastify@npm:^9.1.3":
-  version: 9.1.3
-  resolution: "react-toastify@npm:9.1.3"
-  dependencies:
-    clsx: ^1.1.1
-  peerDependencies:
-    react: ">=16"
-    react-dom: ">=16"
-  checksum: e8bd92c5cbf831b43a042644ab9bc69abe6ceb3ce91ba71f5cd2d8b6a2c9885ca52770e1f1ba64c5632607f6df962db344a26c7fba57606faf5aa0e7bfc8535f
-  languageName: node
-  linkType: hard
-
 "react@npm:^18.2.0":
   version: 18.2.0
   resolution: "react@npm:18.2.0"
@@ -19866,13 +19693,6 @@ __metadata:
   dependencies:
     type-fest: ^0.7.1
   checksum: f4fbddfc09121d91e587b60de4beb4941108e967d71ad3a171812dc839b010ca374d064ad0a296295fed13acd103609d99a4224a25b4e67de13cae131f1901ee
-  languageName: node
-  linkType: hard
-
-"state-local@npm:^1.0.6":
-  version: 1.0.7
-  resolution: "state-local@npm:1.0.7"
-  checksum: d1afcf1429e7e6eb08685b3a94be8797db847369316d4776fd51f3962b15b984dacc7f8e401ad20968e5798c9565b4b377afedf4e4c4d60fe7495e1cbe14a251
   languageName: node
   linkType: hard
 

@@ -209,3 +209,8 @@ html[data-theme='dark'] {
   border-width: 0;
   border-style: solid;
 }
+
+input#docsearch-input {
+  background-color: transparent;
+}
+

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use noirc_errors::Location;
 
 use crate::{
-    node_interner::{FuncId, StmtId, StructId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId},
     Ident,
 };
 
@@ -76,7 +76,7 @@ impl ModuleData {
         self.definitions.remove_definition(name);
     }
 
-    pub fn declare_global(&mut self, name: Ident, id: StmtId) -> Result<(), (Ident, Ident)> {
+    pub fn declare_global(&mut self, name: Ident, id: GlobalId) -> Result<(), (Ident, Ident)> {
         self.declare(name, id.into(), None)
     }
 
