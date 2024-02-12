@@ -8,8 +8,3 @@ fn main() {
         }
     }
 }
-
-#[test]
-fn test_main() {
-    main();
-}
