@@ -133,28 +133,27 @@ fn on_rename_inner(
         span: noirc_errors::Span::single_char(byte_index as u32),
     };
 
-    let rename_changes =
-        interner.find_rename_symbols_at(search_for_location).and_then(|locations| {
-            let rs = locations.iter().fold(
-                HashMap::new(),
-                |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
-                    let file_id = location.file;
-                    let span = location.span;
+    let rename_changes = interner.find_rename_symbols_at(search_for_location).map(|locations| {
+        let rs = locations.iter().fold(
+            HashMap::new(),
+            |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
+                let file_id = location.file;
+                let span = location.span;
 
-                    let Some(lsp_location) = to_lsp_location(files, file_id, span) else {
+                let Some(lsp_location) = to_lsp_location(files, file_id, span) else {
                         return acc;
                     };
 
-                    let edit =
-                        TextEdit { range: lsp_location.range, new_text: params.new_name.clone() };
+                let edit =
+                    TextEdit { range: lsp_location.range, new_text: params.new_name.clone() };
 
-                    acc.entry(lsp_location.uri).or_insert_with(Vec::new).push(edit);
+                acc.entry(lsp_location.uri).or_insert_with(Vec::new).push(edit);
 
-                    acc
-                },
-            );
-            Some(rs)
-        });
+                acc
+            },
+        );
+        rs
+    });
 
     let response =
         WorkspaceEdit { changes: rename_changes, document_changes: None, change_annotations: None };
