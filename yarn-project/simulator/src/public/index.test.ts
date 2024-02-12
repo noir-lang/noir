@@ -100,13 +100,11 @@ describe('ACIR public execution simulator', () => {
         expect(result.contractStorageUpdateRequests).toEqual([
           {
             storageSlot: recipientBalanceStorageSlot,
-            oldValue: previousBalance,
             newValue: expectedBalance,
             sideEffectCounter: 3,
           },
           {
             storageSlot: totalSupplyStorageSlot,
-            oldValue: previousTotalSupply,
             newValue: expectedTotalSupply,
             sideEffectCounter: 4,
           },
@@ -189,13 +187,11 @@ describe('ACIR public execution simulator', () => {
         expect(result.contractStorageUpdateRequests).toEqual([
           {
             storageSlot: senderStorageSlot,
-            oldValue: senderBalance,
             newValue: expectedSenderBalance,
             sideEffectCounter: 1, // 1 read (sender balance)
           },
           {
             storageSlot: recipientStorageSlot,
-            oldValue: recipientBalance,
             newValue: expectedRecipientBalance,
             sideEffectCounter: 3, // 1 read (sender balance), 1 write (new sender balance), 1 read (recipient balance)
           },

@@ -141,8 +141,6 @@ impl PublicCallDataBuilder {
                 let update_request = StorageUpdateRequest {
                     // The default storage slot is its index + 1.
                     storage_slot: value_offset + i + 1,
-                    // The default value is its index + 567.
-                    old_value: value_offset + i + 567,
                     // The default value is its index + 890.
                     new_value: value_offset + i + 890
                 };

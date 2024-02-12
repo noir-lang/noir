@@ -125,10 +125,6 @@ export class PublicDataUpdateRequest {
      */
     public readonly leafSlot: Fr,
     /**
-     * Old value of the leaf.
-     */
-    public readonly oldValue: Fr,
-    /**
      * New value of the leaf.
      */
     public readonly newValue: Fr,
@@ -144,32 +140,28 @@ export class PublicDataUpdateRequest {
      */
     leafIndex: Fr;
     /**
-     * Old value of the leaf.
-     */
-    oldValue: Fr;
-    /**
      * New value of the leaf.
      */
     newValue: Fr;
   }) {
-    return new PublicDataUpdateRequest(args.leafIndex, args.oldValue, args.newValue);
+    return new PublicDataUpdateRequest(args.leafIndex, args.newValue);
   }
 
   toBuffer() {
-    return serializeToBuffer(this.leafSlot, this.oldValue, this.newValue);
+    return serializeToBuffer(this.leafSlot, this.newValue);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PublicDataUpdateRequest(Fr.fromBuffer(reader), Fr.fromBuffer(reader), Fr.fromBuffer(reader));
+    return new PublicDataUpdateRequest(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   static empty() {
-    return new PublicDataUpdateRequest(Fr.ZERO, Fr.ZERO, Fr.ZERO);
+    return new PublicDataUpdateRequest(Fr.ZERO, Fr.ZERO);
   }
 
   toFriendlyJSON() {
-    return `Leaf=${this.leafSlot.toFriendlyJSON()}: ${this.oldValue.toFriendlyJSON()} => ${this.newValue.toFriendlyJSON()}`;
+    return `Leaf=${this.leafSlot.toFriendlyJSON()}: ${this.newValue.toFriendlyJSON()}`;
   }
 }
 

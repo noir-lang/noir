@@ -798,7 +798,6 @@ export function mapPublicDataUpdateRequestFromNoir(
 ): PublicDataUpdateRequest {
   return new PublicDataUpdateRequest(
     mapFieldFromNoir(publicDataUpdateRequest.leaf_slot),
-    mapFieldFromNoir(publicDataUpdateRequest.old_value),
     mapFieldFromNoir(publicDataUpdateRequest.new_value),
   );
 }
@@ -813,7 +812,6 @@ export function mapPublicDataUpdateRequestToNoir(
 ): PublicDataUpdateRequestNoir {
   return {
     leaf_slot: mapFieldToNoir(publicDataUpdateRequest.leafSlot),
-    old_value: mapFieldToNoir(publicDataUpdateRequest.oldValue),
     new_value: mapFieldToNoir(publicDataUpdateRequest.newValue),
   };
 }
@@ -1194,7 +1192,6 @@ export function mapStorageUpdateRequestToNoir(
 ): StorageUpdateRequestNoir {
   return {
     storage_slot: mapFieldToNoir(storageUpdateRequest.storageSlot),
-    old_value: mapFieldToNoir(storageUpdateRequest.oldValue),
     new_value: mapFieldToNoir(storageUpdateRequest.newValue),
   };
 }

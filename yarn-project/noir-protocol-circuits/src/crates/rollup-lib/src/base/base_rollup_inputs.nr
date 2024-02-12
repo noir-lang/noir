@@ -625,7 +625,6 @@ mod tests {
 
                 kernel_data.public_inputs.end.public_data_update_requests[i] = PublicDataUpdateRequest {
                     leaf_slot : leaf.slot,
-                    old_value : 0,
                     new_value : leaf.value,
                 };
             }

@@ -68,8 +68,6 @@ impl PreviousKernelDataBuilder {
                 let update_request = PublicDataUpdateRequest {
                     // The default leaf index is its index + 23.
                     leaf_slot: value_offset + i + 23,
-                    // The default value is its index + 45.
-                    old_value: value_offset + i + 45,
                     // The default value is its index + 678.
                     new_value: value_offset + i + 678
                 };

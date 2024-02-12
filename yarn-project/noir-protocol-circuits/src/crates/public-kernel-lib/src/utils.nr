@@ -40,7 +40,6 @@ pub fn compute_public_data_update_requests<N>(
         if !update_request.is_empty() {
             public_data_update_requests[i] = PublicDataUpdateRequest {
                 leaf_slot: compute_public_data_tree_index(contract_address, update_request.storage_slot),
-                old_value: compute_public_data_tree_value(update_request.old_value),
                 new_value: compute_public_data_tree_value(update_request.new_value),
             };
         }

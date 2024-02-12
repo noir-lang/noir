@@ -141,7 +141,7 @@ export class PublicExecutionContext extends TypedOracle {
       const storageSlot = new Fr(startStorageSlot.value + BigInt(i));
       const newValue = values[i];
       const sideEffectCounter = this.sideEffectCounter.count();
-      await this.storageActions.write(storageSlot, newValue, sideEffectCounter);
+      this.storageActions.write(storageSlot, newValue, sideEffectCounter);
       await this.stateDb.storageWrite(this.execution.contractAddress, storageSlot, newValue);
       this.log(`Oracle storage write: slot=${storageSlot.toString()} value=${newValue.toString()}`);
       newValues.push(newValue);

@@ -349,10 +349,7 @@ export abstract class AbstractPhaseManager {
       (accum, update) =>
         accum &&
         !!publicDataUpdateRequests.find(
-          item =>
-            item.leafSlot.equals(update.leafSlot) &&
-            item.oldValue.equals(update.oldValue) &&
-            item.newValue.equals(update.newValue),
+          item => item.leafSlot.equals(update.leafSlot) && item.newValue.equals(update.newValue),
         ),
       true,
     );
@@ -381,7 +378,7 @@ export abstract class AbstractPhaseManager {
     );
     const numTotalUpdatesInKernel = arrayNonEmptyLength(
       publicInputs.end.publicDataUpdateRequests,
-      f => f.leafSlot.equals(Fr.ZERO) && f.oldValue.equals(Fr.ZERO) && f.newValue.equals(Fr.ZERO),
+      f => f.leafSlot.equals(Fr.ZERO) && f.newValue.equals(Fr.ZERO),
     );
     const numReadsBeforeThisEnqueuedCall = numTotalReadsInKernel - simPublicDataReads.length;
     const numUpdatesBeforeThisEnqueuedCall = numTotalUpdatesInKernel - simPublicDataUpdateRequests.length;

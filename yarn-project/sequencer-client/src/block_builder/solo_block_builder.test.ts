@@ -298,7 +298,7 @@ describe('sequencer/solo_block_builder', () => {
       kernelOutput.constants.historicalHeader = await builderDb.buildInitialHeader();
       kernelOutput.end.publicDataUpdateRequests = makeTuple(
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),
+        i => new PublicDataUpdateRequest(fr(i), fr(i + 10)),
         seed + 0x500,
       );
 
