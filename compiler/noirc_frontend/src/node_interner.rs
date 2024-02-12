@@ -190,8 +190,6 @@ pub struct NodeInterner {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
     Struct(StructId),
-    GlobalDefinition(DefinitionId),
-    GlobalReference,
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
