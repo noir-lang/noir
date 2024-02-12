@@ -78,9 +78,6 @@ impl DebugInstrumenter {
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
         let func_name = &func.name.0.contents;
-        if is_instrumentation_method(func_name) {
-            return;
-        }
         self.scope.push(HashMap::default());
         let fn_id = self.insert_var(func_name);
         let enter_fn = build_debug_call_stmt("enter", fn_id, func.span);
@@ -654,16 +651,5 @@ fn sint_expr(x: i128, span: Span) -> ast::Expression {
     ast::Expression {
         kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0)),
         span,
-    }
-}
-
-fn is_instrumentation_method(fname: &str) -> bool {
-    match fname {
-        "__debug_var_assign"
-        | "__debug_var_drop"
-        | "__debug_dereference_assign"
-        | "__debug_fn_enter"
-        | "__debug_fn_exit" => true,
-        _ => fname.starts_with("__debug_member_assign_"),
     }
 }
