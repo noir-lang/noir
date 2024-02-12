@@ -11,8 +11,3 @@ fn loop_from<N, K>(_arr: [Field; N], _another: [Field; K]) -> u32 {
 fn main() {
     let _ = loop_from([0; 10], [0; 20]);
 }
-
-#[test]
-fn test_main() {
-    main();
-}
