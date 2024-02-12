@@ -95,10 +95,10 @@ impl DebugInstrumenter {
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
         let fn_id = self.insert_function(func_name, func_args);
-        let enter_fn = build_debug_call_stmt("enter", fn_id, func.span);
+        let enter_stmt = build_debug_call_stmt("enter", fn_id, func.span);
         self.scope.push(HashMap::default());
 
-        let set_fn_params = func
+        let set_fn_params: Vec<_> = func
             .parameters
             .iter()
             .flat_map(|param| {
@@ -112,20 +112,26 @@ impl DebugInstrumenter {
             })
             .collect();
 
-        self.walk_scope(&mut func.body.0, func.span, Some(fn_id));
+        let func_body = &mut func.body.0;
+        let mut statements = func_body.drain(..).collect();
 
-        // prepend fn params:
-        func.body.0 = vec![vec![enter_fn], set_fn_params, func.body.0.clone()].concat();
+        self.walk_scope(&mut statements, func.span);
+
+        // walk_scope ensures that the last statement is the return value of the function
+        let last_stmt = statements.pop().expect("at least one statement after walk_scope");
+        let exit_stmt = build_debug_call_stmt("exit", fn_id, last_stmt.span);
+
+        // rebuild function body
+        func_body.push(enter_stmt);
+        func_body.extend(set_fn_params);
+        func_body.extend(statements);
+        func_body.push(exit_stmt);
+        func_body.push(last_stmt);
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(
-        &mut self,
-        statements: &mut Vec<ast::Statement>,
-        span: Span,
-        opt_fn_id: Option<DebugFnId>,
-    ) {
+    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
         // extract and save the return value from the scope if there is one
@@ -157,11 +163,6 @@ impl DebugInstrumenter {
         let scope_vars = self.scope.pop().unwrap_or(HashMap::default());
         let drop_vars_stmts = scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, span));
         statements.extend(drop_vars_stmts);
-
-        // exit fn for fn scopes
-        if let Some(fn_id) = opt_fn_id {
-            statements.push(build_debug_call_stmt("exit", fn_id, span));
-        }
 
         // return the saved value in __debug_expr, or unit otherwise
         let last_stmt = if has_ret_expr {
@@ -339,7 +340,7 @@ impl DebugInstrumenter {
         match &mut expr.kind {
             ast::ExpressionKind::Block(ast::BlockExpression(ref mut statements)) => {
                 self.scope.push(HashMap::default());
-                self.walk_scope(statements, expr.span, None);
+                self.walk_scope(statements, expr.span);
             }
             ast::ExpressionKind::Prefix(prefix_expr) => {
                 self.walk_expr(&mut prefix_expr.rhs);
