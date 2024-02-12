@@ -380,9 +380,6 @@ contract Token {
     }
     // docs:end:balance_of_public
 
-    // Below this point is the stuff of nightmares.
-    // This should ideally not be required. What do we do if vastly different types of serialized_notes?
-
     // docs:start:compute_note_hash_and_nullifier
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
@@ -391,10 +388,12 @@ contract Token {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         serialized_note: [Field; TOKEN_NOTE_LEN]
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        if (storage_slot == storage.pending_shields.get_storage_slot()) {
+
+        if (note_type_id == TransparentNote::get_note_type_id()) {
             note_utils::compute_note_hash_and_nullifier(
                 TransparentNote::deserialize_content,
                 note_header,

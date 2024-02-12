@@ -396,12 +396,22 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .argument('<address>', 'The Aztec address of the note owner.', parseAztecAddress)
     .argument('<contractAddress>', 'Aztec address of the contract.', parseAztecAddress)
     .argument('<storageSlot>', 'The storage slot of the note.', parseField)
+    .argument('<noteTypeId>', 'The type ID of the note.', parseField)
     .argument('<txHash>', 'The tx hash of the tx containing the note.', parseTxHash)
     .requiredOption('-n, --note [note...]', 'The members of a Note serialized as hex strings.', [])
     .addOption(pxeOption)
-    .action(async (address, contractAddress, storageSlot, txHash, options) => {
+    .action(async (address, contractAddress, storageSlot, noteTypeId, txHash, options) => {
       const { addNote } = await import('./cmds/add_note.js');
-      await addNote(address, contractAddress, storageSlot, txHash, options.note, options.rpcUrl, debugLogger);
+      await addNote(
+        address,
+        contractAddress,
+        storageSlot,
+        noteTypeId,
+        txHash,
+        options.note,
+        options.rpcUrl,
+        debugLogger,
+      );
     });
 
   // Helper for users to decode hex strings into structs if needed.

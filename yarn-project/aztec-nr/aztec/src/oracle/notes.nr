@@ -10,10 +10,20 @@ use dep::protocol_types::{
 };
 
 #[oracle(notifyCreatedNote)]
-fn notify_created_note_oracle<N>(_storage_slot: Field, _serialized_note: [Field; N], _inner_note_hash: Field) -> Field {}
+fn notify_created_note_oracle<N>(
+    _storage_slot: Field,
+    _note_type_id: Field,
+    _serialized_note: [Field; N],
+    _inner_note_hash: Field
+) -> Field {}
 
-unconstrained pub fn notify_created_note<N>(storage_slot: Field, serialized_note: [Field; N], inner_note_hash: Field) -> Field {
-    notify_created_note_oracle(storage_slot, serialized_note, inner_note_hash)
+unconstrained pub fn notify_created_note<N>(
+    storage_slot: Field,
+    note_type_id: Field,
+    serialized_note: [Field; N],
+    inner_note_hash: Field
+) -> Field {
+    notify_created_note_oracle(storage_slot, note_type_id, serialized_note, inner_note_hash)
 }
 
 #[oracle(notifyNullifiedNote)]

@@ -15,6 +15,8 @@ export class NoteDao implements NoteData {
     public contractAddress: AztecAddress,
     /** The specific storage location of the note on the contract. */
     public storageSlot: Fr,
+    /** The note type identifier for the contract. */
+    public noteTypeId: Fr,
     /** The hash of the tx the note was created in. */
     public txHash: TxHash,
     /** The nonce of the note. */
@@ -37,6 +39,7 @@ export class NoteDao implements NoteData {
       this.note.toBuffer(),
       this.contractAddress.toBuffer(),
       this.storageSlot.toBuffer(),
+      this.noteTypeId.toBuffer(),
       this.txHash.buffer,
       this.nonce.toBuffer(),
       this.innerNoteHash.toBuffer(),
@@ -51,6 +54,7 @@ export class NoteDao implements NoteData {
     const note = Note.fromBuffer(reader);
     const contractAddress = AztecAddress.fromBuffer(reader);
     const storageSlot = Fr.fromBuffer(reader);
+    const noteTypeId = Fr.fromBuffer(reader);
     const txHash = new TxHash(reader.readBytes(TxHash.SIZE));
     const nonce = Fr.fromBuffer(reader);
     const innerNoteHash = Fr.fromBuffer(reader);
@@ -62,6 +66,7 @@ export class NoteDao implements NoteData {
       note,
       contractAddress,
       storageSlot,
+      noteTypeId,
       txHash,
       nonce,
       innerNoteHash,

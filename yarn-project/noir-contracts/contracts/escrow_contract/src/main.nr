@@ -53,6 +53,7 @@ contract Escrow {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         serialized_note: [Field; ADDRESS_NOTE_LEN]
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);

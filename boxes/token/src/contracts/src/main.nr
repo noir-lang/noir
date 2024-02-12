@@ -14,6 +14,7 @@ contract Token {
     use dep::std::option::Option;
 
     use dep::safe_math::SafeU120;
+    use dep::compressed_string::FieldCompressedString;
 
     use dep::aztec::{
         note::{
@@ -22,10 +23,10 @@ contract Token {
             utils as note_utils,
         },
         hash::{compute_secret_hash},
-        state_vars::{map::Map, public_state::PublicState, set::Set},
+        state_vars::{map::Map, public_state::PublicState, stable_public_state::StablePublicState,  set::Set},
         protocol_types::{
             abis::function_selector::FunctionSelector,
-            address::AztecAddress,
+            address::AztecAddress
         }
     };
 
@@ -41,7 +42,7 @@ contract Token {
     use crate::types::{
         transparent_note::TransparentNote,
         token_note::{TokenNote, TOKEN_NOTE_LEN},
-        balances_map::{BalancesMap},
+        balances_map::BalancesMap
     };
     // docs:end::imports
 
@@ -51,24 +52,35 @@ contract Token {
         admin: PublicState<AztecAddress>,
         // docs:end:storage_admin
         // docs:start:storage_minters
-        minters: Map<AztecAddress, PublicState<bool>>,
+        minters: Map<AztecAddress, PublicState<bool>>, 
         // docs:end:storage_minters
         // docs:start:storage_balances
         balances: BalancesMap<TokenNote>,
         // docs:end:storage_balances
-        total_supply: PublicState<SafeU120>,
+        total_supply: PublicState<SafeU120>, 
         // docs:start:storage_pending_shields
-        pending_shields: Set<TransparentNote>,
+        pending_shields: Set<TransparentNote>, 
         // docs:end:storage_pending_shields
         public_balances: Map<AztecAddress, PublicState<SafeU120>>,
+        symbol: StablePublicState<FieldCompressedString>,
+        name: StablePublicState<FieldCompressedString>,
+        // docs:start:storage_decimals
+        decimals: StablePublicState<u8>,
+        // docs:end:storage_decimals
     }
     // docs:end:storage_struct
 
     // docs:start:constructor
     #[aztec(private)]
-    fn constructor(admin: AztecAddress) {
-        let selector = FunctionSelector::from_signature("_initialize((Field))");
-        context.call_public_function(context.this_address(), selector, [admin.to_field()]);
+    fn constructor(admin: AztecAddress, name: str<31>, symbol: str<31>, decimals: u8) {
+        let selector = FunctionSelector::from_signature("_initialize((Field),(Field),(Field),u8)");
+        let name_s = FieldCompressedString::from_string(name);
+        let symbol_s = FieldCompressedString::from_string(symbol);
+        context.call_public_function(
+            context.this_address(),
+            selector,
+            [admin.to_field(), name_s.serialize()[0], symbol_s.serialize()[0], decimals as Field]
+        );
     }
     // docs:end:constructor
 
@@ -81,6 +93,52 @@ contract Token {
         // docs:end:write_admin
     }
     // docs:end:set_admin
+
+    #[aztec(public)]
+    fn public_get_name() -> pub FieldCompressedString {
+        storage.name.read_public()
+    }
+
+    #[aztec(private)]
+    fn private_get_name() -> pub FieldCompressedString {
+        storage.name.read_private()
+    }
+
+    unconstrained fn un_get_name() -> pub [u8; 31] {
+        storage.name.read_public().to_bytes()
+    }
+
+    #[aztec(public)]
+    fn public_get_symbol() -> pub FieldCompressedString {
+        storage.symbol.read_public()
+    }
+
+    #[aztec(private)]
+    fn private_get_symbol() -> pub FieldCompressedString {
+        storage.symbol.read_private()
+    }
+
+    unconstrained fn un_get_symbol() -> pub [u8; 31] {
+        storage.symbol.read_public().to_bytes()
+    }
+
+    #[aztec(public)]
+    fn public_get_decimals() -> pub u8 {
+        // docs:start:read_decimals_public
+        storage.decimals.read_public()
+        // docs:end:read_decimals_public
+    }
+
+    #[aztec(private)]
+    fn private_get_decimals() -> pub u8 {
+        // docs:start:read_decimals_private
+        storage.decimals.read_private()
+        // docs:end:read_decimals_private
+    }
+
+    unconstrained fn un_get_decimals() -> pub u8 {
+        storage.decimals.read_public()
+    }
 
     // docs:start:set_minter
     #[aztec(public)]
@@ -188,12 +246,12 @@ contract Token {
     fn redeem_shield(to: AztecAddress, amount: Field, secret: Field) {
         let pending_shields = storage.pending_shields;
         let secret_hash = compute_secret_hash(secret);
-        // Get 1 note (set_limit(1)) which has amount stored in field with index 0 (select(0, amount, Option::none())) and secret_hash
-        // stored in field with index 1 (select(1, secret_hash, Option::none())).
+        // Get 1 note (set_limit(1)) which has amount stored in field with index 0 (select(0, amount)) and secret_hash
+        // stored in field with index 1 (select(1, secret_hash)).
         let options = NoteGetterOptions::new().select(0, amount, Option::none()).select(1, secret_hash, Option::none()).set_limit(1);
         let notes = pending_shields.get_notes(options);
         let note = notes[0].unwrap_unchecked();
-        // Remove the note from the pending shields set
+        // Remove the note from the pending shields set 
         pending_shields.remove(note);
 
         // Add the token note to user's balances set
@@ -254,10 +312,20 @@ contract Token {
 
     // docs:start:initialize
     #[aztec(public)]
-    internal fn _initialize(new_admin: AztecAddress) {
+    internal fn _initialize(
+        new_admin: AztecAddress,
+        name: FieldCompressedString,
+        symbol: FieldCompressedString,
+        decimals: u8
+    ) {
         assert(!new_admin.is_zero(), "invalid admin");
         storage.admin.write(new_admin);
         storage.minters.at(new_admin).write(true);
+        storage.name.initialize(name);
+        storage.symbol.initialize(symbol);
+        // docs:start:initialize_decimals
+        storage.decimals.initialize(decimals);
+        // docs:end:initialize_decimals
     }
     // docs:end:initialize
 
@@ -312,9 +380,6 @@ contract Token {
     }
     // docs:end:balance_of_public
 
-    // Below this point is the stuff of nightmares.
-    // This should ideally not be required. What do we do if vastly different types of serialized_notes?
-
     // docs:start:compute_note_hash_and_nullifier
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
@@ -323,10 +388,12 @@ contract Token {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         serialized_note: [Field; TOKEN_NOTE_LEN]
     ) -> pub [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        if (storage_slot == storage.pending_shields.get_storage_slot()) {
+
+        if (note_type_id == TransparentNote::get_note_type_id()) {
             note_utils::compute_note_hash_and_nullifier(
                 TransparentNote::deserialize_content,
                 note_header,

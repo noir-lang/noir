@@ -100,6 +100,7 @@ contract Child {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         serialized_note: [Field; 0]
     ) -> pub [Field; 4] {
         [0, 0, 0, 0]

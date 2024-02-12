@@ -266,7 +266,7 @@ export class PXEService implements PXE {
         }
         owner = completeAddresses.address;
       }
-      return new ExtendedNote(dao.note, owner, dao.contractAddress, dao.storageSlot, dao.txHash);
+      return new ExtendedNote(dao.note, owner, dao.contractAddress, dao.storageSlot, dao.noteTypeId, dao.txHash);
     });
     return Promise.all(extendedNotes);
   }
@@ -284,7 +284,13 @@ export class PXEService implements PXE {
 
     for (const nonce of nonces) {
       const { innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier } =
-        await this.simulator.computeNoteHashAndNullifier(note.contractAddress, nonce, note.storageSlot, note.note);
+        await this.simulator.computeNoteHashAndNullifier(
+          note.contractAddress,
+          nonce,
+          note.storageSlot,
+          note.noteTypeId,
+          note.note,
+        );
 
       // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
       // This can always be `uniqueSiloedNoteHash` once notes added from public also include nonces.
@@ -305,6 +311,7 @@ export class PXEService implements PXE {
           note.note,
           note.contractAddress,
           note.storageSlot,
+          note.noteTypeId,
           note.txHash,
           nonce,
           innerNoteHash,
@@ -342,6 +349,7 @@ export class PXEService implements PXE {
         note.contractAddress,
         nonce,
         note.storageSlot,
+        note.noteTypeId,
         note.note,
       );
       // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)

@@ -89,6 +89,7 @@ contract AvmTest {
         _contract_address: AztecAddress,
         _nonce: Field,
         _storage_slot: Field,
+        _note_type_id: Field,
         _serialized_note: [Field; 1]
     ) -> pub [Field; 4] {
         [0, 0, 0, 0]

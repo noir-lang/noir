@@ -17,6 +17,8 @@ export class ExtendedNote {
     public contractAddress: AztecAddress,
     /** The specific storage location of the note on the contract. */
     public storageSlot: Fr,
+    /** The type identifier of the note on the contract. */
+    public noteTypeId: Fr,
     /** The hash of the tx the note was created in. */
     public txHash: TxHash,
   ) {}
@@ -27,6 +29,7 @@ export class ExtendedNote {
       this.owner.toBuffer(),
       this.contractAddress.toBuffer(),
       this.storageSlot.toBuffer(),
+      this.noteTypeId.toBuffer(),
       this.txHash.buffer,
     ]);
   }
@@ -37,9 +40,10 @@ export class ExtendedNote {
     const owner = AztecAddress.fromBuffer(reader);
     const contractAddress = AztecAddress.fromBuffer(reader);
     const storageSlot = Fr.fromBuffer(reader);
+    const noteTypeId = Fr.fromBuffer(reader);
     const txHash = new TxHash(reader.readBytes(TxHash.SIZE));
 
-    return new this(note, owner, contractAddress, storageSlot, txHash);
+    return new this(note, owner, contractAddress, storageSlot, noteTypeId, txHash);
   }
 
   toString() {

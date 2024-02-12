@@ -83,11 +83,14 @@ describe('e2e_non_contract_account', () => {
     // Add the note
     const note = new Note([new Fr(value)]);
     const storageSlot = new Fr(1);
+    const noteTypeId = new Fr(7010510110810078111116101n); // FieldNote
+
     const extendedNote = new ExtendedNote(
       note,
       wallet.getCompleteAddress().address,
       contract.address,
       storageSlot,
+      noteTypeId,
       receipt.txHash,
     );
     await wallet.addNote(extendedNote);

@@ -62,6 +62,12 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN> for TransparentNote {
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         assert(false, "TransparentNote does not support broadcast");
     }
+
+    fn get_note_type_id() -> Field {
+        // TODO(#4519): autogenerate
+        // python -c "print(int(''.join(str(ord(c)) for c in 'TransparentNote')))"
+        84114971101151129711410111011678111116101
+    }
 }
 
 impl TransparentNote {

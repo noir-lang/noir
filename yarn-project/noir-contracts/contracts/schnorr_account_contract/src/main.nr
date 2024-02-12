@@ -96,6 +96,7 @@ contract SchnorrAccount {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]
     ) -> pub [Field; 4] {
         assert(storage_slot == storage.signing_public_key.get_storage_slot());

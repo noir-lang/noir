@@ -342,7 +342,9 @@ async function addPendingShieldNoteToPXE(
   // The storage slot of `pending_shields` is 5.
   // TODO AlexG, this feels brittle
   const storageSlot = new Fr(5);
+  const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
   const note = new Note([new Fr(amount), secretHash]);
-  const extendedNote = new ExtendedNote(note, wallet.getAddress(), asset, storageSlot, txHash);
+  const extendedNote = new ExtendedNote(note, wallet.getAddress(), asset, storageSlot, noteTypeId, txHash);
   await wallet.addNote(extendedNote);
 }

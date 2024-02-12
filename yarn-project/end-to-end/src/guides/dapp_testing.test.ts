@@ -48,8 +48,17 @@ describe('guides/dapp/testing', () => {
         const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
         const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
+        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
         const note = new Note([new Fr(mintAmount), secretHash]);
-        const extendedNote = new ExtendedNote(note, recipientAddress, token.address, storageSlot, receipt.txHash);
+        const extendedNote = new ExtendedNote(
+          note,
+          recipientAddress,
+          token.address,
+          storageSlot,
+          noteTypeId,
+          receipt.txHash,
+        );
         await pxe.addNote(extendedNote);
 
         await token.methods.redeem_shield(recipientAddress, mintAmount, secret).send().wait();
@@ -83,8 +92,17 @@ describe('guides/dapp/testing', () => {
         const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
         const storageSlot = new Fr(5);
+        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
         const note = new Note([new Fr(mintAmount), secretHash]);
-        const extendedNote = new ExtendedNote(note, recipientAddress, token.address, storageSlot, receipt.txHash);
+        const extendedNote = new ExtendedNote(
+          note,
+          recipientAddress,
+          token.address,
+          storageSlot,
+          noteTypeId,
+          receipt.txHash,
+        );
         await pxe.addNote(extendedNote);
 
         await token.methods.redeem_shield(recipientAddress, mintAmount, secret).send().wait();
@@ -139,8 +157,17 @@ describe('guides/dapp/testing', () => {
         const receipt = await token.methods.mint_private(100n, secretHash).send().wait();
 
         const storageSlot = new Fr(5);
+        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
         const note = new Note([new Fr(mintAmount), secretHash]);
-        const extendedNote = new ExtendedNote(note, ownerAddress, token.address, storageSlot, receipt.txHash);
+        const extendedNote = new ExtendedNote(
+          note,
+          ownerAddress,
+          token.address,
+          storageSlot,
+          noteTypeId,
+          receipt.txHash,
+        );
         await pxe.addNote(extendedNote);
 
         await token.methods.redeem_shield(ownerAddress, 100n, secret).send().wait();

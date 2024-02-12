@@ -76,9 +76,16 @@ impl NoteInterface<VALUE_NOTE_LEN> for ValueNote {
             context,
             (*context).this_address(),
             slot,
+            Self::get_note_type_id(),
             encryption_pub_key,
             self.serialize_content(),
         );
+    }
+
+    fn get_note_type_id() -> Field {
+        // TODO(#4519): autogenerate
+        // python -c "print(int(''.join(str(ord(c)) for c in 'ValueNote')))"
+        869710811710178111116101
     }
 }
 

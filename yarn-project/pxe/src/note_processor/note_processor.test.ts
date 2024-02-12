@@ -139,7 +139,7 @@ describe('Note Processor', () => {
       Promise.resolve({
         innerNoteHash: Fr.random(),
         siloedNoteHash: Fr.random(),
-        uniqueSiloedNoteHash: computeMockNoteHash(args[3]),
+        uniqueSiloedNoteHash: computeMockNoteHash(args[4]), // args[4] is note
         innerNullifier: Fr.random(),
       }),
     );

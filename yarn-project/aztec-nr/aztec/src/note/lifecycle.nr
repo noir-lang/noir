@@ -21,7 +21,15 @@ pub fn create_note<Note, N>(
 
     // TODO: Strong typing required because of https://github.com/noir-lang/noir/issues/4088
     let serialized_note: [Field; N] = Note::serialize_content(*note);
-    assert(notify_created_note(storage_slot, serialized_note, inner_note_hash) == 0);
+    assert(
+        notify_created_note(
+        storage_slot,
+        Note::get_note_type_id(),
+        serialized_note,
+        inner_note_hash
+    )
+        == 0
+    );
 
     context.push_new_note_hash(inner_note_hash);
 

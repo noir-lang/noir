@@ -6,10 +6,17 @@ pub fn emit_encrypted_log<N>(
     context: &mut PrivateContext,
     contract_address: AztecAddress,
     storage_slot: Field,
+    note_type_id: Field,
     encryption_pub_key: GrumpkinPoint,
     log: [Field; N]
 ) {
-    let _ = oracle::logs::emit_encrypted_log(contract_address, storage_slot, encryption_pub_key, log);
+    let _ = oracle::logs::emit_encrypted_log(
+        contract_address,
+        storage_slot,
+        note_type_id,
+        encryption_pub_key,
+        log
+    );
     context.accumulate_encrypted_logs(log);
 }
 

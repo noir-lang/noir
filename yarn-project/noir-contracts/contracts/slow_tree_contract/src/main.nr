@@ -145,6 +145,7 @@ contract SlowTree {
         _contract_address: AztecAddress,
         _nonce: Field,
         _storage_slot: Field,
+        _note_type_id: Field,
         _serialized_note: [Field; 4]
     ) -> pub [Field; 4] {
         [0x0d, 0x0e, 0x0a, 0x0d]

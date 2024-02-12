@@ -86,6 +86,7 @@ contract EcdsaAccount {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]
     ) -> pub [Field; 4] {
         assert(storage_slot == storage.public_key.get_storage_slot());

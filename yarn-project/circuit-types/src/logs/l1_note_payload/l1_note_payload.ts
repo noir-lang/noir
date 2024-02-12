@@ -25,6 +25,10 @@ export class L1NotePayload {
      * Storage slot of the contract this tx is interacting with.
      */
     public storageSlot: Fr,
+    /**
+     * Type identifier for the underlying note, required to determine how to compute its hash and nullifier.
+     */
+    public noteTypeId: Fr,
   ) {}
 
   /**
@@ -34,7 +38,12 @@ export class L1NotePayload {
    */
   static fromBuffer(buffer: Buffer | BufferReader): L1NotePayload {
     const reader = BufferReader.asReader(buffer);
-    return new L1NotePayload(reader.readObject(Note), reader.readObject(AztecAddress), Fr.fromBuffer(reader));
+    return new L1NotePayload(
+      reader.readObject(Note),
+      reader.readObject(AztecAddress),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+    );
   }
 
   /**
@@ -42,7 +51,7 @@ export class L1NotePayload {
    * @returns Buffer representation of the L1NotePayload object.
    */
   toBuffer() {
-    return serializeToBuffer([this.note, this.contractAddress, this.storageSlot]);
+    return serializeToBuffer([this.note, this.contractAddress, this.storageSlot, this.noteTypeId]);
   }
 
   /**
@@ -80,6 +89,6 @@ export class L1NotePayload {
    * @returns A random L1NotePayload object.
    */
   static random() {
-    return new L1NotePayload(Note.random(), AztecAddress.random(), Fr.random());
+    return new L1NotePayload(Note.random(), AztecAddress.random(), Fr.random(), Fr.random());
   }
 }

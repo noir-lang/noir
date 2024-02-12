@@ -76,10 +76,17 @@ impl NoteInterface<ADDRESS_NOTE_LEN>  for AddressNote {
             context,
             (*context).this_address(),
             slot,
+            Self::get_note_type_id(),
             encryption_pub_key,
             self.serialize_content(),
         );
         // docs:end:encrypted
+    }
+
+    fn get_note_type_id() -> Field {
+        // TODO(#4519): autogenerate
+        // python -c "print(int(''.join(str(ord(c)) for c in 'AddressNote')))"
+        6510010011410111511578111116101
     }
 }
 

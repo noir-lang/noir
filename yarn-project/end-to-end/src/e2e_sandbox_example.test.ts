@@ -77,8 +77,12 @@ describe('e2e_sandbox_example', () => {
 
     // Add the newly created "pending shield" note to PXE
     const pendingShieldsStorageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
+    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
     const note = new Note([new Fr(initialSupply), aliceSecretHash]);
-    await pxe.addNote(new ExtendedNote(note, alice, contract.address, pendingShieldsStorageSlot, receipt.txHash));
+    await pxe.addNote(
+      new ExtendedNote(note, alice, contract.address, pendingShieldsStorageSlot, noteTypeId, receipt.txHash),
+    );
 
     // Make the tokens spendable by redeeming them using the secret (converts the "pending shield note" created above
     // to a "token note")
@@ -145,7 +149,14 @@ describe('e2e_sandbox_example', () => {
 
     const bobPendingShield = new Note([new Fr(mintQuantity), bobSecretHash]);
     await pxe.addNote(
-      new ExtendedNote(bobPendingShield, bob, contract.address, pendingShieldsStorageSlot, mintPrivateReceipt.txHash),
+      new ExtendedNote(
+        bobPendingShield,
+        bob,
+        contract.address,
+        pendingShieldsStorageSlot,
+        noteTypeId,
+        mintPrivateReceipt.txHash,
+      ),
     );
 
     await tokenContractBob.methods.redeem_shield(bob, mintQuantity, bobSecret).send().wait();

@@ -13,6 +13,8 @@ export interface NoteAndSlot {
   note: Note;
   /** The storage slot of the note. */
   storageSlot: Fr;
+  /** The note type identifier. */
+  noteTypeId: Fr;
 }
 
 /**

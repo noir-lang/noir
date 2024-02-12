@@ -160,6 +160,7 @@ export class NoteProcessor {
                     payload.note,
                     payload.contractAddress,
                     payload.storageSlot,
+                    payload.noteTypeId,
                     txHash,
                     newCommitments,
                     dataStartIndexForTx,
@@ -254,8 +255,9 @@ export class NoteProcessor {
     const excludedIndices: Set<number> = new Set();
     const noteDaos: NoteDao[] = [];
     for (const deferredNote of deferredNoteDaos) {
-      const { note, contractAddress, storageSlot, txHash, newCommitments, dataStartIndexForTx } = deferredNote;
-      const payload = new L1NotePayload(note, contractAddress, storageSlot);
+      const { note, contractAddress, storageSlot, noteTypeId, txHash, newCommitments, dataStartIndexForTx } =
+        deferredNote;
+      const payload = new L1NotePayload(note, contractAddress, storageSlot, noteTypeId);
 
       try {
         const noteDao = await produceNoteDao(

@@ -29,7 +29,7 @@ MINT_PRIVATE_OUTPUT=$(aztec-cli send mint_private \
 MINT_PRIVATE_TX_HASH=$(echo "$MINT_PRIVATE_OUTPUT" | grep "Transaction hash:" | awk '{print $NF}')
 
 aztec-cli add-note \
-  $ALICE $CONTRACT 5 $MINT_PRIVATE_TX_HASH \
+  $ALICE $CONTRACT 5 84114971101151129711410111011678111116101 $MINT_PRIVATE_TX_HASH \
   --note 1000 $SECRET_HASH
 
 aztec-cli send redeem_shield \

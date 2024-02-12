@@ -213,11 +213,13 @@ describe('e2e_cheat_codes', () => {
       // docs:start:pxe_add_note
       const note = new Note([new Fr(mintAmount), secretHash]);
       const pendingShieldStorageSlot = new Fr(5n);
+      const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
       const extendedNote = new ExtendedNote(
         note,
         admin.address,
         token.address,
         pendingShieldStorageSlot,
+        noteTypeId,
         receipt.txHash,
       );
       await pxe.addNote(extendedNote);

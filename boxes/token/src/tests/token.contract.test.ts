@@ -21,6 +21,9 @@ import { afterEach, beforeAll, expect, jest } from '@jest/globals';
 import { setupEnvironment } from '../environment/index.js';
 
 const TIMEOUT = 60_000;
+const TOKEN_NAME = 'Aztec Token';
+const TOKEN_SYMBOL = 'AZT';
+const TOKEN_DECIMALS = 18n;
 
 describe('e2e_token_contract', () => {
   jest.setTimeout(TIMEOUT);
@@ -36,8 +39,16 @@ describe('e2e_token_contract', () => {
 
   const addPendingShieldNoteToPXE = async (accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) => {
     const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
+    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
     const note = new Note([new Fr(amount), secretHash]);
-    const extendedNote = new ExtendedNote(note, accounts[accountIndex].address, asset.address, storageSlot, txHash);
+    const extendedNote = new ExtendedNote(
+      note,
+      accounts[accountIndex].address,
+      asset.address,
+      storageSlot,
+      noteTypeId,
+      txHash,
+    );
     await wallets[accountIndex].addNote(extendedNote);
   };
 
@@ -51,7 +62,9 @@ describe('e2e_token_contract', () => {
     logger(`Accounts: ${accounts.map(a => a.toReadableString())}`);
     logger(`Wallets: ${wallets.map(w => w.getAddress().toString())}`);
 
-    asset = await TokenContract.deploy(wallets[0], accounts[0].address).send().deployed();
+    asset = await TokenContract.deploy(wallets[0], accounts[0], TOKEN_NAME, TOKEN_SYMBOL, TOKEN_DECIMALS)
+      .send()
+      .deployed();
     logger(`Token deployed to ${asset.address}`);
     tokenSim = new TokenSimulator(
       asset,

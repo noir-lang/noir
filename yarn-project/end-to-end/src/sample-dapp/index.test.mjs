@@ -31,8 +31,16 @@ describe('token', () => {
     const receipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
 
     const storageSlot = new Fr(5);
+    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
     const note = new Note([new Fr(initialBalance), secretHash]);
-    const extendedNote = new ExtendedNote(note, owner.getAddress(), token.address, storageSlot, receipt.txHash);
+    const extendedNote = new ExtendedNote(
+      note,
+      owner.getAddress(),
+      token.address,
+      storageSlot,
+      noteTypeId,
+      receipt.txHash,
+    );
     await pxe.addNote(extendedNote);
 
     await token.methods.redeem_shield({ address: owner.getAddress() }, initialBalance, secret).send().wait();

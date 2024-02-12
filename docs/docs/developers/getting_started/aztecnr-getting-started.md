@@ -120,7 +120,7 @@ Add a new function into your contract as shown below:
 
 #include_code nullifier /yarn-project/noir-contracts/contracts/counter_contract/src/main.nr rust
 
-Here, we're computing both the note hash and the nullifier. The nullifier computation uses Aztec’s `compute_note_hash_and_nullifier` function, which takes details about the note's attributes eg contract address, nonce, storage slot, and preimage.
+Here, we're computing both the note hash and the nullifier. The nullifier computation uses Aztec’s `compute_note_hash_and_nullifier` function, which takes details about the note's attributes eg contract address, nonce, storage slot, type id, and preimage.
 
 ## Getting a counter
 

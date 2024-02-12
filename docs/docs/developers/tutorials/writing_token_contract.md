@@ -130,7 +130,7 @@ contract Token {
 
     unconstrained fn balance_of_public(owner: AztecAddress) -> Field {}
 
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {}
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, note_type_id: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {}
 }
 ```
 

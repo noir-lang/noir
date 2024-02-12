@@ -349,13 +349,14 @@ contract Test {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         serialized_note: [Field; VALUE_NOTE_LEN] // must fit either a FieldNote or a ValueNote
     ) -> pub [Field; 4] {
-        if (storage_slot == storage.example_constant.get_storage_slot()) {
-            let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+
+        if (note_type_id == FieldNote::get_note_type_id()) {
             note_utils::compute_note_hash_and_nullifier(FieldNote::deserialize_content, note_header, serialized_note)
         } else {
-            // For ValueNotes created via write_value_to_storage
             let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
             note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
         }

@@ -252,12 +252,15 @@ export const browserTestSuite = (
           const mintPrivateReceipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
 
           const storageSlot = new Fr(5);
+
+          const noteTypeId = new Fr(84114971101151129711410111011678111116101n);
           const note = new Note([new Fr(initialBalance), secretHash]);
           const extendedNote = new ExtendedNote(
             note,
             ownerAddress,
             token.address,
             storageSlot,
+            noteTypeId,
             mintPrivateReceipt.txHash,
           );
           await pxe.addNote(extendedNote);

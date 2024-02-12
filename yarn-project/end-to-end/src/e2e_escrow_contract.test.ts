@@ -25,6 +25,8 @@ import { setup } from './fixtures/utils.js';
 
 describe('e2e_escrow_contract', () => {
   const pendingShieldsStorageSlot = new Fr(5);
+  const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
   let pxe: PXE;
   let wallet: AccountWallet;
   let recipientWallet: AccountWallet;
@@ -82,7 +84,15 @@ describe('e2e_escrow_contract', () => {
     expect(receipt.status).toEqual(TxStatus.MINED);
 
     const note = new Note([new Fr(mintAmount), secretHash]);
-    const extendedNote = new ExtendedNote(note, owner, token.address, pendingShieldsStorageSlot, receipt.txHash);
+
+    const extendedNote = new ExtendedNote(
+      note,
+      owner,
+      token.address,
+      pendingShieldsStorageSlot,
+      noteTypeId,
+      receipt.txHash,
+    );
     await pxe.addNote(extendedNote);
 
     expect(
@@ -129,7 +139,14 @@ describe('e2e_escrow_contract', () => {
     expect(receipt.status).toEqual(TxStatus.MINED);
 
     const note = new Note([new Fr(mintAmount), secretHash]);
-    const extendedNote = new ExtendedNote(note, owner, token.address, pendingShieldsStorageSlot, receipt.txHash);
+    const extendedNote = new ExtendedNote(
+      note,
+      owner,
+      token.address,
+      pendingShieldsStorageSlot,
+      noteTypeId,
+      receipt.txHash,
+    );
     await pxe.addNote(extendedNote);
 
     expect((await token.methods.redeem_shield(owner, mintAmount, secret).send().wait()).status).toEqual(TxStatus.MINED);

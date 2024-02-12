@@ -53,6 +53,12 @@ impl NoteInterface<FIELD_NOTE_LEN> for FieldNote {
             false, "FieldNote does not support broadcast. Add it to PXE directly using the `.addNote` function."
         );
     }
+
+    fn get_note_type_id() -> Field {
+        // TODO(#4519): autogenerate
+        // python -c "print(int(''.join(str(ord(c)) for c in 'FieldNote')))"
+        7010510110810078111116101
+    }
 }
 
 impl FieldNote {

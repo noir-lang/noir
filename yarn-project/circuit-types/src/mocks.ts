@@ -63,6 +63,7 @@ export const randomExtendedNote = ({
   contractAddress = AztecAddress.random(),
   txHash = randomTxHash(),
   storageSlot = Fr.random(),
+  noteTypeId = Fr.random(),
 }: Partial<ExtendedNote> = {}) => {
-  return new ExtendedNote(note, owner, contractAddress, storageSlot, txHash);
+  return new ExtendedNote(note, owner, contractAddress, storageSlot, noteTypeId, txHash);
 };

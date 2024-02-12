@@ -50,8 +50,17 @@ async function main() {
 
   // Add the newly created "pending shield" note to PXE
   const pendingShieldsStorageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
+  // `pending_shields` underlying note type is TransparentNote, with the following type id.
+  const pendingShieldsNoteTypeId = new Fr(84114971101151129711410111011678111116101n);
   const note = new Note([new Fr(ALICE_MINT_BALANCE), aliceSecretHash]);
-  const extendedNote = new ExtendedNote(note, alice.address, token.address, pendingShieldsStorageSlot, receipt.txHash);
+  const extendedNote = new ExtendedNote(
+    note,
+    alice.address,
+    token.address,
+    pendingShieldsStorageSlot,
+    pendingShieldsNoteTypeId,
+    receipt.txHash,
+  );
   await pxe.addNote(extendedNote);
 
   // Make the tokens spendable by redeeming them using the secret (converts the "pending shield note" created above

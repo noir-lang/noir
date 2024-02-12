@@ -126,9 +126,18 @@ describe('e2e_lending_contract', () => {
         await Promise.all([a, b].map(waitForSuccess));
 
         const storageSlot = new Fr(5);
+        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
         const note = new Note([new Fr(mintAmount), secretHash]);
         const txHash = await b.getTxHash();
-        const extendedNote = new ExtendedNote(note, accounts[0].address, asset.address, storageSlot, txHash);
+        const extendedNote = new ExtendedNote(
+          note,
+          accounts[0].address,
+          asset.address,
+          storageSlot,
+          noteTypeId,
+          txHash,
+        );
         await wallet.addNote(extendedNote);
 
         await waitForSuccess(asset.methods.redeem_shield(lendingAccount.address, mintAmount, secret).send());

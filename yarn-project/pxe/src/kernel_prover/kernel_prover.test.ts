@@ -41,6 +41,7 @@ describe('Kernel Prover', () => {
     .map(() => ({
       note: new Note([Fr.random(), Fr.random(), Fr.random()]),
       storageSlot: Fr.random(),
+      noteTypeId: Fr.random(),
       owner: { x: Fr.random(), y: Fr.random() },
     }));
 

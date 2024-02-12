@@ -66,8 +66,17 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     expect(receipt.status).toEqual(TxStatus.MINED);
 
     const storageSlot = new Fr(5);
+    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
+
     const note = new Note([new Fr(initialBalance), secretHash]);
-    const extendedNote = new ExtendedNote(note, accounts[0].address, token.address, storageSlot, receipt.txHash);
+    const extendedNote = new ExtendedNote(
+      note,
+      accounts[0].address,
+      token.address,
+      storageSlot,
+      noteTypeId,
+      receipt.txHash,
+    );
     await pxe.addNote(extendedNote);
 
     expect((await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait()).status).toEqual(
