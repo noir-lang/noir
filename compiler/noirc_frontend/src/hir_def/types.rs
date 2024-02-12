@@ -121,10 +121,15 @@ impl Type {
                 let typ = typ.as_ref();
                 (length as u32) * typ.field_count()
             }
-            Type::Struct(ref def, args) => {
+            Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+            }
+            Type::Alias(def, _) => {
+                // It is safe to access `typ` without instantiating generics here since generics
+                // cannot change the number of fields in `typ`.
+                def.borrow().typ.field_count()
             }
             Type::Tuple(fields) => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
@@ -336,14 +341,7 @@ impl PartialEq for TypeAlias {
 
 impl std::fmt::Display for TypeAlias {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)?;
-
-        if !self.generics.is_empty() {
-            let generics = vecmap(&self.generics, |binding| binding.borrow().to_string());
-            write!(f, "{}", generics.join(", "))?;
-        }
-
-        Ok(())
+        write!(f, "{}", self.name)
     }
 }
 
@@ -375,6 +373,14 @@ impl TypeAlias {
             .collect();
 
         self.typ.substitute(&substitutions)
+    }
+
+    /// True if the given index is the same index as a generic type of this alias
+    /// which is expected to be a numeric generic.
+    /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
+    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
+        let target_id = self.generics[index_of_generic].0;
+        self.typ.contains_numeric_typevar(target_id)
     }
 }
 
@@ -642,6 +648,13 @@ impl Type {
                     }
                 })
             }
+            Type::Alias(alias, generics) => generics.iter().enumerate().any(|(i, generic)| {
+                if named_generic_id_matches_target(generic) {
+                    alias.borrow().generic_is_numeric(i)
+                } else {
+                    generic.contains_numeric_typevar(target_id)
+                }
+            }),
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
             Type::String(length) => named_generic_id_matches_target(length),
             Type::FmtString(length, elements) => {
@@ -677,6 +690,11 @@ impl Type {
             | Type::Forall(_, _)
             | Type::TraitAsType(..)
             | Type::NotConstant => false,
+
+            // This function is called during name resolution before we've verified aliases
+            // are not cyclic. As a result, it wouldn't be safe to check this alias' definition
+            // to see if the aliased type is valid.
+            Type::Alias(..) => false,
 
             Type::Array(length, element) => {
                 length.is_valid_for_program_input() && element.is_valid_for_program_input()
@@ -775,6 +793,14 @@ impl std::fmt::Display for Type {
                     write!(f, "{}", s.borrow())
                 } else {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
+                }
+            }
+            Type::Alias(alias, args) => {
+                let args = vecmap(args, |arg| arg.to_string());
+                if args.is_empty() {
+                    write!(f, "{}", alias.borrow())
+                } else {
+                    write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
             Type::TraitAsType(_id, name, generics) => {
@@ -1070,6 +1096,11 @@ impl Type {
                 .try_unify_to_type_variable(var, bindings, |bindings| {
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
+
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                alias.try_unify(other, bindings)
+            }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 len_a.try_unify(len_b, bindings)?;
@@ -1413,13 +1444,19 @@ impl Type {
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 substitute_binding(binding)
             }
-            // Do not substitute_helper fields, it ca, substitute_bound_typevarsn lead to infinite recursion
+            // Do not substitute_helper fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
             Type::Struct(fields, args) => {
                 let args = vecmap(args, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
                 Type::Struct(fields.clone(), args)
+            }
+            Type::Alias(alias, args) => {
+                let args = vecmap(args, |arg| {
+                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                });
+                Type::Alias(alias.clone(), args)
             }
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| {
@@ -1469,7 +1506,9 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
+            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
+                generic_args.iter().any(|arg| arg.occurs(target_id))
+            }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 match &*binding.borrow() {
@@ -1519,6 +1558,11 @@ impl Type {
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 Struct(def.clone(), args)
+            }
+            Alias(def, args) => {
+                // We don't need to vecmap(args, follow_bindings) since we're recursively
+                // calling follow_bindings here already.
+                def.borrow().get_type(&args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
             TypeVariable(var, _) | NamedGeneric(var, _) => {
@@ -1651,6 +1695,7 @@ impl From<&Type> for PrintableType {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
+            Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
             Type::TraitAsType(_, _, _) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::TypeVariable(_, _) => unreachable!(),
@@ -1694,9 +1739,17 @@ impl std::fmt::Debug for Type {
             Type::Struct(s, args) => {
                 let args = vecmap(args, |arg| format!("{:?}", arg));
                 if args.is_empty() {
-                    write!(f, "{:?}", s.borrow())
+                    write!(f, "{}", s.borrow())
                 } else {
-                    write!(f, "{:?}<{}>", s.borrow(), args.join(", "))
+                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
+                }
+            }
+            Type::Alias(alias, args) => {
+                let args = vecmap(args, |arg| format!("{:?}", arg));
+                if args.is_empty() {
+                    write!(f, "{}", alias.borrow())
+                } else {
+                    write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
             Type::TraitAsType(_id, name, generics) => {

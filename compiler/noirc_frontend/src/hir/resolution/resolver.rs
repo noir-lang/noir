@@ -573,10 +573,11 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
 
-        if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
-            let expected_generic_count = type_alias_type.generics.len();
-            let type_alias_string = type_alias_type.to_string();
-            let id = type_alias_type.id;
+        if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
+            let type_alias = type_alias.borrow();
+            let expected_generic_count = type_alias.generics.len();
+            let type_alias_string = type_alias.to_string();
+            let id = type_alias.id;
 
             self.verify_generics_count(expected_generic_count, &mut args, span, || {
                 type_alias_string
@@ -595,7 +596,8 @@ impl<'a> Resolver<'a> {
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
-            return self.interner.get_type_alias(id).get_type(&args);
+            let alias = self.interner.get_type_alias(id);
+            return Type::Alias(alias, args);
         }
 
         match self.lookup_struct_or_error(path) {
@@ -1116,6 +1118,17 @@ impl<'a> Resolver<'a> {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name) = generic {
                         if struct_type.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::Alias(alias, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if alias.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1794,7 +1807,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn lookup_type_alias(&mut self, path: Path) -> Option<&TypeAlias> {
+    fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
         self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
     }
 
