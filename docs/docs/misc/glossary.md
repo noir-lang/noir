@@ -32,7 +32,7 @@ Sequencers are generally responsible for:
 - Tagging the pending block with an upgrade signal to facilitate forks
 - Publishing completed block with proofs to Ethereum as an ETH transaction
 
-Previously in [Aztec Connect](https://medium.com/aztec-protocol/sunsetting-aztec-connect-a786edce5cae) there was a single sequencer, and you can find the Typescript reference implementation called Falafel [here](https://github.com/AztecProtocol/aztec-connect/tree/master/falafel).
+Previously in [Aztec Connect](https://medium.com/aztec-protocol/sunsetting-aztec-connect-a786edce5cae) there was a single sequencer, and you can find the Typescript reference implementation called Falafel [here](https://github.com/AztecProtocol/aztec-connect/tree/master/yarn-project/falafel).
 
 ### Provers
 

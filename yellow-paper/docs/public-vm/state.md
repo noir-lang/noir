@@ -82,7 +82,7 @@ Each entry in the world state access trace is listed below along with its type a
 
 ## Accrued Substate
 
-> The term "accrued substate" is borrowed from the [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper).
+> The term "accrued substate" is borrowed from the [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper.pdf).
 
 **Accrued substate** is accrued throughout a context's execution, but updates to it are strictly never relevant to subsequent instructions, contract calls, or transactions. An execution context is always initialized with empty accrued substate, and instructions can append to its vectors which are _append-only_. If a contract call's execution succeeds, its accrued substate is appended to the caller's. If a contract's execution reverts, its accrued substate is ignored. There is no accrued substate "trace" that includes entries from reverted contexts.
 

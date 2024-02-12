@@ -17,7 +17,7 @@ We'll start with the mandatory "what is AA" section that every single article on
 
 ### What is account abstraction?
 
-We'll refer to AA as the _ability to set the validity conditions of a transaction programmatically_ ([source](https://fuel-labs.ghost.io/account-abstraction-for-everyone-else/)). [Starknet](https://docs.starknet.io/documentation/architecture_and_concepts/Account_Abstraction/introduction/#account_abstraction) goes one step further and splits AA into three different components:
+We'll refer to AA as the _ability to set the validity conditions of a transaction programmatically_ ([source](https://fuel-labs.ghost.io/account-abstraction-for-everyone-else/)). [Starknet](https://docs.starknet.io/documentation/architecture_and_concepts/Accounts/introduction/#account_abstraction) goes one step further and splits AA into three different components:
 
 - Signature abstraction (defining when a signature is accepted)
 - Fee abstraction (paying fees)
@@ -39,7 +39,7 @@ Implementing AA at the application layer has the main drawback that it's more co
 
 Now, there have also been multiple proposals for getting AA implemented at the _protocol_ level in Ethereum. This usually implies introducing a new transaction type or set of opcodes where signature verification and fee payment is handled by the EVM. See EIPs [2803](https://eips.ethereum.org/EIPS/eip-2803), [2938](https://eips.ethereum.org/EIPS/eip-2938), or [3074](https://eips.ethereum.org/EIPS/eip-3074). None of these have gained traction due to the efforts involved in implementing while keeping backwards compatibility.
 
-However, other chains are experimenting with protocol-level AA. Both [Starknet](https://docs.starknet.io/documentation/architecture_and_concepts/Account_Abstraction/introduction/) and [zkSync](https://era.zksync.io/docs/dev/developer-guides/aa.html) have native AA, zkSync being the first EVM-compatible one to do so. To maintain Ethereum compatibility, zkSync implements a [default account contract](https://github.com/matter-labs/era-system-contracts/blob/main/contracts/DefaultAccount.sol) in Solidity that mimics Ethereum's protocol behavior.
+However, other chains are experimenting with protocol-level AA. Both [Starknet](https://docs.starknet.io/documentation/architecture_and_concepts/Accounts/introduction/#account_abstraction) and [zkSync](https://era.zksync.io/docs/dev/developer-guides/aa.html) have native AA, zkSync being the first EVM-compatible one to do so. To maintain Ethereum compatibility, zkSync implements a [default account contract](https://github.com/matter-labs/era-system-contracts/blob/main/contracts/DefaultAccount.sol) in Solidity that mimics Ethereum's protocol behavior.
 
 ### Preventing DoS attacks
 
@@ -47,7 +47,7 @@ Protocol AA implementations are vulnerable to DoS attacks due to the unrestricte
 
 Application AA implementations face a similar issue: a smart wallet could return that a transaction is valid when a relayer is about to submit it on-chain and pay for its gas, but when the transaction is actually mined it could turn invalid.
 
-All implementations mitigate these issues by restricting what's doable in the validation phase. EIP4337 defines a set of prohibited opcodes and limits storage access (see [Simulation](https://eips.ethereum.org/EIPS/eip-4337#simulation) in the EIP), and requires a [reputation system](https://eips.ethereum.org/EIPS/eip-4337#reputation-scoring-and-throttlingbanning-for-global-entities) for global entities. zkSync [relaxes](https://era.zksync.io/docs/dev/developer-guides/aa.html#extending-eip4337) opcode requirements a bit, and Starknet simply [does not allow to call external contracts](https://docs.starknet.io/documentation/architecture_and_concepts/Account_Abstraction/validate_and_execute/#validate_limitations).
+All implementations mitigate these issues by restricting what's doable in the validation phase. EIP4337 defines a set of prohibited opcodes and limits storage access (see [Simulation](https://eips.ethereum.org/EIPS/eip-4337#simulation) in the EIP), and requires a [reputation system](https://eips.ethereum.org/EIPS/eip-4337#reputation-scoring-and-throttlingbanning-for-global-entities) for global entities. zkSync [relaxes](https://era.zksync.io/docs/dev/developer-guides/aa.html#extending-eip4337) opcode requirements a bit, and Starknet simply [does not allow to call external contracts](https://docs.starknet.io/documentation/architecture_and_concepts/Accounts/validate_and_execute/).
 
 ## Accounts in Aztec
 
