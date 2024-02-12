@@ -2137,13 +2137,10 @@ impl Context {
         let mut acir_vars = Vec::with_capacity(arguments.len());
         for value_id in arguments {
             let value = self.convert_value(*value_id, dfg);
-            // self.acir_context.flatten_value(&mut flattened_values, value)?;
-
             acir_vars.append(
                 &mut self.acir_context.flatten(value)?.iter().map(|(var, _)| *var).collect(),
             );
         }
-        // let acir_vars = flattened_values.iter().map(|(var, _)| *var).collect();
         Ok(acir_vars)
     }
 
