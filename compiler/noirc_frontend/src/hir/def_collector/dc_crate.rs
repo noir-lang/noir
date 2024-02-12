@@ -283,7 +283,7 @@ impl DefCollector {
                             .import(name.clone(), ns, resolved_import.is_prelude);
 
                         let file_id = current_def_map.file_id(module_id);
-                        add_import_refrence(ns, &name, &mut context.def_interner, file_id);
+                        add_import_reference(ns, &name, &mut context.def_interner, file_id);
 
                         if let Err((first_def, second_def)) = result {
                             let err = DefCollectorErrorKind::Duplicate {
@@ -388,17 +388,17 @@ impl DefCollector {
     }
 }
 
-fn add_import_refrence(
-    ns: crate::macros_api::ModuleDefId,
+fn add_import_reference(
+    def_id: crate::macros_api::ModuleDefId,
     name: &Ident,
     interner: &mut NodeInterner,
     file_id: FileId,
 ) {
-    if name.span().start() == 0 && name.span().end() == 0 {
-        // We ignore empty spans at 0 lcoation, this must be Stdlib
+    if name.span() == Span::empty(0) {
+        // We ignore empty spans at 0 location, this must be Stdlib
         return;
     }
-    if let crate::macros_api::ModuleDefId::FunctionId(func_id) = ns {
+    if let crate::macros_api::ModuleDefId::FunctionId(func_id) = def_id {
         interner.add_reference_for(
             DependencyId::Function(func_id),
             (DependencyId::FunctionCall, Location::new(name.span(), file_id)),

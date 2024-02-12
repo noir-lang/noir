@@ -74,23 +74,18 @@ impl NodeInterner {
     pub fn find_rename_symbols_at(&self, location: Location) -> Option<Vec<Location>> {
         let node_index = self.location_store.get_node_from_location(location)?;
 
-        // let mut edit_locations: Vec<Location> = Vec::new();
-
         let reference_node = self.graph_references[node_index];
         let found_locations: Vec<Location> = match reference_node.0 {
             DependencyId::Alias(_) | DependencyId::Struct(_) | DependencyId::Global(_) => todo!(),
             DependencyId::Function(_) => self.get_edit_locations(node_index),
 
             DependencyId::FunctionCall => {
-                let mut edit_locations: Vec<Location> = Vec::new();
-                if let Some(referenced_node_index) = self
+                let referenced_node_index = self
                     .graph_references
                     .neighbors_directed(node_index, petgraph::Direction::Incoming)
-                    .next()
-                {
-                    edit_locations.extend(self.get_edit_locations(referenced_node_index));
-                }
-                edit_locations
+                    .next()?;
+
+                self.get_edit_locations(referenced_node_index)
             }
         };
         Some(found_locations)

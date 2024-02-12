@@ -1419,8 +1419,6 @@ impl<'a> Resolver<'a> {
                     // If the expression is a singular indent, we search the resolver's current scope as normal.
                     let (hir_ident, var_scope_index) = self.get_ident_from_path(path.clone());
 
-                    // tracing::debug!("Resolved variable: {:?}", hir_ident);
-
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
                             DefinitionKind::Function(id) => {
