@@ -5,6 +5,7 @@ on:
     branches:
       - master
     paths: [docs/**]
+  workflow_dispatch:
 
 jobs:
   publish-docs:
