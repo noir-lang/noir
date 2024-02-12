@@ -696,7 +696,7 @@ fn collect_traits(context: &HirContext) -> Vec<TraitId> {
     crates
         .flat_map(|crate_id| context.def_map(&crate_id).map(|def_map| def_map.modules()))
         .flatten()
-        .flat_map(|(_, module)| {
+        .flat_map(|module| {
             module.type_definitions().filter_map(|typ| {
                 if let ModuleDefId::TraitId(struct_id) = typ {
                     Some(struct_id)

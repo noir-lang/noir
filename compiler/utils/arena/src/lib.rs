@@ -38,6 +38,26 @@ impl<T> core::ops::IndexMut<Index> for Arena<T> {
     }
 }
 
+impl<T> IntoIterator for Arena<T> {
+    type Item = T;
+
+    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vec.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Arena<T> {
+    type Item = &'a T;
+
+    type IntoIter = <&'a Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vec.iter()
+    }
+}
+
 // TODO: remove Clone
 impl<T> Arena<T> {
     pub fn insert(&mut self, item: T) -> Index
