@@ -9,20 +9,19 @@ set -eu
 
 BENCHMARK=${1:-goblin_bench}
 COMMAND=${2:-./$BENCHMARK}
+PRESET=${3:-clang16}
+BUILD_DIR=${4:-build}
 
 # Move above script dir.
 cd $(dirname $0)/..
 
-# Create lock file
-ssh $BB_SSH_KEY $BB_SSH_INSTANCE "touch ~/BENCHMARKING_IN_PROGRESS"
-
 # Configure and build.
-cmake --preset clang16
-cmake --build --preset clang16 --target $BENCHMARK
+cmake --preset $PRESET
+cmake --build --preset $PRESET --target $BENCHMARK
 
 source scripts/_benchmark_remote_lock.sh
 
-cd build
+cd $BUILD_DIR
 scp $BB_SSH_KEY ./bin/$BENCHMARK $BB_SSH_INSTANCE:$BB_SSH_CPP_PATH/build
 ssh $BB_SSH_KEY $BB_SSH_INSTANCE \
   "cd $BB_SSH_CPP_PATH/build ; $COMMAND"

@@ -3,6 +3,7 @@
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/ecc/groups/element.hpp"
 #include "element.hpp"
+#include <cstdint>
 
 // NOLINTBEGIN(readability-implicit-bool-conversion, cppcoreguidelines-avoid-c-arrays)
 namespace bb::group_elements {
@@ -594,101 +595,115 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_element(numeric::RNG* engine) noex
 }
 
 template <class Fq, class Fr, class T>
-element<Fq, Fr, T> element<Fq, Fr, T>::mul_without_endomorphism(const Fr& exponent) const noexcept
+element<Fq, Fr, T> element<Fq, Fr, T>::mul_without_endomorphism(const Fr& scalar) const noexcept
 {
-    const uint256_t converted_scalar(exponent);
+    const uint256_t converted_scalar(scalar);
 
     if (converted_scalar == 0) {
-        element result{ Fq::zero(), Fq::zero(), Fq::zero() };
-        result.self_set_infinity();
-        return result;
+        return element::infinity();
     }
 
-    element work_element(*this);
+    element accumulator(*this);
     const uint64_t maximum_set_bit = converted_scalar.get_msb();
     // This is simpler and doublings of infinity should be fast. We should think if we want to defend against the
     // timing leak here (if used with ECDSA it can sometimes lead to private key compromise)
     for (uint64_t i = maximum_set_bit - 1; i < maximum_set_bit; --i) {
-        work_element.self_dbl();
+        accumulator.self_dbl();
         if (converted_scalar.get_bit(i)) {
-            work_element += *this;
+            accumulator += *this;
         }
     }
-    return work_element;
+    return accumulator;
 }
 
-template <class Fq, class Fr, class T>
-element<Fq, Fr, T> element<Fq, Fr, T>::mul_with_endomorphism(const Fr& exponent) const noexcept
-{
-    const Fr converted_scalar = exponent.from_montgomery_form();
+namespace detail {
+// Represents the result of
+using EndoScalars = std::pair<std::array<uint64_t, 2>, std::array<uint64_t, 2>>;
 
-    if (converted_scalar.is_zero()) {
-        element result{ Fq::zero(), Fq::zero(), Fq::zero() };
-        result.self_set_infinity();
-        return result;
-    }
-
-    constexpr size_t lookup_size = 8;
-    constexpr size_t num_rounds = 32;
-    constexpr size_t num_wnaf_bits = 4;
-    std::array<element, lookup_size> lookup_table;
-
-    element d2 = element(*this);
-    d2.self_dbl();
-    lookup_table[0] = element(*this);
-    for (size_t i = 1; i < lookup_size; ++i) {
-        lookup_table[i] = lookup_table[i - 1] + d2;
-    }
-
-    uint64_t wnaf_table[num_rounds * 2];
-    Fr endo_scalar;
-    Fr::split_into_endomorphism_scalars(converted_scalar, endo_scalar, *(Fr*)&endo_scalar.data[2]); // NOLINT
-
+/**
+ * @brief Handles the WNAF computation for scalars that are split using an endomorphism,
+ * achieved through `split_into_endomorphism_scalars`. It facilitates efficient computation of elliptic curve
+ * point multiplication by optimizing the representation of these scalars.
+ *
+ * @tparam Element The data type of elements in the elliptic curve.
+ * @tparam NUM_ROUNDS The number of computation rounds for WNAF.
+ */
+template <typename Element, std::size_t NUM_ROUNDS> struct EndomorphismWnaf {
+    // NUM_WNAF_BITS: Number of bits per window in the WNAF representation.
+    static constexpr size_t NUM_WNAF_BITS = 4;
+    // table: Stores the WNAF representation of the scalars.
+    std::array<uint64_t, NUM_ROUNDS * 2> table;
+    // skew and endo_skew: Indicate if our original scalar is even or odd.
     bool skew = false;
     bool endo_skew = false;
 
-    wnaf::fixed_wnaf(&endo_scalar.data[0], &wnaf_table[0], skew, 0, 2, num_wnaf_bits);
-    wnaf::fixed_wnaf(&endo_scalar.data[2], &wnaf_table[1], endo_skew, 0, 2, num_wnaf_bits);
+    /**
+     * @param scalars A pair of 128-bit scalars (as two uint64_t arrays), split using an endomorphism.
+     */
+    EndomorphismWnaf(const EndoScalars& scalars)
+    {
+        wnaf::fixed_wnaf(&scalars.first[0], &table[0], skew, 0, 2, NUM_WNAF_BITS);
+        wnaf::fixed_wnaf(&scalars.second[0], &table[1], endo_skew, 0, 2, NUM_WNAF_BITS);
+    }
+};
 
-    element work_element{ T::one_x, T::one_y, Fq::one() };
-    work_element.self_set_infinity();
+} // namespace detail
 
-    uint64_t wnaf_entry = 0;
-    uint64_t index = 0;
-    bool sign = false;
+template <class Fq, class Fr, class T>
+element<Fq, Fr, T> element<Fq, Fr, T>::mul_with_endomorphism(const Fr& scalar) const noexcept
+{
+    // Consider the infinity flag, return infinity if set
+    if (is_point_at_infinity()) {
+        return element::infinity();
+    }
+    constexpr size_t NUM_ROUNDS = 32;
+    const Fr converted_scalar = scalar.from_montgomery_form();
+
+    if (converted_scalar.is_zero()) {
+        return element::infinity();
+    }
+    static constexpr size_t LOOKUP_SIZE = 8;
+    std::array<element, LOOKUP_SIZE> lookup_table;
+
+    element d2 = dbl();
+    lookup_table[0] = element(*this);
+    for (size_t i = 1; i < LOOKUP_SIZE; ++i) {
+        lookup_table[i] = lookup_table[i - 1] + d2;
+    }
+
+    detail::EndoScalars endo_scalars = Fr::split_into_endomorphism_scalars(converted_scalar);
+    detail::EndomorphismWnaf<element, NUM_ROUNDS> wnaf{ endo_scalars };
+    element accumulator{ T::one_x, T::one_y, Fq::one() };
+    accumulator.self_set_infinity();
     Fq beta = Fq::cube_root_of_unity();
 
-    for (size_t i = 0; i < num_rounds * 2; ++i) {
-        wnaf_entry = wnaf_table[i];
-        index = wnaf_entry & 0x0fffffffU;
-        sign = static_cast<bool>((wnaf_entry >> 31) & 1);
+    for (size_t i = 0; i < NUM_ROUNDS * 2; ++i) {
+        uint64_t wnaf_entry = wnaf.table[i];
+        uint64_t index = wnaf_entry & 0x0fffffffU;
+        bool sign = static_cast<bool>((wnaf_entry >> 31) & 1);
         const bool is_odd = ((i & 1) == 1);
         auto to_add = lookup_table[static_cast<size_t>(index)];
         to_add.y.self_conditional_negate(sign ^ is_odd);
         if (is_odd) {
             to_add.x *= beta;
         }
-        work_element += to_add;
+        accumulator += to_add;
 
-        if (i != ((2 * num_rounds) - 1) && is_odd) {
+        if (i != ((2 * NUM_ROUNDS) - 1) && is_odd) {
             for (size_t j = 0; j < 4; ++j) {
-                work_element.self_dbl();
+                accumulator.self_dbl();
             }
         }
     }
 
-    auto temporary = -lookup_table[0];
-    if (skew) {
-        work_element += temporary;
+    if (wnaf.skew) {
+        accumulator += -lookup_table[0];
+    }
+    if (wnaf.endo_skew) {
+        accumulator += element{ lookup_table[0].x * beta, lookup_table[0].y, lookup_table[0].z };
     }
 
-    temporary = { lookup_table[0].x * beta, lookup_table[0].y, lookup_table[0].z };
-
-    if (endo_skew) {
-        work_element += temporary;
-    }
-
-    return work_element;
+    return accumulator;
 }
 
 /**
@@ -775,18 +790,18 @@ void element<Fq, Fr, T>::batch_affine_add(const std::span<affine_element<Fq, Fr,
 }
 
 /**
- * @brief Multiply each point by the same exponent
+ * @brief Multiply each point by the same scalar
  *
- * @details We use the fact that all points are being multiplied by the same exponent to batch the operations (perform
+ * @details We use the fact that all points are being multiplied by the same scalar to batch the operations (perform
  * batch affine additions and doublings with batch inversion trick)
  *
  * @param points The span of individual points that need to be scaled
- * @param exponent The scalar we multiply all the points by
+ * @param scalar The scalar we multiply all the points by
  * @return std::vector<affine_element<Fq, Fr, T>> Vector of new points where each point is exponent⋅points[i]
  */
 template <class Fq, class Fr, class T>
 std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomorphism(
-    const std::span<affine_element<Fq, Fr, T>>& points, const Fr& exponent) noexcept
+    const std::span<affine_element<Fq, Fr, T>>& points, const Fr& scalar) noexcept
 {
     BB_OP_COUNT_TIME();
     typedef affine_element<Fq, Fr, T> affine_element;
@@ -887,7 +902,7 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
             /*finite_field_multiplications_per_iteration=*/6);
     };
     // Compute wnaf for scalar
-    const Fr converted_scalar = exponent.from_montgomery_form();
+    const Fr converted_scalar = scalar.from_montgomery_form();
 
     // If the scalar is zero, just set results to the point at infinity
     if (converted_scalar.is_zero()) {
@@ -911,10 +926,9 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
         return results;
     }
 
-    constexpr size_t lookup_size = 8;
-    constexpr size_t num_rounds = 32;
-    constexpr size_t num_wnaf_bits = 4;
-    std::array<std::vector<affine_element>, lookup_size> lookup_table;
+    constexpr size_t LOOKUP_SIZE = 8;
+    constexpr size_t NUM_ROUNDS = 32;
+    std::array<std::vector<affine_element>, LOOKUP_SIZE> lookup_table;
     for (auto& table : lookup_table) {
         table.resize(num_points);
     }
@@ -924,8 +938,10 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
         num_points,
         [&temp_point_vector, &lookup_table, &points](size_t start, size_t end) {
             for (size_t i = start; i < end; ++i) {
-                temp_point_vector[i] = points[i];
-                lookup_table[0][i] = points[i];
+                // If the point is at infinity we fix-up the result later
+                // To avoid 'trying to invert zero in the field' we set the point to 'one' here
+                temp_point_vector[i] = points[i].is_point_at_infinity() ? affine_element::one() : points[i];
+                lookup_table[0][i] = points[i].is_point_at_infinity() ? affine_element::one() : points[i];
             }
         },
         /*finite_field_additions_per_iteration=*/0,
@@ -938,7 +954,7 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
 
     // Construct lookup table
     batch_affine_double(&temp_point_vector[0]);
-    for (size_t j = 1; j < lookup_size; ++j) {
+    for (size_t j = 1; j < LOOKUP_SIZE; ++j) {
         run_loop_in_parallel_if_effective(
             num_points,
             [j, &lookup_table](size_t start, size_t end) {
@@ -956,18 +972,8 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
         batch_affine_add_internal(&temp_point_vector[0], &lookup_table[j][0]);
     }
 
-    uint64_t wnaf_table[num_rounds * 2];
-    Fr endo_scalar;
-
-    // Split single scalar into 2 scalar in endo form
-    Fr::split_into_endomorphism_scalars(converted_scalar, endo_scalar, *(Fr*)&endo_scalar.data[2]); // NOLINT
-
-    bool skew = false;
-    bool endo_skew = false;
-
-    // Construct wnaf forms from scalars
-    wnaf::fixed_wnaf(&endo_scalar.data[0], &wnaf_table[0], skew, 0, 2, num_wnaf_bits);
-    wnaf::fixed_wnaf(&endo_scalar.data[2], &wnaf_table[1], endo_skew, 0, 2, num_wnaf_bits);
+    detail::EndoScalars endo_scalars = Fr::split_into_endomorphism_scalars(converted_scalar);
+    detail::EndomorphismWnaf<element, NUM_ROUNDS> wnaf{ endo_scalars };
 
     std::vector<affine_element> work_elements(num_points);
 
@@ -977,7 +983,7 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
     bool sign = 0;
     // Prepare elements for the first batch addition
     for (size_t j = 0; j < 2; ++j) {
-        wnaf_entry = wnaf_table[j];
+        wnaf_entry = wnaf.table[j];
         index = wnaf_entry & 0x0fffffffU;
         sign = static_cast<bool>((wnaf_entry >> 31) & 1);
         const bool is_odd = ((j & 1) == 1);
@@ -1010,8 +1016,8 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
     // First cycle of addition
     batch_affine_add_internal(&temp_point_vector[0], &work_elements[0]);
     // Run through SM logic in wnaf form (excluding the skew)
-    for (size_t j = 2; j < num_rounds * 2; ++j) {
-        wnaf_entry = wnaf_table[j];
+    for (size_t j = 2; j < NUM_ROUNDS * 2; ++j) {
+        wnaf_entry = wnaf.table[j];
         index = wnaf_entry & 0x0fffffffU;
         sign = static_cast<bool>((wnaf_entry >> 31) & 1);
         const bool is_odd = ((j & 1) == 1);
@@ -1044,7 +1050,7 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
     }
 
     // Apply skew for the first endo scalar
-    if (skew) {
+    if (wnaf.skew) {
         run_loop_in_parallel_if_effective(
             num_points,
             [&lookup_table, &temp_point_vector](size_t start, size_t end) {
@@ -1063,12 +1069,11 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
         batch_affine_add_internal(&temp_point_vector[0], &work_elements[0]);
     }
     // Apply skew for the second endo scalar
-    if (endo_skew) {
+    if (wnaf.endo_skew) {
         run_loop_in_parallel_if_effective(
             num_points,
             [beta, &lookup_table, &temp_point_vector](size_t start, size_t end) {
                 for (size_t i = start; i < end; ++i) {
-
                     temp_point_vector[i] = lookup_table[0][i];
                     temp_point_vector[i].x *= beta;
                 }
@@ -1082,6 +1087,22 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
             /*sequential_copy_ops_per_iteration=*/1);
         batch_affine_add_internal(&temp_point_vector[0], &work_elements[0]);
     }
+    // handle points at infinity explicitly
+    run_loop_in_parallel_if_effective(
+        num_points,
+        [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; ++i) {
+                work_elements[i] =
+                    points[i].is_point_at_infinity() ? work_elements[i].set_infinity() : work_elements[i];
+            }
+        },
+        /*finite_field_additions_per_iteration=*/0,
+        /*finite_field_multiplications_per_iteration=*/1,
+        /*finite_field_inversions_per_iteration=*/0,
+        /*group_element_additions_per_iteration=*/0,
+        /*group_element_doublings_per_iteration=*/0,
+        /*scalar_multiplications_per_iteration=*/0,
+        /*sequential_copy_ops_per_iteration=*/1);
 
     return work_elements;
 }

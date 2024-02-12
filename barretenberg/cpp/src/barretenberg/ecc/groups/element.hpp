@@ -95,15 +95,17 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
                                  const std::span<affine_element<Fq, Fr, Params>>& second_group,
                                  const std::span<affine_element<Fq, Fr, Params>>& results) noexcept;
     static std::vector<affine_element<Fq, Fr, Params>> batch_mul_with_endomorphism(
-        const std::span<affine_element<Fq, Fr, Params>>& points, const Fr& exponent) noexcept;
+        const std::span<affine_element<Fq, Fr, Params>>& points, const Fr& scalar) noexcept;
 
     Fq x;
     Fq y;
     Fq z;
 
   private:
-    element mul_without_endomorphism(const Fr& exponent) const noexcept;
-    element mul_with_endomorphism(const Fr& exponent) const noexcept;
+    // For test access to mul_without_endomorphism
+    friend class TestElementPrivate;
+    element mul_without_endomorphism(const Fr& scalar) const noexcept;
+    element mul_with_endomorphism(const Fr& scalar) const noexcept;
 
     template <typename = typename std::enable_if<Params::can_hash_to_curve>>
     static element random_coordinates_on_curve(numeric::RNG* engine = nullptr) noexcept;

@@ -326,11 +326,34 @@ template <class Params_> struct alignas(32) field {
      **/
     static void split_into_endomorphism_scalars(const field& k, field& k1, field& k2)
     {
-        // if the modulus is a 256-bit integer, we need to use a basis where g1, g2 have been shifted by 2^384
+        // if the modulus is a >= 255-bit integer, we need to use a basis where g1, g2 have been shifted by 2^384
         if constexpr (Params::modulus_3 >= 0x4000000000000000ULL) {
             split_into_endomorphism_scalars_384(k, k1, k2);
-            return;
+        } else {
+            std::pair<std::array<uint64_t, 2>, std::array<uint64_t, 2>> ret = split_into_endomorphism_scalars(k);
+            k1.data[0] = ret.first[0];
+            k1.data[1] = ret.first[1];
+
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/851): We should move away from this hack by
+            // returning pair of uint64_t[2] instead of a half-set field
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+            k2.data[0] = ret.second[0]; // NOLINT
+            k2.data[1] = ret.second[1];
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
         }
+    }
+
+    // NOTE: this form is only usable if the modulus is 254 bits or less, otherwise see
+    // split_into_endomorphism_scalars_384.
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/851): Unify these APIs.
+    static std::pair<std::array<uint64_t, 2>, std::array<uint64_t, 2>> split_into_endomorphism_scalars(const field& k)
+    {
+        static_assert(Params::modulus_3 < 0x4000000000000000ULL);
         field input = k.reduce_once();
 
         constexpr field endo_g1 = { Params::endo_g1_lo, Params::endo_g1_mid, Params::endo_g1_hi, 0 };
@@ -369,15 +392,14 @@ template <class Params_> struct alignas(32) field {
         field t1 = (q2_lo - q1_lo).reduce_once();
         field beta = cube_root_of_unity();
         field t2 = (t1 * beta + input).reduce_once();
-        k2.data[0] = t1.data[0];
-        k2.data[1] = t1.data[1];
-        k1.data[0] = t2.data[0];
-        k1.data[1] = t2.data[1];
+        return {
+            { t2.data[0], t2.data[1] },
+            { t1.data[0], t1.data[1] },
+        };
     }
 
     static void split_into_endomorphism_scalars_384(const field& input, field& k1_out, field& k2_out)
     {
-
         constexpr field minus_b1f{
             Params::endo_minus_b1_lo,
             Params::endo_minus_b1_mid,
