@@ -1,6 +1,6 @@
 use acvm::brillig_vm::brillig::Value;
 use noirc_errors::debug_info::{
-    DebugTypeId, DebugTypes, DebugVarId, DebugVariable, DebugVariables,
+    DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable,
 };
 use noirc_printable_type::{decode_value, PrintableType, PrintableValue};
 use std::collections::HashMap;
@@ -8,8 +8,9 @@ use std::collections::HashMap;
 #[derive(Debug, Default, Clone)]
 pub struct DebugVars {
     variables: HashMap<DebugVarId, DebugVariable>,
+    functions: HashMap<DebugFnId, DebugFunction>,
     types: HashMap<DebugTypeId, PrintableType>,
-    frames: Vec<(DebugVarId, HashMap<DebugVarId, PrintableValue>)>,
+    frames: Vec<(DebugFnId, HashMap<DebugVarId, PrintableValue>)>,
 }
 
 pub struct StackFrame<'a> {
@@ -19,12 +20,18 @@ pub struct StackFrame<'a> {
 }
 
 impl DebugVars {
+    pub fn insert_debug_info(&mut self, info: &DebugInfo) {
+        self.variables.extend(info.variables.clone().into_iter());
+        self.types.extend(info.types.clone().into_iter());
+        self.functions.extend(info.functions.clone().into_iter());
+    }
+
     pub fn get_variables(&self) -> Vec<StackFrame> {
         self.frames.iter().map(|(fn_id, frame)| self.build_stack_frame(fn_id, frame)).collect()
     }
 
     pub fn current_stack_frame(&self) -> Option<StackFrame> {
-        self.frames.last().map(|(function_id, frame)| self.build_stack_frame(function_id, frame))
+        self.frames.last().map(|(fn_id, frame)| self.build_stack_frame(fn_id, frame))
     }
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
@@ -36,24 +43,13 @@ impl DebugVars {
 
     fn build_stack_frame<'a>(
         &'a self,
-        function_id: &DebugVarId,
+        fn_id: &DebugFnId,
         frame: &'a HashMap<DebugVarId, PrintableValue>,
     ) -> StackFrame {
-        let fn_type_id = &self
-            .variables
-            .get(function_id)
-            .expect("failed to find type for fn_id={function_id:?}")
-            .debug_type_id;
+        let debug_fn = &self.functions.get(fn_id).expect("failed to find function metadata");
 
-        let fn_type = self
-            .types
-            .get(fn_type_id)
-            .unwrap_or_else(|| panic!("failed to get function type for fn_type_id={fn_type_id:?}"));
-
-        let PrintableType::Function { name, arguments, .. } = fn_type
-        else { panic!("unexpected function type {fn_type:?}") };
-
-        let params: Vec<&str> = arguments.iter().map(|(var_name, _)| var_name.as_str()).collect();
+        let params: Vec<&str> =
+            debug_fn.arg_names.iter().map(|arg_name| arg_name.as_str()).collect();
         let vars: Vec<(&str, &PrintableValue, &PrintableType)> = frame
             .iter()
             .filter_map(|(var_id, var_value)| {
@@ -61,15 +57,11 @@ impl DebugVars {
             })
             .collect();
 
-        StackFrame { function_name: name.as_str(), function_params: params, variables: vars }
-    }
-
-    pub fn insert_variables(&mut self, vars: &DebugVariables) {
-        self.variables.extend(vars.clone().into_iter());
-    }
-
-    pub fn insert_types(&mut self, types: &DebugTypes) {
-        self.types.extend(types.clone().into_iter());
+        StackFrame {
+            function_name: debug_fn.name.as_str(),
+            function_params: params,
+            variables: vars,
+        }
     }
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[Value]) {
@@ -153,7 +145,7 @@ impl DebugVars {
         self.frames.last_mut().expect("unexpected empty stack frames").1.remove(&var_id);
     }
 
-    pub fn push_fn(&mut self, fn_id: DebugVarId) {
+    pub fn push_fn(&mut self, fn_id: DebugFnId) {
         self.frames.push((fn_id, HashMap::default()));
     }
 

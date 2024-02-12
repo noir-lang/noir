@@ -6,7 +6,7 @@ use nargo::{
     artifacts::debug::{DebugArtifact, DebugVars, StackFrame},
     ops::{DefaultForeignCallExecutor, ForeignCallExecutor, NargoForeignCallResult},
 };
-use noirc_errors::debug_info::DebugVarId;
+use noirc_errors::debug_info::{DebugFnId, DebugVarId};
 use noirc_printable_type::ForeignCallError;
 
 pub(crate) enum DebugForeignCall {
@@ -67,8 +67,7 @@ impl DefaultDebugForeignCallExecutor {
         let Some(info) = artifact.debug_symbols.get(0) else {
             return;
         };
-        self.debug_vars.insert_variables(&info.variables);
-        self.debug_vars.insert_types(&info.types);
+        self.debug_vars.insert_debug_info(info);
     }
 }
 
@@ -84,6 +83,10 @@ impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
 
 fn debug_var_id(value: &Value) -> DebugVarId {
     DebugVarId(value.to_u128() as u32)
+}
+
+fn debug_fn_id(value: &Value) -> DebugFnId {
+    DebugFnId(value.to_u128() as u32)
 }
 
 impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
@@ -148,7 +151,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                 let fcp_fn_id = &foreign_call.inputs[0];
                 let ForeignCallParam::Single(fn_id_value) = fcp_fn_id
                     else { panic!("unexpected foreign call parameter in fn enter: {fcp_fn_id:?}") };
-                let fn_id = debug_var_id(fn_id_value);
+                let fn_id = debug_fn_id(fn_id_value);
                 self.debug_vars.push_fn(fn_id);
                 Ok(ForeignCallResult::default().into())
             }

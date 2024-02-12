@@ -5,9 +5,7 @@ use noirc_printable_type::PrintableType;
 
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
-use crate::hir_def::stmt::HirPattern;
 use crate::node_interner::ExprId;
-use crate::Type;
 
 use super::ast::{Expression, Ident};
 use super::Monomorphizer;
@@ -48,8 +46,6 @@ impl<'interner> Monomorphizer<'interner> {
                 self.patch_debug_var_assign(call, arguments);
             } else if name == "__debug_var_drop" {
                 self.patch_debug_var_drop(call, arguments);
-            } else if name == "__debug_fn_enter" {
-                self.patch_debug_fn_enter(call, arguments);
             } else if let Some(arity) = name.strip_prefix(DEBUG_MEMBER_ASSIGN_PREFIX) {
                 let arity = arity.parse::<usize>().expect("failed to parse member assign arity");
                 self.patch_debug_member_assign(call, arguments, arity);
@@ -75,7 +71,7 @@ impl<'interner> Monomorphizer<'interner> {
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
         let source_var_id = source_var_id.to_u128().into();
         // then update the ID used for tracking at runtime
-        let var_id = self.debug_type_tracker.insert_var(source_var_id, var_type);
+        let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
         arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
     }
@@ -172,76 +168,12 @@ impl<'interner> Monomorphizer<'interner> {
         arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
     }
 
-    /// Update instrumentation code to track function enter and exit.
-    fn patch_debug_fn_enter(&mut self, call: &HirCallExpression, arguments: &mut [Expression]) {
-        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
-        let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
-        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
-            unreachable!("Missing source_var_id in __debug_fn_enter call");
-        };
-        let source_var_id = source_var_id.to_u128().into();
-        let func_id = self.current_function_id.expect("current function not set");
-        let fn_meta = self.interner.function_meta(&func_id);
-        let fn_name = self.interner.definition(fn_meta.name.id).name.clone();
-        let ptype = PrintableType::Function {
-            name: fn_name.clone(),
-            arguments: fn_meta
-                .parameters
-                .iter()
-                .map(|(arg_pattern, arg_type, _)| {
-                    let arg_display = self.pattern_to_string(arg_pattern);
-                    (arg_display, arg_type.follow_bindings().into())
-                })
-                .collect(),
-            env: Box::new(PrintableType::Tuple { types: vec![] }),
-        };
-        let fn_id = self.debug_type_tracker.insert_var_printable(source_var_id, ptype);
-        let interned_var_id = self.intern_var_id(fn_id, &call.location);
-        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
-    }
-
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
-        let var_id_literal = HirLiteral::Integer((var_id.0 as u128).into(), false);
-        let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
+        let id_literal = HirLiteral::Integer((var_id.0 as u128).into(), false);
+        let expr_id = self.interner.push_expr(HirExpression::Literal(id_literal));
         self.interner.push_expr_type(&expr_id, crate::Type::FieldElement);
         self.interner.push_expr_location(expr_id, location.span, location.file);
         expr_id
-    }
-
-    fn pattern_to_string(&self, pat: &HirPattern) -> String {
-        match pat {
-            HirPattern::Identifier(hir_id) => self.interner.definition(hir_id.id).name.clone(),
-            HirPattern::Mutable(mpat, _) => format!("mut {}", self.pattern_to_string(mpat)),
-            HirPattern::Tuple(elements, _) => format!(
-                "({})",
-                elements
-                    .iter()
-                    .map(|element| self.pattern_to_string(element))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-            HirPattern::Struct(Type::Struct(struct_type, _), fields, _) => {
-                let struct_type = struct_type.borrow();
-                format!(
-                    "{} {{ {} }}",
-                    &struct_type.name.0.contents,
-                    fields
-                        .iter()
-                        .map(|(field_ident, field_pattern)| {
-                            format!(
-                                "{}: {}",
-                                &field_ident.0.contents,
-                                self.pattern_to_string(field_pattern)
-                            )
-                        })
-                        .collect::<Vec<String>>()
-                        .join(", "),
-                )
-            }
-            HirPattern::Struct(typ, _, _) => {
-                panic!("unexpected type of struct: {typ:?}");
-            }
-        }
     }
 }
 

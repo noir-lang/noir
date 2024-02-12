@@ -25,6 +25,9 @@ use serde::{
 pub struct DebugVarId(pub u32);
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugFnId(pub u32);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct DebugTypeId(pub u32);
 
 #[derive(Debug, Clone, Hash, Deserialize, Serialize)]
@@ -33,7 +36,14 @@ pub struct DebugVariable {
     pub debug_type_id: DebugTypeId,
 }
 
+#[derive(Debug, Clone, Hash, Deserialize, Serialize)]
+pub struct DebugFunction {
+    pub name: String,
+    pub arg_names: Vec<String>,
+}
+
 pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
+pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
 pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
 
 #[serde_as]
@@ -45,6 +55,7 @@ pub struct DebugInfo {
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
     pub variables: DebugVariables,
+    pub functions: DebugFunctions,
     pub types: DebugTypes,
 }
 
@@ -60,9 +71,10 @@ impl DebugInfo {
     pub fn new(
         locations: BTreeMap<OpcodeLocation, Vec<Location>>,
         variables: DebugVariables,
+        functions: DebugFunctions,
         types: DebugTypes,
     ) -> Self {
-        Self { locations, variables, types }
+        Self { locations, variables, functions, types }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.

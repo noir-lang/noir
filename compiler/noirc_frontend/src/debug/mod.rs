@@ -4,6 +4,7 @@ use crate::{
     ast::{Path, PathKind},
     parser::{Item, ItemKind},
 };
+use noirc_errors::debug_info::{DebugFnId, DebugFunction};
 use noirc_errors::{Span, Spanned};
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -26,8 +27,12 @@ pub struct DebugInstrumenter {
     // all field names referenced when assigning to a member of a variable
     pub field_names: HashMap<SourceFieldId, String>,
 
+    // all collected function metadata (name + argument names)
+    pub functions: HashMap<DebugFnId, DebugFunction>,
+
     next_var_id: u32,
     next_field_name_id: u32,
+    next_fn_id: u32,
 
     // last seen variable names and their IDs grouped by scope
     scope: Vec<HashMap<String, SourceVarId>>,
@@ -38,9 +43,11 @@ impl Default for DebugInstrumenter {
         Self {
             variables: HashMap::default(),
             field_names: HashMap::default(),
+            functions: HashMap::default(),
             scope: vec![],
             next_var_id: 0,
             next_field_name_id: 1,
+            next_fn_id: 0,
         }
     }
 }
@@ -76,11 +83,20 @@ impl DebugInstrumenter {
         field_name_id
     }
 
+    fn insert_function(&mut self, fn_name: String, arguments: Vec<String>) -> DebugFnId {
+        let fn_id = DebugFnId(self.next_fn_id);
+        self.next_fn_id += 1;
+        self.functions.insert(fn_id, DebugFunction { name: fn_name, arg_names: arguments });
+        fn_id
+    }
+
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
-        let func_name = &func.name.0.contents;
-        self.scope.push(HashMap::default());
-        let fn_id = self.insert_var(func_name);
+        let func_name = func.name.0.contents.clone();
+        let func_args =
+            func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
+        let fn_id = self.insert_function(func_name, func_args);
         let enter_fn = build_debug_call_stmt("enter", fn_id, func.span);
+        self.scope.push(HashMap::default());
 
         let set_fn_params = func
             .parameters
@@ -108,7 +124,7 @@ impl DebugInstrumenter {
         &mut self,
         statements: &mut Vec<ast::Statement>,
         span: Span,
-        opt_fn_id: Option<SourceVarId>,
+        opt_fn_id: Option<DebugFnId>,
     ) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
@@ -586,7 +602,7 @@ fn build_assign_member_stmt(
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
 }
 
-fn build_debug_call_stmt(fname: &str, fn_id: SourceVarId, span: Span) -> ast::Statement {
+fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, span: Span) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(ast::Path {
@@ -623,6 +639,30 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
         }
     }
     vars
+}
+
+fn pattern_to_string(pattern: &ast::Pattern) -> String {
+    match pattern {
+        ast::Pattern::Identifier(id) => id.0.contents.clone(),
+        ast::Pattern::Mutable(mpat, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Tuple(elements, _) => format!(
+            "({})",
+            elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")
+        ),
+        ast::Pattern::Struct(name, fields, _) => {
+            format!(
+                "{} {{ {} }}",
+                name,
+                fields
+                    .iter()
+                    .map(|(field_ident, field_pattern)| {
+                        format!("{}: {}", &field_ident.0.contents, pattern_to_string(field_pattern))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
+        }
+    }
 }
 
 fn ident(s: &str, span: Span) -> ast::Ident {

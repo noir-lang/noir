@@ -83,8 +83,6 @@ struct Monomorphizer<'interner> {
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
-
-    current_function_id: Option<node_interner::FuncId>,
 }
 
 type HirType = crate::Type;
@@ -129,7 +127,8 @@ pub fn monomorphize_debug(
     let FuncMeta { return_distinctness, return_visibility, kind, .. } =
         monomorphizer.interner.function_meta(&main);
 
-    let (debug_variables, debug_types) = monomorphizer.debug_type_tracker.extract_vars_and_types();
+    let (debug_variables, debug_functions, debug_types) =
+        monomorphizer.debug_type_tracker.extract_vars_and_types();
     Program::new(
         functions,
         function_sig,
@@ -138,6 +137,7 @@ pub fn monomorphize_debug(
         *return_visibility,
         *kind == FunctionKind::Recursive,
         debug_variables,
+        debug_functions,
         debug_types,
     )
 }
@@ -156,7 +156,6 @@ impl<'interner> Monomorphizer<'interner> {
             is_range_loop: false,
             return_location: None,
             debug_type_tracker,
-            current_function_id: None,
         }
     }
 
@@ -252,8 +251,6 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
-        self.current_function_id = Some(f);
-
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
             the_trait.self_type_typevar.force_bind(self_type);
