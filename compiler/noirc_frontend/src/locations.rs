@@ -79,11 +79,9 @@ impl NodeInterner {
         let reference_node = self.graph_references[node_index];
         let found_locations: Vec<Location> = match reference_node.0 {
             DependencyId::Alias(_) | DependencyId::Struct(_) | DependencyId::Global(_) => todo!(),
-            DependencyId::Function(_) | DependencyId::GlobalDefinition(_) => {
-                self.get_edit_locations(node_index)
-            }
+            DependencyId::Function(_) => self.get_edit_locations(node_index),
 
-            DependencyId::GlobalReference | DependencyId::FunctionCall => {
+            DependencyId::FunctionCall => {
                 let mut edit_locations: Vec<Location> = Vec::new();
                 if let Some(referenced_node_index) = self
                     .graph_references
