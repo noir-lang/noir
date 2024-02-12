@@ -649,7 +649,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
 fn pattern_to_string(pattern: &ast::Pattern) -> String {
     match pattern {
         ast::Pattern::Identifier(id) => id.0.contents.clone(),
-        ast::Pattern::Mutable(mpat, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
         ast::Pattern::Tuple(elements, _) => format!(
             "({})",
             elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")

@@ -231,8 +231,12 @@ mod tests {
         let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
 
-        let debug_symbols =
-            vec![DebugInfo::new(opcode_locations, BTreeMap::default(), BTreeMap::default())];
+        let debug_symbols = vec![DebugInfo::new(
+            opcode_locations,
+            BTreeMap::default(),
+            BTreeMap::default(),
+            BTreeMap::default(),
+        )];
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 
         let location_in_line = debug_artifact.location_in_line(loc).expect("Expected a range");
