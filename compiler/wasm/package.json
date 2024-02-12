@@ -47,7 +47,6 @@
     "@noir-lang/noirc_abi": "workspace:*",
     "@types/adm-zip": "^0.5.0",
     "@types/chai": "^4",
-    "@types/eslint": "^8",
     "@types/mocha": "^10.0.6",
     "@types/mocha-each": "^2",
     "@types/node": "^20.10.5",

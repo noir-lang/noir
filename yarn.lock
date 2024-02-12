@@ -4452,7 +4452,6 @@ __metadata:
     "@noir-lang/types": "workspace:*"
     "@types/adm-zip": ^0.5.0
     "@types/chai": ^4
-    "@types/eslint": ^8
     "@types/mocha": ^10.0.6
     "@types/mocha-each": ^2
     "@types/node": ^20.10.5
@@ -5742,16 +5741,6 @@ __metadata:
     "@types/estree": "*"
     "@types/json-schema": "*"
   checksum: c3bc70166075e6e9f7fb43978882b9ac0b22596b519900b08dc8a1d761bbbddec4c48a60cc4eb674601266223c6f11db30f3fb6ceaae96c23c54b35ad88022bc
-  languageName: node
-  linkType: hard
-
-"@types/eslint@npm:^8":
-  version: 8.56.2
-  resolution: "@types/eslint@npm:8.56.2"
-  dependencies:
-    "@types/estree": "*"
-    "@types/json-schema": "*"
-  checksum: 38e054971596f5c0413f66a62dc26b10e0a21ac46ceacb06fbf8cfb838d20820787209b17218b3916e4c23d990ff77cfdb482d655cac0e0d2b837d430fcc5db8
   languageName: node
   linkType: hard
 
