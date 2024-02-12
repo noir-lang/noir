@@ -1472,12 +1472,10 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
-                let func = self.resolve_expression(*call_expr.clone().func);
+                let func = self.resolve_expression(*call_expr.func);
 
-                let arguments =
-                    vecmap(call_expr.clone().arguments, |arg| self.resolve_expression(arg));
+                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
-
                 HirExpression::Call(HirCallExpression { func, arguments, location })
             }
             ExpressionKind::MethodCall(call_expr) => {
