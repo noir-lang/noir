@@ -472,8 +472,8 @@ pub fn build_debug_crate_file() -> String {
         (1..=MAX_MEMBER_ASSIGN_DEPTH)
             .map(|n| {
                 // The variable signature has to be generic as Noir supports using any polymorphic integer as an index.
-                // If we were to set a specific type for index signatures here, such as `Field`, we will error in 
-                // type checking if we attempt to index with a different type such as `u8`. 
+                // If we were to set a specific type for index signatures here, such as `Field`, we will error in
+                // type checking if we attempt to index with a different type such as `u8`.
                 let var_sig =
                     (0..n).map(|i| format!["_v{i}: Index"]).collect::<Vec<String>>().join(", ");
                 let vars = (0..n).map(|i| format!["_v{i}"]).collect::<Vec<String>>().join(", ");

@@ -246,7 +246,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 let (mut lvalue_type, mut lvalue, mut mutable) =
                     self.check_lvalue(array, assign_span);
-                
+
                 // Before we check that the lvalue is an array, try to dereference it as many times
                 // as needed to unwrap any &mut wrappers.
                 while let Type::MutableReference(element) = lvalue_type.follow_bindings() {
