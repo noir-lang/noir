@@ -52,7 +52,7 @@ export default function Landing() {
             </div>
             <div className="homepage_cta_container">
               <h2 className="homepage_h2">Coming from...</h2>
-              <Link to="/docs/how_to/solidity_verifier" target="_blank" rel="noopener noreferrer">
+              <Link to="/docs/how_to/how-to-solidity-verifier" target="_blank" rel="noopener noreferrer">
                 <button className="cta-button button button--primary button--lg homepage_cta">Solidity</button>
               </Link>
               <Link to="/docs" target="_blank" rel="noopener noreferrer">
