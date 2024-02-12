@@ -1,9 +1,11 @@
 export function getPaths(basePath: string) {
   const fixtures = `${basePath}/fixtures`;
 
+  const simpleScriptProjectPath = `${fixtures}/simple`;
   const simpleScriptSourcePath = `${fixtures}/simple/src/main.nr`;
   const simpleScriptExpectedArtifact = `${fixtures}/simple/target/noir_wasm_testing.json`;
 
+  const depsScriptProjectPath = `${fixtures}/with-deps`;
   const depsScriptSourcePath = `${fixtures}/with-deps/src/main.nr`;
   const depsScriptExpectedArtifact = `${fixtures}/with-deps/target/noir_wasm_testing.json`;
 
@@ -22,8 +24,10 @@ export function getPaths(basePath: string) {
   const libCTOMLPath = `${libCProjectPath}/Nargo.toml`;
 
   return {
+    simpleScriptProjectPath,
     simpleScriptSourcePath,
     simpleScriptExpectedArtifact,
+    depsScriptProjectPath,
     depsScriptSourcePath,
     depsScriptExpectedArtifact,
     libASourcePath,
