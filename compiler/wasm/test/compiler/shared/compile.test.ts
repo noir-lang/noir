@@ -31,6 +31,7 @@ export function shouldCompileProgramIdentically(
 
     // We first compare both contracts without considering debug info
     delete (noirWasmProgram as Partial<ProgramArtifact>).hash;
+    delete (nargoArtifact as Partial<ProgramArtifact>).hash;
     expect(nargoArtifact).to.deep.eq(noirWasmProgram);
 
     // Compare the file maps, ignoring keys, since those depend in the order in which files are visited,
