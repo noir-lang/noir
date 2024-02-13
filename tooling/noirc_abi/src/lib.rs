@@ -157,7 +157,7 @@ impl AbiType {
                 Self::String { length: size }
             }
 
-            Type::Struct(def, ref args) => {
+            Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(context, &typ)));
@@ -166,6 +166,7 @@ impl AbiType {
                     context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
                 Self::Struct { fields, path }
             }
+            Type::Alias(def, args) => Self::from_type(context, &def.borrow().get_type(args)),
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |typ| Self::from_type(context, typ));
                 Self::Tuple { fields }
