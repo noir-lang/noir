@@ -1030,19 +1030,6 @@ impl Context {
         Ok(())
     }
 
-    // fn get_dynamic_array_value_types(
-    //     &mut self,
-    //     array_id: ValueId,
-    //     dfg: &DataFlowGraph,
-    // ) -> Vec<NumericType> {
-    //     let array_acir_value = self.convert_value(array_id, dfg);
-    //     match array_acir_value {
-    //         AcirValue::Array(_) => array_acir_value.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect::<Vec<_>>(),
-    //         AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
-    //         _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
-    //     }
-    // }
-
     fn dynamic_array_value_types(
         array_acir_value: AcirValue,
     ) -> Vec<NumericType> {

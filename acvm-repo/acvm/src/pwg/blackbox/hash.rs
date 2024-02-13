@@ -19,7 +19,6 @@ pub(super) fn solve_generic_256_hash_opcode(
     black_box_func: BlackBoxFunc,
 ) -> Result<(), OpcodeResolutionError> {
     let message_input = get_hash_input(initial_witness, inputs, var_message_size)?;
-    // print!("message_input: {:?}", message_input.clone());
     let digest: [u8; 32] = hash_function(&message_input)?;
 
     let outputs: [Witness; 32] = outputs.try_into().map_err(|_| {
