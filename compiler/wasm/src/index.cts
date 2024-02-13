@@ -1,7 +1,7 @@
 import { FileManager } from './noir/file-manager/file-manager';
 import { createNodejsFileManager } from './noir/file-manager/nodejs-file-manager';
 import { NoirWasmCompiler } from './noir/noir-wasm-compiler';
-import { LogData, LogFn } from './utils';
+import { LogFn } from './utils';
 import { CompilationResult } from './types/noir_artifact';
 import { inflateDebugSymbols } from './noir/debug';
 
@@ -52,24 +52,8 @@ async function compile(
     cjs,
     new cjs.PathToFileSourceMap(),
     {
-      log:
-        logFn ??
-        function (msg: string, data?: LogData) {
-          if (data) {
-            console.log(msg, data);
-          } else {
-            console.log(msg);
-          }
-        },
-      debugLog:
-        debugLogFn ??
-        function (msg: string, data?: LogData) {
-          if (data) {
-            console.debug(msg, data);
-          } else {
-            console.debug(msg);
-          }
-        },
+      log: logFn,
+      debugLog: debugLogFn,
     },
   );
   return await compiler.compile();

@@ -11,17 +11,17 @@ import { CompilationResult } from '../types/noir_artifact';
 /** Compilation options */
 export type NoirWasmCompileOptions = {
   /** Logging function */
-  log: LogFn;
+  log?: LogFn;
   /** Log debugging information through this function */
-  debugLog: LogFn;
+  debugLog?: LogFn;
 };
 
 /**
  * Noir Package Compiler
  */
 export class NoirWasmCompiler {
-  #log: LogFn;
-  #debugLog: LogFn;
+  #log?: LogFn;
+  #debugLog?: LogFn;
   #package: Package;
   /* eslint-disable @typescript-eslint/no-explicit-any */
   #wasmCompiler: any;
@@ -36,10 +36,10 @@ export class NoirWasmCompiler {
     fileManager: FileManager,
     wasmCompiler: unknown,
     sourceMap: unknown,
-    opts: NoirWasmCompileOptions,
+    opts?: NoirWasmCompileOptions,
   ) {
-    this.#log = opts.log;
-    this.#debugLog = opts.debugLog;
+    this.#log = opts?.log;
+    this.#debugLog = opts?.debugLog;
     this.#package = entrypoint;
     this.#fm = fileManager;
     this.#wasmCompiler = wasmCompiler;
@@ -88,13 +88,13 @@ export class NoirWasmCompiler {
    * Compile EntryPoint
    */
   public async compile(): Promise<CompilationResult> {
-    console.log(`Compiling at ${this.#package.getEntryPointPath()}`);
+    this.#debugLog?.(`Compiling at ${this.#package.getEntryPointPath()}`);
 
     if (!(this.#package.getType() === 'contract' || this.#package.getType() === 'bin')) {
       throw new Error(`Only supports compiling "contract" and "bin" package types (${this.#package.getType()})`);
     }
     await this.#dependencyManager.resolveDependencies();
-    this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
+    this.#debugLog?.(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
 
     try {
       const isContract: boolean = this.#package.getType() === 'contract';
@@ -115,7 +115,7 @@ export class NoirWasmCompiler {
         )
       ).flat();
       [...packageSources, ...librarySources].forEach((sourceFile) => {
-        this.#debugLog(`Adding source ${sourceFile.path}`);
+        this.#debugLog?.(`Adding source ${sourceFile.path}`);
         this.#sourceMap.add_source_code(sourceFile.path, sourceFile.source);
       });
       const result = this.#wasmCompiler.compile(entrypoint, isContract, deps, this.#sourceMap);
@@ -129,7 +129,7 @@ export class NoirWasmCompiler {
       if (err instanceof Error && err.name === 'CompileError') {
         const logs = await this.#processCompileError(err);
         for (const log of logs) {
-          this.#log(log);
+          this.#log?.(log);
         }
         throw new Error(logs.join('\n'));
       }
