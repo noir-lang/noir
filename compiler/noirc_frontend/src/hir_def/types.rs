@@ -931,7 +931,6 @@ impl Type {
         };
 
         let this = self.substitute(bindings);
-
         match &this {
             Type::FieldElement | Type::Integer(..) => {
                 bindings.insert(target_id, (var.clone(), this));

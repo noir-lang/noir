@@ -183,10 +183,8 @@ jobs:
       - name: Set up test environment
         uses: ./.github/actions/setup
 
-      - name: Install playwright deps
-        run: |
-          npx playwright install
-          npx playwright install-deps
+      - name: Install Playwright
+        run: ./.github/scripts/playwright-install.sh
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
@@ -516,4 +514,4 @@ jobs:
             fi
           env:
             # We treat any skipped or failing jobs as a failure for the workflow as a whole.
-            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}

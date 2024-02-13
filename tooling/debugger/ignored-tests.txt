@@ -1,5 +1,6 @@
+array_dynamic_blackbox_input
 bigint
-brillig_cow
+bit_shifts_comptime
 brillig_references
 brillig_to_bytes_integration
 debug_logs
