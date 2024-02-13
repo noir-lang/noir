@@ -565,6 +565,7 @@ impl<'interner> TypeChecker<'interner> {
             Type::Integer(..)
             | Type::FieldElement
             | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(_, TypeVariableKind::Integer)
             | Type::Bool => (),
 
             Type::TypeVariable(_, _) => {
@@ -805,7 +806,7 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
@@ -823,7 +824,13 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                if other
+                    .try_bind_to_polymorphic_int(
+                        int,
+                        &mut bindings,
+                        *int_kind == TypeVariableKind::Integer,
+                    )
+                    .is_ok()
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);
@@ -1081,7 +1088,7 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
@@ -1114,7 +1121,13 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                if other
+                    .try_bind_to_polymorphic_int(
+                        int,
+                        &mut bindings,
+                        *int_kind == TypeVariableKind::Integer,
+                    )
+                    .is_ok()
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);

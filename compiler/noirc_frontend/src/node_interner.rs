@@ -1700,6 +1700,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
