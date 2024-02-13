@@ -1317,7 +1317,7 @@ impl AcirContext {
         let mut witnesses = Vec::new();
         for input in inputs {
             let mut single_val_witnesses = Vec::new();
-            for (input, typ) in input.flatten() {
+            for (input, typ) in self.flatten(input)? {
                 // Intrinsics only accept Witnesses. This is not a limitation of the
                 // intrinsics, its just how we have defined things. Ideally, we allow
                 // constants too.
@@ -1399,16 +1399,32 @@ impl AcirContext {
         self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
     }
 
-    /// Recursive helper for flatten_values to flatten a single AcirValue into the result vector.
-    pub(crate) fn flatten_value(acir_vars: &mut Vec<AcirVar>, value: AcirValue) {
+    /// Recursive helper to flatten a single AcirValue into the result vector.
+    /// This helper differs from `flatten()` on the `AcirValue` type, as this method has access to the AcirContext
+    /// which lets us flatten an `AcirValue::DynamicArray` by reading its variables from memory.
+    pub(crate) fn flatten(
+        &mut self,
+        value: AcirValue,
+    ) -> Result<Vec<(AcirVar, AcirType)>, InternalError> {
         match value {
-            AcirValue::Var(acir_var, _) => acir_vars.push(acir_var),
+            AcirValue::Var(acir_var, typ) => Ok(vec![(acir_var, typ)]),
             AcirValue::Array(array) => {
+                let mut values = Vec::new();
                 for value in array {
-                    Self::flatten_value(acir_vars, value);
+                    values.append(&mut self.flatten(value)?);
                 }
+                Ok(values)
             }
-            AcirValue::DynamicArray(_) => unreachable!("Cannot flatten a dynamic array"),
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                try_vecmap(0..len, |i| {
+                    let index_var = self.add_constant(i);
+
+                    Ok::<(AcirVar, AcirType), InternalError>((
+                        self.read_from_memory(block_id, &index_var)?,
+                        AcirType::field(),
+                    ))
+                })
+            }
         }
     }
 

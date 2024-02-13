@@ -193,6 +193,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                     self.increment_program_counter()
                 }
             }
+            Opcode::Cast { destination: destination_address, source: source_address, bit_size } => {
+                let source_value = self.memory.read(*source_address);
+                let casted_value = self.cast(*bit_size, source_value);
+                self.memory.write(*destination_address, casted_value);
+                self.increment_program_counter()
+            }
             Opcode::Jump { location: destination } => self.set_program_counter(*destination),
             Opcode::JumpIf { condition, location: destination } => {
                 // Check if condition is true
@@ -511,6 +517,13 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
             .write(result, FieldElement::from_be_bytes_reduce(&result_value.to_bytes_be()).into());
         Ok(())
     }
+
+    /// Casts a value to a different bit size.
+    fn cast(&self, bit_size: u32, value: Value) -> Value {
+        let lhs_big = BigUint::from_bytes_be(&value.to_field().to_be_bytes());
+        let mask = BigUint::from(2_u32).pow(bit_size) - 1_u32;
+        FieldElement::from_be_bytes_reduce(&(lhs_big & mask).to_bytes_be()).into()
+    }
 }
 
 pub(crate) struct DummyBlackBoxSolver;
@@ -706,6 +719,40 @@ mod tests {
         let VM { memory, .. } = vm;
         let output_value = memory.read(MemoryAddress::from(2));
         assert_eq!(output_value, Value::from(false));
+    }
+
+    #[test]
+    fn cast_opcode() {
+        let calldata = vec![Value::from((2_u128.pow(32)) - 1)];
+
+        let opcodes = &[
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress::from(0),
+                size: 1,
+                offset: 0,
+            },
+            Opcode::Cast {
+                destination: MemoryAddress::from(1),
+                source: MemoryAddress::from(0),
+                bit_size: 8,
+            },
+            Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
+        ];
+        let mut vm = VM::new(calldata, opcodes, vec![], &DummyBlackBoxSolver);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::Finished { return_data_offset: 1, return_data_size: 1 });
+
+        let VM { memory, .. } = vm;
+
+        let casted_value = memory.read(MemoryAddress::from(1));
+        assert_eq!(casted_value, Value::from(2_u128.pow(8) - 1));
     }
 
     #[test]

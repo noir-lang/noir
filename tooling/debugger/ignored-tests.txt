@@ -1,3 +1,4 @@
+array_dynamic_blackbox_input
 array_sort
 assign_ex
 bit_shifts_comptime

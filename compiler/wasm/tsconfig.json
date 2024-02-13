@@ -16,5 +16,6 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "allowJs": true,
-  }
+  },
+  "exclude": ["node_modules"]
 }

@@ -20,7 +20,7 @@ mod signature;
 
 use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
-use hash::solve_generic_256_hash_opcode;
+use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
 use pedersen::pedersen;
 use range::solve_range_opcode;
@@ -205,6 +205,14 @@ pub(crate) fn solve(
             bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
         }
         BlackBoxFuncCall::Poseidon2Permutation { .. } => todo!(),
-        BlackBoxFuncCall::Sha256Compression { .. } => todo!(),
+        BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
+            solve_sha_256_permutation_opcode(
+                initial_witness,
+                inputs,
+                hash_values,
+                outputs,
+                bb_func.get_black_box_func(),
+            )
+        }
     }
 }
