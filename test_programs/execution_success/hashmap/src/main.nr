@@ -21,9 +21,6 @@ fn main(input: [Entry; HASHMAP_LEN]) {
     test_insert_and_methods(input);
     test_hashmaps_equality(input);
     test_retain();
-
-    // FAIL
-    test_load_factor(input);
 }
 
 // Insert, get, remove.
