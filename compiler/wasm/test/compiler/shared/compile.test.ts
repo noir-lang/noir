@@ -20,13 +20,13 @@ export function shouldCompileProgramIdentically(
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
     // Prepare nargo artifact
-    const [nargoDebugInfos, nargoFileMap] = deleteProgramDebugMetadata(nargoArtifact);
+    const [_nargoDebugInfos, nargoFileMap] = deleteProgramDebugMetadata(nargoArtifact);
     normalizeVersion(nargoArtifact);
 
     // Prepare noir-wasm artifact
     const noirWasmProgram = (noirWasmArtifact as unknown as ProgramCompilationArtifacts).program;
     expect(noirWasmProgram).not.to.be.undefined;
-    const [noirWasmDebugInfos, norWasmFileMap] = deleteProgramDebugMetadata(noirWasmProgram);
+    const [_noirWasmDebugInfos, norWasmFileMap] = deleteProgramDebugMetadata(noirWasmProgram);
     normalizeVersion(noirWasmProgram);
 
     // We first compare both contracts without considering debug info
