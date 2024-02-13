@@ -43,13 +43,17 @@ pub struct ModuleId {
 
 impl ModuleId {
     pub fn dummy_id() -> ModuleId {
-        ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() }
+        ModuleId { krate: None, local_id: LocalModuleId::dummy_id() }
     }
 }
 
 impl ModuleId {
-    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> &ModuleData {
-        &def_maps[&self.krate].modules()[self.local_id.0]
+    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> Option<&ModuleData> {
+        if let Some(krate) = self.krate {
+            &def_maps[&krate].modules()[self.local_id.0]
+        } else {
+            None
+        }
     }
 }
 

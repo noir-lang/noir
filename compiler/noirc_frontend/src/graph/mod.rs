@@ -16,7 +16,6 @@ pub enum CrateId {
     Root(usize),
     Crate(usize),
     Stdlib(usize),
-    Dummy,
 }
 
 impl CrateId {

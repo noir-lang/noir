@@ -26,7 +26,7 @@ impl ResolvedGlobals {
 pub(crate) fn resolve_globals(
     context: &mut Context,
     globals: Vec<UnresolvedGlobal>,
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
 ) -> ResolvedGlobals {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     let globals = vecmap(globals, |global| {

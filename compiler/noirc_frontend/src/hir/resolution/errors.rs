@@ -90,6 +90,8 @@ pub enum ResolverError {
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { span: Span, item: String, cycle: String },
+    #[error("Internal error: missing crate ID")]
+    MissingCrateId(ModuleId),
 }
 
 impl ResolverError {

@@ -21,7 +21,7 @@ use super::{errors::ResolverError, path_resolver::StandardPathResolver, resolver
 pub(crate) fn resolve_structs(
     context: &mut Context,
     structs: BTreeMap<StructId, UnresolvedStruct>,
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     // This is necessary to avoid cloning the entire struct map
@@ -67,7 +67,7 @@ pub(crate) fn resolve_structs(
 
 fn resolve_struct_fields(
     context: &mut Context,
-    krate: CrateId,
+    krate: Option<CrateId>,
     type_id: StructId,
     unresolved: UnresolvedStruct,
 ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {

@@ -25,12 +25,18 @@ use super::{
 /// of the module defined by its type.
 pub(crate) fn collect_impls(
     context: &mut Context,
-    crate_id: CrateId,
+    opt_crate_id: Option<CrateId>,
     collected_impls: &ImplMap,
 ) -> Vec<(CompilationError, FileId)> {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
+
+    if opt_crate_id.is_none() {
+        return errors
+    } else {
+        let crate_id = opt_crate_id.unwrap();
+    }
 
     for ((unresolved_type, module_id), methods) in collected_impls {
         let path_resolver =
@@ -60,17 +66,18 @@ pub(crate) fn collect_impls(
                 // Grab the module defined by the struct type. Note that impls are a case
                 // where the module the methods are added to is not the same as the module
                 // they are resolved in.
-                let module = get_module_mut(def_maps, struct_type.id.module_id());
-
-                for (_, method_id, method) in &unresolved.functions {
-                    // If this method was already declared, remove it from the module so it cannot
-                    // be accessed with the `TypeName::method` syntax. We'll check later whether the
-                    // object types in each method overlap or not. If they do, we issue an error.
-                    // If not, that is specialization which is allowed.
-                    if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
-                        module.remove_function(method.name_ident());
+                if let Some(module) = get_module_mut(def_maps, struct_type.id.module_id()) {
+                    for (_, method_id, method) in &unresolved.functions {
+                        // If this method was already declared, remove it from the module so it cannot
+                        // be accessed with the `TypeName::method` syntax. We'll check later whether the
+                        // object types in each method overlap or not. If they do, we issue an error.
+                        // If not, that is specialization which is allowed.
+                        if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                            module.remove_function(method.name_ident());
+                        }
                     }
                 }
+
             // Prohibit defining impls for primitive types if we're not in the stdlib
             } else if typ != Type::Error && !crate_id.is_stdlib() {
                 let span = *span;
@@ -84,7 +91,7 @@ pub(crate) fn collect_impls(
 
 pub(crate) fn resolve_impls(
     interner: &mut NodeInterner,
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_impls: ImplMap,
     errors: &mut Vec<(CompilationError, FileId)>,
@@ -95,41 +102,43 @@ pub(crate) fn resolve_impls(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: module_id, krate: crate_id });
 
-        let file = def_maps[&crate_id].file_id(module_id);
+        if let Some(crate_id) = opt_crate_id {
+            let file = def_maps[&crate_id].file_id(module_id);
 
-        for (generics, _, functions) in methods {
-            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-            resolver.add_generics(&generics);
-            let generics = resolver.get_generics().to_vec();
-            let self_type = resolver.resolve_type(unresolved_type.clone());
+            for (generics, _, functions) in methods {
+                let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+                resolver.add_generics(&generics);
+                let generics = resolver.get_generics().to_vec();
+                let self_type = resolver.resolve_type(unresolved_type.clone());
 
-            let mut file_func_ids = functions::resolve_function_set(
-                interner,
-                crate_id,
-                def_maps,
-                functions,
-                Some(self_type.clone()),
-                None,
-                generics,
-                errors,
-            );
-            if self_type != Type::Error {
-                for (file_id, method_id) in &file_func_ids {
-                    let method_name = interner.function_name(method_id).to_owned();
-
-                    if let Some(first_fn) =
-                        interner.add_method(&self_type, method_name.clone(), *method_id, false)
-                    {
-                        let error = ResolverError::DuplicateDefinition {
-                            name: method_name,
-                            first_span: interner.function_ident(&first_fn).span(),
-                            second_span: interner.function_ident(method_id).span(),
-                        };
-                        errors.push((error.into(), *file_id));
+                let mut file_func_ids = functions::resolve_function_set(
+                    interner,
+                    Some(crate_id),
+                    def_maps,
+                    functions,
+                    Some(self_type.clone()),
+                    None,
+                    generics,
+                    errors,
+                );
+                if self_type != Type::Error {
+                    for (file_id, method_id) in &file_func_ids {
+                        let method_name = interner.function_name(method_id).to_owned();
+    
+                        if let Some(first_fn) =
+                            interner.add_method(&self_type, method_name.clone(), *method_id, false)
+                        {
+                            let error = ResolverError::DuplicateDefinition {
+                                name: method_name,
+                                first_span: interner.function_ident(&first_fn).span(),
+                                second_span: interner.function_ident(method_id).span(),
+                            };
+                            errors.push((error.into(), *file_id));
+                        }
                     }
                 }
+                file_method_ids.append(&mut file_func_ids);
             }
-            file_method_ids.append(&mut file_func_ids);
         }
     }
 

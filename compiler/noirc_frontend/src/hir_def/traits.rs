@@ -40,7 +40,7 @@ pub struct Trait {
     /// struct traits are equal.
     pub id: TraitId,
 
-    pub crate_id: CrateId,
+    pub crate_id: Option<CrateId>,
 
     pub methods: Vec<TraitFunction>,
 

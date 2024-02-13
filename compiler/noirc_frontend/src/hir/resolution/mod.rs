@@ -46,8 +46,12 @@ fn take_errors(file_id: FileId, resolver: Resolver<'_>) -> Vec<(CompilationError
 fn get_module_mut(
     def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
     module: ModuleId,
-) -> &mut ModuleData {
-    &mut def_maps.get_mut(&module.krate).unwrap().modules[module.local_id.0]
+) -> Option<&mut ModuleData> {
+    if let Some(krate) = module.krate {
+        Some(&mut def_maps.get_mut(&krate).unwrap().modules[module.local_id.0])
+    } else {
+        None
+    }
 }
 
 fn get_struct_type(typ: &Type) -> Option<&Shared<StructType>> {

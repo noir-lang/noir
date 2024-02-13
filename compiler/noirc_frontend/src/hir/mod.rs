@@ -87,8 +87,8 @@ impl Context<'_, '_> {
     /// It is perfectly valid for the compiler to look
     /// up a CrateDefMap and it is not available.
     /// This is how the compiler knows to compile a Crate.
-    pub fn def_map(&self, crate_id: &CrateId) -> Option<&CrateDefMap> {
-        self.def_maps.get(crate_id)
+    pub fn def_map(&self, crate_id: Option<&CrateId>) -> Option<&CrateDefMap> {
+        crate_id.and_then(|id| self.def_maps.get(id))
     }
 
     /// Return the CrateId for each crate that has been compiled
@@ -110,13 +110,13 @@ impl Context<'_, '_> {
         self.def_interner.function_name(id)
     }
 
-    pub fn fully_qualified_function_name(&self, crate_id: &CrateId, id: &FuncId) -> String {
+    pub fn fully_qualified_function_name(&self, crate_id: Option<&CrateId>, id: &FuncId) -> String {
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
 
         let name = self.def_interner.function_name(id);
 
         let module_id = self.def_interner.function_module(*id);
-        let module = self.module(module_id);
+        let module = self.module(module_id).expect("The local module should be analyzed already");
 
         let parent =
             def_map.get_module_path_with_separator(module_id.local_id.0, module.parent, "::");
@@ -133,21 +133,21 @@ impl Context<'_, '_> {
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
     /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
-    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
+    pub fn fully_qualified_struct_path(&self, crate_id: Option<&CrateId>, id: StructId) -> String {
         let module_id = id.module_id();
         let child_id = module_id.local_id.0;
         let def_map =
-            self.def_map(&module_id.krate).expect("The local crate should be analyzed already");
+            self.def_map((&module_id.krate).as_ref()).expect("The local crate should be analyzed already");
 
-        let module = self.module(module_id);
+        let module = self.module(module_id).expect("The local module should be analyzed already");
 
         let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
 
-        if &module_id.krate == crate_id {
+        if (&module_id.krate).as_ref() == crate_id {
             module_path
         } else {
             let crates = self
-                .find_dependencies(crate_id, &module_id.krate)
+                .find_dependencies(crate_id, (&module_id.krate).as_ref())
                 .expect("The Struct was supposed to be defined in a dependency");
             crates.join("::") + "::" + &module_path
         }
@@ -160,14 +160,14 @@ impl Context<'_, '_> {
     /// Returns the path from crate_id to target_crate_id
     fn find_dependencies(
         &self,
-        crate_id: &CrateId,
-        target_crate_id: &CrateId,
+        crate_id: Option<&CrateId>,
+        target_crate_id: Option<&CrateId>,
     ) -> Option<Vec<String>> {
-        for dep in &self.crate_graph[crate_id].dependencies {
-            if &dep.crate_id == target_crate_id {
+        for dep in crate_id.map(|id| &self.crate_graph[id].dependencies).unwrap_or(&vec![]) {
+            if Some(&dep.crate_id) == target_crate_id {
                 return Some(vec![dep.name.to_string()]);
             }
-            if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
+            if let Some(mut path) = self.find_dependencies(Some(&dep.crate_id), target_crate_id) {
                 path.insert(0, dep.name.to_string());
                 return Some(path);
             }
@@ -182,7 +182,7 @@ impl Context<'_, '_> {
     /// Returns the FuncId of the 'main' function in a crate.
     /// - Expects check_crate to be called beforehand
     /// - Panics if no main function is found
-    pub fn get_main_function(&self, crate_id: &CrateId) -> Option<FuncId> {
+    pub fn get_main_function(&self, crate_id: Option<&CrateId>) -> Option<FuncId> {
         // Find the local crate, one should always be present
         let local_crate = self.def_map(crate_id).unwrap();
 
@@ -194,7 +194,7 @@ impl Context<'_, '_> {
     /// will return all functions marked with #[test].
     pub fn get_all_test_functions_in_crate_matching(
         &self,
-        crate_id: &CrateId,
+        crate_id: Option<&CrateId>,
         pattern: FunctionNameMatch,
     ) -> Vec<(String, TestFunction)> {
         let interner = &self.def_interner;
@@ -217,7 +217,7 @@ impl Context<'_, '_> {
             .collect()
     }
 
-    pub fn get_all_exported_functions_in_crate(&self, crate_id: &CrateId) -> Vec<(String, FuncId)> {
+    pub fn get_all_exported_functions_in_crate(&self, crate_id: Option<&CrateId>) -> Vec<(String, FuncId)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
 
@@ -231,13 +231,13 @@ impl Context<'_, '_> {
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
-    pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
+    pub fn get_all_contracts(&self, crate_id: Option<&CrateId>) -> Vec<Contract> {
         self.def_map(crate_id)
             .expect("The local crate should be analyzed already")
             .get_all_contracts(&self.def_interner)
     }
 
-    fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
+    fn module(&self, module_id: def_map::ModuleId) -> Option<&def_map::ModuleData> {
         module_id.module(&self.def_maps)
     }
 }

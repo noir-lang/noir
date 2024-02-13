@@ -333,14 +333,14 @@ impl StructId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StructId {
-        StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+        StructId(ModuleId { krate: None, local_id: LocalModuleId::dummy_id() })
     }
 
     pub fn module_id(self) -> ModuleId {
         self.0
     }
 
-    pub fn krate(self) -> CrateId {
+    pub fn krate(self) -> Option<CrateId> {
         self.0.krate
     }
 
@@ -366,7 +366,7 @@ impl TraitId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> TraitId {
-        TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+        TraitId(ModuleId { krate: None, local_id: LocalModuleId::dummy_id() })
     }
 }
 
@@ -577,7 +577,7 @@ impl NodeInterner {
     pub fn new_struct(
         &mut self,
         typ: &UnresolvedStruct,
-        krate: CrateId,
+        krate: Option<CrateId>,
         local_id: LocalModuleId,
         file_id: FileId,
     ) -> StructId {

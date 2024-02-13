@@ -39,7 +39,7 @@ pub fn collect_defs(
     ast: SortedModule,
     file_id: FileId,
     module_id: LocalModuleId,
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
     context: &mut Context,
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
@@ -115,7 +115,7 @@ impl<'a> ModCollector<'a> {
         errors
     }
 
-    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>, krate: CrateId) {
+    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>, krate: Option<CrateId>) {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for r#impl in impls {
@@ -142,7 +142,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         impls: Vec<NoirTraitImpl>,
-        krate: CrateId,
+        krate: Option<CrateId>,
     ) {
         for trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
@@ -178,7 +178,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         trait_impl: &NoirTraitImpl,
-        krate: CrateId,
+        krate: Option<CrateId>,
     ) -> UnresolvedFunctions {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
@@ -201,7 +201,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         functions: Vec<NoirFunction>,
-        krate: CrateId,
+        krate: Option<CrateId>,
     ) -> Vec<(CompilationError, FileId)> {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
@@ -257,7 +257,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         types: Vec<NoirStruct>,
-        krate: CrateId,
+        krate: Option<CrateId>,
     ) -> Vec<(CompilationError, FileId)> {
         let mut definition_errors = vec![];
         for struct_definition in types {
@@ -343,7 +343,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         traits: Vec<NoirTrait>,
-        krate: CrateId,
+        krate: Option<CrateId>,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for trait_definition in traits {
@@ -491,7 +491,7 @@ impl<'a> ModCollector<'a> {
     fn collect_submodules(
         &mut self,
         context: &mut Context,
-        crate_id: CrateId,
+        crate_id: Option<CrateId>,
         submodules: Vec<SortedSubModule>,
         file_id: FileId,
     ) -> Vec<(CompilationError, FileId)> {
@@ -523,7 +523,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
-        crate_id: CrateId,
+        crate_id: Option<CrateId>,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id =

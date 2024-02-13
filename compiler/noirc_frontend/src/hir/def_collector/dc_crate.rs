@@ -46,7 +46,7 @@ impl UnresolvedFunctions {
     pub fn resolve_trait_bounds_trait_ids(
         &mut self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
-        crate_id: CrateId,
+        crate_id: Option<CrateId>,
     ) -> Vec<DefCollectorErrorKind> {
         let mut errors = Vec::new();
 
@@ -80,7 +80,7 @@ pub struct UnresolvedStruct {
 pub struct UnresolvedTrait {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub crate_id: CrateId,
+    pub crate_id: Option<CrateId>,
     pub trait_def: NoirTrait,
     pub method_ids: HashMap<String, FuncId>,
     pub fns_with_default_impl: UnresolvedFunctions,
@@ -228,7 +228,7 @@ impl DefCollector {
 
             let dep_def_root =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
-            let module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };
+            let module_id = ModuleId { krate: Some(dep.crate_id), local_id: dep_def_root };
             // Add this crate as a dependency by linking it's root module
             def_map.extern_prelude.insert(dep.as_name(), module_id);
         }
@@ -248,7 +248,7 @@ impl DefCollector {
             ast,
             root_file_id,
             crate_root,
-            crate_id,
+            Some(crate_id),
             context,
         ));
 
@@ -256,10 +256,10 @@ impl DefCollector {
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
-        inject_prelude(crate_id, context, crate_root, &mut def_collector.collected_imports);
+        inject_prelude(Some(crate_id), context, crate_root, &mut def_collector.collected_imports);
         for submodule in submodules {
             inject_prelude(
-                crate_id,
+                Some(crate_id),
                 context,
                 LocalModuleId(submodule),
                 &mut def_collector.collected_imports,
@@ -310,7 +310,7 @@ impl DefCollector {
         errors.extend(resolve_type_aliases(
             context,
             def_collector.collected_type_aliases,
-            crate_id,
+            Some(crate_id),
         ));
 
         errors.extend(resolve_traits(context, def_collector.collected_traits, crate_id));
@@ -361,7 +361,7 @@ impl DefCollector {
         functions.extend(resolve_trait_impls(
             context,
             def_collector.collected_traits_impls,
-            crate_id,
+            Some(crate_id),
             &mut errors,
         ));
 
@@ -382,7 +382,7 @@ impl DefCollector {
 }
 
 fn inject_prelude(
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
     context: &Context,
     crate_root: LocalModuleId,
     collected_imports: &mut Vec<ImportDirective>,
@@ -395,7 +395,7 @@ fn inject_prelude(
     let path =
         Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
 
-    if !crate_id.is_stdlib() {
+    if !crate_id.map(|id| id.is_stdlib()).unwrap_or(false) {
         if let Ok(module_def) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
