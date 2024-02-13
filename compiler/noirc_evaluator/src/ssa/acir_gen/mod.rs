@@ -99,6 +99,13 @@ pub(crate) struct AcirDynamicArray {
     block_id: BlockId,
     /// Length of the array
     len: usize,
+    /// An ACIR dynamic array is a flat structure, so we use 
+    /// the inner structure of an `AcirType::NumericType` directly.
+    /// Some usages of ACIR arrays (e.g. black box hashes) require the bit size 
+    /// of every value to be known, thus we store the types as part of the dynamic 
+    /// array definition. 
+    /// The length of the value types vector must match the `len` field in this structure.
+    value_types: Vec<NumericType>,
     /// Identification for the ACIR dynamic array
     /// inner element type sizes array
     element_type_sizes: Option<BlockId>,
@@ -148,6 +155,14 @@ impl AcirValue {
             AcirValue::Var(var, typ) => vec![(var, typ)],
             AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
             AcirValue::DynamicArray(_) => unimplemented!("Cannot flatten a dynamic array"),
+        }
+    }
+
+    fn flat_numeric_types(self) -> Vec<NumericType> {
+        match self {
+            AcirValue::Array(_) => self.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect::<Vec<_>>(),
+            AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
+            _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
         }
     }
 }
@@ -1007,9 +1022,15 @@ impl Context {
         } else {
             None
         };
+
+        let value_types = self.convert_value(array_id, dfg).flat_numeric_types();
+        // Compiler sanity check
+        assert!(value_types.len() == array_len, "ICE: The length of the flattened type array should match the length of the dynamic array");
+
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
             len: array_len,
+            value_types,
             element_type_sizes,
         });
         self.define_result(dfg, instruction, result_value);
@@ -1093,7 +1114,7 @@ impl Context {
         &mut self,
         array_typ: &Type,
         array_id: ValueId,
-        array_acir_value: Option<AcirValue>,
+        supplied_acir_value: Option<&AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<BlockId, RuntimeError> {
         let element_type_sizes = self.internal_block_id(&array_id);
@@ -1119,11 +1140,8 @@ impl Context {
                     Value::Instruction { .. } | Value::Param { .. } => {
                         // An instruction representing the slice means it has been processed previously during ACIR gen.
                         // Use the previously defined result of an array operation to fetch the internal type information.
-                        let array_acir_value = if let Some(array_acir_value) = array_acir_value {
-                            array_acir_value
-                        } else {
-                            self.convert_value(array_id, dfg)
-                        };
+                        let array_acir_value = &self.convert_value(array_id, dfg);
+                        let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
                         match array_acir_value {
                             AcirValue::DynamicArray(AcirDynamicArray {
                                 element_type_sizes: inner_elem_type_sizes,
@@ -1138,7 +1156,7 @@ impl Context {
                                             }
                                         )?;
                                         self.copy_dynamic_array(
-                                            inner_elem_type_sizes,
+                                            *inner_elem_type_sizes,
                                             element_type_sizes,
                                             type_sizes_array_len,
                                         )?;
@@ -1683,15 +1701,20 @@ impl Context {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(new_slice_val),
+                        Some(&new_slice_val),
                         dfg,
                     )?)
                 } else {
                     None
                 };
+
+                let value_types = new_slice_val.flat_numeric_types();
+                assert!(value_types.len() == new_elem_size, "ICE: Value types array must match new slice size");
+
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
                     len: new_elem_size,
+                    value_types,
                     element_type_sizes,
                 });
                 Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
@@ -1738,15 +1761,20 @@ impl Context {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(new_slice_val),
+                        Some(&new_slice_val),
                         dfg,
                     )?)
                 } else {
                     None
                 };
+
+                let value_types = new_slice_val.flat_numeric_types();
+                assert!(value_types.len() == new_slice_size, "ICE: Value types array must match new slice size");
+
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
                     len: new_slice_size,
+                    value_types,
                     element_type_sizes,
                 });
 
@@ -1943,15 +1971,20 @@ impl Context {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(slice),
+                        Some(&slice),
                         dfg,
                     )?)
                 } else {
                     None
                 };
+
+                let value_types = slice.flat_numeric_types();
+                assert!(value_types.len() == slice_size, "ICE: Value types array must match new slice size");
+                
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
                     len: slice_size,
+                    value_types,
                     element_type_sizes,
                 });
 
@@ -2059,15 +2092,20 @@ impl Context {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(new_slice_val),
+                        Some(&new_slice_val),
                         dfg,
                     )?)
                 } else {
                     None
                 };
+                
+                let value_types = new_slice_val.flat_numeric_types();
+                assert!(value_types.len() == slice_size, "ICE: Value types array must match new slice size");
+                
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
                     len: slice_size,
+                    value_types,
                     element_type_sizes,
                 });
 
