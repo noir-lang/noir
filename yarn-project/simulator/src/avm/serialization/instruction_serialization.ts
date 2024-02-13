@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { BufferCursor } from './buffer_cursor.js';
 
 /**
- * All AVM opcodes. (Keep in sync with cpp counterpart code AvmMini_opcode.hpp).
+ * All AVM opcodes. (Keep in sync with cpp counterpart code avm_opcode.hpp).
  * Source: https://yp-aztec.netlify.app/docs/public-vm/instruction-set
  */
 export enum Opcode {
@@ -70,7 +70,7 @@ export enum Opcode {
 }
 
 // Possible types for an instruction's operand in its wire format. (Keep in sync with CPP code.
-// See vm/avm_trace/AvmMini_deserialization.cpp)
+// See vm/avm_trace/avm_deserialization.cpp)
 // Note that cpp code introduced an additional enum value TAG to express the instruction tag. In TS,
 // this one is parsed as UINT8.
 export enum OperandType {

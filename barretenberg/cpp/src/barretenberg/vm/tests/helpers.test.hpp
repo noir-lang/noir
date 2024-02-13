@@ -1,6 +1,6 @@
 #pragma once
 
-#include "barretenberg/vm/avm_trace/AvmMini_trace.hpp"
+#include "barretenberg/vm/avm_trace/avm_trace.hpp"
 
 #define EXPECT_THROW_WITH_MESSAGE(code, expectedMessage)                                                               \
     try {                                                                                                              \
@@ -12,9 +12,9 @@
     }
 namespace tests_avm {
 
-using Flavor = bb::AvmMiniFlavor;
+using Flavor = bb::AvmFlavor;
 using FF = Flavor::FF;
-using Row = bb::AvmMiniFullRow<bb::fr>;
+using Row = bb::AvmFullRow<bb::fr>;
 
 void validate_trace_proof(std::vector<Row>&& trace);
 void mutate_ic_in_trace(std::vector<Row>& trace,

@@ -3,7 +3,7 @@
 #include "barretenberg/dsl/types.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
-#include "barretenberg/vm/avm_trace/AvmMini_execution.hpp"
+#include "barretenberg/vm/avm_trace/avm_execution.hpp"
 #include "config.hpp"
 #include "get_bn254_crs.hpp"
 #include "get_bytecode.hpp"

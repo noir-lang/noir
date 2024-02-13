@@ -1,0 +1,106 @@
+
+
+include "avm_main.pil";
+
+namespace avm_mem(256);
+    // ========= Table MEM-TR =================
+    pol commit m_clk;
+    pol commit m_sub_clk;
+    pol commit m_addr;
+    pol commit m_tag; // Memory tag (0: uninitialized, 1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6:field)
+    pol commit m_val;
+    pol commit m_lastAccess; // Boolean (1 when this row is the last of a given address)
+    pol commit m_last; // Boolean indicating the last row of the memory trace (not execution trace)
+    pol commit m_rw; // Enum: 0 (read), 1 (write)
+
+    pol commit m_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.in_tag)
+
+    // Error columns
+    pol commit m_tag_err; // Boolean (1 if m_in_tag != m_tag is detected)
+
+    // Helper columns
+    pol commit m_one_min_inv; // Extra value to prove m_in_tag != m_tag with error handling
+
+    // Type constraints
+    m_lastAccess * (1 - m_lastAccess) = 0;
+    m_last * (1 - m_last) = 0;
+    m_rw * (1 - m_rw) = 0;
+    m_tag_err * (1 - m_tag_err) = 0;
+
+    // TODO: m_addr is u32 and 0 <= m_tag <= 6
+    //       (m_in_tag will be constrained through inclusion check to main trace)
+
+    // Remark: m_lastAccess == 1 on first row and therefore any relation with the
+    //         multiplicative term (1 - m_lastAccess) implicitly includes (1 - avm_main.first)
+    //         Similarly, this includes (1 - m_last) as well.
+
+    // m_lastAccess == 0 ==> m_addr' == m_addr
+    // Optimization: We removed the term (1 - avm_main.first)
+    #[MEM_LAST_ACCESS_DELIMITER]
+    (1 - m_lastAccess) * (m_addr' - m_addr) = 0;
+    
+    // We need: m_lastAccess == 1 ==> m_addr' > m_addr
+    // The above implies: m_addr' == m_addr ==> m_lastAccess == 0
+    // This condition does not apply on the last row.
+    // clk + 1 used as an expression for positive integers
+    // TODO: Uncomment when lookups are supported
+    // (1 - first) * (1 - m_last) * m_lastAccess { (m_addr' - m_addr) } in clk + 1; // Gated inclusion check. Is it supported?
+    
+    // TODO: following constraint
+    // m_addr' == m_addr && m_clk == m_clk' ==> m_sub_clk' - m_sub_clk > 0
+    // Can be enforced with (1 - first) * (1 - m_lastAccess) { 6 * (m_clk' - m_clk) + m_sub_clk' - m_sub_clk } in clk + 1
+    
+    // Alternatively to the above, one could require
+    // that m_addr' - m_addr is 0 or 1 (needs to add placeholders m_addr values):
+    // (m_addr' - m_addr) * (m_addr' - m_addr) - (m_addr' - m_addr) = 0;
+    // if m_addr' - m_addr is 0 or 1, the following is equiv. to m_lastAccess
+    // (m_addr' - m_addr)
+    
+    // m_lastAccess == 0 && m_rw' == 0 ==> m_val == m_val'
+    // This condition does not apply on the last row.
+    // Note: in barretenberg, a shifted polynomial will be 0 on the last row (shift is not cyclic)
+    // Note2: in barretenberg, if a poynomial is shifted, its non-shifted equivalent must be 0 on the first row
+    
+    // Optimization: We removed the term (1 - avm_main.first) and (1 - m_last)
+    #[MEM_READ_WRITE_VAL_CONSISTENCY]
+    (1 - m_lastAccess) * (1 - m_rw') * (m_val' - m_val) = 0;
+    
+    // m_lastAccess == 0 && m_rw' == 0 ==> m_tag == m_tag'
+    // Optimization: We removed the term (1 - avm_main.first) and (1 - m_last)
+    #[MEM_READ_WRITE_TAG_CONSISTENCY]
+    (1 - m_lastAccess) * (1 - m_rw') * (m_tag' - m_tag) = 0;
+
+    // Constrain that the first load from a given address has value 0. (Consistency of memory initialization.)
+    // We do not constrain that the m_tag == 0 as the 0 value is compatible with any memory type.
+    // If we set m_lastAccess = 1 on the first row, we can enforce this (should be ok as long as we do not shift m_lastAccess):
+    #[MEM_ZERO_INIT]
+    m_lastAccess * (1 - m_rw') * m_val' = 0;
+
+    // Memory tag consistency check
+    // We want to prove that m_in_tag == m_tag <==> m_tag_err == 0
+    // We want to show that we can invert (m_in_tag - m_tag) when m_tag_err == 1,
+    // i.e., m_tag_err == 1 ==> m_in_tag != m_tag
+    // For this purpose, we need an extra column to store a witness
+    // which can be used to show that (m_in_tag - m_tag) is invertible (non-zero).
+    // We re-use the same zero (non)-equality technique as in SUBOP_DIVISION_ZERO_ERR1/2 applied
+    // to (m_in_tag - m_tag) by replacing m_tag_err by 1 - m_tag_err because here
+    // the equality to zero is not an error. Another modification
+    // consists in storing 1 - (m_in_tag - m_tag)^(-1) in the extra witness column
+    // instead of (m_in_tag - m_tag)^(-1) as this allows to store zero by default (i.e., when m_tag_err == 0).
+    // The new column m_one_min_inv is set to 1 - (m_in_tag - m_tag)^(-1) when m_tag_err == 1
+    // but must be set to 0 when tags are matching and m_tag_err = 0
+    #[MEM_IN_TAG_CONSISTENCY_1]
+    (m_in_tag - m_tag) * (1 - m_one_min_inv) - m_tag_err = 0;
+    #[MEM_IN_TAG_CONSISTENCY_2]
+    (1 - m_tag_err) * m_one_min_inv = 0;
+
+    // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2:
+    // m_in_tag == m_tag ==> m_tag_err == 0 (first relation)
+    // m_tag_err == 0 ==> m_one_min_inv == 0 by second relation. First relation ==> m_in_tag - m_tag == 0
+
+    // TODO: when introducing load/store as sub-operations, we will have to add consistency of intermediate
+    // register values ia, ib, ic
+
+    // Inter-table Constraints
+    
+    // TODO: {m_clk, m_in_tag} IN {avm_main.clk, avm_main.in_tag}
