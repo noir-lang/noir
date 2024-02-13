@@ -895,7 +895,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        let this = self.substitute(bindings);
+        let this = self.substitute(bindings).follow_bindings();
 
         match &this {
             Type::Constant(length) if *length == target_length => {
@@ -962,7 +962,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        let this = self.substitute(bindings);
+        let this = self.substitute(bindings).follow_bindings();
         match &this {
             Type::FieldElement | Type::Integer(..) => {
                 bindings.insert(target_id, (var.clone(), this));
@@ -1078,6 +1078,11 @@ impl Type {
         match (self, other) {
             (Error, _) | (_, Error) => Ok(()),
 
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                alias.try_unify(other, bindings)
+            }
+
             (TypeVariable(var, Kind::IntegerOrField), other)
             | (other, TypeVariable(var, Kind::IntegerOrField)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
@@ -1096,11 +1101,6 @@ impl Type {
                 .try_unify_to_type_variable(var, bindings, |bindings| {
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
-
-            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
-                alias.try_unify(other, bindings)
-            }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 len_a.try_unify(len_b, bindings)?;
