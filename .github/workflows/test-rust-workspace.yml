@@ -52,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-test-artifacts]
     strategy:
+      fail-fast: false
       matrix:
         partition: [1, 2, 3, 4]
     steps:
