@@ -95,9 +95,8 @@ jobs:
             COMMIT=$(git rev-parse HEAD)
             # Now push to it with subrepo with computed commit messages
             if ./scripts/git-subrepo/lib/git-subrepo push $SUBREPO_PATH --squash --branch=$STAGING_BRANCH; then
+              # We don't push a commit to aztec anymore so that we can maintain the 'commit' as our last pull branch
               git reset $COMMIT
-              git commit --allow-empty --amend -am "$(git log -1 --pretty=%B) [skip ci]"
-              git push
             else
               echo "Problems syncing noir. We may need to pull the subrepo."
               exit 1
@@ -109,7 +108,7 @@ jobs:
             cd noir-repo
             git fetch # see recent change
             git checkout $BRANCH || git checkout -b $BRANCH
-            git merge -Xtheirs $STAGING_BRANCH
+            git merge -Xtheirs origin/$STAGING_BRANCH
             git push origin $BRANCH
             cd ..
           }
