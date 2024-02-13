@@ -84,6 +84,8 @@ pub enum ResolverError {
     InvalidTypeForEntryPoint { span: Span },
     #[error("Nested slices are not supported")]
     NestedSlices { span: Span },
+    #[error("#[recursive] attribute is only allowed on entry points to a program")]
+    MisplacedRecursiveAttribute { ident: Ident },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -142,33 +144,33 @@ impl From<ResolverError> for Diagnostic {
                 field.span(),
             ),
             ResolverError::NoSuchField { field, struct_definition } => {
-                let mut error = Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     format!("no such field {field} defined in struct {struct_definition}"),
                     String::new(),
                     field.span(),
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here with no {field} field"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
-            ResolverError::MissingFields { span, missing_fields, struct_definition } => {
+            ResolverError::MissingFields { span, mut missing_fields, struct_definition } => {
                 let plural = if missing_fields.len() != 1 { "s" } else { "" };
-                let missing_fields = missing_fields.join(", ");
+                let remaining_fields_names = match &missing_fields[..] {
+                    [field1] => field1.clone(),
+                    [field1, field2] => format!("{field1} and {field2}"),
+                    [field1, field2, field3] => format!("{field1}, {field2} and {field3}"),
+                    _ => {
+                        let len = missing_fields.len() - 3;
+                        let len_plural = if len != 1 {"s"} else {""};
 
-                let mut error = Diagnostic::simple_error(
-                    format!("missing field{plural}: {missing_fields}"),
+                        let truncated_fields = format!(" and {len} other field{len_plural}");
+                        missing_fields.truncate(3);
+                        format!("{}{truncated_fields}", missing_fields.join(", "))
+                    }
+                };
+
+                Diagnostic::simple_error(
+                    format!("missing field{plural} {remaining_fields_names} in struct {struct_definition}"),
                     String::new(),
                     span,
-                );
-
-                error.add_secondary(
-                    format!("{struct_definition} defined here"),
-                    struct_definition.span(),
-                );
-                error
+                )
             }
             ResolverError::UnnecessaryMut { first_mut, second_mut } => {
                 let mut error = Diagnostic::simple_error(
@@ -315,6 +317,18 @@ impl From<ResolverError> for Diagnostic {
                 "Try to use a constant sized array instead".into(),
                 span,
             ),
+            ResolverError::MisplacedRecursiveAttribute { ident } => {
+                let name = &ident.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[recursive] attribute on function {name} rather than the main function"),
+                    "misplaced #[recursive] attribute".to_string(),
+                    ident.0.span(),
+                );
+
+                diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
+                diag
+            }
             ResolverError::LowLevelFunctionOutsideOfStdlib { ident } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),

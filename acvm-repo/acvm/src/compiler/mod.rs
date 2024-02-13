@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use acir::circuit::{Circuit, OpcodeLocation};
-
-use crate::ExpressionWidth;
+use acir::circuit::{Circuit, ExpressionWidth, OpcodeLocation};
 
 // The various passes that we can use over ACIR
 mod optimizers;

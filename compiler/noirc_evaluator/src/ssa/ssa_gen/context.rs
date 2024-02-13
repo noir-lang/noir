@@ -552,22 +552,6 @@ impl<'a> FunctionContext<'a> {
     ) -> Values {
         let result_type = self.builder.type_of_value(lhs);
         let mut result = match operator {
-            BinaryOpKind::ShiftLeft => {
-                let bit_size = match result_type {
-                    Type::Numeric(NumericType::Signed { bit_size })
-                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                    _ => unreachable!("ICE: left-shift attempted on non-integer"),
-                };
-                self.builder.insert_wrapping_shift_left(lhs, rhs, bit_size)
-            }
-            BinaryOpKind::ShiftRight => {
-                let bit_size = match result_type {
-                    Type::Numeric(NumericType::Signed { bit_size })
-                    | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-                    _ => unreachable!("ICE: right-shift attempted on non-integer"),
-                };
-                self.builder.insert_shift_right(lhs, rhs, bit_size)
-            }
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(result_type, Type::Array(..)) =>
             {
@@ -1006,7 +990,6 @@ impl<'a> FunctionContext<'a> {
         new_value.for_each(|value| {
             let value = value.eval(self);
             array = self.builder.insert_array_set(array, index, value);
-            self.builder.increment_array_reference_count(array);
             index = self.builder.insert_binary(index, BinaryOp::Add, one);
         });
         array
@@ -1142,9 +1125,8 @@ fn convert_operator(op: noirc_frontend::BinaryOpKind) -> BinaryOp {
         BinaryOpKind::And => BinaryOp::And,
         BinaryOpKind::Or => BinaryOp::Or,
         BinaryOpKind::Xor => BinaryOp::Xor,
-        BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft => unreachable!(
-            "ICE - bit shift operators do not exist in SSA and should have been replaced"
-        ),
+        BinaryOpKind::ShiftLeft => BinaryOp::Shl,
+        BinaryOpKind::ShiftRight => BinaryOp::Shr,
     }
 }
 

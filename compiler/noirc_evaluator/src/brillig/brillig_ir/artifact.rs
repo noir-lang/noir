@@ -6,8 +6,11 @@ use crate::ssa::ir::dfg::CallStack;
 /// Represents a parameter or a return value of a function.
 #[derive(Debug, Clone)]
 pub(crate) enum BrilligParameter {
-    Simple,
+    /// A simple parameter or return value. Holds the bit size of the parameter.
+    Simple(u32),
+    /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
+    /// A slice parameter or return value. Holds the type of a slice item.
     Slice(Vec<BrilligParameter>),
 }
 
@@ -97,7 +100,7 @@ impl BrilligArtifact {
         // Replace STOP with RETURN because this is not the end of the program now.
         let stop_position = byte_code
             .iter()
-            .position(|opcode| matches!(opcode, BrilligOpcode::Stop))
+            .position(|opcode| matches!(opcode, BrilligOpcode::Stop { .. }))
             .expect("Trying to link with a function that does not have a stop opcode");
 
         byte_code[stop_position] = BrilligOpcode::Return;

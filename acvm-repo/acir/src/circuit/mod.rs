@@ -15,12 +15,30 @@ use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serial
 
 use std::collections::BTreeSet;
 
+/// Specifies the maximum width of the expressions which will be constrained.
+///
+/// Unbounded Expressions are useful if you are eventually going to pass the ACIR
+/// into a proving system which supports R1CS.
+///
+/// Bounded Expressions are useful if you are eventually going to pass the ACIR
+/// into a proving system which supports PLONK, where arithmetic expressions have a
+/// finite fan-in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ExpressionWidth {
+    #[default]
+    Unbounded,
+    Bounded {
+        width: usize,
+    },
+}
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Circuit {
     // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     // will take on this value. (The value is cached here as an optimization.)
     pub current_witness_index: u32,
     pub opcodes: Vec<Opcode>,
+    pub expression_width: ExpressionWidth,
 
     /// The set of private inputs to the circuit.
     pub private_parameters: BTreeSet<Witness>,
@@ -43,6 +61,11 @@ pub struct Circuit {
     // TODO: We should move towards having all the checks being evaluated in the same manner
     // TODO: as runtime assert messages specified by the user. This will also be a breaking change as the `Circuit` structure will change.
     pub assert_messages: Vec<(OpcodeLocation, String)>,
+
+    /// States whether the backend should use a SNARK recursion friendly prover.
+    /// If implemented by a backend, this means that proofs generated with this circuit
+    /// will be friendly for recursively verifying inside of another SNARK.
+    pub recursive: bool,
 }
 
 impl Circuit {
@@ -239,7 +262,7 @@ mod tests {
         opcodes::{BlackBoxFuncCall, FunctionInput},
         Circuit, Compression, Opcode, PublicInputs,
     };
-    use crate::native_types::Witness;
+    use crate::{circuit::ExpressionWidth, native_types::Witness};
     use acir_field::FieldElement;
 
     fn and_opcode() -> Opcode {
@@ -317,11 +340,13 @@ mod tests {
     fn serialization_roundtrip() {
         let circuit = Circuit {
             current_witness_index: 5,
+            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![and_opcode(), range_opcode()],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
+            recursive: false,
         };
 
         fn read_write(circuit: Circuit) -> (Circuit, Circuit) {
@@ -338,6 +363,7 @@ mod tests {
     fn test_serialize() {
         let circuit = Circuit {
             current_witness_index: 0,
+            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![
                 Opcode::AssertZero(crate::native_types::Expression {
                     mul_terms: vec![],
@@ -352,6 +378,7 @@ mod tests {
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
+            recursive: false,
         };
 
         let json = serde_json::to_string_pretty(&circuit).unwrap();

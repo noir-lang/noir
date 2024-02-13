@@ -38,10 +38,13 @@ impl super::FmtVisitor<'_> {
 
                     nested_shape.indent.block_indent(self.config);
 
-                    let message = message.map_or(String::new(), |message| format!(", {message}"));
+                    let message = message.map_or(String::new(), |message| {
+                        let message = rewrite::sub_expr(self, nested_shape, message);
+                        format!(", {message}")
+                    });
 
                     let (callee, args) = match kind {
-                        ConstrainKind::Assert => {
+                        ConstrainKind::Assert | ConstrainKind::Constrain => {
                             let assertion = rewrite::sub_expr(self, nested_shape, expr);
                             let args = format!("{assertion}{message}");
 
@@ -58,12 +61,6 @@ impl super::FmtVisitor<'_> {
                             } else {
                                 unreachable!()
                             }
-                        }
-                        ConstrainKind::Constrain => {
-                            let expr = rewrite::sub_expr(self, self.shape(), expr);
-                            let constrain = format!("constrain {expr};");
-                            self.push_rewrite(constrain, span);
-                            return;
                         }
                     };
 

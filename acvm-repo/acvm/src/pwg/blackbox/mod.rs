@@ -5,11 +5,12 @@ use acir::{
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
-use self::pedersen::pedersen_hash;
+use self::{bigint::BigIntSolver, pedersen::pedersen_hash};
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
 use crate::{pwg::witness_to_value, BlackBoxFunctionSolver};
 
+pub(crate) mod bigint;
 mod fixed_base_scalar_mul;
 mod hash;
 mod logic;
@@ -19,7 +20,7 @@ mod signature;
 
 use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
-use hash::solve_generic_256_hash_opcode;
+use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
 use pedersen::pedersen;
 use range::solve_range_opcode;
@@ -53,6 +54,7 @@ pub(crate) fn solve(
     backend: &impl BlackBoxFunctionSolver,
     initial_witness: &mut WitnessMap,
     bb_func: &BlackBoxFuncCall,
+    bigint_solver: &mut BigIntSolver,
 ) -> Result<(), OpcodeResolutionError> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
@@ -190,13 +192,27 @@ pub(crate) fn solve(
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
-        BlackBoxFuncCall::BigIntAdd { .. } => todo!(),
-        BlackBoxFuncCall::BigIntNeg { .. } => todo!(),
-        BlackBoxFuncCall::BigIntMul { .. } => todo!(),
-        BlackBoxFuncCall::BigIntDiv { .. } => todo!(),
-        BlackBoxFuncCall::BigIntFromLeBytes { .. } => todo!(),
-        BlackBoxFuncCall::BigIntToLeBytes { .. } => todo!(),
+        BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
+        | BlackBoxFuncCall::BigIntSub { lhs, rhs, output }
+        | BlackBoxFuncCall::BigIntMul { lhs, rhs, output }
+        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
+            bigint_solver.bigint_op(*lhs, *rhs, *output, bb_func.get_black_box_func())
+        }
+        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
+            bigint_solver.bigint_from_bytes(inputs, modulus, *output, initial_witness)
+        }
+        BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
+            bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
+        }
         BlackBoxFuncCall::Poseidon2Permutation { .. } => todo!(),
-        BlackBoxFuncCall::Sha256Compression { .. } => todo!(),
+        BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
+            solve_sha_256_permutation_opcode(
+                initial_witness,
+                inputs,
+                hash_values,
+                outputs,
+                bb_func.get_black_box_func(),
+            )
+        }
     }
 }

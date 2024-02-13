@@ -1,3 +1,4 @@
+use crate::items::HasItem;
 use crate::rewrite;
 use crate::visitor::{FmtVisitor, Shape};
 use noirc_frontend::hir::resolution::errors::Span;
@@ -19,103 +20,6 @@ pub(crate) fn comments(source: &str) -> impl Iterator<Item = String> + '_ {
             None
         }
     })
-}
-
-#[derive(Debug)]
-pub(crate) struct Expr {
-    pub(crate) leading: String,
-    pub(crate) value: String,
-    pub(crate) trailing: String,
-    pub(crate) different_line: bool,
-}
-
-impl Expr {
-    pub(crate) fn total_width(&self) -> usize {
-        comment_len(&self.leading) + self.value.chars().count() + comment_len(&self.trailing)
-    }
-
-    pub(crate) fn is_multiline(&self) -> bool {
-        self.leading.contains('\n') || self.trailing.contains('\n')
-    }
-}
-
-pub(crate) struct Exprs<'me, T> {
-    pub(crate) visitor: &'me FmtVisitor<'me>,
-    shape: Shape,
-    pub(crate) elements: std::iter::Peekable<std::vec::IntoIter<T>>,
-    pub(crate) last_position: u32,
-    pub(crate) end_position: u32,
-}
-
-impl<'me, T: Item> Exprs<'me, T> {
-    pub(crate) fn new(
-        visitor: &'me FmtVisitor<'me>,
-        shape: Shape,
-        span: Span,
-        elements: Vec<T>,
-    ) -> Self {
-        Self {
-            visitor,
-            shape,
-            last_position: span.start() + 1, /*(*/
-            end_position: span.end() - 1,    /*)*/
-            elements: elements.into_iter().peekable(),
-        }
-    }
-}
-
-impl<T: Item> Iterator for Exprs<'_, T> {
-    type Item = Expr;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let element = self.elements.next()?;
-        let element_span = element.span();
-
-        let start = self.last_position;
-        let end = element_span.start();
-
-        let is_last = self.elements.peek().is_none();
-        let next_start = self.elements.peek().map_or(self.end_position, |expr| expr.start());
-
-        let (leading, different_line) = self.leading(start, end);
-        let expr = element.format(self.visitor, self.shape);
-        let trailing = self.trailing(element_span.end(), next_start, is_last);
-
-        Expr { leading, value: expr, trailing, different_line }.into()
-    }
-}
-
-impl<'me, T> Exprs<'me, T> {
-    pub(crate) fn leading(&mut self, start: u32, end: u32) -> (String, bool) {
-        let mut different_line = false;
-
-        let leading = self.visitor.slice(start..end);
-        let leading_trimmed = leading.trim();
-
-        let starts_with_block_comment = leading_trimmed.starts_with("/*");
-        let ends_with_block_comment = leading_trimmed.ends_with("*/");
-        let starts_with_single_line_comment = leading_trimmed.starts_with("//");
-
-        if ends_with_block_comment {
-            let comment_end = leading_trimmed.rfind(|c| c == '/').unwrap();
-
-            if leading[comment_end..].contains('\n') {
-                different_line = true;
-            }
-        } else if starts_with_single_line_comment || starts_with_block_comment {
-            different_line = true;
-        };
-
-        (leading_trimmed.to_string(), different_line)
-    }
-
-    pub(crate) fn trailing(&mut self, start: u32, end: u32, is_last: bool) -> String {
-        let slice = self.visitor.slice(start..end);
-        let comment_end = find_comment_end(slice, is_last);
-        let trailing = slice[..comment_end].trim_matches(',').trim();
-        self.last_position = start + (comment_end as u32);
-        trailing.to_string()
-    }
 }
 
 pub(crate) trait FindToken {
@@ -183,7 +87,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
     }
 }
 
-fn comment_len(comment: &str) -> usize {
+pub(crate) fn comment_len(comment: &str) -> usize {
     match comment {
         "" => 0,
         _ => {
@@ -201,21 +105,7 @@ pub(crate) fn count_newlines(slice: &str) -> usize {
     bytecount::count(slice.as_bytes(), b'\n')
 }
 
-pub(crate) trait Item {
-    fn span(&self) -> Span;
-
-    fn format(self, visitor: &FmtVisitor, shape: Shape) -> String;
-
-    fn start(&self) -> u32 {
-        self.span().start()
-    }
-
-    fn end(&self) -> u32 {
-        self.span().end()
-    }
-}
-
-impl Item for Expression {
+impl HasItem for Expression {
     fn span(&self) -> Span {
         self.span
     }
@@ -225,7 +115,7 @@ impl Item for Expression {
     }
 }
 
-impl Item for (Ident, Expression) {
+impl HasItem for (Ident, Expression) {
     fn span(&self) -> Span {
         let (name, value) = self;
         (name.span().start()..value.span.end()).into()
@@ -245,25 +135,29 @@ impl Item for (Ident, Expression) {
     }
 }
 
-impl Item for Param {
+impl HasItem for Param {
     fn span(&self) -> Span {
         self.span
     }
 
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
+        let pattern = visitor.slice(self.pattern.span());
         let visibility = match self.visibility {
             Visibility::Public => "pub ",
             Visibility::Private => "",
             Visibility::DataBus => "call_data",
         };
-        let pattern = visitor.slice(self.pattern.span());
-        let ty = rewrite::typ(visitor, shape, self.typ);
 
-        format!("{pattern}: {visibility}{ty}")
+        if self.pattern.is_synthesized() || self.typ.is_synthesized() {
+            pattern.to_string()
+        } else {
+            let ty = rewrite::typ(visitor, shape, self.typ);
+            format!("{pattern}: {visibility}{ty}")
+        }
     }
 }
 
-impl Item for Ident {
+impl HasItem for Ident {
     fn span(&self) -> Span {
         self.span()
     }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acvm::ExpressionWidth;
+use acvm::acir::circuit::ExpressionWidth;
 use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;

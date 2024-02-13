@@ -1,3 +1,4 @@
+array_dynamic_blackbox_input
 array_sort
 assign_ex
 bit_shifts_comptime
@@ -16,3 +17,4 @@ scalar_mul
 signed_comparison
 simple_2d_array
 to_bytes_integration
+bigint
