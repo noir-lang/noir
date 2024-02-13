@@ -20,9 +20,9 @@ pub enum CrateId {
 }
 
 impl CrateId {
-    pub fn dummy_id() -> CrateId {
-        CrateId::Dummy
-    }
+    // pub fn dummy_id() -> CrateId {
+    //     CrateId::Dummy
+    // }
 
     pub fn is_stdlib(&self) -> bool {
         matches!(self, CrateId::Stdlib(_))

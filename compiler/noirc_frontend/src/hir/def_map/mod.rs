@@ -37,7 +37,7 @@ impl LocalModuleId {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId {
-    pub krate: CrateId,
+    pub krate: Option<CrateId>,
     pub local_id: LocalModuleId,
 }
 
