@@ -20,6 +20,13 @@ struct Test {
 global VALS: [Test; 1] = [Test { v: 100 }];
 global NESTED = [VALS, VALS];
 
+unconstrained fn calculate_global_value() -> Field {
+    42
+}
+
+// Regression test for https://github.com/noir-lang/noir/issues/4318
+global CALCULATED_GLOBAL: Field = calculate_global_value();
+
 fn main(
     a: [Field; M + N - N],
     b: [Field; 30 + N / 2],
@@ -74,6 +81,8 @@ fn main(
     foo::from_foo(d);
     baz::from_baz(c);
     assert(DERIVED == M + L);
+
+    assert(CALCULATED_GLOBAL == 42);
 }
 
 fn multiplyByM(x: Field) -> Field {
