@@ -17,6 +17,5 @@ Decentralization is one of our core values, so we want to encourage participatio
 
 ## Grants
 
-- We often run grants programs to support awesome projects and teams
+- The Aztec Labs Grants Program supports developers building with, and contributing to, the Noir programming language and the Aztec network. Applications can submitted on the [Grants page](https://aztec.network/grants/) of the Aztec website. 
 - We are currently operating with a retroactive grants funding model, and we strive to respond back to grants applications with a decision within a few days. Check out our [grants page](https://aztec.network/grants/) for more information
-- Keep checking back to see when we're opening up a new wave of grants

@@ -15,25 +15,25 @@ On this page you'll learn:
 
 The transaction lifecycle for an Aztec transaction is fundamentally different from the lifecycle of an Ethereum transaction.
 
-The introduction of the Private eXecution Environment (PXE) provides a safe environment for the execution of sensitive operations, ensuring that decrypted data are not accessible to unauthorized applications. However, the PXE exists client-side on user devices, which creates a different model for imagining a transaction lifecycle. The existence of a sequencing network also introduces some key differences between the Aztec transaction model and the transaction model used for other networks.
+The introduction of the Private eXecution Environment (PXE) provides a safe environment for the execution of sensitive operations, ensuring that decrypted data are not accessible to unauthorized applications. However, the PXE exists client-side on user devices, which creates a different model for imagining what the lifecycle of a typical transaction might look like. The existence of a sequencing network also introduces some key differences between the Aztec transaction model and the transaction model used for other networks.
 
 The accompanying diagram illustrates the flow of interactions between a user, their wallet, the PXE, the node operators (sequencers / provers), and the L1 chain.
 
 <Image img={require("/img/transaction-lifecycle.png")} />
 
-1. **The user initiates a transaction** – the user decides to privately send 10 DAI to gudcause.eth. After inputting the amount and the receiving address, the user clicks the confirmation button on their wallet.
+1. **The user initiates a transaction** – In this example, the user decides to privately send 10 DAI to gudcause.eth. After inputting the amount and the receiving address, the user clicks the confirmation button on their wallet.
 
-_The transaction has not been broadcasted to the sequencer network yet._
+_The transaction has not been broadcasted to the sequencer network yet. For now, the transaction exists solely within the context of the PXE._
 
 2. **The PXE executes transfer locally** – The PXE, running locally on the user's device, executes the transfer method on the DAI token contract on Aztec and computes the state difference based on the user’s intention.
 
-_The transaction has still not been broadcasted to the sequencer network yet._
+_The transaction has still not been broadcasted to the sequencer network yet and continues to live solely within the context of the PXE._
 
-3. **The PXE proves correct execution** – the PXE proves correct execution (via zero-knowledge proofs) of the authorization and the private transfer method. Once the proofs have been generated, the PXE sends the proofs and required inputs (inputs are new note commitments, stored in the [note hash tree](../concepts/storage/trees/main.md#note-hash-tree) and nullifiers stored in the [nullifiers tree](../concepts/storage/trees/main.md#nullifier-tree)) to the sequencer. Nullifiers are data that invalidate old commitments, ensuring that commitments can only be used once.
+3. **The PXE proves correct execution** – At this point, the PXE proves correct execution (via zero-knowledge proofs) of the authorization and of the private transfer method. Once the proofs have been generated, the PXE sends the proofs and required inputs (inputs are new note commitments, stored in the [note hash tree](../concepts/storage/trees/main.md#note-hash-tree) and nullifiers stored in the [nullifiers tree](../concepts/storage/trees/main.md#nullifier-tree)) to the sequencer. Nullifiers are data that invalidate old commitments, ensuring that commitments can only be used once.
 
-The sequencer has received transaction proof and can begin to process the transaction (verify proofs and apply updates to the relevant [data trees](../concepts/storage/trees/main.md)) alongside other public and private transactions.
+_The sequencer has received the transaction proof and can begin to process the transaction - verifying proofs and applying updates to the relevant [data trees](../concepts/storage/trees/main.md) - alongside other public and private transactions._
 
-4. **The sequencer has the necessary information to act** – the randomly-selected sequencer (based on the Fernet sequencer selection protocol) validates the transaction proofs along with required inputs (e.g. the note commitments and nullifiers) for this private transfer. The sequencer also executes public functions and requests proofs of public execution from a prover network. The sequencer updates the corresponding data trees and does the same for other private transactions. The sequencer requests proofs from a prover network that will be bundled into a final rollup proof.
+4. **The sequencer has the necessary information to act** – the randomly-selected sequencer (based on the Fernet sequencer selection protocol) validates the transaction proofs along with required inputs (e.g. the note commitments and nullifiers) for this private transfer. The sequencer also executes public functions and requests proofs of public execution from a prover network. The sequencer updates the corresponding data trees and does the same for other private transactions. When the sequencer receives proofs from the prover network, the proofs will be bundled into a final rollup proof.
 
 _The sequencer has passed the transaction information – proofs of correct execution and authorization, or public function execution information – to the prover, who will submit the new state root to Ethereum._
 

@@ -13,7 +13,7 @@ We are building the [Aztec Network](https://aztec.network/), a fully programmabl
 ## Values
 
 - **Private.**: The only true zero-knowledge rollup, built with a privacy-first UTXO architecture to allow developers to build privacy preserving programable applications.
-- **Accessible.**: Proving transaction validity via recursively aggregation of zero-knowledge proofs, significantly reduces transaction costs.
+- **Accessible.**: Proving transaction validity via recursive aggregation of zero-knowledge proofs, significantly reduces transaction costs, keeping the protocol accessible to the masses.
 - **Compliant**: The programmable nature of Aztec smart contracts, enables dApp developers to code privacy-preserving audit and compliance checks into apps, while fully preserving a credible neutral protocol layer.
 
 #### _Zac Williamson, CEO and Co-founder, Aztec_
