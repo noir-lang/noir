@@ -655,7 +655,11 @@ impl<'block> BrilligBlock<'block> {
             .expect("Last uses for instruction should have been computed");
 
         for dead_variable in dead_variables {
-            self.variables.remove_variable(dead_variable);
+            self.variables.remove_variable(
+                dead_variable,
+                self.function_context,
+                self.brillig_context,
+            );
         }
         self.brillig_context.set_call_stack(CallStack::new());
     }

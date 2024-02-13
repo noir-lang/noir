@@ -221,9 +221,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.23.0":
-  version: 0.23.0
-  resolution: "@aztec/bb.js@npm:0.23.0"
+"@aztec/bb.js@npm:0.24.0":
+  version: 0.24.0
+  resolution: "@aztec/bb.js@npm:0.24.0"
   dependencies:
     comlink: ^4.4.1
     commander: ^10.0.1
@@ -231,7 +231,7 @@ __metadata:
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: e7bd32a20575a2834fa8a0500becdfae88a8f4a031c0f1796713d64a8ec90e516e16360f19031efeec59d51ede78c50422982ee08911c062bfa3142819af01fc
+  checksum: a086dabf30084cfa526e512148b9c02f0a0770dcc19b7dca4af9a3e98612b716acc7eaac6b52c0f12d985932e866d1cb9e534ded6ac9d747f3dd021afe25de27
   languageName: node
   linkType: hard
 
@@ -3485,10 +3485,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@eslint/js@npm:8.55.0":
-  version: 8.55.0
-  resolution: "@eslint/js@npm:8.55.0"
-  checksum: fa33ef619f0646ed15649b0c2e313e4d9ccee8425884bdbfc78020d6b6b64c0c42fa9d83061d0e6158e1d4274f03f0f9008786540e2efab8fcdc48082259908c
+"@eslint/js@npm:8.56.0":
+  version: 8.56.0
+  resolution: "@eslint/js@npm:8.56.0"
+  checksum: 5804130574ef810207bdf321c265437814e7a26f4e6fac9b496de3206afd52f533e09ec002a3be06cd9adcc9da63e727f1883938e663c4e4751c007d5b58e539
   languageName: node
   linkType: hard
 
@@ -4366,7 +4366,7 @@ __metadata:
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
     chai: ^4.3.7
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     mocha: ^10.2.0
     prettier: 3.0.3
@@ -4379,12 +4379,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/backend_barretenberg@workspace:tooling/noir_js_backend_barretenberg"
   dependencies:
-    "@aztec/bb.js": 0.23.0
+    "@aztec/bb.js": 0.24.0
     "@noir-lang/types": "workspace:*"
     "@types/node": ^20.6.2
     "@types/prettier": ^3
     chai: ^4.3.8
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     fflate: ^0.8.0
     mocha: ^10.2.0
@@ -4405,7 +4405,7 @@ __metadata:
     "@types/node": ^20.6.2
     "@types/prettier": ^3
     chai: ^4.3.8
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     glob: ^10.3.10
     mocha: ^10.2.0
@@ -4431,7 +4431,7 @@ __metadata:
     "@types/node": ^20.6.2
     "@types/prettier": ^3
     chai: ^4.3.8
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     mocha: ^10.2.0
     prettier: 3.0.3
@@ -4448,7 +4448,6 @@ __metadata:
   dependencies:
     "@esm-bundle/chai": ^4.3.4-fix.0
     "@ltd/j-toml": ^1.38.0
-    "@noir-lang/noirc_abi": "workspace:*"
     "@noir-lang/types": "workspace:*"
     "@types/adm-zip": ^0.5.0
     "@types/chai": ^4
@@ -4468,12 +4467,15 @@ __metadata:
     browserify-fs: ^1.0.0
     chai: ^4.3.10
     copy-webpack-plugin: ^11.0.0
+    eslint: ^8.56.0
+    eslint-plugin-prettier: ^5.0.0
     html-webpack-plugin: ^5.5.4
     memfs: ^4.6.0
     mocha: ^10.2.0
     mocha-each: ^2.0.1
     pako: ^2.1.0
     path-browserify: ^1.0.1
+    prettier: 3.0.3
     process: ^0.11.10
     readable-stream: ^4.4.2
     sinon: ^17.0.1
@@ -4496,7 +4498,7 @@ __metadata:
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     mocha: ^10.2.0
   languageName: unknown
   linkType: soft
@@ -4509,7 +4511,7 @@ __metadata:
     "@typescript-eslint/parser": ^6.7.3
     chai: ^4.3.7
     cspell: ^8.3.2
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     mocha: ^10.2.0
     prettier: 3.0.3
@@ -4523,7 +4525,7 @@ __metadata:
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
     "@types/prettier": ^3
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     prettier: 3.0.3
     typescript: ^5.2.2
@@ -10852,14 +10854,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^8.50.0":
-  version: 8.55.0
-  resolution: "eslint@npm:8.55.0"
+"eslint@npm:^8.56.0":
+  version: 8.56.0
+  resolution: "eslint@npm:8.56.0"
   dependencies:
     "@eslint-community/eslint-utils": ^4.2.0
     "@eslint-community/regexpp": ^4.6.1
     "@eslint/eslintrc": ^2.1.4
-    "@eslint/js": 8.55.0
+    "@eslint/js": 8.56.0
     "@humanwhocodes/config-array": ^0.11.13
     "@humanwhocodes/module-importer": ^1.0.1
     "@nodelib/fs.walk": ^1.2.8
@@ -10896,7 +10898,7 @@ __metadata:
     text-table: ^0.2.0
   bin:
     eslint: bin/eslint.js
-  checksum: 83f82a604559dc1faae79d28fdf3dfc9e592ca221052e2ea516e1b379b37e77e4597705a16880e2f5ece4f79087c1dd13fd7f6e9746f794a401175519db18b41
+  checksum: 883436d1e809b4a25d9eb03d42f584b84c408dbac28b0019f6ea07b5177940bf3cca86208f749a6a1e0039b63e085ee47aca1236c30721e91f0deef5cc5a5136
   languageName: node
   linkType: hard
 
@@ -13285,7 +13287,7 @@ __metadata:
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
-    eslint: ^8.50.0
+    eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     ethers: ^6.7.1
     hardhat: ^2.17.4
