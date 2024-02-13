@@ -43,6 +43,16 @@ pub fn keccak256(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Keccak256, err))
 }
 
+pub fn sha256compression(state: &mut [u32; 8], msg_blocks: &[u32; 16]) {
+    let mut blocks = [0_u8; 64];
+    for (i, block) in msg_blocks.iter().enumerate() {
+        let bytes = block.to_be_bytes();
+        blocks[i * 4..i * 4 + 4].copy_from_slice(&bytes);
+    }
+    let blocks: GenericArray<u8, sha2::digest::typenum::U64> = blocks.into();
+    sha2::compress256(state, &[blocks]);
+}
+
 const KECCAK_LANES: usize = 25;
 
 pub fn keccakf1600(

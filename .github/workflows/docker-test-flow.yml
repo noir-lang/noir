@@ -805,4 +805,4 @@ jobs:
                 exit 0
             fi
           env:
-            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}

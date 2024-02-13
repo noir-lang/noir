@@ -3,7 +3,7 @@ set -eu
 
 cd $(dirname "$0")/..
 
-./scripts/install_wasm-bindgen.sh
+./.github/scripts/wasm-bindgen-install.sh
 
 # If this project has been subrepod into another project, set build data manually.
 export SOURCE_DATE_EPOCH=$(date +%s)

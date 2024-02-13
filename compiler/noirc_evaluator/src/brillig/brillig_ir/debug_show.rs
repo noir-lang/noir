@@ -171,6 +171,22 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
     }
 
+    /// Emits a `cast` instruction.
+    pub(crate) fn cast_instruction(
+        &self,
+        destination: MemoryAddress,
+        source: MemoryAddress,
+        bit_size: u32,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  CAST {}, {} as u{}",
+            destination,
+            source,
+            bit_size
+        );
+    }
+
     /// Processes a binary instruction according `operation`.
     pub(crate) fn binary_instruction(
         &self,

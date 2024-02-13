@@ -75,6 +75,7 @@ contract Benchmarking {
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
+        note_type_id: Field,
         preimage: [Field; VALUE_NOTE_LEN]
     ) -> [Field; 4] {
         let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
