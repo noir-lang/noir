@@ -48,7 +48,7 @@ The entirety of a contract's public code is represented as a single block of byt
 Many terms and definitions here are borrowed from the [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper.pdf).
 :::
 
-Initialized by a contract call, an **execution context** includes the information necessary to initiate AVM execution along with all state maintained by the AVM throughout execution:
+An **execution context** includes the information and state relevant to a contract call's execution. When a contract call is made, an execution context is initialized as specified in the ["Initial contract calls"](#initial-contract-calls) and ["Nested contract calls"](#nested-contract-calls) sections.
 
 #### _AvmContext_
 | Field                                                     | Type                    |
@@ -62,7 +62,7 @@ Initialized by a contract call, an **execution context** includes the informatio
 
 ### Execution Environment
 
-A context's **execution environment** remains constant throughout the context's execution. When a contract call initializes its execution context, it fully specifies the execution environment.
+A context's **execution environment** remains constant throughout a contract call's execution. When a contract call initializes its execution context, it fully specifies the execution environment. This is expanded on in the ["Initial contract calls"](#initial-contract-calls) and ["Nested contract calls"](#nested-contract-calls) sections.
 
 #### _ExecutionEnvironment_
 | Field                 | Type                         | Description |
@@ -87,10 +87,10 @@ A context's **execution environment** remains constant throughout the context's 
 Finally, when a contract call halts, it sets the context's **contract call results** to communicate results to the caller.
 
 #### _ContractCallResults_
-| Field          | Type                       | Description |
-| ---            | ---                        | ---         |
-| `reverted`     | `boolean`                  |  |
-| `output`       | `[field; <output-length>]` |  |
+| Field        | Type                       | Description |
+| ---          | ---                        | ---         |
+| reverted     | `boolean`                  |  |
+| output       | `[field; <output-length>]` |  |
 
 ## Execution
 
@@ -210,9 +210,9 @@ The AVM's exceptional halting conditions area listed below:
 1. **World state modification attempt during a static call**
     ```
     assert !environment.isStaticCall
-        OR environment.bytecode[machineState.pc].opcode not in WS_MODIFYING_OPS
+        OR environment.bytecode[machineState.pc].opcode not in WS_AS_MODIFYING_OPS
     ```
-    > Definition: `WS_MODIFYING_OPS` represents the list of all opcodes corresponding to instructions that modify world state.
+    > Definition: `WS_AS_MODIFYING_OPS` represents the list of all opcodes corresponding to instructions that modify world state or accrued substate.
 1. **Maximum contract call depth (1024) exceeded**
     ```
     assert environment.contractCallDepth <= 1024
@@ -231,35 +231,57 @@ The AVM's exceptional halting conditions area listed below:
     assert environment.bytecode[machineState.pc].opcode != INTERNALCALL
         OR environment.contractCallDepth < 1024
     ```
-1. **Maximum world state accesses (1024-per-type) exceeded**
+1. **Maximum world state accesses (1024-per-category) exceeded**
     ```
-    assert publicStorageAccesses.length <= 1024
-        AND l1ToL2MessagesReads.length <= 1024
-        AND newL2ToL1Messages.length <= 1024
-        AND newNoteHashes.length <= 1024
-        AND newNullifiers.length <= 1024
+    assert worldStateAccessTrace.publicStorageReads.length <= 1024
+        AND worldStateAccessTrace.publicStorageWrites.length <= 1024
+        AND worldStateAccessTrace.noteHashChecks.length <= 1024
+        AND worldStateAccessTrace.newNoteHashes.length <= 1024
+        AND worldStateAccessTrace.nullifierChecks.length <= 1024
+        AND worldStateAccessTrace.newNullifiers.length <= 1024
+        AND worldStateAccessTrace.l1ToL2MessageReads.length <= 1024
+        AND worldStateAccessTrace.archiveChecks.length <= 1024
 
     // Storage
-    assert environment.bytecode[machineState.pc].opcode not in {SLOAD, SSTORE}
-        OR publicStorageAccesses.length < 1024
-
-    // L1 to L2 messages
-    assert environment.bytecode[machineState.pc].opcode != GETL1TOL2MSG
-        OR l1ToL2MessagesReads.length < 1024
-
-    // L2 to L1 messages
-    assert environment.bytecode[machineState.pc].opcode != SENDL2TOL1MSG
-        OR newL2ToL1Messages.length < 1024
+    assert environment.bytecode[machineState.pc].opcode != SLOAD
+        OR worldStateAccessTrace.publicStorageReads.length < 1024
+    assert environment.bytecode[machineState.pc].opcode != SSTORE
+        OR worldStateAccessTrace.publicStorageWrites.length < 1024
 
     // Note hashes
+    assert environment.bytecode[machineState.pc].opcode != NOTEHASHEXISTS
+        OR noteHashChecks.length < 1024
     assert environment.bytecode[machineState.pc].opcode != EMITNOTEHASH
         OR newNoteHashes.length < 1024
 
     // Nullifiers
+    assert environment.bytecode[machineState.pc].opcode != NULLIFIEREXISTS
+        OR nullifierChecks.length < 1024
     assert environment.bytecode[machineState.pc].opcode != EMITNULLIFIER
         OR newNullifiers.length < 1024
+
+    // Read L1 to L2 messages
+    assert environment.bytecode[machineState.pc].opcode != READL1TOL2MSG
+        OR worldStateAccessTrace.l1ToL2MessagesReads.length < 1024
+
+    // Archive tree & Headers
+    assert environment.bytecode[machineState.pc].opcode != HEADERMEMBER
+        OR archiveChecks.length < 1024
     ```
-    > Definition: `WS_MODIFYING_OPS` represents the list of all opcodes corresponding to instructions that modify world state.
+1. **Maximum accrued substate entries (per-category) exceeded**
+    ```
+    assert accruedSubstate.unencryptedLogs.length <= MAX_UNENCRYPTED_LOGS
+        AND accruedSubstate.sentL2ToL1Messages.length <= MAX_SENT_L2_TO_L1_MESSAGES
+
+    // Unencrypted logs
+    assert environment.bytecode[machineState.pc].opcode != ULOG
+        OR unencryptedLogs.length < MAX_UNENCRYPTED_LOGS
+
+    // Sent L2 to L1 messages
+    assert environment.bytecode[machineState.pc].opcode != SENDL2TOL1MSG
+        OR sentL2ToL1Messages.length < MAX_SENT_L2_TO_L1_MESSAGES
+    ```
+    > Note that ideally the AVM should limit the _total_ accrued substate entries per-category instead of the entries per-call.
 
 ## Initial contract calls
 
@@ -273,8 +295,8 @@ context = AvmContext {
     environment = INITIAL_EXECUTION_ENVIRONMENT,
     machineState = INITIAL_MACHINE_STATE,
     worldState = <latest world state>,
-    worldStateAccessTrace = { [], [], ... [] } // all trace vectors empty,
-    accruedSubstate = INITIAL_ACCRUED_SUBSTATE,
+    worldStateAccessTrace = { [], [], ... [] }, // all trace vectors empty,
+    accruedSubstate =  { [], ... [], }, // all substate vectors empty
     results = INITIAL_CONTRACT_CALL_RESULTS,
 }
 ```
@@ -310,10 +332,6 @@ INITIAL_MACHINE_STATE = MachineState {
     memory = [0, ..., 0],   // all 2^32 entries are initialized to zero
 }
 
-INITIAL_ACCRUED_SUBSTATE = AccruedSubstate {
-    unencryptedLogs = [], // initialized as empty
-}
-
 INITIAL_CONTRACT_CALL_RESULTS = ContractCallResults {
     reverted = false,
     output = [], // initialized as empty
@@ -334,7 +352,7 @@ nestedContext = AvmContext {
     machineState: nestedMachineState,        // defined below
     worldState: callingContext.worldState,
     worldStateAccessTrace: callingContext.worldStateAccessTrace,
-    accruedSubstate: INITIAL_ACCRUED_SUBSTATE,
+    accruedSubstate =  { [], ... [], }, // all substate vectors empty
     results: INITIAL_CONTRACT_CALL_RESULTS,
 }
 ```
@@ -425,7 +443,7 @@ if !nestedContext.results.reverted AND instr.opcode != STATICCALL_OP:
 Regardless of whether a nested context has reverted, its [world state access trace](./state#world-state-access-trace) updates are absorbed into the calling context along with a new `contractCalls` entry.
 ```
 context.worldStateAccessTrace = nestedContext.worldStateAccessTrace
-context.worldStateAccessTrace.contractCalls.append({nestedContext.address, clk})
+context.worldStateAccessTrace.contractCalls.append({nestedContext.address, nestedContext.storageAddress, clk})
 ```
 
 > Reminder: a nested call cannot make updates to the world state or accrued substate if it is a [`STATICCALL`](./instruction-set/#isa-section-staticcall).

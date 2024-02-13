@@ -1,10 +1,10 @@
 const {instructionSize} = require('./InstructionSize');
 
 const TOPICS_IN_TABLE = [
-    "Name", "Summary", "Bit-size", "Expression",
+    "Name", "Summary", "Expression",
 ];
 const TOPICS_IN_SECTIONS = [
-    "Name", "Summary", "Category", "Flags", "Args", "Expression", "Details", "Tag checks", "Tag updates", "Bit-size",
+    "Name", "Summary", "Category", "Flags", "Args", "Expression", "Details", "World State access tracing", "Additional AVM circuit checks", "Triggers downstream circuit operations", "Tag checks", "Tag updates", "Bit-size",
 ];
 
 const IN_TAG_DESCRIPTION = "The [tag/size](./memory-model#tags-and-tagged-memory) to check inputs against and tag the destination with.";
@@ -730,23 +730,6 @@ context.machineState.pc = loc
         "Tag updates": "`T[dstOffset] = M[condOffset] > 0 ? T[aOffset] : T[bOffset]`",
     },
     {
-        "id": "blockheaderbynum",
-        "Name": "`BLOCKHEADERBYNUM`",
-        "Category": "World State",
-        "Flags": [
-            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-        ],
-        "Args": [
-            {"name": "blockNumOffset", "description": "memory offset of the block number input"},
-            {"name": "dstOffset", "description": "memory offset specifying where to store operation's result's 0th word"},
-        ],
-        "Expression": "`M[dstOffset:dstOffset+BLOCK_HEADER_LENGTH] = context.worldState.blockHeader[M[blockNumOffset]]`",
-        "Summary": "Get the block header as of the specified block number",
-        "Details": "",
-        "Tag checks": "",
-        "Tag updates": "`T[dstOffset:dstOffset+BLOCK_HEADER_LENGTh] = field`",
-    },
-    {
         "id": "sload",
         "Name": "`SLOAD`",
         "Category": "World State - Public Storage",
@@ -757,9 +740,32 @@ context.machineState.pc = loc
             {"name": "slotOffset", "description": "memory offset of the storage slot to load from"},
             {"name": "dstOffset", "description": "memory offset specifying where to store operation's result"},
         ],
-        "Expression": "`M[dstOffset] = context.worldState.publicStorage[context.environment.storageAddress, M[slotOffset]]`",
-        "Summary": "Load a word from storage",
-        "Details": "Load a word from this contract's persistent public storage into memory.",
+        "Expression": `
+M[dstOffset] = context.worldState.publicStorage[context.environment.storageAddress][M[slotOffset]]
+`,
+        "Summary": "Load a word from this contract's persistent public storage. Zero is loaded for unwritten slots.",
+        "Details": `
+// Expression is short-hand for
+leafIndex = hash(context.environment.storageAddress, M[slotOffset])
+exists = context.worldState.publicStorage.has(leafIndex) // exists == previously-written
+if exists:
+    value = context.worldState.publicStorage.get(leafIndex: leafIndex)
+else:
+    value = 0
+M[dstOffset] = value
+`,
+        "World State access tracing": `
+context.worldStateAccessTrace.publicStorageReads.append(
+    TracedStorageRead {
+        callPointer: context.environment.callPointer,
+        slot: M[slotOffset],
+        exists: exists, // defined above
+        value: value, // defined above
+        counter: clk,
+    }
+)
+`,
+        "Triggers downstream circuit operations": "Storage slot siloing (hash with contract address), public data tree membership check",
         "Tag checks": "",
         "Tag updates": "`T[dstOffset] = field`",
     },
@@ -774,9 +780,153 @@ context.machineState.pc = loc
             {"name": "srcOffset", "description": "memory offset of the word to store"},
             {"name": "slotOffset", "description": "memory offset containing the storage slot to store to"},
         ],
-        "Expression": "`context.worldState.publicStorage[context.environment.storageAddress, M[slotOffset]] = M[srcOffset]`",
-        "Summary": "Write a word to storage",
-        "Details": "Store a word from memory into this contract's persistent public storage.",
+        "Expression": `
+context.worldState.publicStorage[context.environment.storageAddress][M[slotOffset]] = M[srcOffset]
+`,
+        "Summary": "Write a word to this contract's persistent public storage",
+        "Details": `
+// Expression is short-hand for
+context.worldState.publicStorage.set({
+    leafIndex: hash(context.environment.storageAddress, M[slotOffset]),
+    leaf: M[srcOffset],
+})
+`,
+        "World State access tracing": `
+context.worldStateAccessTrace.publicStorageWrites.append(
+    TracedStorageWrite {
+        callPointer: context.environment.callPointer,
+        slot: M[slotOffset],
+        value: M[srcOffset],
+        counter: clk,
+    }
+)
+`,
+        "Triggers downstream circuit operations": "Storage slot siloing (hash with contract address), public data tree update",
+        "Tag checks": "",
+        "Tag updates": "",
+    },
+    {
+        "id": "notehashexists",
+        "Name": "`NOTEHASHEXISTS`",
+        "Category": "World State - Notes & Nullifiers",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "Args": [
+            {"name": "leafOffset", "description": "memory offset of the leaf"},
+            {"name": "leafIndexOffset", "description": "memory offset of the leaf index"},
+            {"name": "existsOffset", "description": "memory offset specifying where to store operation's result (whether the archive leaf exists)"},
+        ],
+        "Expression": `
+exists = context.worldState.noteHashes.has({
+    leafIndex: M[leafIndexOffset]
+    leaf: hash(context.environment.storageAddress, M[leafOffset]),
+})
+M[existsOffset] = exists
+`,
+        "Summary": "Check whether a note hash exists in the note hash tree (as of the start of the current block)",
+        "World State access tracing": `
+context.worldStateAccessTrace.noteHashChecks.append(
+    TracedLeafCheck {
+        callPointer: context.environment.callPointer,
+        leafIndex: M[leafIndexOffset]
+        leaf: M[leafOffset],
+        exists: exists, // defined above
+        counter: clk,
+    }
+)
+`,
+        "Triggers downstream circuit operations": "Note hash siloing (hash with storage contract address), note hash tree membership check",
+        "Tag checks": "",
+        "Tag updates": "`T[dstOffset] = u8`",
+    },
+    {
+        "id": "emitnotehash",
+        "Name": "`EMITNOTEHASH`",
+        "Category": "World State - Notes & Nullifiers",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "Args": [
+            {"name": "noteHashOffset", "description": "memory offset of the note hash"},
+        ],
+        "Expression": `
+context.worldState.noteHashes.append(
+    hash(context.environment.storageAddress, M[noteHashOffset])
+)
+`,
+        "Summary": "Emit a new note hash to be inserted into the note hash tree",
+        "World State access tracing": `
+context.worldStateAccessTrace.newNoteHashes.append(
+    TracedNoteHash {
+        callPointer: context.environment.callPointer,
+        value: M[noteHashOffset], // unsiloed note hash
+        counter: clk,
+    }
+)
+`,
+        "Triggers downstream circuit operations": "Note hash siloing (hash with contract address), note hash tree insertion.",
+        "Tag checks": "",
+        "Tag updates": "",
+    },
+    {
+        "id": "nullifierexists",
+        "Name": "`NULLIFIEREXISTS`",
+        "Category": "World State - Notes & Nullifiers",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "Args": [
+            {"name": "nullifierOffset", "description": "memory offset of the unsiloed nullifier"},
+            {"name": "existsOffset", "description": "memory offset specifying where to store operation's result (whether the nullifier exists)"},
+        ],
+        "Expression": `
+exists = context.worldState.nullifiers.has(
+    hash(context.environment.storageAddress, M[nullifierOffset])
+)
+M[existsOffset] = exists
+`,
+        "Summary": "Check whether a nullifier exists in the nullifier tree (including nullifiers from earlier in the current transaction or from earlier in the current block)",
+        "World State access tracing": `
+context.worldStateAccessTrace.nullifierChecks.append(
+    TracedIndexedLeafCheck {
+        callPointer: context.environment.callPointer,
+        leaf: M[nullifierOffset],
+        exists: exists, // defined above
+        counter: clk,
+    }
+)
+`,
+        "Triggers downstream circuit operations": "Nullifier siloing (hash with storage contract address), nullifier tree membership check",
+        "Tag checks": "",
+        "Tag updates": "`T[dstOffset] = u8`",
+    },
+    {
+        "id": "emitnullifier",
+        "Name": "`EMITNULLIFIER`",
+        "Category": "World State - Notes & Nullifiers",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "Args": [
+            {"name": "nullifierOffset", "description": "memory offset of nullifier"},
+        ],
+        "Expression": `
+context.worldState.nullifiers.append(
+    hash(context.environment.storageAddress, M[nullifierOffset])
+)
+`,
+        "Summary": "Emit a new nullifier to be inserted into the nullifier tree",
+        "World State access tracing": `
+context.worldStateAccessTrace.newNullifiers.append(
+    TracedNullifier {
+        callPointer: context.environment.callPointer,
+        value: M[nullifierOffset], // unsiloed nullifier
+        counter: clk,
+    }
+)
+`,
+        "Triggers downstream circuit operations": "Nullifier siloing (hash with contract address), nullifier tree non-membership-check and insertion.",
         "Tag checks": "",
         "Tag updates": "",
     },
@@ -789,63 +939,66 @@ context.machineState.pc = loc
         ],
         "Args": [
             {"name": "msgKeyOffset", "description": "memory offset of the message's key"},
+            {"name": "msgLeafIndex", "description": "memory offset of the message's leaf index in the L1-to-L2 message tree"},
+            {"name": "existsOffset", "description": "memory offset specifying where to store operation's result (whether the message exists in the L1-to-L2 message tree)"},
             {"name": "dstOffset", "description": "memory offset to place the 0th word of the message content"},
             {"name": "msgSize", "description": "number of words in the message", "mode": "immediate", "type": "u32"},
         ],
-        "Expression": "`M[dstOffset:dstOffset+msgSize] = context.worldState.l1ToL2Messages(M[msgKeyOffset])`",
-        "Summary": "Reads an L1-to-L2 message",
-        "Details": "",
+        "Expression": `
+exists = context.worldState.l1ToL2Messages.has({
+    leafIndex: M[msgLeafIndex], leaf: M[msgKeyOffset]
+})
+M[existsOffset] = exists
+if exists:
+    M[dstOffset:dstOffset+msgSize] = context.worldState.l1ToL2Messages.get({
+        leafIndex: M[msgLeafIndex], leaf: M[msgKeyOffset]
+    })
+`,
+        "Summary": "Check if a message exists in the L1-to-L2 message tree and reads it if so.",
+        "World State access tracing": `
+context.worldStateAccessTrace.l1ToL2MessagesReads.append(
+    ReadL1ToL2Message {
+        callPointer: context.environment.callPointer,
+        portal: context.environment.portal,
+        leafIndex: M[msgLeafIndex],
+        msgKey: M[msgKeyOffset],
+        exists: exists, // defined above
+    }
+)
+`,
+        "Additional AVM circuit checks": "`msgKey == sha256_to_field(msg)`",
+        "Triggers downstream circuit operations": "L1-to-L2 message tree membership check",
         "Tag checks": "",
         "Tag updates": "`T[dstOffset:dstOffset+msgSize] = field`",
     },
     {
-        "id": "sendl2tol1msg",
-        "Name": "`SENDL2TOL1MSG`",
-        "Category": "World State - Messaging",
+        "id": "headermember",
+        "Name": "`HEADERMEMBER`",
+        "Category": "World State - Archive Tree & Headers",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
         ],
         "Args": [
-            {"name": "msgOffset", "description": "memory offset of the message content"},
-            {"name": "msgSize", "description": "number of words in the message", "mode": "immediate", "type": "u32"},
+            {"name": "blockIndexOffset", "description": "memory offset of the block index (same as archive tree leaf index) of the header to access"},
+            {"name": "memberIndexOffset", "description": "memory offset of the index of the member to retrieve from the header of the specified block"},
+            {"name": "dstOffset", "description": "memory offset specifying where to store operation's result (the retrieved header member)"},
         ],
-        "Expression": "`context.worldState.l2ToL1Messages.append(M[msgOffset:msgOffset+msgSize])`",
-        "Summary": "Send an L2-to-L1 message",
-        "Details": "",
+        "Expression": `
+M[dstOffset] = context.worldState.headers.get(M[blockIndexOffset])[M[memberIndexOffset]]
+`,
+        "Summary": "Retrieve one member from a specified block's header. Revert if header does not yet exist. See [\"Archive\"](../state/archive) for more.",
+        "World State access tracing": `
+context.worldStateAccessTrace.archiveChecks.append(
+    TracedArchiveLeafCheck {
+        leafIndex: M[blockIndexOffset], // leafIndex == blockIndex
+        leaf: hash(context.worldState.headers.get(M[blockIndexOffset])),
+    }
+)
+`,
+        "Additional AVM circuit checks": "Hashes entire header to archive leaf for tracing. Aggregates header accesses and so that a header need only be hashed once.",
+        "Triggers downstream circuit operations": "Archive tree membership check",
         "Tag checks": "",
-        "Tag updates": "",
-    },
-    {
-        "id": "emitnotehash",
-        "Name": "`EMITNOTEHASH`",
-        "Category": "World State - Notes & Nullifiers",
-        "Flags": [
-            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-        ],
-        "Args": [
-            {"name": "noteHashOffset", "description": "memory offset of the note hash"},
-        ],
-        "Expression": "`context.worldState.newHashes.append(M[noteHashOffset])`",
-        "Summary": "Emit a new note hash to be inserted into the notes tree",
-        "Details": "",
-        "Tag checks": "",
-        "Tag updates": "",
-    },
-    {
-        "id": "emitnullifier",
-        "Name": "`EMITNULLIFIER`",
-        "Category": "World State - Notes & Nullifiers",
-        "Flags": [
-            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-        ],
-        "Args": [
-            {"name": "nullifierOffset", "description": "memory offset of nullifier"},
-        ],
-        "Expression": "`context.worldState.nullifiers.append(M[nullifierOffset])`",
-        "Summary": "Emit a new nullifier to be inserted into the nullifier tree",
-        "Details": "",
-        "Tag checks": "",
-        "Tag updates": "",
+        "Tag updates": "`T[dstOffset] = field`",
     },
     {
         "id": "emitunencryptedlog",
@@ -858,9 +1011,39 @@ context.machineState.pc = loc
             {"name": "logOffset", "description": "memory offset of the data to log"},
             {"name": "logSize", "description": "number of words to log", "mode": "immediate", "type": "u32"},
         ],
-        "Expression": "`context.accruedSubstate.unencryptedLogs.append(M[logOffset:logOffset+logSize])`",
+        "Expression": `
+context.accruedSubstate.unencryptedLogs.append(
+    UnencryptedLog {
+        address: context.environment.address,
+        log: M[logOffset:logOffset+logSize],
+    }
+)
+`,
         "Summary": "Emit an unencrypted log",
-        "Details": "",
+        "Tag checks": "",
+        "Tag updates": "",
+    },
+    {
+        "id": "sendl2tol1msg",
+        "Name": "`SENDL2TOL1MSG`",
+        "Category": "Accrued Substate - Messaging",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "Args": [
+            {"name": "msgOffset", "description": "memory offset of the message content"},
+            {"name": "msgSize", "description": "number of words in the message", "mode": "immediate", "type": "u32"},
+        ],
+        "Expression": `
+context.accruedSubstate.sentL2ToL1Messages.append(
+    SentL2ToL1Message {
+        address: context.environment.address,
+        portal: context.environment.portal,
+        message: M[msgOffset:msgOffset+msgSize]
+    }
+)
+`,
+        "Summary": "Send an L2-to-L1 message",
         "Tag checks": "",
         "Tag updates": "",
     },

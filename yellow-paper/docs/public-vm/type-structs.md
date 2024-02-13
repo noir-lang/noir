@@ -16,11 +16,24 @@ This section lists type definitions relevant to AVM State and Circuit I/O.
 | ---               | ---                                    | ---         |
 | `callPointer`     | `field`                                | Associates this item with a `TracedContractCall` entry in `worldStateAccessTrace.contractCalls` |
 | `portal`          | `EthAddress`                           |             |
-| `msgKey`          | `field`                                |             |
+| `leafIndex`       | `field`                                |             |
+| `msgKey`          | `field`                                | The message key which is also the tree leaf value. |
+| `exists`          | `field`                                |             |
 | `message`         | `[field; MAX_L1_TO_L2_MESSAGE_LENGTH]` | **Omitted from public inputs** |
 | `endLifetime`     | `field`                                | Equivalent to `endLifetime` of the containing contract call. |
 
-#### _TracedStorageAccess_
+#### _TracedStorageRead_
+
+| Field                | Type           | Description |
+| ---                  | ---            | ---         |
+| `callPointer`        | `field`        | Associates this item with a `TracedContractCall` entry in `worldStateAccessTrace.contractCalls`|
+| `slot`               | `field`        |             |
+| `exists`             | `field`        | Whether this slot has ever been previously written |
+| `value`              | `field`        |             |
+| `counter`            | `field`        |             |
+| `endLifetime`        | `field`        | Equivalent to `endLifetime` of the containing contract call. The last `counter` at which this read/write should be considered to "exist" if this call or a parent reverted. |
+
+#### _TracedStorageWrite_
 
 | Field                | Type           | Description |
 | ---                  | ---            | ---         |
@@ -65,8 +78,8 @@ This section lists type definitions relevant to AVM State and Circuit I/O.
 | Field                | Type           | Description |
 | ---                  | ---            | ---         |
 | `callPointer`        | `field`        | Associates this item with a `TracedContractCall` entry in `worldStateAccessTrace.contractCalls` |
-| `leaf`               | `field`        |             |
 | `leafIndex`          | `field`        |             |
+| `leaf`               | `field`        |             |
 | `exists`             | `field`        |             |
 | `counter`            | `field`        |             |
 | `endLifetime`        | `field`        | Equivalent to `endLifetime` of the containing contract call. |

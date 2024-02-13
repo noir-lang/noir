@@ -60,16 +60,18 @@ pub enum AvmOpcode {
     CMOV,
 
     // World State
-    BLOCKHEADERBYNUMBER,
-    SLOAD,         // Public Storage
-    SSTORE,        // Public Storage
-    READL1TOL2MSG, // Messages
-    SENDL2TOL1MSG, // Messages
-    EMITNOTEHASH,  // Notes & Nullifiers
-    EMITNULLIFIER, // Notes & Nullifiers
+    SLOAD,           // Public Storage
+    SSTORE,          // Public Storage
+    NOTEHASHEXISTS,  // Notes & Nullifiers
+    EMITNOTEHASH,    // Notes & Nullifiers
+    NULLIFIEREXISTS, // Notes & Nullifiers
+    EMITNULLIFIER,   // Notes & Nullifiers
+    READL1TOL2MSG,   // Messages
+    HEADERMEMBER,    // Archive tree & Headers
 
     // Accrued Substate
     EMITUNENCRYPTEDLOG,
+    SENDL2TOL1MSG,
 
     // Control Flow - Contract Calls
     CALL,
@@ -143,16 +145,18 @@ impl AvmOpcode {
             AvmOpcode::CMOV => "CMOV",
 
             // World State
-            AvmOpcode::BLOCKHEADERBYNUMBER => "BLOCKHEADERBYNUMBER",
             AvmOpcode::SLOAD => "SLOAD",   // Public Storage
             AvmOpcode::SSTORE => "SSTORE", // Public Storage
+            AvmOpcode::NOTEHASHEXISTS => "NOTEHASHEXISTS",   // Notes & Nullifiers
+            AvmOpcode::EMITNOTEHASH => "EMITNOTEHASH",       // Notes & Nullifiers
+            AvmOpcode::NULLIFIEREXISTS => "NULLIFIEREXISTS", // Notes & Nullifiers
+            AvmOpcode::EMITNULLIFIER => "EMITNULLIFIER",     // Notes & Nullifiers
             AvmOpcode::READL1TOL2MSG => "READL1TOL2MSG", // Messages
-            AvmOpcode::SENDL2TOL1MSG => "SENDL2TOL1MSG", // Messages
-            AvmOpcode::EMITNOTEHASH => "EMITNOTEHASH", // Notes & Nullifiers
-            AvmOpcode::EMITNULLIFIER => "EMITNULLIFIER", // Notes & Nullifiers
+            AvmOpcode::HEADERMEMBER => "HEADERMEMBER", // Archive tree & Headers
 
             // Accrued Substate
             AvmOpcode::EMITUNENCRYPTEDLOG => "EMITUNENCRYPTEDLOG",
+            AvmOpcode::SENDL2TOL1MSG => "SENDL2TOL1MSG",
 
             // Control Flow - Contract Calls
             AvmOpcode::CALL => "CALL",

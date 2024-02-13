@@ -1,6 +1,6 @@
 # Memory State Model
 
-The goal of this note is to describe the VM state model and to specify "internal" VM abstractions that can be mapped to circuit designs.
+This section describes the AVM memory model, and in particular specifies "internal" VM abstractions that can be mapped to the VM's circuit architecture.
 
 ## A memory-only state model
 

@@ -10,27 +10,28 @@ This section describes the types of state maintained by the AVM.
 
 | Field                 | Type            | Description |
 | ---                   | ---             | ---         |
-| `l1GasLeft`           | `field`         | Tracks the amount of L1 gas remaining at any point during execution. |
-| `l2GasLeft`           | `field`         | Tracks the amount of L2 gas remaining at any point during execution. |
-| `daGasLeft`           | `field`         | Tracks the amount of DA gas remaining at any point during execution. |
-| `pc`                  | `field`         | Index into the contract's bytecode indicating which instruction to execute. Initialized\* to 0. |
-| `internalCallStack`   | `Vector<field>` | A stack of program counters pushed to and popped from by `INTERNALCALL` and `INTERNALRETURN` instructions. Initialized\* as empty. |
-| `memory`              | `[field; 2^32]` | A $2^{32}$ entry memory space accessible by user code (bytecode instructions). All 2^32 entries are initialized\* to 0. See ["Memory Model"](./memory-model) for a complete description of AVM memory. |
+| `l1GasLeft`           | `field`         | Tracks the amount of L1 gas remaining at any point during execution. Initialized from contract call arguments. |
+| `l2GasLeft`           | `field`         | Tracks the amount of L2 gas remaining at any point during execution. Initialized from contract call arguments. |
+| `daGasLeft`           | `field`         | Tracks the amount of DA gas remaining at any point during execution. Initialized from contract call arguments. |
+| `pc`                  | `field`         | Index into the contract's bytecode indicating which instruction to execute. Initialized to 0 during context initialization. |
+| `internalCallStack`   | `Vector<field>` | A stack of program counters pushed to and popped from by `INTERNALCALL` and `INTERNALRETURN` instructions. Initialized as empty during context initialization. |
+| `memory`              | `[field; 2^32]` | A $2^{32}$ entry memory space accessible by user code (bytecode instructions). All $2^{32}$ entries are assigned default value 0 during context initialization. See ["Memory Model"](./memory-model) for a complete description of AVM memory. |
 
 ## World State
 
 ### AVM's access to Aztec State
-[Aztec's global state](../state) is implemented as a few merkle trees that are exposed to the AVM as follows:
 
-| State             | Tree                  | Tree Type                             | AVM Access                                              |
-| ---               | ---                   | ---                                   | ---                                                     |
-| Note Hashes       | Note Hash Tree        | Append-only merkle tree               | membership-checks (start-of-block), appends             |
-| Nullifiers        | Nullifier Tree        | Indexed merkle tree                   | membership-checks (latest), appends                     |
-| L1-to-L2 Messages | L1-to-L2 Message Tree | Append-only (or indexed?) merkle tree | membership-checks (start-of-block), leaf-preimage-reads |
-| Public Storage    | Public Data Tree      | Updatable merkle tree                 | membership-checks (latest), reads, writes       		  |
-| Headers           | Archive Tree          | Append-only merkle tree               | membership-checks, leaf-preimage-reads                  |
+[Aztec's global state](../state) is implemented as a few merkle trees. These trees are exposed to the AVM as follows:
 
-> As described in ["Contract Deployment"](../contract-deployment), contracts are not stored in a dedicated tree. A [contract class](../contract-deployment/classes) is [represented](../contract-deployment/classes#registration) as an unencrypted log containing the `ContractClass` structure (which contains the bytecode) and a nullifier representing the class identifier. The `contractClasses` interface provides access to contract classes indexed by class identifier. A [contract instance](../contract-deployment/instances) is [represented](../contract-deployment/classes#registration) as an unencrypted log containing the `ContractInstance` structure and a nullifier representing the contract address. The `contractInstances` interface provides access to contract instances indexed by contract address.
+| State             | Tree                  | Merkle Tree Type | AVM Access                                              |
+| ---               | ---                   | ---              | ---                                                     |
+| Public Storage    | Public Data Tree      | Updatable        | membership-checks (latest), reads, writes               |
+| Note Hashes       | Note Hash Tree        | Append-only      | membership-checks (start-of-block), appends             |
+| Nullifiers        | Nullifier Tree        | Indexed          | membership-checks (latest), appends                     |
+| L1-to-L2 Messages | L1-to-L2 Message Tree | Append-only      | membership-checks (start-of-block), leaf-preimage-reads |
+| Headers           | Archive Tree          | Append-only      | membership-checks, leaf-preimage-reads                  |
+
+> As described in ["Contract Deployment"](../contract-deployment), contracts are not stored in a dedicated tree. A [contract class](../contract-deployment/classes) is [represented](../contract-deployment/classes#registration) as an unencrypted log containing the `ContractClass` structure (which contains the bytecode) and a nullifier representing the class identifier. A [contract instance](../contract-deployment/instances) is [represented](../contract-deployment/classes#registration) as an unencrypted log containing the `ContractInstance` structure and a nullifier representing the contract address.
 
 ### AVM World State
 
@@ -42,13 +43,13 @@ As the AVM executes contract code, instructions may read or modify the world sta
 
 The following table defines an AVM context's world state interface:
 
-| Field            | AVM Instructions & Access                                                        |
-| ---              | ---                                                                              |
-| `noteHashes`     | `NOTEHASHEXISTS` (membership-checks (start-of-block)), `EMITNULLIFIER` (appends) |
-| `nullifiers`     | `NULLIFIERSEXISTS` membership-checks (latest), `EMITNULLIFIER` (appends)         |
-| `l1ToL2Messages` | `READL1TOL2MSG` (membership-checks (start-of-block) & leaf-preimage-reads)       |
-| `publicStorage`  | `SLOAD` (membership-checks (latest) & reads), `SSTORE` (writes)                  |
-| `headers`        | `HEADERMEMBER` (membership-checks & leaf-preimage-reads)                         |
+| Field            | AVM Instructions & Access |
+| ---              | ---                       |
+| `publicStorage`  | [`SLOAD`](./instruction-set#isa-section-sload) (membership-checks (latest) & reads), [`SSTORE`](./instruction-set#isa-section-sstore) (writes)                                |
+| `noteHashes`     | [`NOTEHASHEXISTS`](./instruction-set#isa-section-notehashexists) (membership-checks (start-of-block)), [`EMITNOTEHASH`](./instruction-set#isa-section-emitnotehash) (appends) |
+| `nullifiers`     | [`NULLIFIERSEXISTS`](./instruction-set#isa-section-nullifierexists) membership-checks (latest), [`EMITNULLIFIER`](./instruction-set#isa-section-emitnullifier) (appends)      |
+| `l1ToL2Messages` | [`READL1TOL2MSG`](./instruction-set#isa-section-readl1tol2msg) (membership-checks (start-of-block) & leaf-preimage-reads)                                                     |
+| `headers`        | [`HEADERMEMBER`](./instruction-set#isa-section-headermember) (membership-checks & leaf-preimage-reads)                                                                        |
 
 ### World State Access Trace
 
@@ -64,19 +65,19 @@ Each entry in the world state access trace is listed below along with its type a
 
 | Trace                 | Relevant State    | Trace Vector Type                  | Instructions         |
 | ---                   | ---               | ---                                | ---                  |
-| `publicStorageReads`  | Public Storage    | `Vector<TracedStorageAccess>`      | `SLOAD`              |
-| `publicStorageWrites` | Public Storage    | `Vector<TracedStorageAccess>`      | `SSTORE`             |
-| `l1ToL2MessageReads`  | L1-To-L2 Messages | `Vector<TracedL1ToL2MessageRead>`  | `READL1TOL2MSG`      |
-| `noteHashChecks`      | Note Hashes       | `Vector<TracedLeafCheck>`          | `NOTEHASHEXISTS`     |
-| `newNoteHashes`       | Note Hashes       | `Vector<TracedNoteHash>`           | `EMITNOTEHASH`       |
-| `nullifierChecks`     | Nullifiers        | `Vector<TracedIndexedLeafCheck>`   | `NULLIFIEREXISTS`    |
-| `newNullifiers`       | Nullifiers        | `Vector<TracedNullifier>`          | `EMITNULLIFIER`      |
-| `archiveChecks`       | Headers           | `Vector<TracedArchiveLeafCheck>`   | `HEADERMEMBER`       |
-| `contractCalls`       | -                 | `Vector<TracedContractCall>`       | `*CALL`              |
+| `publicStorageReads`  | Public Storage    | `Vector<TracedStorageRead>`        | [`SLOAD`](./instruction-set#isa-section-sload)                      |
+| `publicStorageWrites` | Public Storage    | `Vector<TracedStorageWrite>`       | [`SSTORE`](./instruction-set#isa-section-sstore)                    |
+| `noteHashChecks`      | Note Hashes       | `Vector<TracedLeafCheck>`          | [`NOTEHASHEXISTS`](./instruction-set#isa-section-notehashexists)    |
+| `newNoteHashes`       | Note Hashes       | `Vector<TracedNoteHash>`           | [`EMITNOTEHASH`](./instruction-set#isa-section-emitnotehash)        |
+| `nullifierChecks`     | Nullifiers        | `Vector<TracedIndexedLeafCheck>`   | [`NULLIFIERSEXISTS`](./instruction-set#isa-section-nullifierexists) |
+| `newNullifiers`       | Nullifiers        | `Vector<TracedNullifier>`          | [`EMITNULLIFIER`](./instruction-set#isa-section-emitnullifier)      |
+| `l1ToL2MessageReads`  | L1-To-L2 Messages | `Vector<TracedL1ToL2MessageRead>`  | [`READL1TOL2MSG`](./instruction-set#isa-section-readl1tol2msg)      |
+| `archiveChecks`       | Headers           | `Vector<TracedArchiveLeafCheck>`   | [`HEADERMEMBER`](./instruction-set#isa-section-headermember)       |
+| `contractCalls`       | -                 | `Vector<TracedContractCall>`       | [`*CALL`](./instruction-set#isa-section-call)                       |
 
 > The types tracked in these trace vectors are defined [here](./type-structs).
 
-> The syntax `*CALL` is short for `CALL`/`STATICCALL`/`DELEGATECALL`.
+> `*CALL` is short for `CALL`/`STATICCALL`/`DELEGATECALL`.
 
 > Aztec tree operations like membership checks, appends, or leaf updates are performed in-circuit by downstream circuits (public kernel and rollup circuits), _after_ AVM execution. The world state access trace is a list of requests made by the AVM for later circuits to perform.
 
@@ -84,12 +85,13 @@ Each entry in the world state access trace is listed below along with its type a
 
 > The term "accrued substate" is borrowed from the [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper.pdf).
 
-**Accrued substate** is accrued throughout a context's execution, but updates to it are strictly never relevant to subsequent instructions, contract calls, or transactions. An execution context is always initialized with empty accrued substate, and instructions can append to its vectors which are _append-only_. If a contract call's execution succeeds, its accrued substate is appended to the caller's. If a contract's execution reverts, its accrued substate is ignored. There is no accrued substate "trace" that includes entries from reverted contexts.
+**Accrued substate** is accrued throughout a context's execution, but updates to it are strictly never relevant to subsequent instructions, contract calls, or transactions. An execution context is always initialized with empty accrued substate. Its vectors are append-only, and the instructions listed below append to these vectors. If a contract call's execution succeeds, its accrued substate is appended to the caller's. If a contract's execution reverts, its accrued substate is ignored.
 
 #### _AccruedSubstate_
-| Field                | Type                        | Instructions    | Description |
-| ---                  | ---                         | ---             | ---         |
-| `unencryptedLogs`    | `Vector<UnencryptedLog>`    | `ULOG`          |  |
-| `sentL2ToL1Messages` | `Vector<SentL2ToL1Message>` | `SENDL1TOL2MSG` |  |
+
+| Field                | Type                        | Instructions      |
+| ---                  | ---                         | ---               |
+| `unencryptedLogs`    | `Vector<UnencryptedLog>`    | [`ULOG`](./instruction-set#isa-secction-ulog)          |
+| `sentL2ToL1Messages` | `Vector<SentL2ToL1Message>` | [`SENDL1TOL2MSG`](./instruction-set#isa-secction-sendl2tol1msg) |
 
 > The types tracked in these vectors are defined [here](./type-structs).

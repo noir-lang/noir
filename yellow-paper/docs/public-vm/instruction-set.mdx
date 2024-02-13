@@ -7,6 +7,8 @@ The following notes are relevant to the table and sections below:
 - Any instruction whose description does not mention a program counter change simply increments it: `context.machineState.pc++`
 - All instructions update `context.machineState.*GasLeft` as detailed in ["Gas limits and tracking"](./avm#gas-limits-and-tracking)
 - Any instruction can lead to an exceptional halt as specified in ["Exceptional halting"](./avm#exceptional-halting)
+- The term `hash` used in expressions below represents a Poseidon hash operation.
+- Type structures used in world state tracing operations are defined in ["Type Definitions"](./type-structs)
 
 import GeneratedInstructionSet from "./gen/_InstructionSet.mdx";
 

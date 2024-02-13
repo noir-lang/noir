@@ -74,16 +74,18 @@ enum class OpCode : uint8_t {
     CMOV,
 
     // World State
-    BLOCKHEADERBYNUMBER,
-    SLOAD,         // Public Storage
-    SSTORE,        // Public Storage
-    READL1TOL2MSG, // Messages
-    SENDL2TOL1MSG, // Messages
-    EMITNOTEHASH,  // Notes & Nullifiers
-    EMITNULLIFIER, // Notes & Nullifiers
+    SLOAD,           // Public Storage
+    SSTORE,          // Public Storage
+    NOTEHASHEXISTS,  // Notes & Nullifiers
+    EMITNOTEHASH,    // Notes & Nullifiers
+    NULLIFIEREXISTS, // Notes & Nullifiers
+    EMITNULLIFIER,   // Notes & Nullifiers
+    READL1TOL2MSG,   // Messages
+    HEADERMEMBER,    // Archive tree & Headers
 
     // Accrued Substate
     EMITUNENCRYPTEDLOG,
+    SENDL2TOL1MSG, // Messages
 
     // Control Flow - Contract Calls
     CALL,
