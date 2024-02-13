@@ -44,11 +44,11 @@ fn simplify_mul_terms(mut gate: Expression) -> Expression {
     gate
 }
 
-// Simplifies all mul terms with the same bi-variate variables
+// Simplifies all linear terms with the same variables
 fn simplify_linear_terms(mut gate: Expression) -> Expression {
     let mut hash_map: IndexMap<Witness, FieldElement> = IndexMap::new();
 
-    // Canonicalize the ordering of the multiplication, lets just order by variable name
+    // Canonicalize the ordering of the terms, lets just order by variable name
     for (scale, witness) in gate.linear_combinations.into_iter() {
         *hash_map.entry(witness).or_insert_with(FieldElement::zero) += scale;
     }
