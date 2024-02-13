@@ -4448,7 +4448,6 @@ __metadata:
   dependencies:
     "@esm-bundle/chai": ^4.3.4-fix.0
     "@ltd/j-toml": ^1.38.0
-    "@noir-lang/noirc_abi": "workspace:*"
     "@noir-lang/types": "workspace:*"
     "@types/adm-zip": ^0.5.0
     "@types/chai": ^4
