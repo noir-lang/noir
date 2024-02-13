@@ -1614,7 +1614,11 @@ impl NodeInterner {
                         }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
-                        _ => (),
+                        // Local variables should never be in a dependency cycle, scoping rules
+                        // prevents referring to them before they're defined
+                        DependencyId::Variable(loc) => unreachable!(
+                            "Variable used at location {loc:?} caught in a dependency cycle"
+                        ),
                     }
                 }
             }
@@ -1636,7 +1640,9 @@ impl NodeInterner {
             DependencyId::Global(id) => {
                 Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
             }
-            _ => Cow::Borrowed(""),
+            DependencyId::Variable(loc) => {
+                unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
+            }
         };
 
         let mut cycle = index_to_string(scc[start_index]).to_string();

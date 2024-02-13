@@ -1421,24 +1421,19 @@ impl<'a> Resolver<'a> {
 
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
-                            DefinitionKind::Function(id) => {
+                            DefinitionKind::Function(func_id) => {
                                 if let Some(current_item) = self.current_item {
-                                    self.interner.add_function_dependency(current_item, id);
+                                    self.interner.add_function_dependency(current_item, func_id);
                                 }
 
-                                if self.interner.function_visibility(id)
-                                    != FunctionVisibility::Public
-                                {
+                                let visibility = self.interner.function_visibility(func_id);
+                                if visibility != FunctionVisibility::Public {
                                     let span = hir_ident.location.span;
-                                    self.check_can_reference_function(
-                                        id,
-                                        span,
-                                        self.interner.function_visibility(id),
-                                    );
+                                    self.check_can_reference_function(func_id, span, visibility);
                                 }
 
                                 let variable = DependencyId::Variable(hir_ident.location);
-                                let function = DependencyId::Function(id);
+                                let function = DependencyId::Function(func_id);
                                 self.interner.add_reference(function, variable);
                             }
                             DefinitionKind::Global(global_id) => {
