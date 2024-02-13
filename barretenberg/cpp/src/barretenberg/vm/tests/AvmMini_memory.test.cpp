@@ -37,7 +37,7 @@ TEST_F(AvmMiniMemoryTests, mismatchedTag)
 {
     trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 98, 12 });
 
-    trace_builder.add(0, 1, 4, AvmMemoryTag::U8);
+    trace_builder.op_add(0, 1, 4, AvmMemoryTag::U8);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
 
@@ -85,7 +85,7 @@ TEST_F(AvmMiniMemoryTests, mLastAccessViolation)
     trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
 
     //                           Memory layout:     [4,9,0,0,0,0,....]
-    trace_builder.sub(1, 0, 2, AvmMemoryTag::U8); // [4,9,5,0,0,0.....]
+    trace_builder.op_sub(1, 0, 2, AvmMemoryTag::U8); // [4,9,5,0,0,0.....]
     trace_builder.halt();
     auto trace = trace_builder.finalize();
 
@@ -115,8 +115,8 @@ TEST_F(AvmMiniMemoryTests, readWriteConsistencyValViolation)
     trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
-    trace_builder.mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
-    trace_builder.return_op(2, 1);                // Return single memory word at position 2 (36)
+    trace_builder.op_mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
+    trace_builder.return_op(2, 1);                   // Return single memory word at position 2 (36)
     auto trace = trace_builder.finalize();
 
     // Find the row with multiplication operation
@@ -145,8 +145,8 @@ TEST_F(AvmMiniMemoryTests, readWriteConsistencyTagViolation)
     trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
-    trace_builder.mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
-    trace_builder.return_op(2, 1);                // Return single memory word at position 2 (36)
+    trace_builder.op_mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
+    trace_builder.return_op(2, 1);                   // Return single memory word at position 2 (36)
     auto trace = trace_builder.finalize();
 
     // Find the row with multiplication operation
@@ -185,7 +185,7 @@ TEST_F(AvmMiniMemoryTests, mismatchedTagErrorViolation)
 {
     trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 98, 12 });
 
-    trace_builder.sub(0, 1, 4, AvmMemoryTag::U8);
+    trace_builder.op_sub(0, 1, 4, AvmMemoryTag::U8);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
 
@@ -219,7 +219,7 @@ TEST_F(AvmMiniMemoryTests, consistentTagNoErrorViolation)
 {
     trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 84, 7 });
 
-    trace_builder.div(0, 1, 4, AvmMemoryTag::FF);
+    trace_builder.op_div(0, 1, 4, AvmMemoryTag::FF);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
 

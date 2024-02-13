@@ -21,7 +21,7 @@ const std::unordered_map<OpCode, size_t> Bytecode::OPERANDS_NUM = {
     //{OpCode::AND, },
     //{OpCode::OR, },
     //{OpCode::XOR, },
-    //{OpCode::NOT, },
+    // { OpCode::NOT, 2 },
     //{OpCode::SHL, },
     //{OpCode::SHR, },
     //// Compute - Type Conversions

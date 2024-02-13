@@ -73,6 +73,7 @@ void AvmMiniProver::execute_relation_check_rounds()
     using Sumcheck = SumcheckProver<Flavor>;
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
+
     FF alpha = transcript->template get_challenge<FF>("Sumcheck:alpha");
     std::vector<FF> gate_challenges(numeric::get_msb(key->circuit_size));
 

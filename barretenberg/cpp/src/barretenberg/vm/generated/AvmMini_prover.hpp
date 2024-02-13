@@ -3,7 +3,7 @@
 #pragma once
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/honk/proof_system/types/proof.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"

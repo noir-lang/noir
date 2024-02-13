@@ -34,6 +34,8 @@ namespace avmMini(256);
     pol commit sel_op_mul;
     // DIV
     pol commit sel_op_div;
+    // NOT
+    pol commit sel_op_not;
 
     // Instruction memory tag (0: uninitialized, 1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6:field)
     pol commit in_tag;
@@ -79,6 +81,7 @@ namespace avmMini(256);
     sel_op_sub * (1 - sel_op_sub) = 0;
     sel_op_mul * (1 - sel_op_mul) = 0;
     sel_op_div * (1 - sel_op_div) = 0;
+    sel_op_not * (1 - sel_op_not) = 0;
 
     sel_internal_call * (1 - sel_internal_call) = 0;
     sel_internal_return * (1 - sel_internal_return) = 0;
@@ -172,7 +175,7 @@ namespace avmMini(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
-    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul);
+    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul + sel_op_not);
 
     // Program counter must increment if not jumping or returning
     #[PC_INCREMENT]

@@ -82,6 +82,8 @@ bool AvmMiniVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.aluChip_alu_op_mul);
     commitments.aluChip_alu_op_div =
         transcript->template receive_from_prover<Commitment>(commitment_labels.aluChip_alu_op_div);
+    commitments.aluChip_alu_op_not =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.aluChip_alu_op_not);
     commitments.aluChip_alu_ff_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.aluChip_alu_ff_tag);
     commitments.aluChip_alu_u8_tag =
@@ -136,6 +138,8 @@ bool AvmMiniVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_mul);
     commitments.avmMini_sel_op_div =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_div);
+    commitments.avmMini_sel_op_not =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_sel_op_not);
     commitments.avmMini_in_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_in_tag);
     commitments.avmMini_op_err = transcript->template receive_from_prover<Commitment>(commitment_labels.avmMini_op_err);
     commitments.avmMini_tag_err =
@@ -164,7 +168,9 @@ bool AvmMiniVerifier::verify_proof(const HonkProof& proof)
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);
     auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
+
     FF alpha = transcript->template get_challenge<FF>("Sumcheck:alpha");
+
     auto gate_challenges = std::vector<FF>(log_circuit_size);
     for (size_t idx = 0; idx < log_circuit_size; idx++) {
         gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));

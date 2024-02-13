@@ -2,7 +2,7 @@
 
 #pragma once
 #include "barretenberg/flavor/generated/AvmMini_flavor.hpp"
-#include "barretenberg/honk/proof_system/types/proof.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace bb {
