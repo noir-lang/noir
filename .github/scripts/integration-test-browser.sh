@@ -1,5 +1,5 @@
 #!/bin/bash
 set -eu
 
-npx playwright install && npx playwright install-deps
+./.github/scripts/playwright-install.sh
 yarn workspace integration-tests test
