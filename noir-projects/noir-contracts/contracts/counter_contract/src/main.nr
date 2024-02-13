@@ -20,11 +20,9 @@ contract Counter {
     // docs:end:imports
 
     // docs:start:storage_struct
-
     struct Storage {
         counters: Map<AztecAddress, EasyPrivateUint>,
     }
-
     // docs:end:storage_struct
 
     // docs:start:constructor

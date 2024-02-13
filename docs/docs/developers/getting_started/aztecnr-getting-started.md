@@ -92,6 +92,12 @@ We are also using `balance_utils` from this import, a useful library that allows
 
 This allows us to store our counter in a way that acts as an integer, abstracting the note logic.
 
+## Declare storage
+
+Add this below the imports. It declares the storage variables for our contract. We are going to store a mapping of values for each `AztecAddress`.
+
+#include_code storage_struct /noir-projects/noir-contracts/contracts/counter_contract/src/main.nr rust
+
 ## Keep the counter private
 
 Now we’ve got a mechanism for storing our private state, we can start using it to ensure the privacy of balances.
