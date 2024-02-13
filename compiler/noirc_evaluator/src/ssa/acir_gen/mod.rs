@@ -1344,7 +1344,7 @@ impl Context {
 
         // The return value may or may not be an array reference. Calling `flatten_value_list`
         // will expand the array if there is one.
-        let return_acir_vars = self.flatten_value_list(return_values, dfg);
+        let return_acir_vars = self.flatten_value_list(return_values, dfg)?;
         let mut warnings = Vec::new();
         for acir_var in return_acir_vars {
             if self.acir_context.is_constant(&acir_var) {
@@ -2129,13 +2129,19 @@ impl Context {
     /// Maps an ssa value list, for which some values may be references to arrays, by inlining
     /// the `AcirVar`s corresponding to the contents of each array into the list of `AcirVar`s
     /// that correspond to other values.
-    fn flatten_value_list(&mut self, arguments: &[ValueId], dfg: &DataFlowGraph) -> Vec<AcirVar> {
+    fn flatten_value_list(
+        &mut self,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Result<Vec<AcirVar>, InternalError> {
         let mut acir_vars = Vec::with_capacity(arguments.len());
         for value_id in arguments {
             let value = self.convert_value(*value_id, dfg);
-            AcirContext::flatten_value(&mut acir_vars, value);
+            acir_vars.append(
+                &mut self.acir_context.flatten(value)?.iter().map(|(var, _)| *var).collect(),
+            );
         }
-        acir_vars
+        Ok(acir_vars)
     }
 
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
