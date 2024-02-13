@@ -30,7 +30,7 @@ export class AztecLmdbStore implements AztecKVStore {
     });
 
     this.#multiMapData = rootDb.openDB('data_dup_sort', {
-      encoding: 'msgpack',
+      encoding: 'ordered-binary',
       keyEncoding: 'ordered-binary',
       dupSort: true,
     });
