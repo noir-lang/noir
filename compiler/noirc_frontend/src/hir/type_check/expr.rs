@@ -844,6 +844,10 @@ impl<'interner> TypeChecker<'interner> {
                     })
                 }
             }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.comparator_operand_type_rules(&alias, other, op, span)
+            }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
@@ -1140,6 +1144,10 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     })
                 }
+            }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.infix_operand_type_rules(&alias, op, other, span)
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {

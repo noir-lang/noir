@@ -823,6 +823,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(fields)
             }
 
+            HirType::Alias(def, args) => self.convert_type(&def.borrow().get_type(args)),
+
             HirType::Tuple(fields) => {
                 let fields = vecmap(fields, |x| self.convert_type(x));
                 ast::Type::Tuple(fields)
