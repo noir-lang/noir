@@ -4,19 +4,17 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-// pub struct Index(pub usize);
-pub struct Index(pub usize, pub generational_arena::Index);
+pub struct Index(pub usize);
 
 // #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 #[derive(Debug, Clone)]
 pub struct Arena<T> {
     pub vec: Vec<T>,
-    pub _arena: generational_arena::Arena<T>,
 }
 
 impl<T> Default for Arena<T> {
     fn default() -> Self {
-        Self { vec: Vec::new(), _arena: generational_arena::Arena::default() }
+        Self { vec: Vec::new() }
     }
 }
 
@@ -62,8 +60,7 @@ impl<T> Arena<T> {
     {
         let index = self.vec.len();
         self.vec.push(item.clone());
-        let index_arena = self._arena.insert(item);
-        Index(index, index_arena)
+        Index(index)
     }
 
     pub fn get(&self, index: Index) -> Option<&T> {
@@ -76,7 +73,7 @@ impl<T> Arena<T> {
 
     pub fn iter(&self) -> impl Iterator<Item = (Index, &T)> {
         self.vec.iter().enumerate().map(|(index, item)| {
-            (Index(index, generational_arena::Index::from_raw_parts(index, 0)), item)
+            (Index(index), item)
         })
     }
 }
