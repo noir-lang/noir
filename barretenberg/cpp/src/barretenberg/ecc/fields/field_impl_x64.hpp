@@ -7,6 +7,8 @@ namespace bb {
 
 template <class T> field<T> field<T>::asm_mul_with_coarse_reduction(const field& a, const field& b) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_mul_with_coarse_reduction");
+
     field r;
     constexpr uint64_t r_inv = T::r_inv;
     constexpr uint64_t modulus_0 = modulus.data[0];
@@ -42,6 +44,8 @@ template <class T> field<T> field<T>::asm_mul_with_coarse_reduction(const field&
 
 template <class T> void field<T>::asm_self_mul_with_coarse_reduction(const field& a, const field& b) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_self_mul_with_coarse_reduction");
+
     constexpr uint64_t r_inv = T::r_inv;
     constexpr uint64_t modulus_0 = modulus.data[0];
     constexpr uint64_t modulus_1 = modulus.data[1];
@@ -73,6 +77,8 @@ template <class T> void field<T>::asm_self_mul_with_coarse_reduction(const field
 
 template <class T> field<T> field<T>::asm_sqr_with_coarse_reduction(const field& a) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_sqr_with_coarse_reduction");
+
     field r;
     constexpr uint64_t r_inv = T::r_inv;
     constexpr uint64_t modulus_0 = modulus.data[0];
@@ -137,6 +143,8 @@ template <class T> field<T> field<T>::asm_sqr_with_coarse_reduction(const field&
 
 template <class T> void field<T>::asm_self_sqr_with_coarse_reduction(const field& a) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_self_sqr_with_coarse_reduction");
+
     constexpr uint64_t r_inv = T::r_inv;
     constexpr uint64_t modulus_0 = modulus.data[0];
     constexpr uint64_t modulus_1 = modulus.data[1];
@@ -196,6 +204,8 @@ template <class T> void field<T>::asm_self_sqr_with_coarse_reduction(const field
 
 template <class T> field<T> field<T>::asm_add_with_coarse_reduction(const field& a, const field& b) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_add_with_coarse_reduction");
+
     field r;
 
     constexpr uint64_t twice_not_modulus_0 = twice_not_modulus.data[0];
@@ -223,6 +233,8 @@ template <class T> field<T> field<T>::asm_add_with_coarse_reduction(const field&
 
 template <class T> void field<T>::asm_self_add_with_coarse_reduction(const field& a, const field& b) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_self_add_with_coarse_reduction");
+
     constexpr uint64_t twice_not_modulus_0 = twice_not_modulus.data[0];
     constexpr uint64_t twice_not_modulus_1 = twice_not_modulus.data[1];
     constexpr uint64_t twice_not_modulus_2 = twice_not_modulus.data[2];
@@ -246,6 +258,8 @@ template <class T> void field<T>::asm_self_add_with_coarse_reduction(const field
 
 template <class T> field<T> field<T>::asm_sub_with_coarse_reduction(const field& a, const field& b) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_sub_with_coarse_reduction");
+
     field r;
 
     constexpr uint64_t twice_modulus_0 = twice_modulus.data[0];
@@ -271,6 +285,8 @@ template <class T> field<T> field<T>::asm_sub_with_coarse_reduction(const field&
 
 template <class T> void field<T>::asm_self_sub_with_coarse_reduction(const field& a, const field& b) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_self_sub_with_coarse_reduction");
+
     constexpr uint64_t twice_modulus_0 = twice_modulus.data[0];
     constexpr uint64_t twice_modulus_1 = twice_modulus.data[1];
     constexpr uint64_t twice_modulus_2 = twice_modulus.data[2];
@@ -292,6 +308,8 @@ template <class T> void field<T>::asm_self_sub_with_coarse_reduction(const field
 
 template <class T> void field<T>::asm_conditional_negate(field& r, const uint64_t predicate) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_conditional_negate");
+
     constexpr uint64_t twice_modulus_0 = twice_modulus.data[0];
     constexpr uint64_t twice_modulus_1 = twice_modulus.data[1];
     constexpr uint64_t twice_modulus_2 = twice_modulus.data[2];
@@ -324,6 +342,8 @@ template <class T> void field<T>::asm_conditional_negate(field& r, const uint64_
 
 template <class T> field<T> field<T>::asm_reduce_once(const field& a) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_reduce_once");
+
     field r;
 
     constexpr uint64_t not_modulus_0 = not_modulus.data[0];
@@ -347,6 +367,8 @@ template <class T> field<T> field<T>::asm_reduce_once(const field& a) noexcept
 
 template <class T> void field<T>::asm_self_reduce_once(const field& a) noexcept
 {
+    BB_OP_COUNT_TRACK_NAME("fr::asm_self_reduce_once");
+
     constexpr uint64_t not_modulus_0 = not_modulus.data[0];
     constexpr uint64_t not_modulus_1 = not_modulus.data[1];
     constexpr uint64_t not_modulus_2 = not_modulus.data[2];

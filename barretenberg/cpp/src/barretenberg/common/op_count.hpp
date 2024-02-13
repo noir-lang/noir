@@ -100,6 +100,8 @@ template <OperationLabel Op> struct GlobalOpCount {
         }
         ensure_stats();
         stats->cycles += cycles;
+#else
+        static_cast<void>(cycles);
 #endif
     }
     static constexpr void add_clock_time(std::size_t time)
@@ -111,6 +113,8 @@ template <OperationLabel Op> struct GlobalOpCount {
         }
         ensure_stats();
         stats->time += time;
+#else
+        static_cast<void>(time);
 #endif
     }
 };

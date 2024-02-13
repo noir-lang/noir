@@ -446,7 +446,7 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const element& other
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+(const element& other) const noexcept
 {
-    BB_OP_COUNT_TRACK();
+    BB_OP_COUNT_TRACK_NAME("element::operator+");
     element result(*this);
     return (result += other);
 }
