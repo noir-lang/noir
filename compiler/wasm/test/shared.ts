@@ -11,7 +11,6 @@ export function getPaths(basePath: string) {
   const depsScriptTOMLPath = `${depsScriptProjectPath}/Nargo.toml`;
   const depsScriptExpectedArtifact = `${depsScriptProjectPath}/target/noir_wasm_testing.json`;
 
-
   const libAProjectPath = `${fixtures}/deps/lib-a`;
   const libASourcePath = `${libAProjectPath}/src/lib.nr`;
   const libATOMLPath = `${libAProjectPath}/Nargo.toml`;
