@@ -1,7 +1,7 @@
-#include "../generated/Toy_circuit_builder.hpp"
+#include "../generated/toy_circuit_builder.hpp"
 #include "barretenberg/crypto/generators/generator_data.hpp"
-#include "barretenberg/flavor/generated/Toy_flavor.hpp"
-#include "barretenberg/proof_system/circuit_builder/generated/Toy_circuit_builder.hpp"
+#include "barretenberg/flavor/generated/toy_flavor.hpp"
+#include "barretenberg/proof_system/circuit_builder/generated/toy_circuit_builder.hpp"
 
 #include <gtest/gtest.h>
 

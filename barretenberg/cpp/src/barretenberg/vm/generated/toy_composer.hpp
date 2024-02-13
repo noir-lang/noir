@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "barretenberg/proof_system/circuit_builder/generated/Toy_circuit_builder.hpp"
+#include "barretenberg/proof_system/circuit_builder/generated/toy_circuit_builder.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/srs/global_crs.hpp"
-#include "barretenberg/vm/generated/Toy_prover.hpp"
-#include "barretenberg/vm/generated/Toy_verifier.hpp"
+#include "barretenberg/vm/generated/toy_prover.hpp"
+#include "barretenberg/vm/generated/toy_verifier.hpp"
 
 namespace bb {
 class ToyComposer {

@@ -7,9 +7,9 @@
 namespace bb::Toy_vm {
 
 template <typename FF> struct Toy_avmRow {
-    FF toy_q_xor_table{};
     FF toy_q_tuple_set{};
     FF toy_q_xor{};
+    FF toy_q_xor_table{};
 };
 
 inline std::string get_relation_label_toy_avm(int index)

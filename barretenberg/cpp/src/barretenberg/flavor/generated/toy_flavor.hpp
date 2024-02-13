@@ -13,8 +13,8 @@
 #include "barretenberg/flavor/flavor_macros.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/relations/generated/Toy/toy_avm.hpp"
-#include "barretenberg/relations/generated/Toy/two_column_perm.hpp"
+#include "barretenberg/relations/generated/toy/toy_avm.hpp"
+#include "barretenberg/relations/generated/toy/two_column_perm.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {

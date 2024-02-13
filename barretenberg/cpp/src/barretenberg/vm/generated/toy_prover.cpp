@@ -1,6 +1,6 @@
 
 
-#include "Toy_prover.hpp"
+#include "toy_prover.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
@@ -14,6 +14,7 @@
 namespace bb {
 
 using Flavor = ToyFlavor;
+using FF = Flavor::FF;
 
 /**
  * Create ToyProver from proving key, witness and manifest.
@@ -69,9 +70,12 @@ void ToyProver::execute_wire_commitments_round()
 void ToyProver::execute_relation_check_rounds()
 {
     using Sumcheck = SumcheckProver<Flavor>;
+
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
+
     FF alpha = transcript->template get_challenge<FF>("Sumcheck:alpha");
     std::vector<FF> gate_challenges(numeric::get_msb(key->circuit_size));
+
     for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
         gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }

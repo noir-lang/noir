@@ -1,8 +1,8 @@
 
 
 #pragma once
-#include "barretenberg/flavor/generated/Toy_flavor.hpp"
-#include "barretenberg/honk/proof_system/types/proof.hpp"
+#include "barretenberg/flavor/generated/toy_flavor.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace bb {

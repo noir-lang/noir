@@ -11,10 +11,10 @@
 #include "barretenberg/relations/generic_lookup/generic_lookup_relation.hpp"
 #include "barretenberg/relations/generic_permutation/generic_permutation_relation.hpp"
 
-#include "barretenberg/flavor/generated/Toy_flavor.hpp"
-#include "barretenberg/relations/generated/Toy/lookup_xor.hpp"
-#include "barretenberg/relations/generated/Toy/toy_avm.hpp"
-#include "barretenberg/relations/generated/Toy/two_column_perm.hpp"
+#include "barretenberg/flavor/generated/toy_flavor.hpp"
+#include "barretenberg/relations/generated/toy/lookup_xor.hpp"
+#include "barretenberg/relations/generated/toy/toy_avm.hpp"
+#include "barretenberg/relations/generated/toy/two_column_perm.hpp"
 
 namespace bb {
 
