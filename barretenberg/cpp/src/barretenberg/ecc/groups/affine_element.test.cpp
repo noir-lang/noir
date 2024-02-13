@@ -6,7 +6,17 @@
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 #include "barretenberg/ecc/groups/element.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
+
+#include "gmock/gmock.h"
+#include <algorithm>
 #include <fstream>
+#include <gtest/gtest.h>
+#include <iterator>
+
+using ::testing::Each;
+using ::testing::ElementsAreArray;
+using ::testing::Eq;
+using ::testing::Property;
 
 template <typename G1> class TestAffineElement : public testing::Test {
     using element = typename G1::element;
@@ -173,37 +183,30 @@ TEST(AffineElement, InfinityMulByScalarIsInfinity)
 TEST(AffineElement, BatchMulMatchesNonBatchMul)
 {
     constexpr size_t num_points = 512;
-    std::vector<grumpkin::g1::affine_element> affine_points;
-    for (size_t i = 0; i < num_points - 1; ++i) {
-        affine_points.emplace_back(grumpkin::g1::affine_element::random_element());
-    }
+    std::vector<grumpkin::g1::affine_element> affine_points(num_points - 1, grumpkin::g1::affine_element::infinity());
     // Include a point at infinity to test the mixed infinity + non-infinity case
-    affine_points.emplace_back(grumpkin::g1::affine_element::infinity());
+    affine_points.push_back(grumpkin::g1::affine_element::infinity());
     grumpkin::fr exponent = grumpkin::fr::random_element();
+    std::vector<grumpkin::g1::affine_element> expected;
+    std::transform(affine_points.begin(),
+                   affine_points.end(),
+                   std::back_inserter(expected),
+                   [exponent](const auto& el) { return el * exponent; });
+
     std::vector<grumpkin::g1::affine_element> result =
         grumpkin::g1::element::batch_mul_with_endomorphism(affine_points, exponent);
-    size_t i = 0;
-    for (grumpkin::g1::affine_element& el : result) {
-        EXPECT_EQ(el, affine_points[i] * exponent);
-        i++;
-    }
+
+    EXPECT_THAT(result, ElementsAreArray(expected));
 }
 
 // Batched multiplication of a point at infinity by a scalar should result in points at infinity
 TEST(AffineElement, InfinityBatchMulByScalarIsInfinity)
 {
     constexpr size_t num_points = 1024;
-    std::vector<grumpkin::g1::affine_element> affine_points;
-    for (size_t i = 0; i < num_points; ++i) {
-        affine_points.emplace_back(grumpkin::g1::affine_element::infinity());
-    }
-    grumpkin::fr exponent = grumpkin::fr::random_element();
+    std::vector<grumpkin::g1::affine_element> affine_points(num_points, grumpkin::g1::affine_element::infinity());
+
     std::vector<grumpkin::g1::affine_element> result =
-        grumpkin::g1::element::batch_mul_with_endomorphism(affine_points, exponent);
-    for (grumpkin::g1::affine_element& el : result) {
-        EXPECT_TRUE(el.is_point_at_infinity());
-        if (!el.is_point_at_infinity()) {
-            break; // dont spam with errors
-        }
-    }
+        grumpkin::g1::element::batch_mul_with_endomorphism(affine_points, grumpkin::fr::random_element());
+
+    EXPECT_THAT(result, Each(Property(&grumpkin::g1::affine_element::is_point_at_infinity, Eq(true))));
 }
