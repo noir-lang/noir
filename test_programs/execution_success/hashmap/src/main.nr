@@ -1,6 +1,10 @@
+mod utils;
+
 use dep::std::collections::map::HashMap;
 use dep::std::hash::BuildHasherDefault;
 use dep::std::hash::pedersen::PedersenHasher;
+
+use utils::cut;
 
 struct Entry{
     key: Field,
@@ -9,6 +13,9 @@ struct Entry{
 
 global HASHMAP_CAP = 8;
 global HASHMAP_LEN = 6;
+
+global FIELD_CMP = |a: Field, b: Field| a.lt(b);
+global PAIR_CMP = |a: (Field, Field), b: (Field, Field)| a.0.lt(b.0);
 
 fn allocate_hashmap() -> HashMap<Field, Field, HASHMAP_CAP, BuildHasherDefault<PedersenHasher>> {
     HashMap::default()
@@ -21,6 +28,8 @@ fn main(input: [Entry; HASHMAP_LEN]) {
     test_insert_and_methods(input);
     test_hashmaps_equality(input);
     test_retain();
+    test_iterators();
+    test_mut_iterators();
 }
 
 // Insert, get, remove.
@@ -128,4 +137,49 @@ fn test_hashmaps_equality(input: [Entry; HASHMAP_LEN]) {
     hashmap_2.remove(input[0].key);
 
     assert(hashmap_1 != hashmap_2, "HashMaps should not be equal.");
+}
+
+// Test Iter, Keys, Values.
+fn test_iterators() {
+    let mut hashmap = allocate_hashmap();
+
+    hashmap.insert(2, 3);
+    hashmap.insert(5, 7);
+    hashmap.insert(11, 13);
+
+    let keys: [Field; 3] = cut(hashmap.keys()).sort_via(FIELD_CMP);
+    let values: [Field; 3] = cut(hashmap.values()).sort_via(FIELD_CMP);
+    let entries: [(Field, Field); 3] = cut(hashmap.iter()).sort_via(PAIR_CMP);
+
+    assert(keys == [2, 5, 11], "Got incorrect iteration of keys.");
+    assert(values == [3, 7, 13], "Got incorrect iteration of values.");
+    assert(entries == [(2, 3), (5, 7), (11, 13)], "Got incorrect iteration of entries.");
+}
+
+// Test mutable Iter, Keys, Values.
+fn test_mut_iterators() {
+    let mut hashmap = allocate_hashmap();
+
+    hashmap.insert(2, 3);
+    hashmap.insert(5, 7);
+    hashmap.insert(11, 13);
+
+    let f = |k: Field| -> Field{ k * 3};
+    hashmap.mut_keys(f);
+
+    let f = |v: Field| -> Field{ v * 5};
+    hashmap.mut_values(f);
+
+    let keys: [Field; 3] = cut(hashmap.keys()).sort_via(FIELD_CMP);
+    let values: [Field; 3] = cut(hashmap.values()).sort_via(FIELD_CMP);
+
+    assert(keys == [6, 15, 33], f"Got incorrect iteration of keys: {keys}");
+    assert(values == [15, 35, 65], "Got incorrect iteration of values.");
+
+    let f = |k: Field, v: Field| -> (Field, Field){(k * 2, v * 2)};
+    hashmap.iter_mut(f);
+
+    let entries: [(Field, Field); 3] = cut(hashmap.iter()).sort_via(PAIR_CMP);
+
+    assert(entries == [(12, 30), (30, 70), (66, 130)], "Got incorrect iteration of entries.");
 }
