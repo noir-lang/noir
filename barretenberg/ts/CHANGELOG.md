@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.23.0...barretenberg.js-v0.24.0) (2024-02-13)
+
+
+### Features
+
+* Prototype native merkle trees ([#4457](https://github.com/AztecProtocol/aztec-packages/issues/4457)) ([7d5e056](https://github.com/AztecProtocol/aztec-packages/commit/7d5e0563edf3c7397ca994033b703149242cc24c))
+
 ## [0.23.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.22.0...barretenberg.js-v0.23.0) (2024-02-07)
 
 
