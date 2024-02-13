@@ -99,11 +99,11 @@ pub(crate) struct AcirDynamicArray {
     block_id: BlockId,
     /// Length of the array
     len: usize,
-    /// An ACIR dynamic array is a flat structure, so we use 
+    /// An ACIR dynamic array is a flat structure, so we use
     /// the inner structure of an `AcirType::NumericType` directly.
-    /// Some usages of ACIR arrays (e.g. black box hashes) require the bit size 
-    /// of every value to be known, thus we store the types as part of the dynamic 
-    /// array definition. 
+    /// Some usages of ACIR arrays (e.g. black box hashes) require the bit size
+    /// of every value to be known, thus we store the types as part of the dynamic
+    /// array definition.
     /// The length of the value types vector must match the `len` field in this structure.
     value_types: Vec<NumericType>,
     /// Identification for the ACIR dynamic array
@@ -160,7 +160,9 @@ impl AcirValue {
 
     fn flat_numeric_types(self) -> Vec<NumericType> {
         match self {
-            AcirValue::Array(_) => self.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect::<Vec<_>>(),
+            AcirValue::Array(_) => {
+                self.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect()
+            }
             AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
             _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
         }
@@ -1148,8 +1150,8 @@ impl Context {
                                 ..
                             }) => {
                                 if let Some(inner_elem_type_sizes) = inner_elem_type_sizes {
-                                    if self.initialized_arrays.contains(&inner_elem_type_sizes) {
-                                        let type_sizes_array_len = self.internal_mem_block_lengths.get(&inner_elem_type_sizes).copied().ok_or_else(||
+                                    if self.initialized_arrays.contains(inner_elem_type_sizes) {
+                                        let type_sizes_array_len = self.internal_mem_block_lengths.get(inner_elem_type_sizes).copied().ok_or_else(||
                                             InternalError::General {
                                                 message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
                                                 call_stack: self.acir_context.get_call_stack(),
@@ -1709,7 +1711,10 @@ impl Context {
                 };
 
                 let value_types = new_slice_val.flat_numeric_types();
-                assert!(value_types.len() == new_elem_size, "ICE: Value types array must match new slice size");
+                assert!(
+                    value_types.len() == new_elem_size,
+                    "ICE: Value types array must match new slice size"
+                );
 
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
@@ -1769,7 +1774,10 @@ impl Context {
                 };
 
                 let value_types = new_slice_val.flat_numeric_types();
-                assert!(value_types.len() == new_slice_size, "ICE: Value types array must match new slice size");
+                assert!(
+                    value_types.len() == new_slice_size,
+                    "ICE: Value types array must match new slice size"
+                );
 
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
@@ -1979,8 +1987,11 @@ impl Context {
                 };
 
                 let value_types = slice.flat_numeric_types();
-                assert!(value_types.len() == slice_size, "ICE: Value types array must match new slice size");
-                
+                assert!(
+                    value_types.len() == slice_size,
+                    "ICE: Value types array must match new slice size"
+                );
+
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
                     len: slice_size,
@@ -2098,10 +2109,13 @@ impl Context {
                 } else {
                     None
                 };
-                
+
                 let value_types = new_slice_val.flat_numeric_types();
-                assert!(value_types.len() == slice_size, "ICE: Value types array must match new slice size");
-                
+                assert!(
+                    value_types.len() == slice_size,
+                    "ICE: Value types array must match new slice size"
+                );
+
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
                     len: slice_size,

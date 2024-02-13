@@ -68,9 +68,9 @@ impl AcirType {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
 
-    pub(crate) fn to_numeric_type(self) -> NumericType {
+    pub(crate) fn to_numeric_type(&self) -> NumericType {
         match self {
-            AcirType::NumericType(numeric_type) => numeric_type,
+            AcirType::NumericType(numeric_type) => *numeric_type,
             AcirType::Array(_, _) => unreachable!("cannot fetch a numeric type for an array type"),
         }
     }
