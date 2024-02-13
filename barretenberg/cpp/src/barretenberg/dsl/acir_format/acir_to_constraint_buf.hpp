@@ -10,6 +10,7 @@
 #include "barretenberg/dsl/acir_format/keccak_constraint.hpp"
 #include "barretenberg/dsl/acir_format/logic_constraint.hpp"
 #include "barretenberg/dsl/acir_format/pedersen.hpp"
+#include "barretenberg/dsl/acir_format/poseidon2_constraint.hpp"
 #include "barretenberg/dsl/acir_format/range_constraint.hpp"
 #include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
 #include "barretenberg/dsl/acir_format/schnorr_verify.hpp"
@@ -306,6 +307,12 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, Aci
                     .rhs = arg.rhs,
                     .result = arg.output,
                     .opcode = BigIntOperationType::Div,
+                });
+            } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::Poseidon2Permutation>) {
+                af.poseidon2_constraints.push_back(Poseidon2Constraint{
+                    .state = map(arg.inputs, [](auto& e) { return e.witness.value; }),
+                    .result = map(arg.outputs, [](auto& e) { return e.value; }),
+                    .len = arg.len,
                 });
             }
         },

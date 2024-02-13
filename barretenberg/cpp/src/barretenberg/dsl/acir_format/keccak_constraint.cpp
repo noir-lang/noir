@@ -84,7 +84,6 @@ template <typename Builder> void create_keccak_permutations(Builder& builder, co
     // Get the witness assignment for each witness index
     // Write the witness assignment to the byte_array
     for (size_t i = 0; i < constraint.state.size(); ++i) {
-        info(constraint.state[i]);
         state[i] = field_ct::from_witness_index(&builder, constraint.state[i]);
     }
 

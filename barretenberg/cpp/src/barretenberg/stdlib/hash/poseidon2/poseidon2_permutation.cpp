@@ -2,11 +2,12 @@
 
 #include "barretenberg/proof_system/arithmetization/gate_data.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 namespace bb::stdlib {
 
 /**
- * @brief Circuit form of Poseidon2 permutation from https://eprint.iacr.org/2023/323.
+ * @brief Circuit form of Poseidon2 permutation from https://eprint.iacr.org/2023/323 for GoblinUltraCircuitBuilder.
  * @details The permutation consists of one initial linear layer, then a set of external rounds, a set of internal
  * rounds, and a set of external rounds.
  * @param builder
@@ -16,6 +17,7 @@ namespace bb::stdlib {
 template <typename Params, typename Builder>
 typename Poseidon2Permutation<Params, Builder>::State Poseidon2Permutation<Params, Builder>::permutation(
     Builder* builder, const typename Poseidon2Permutation<Params, Builder>::State& input)
+    requires IsGoblinBuilder<Builder>
 {
     // deep copy
     State current_state(input);
@@ -26,7 +28,7 @@ typename Poseidon2Permutation<Params, Builder>::State Poseidon2Permutation<Param
 
     // Apply 1st linear layer
     NativePermutation::matrix_multiplication_external(current_native_state);
-    initial_external_matrix_multiplication(builder, current_state);
+    matrix_multiplication_external(builder, current_state);
 
     // First set of external rounds
     constexpr size_t rounds_f_beginning = rounds_f / 2;
@@ -92,6 +94,95 @@ typename Poseidon2Permutation<Params, Builder>::State Poseidon2Permutation<Param
 }
 
 /**
+ * @brief Circuit form of Poseidon2 permutation from https://eprint.iacr.org/2023/323 for UltraCircuitBuilder.
+ * @details The permutation consists of one initial linear layer, then a set of external rounds, a set of internal
+ * rounds, and a set of external rounds.
+ * @param builder
+ * @param input
+ * @return State
+ */
+template <typename Params, typename Builder>
+typename Poseidon2Permutation<Params, Builder>::State Poseidon2Permutation<Params, Builder>::permutation(
+    Builder* builder, const typename Poseidon2Permutation<Params, Builder>::State& input)
+    requires IsNotGoblinBuilder<Builder>
+{
+    // deep copy
+    State current_state(input);
+
+    // Apply 1st linear layer
+    matrix_multiplication_external(builder, current_state);
+
+    // First set of external rounds
+    constexpr size_t rounds_f_beginning = rounds_f / 2;
+    for (size_t i = 0; i < rounds_f_beginning; ++i) {
+        add_round_constants(current_state, round_constants[i]);
+        apply_sbox(current_state);
+        matrix_multiplication_external(builder, current_state);
+    }
+
+    // Internal rounds
+    const size_t p_end = rounds_f_beginning + rounds_p;
+    for (size_t i = rounds_f_beginning; i < p_end; ++i) {
+        current_state[0] += round_constants[i][0];
+        apply_single_sbox(current_state[0]);
+        matrix_multiplication_internal(current_state);
+    }
+
+    // Remaining external rounds
+    for (size_t i = p_end; i < NUM_ROUNDS; ++i) {
+        add_round_constants(current_state, round_constants[i]);
+        apply_sbox(current_state);
+        matrix_multiplication_external(builder, current_state);
+    }
+    return current_state;
+}
+
+template <typename Params, typename Builder>
+void Poseidon2Permutation<Params, Builder>::add_round_constants(
+    State& input, const typename Poseidon2Permutation<Params, Builder>::RoundConstants& rc)
+    requires IsNotGoblinBuilder<Builder>
+
+{
+    for (size_t i = 0; i < t; ++i) {
+        input[i] += rc[i];
+    }
+}
+
+template <typename Params, typename Builder>
+void Poseidon2Permutation<Params, Builder>::apply_sbox(State& input)
+    requires IsNotGoblinBuilder<Builder>
+{
+    for (auto& in : input) {
+        apply_single_sbox(in);
+    }
+}
+
+template <typename Params, typename Builder>
+void Poseidon2Permutation<Params, Builder>::apply_single_sbox(field_t<Builder>& input)
+    requires IsNotGoblinBuilder<Builder>
+{
+    // hardcoded assumption that d = 5. should fix this or not make d configurable
+    auto xx = input.sqr();
+    auto xxxx = xx.sqr();
+    input *= xxxx;
+}
+
+template <typename Params, typename Builder>
+void Poseidon2Permutation<Params, Builder>::matrix_multiplication_internal(State& input)
+    requires IsNotGoblinBuilder<Builder>
+{
+    // for t = 4
+    auto sum = input[0];
+    for (size_t i = 1; i < t; ++i) {
+        sum += input[i];
+    }
+    for (size_t i = 0; i < t; ++i) {
+        input[i] *= Params::internal_matrix_diagonal[i]; // internal_matrix_diagonal[i];
+        input[i] += sum;
+    }
+}
+
+/**
  * @brief Separate function to do just the first linear layer (equivalent to external matrix mul).
  * @details We use 6 arithmetic gates to implement:
  *          gate 1: Compute tmp1 = state[0] + state[1] + 2 * state[3]
@@ -105,7 +196,7 @@ typename Poseidon2Permutation<Params, Builder>::State Poseidon2Permutation<Param
  * @param state
  */
 template <typename Params, typename Builder>
-void Poseidon2Permutation<Params, Builder>::initial_external_matrix_multiplication(
+void Poseidon2Permutation<Params, Builder>::matrix_multiplication_external(
     Builder* builder, typename Poseidon2Permutation<Params, Builder>::State& state)
 {
     // create the 6 gates for the initial matrix multiplication
@@ -204,5 +295,6 @@ void Poseidon2Permutation<Params, Builder>::initial_external_matrix_multiplicati
 }
 
 template class Poseidon2Permutation<crypto::Poseidon2Bn254ScalarFieldParams, GoblinUltraCircuitBuilder>;
+template class Poseidon2Permutation<crypto::Poseidon2Bn254ScalarFieldParams, UltraCircuitBuilder>;
 
 } // namespace bb::stdlib

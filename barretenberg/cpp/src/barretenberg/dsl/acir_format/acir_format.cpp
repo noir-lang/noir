@@ -1,6 +1,5 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
-#include "barretenberg/dsl/acir_format/bigint_constraint.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include <cstddef>
 
@@ -81,6 +80,9 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
         create_pedersen_hash_constraint(builder, constraint);
     }
 
+    for (const auto& constraint : constraint_system.poseidon2_constraints) {
+        create_poseidon2_permutations(builder, constraint);
+    }
     // Add fixed base scalar mul constraints
     for (const auto& constraint : constraint_system.fixed_base_scalar_mul_constraints) {
         create_fixed_base_constraint(builder, constraint);
