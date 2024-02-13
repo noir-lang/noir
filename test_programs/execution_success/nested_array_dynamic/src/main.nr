@@ -9,7 +9,7 @@ struct Foo {
 }
 
 struct FooParent {
-    array: [Field; 3],
+    array: [u8; 3],
     foos: [Foo; 4],
 }
 
