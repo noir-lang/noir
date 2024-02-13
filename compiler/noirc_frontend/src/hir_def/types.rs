@@ -442,6 +442,10 @@ pub enum TypeVariableKind {
     /// type annotations on each integer literal.
     IntegerOrField,
 
+    /// A generic integer type. This is a more specific kind of TypeVariable
+    /// that can only be bound to Type::Integer, or other polymorphic integers.
+    Integer,
+
     /// A potentially constant array size. This will only bind to itself, Type::NotConstant, or
     /// Type::Constant(n) with a matching size. This defaults to Type::Constant(n) if still unbound
     /// during monomorphization.
@@ -747,6 +751,13 @@ impl std::fmt::Display for Type {
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    write!(f, "{}", TypeVariableKind::Integer.default_type())
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
                     // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
@@ -911,6 +922,7 @@ impl Type {
                             Ok(())
                         }
                         TypeVariableKind::IntegerOrField => Err(UnificationError),
+                        TypeVariableKind::Integer => Err(UnificationError),
                     },
                 }
             }
@@ -925,6 +937,7 @@ impl Type {
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
+        only_integer: bool,
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
@@ -940,7 +953,30 @@ impl Type {
             Type::TypeVariable(self_var, TypeVariableKind::IntegerOrField) => {
                 let borrow = self_var.borrow();
                 match &*borrow {
-                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var, bindings),
+                    TypeBinding::Bound(typ) => {
+                        typ.try_bind_to_polymorphic_int(var, bindings, only_integer)
+                    }
+                    // Avoid infinitely recursive bindings
+                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(new_target_id) => {
+                        if only_integer {
+                            // Integer is more specific than IntegerOrField so we bind the type
+                            // variable to Integer instead.
+                            let clone = Type::TypeVariable(var.clone(), TypeVariableKind::Integer);
+                            bindings.insert(*new_target_id, (self_var.clone(), clone));
+                        } else {
+                            bindings.insert(target_id, (var.clone(), this.clone()));
+                        }
+                        Ok(())
+                    }
+                }
+            }
+            Type::TypeVariable(self_var, TypeVariableKind::Integer) => {
+                let borrow = self_var.borrow();
+                match &*borrow {
+                    TypeBinding::Bound(typ) => {
+                        typ.try_bind_to_polymorphic_int(var, bindings, only_integer)
+                    }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(_) => {
@@ -949,18 +985,23 @@ impl Type {
                     }
                 }
             }
-            Type::TypeVariable(binding, TypeVariableKind::Normal) => {
-                let borrow = binding.borrow();
+            Type::TypeVariable(self_var, TypeVariableKind::Normal) => {
+                let borrow = self_var.borrow();
                 match &*borrow {
-                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic_int(var, bindings),
+                    TypeBinding::Bound(typ) => {
+                        typ.try_bind_to_polymorphic_int(var, bindings, only_integer)
+                    }
                     // Avoid infinitely recursive bindings
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(new_target_id) => {
-                        // IntegerOrField is more specific than TypeVariable so we bind the type
-                        // variable to IntegerOrField instead.
-                        let clone =
-                            Type::TypeVariable(var.clone(), TypeVariableKind::IntegerOrField);
-                        bindings.insert(*new_target_id, (binding.clone(), clone));
+                        // Bind to the most specific type variable kind
+                        let clone_kind = if only_integer {
+                            TypeVariableKind::Integer
+                        } else {
+                            TypeVariableKind::IntegerOrField
+                        };
+                        let clone = Type::TypeVariable(var.clone(), clone_kind);
+                        bindings.insert(*new_target_id, (self_var.clone(), clone));
                         Ok(())
                     }
                 }
@@ -1050,7 +1091,16 @@ impl Type {
             (TypeVariable(var, Kind::IntegerOrField), other)
             | (other, TypeVariable(var, Kind::IntegerOrField)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
-                    other.try_bind_to_polymorphic_int(var, bindings)
+                    let only_integer = false;
+                    other.try_bind_to_polymorphic_int(var, bindings, only_integer)
+                })
+            }
+
+            (TypeVariable(var, Kind::Integer), other)
+            | (other, TypeVariable(var, Kind::Integer)) => {
+                other.try_unify_to_type_variable(var, bindings, |bindings| {
+                    let only_integer = true;
+                    other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                 })
             }
 
@@ -1599,6 +1649,7 @@ impl TypeVariableKind {
     pub(crate) fn default_type(&self) -> Type {
         match self {
             TypeVariableKind::IntegerOrField | TypeVariableKind::Normal => Type::default_int_type(),
+            TypeVariableKind::Integer => Type::default_range_loop_type(),
             TypeVariableKind::Constant(length) => Type::Constant(*length),
         }
     }
@@ -1626,6 +1677,10 @@ impl From<&Type> for PrintableType {
                     PrintableType::UnsignedInteger { width: (*bit_width).into() }
                 }
                 Signedness::Signed => PrintableType::SignedInteger { width: (*bit_width).into() },
+            },
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.into(),
+                TypeBinding::Unbound(_) => Type::default_range_loop_type().into(),
             },
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 match &*binding.borrow() {
@@ -1684,6 +1739,9 @@ impl std::fmt::Debug for Type {
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{:?}", var),
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 write!(f, "IntOrField{:?}", binding)
+            }
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
+                write!(f, "Int{:?}", binding)
             }
             Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
                 write!(f, "{}{:?}", n, binding)
