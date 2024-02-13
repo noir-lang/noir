@@ -7,11 +7,11 @@ use crate::{macros_api::NodeInterner, node_interner::DependencyId};
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 #[derive(Debug, Default)]
-pub(crate) struct LocationStore {
+pub(crate) struct LocationIndices {
     map_file_to_range: FxHashMap<FileId, RangeMap<u32, PetGraphIndex>>,
 }
 
-impl LocationStore {
+impl LocationIndices {
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
         let range_map = self.map_file_to_range.entry(location.file).or_insert_with(RangeMap::new);
         range_map.insert(location.span.start()..location.span.end(), node_index);
@@ -32,8 +32,8 @@ impl NodeInterner {
         let referenced_index = self.get_or_insert_reference(referenced);
         let reference_index = self.references_graph.add_node((reference.0, reference.1));
         self.references_graph.add_edge(referenced_index, reference_index, ());
-        self.location_store.add_location(referenced.1, referenced_index);
-        self.location_store.add_location(reference.1, reference_index);
+        self.location_indices.add_location(referenced.1, referenced_index);
+        self.location_indices.add_location(reference.1, reference_index);
     }
 
     pub(crate) fn add_reference_for(
@@ -45,12 +45,12 @@ impl NodeInterner {
 
         let reference_index = self.references_graph.add_node((reference.0, reference.1));
         self.references_graph.add_edge(*referenced_index, reference_index, ());
-        self.location_store.add_location(reference.1, reference_index);
+        self.location_indices.add_location(reference.1, reference_index);
     }
 
     pub(crate) fn add_definition(&mut self, referenced: (DependencyId, Location)) {
         let referenced_index = self.get_or_insert_reference(referenced);
-        self.location_store.add_location(referenced.1, referenced_index);
+        self.location_indices.add_location(referenced.1, referenced_index);
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -68,11 +68,11 @@ impl NodeInterner {
     }
 
     pub fn check_rename_possible(&self, location: Location) -> bool {
-        self.location_store.get_node_from_location(location).is_some()
+        self.location_indices.get_node_from_location(location).is_some()
     }
 
     pub fn find_rename_symbols_at(&self, location: Location) -> Option<Vec<Location>> {
-        let node_index = self.location_store.get_node_from_location(location)?;
+        let node_index = self.location_indices.get_node_from_location(location)?;
 
         let reference_node = self.references_graph[node_index];
         let found_locations: Vec<Location> = match reference_node.0 {

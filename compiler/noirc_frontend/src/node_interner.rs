@@ -26,7 +26,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::locations::LocationStore;
+use crate::locations::LocationIndices;
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
@@ -174,7 +174,7 @@ pub struct NodeInterner {
     /// Tracks the index of the references in the graph
     pub(crate) references_graph_indices: HashMap<DependencyId, PetGraphIndex>,
     /// Store the location of the references in the graph
-    pub(crate) location_store: LocationStore,
+    pub(crate) location_indices: LocationIndices,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -521,7 +521,7 @@ impl Default for NodeInterner {
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
-            location_store: LocationStore::default(),
+            location_indices: LocationIndices::default(),
             references_graph: petgraph::graph::DiGraph::new(),
             references_graph_indices: HashMap::new(),
         };
