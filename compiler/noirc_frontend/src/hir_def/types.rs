@@ -752,10 +752,7 @@ impl std::fmt::Display for Type {
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
-                    // what they bind to by default anyway. It is less confusing than displaying it
-                    // as a generic.
-                    write!(f, "u64")
+                    write!(f, "{}", TypeVariableKind::Integer.default_type())
                 } else {
                     write!(f, "{}", binding.borrow())
                 }
