@@ -1,7 +1,0 @@
-[package]
-name = "infer_int_loop_bounds"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.23.0"
-
-[dependencies]
