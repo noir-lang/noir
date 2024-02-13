@@ -2,7 +2,7 @@ use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
     blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, keccakf1600,
-    sha256, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    sha256, sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
 use crate::Memory;
@@ -185,7 +185,36 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::BigIntFromLeBytes { .. } => todo!(),
         BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
         BlackBoxOp::Poseidon2Permutation { .. } => todo!(),
-        BlackBoxOp::Sha256Compression { .. } => todo!(),
+        BlackBoxOp::Sha256Compression { input, hash_values, output } => {
+            let mut message = [0; 16];
+            let inputs = read_heap_vector(memory, input);
+            if inputs.len() != 16 {
+                return Err(BlackBoxResolutionError::Failed(
+                    BlackBoxFunc::Sha256Compression,
+                    format!("Expected 16 inputs but encountered {}", &inputs.len()),
+                ));
+            }
+            for (i, input) in inputs.iter().enumerate() {
+                message[i] = input.to_u128() as u32;
+            }
+            let mut state = [0; 8];
+            let values = read_heap_vector(memory, hash_values);
+            if values.len() != 8 {
+                return Err(BlackBoxResolutionError::Failed(
+                    BlackBoxFunc::Sha256Compression,
+                    format!("Expected 8 values but encountered {}", &values.len()),
+                ));
+            }
+            for (i, value) in values.iter().enumerate() {
+                state[i] = value.to_u128() as u32;
+            }
+
+            sha256compression(&mut state, &message);
+            let state = state.map(|x| Value::from(x as u128));
+
+            memory.write_slice(memory.read_ref(output.pointer), &state);
+            Ok(())
+        }
     }
 }
 
