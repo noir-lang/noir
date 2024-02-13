@@ -29,7 +29,7 @@ impl NodeInterner {
             DependencyId::Function(id) => self.function_modifiers(&id).name_location,
             DependencyId::Struct(id) => self.get_struct(id).borrow().location,
             DependencyId::Global(id) => self.get_global(id).location,
-            DependencyId::Alias(id) => self.get_type_alias(id).location,
+            DependencyId::Alias(id) => self.get_type_alias(id).borrow().location,
             DependencyId::Variable(location) => location,
         }
     }
