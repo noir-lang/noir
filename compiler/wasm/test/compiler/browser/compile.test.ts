@@ -25,14 +25,14 @@ async function getPrecompiledSource(path: string): Promise<any> {
 describe('noir-compiler/browser', () => {
   shouldCompileProgramIdentically(
     async () => {
-      const { simpleScriptProjectPath } = paths;
+      const { simpleScriptExpectedArtifact } = paths;
       const fm = createFileManager('/');
       const files = Object.values(paths).filter((fileOrDir) => /^\.?\/.*\..*$/.test(fileOrDir));
       for (const path of files) {
         console.log(path);
         await fm.writeFile(path, (await getFile(path)).body as ReadableStream<Uint8Array>);
       }
-      const nargoArtifact = (await getPrecompiledSource(simpleScriptProjectPath)) as ProgramArtifact;
+      const nargoArtifact = (await getPrecompiledSource(simpleScriptExpectedArtifact)) as ProgramArtifact;
       const noirWasmArtifact = await compile(fm, '/fixtures/simple');
 
       return { nargoArtifact, noirWasmArtifact };
