@@ -72,8 +72,6 @@ impl<T> Arena<T> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (Index, &T)> {
-        self.vec.iter().enumerate().map(|(index, item)| {
-            (Index(index), item)
-        })
+        self.vec.iter().enumerate().map(|(index, item)| (Index(index), item))
     }
 }
