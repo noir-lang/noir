@@ -1,6 +1,7 @@
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
+use crate::IntegerBitSize;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
@@ -40,8 +41,8 @@ pub enum ParserErrorReason {
     NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
-    #[error("Integer bit size {0} won't be supported")]
-    DeprecatedBitSize(u32),
+    #[error("Integer bit size {0} isn't supported")]
+    InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
 }
@@ -132,8 +133,6 @@ impl std::fmt::Display for ParserError {
     }
 }
 
-pub(crate) static ALLOWED_INTEGER_BIT_SIZES: &[u32] = &[1, 8, 32, 64];
-
 impl From<ParserError> for Diagnostic {
     fn from(error: ParserError) -> Diagnostic {
         match error.reason {
@@ -149,9 +148,9 @@ impl From<ParserError> for Diagnostic {
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
                         error.span,
                     ),
-                    ParserErrorReason::DeprecatedBitSize(bit_size) => Diagnostic::simple_warning(
-                        format!("Use of deprecated bit size {}", bit_size),
-                        format!("Bit sizes for integers will be restricted to {}", ALLOWED_INTEGER_BIT_SIZES.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")),
+                    ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
+                        format!("Use of invalid bit size {}", bit_size),
+                        format!("Allowed bit sizes for integers are {}", IntegerBitSize::allowed_sizes().iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

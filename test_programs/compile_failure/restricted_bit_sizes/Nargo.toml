@@ -1,6 +1,5 @@
 [package]
-name = "regression_2854"
+name = "restricted_bit_sizes"
 type = "bin"
 authors = [""]
-
 [dependencies]

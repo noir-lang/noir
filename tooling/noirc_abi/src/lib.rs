@@ -142,7 +142,7 @@ impl AbiType {
                     Signedness::Signed => Sign::Signed,
                 };
 
-                Self::Integer { sign, width: *bit_width }
+                Self::Integer { sign, width: (*bit_width).into() }
             }
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
             | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {

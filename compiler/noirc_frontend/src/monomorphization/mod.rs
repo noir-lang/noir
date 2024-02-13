@@ -27,8 +27,8 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableKind, UnaryOp, Visibility,
+    ContractFunctionType, FunctionKind, IntegerBitSize, Type, TypeBinding, TypeBindings,
+    TypeVariable, TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -354,6 +354,7 @@ impl<'interner> Monomorphizer<'interner> {
                     match typ {
                         ast::Type::Field => Literal(Integer(-value, typ, location)),
                         ast::Type::Integer(_, bit_size) => {
+                            let bit_size: u32 = bit_size.into();
                             let base = 1_u128 << bit_size;
                             Literal(Integer(FieldElement::from(base) - value, typ, location))
                         }
@@ -1111,19 +1112,19 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                     "modulus_le_bits" => {
                         let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_array_literal(bits, 1, location))
+                        Some(self.modulus_array_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bits" => {
                         let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_array_literal(bits, 1, location))
+                        Some(self.modulus_array_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_be();
-                        Some(self.modulus_array_literal(bytes, 8, location))
+                        Some(self.modulus_array_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     "modulus_le_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_le();
-                        Some(self.modulus_array_literal(bytes, 8, location))
+                        Some(self.modulus_array_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     _ => None,
                 };
@@ -1135,7 +1136,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn modulus_array_literal(
         &self,
         bytes: Vec<u8>,
-        arr_elem_bits: u32,
+        arr_elem_bits: IntegerBitSize,
         location: Location,
     ) -> ast::Expression {
         use ast::*;
