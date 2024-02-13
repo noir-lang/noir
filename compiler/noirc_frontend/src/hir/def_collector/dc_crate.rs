@@ -399,10 +399,8 @@ fn add_import_reference(
         return;
     }
     if let crate::macros_api::ModuleDefId::FunctionId(func_id) = def_id {
-        interner.add_reference_for(
-            DependencyId::Function(func_id),
-            (DependencyId::FunctionCall, Location::new(name.span(), file_id)),
-        );
+        let variable = DependencyId::Variable(Location::new(name.span(), file_id));
+        interner.add_reference_for(DependencyId::Function(func_id), variable);
     }
 }
 

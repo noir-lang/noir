@@ -1437,17 +1437,18 @@ impl<'a> Resolver<'a> {
                                     );
                                 }
 
-                                if let Some(func_meta) = self.interner.func_meta.get(&id) {
-                                    self.interner.add_reference(
-                                        (DependencyId::Function(id), func_meta.location),
-                                        (DependencyId::FunctionCall, hir_ident.location),
-                                    );
-                                }
+                                let variable = DependencyId::Variable(hir_ident.location);
+                                let function = DependencyId::Function(id);
+                                self.interner.add_reference(function, variable);
                             }
                             DefinitionKind::Global(global_id) => {
                                 if let Some(current_item) = self.current_item {
                                     self.interner.add_global_dependency(current_item, global_id);
                                 }
+
+                                let variable = DependencyId::Variable(hir_ident.location);
+                                let global = DependencyId::Global(global_id);
+                                self.interner.add_reference(global, variable);
                             }
                             DefinitionKind::GenericType(_) => {
                                 // Initialize numeric generics to a polymorphic integer type in case

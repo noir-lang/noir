@@ -170,9 +170,11 @@ pub struct NodeInterner {
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
 
     /// Store the location of the references in the graph
-    pub(crate) references_graph: DiGraph<(DependencyId, Location), ()>,
+    pub(crate) reference_graph: DiGraph<DependencyId, ()>,
+
     /// Tracks the index of the references in the graph
-    pub(crate) references_graph_indices: HashMap<DependencyId, PetGraphIndex>,
+    pub(crate) reference_graph_indices: HashMap<DependencyId, PetGraphIndex>,
+
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
 }
@@ -193,7 +195,7 @@ pub enum DependencyId {
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
-    FunctionCall,
+    Variable(Location),
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -257,6 +259,9 @@ pub struct FunctionModifiers {
     /// If this function is internal can only be called by itself.
     /// Will be None if not in contract.
     pub is_internal: Option<bool>,
+
+    /// The location of the function's name rather than the entire function
+    pub name_location: Location,
 }
 
 impl FunctionModifiers {
@@ -271,6 +276,7 @@ impl FunctionModifiers {
             is_unconstrained: false,
             is_internal: None,
             contract_function_type: None,
+            name_location: Location::dummy(),
         }
     }
 }
@@ -522,8 +528,8 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             location_indices: LocationIndices::default(),
-            references_graph: petgraph::graph::DiGraph::new(),
-            references_graph_indices: HashMap::new(),
+            reference_graph: petgraph::graph::DiGraph::new(),
+            reference_graph_indices: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -799,12 +805,14 @@ impl NodeInterner {
             is_unconstrained: function.is_unconstrained,
             contract_function_type: Some(if function.is_open { Open } else { Secret }),
             is_internal: Some(function.is_internal),
+            name_location: Location::new(function.name.span(), location.file),
         };
-        self.add_definition((
-            DependencyId::Function(id),
-            Location::new(function.name.span(), location.file),
-        ));
-        self.push_function_definition(id, modifiers, module, location)
+        let definition_id = self.push_function_definition(id, modifiers, module, location);
+
+        // This needs to be done after pushing the definition since it will reference the
+        // location that was stored
+        self.add_definition_location(DependencyId::Function(id));
+        definition_id
     }
 
     pub fn push_function_definition(
