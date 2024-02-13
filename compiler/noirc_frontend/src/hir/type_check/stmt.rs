@@ -93,7 +93,7 @@ impl<'interner> TypeChecker<'interner> {
         match pattern {
             HirPattern::Identifier(ident) => self.interner.push_definition_type(ident.id, typ),
             HirPattern::Mutable(pattern, _) => self.bind_pattern(pattern, typ),
-            HirPattern::Tuple(fields, location) => match typ {
+            HirPattern::Tuple(fields, location) => match typ.follow_bindings() {
                 Type::Tuple(field_types) if field_types.len() == fields.len() => {
                     for (field, field_type) in fields.iter().zip(field_types) {
                         self.bind_pattern(field, field_type);
@@ -120,12 +120,12 @@ impl<'interner> TypeChecker<'interner> {
                     source: Source::Assignment,
                 });
 
-                if let Type::Struct(struct_type, generics) = struct_type {
+                if let Type::Struct(struct_type, generics) = struct_type.follow_bindings() {
                     let struct_type = struct_type.borrow();
 
                     for (field_name, field_pattern) in fields {
                         if let Some((type_field, _)) =
-                            struct_type.get_field(&field_name.0.contents, generics)
+                            struct_type.get_field(&field_name.0.contents, &generics)
                         {
                             self.bind_pattern(field_pattern, type_field);
                         }

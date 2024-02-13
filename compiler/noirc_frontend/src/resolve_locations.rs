@@ -212,6 +212,8 @@ impl NodeInterner {
         self.type_alias_ref
             .iter()
             .find(|(_, named_type_location)| named_type_location.span.contains(&location.span))
-            .map(|(type_alias_id, _found_location)| self.get_type_alias(*type_alias_id).location)
+            .map(|(type_alias_id, _found_location)| {
+                self.get_type_alias(*type_alias_id).borrow().location
+            })
     }
 }
