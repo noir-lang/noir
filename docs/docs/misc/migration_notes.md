@@ -6,7 +6,7 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
-## TBD
+## 0.24.0
 
 ### Introduce Note Type IDs
 
@@ -65,8 +65,6 @@ impl NoteInterface<N> for MyCustomNote {
     }
 }
 ```
-
-## 0.24.0
 
 ### [js] Importing contracts in JS
 
