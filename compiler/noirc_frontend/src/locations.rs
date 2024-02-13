@@ -30,8 +30,8 @@ impl NodeInterner {
         reference: (DependencyId, Location),
     ) {
         let referenced_index = self.get_or_insert_reference(referenced);
-        let reference_index = self.graph_references.add_node((reference.0, reference.1));
-        self.graph_references.add_edge(referenced_index, reference_index, ());
+        let reference_index = self.references_graph.add_node((reference.0, reference.1));
+        self.references_graph.add_edge(referenced_index, reference_index, ());
         self.location_store.add_location(referenced.1, referenced_index);
         self.location_store.add_location(reference.1, reference_index);
     }
@@ -41,10 +41,10 @@ impl NodeInterner {
         referenced_id: DependencyId,
         reference: (DependencyId, Location),
     ) {
-        let Some(referenced_index) = self.graph_references_indices.get(&referenced_id) else { panic!("Compiler Error: Referenced index not found") };
+        let Some(referenced_index) = self.references_graph_indices.get(&referenced_id) else { panic!("Compiler Error: Referenced index not found") };
 
-        let reference_index = self.graph_references.add_node((reference.0, reference.1));
-        self.graph_references.add_edge(*referenced_index, reference_index, ());
+        let reference_index = self.references_graph.add_node((reference.0, reference.1));
+        self.references_graph.add_edge(*referenced_index, reference_index, ());
         self.location_store.add_location(reference.1, reference_index);
     }
 
@@ -58,12 +58,12 @@ impl NodeInterner {
         &mut self,
         (id, location): (DependencyId, Location),
     ) -> PetGraphIndex {
-        if let Some(index) = self.graph_references_indices.get(&id) {
+        if let Some(index) = self.references_graph_indices.get(&id) {
             return *index;
         }
 
-        let index = self.graph_references.add_node((id, location));
-        self.graph_references_indices.insert(id, index);
+        let index = self.references_graph.add_node((id, location));
+        self.references_graph_indices.insert(id, index);
         index
     }
 
@@ -74,14 +74,14 @@ impl NodeInterner {
     pub fn find_rename_symbols_at(&self, location: Location) -> Option<Vec<Location>> {
         let node_index = self.location_store.get_node_from_location(location)?;
 
-        let reference_node = self.graph_references[node_index];
+        let reference_node = self.references_graph[node_index];
         let found_locations: Vec<Location> = match reference_node.0 {
             DependencyId::Alias(_) | DependencyId::Struct(_) | DependencyId::Global(_) => todo!(),
             DependencyId::Function(_) => self.get_edit_locations(node_index),
 
             DependencyId::FunctionCall => {
                 let referenced_node_index = self
-                    .graph_references
+                    .references_graph
                     .neighbors_directed(node_index, petgraph::Direction::Incoming)
                     .next()?;
 
@@ -93,14 +93,14 @@ impl NodeInterner {
 
     fn get_edit_locations(&self, referenced_node_index: PetGraphIndex) -> Vec<Location> {
         let mut edit_locations: Vec<Location> = Vec::new();
-        let (_referenced_id, referencing_location) = self.graph_references[referenced_node_index];
+        let (_referenced_id, referencing_location) = self.references_graph[referenced_node_index];
         edit_locations.push(referencing_location);
 
-        self.graph_references
+        self.references_graph
             .neighbors_directed(referenced_node_index, petgraph::Direction::Outgoing)
             .for_each(|reference_node_index| {
                 let (_reference_dependency_id, reference_location) =
-                    self.graph_references[reference_node_index];
+                    self.references_graph[reference_node_index];
                 edit_locations.push(reference_location);
             });
         edit_locations

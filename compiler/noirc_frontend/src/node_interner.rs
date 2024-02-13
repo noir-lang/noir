@@ -170,9 +170,9 @@ pub struct NodeInterner {
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
 
     /// Store the location of the references in the graph
-    pub(crate) graph_references: DiGraph<(DependencyId, Location), ()>,
+    pub(crate) references_graph: DiGraph<(DependencyId, Location), ()>,
     /// Tracks the index of the references in the graph
-    pub(crate) graph_references_indices: HashMap<DependencyId, PetGraphIndex>,
+    pub(crate) references_graph_indices: HashMap<DependencyId, PetGraphIndex>,
     /// Store the location of the references in the graph
     pub(crate) location_store: LocationStore,
 }
@@ -522,8 +522,8 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             location_store: LocationStore::default(),
-            graph_references: petgraph::graph::DiGraph::new(),
-            graph_references_indices: HashMap::new(),
+            references_graph: petgraph::graph::DiGraph::new(),
+            references_graph_indices: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
