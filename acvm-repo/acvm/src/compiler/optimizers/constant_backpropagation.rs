@@ -126,7 +126,7 @@ impl ConstantBackpropagationOptimizer {
 
                     // Attempt to solve the opcode to see if we can determine the value of any witnesses in the expression.
                     // We only do this _after_ we apply any simplifications to create the new opcode as we want to
-                    // keep the constraint on the witness which we can solving for here.
+                    // keep the constraint on the witness which we are solving for here.
                     let _ = ExpressionSolver::solve(&mut known_witnesses, &new_expr);
 
                     Opcode::AssertZero(new_expr)
