@@ -296,18 +296,21 @@ impl BrilligContext {
         // Loop body
 
         // Check if iterator < iteration_count
-        let iterator_less_than_iterations = self.allocate_register();
+        let iterator_less_than_iterations =
+            SimpleVariable { address: self.allocate_register(), bit_size: 1 };
+
         self.memory_op(
             iterator_register,
             iteration_count,
-            iterator_less_than_iterations,
+            iterator_less_than_iterations.address,
             BinaryIntOp::LessThan,
         );
 
         let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
 
-        self.not_instruction(iterator_less_than_iterations, 1, iterator_less_than_iterations);
-        self.jump_if_instruction(iterator_less_than_iterations, exit_loop_label);
+        self.not_instruction(iterator_less_than_iterations, iterator_less_than_iterations);
+
+        self.jump_if_instruction(iterator_less_than_iterations.address, exit_loop_label);
 
         // Call the on iteration function
         on_iteration(self, iterator_register);
@@ -321,7 +324,7 @@ impl BrilligContext {
         self.enter_section(exit_loop_section);
 
         // Deallocate our temporary registers
-        self.deallocate_register(iterator_less_than_iterations);
+        self.deallocate_register(iterator_less_than_iterations.address);
         self.deallocate_register(iterator_register);
     }
 
@@ -506,14 +509,13 @@ impl BrilligContext {
     }
 
     /// Cast truncates the value to the given bit size and converts the type of the value in memory to that bit size.
-    pub(crate) fn cast_instruction(
-        &mut self,
-        destination: MemoryAddress,
-        source: MemoryAddress,
-        bit_size: u32,
-    ) {
-        self.debug_show.cast_instruction(destination, source, bit_size);
-        self.push_opcode(BrilligOpcode::Cast { destination, source, bit_size });
+    pub(crate) fn cast_instruction(&mut self, destination: SimpleVariable, source: SimpleVariable) {
+        self.debug_show.cast_instruction(destination.address, source.address, destination.bit_size);
+        self.push_opcode(BrilligOpcode::Cast {
+            destination: destination.address,
+            source: source.address,
+            bit_size: destination.bit_size,
+        });
     }
 
     /// Processes a binary instruction according `operation`.
@@ -563,23 +565,18 @@ impl BrilligContext {
     ///
     /// Not is computed using a subtraction operation as there is no native not instruction
     /// in Brillig.
-    pub(crate) fn not_instruction(
-        &mut self,
-        input: MemoryAddress,
-        bit_size: u32,
-        result: MemoryAddress,
-    ) {
-        self.debug_show.not_instruction(input, bit_size, result);
+    pub(crate) fn not_instruction(&mut self, input: SimpleVariable, result: SimpleVariable) {
+        self.debug_show.not_instruction(input.address, input.bit_size, result.address);
         // Compile !x as ((-1) - x)
-        let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128))
+        let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(input.bit_size as i128))
             - FieldElement::one();
-        let max = self.make_constant(Value::from(u_max), bit_size);
+        let max = self.make_constant(Value::from(u_max), input.bit_size);
         let opcode = BrilligOpcode::BinaryIntOp {
-            destination: result,
+            destination: result.address,
             op: BinaryIntOp::Sub,
-            bit_size,
+            bit_size: input.bit_size,
             lhs: max,
-            rhs: input,
+            rhs: input.address,
         };
         self.push_opcode(opcode);
         self.deallocate_register(max);

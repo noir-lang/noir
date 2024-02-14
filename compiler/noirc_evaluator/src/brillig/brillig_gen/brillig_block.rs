@@ -340,12 +340,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg.instruction_results(instruction_id)[0],
                     dfg,
                 );
-                let bit_size = get_bit_size_from_ssa_type(&dfg.type_of_value(*value));
-                self.brillig_context.not_instruction(
-                    condition_register.address,
-                    bit_size,
-                    result_register.address,
-                );
+                self.brillig_context.not_instruction(condition_register, result_register);
             }
             Instruction::Call { func, arguments } => match &dfg[*func] {
                 Value::ForeignFunction(func_name) => {
@@ -569,16 +564,16 @@ impl<'block> BrilligBlock<'block> {
                     *bit_size,
                 );
             }
-            Instruction::Cast(value, typ) => {
+            Instruction::Cast(value, _) => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let destination_register = self.variables.define_simple_variable(
+                let destination_variable = self.variables.define_simple_variable(
                     self.function_context,
                     self.brillig_context,
                     result_ids[0],
                     dfg,
                 );
-                let source_register = self.convert_ssa_simple_value(*value, dfg);
-                self.convert_cast(destination_register.address, source_register.address, typ);
+                let source_variable = self.convert_ssa_simple_value(*value, dfg);
+                self.convert_cast(destination_variable, source_variable);
             }
             Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -628,8 +623,11 @@ impl<'block> BrilligBlock<'block> {
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.convert_ssa_simple_value(*value, dfg);
                 // Cast original value to field
-                let left = self.brillig_context.allocate_register();
-                self.convert_cast(left, value.address, &Type::field());
+                let left = SimpleVariable {
+                    address: self.brillig_context.allocate_register(),
+                    bit_size: FieldElement::max_num_bits(),
+                };
+                self.convert_cast(left, value);
 
                 // Create a field constant with the max
                 let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
@@ -644,11 +642,16 @@ impl<'block> BrilligBlock<'block> {
                     bit_size: FieldElement::max_num_bits(),
                 };
                 let condition = self.brillig_context.allocate_register();
-                self.brillig_context.binary_instruction(left, right, condition, brillig_binary_op);
+                self.brillig_context.binary_instruction(
+                    left.address,
+                    right,
+                    condition,
+                    brillig_binary_op,
+                );
 
                 self.brillig_context.constrain_instruction(condition, assert_message.clone());
                 self.brillig_context.deallocate_register(condition);
-                self.brillig_context.deallocate_register(left);
+                self.brillig_context.deallocate_register(left.address);
                 self.brillig_context.deallocate_register(right);
             }
             Instruction::IncrementRc { value } => {
@@ -1170,11 +1173,11 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
     /// Casting is only necessary when shrinking the bit size of a numeric value.
-    fn convert_cast(&mut self, destination: MemoryAddress, source: MemoryAddress, typ: &Type) {
+    fn convert_cast(&mut self, destination: SimpleVariable, source: SimpleVariable) {
         // We assume that `source` is a valid `target_type` as it's expected that a truncate instruction was emitted
         // to ensure this is the case.
 
-        self.brillig_context.cast_instruction(destination, source, get_bit_size_from_ssa_type(typ));
+        self.brillig_context.cast_instruction(destination, source);
     }
 
     /// Converts the Binary instruction into a sequence of Brillig opcodes.
