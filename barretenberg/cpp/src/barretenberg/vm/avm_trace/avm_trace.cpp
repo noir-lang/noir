@@ -644,6 +644,7 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_alu_alu_op_sub = FF(static_cast<uint32_t>(src.alu_op_sub));
         dest.avm_alu_alu_op_mul = FF(static_cast<uint32_t>(src.alu_op_mul));
         dest.avm_alu_alu_op_not = FF(static_cast<uint32_t>(src.alu_op_not));
+        dest.avm_alu_alu_op_eq = FF(static_cast<uint32_t>(src.alu_op_eq));
 
         dest.avm_alu_alu_ff_tag = FF(static_cast<uint32_t>(src.alu_ff_tag));
         dest.avm_alu_alu_u8_tag = FF(static_cast<uint32_t>(src.alu_u8_tag));
@@ -671,6 +672,7 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_alu_alu_u16_r7 = FF(src.alu_u16_reg.at(7));
 
         dest.avm_alu_alu_u64_r0 = FF(src.alu_u64_r0);
+        dest.avm_alu_alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);
     }
 
     // Adding extra row for the shifted values at the top of the execution trace.
@@ -698,7 +700,8 @@ void AvmTraceBuilder::op_not(uint32_t a_offset, uint32_t dst_offset, AvmMemoryTa
     auto read_a = mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IA, a_offset, in_tag);
 
     // ~a = c
-    FF c = alu_trace_builder.op_not(read_a.val, in_tag, clk);
+    FF a = read_a.tag_match ? read_a.val : FF(0);
+    FF c = alu_trace_builder.op_not(a, in_tag, clk);
 
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
@@ -709,7 +712,8 @@ void AvmTraceBuilder::op_not(uint32_t a_offset, uint32_t dst_offset, AvmMemoryTa
         .avm_main_internal_return_ptr = FF(internal_return_ptr),
         .avm_main_sel_op_not = FF(1),
         .avm_main_in_tag = FF(static_cast<uint32_t>(in_tag)),
-        .avm_main_ia = read_a.val,
+        .avm_main_tag_err = FF(static_cast<uint32_t>(!read_a.tag_match)),
+        .avm_main_ia = a,
         .avm_main_ic = c,
         .avm_main_mem_op_a = FF(1),
         .avm_main_mem_op_c = FF(1),
@@ -719,4 +723,48 @@ void AvmTraceBuilder::op_not(uint32_t a_offset, uint32_t dst_offset, AvmMemoryTa
     });
 };
 
+/**
+ * @brief Equality with direct memory access.
+ *
+ * @param a_offset An index in memory pointing to the first operand of the equality.
+ * @param b_offset An index in memory pointing to the second operand of the equality.
+ * @param dst_offset An index in memory pointing to the output of the equality.
+ * @param in_tag The instruction memory tag of the operands.
+ */
+void AvmTraceBuilder::op_eq(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size());
+
+    // Reading from memory and loading into ia resp. ib.
+    auto read_a = mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IA, a_offset, in_tag);
+    auto read_b = mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IB, b_offset, in_tag);
+    bool tag_match = read_a.tag_match && read_b.tag_match;
+
+    // c = a == b ? 1 : 0
+    FF a = tag_match ? read_a.val : FF(0);
+    FF b = tag_match ? read_b.val : FF(0);
+    FF c = alu_trace_builder.op_eq(a, b, in_tag, clk);
+
+    // Write into memory value c from intermediate register ic.
+    mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_pc = FF(pc++),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_sel_op_eq = FF(1),
+        .avm_main_in_tag = FF(static_cast<uint32_t>(in_tag)),
+        .avm_main_tag_err = FF(static_cast<uint32_t>(!tag_match)),
+        .avm_main_ia = a,
+        .avm_main_ib = b,
+        .avm_main_ic = c,
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_mem_op_c = FF(1),
+        .avm_main_rwc = FF(1),
+        .avm_main_mem_idx_a = FF(a_offset),
+        .avm_main_mem_idx_b = FF(b_offset),
+        .avm_main_mem_idx_c = FF(dst_offset),
+    });
+}
 } // namespace avm_trace

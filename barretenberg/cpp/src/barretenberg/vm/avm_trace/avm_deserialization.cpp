@@ -29,6 +29,8 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     { OpCode::SUB, three_operand_format },
     { OpCode::MUL, three_operand_format },
     { OpCode::DIV, three_operand_format },
+    // Compute - Comparators
+    { OpCode::EQ, three_operand_format },
     // Compute - Bitwise
     { OpCode::NOT, { OperandType::TAG, OperandType::UINT32, OperandType::UINT32 } },
     // Execution Environment - Calldata

@@ -128,6 +128,34 @@ size_t common_validate_mul(std::vector<Row> const& trace,
 
     return static_cast<size_t>(alu_row - trace.begin());
 }
+size_t common_validate_eq(std::vector<Row> const& trace,
+                          FF const& a,
+                          FF const& b,
+                          FF const& c,
+                          FF const& addr_a,
+                          FF const& addr_b,
+                          FF const& addr_c,
+                          avm_trace::AvmMemoryTag const tag)
+{
+    // Find the first row enabling the equality selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_eq == FF(1); });
+
+    // Find the corresponding Alu trace row
+    auto clk = row->avm_main_clk;
+    auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.avm_alu_alu_clk == clk; });
+
+    // Check that both rows were found
+    EXPECT_TRUE(row != trace.end());
+    EXPECT_TRUE(alu_row != trace.end());
+
+    common_validate_arithmetic_op(*row, *alu_row, a, b, c, addr_a, addr_b, addr_c, tag);
+
+    // Check that equality selector is set.
+    EXPECT_EQ(row->avm_main_sel_op_eq, FF(1));
+    EXPECT_EQ(alu_row->avm_alu_alu_op_eq, FF(1));
+
+    return static_cast<size_t>(alu_row - trace.begin());
+}
 
 // This function generates a mutated trace of an addition where a and b are the passed inputs.
 // a and b are stored in memory indices 0 and 1. c_mutated is the wrong result of the addition
@@ -183,6 +211,34 @@ std::vector<Row> gen_mutated_trace_mul(FF const& a, FF const& b, FF const& c_mut
     return trace;
 }
 
+// This function generates a mutated trace of an equality check where a and b are the passed inputs.
+// a and b are stored in memory indices 0 and 1 and c contains the boolean value of the equality check.
+// Here we mutate c to be an incorrect evaluation of the equality and the memory and alu trace are
+// created consistently with the wrong value c_mutated.
+// Additionally, we can also mutate the value stored in inv_diff where inv_diff is (a - b)^-1
+std::vector<Row> gen_mutated_trace_eq(
+    FF const& a, FF const& b, FF const& c_mutated, FF const& mutated_inv_diff, avm_trace::AvmMemoryTag tag)
+{
+    auto trace_builder = avm_trace::AvmTraceBuilder();
+    trace_builder.set(uint128_t{ a }, 0, tag);
+    trace_builder.set(uint128_t{ b }, 1, tag);
+    trace_builder.op_eq(0, 1, 2, tag);
+    trace_builder.halt();
+    auto trace = trace_builder.finalize();
+
+    auto select_row = [](Row r) { return r.avm_main_sel_op_eq == FF(1); };
+    mutate_ic_in_trace(trace, select_row, c_mutated, true);
+
+    auto main_trace_row = std::ranges::find_if(trace.begin(), trace.end(), select_row);
+    auto main_clk = main_trace_row->avm_main_clk;
+    auto alu_row =
+        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.avm_alu_alu_clk == main_clk; });
+
+    main_trace_row->avm_alu_alu_op_eq_diff_inv = mutated_inv_diff;
+    alu_row->avm_alu_alu_op_eq_diff_inv = mutated_inv_diff;
+
+    return trace;
+}
 } // anonymous namespace
 
 namespace tests_avm {
@@ -441,6 +497,41 @@ TEST_F(AvmArithmeticTestsFF, mixedOperationsWithError)
     validate_trace_proof(std::move(trace));
 }
 
+// Test of equality on FF elements
+TEST_F(AvmArithmeticTestsFF, equality)
+{
+    // Pick a field-sized number
+    FF elem = FF::modulus - FF(1);
+    trace_builder.calldata_copy(0, 3, 0, std::vector<FF>{ elem, elem, 1 });
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q -1, 1,0..]
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace, elem, elem, FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::FF);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_ff_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0)); // Expect 0 as inv of (q-1) - (q-1)
+    validate_trace_proof(std::move(trace));
+}
+
+// Test correct non-equality of FF elements
+TEST_F(AvmArithmeticTestsFF, nonEquality)
+{
+    FF elem = FF::modulus - FF(1);
+    trace_builder.calldata_copy(0, 3, 0, std::vector<FF>{ elem, elem + FF(1), 0 });
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q, 1,0..]
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace, elem, FF(0), FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::FF);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_ff_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(-1).invert());
+    validate_trace_proof(std::move(trace));
+}
+
 /******************************************************************************
  * Positive Tests - U8
  ******************************************************************************/
@@ -582,6 +673,40 @@ TEST_F(AvmArithmeticTestsU8, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_alu_u8_r0, FF(208));
     EXPECT_EQ(alu_row.avm_alu_alu_u8_r1, FF(132));
 
+    validate_trace_proof(std::move(trace));
+}
+
+// Test of equality on u8 elements
+TEST_F(AvmArithmeticTestsU8, equality)
+{
+    trace_builder.set(128, 0, AvmMemoryTag::U8);
+    trace_builder.set(128, 1, AvmMemoryTag::U8);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U8); // Memory layout: [128,128,1,0,..,0]
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace, FF(128), FF(128), FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u8_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0));
+    validate_trace_proof(std::move(trace));
+}
+
+// Test correct non-equality of U8 elements
+TEST_F(AvmArithmeticTestsU8, nonEquality)
+{
+    trace_builder.set(84, 0, AvmMemoryTag::U8);
+    trace_builder.set(200, 1, AvmMemoryTag::U8);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U8); // Memory layout: [84,200,0,0,..,0]
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace, 84, 200, FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u8_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(-116).invert());
     validate_trace_proof(std::move(trace));
 }
 
@@ -734,6 +859,40 @@ TEST_F(AvmArithmeticTestsU16, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_alu_u16_r0, FF(8));
     EXPECT_EQ(alu_row.avm_alu_alu_u16_r1, FF(0));
 
+    validate_trace_proof(std::move(trace));
+}
+
+// Test of equality on U16 elements
+TEST_F(AvmArithmeticTestsU16, equality)
+{
+    trace_builder.set(35823, 0, AvmMemoryTag::U16);
+    trace_builder.set(35823, 1, AvmMemoryTag::U16);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U16);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace, FF(35823), FF(35823), FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::U16);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u16_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0));
+    validate_trace_proof(std::move(trace));
+}
+
+// Test correct non-equality of U16 elements
+TEST_F(AvmArithmeticTestsU16, nonEquality)
+{
+    trace_builder.set(35'823, 0, AvmMemoryTag::U16);
+    trace_builder.set(50'123, 1, AvmMemoryTag::U16);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U16);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace, 35'823, 50'123, FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::U16);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u16_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(-14'300).invert());
     validate_trace_proof(std::move(trace));
 }
 
@@ -899,6 +1058,42 @@ TEST_F(AvmArithmeticTestsU32, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_alu_u16_r2, FF(71));
     EXPECT_EQ(alu_row.avm_alu_alu_u16_r3, FF(0));
 
+    validate_trace_proof(std::move(trace));
+}
+
+// Test of equality on U32 elements
+TEST_F(AvmArithmeticTestsU32, equality)
+{
+    trace_builder.set(0xb435e9c1, 0, AvmMemoryTag::U32);
+    trace_builder.set(0xb435e9c1, 1, AvmMemoryTag::U32);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U32);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index =
+        common_validate_eq(trace, 0xb435e9c1, 0xb435e9c1, FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::U32);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u32_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0));
+    validate_trace_proof(std::move(trace));
+}
+
+// Test correct non-equality of U32 elements
+TEST_F(AvmArithmeticTestsU32, nonEquality)
+{
+    trace_builder.set(0xb435e9c1, 0, AvmMemoryTag::U32);
+    trace_builder.set(0xb435e9c0, 1, AvmMemoryTag::U32);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U32);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index =
+        common_validate_eq(trace, 0xb435e9c1, 0xb435e9c0, FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::U32);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u32_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(1).invert());
     validate_trace_proof(std::move(trace));
 }
 
@@ -1089,6 +1284,41 @@ TEST_F(AvmArithmeticTestsU64, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_alu_u16_r6, FF(UINT16_MAX));
 
+    validate_trace_proof(std::move(trace));
+}
+
+TEST_F(AvmArithmeticTestsU64, equality)
+{
+    trace_builder.set(0xffffffffffffffe0LLU, 0, AvmMemoryTag::U64);
+    trace_builder.set(0xffffffffffffffe0LLU, 1, AvmMemoryTag::U64);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U64);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(
+        trace, 0xffffffffffffffe0LLU, 0xffffffffffffffe0LLU, FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::U64);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u64_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0));
+    validate_trace_proof(std::move(trace));
+}
+
+// Test correct non-equality of U64 elements
+TEST_F(AvmArithmeticTestsU64, nonEquality)
+{
+    trace_builder.set(0xffffffffffffffe0LLU, 0, AvmMemoryTag::U64);
+    trace_builder.set(0xffffffffffaeffe0LLU, 1, AvmMemoryTag::U64);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U64);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(
+        trace, 0xffffffffffffffe0LLU, 0xffffffffffaeffe0LLU, FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::U64);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u64_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0x510000).invert());
     validate_trace_proof(std::move(trace));
 }
 
@@ -1351,6 +1581,56 @@ TEST_F(AvmArithmeticTestsU128, multiplicationOverflow)
     validate_trace_proof(std::move(trace));
 }
 
+TEST_F(AvmArithmeticTestsU128, equality)
+{
+    uint128_t const elem = (uint128_t{ 0x5555222233334444LLU } << 64) + uint128_t{ 0x88889999AAAABBBBLLU };
+    trace_builder.set(elem, 0, AvmMemoryTag::U128);
+    trace_builder.set(elem, 1, AvmMemoryTag::U128);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U128);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace,
+                                            FF(uint256_t::from_uint128(elem)),
+                                            FF(uint256_t::from_uint128(elem)),
+                                            FF(1),
+                                            FF(0),
+                                            FF(1),
+                                            FF(2),
+                                            AvmMemoryTag::U128);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u128_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0));
+    validate_trace_proof(std::move(trace));
+}
+
+// Test correct non-equality of U128 elements
+TEST_F(AvmArithmeticTestsU128, nonEquality)
+{
+    uint128_t const a = (uint128_t{ 0x5555222233334444LLU } << 64) + uint128_t{ 0x88889999AAAABBBBLLU };
+    uint128_t const b = a - (0xdeadbeefLLU << 32);
+    trace_builder.set(a, 0, AvmMemoryTag::U128);
+    trace_builder.set(b, 1, AvmMemoryTag::U128);
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U128);
+    trace_builder.return_op(0, 3);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_eq(trace,
+                                            FF(uint256_t::from_uint128(a)),
+                                            FF(uint256_t::from_uint128(b)),
+                                            FF(0),
+                                            FF(0),
+                                            FF(1),
+                                            FF(2),
+                                            AvmMemoryTag::U128);
+    auto alu_row = trace.at(alu_row_index);
+
+    EXPECT_EQ(alu_row.avm_alu_alu_u128_tag, FF(1));
+    EXPECT_EQ(alu_row.avm_alu_alu_op_eq_diff_inv, FF(0xdeadbeefLLU << 32).invert());
+    validate_trace_proof(std::move(trace));
+}
+
 /******************************************************************************
  *
  * NEGATIVE TESTS - Finite Field Type
@@ -1531,6 +1811,38 @@ TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag)
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
 }
 
+// Tests a situation for field elements where a != b but c == 1;
+TEST_F(AvmArithmeticNegativeTestsFF, invalidEquality)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF::modulus_minus_two, FF(0), FF(1), FF(0), AvmMemoryTag::FF);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for field elements where a == b but c == 0;
+TEST_F(AvmArithmeticNegativeTestsFF, invalidInequality)
+{
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF::modulus_minus_two, FF::modulus_minus_two, FF(0), FF(0), AvmMemoryTag::FF);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for field elements where c is non-boolean, i,e, c!= {0,1};
+TEST_F(AvmArithmeticNegativeTestsFF, nonBooleanEq)
+{
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF::modulus_minus_two, FF::modulus_minus_two, FF(10), FF(0), AvmMemoryTag::FF);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_RES_IS_BOOL");
+}
+
+// Tests a situation for field elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
+TEST_F(AvmArithmeticNegativeTestsFF, invalidInverseDifference)
+{
+    // The a, b and c registers contain the correct information, only the inversion of differences is wrong.
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF::modulus_minus_two, FF(0), FF(0), FF(5).invert(), AvmMemoryTag::FF);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
 /******************************************************************************
  * Negative Tests - U8
  ******************************************************************************/
@@ -1554,6 +1866,35 @@ TEST_F(AvmArithmeticNegativeTestsU8, multiplication)
 {
     auto trace = gen_mutated_trace_mul(FF(9), FF(100), FF(55), AvmMemoryTag::U8);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_MUL_COMMON_2");
+}
+
+// Tests a situation for field elements where a != b but c == 1;
+TEST_F(AvmArithmeticNegativeTestsU8, invalidEquality)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(10), FF(255), FF(1), FF(0), AvmMemoryTag::U8);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U8 elements where a == b but c == 0;
+TEST_F(AvmArithmeticNegativeTestsU8, invalidInequality)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(128), FF(128), FF(0), FF(0), AvmMemoryTag::U8);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U8 elements where c is non-boolean, i,e, c!= {0,1};
+TEST_F(AvmArithmeticNegativeTestsU8, nonBooleanEq)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(128), FF(128), FF(200), FF(0), AvmMemoryTag::U8);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_RES_IS_BOOL");
+}
+
+// Tests a situation for U8 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
+TEST_F(AvmArithmeticNegativeTestsU8, invalidInverseDifference)
+{
+    // The a, b and c registers contain the correct information, only the inversion of differences is wrong.
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(130), FF(0), FF(0), FF(1000).invert(), AvmMemoryTag::U8);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
 }
 
 /******************************************************************************
@@ -1581,6 +1922,34 @@ TEST_F(AvmArithmeticNegativeTestsU16, multiplication)
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_MUL_COMMON_2");
 }
 
+// Tests a situation for U16 elements where a != b but c == 1;
+TEST_F(AvmArithmeticNegativeTestsU16, invalidEquality)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(10), FF(255), FF(1), FF(0), AvmMemoryTag::U16);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U16 elements where a == b but c == 0;
+TEST_F(AvmArithmeticNegativeTestsU16, invalidInequality)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(128), FF(128), FF(0), FF(0), AvmMemoryTag::U16);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U16 elements where c is non-boolean, i,e, c!= {0,1};
+TEST_F(AvmArithmeticNegativeTestsU16, nonBooleanEq)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(128), FF(128), FF(200), FF(0), AvmMemoryTag::U16);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_RES_IS_BOOL");
+}
+
+// Tests a situation for U16 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
+TEST_F(AvmArithmeticNegativeTestsU16, invalidInverseDifference)
+{
+    // The a, b and c registers contain the correct information, only the inversion of differences is wrong.
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(130), FF(0), FF(0), FF(1000).invert(), AvmMemoryTag::U16);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
 /******************************************************************************
  * Negative Tests - U32
  ******************************************************************************/
@@ -1604,6 +1973,37 @@ TEST_F(AvmArithmeticNegativeTestsU32, multiplication)
 {
     auto trace = gen_mutated_trace_mul(FF(UINT32_MAX), FF(UINT32_MAX), FF(0), AvmMemoryTag::U32);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_MUL_COMMON_2");
+}
+
+// Tests a situation for U32 elements where a != b but c == 1;
+TEST_F(AvmArithmeticNegativeTestsU32, invalidEquality)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(UINT32_MAX - 10), FF(UINT32_MAX), FF(1), FF(0), AvmMemoryTag::U32);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U32 elements where a == b but c == 0;
+TEST_F(AvmArithmeticNegativeTestsU32, invalidInequality)
+{
+    std::vector<Row> trace = gen_mutated_trace_eq(FF(73934721LLU), FF(73934721LLU), FF(0), FF(0), AvmMemoryTag::U32);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U32 elements where c is non-boolean, i,e, c!= {0,1};
+TEST_F(AvmArithmeticNegativeTestsU32, nonBooleanEq)
+{
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF(623138LLU), FF(623138LLU), FF(8728342LLU), FF(0), AvmMemoryTag::U32);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_RES_IS_BOOL");
+}
+
+// Tests a situation for U32 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
+TEST_F(AvmArithmeticNegativeTestsU32, invalidInverseDifference)
+{
+    // The a, b and c registers contain the correct information, only the inversion of differences is wrong.
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF(74329231LLU), FF(74329231LLU), FF(0), FF(7432701LLU).invert(), AvmMemoryTag::U32);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
 }
 
 /******************************************************************************
@@ -1632,6 +2032,39 @@ TEST_F(AvmArithmeticNegativeTestsU64, multiplication)
     auto trace =
         gen_mutated_trace_mul(FF(399988877723434LLU), FF(9998887772343LLU), FF(9283674827534LLU), AvmMemoryTag::U64);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_MUL_COMMON_2");
+}
+
+// Tests a situation for U64 elements where a != b but c == 1;
+TEST_F(AvmArithmeticNegativeTestsU64, invalidEquality)
+{
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF(3999888777231234LLU), FF(3999882177231234LLU), FF(1), FF(0), AvmMemoryTag::U64);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U64 elements where a == b but c == 0;
+TEST_F(AvmArithmeticNegativeTestsU64, invalidInequality)
+{
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF(9998887772343LLU), FF(73934721LLU), FF(0), FF(0), AvmMemoryTag::U64);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U64 elements where c is non-boolean, i,e, c!= {0,1};
+TEST_F(AvmArithmeticNegativeTestsU64, nonBooleanEq)
+{
+    std::vector<Row> trace =
+        gen_mutated_trace_eq(FF(9998887772343LLU), FF(9998887772343LLU), FF(2), FF(0), AvmMemoryTag::U64);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_RES_IS_BOOL");
+}
+
+// Tests a situation for U64 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
+TEST_F(AvmArithmeticNegativeTestsU64, invalidInverseDifference)
+{
+    // The a, b and c registers contain the correct information, only the inversion of differences is wrong.
+    std::vector<Row> trace = gen_mutated_trace_eq(
+        FF(9998887772343LLU), FF(9998887772343LLU), FF(0), FF(0x373428).invert(), AvmMemoryTag::U64);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
 }
 
 /******************************************************************************
@@ -1678,6 +2111,47 @@ TEST_F(AvmArithmeticNegativeTestsU128, multiplication)
                                        FF{ uint256_t::from_uint128(c) },
                                        AvmMemoryTag::U128);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_MULTIPLICATION_OUT_U128");
+}
+
+// Tests a situation for U128 elements where a != b but c == 1;
+TEST_F(AvmArithmeticNegativeTestsU128, invalidEquality)
+{
+    uint128_t const a = (uint128_t{ 0x5555222233334444LLU } << 64) + uint128_t{ 0x88889999AAAABBBBLLU };
+    FF const ff_a = FF{ uint256_t::from_uint128(a) };
+    uint128_t const b = (uint128_t{ 0x5555222313334444LLU } << 64) + uint128_t{ 0x88889998AAABBBBLLU };
+    FF const ff_b = FF{ uint256_t::from_uint128(b) };
+
+    std::vector<Row> trace = gen_mutated_trace_eq(ff_a, ff_b, FF(1), FF(0), AvmMemoryTag::U128);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U128 elements where a == b but c == 0;
+TEST_F(AvmArithmeticNegativeTestsU128, invalidInequality)
+{
+    uint128_t const a = (uint128_t{ 0x5555222233334444LLU } << 64) + uint128_t{ 0x88889999AAAABBBBLLU };
+    FF const ff_a = FF{ uint256_t::from_uint128(a) };
+
+    std::vector<Row> trace = gen_mutated_trace_eq(ff_a, ff_a, FF(0), FF(0), AvmMemoryTag::U128);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
+}
+
+// Tests a situation for U128 elements where c is non-boolean, i,e, c!= {0,1};
+TEST_F(AvmArithmeticNegativeTestsU128, nonBooleanEq)
+{
+    uint128_t const a = (uint128_t{ 0x5555222233334444LLU } << 64) + uint128_t{ 0x88889999AAAABBBBLLU };
+    FF const ff_a = FF{ uint256_t::from_uint128(a) };
+    std::vector<Row> trace = gen_mutated_trace_eq(ff_a, ff_a, FF::modulus - FF(1), FF(0), AvmMemoryTag::U128);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_RES_IS_BOOL");
+}
+
+// Tests a situation for U128 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
+TEST_F(AvmArithmeticNegativeTestsU128, invalidInverseDifference)
+{
+    uint128_t const a = (uint128_t{ 0x5555222233334444LLU } << 64) + uint128_t{ 0x88889999AAAABBBBLLU };
+    FF const ff_a = FF{ uint256_t::from_uint128(a) };
+    // The a, b and c registers contain the correct information, only the inversion of differences is wrong.
+    std::vector<Row> trace = gen_mutated_trace_eq(ff_a, ff_a, FF(0), FF(0x8efaddd292LLU).invert(), AvmMemoryTag::U128);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_OP_EQ");
 }
 
 } // namespace tests_avm

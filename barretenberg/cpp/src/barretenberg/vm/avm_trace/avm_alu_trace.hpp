@@ -14,6 +14,7 @@ class AvmAluTraceBuilder {
         bool alu_op_sub = false;
         bool alu_op_mul = false;
         bool alu_op_not = false;
+        bool alu_op_eq = false;
 
         bool alu_ff_tag = false;
         bool alu_u8_tag = false;
@@ -34,6 +35,8 @@ class AvmAluTraceBuilder {
         std::array<uint16_t, 8> alu_u16_reg{};
 
         uint64_t alu_u64_r0{};
+
+        FF alu_op_eq_diff_inv{};
     };
 
     AvmAluTraceBuilder();
@@ -44,6 +47,7 @@ class AvmAluTraceBuilder {
     FF op_sub(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_mul(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_not(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
+    FF op_eq(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
 
   private:
     std::vector<AluTraceEntry> alu_trace;

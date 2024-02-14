@@ -8,40 +8,40 @@ namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_memRow {
     FF avm_mem_m_rw_shift{};
-    FF avm_mem_m_addr_shift{};
-    FF avm_mem_m_addr{};
+    FF avm_mem_m_rw{};
+    FF avm_mem_m_val{};
+    FF avm_mem_m_tag_shift{};
     FF avm_mem_m_val_shift{};
     FF avm_mem_m_tag{};
-    FF avm_mem_m_rw{};
-    FF avm_mem_m_last{};
-    FF avm_mem_m_tag_err{};
-    FF avm_mem_m_val{};
     FF avm_mem_m_in_tag{};
+    FF avm_mem_m_last{};
     FF avm_mem_m_one_min_inv{};
+    FF avm_mem_m_addr_shift{};
     FF avm_mem_m_lastAccess{};
-    FF avm_mem_m_tag_shift{};
+    FF avm_mem_m_tag_err{};
+    FF avm_mem_m_addr{};
 };
 
 inline std::string get_relation_label_avm_mem(int index)
 {
     switch (index) {
-    case 8:
-        return "MEM_IN_TAG_CONSISTENCY_1";
+    case 7:
+        return "MEM_ZERO_INIT";
 
     case 4:
         return "MEM_LAST_ACCESS_DELIMITER";
 
-    case 5:
-        return "MEM_READ_WRITE_VAL_CONSISTENCY";
-
-    case 7:
-        return "MEM_ZERO_INIT";
+    case 8:
+        return "MEM_IN_TAG_CONSISTENCY_1";
 
     case 9:
         return "MEM_IN_TAG_CONSISTENCY_2";
 
     case 6:
         return "MEM_READ_WRITE_TAG_CONSISTENCY";
+
+    case 5:
+        return "MEM_READ_WRITE_VAL_CONSISTENCY";
     }
     return std::to_string(index);
 }

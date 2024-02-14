@@ -395,4 +395,40 @@ FF AvmAluTraceBuilder::op_not(FF const& a, AvmMemoryTag in_tag, uint32_t const c
     return c;
 }
 
+/**
+ * @brief Build Alu trace and return a boolean based on equality of operands of type defined by in_tag.
+ *
+ * @param a Left operand of the equality
+ * @param b Right operand of the equality
+ * @param in_tag Instruction tag defining the number of bits for equality
+ * @param clk Clock referring to the operation in the main trace.
+ *
+ * @return FF The boolean result of equality casted to a finite field element
+ */
+
+FF AvmAluTraceBuilder::op_eq(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t const clk)
+{
+    FF c = a - b;
+    // Don't invert 0 as it will throw
+    FF inv_c = c != FF::zero() ? c.invert() : FF::zero();
+    FF res = c == FF::zero() ? FF::one() : FF::zero();
+
+    alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
+        .alu_clk = clk,
+        .alu_op_eq = true,
+        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
+        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
+        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
+        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
+        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
+        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .alu_ia = a,
+        .alu_ib = b,
+        .alu_ic = res,
+        .alu_op_eq_diff_inv = inv_c,
+    });
+
+    return res;
+}
+
 } // namespace avm_trace

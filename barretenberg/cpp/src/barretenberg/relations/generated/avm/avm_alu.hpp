@@ -7,67 +7,75 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_aluRow {
-    FF avm_alu_alu_ff_tag{};
-    FF avm_alu_alu_u8_tag{};
-    FF avm_alu_alu_u32_tag{};
-    FF avm_alu_alu_u16_r6_shift{};
-    FF avm_alu_alu_u16_tag{};
-    FF avm_alu_alu_u16_r4{};
-    FF avm_alu_alu_ib{};
-    FF avm_alu_alu_u8_r0{};
-    FF avm_alu_alu_op_not{};
-    FF avm_alu_alu_u16_r7{};
-    FF avm_alu_alu_u128_tag{};
-    FF avm_alu_alu_u16_r0{};
-    FF avm_alu_alu_u16_r2{};
-    FF avm_alu_alu_u16_r4_shift{};
-    FF avm_alu_alu_cf{};
-    FF avm_alu_alu_u16_r1_shift{};
-    FF avm_alu_alu_u16_r2_shift{};
-    FF avm_alu_alu_u16_r3{};
+    FF avm_alu_alu_u64_tag{};
+    FF avm_alu_alu_ic{};
     FF avm_alu_alu_ia{};
-    FF avm_alu_alu_u16_r5{};
-    FF avm_alu_alu_u16_r6{};
+    FF avm_alu_alu_ff_tag{};
+    FF avm_alu_alu_u128_tag{};
+    FF avm_alu_alu_u16_tag{};
+    FF avm_alu_alu_u16_r6_shift{};
+    FF avm_alu_alu_u8_tag{};
+    FF avm_alu_alu_u16_r0{};
+    FF avm_alu_alu_op_sub{};
+    FF avm_alu_alu_op_add{};
+    FF avm_alu_alu_u16_r0_shift{};
+    FF avm_alu_alu_u16_r2_shift{};
     FF avm_alu_alu_u16_r7_shift{};
     FF avm_alu_alu_u64_r0{};
-    FF avm_alu_alu_u64_tag{};
-    FF avm_alu_alu_op_add{};
-    FF avm_alu_alu_u8_r1{};
-    FF avm_alu_alu_u16_r0_shift{};
-    FF avm_alu_alu_u16_r3_shift{};
-    FF avm_alu_alu_op_mul{};
-    FF avm_alu_alu_u16_r5_shift{};
-    FF avm_alu_alu_ic{};
-    FF avm_alu_alu_op_sub{};
+    FF avm_alu_alu_u16_r7{};
+    FF avm_alu_alu_u8_r0{};
+    FF avm_alu_alu_u16_r2{};
+    FF avm_alu_alu_op_eq{};
+    FF avm_alu_alu_u16_r4{};
+    FF avm_alu_alu_op_eq_diff_inv{};
+    FF avm_alu_alu_ib{};
     FF avm_alu_alu_u16_r1{};
+    FF avm_alu_alu_u8_r1{};
+    FF avm_alu_alu_op_mul{};
+    FF avm_alu_alu_u16_r6{};
+    FF avm_alu_alu_u16_r3_shift{};
+    FF avm_alu_alu_op_not{};
+    FF avm_alu_alu_u16_r5{};
+    FF avm_alu_alu_cf{};
+    FF avm_alu_alu_u16_r1_shift{};
+    FF avm_alu_alu_u32_tag{};
+    FF avm_alu_alu_u16_r3{};
+    FF avm_alu_alu_u16_r5_shift{};
+    FF avm_alu_alu_u16_r4_shift{};
 };
 
 inline std::string get_relation_label_avm_alu(int index)
 {
     switch (index) {
-    case 8:
-        return "ALU_MULTIPLICATION_FF";
+    case 15:
+        return "ALU_OP_NOT";
+
+    case 7:
+        return "ALU_ADD_SUB_2";
 
     case 10:
         return "ALU_MUL_COMMON_2";
 
-    case 15:
-        return "ALU_OP_NOT";
-
-    case 13:
-        return "ALU_MULTIPLICATION_OUT_U128";
+    case 14:
+        return "ALU_FF_NOT_XOR";
 
     case 9:
         return "ALU_MUL_COMMON_1";
 
+    case 13:
+        return "ALU_MULTIPLICATION_OUT_U128";
+
+    case 8:
+        return "ALU_MULTIPLICATION_FF";
+
+    case 16:
+        return "ALU_RES_IS_BOOL";
+
+    case 17:
+        return "ALU_OP_EQ";
+
     case 6:
         return "ALU_ADD_SUB_1";
-
-    case 14:
-        return "ALU_FF_NOT_XOR";
-
-    case 7:
-        return "ALU_ADD_SUB_2";
     }
     return std::to_string(index);
 }
@@ -76,8 +84,8 @@ template <typename FF_> class avm_aluImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 16> SUBRELATION_PARTIAL_LENGTHS{
-        3, 3, 3, 3, 3, 3, 4, 5, 5, 5, 5, 6, 6, 8, 3, 4,
+    static constexpr std::array<size_t, 18> SUBRELATION_PARTIAL_LENGTHS{
+        3, 3, 3, 3, 3, 3, 4, 5, 5, 5, 5, 6, 6, 8, 3, 4, 4, 5,
     };
 
     template <typename ContainerOverSubrelations, typename AllEntities>
@@ -299,6 +307,26 @@ template <typename FF_> class avm_aluImpl {
                                                FF(1))));
             tmp *= scaling_factor;
             std::get<15>(evals) += tmp;
+        }
+        // Contribution 16
+        {
+            Avm_DECLARE_VIEWS(16);
+
+            auto tmp = (avm_alu_alu_op_eq * (avm_alu_alu_ic * (-avm_alu_alu_ic + FF(1))));
+            tmp *= scaling_factor;
+            std::get<16>(evals) += tmp;
+        }
+        // Contribution 17
+        {
+            Avm_DECLARE_VIEWS(17);
+
+            auto tmp = (avm_alu_alu_op_eq *
+                        ((((avm_alu_alu_ia - avm_alu_alu_ib) *
+                           ((avm_alu_alu_ic * (-avm_alu_alu_op_eq_diff_inv + FF(1))) + avm_alu_alu_op_eq_diff_inv)) -
+                          FF(1)) +
+                         avm_alu_alu_ic));
+            tmp *= scaling_factor;
+            std::get<17>(evals) += tmp;
         }
     }
 };

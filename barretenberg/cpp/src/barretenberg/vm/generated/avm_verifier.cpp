@@ -82,6 +82,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_div);
     commitments.avm_alu_alu_op_not =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_not);
+    commitments.avm_alu_alu_op_eq =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_eq);
     commitments.avm_alu_alu_ff_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_ff_tag);
     commitments.avm_alu_alu_u8_tag =
@@ -117,6 +119,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_alu_alu_u64_r0 =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u64_r0);
     commitments.avm_alu_alu_cf = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_cf);
+    commitments.avm_alu_alu_op_eq_diff_inv =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_eq_diff_inv);
     commitments.avm_main_pc = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_pc);
     commitments.avm_main_internal_return_ptr =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_internal_return_ptr);
@@ -138,6 +142,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_div);
     commitments.avm_main_sel_op_not =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_not);
+    commitments.avm_main_sel_op_eq =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_eq);
     commitments.avm_main_in_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_in_tag);
     commitments.avm_main_op_err =

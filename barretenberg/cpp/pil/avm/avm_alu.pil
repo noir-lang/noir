@@ -16,6 +16,7 @@ namespace avm_alu(256);
     pol commit alu_op_mul;
     pol commit alu_op_div;
     pol commit alu_op_not;
+    pol commit alu_op_eq;
 
     // Flattened boolean instruction tags
     pol commit alu_ff_tag;
@@ -222,5 +223,32 @@ namespace avm_alu(256);
     // value of "a" stored in alu_ia and "~a" stored in alu_ic
     #[ALU_OP_NOT]
     alu_op_not * (alu_ia + alu_ic - UINT_MAX) = 0;
+
+    // ========= EQUALITY Operation Constraints ===============================
+    // TODO: Note this method differs from the approach taken for "equality to zero" checks
+    // in handling the error tags found in avm_main and avm_mem files. The predicted relation difference
+    // is minor and when we optimise we will harmonise the methods based on actual performance.
+
+    // Equality of two elements is found by performing an "equality to zero" check.
+    // This relies on the fact that the inverse of a field element exists for all elements except zero
+    // 1) Given two values x & y, find the difference z = x - y
+    // 2) If x & y are equal, z == 0 otherwise z != 0
+    // 3) Field equality to zero can be done as follows
+    //   a) z(e(x - w) + w) - 1 + e = 0;
+    //   b) where w = z^-1 and e is a boolean value indicating if z == 0
+    //   c) if e == 0; zw = 1 && z has an inverse. If e == 1; z == 0 and we set w = 0;
+
+    // Registers Ia and Ib hold the values that equality is to be tested on
+    pol DIFF = alu_ia - alu_ib;
+
+    // Need an additional helper that holds the inverse of the difference;
+    pol commit alu_op_eq_diff_inv;
+
+    // If EQ selector is set, ic needs to be boolean
+    #[ALU_RES_IS_BOOL]
+    alu_op_eq * (alu_ic * (1 - alu_ic)) = 0;
+
+    #[ALU_OP_EQ]
+    alu_op_eq * (DIFF * (alu_ic * (1 - alu_op_eq_diff_inv) + alu_op_eq_diff_inv) - 1 + alu_ic) = 0;
 
 

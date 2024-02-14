@@ -36,6 +36,8 @@ namespace avm_main(256);
     pol commit sel_op_div;
     // NOT
     pol commit sel_op_not;
+    // EQ
+    pol commit sel_op_eq;
 
     // Instruction memory tag (0: uninitialized, 1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6:field)
     pol commit in_tag;
@@ -64,7 +66,7 @@ namespace avm_main(256);
     pol commit rwc;
     
     // Memory index involved into a memory operation per pertaining intermediate register
-    // We should range constrain it to 32 bits ultimately. For first mini-AVM,
+    // We should range constrain it to 32 bits ultimately. For first version of the AVM,
     // we will assume that these columns are of the right type.
     pol commit mem_idx_a;
     pol commit mem_idx_b;
@@ -82,6 +84,7 @@ namespace avm_main(256);
     sel_op_mul * (1 - sel_op_mul) = 0;
     sel_op_div * (1 - sel_op_div) = 0;
     sel_op_not * (1 - sel_op_not) = 0;
+    sel_op_eq * (1 - sel_op_eq) = 0;
 
     sel_internal_call * (1 - sel_internal_call) = 0;
     sel_internal_return * (1 - sel_internal_return) = 0;
@@ -175,7 +178,7 @@ namespace avm_main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
-    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul + sel_op_not);
+    pol OPCODE_SELECTORS = (sel_op_add + sel_op_sub + sel_op_div + sel_op_mul + sel_op_not + sel_op_eq);
 
     // Program counter must increment if not jumping or returning
     #[PC_INCREMENT]
