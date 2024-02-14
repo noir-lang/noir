@@ -127,7 +127,10 @@ impl ConstantBackpropagationOptimizer {
                     // Attempt to solve the opcode to see if we can determine the value of any witnesses in the expression.
                     // We only do this _after_ we apply any simplifications to create the new opcode as we want to
                     // keep the constraint on the witness which we are solving for here.
-                    let _ = ExpressionSolver::solve(&mut known_witnesses, &new_expr);
+                    let solve_result = ExpressionSolver::solve(&mut known_witnesses, &new_expr);
+                    // It doesn't matter what the result is. We expect most opcodes to not be solved successfully so we discard errors.
+                    // At the same time, if the expression can be solved then we track this by the updates to `known_witnesses`
+                    drop(solve_result);
 
                     Opcode::AssertZero(new_expr)
                 }
@@ -172,7 +175,13 @@ impl ConstantBackpropagationOptimizer {
                             Ok(BrilligSolverStatus::Finished) => {
                                 // Write execution outputs
                                 match solver.finalize(&mut known_witnesses, &new_brillig) {
-                                    Ok(()) => continue,
+                                    Ok(()) => {
+                                        // If we've managed to execute the brillig opcode at compile time, we can now just write in the
+                                        // results as constants for the rest of the circuit.
+                                        //
+                                        // TODO: what if these are required to be witnesses e.g. inputs to black box functions + array get/set?
+                                        continue
+                                    },
                                     _ => Opcode::Brillig(new_brillig),
                                 }
                             }
