@@ -1464,7 +1464,7 @@ impl<'a> Resolver<'a> {
                                 // checker does not check definition kinds and otherwise expects
                                 // parameters to already be typed.
                                 if self.interner.id_type(hir_ident.id) == Type::Error {
-                                    let typ = Type::polymorphic_integer(self.interner);
+                                    let typ = Type::polymorphic_integer_or_field(self.interner);
                                     self.interner.push_definition_type(hir_ident.id, typ);
                                 }
                             }

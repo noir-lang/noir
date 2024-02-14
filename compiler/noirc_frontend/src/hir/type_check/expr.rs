@@ -104,7 +104,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_, _) => Type::polymorphic_integer(self.interner),
+                    HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
@@ -528,13 +528,15 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(&Type::polymorphic_integer(self.interner), &mut self.errors, || {
-            TypeCheckError::TypeMismatch {
+        index_type.unify(
+            &Type::polymorphic_integer_or_field(self.interner),
+            &mut self.errors,
+            || TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
-            }
-        });
+            },
+        );
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -806,43 +808,13 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
+            (TypeVariable(var, _), other) | (other, TypeVariable(var, _)) => {
+                if let TypeBinding::Bound(binding) = &*var.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
-                if !op.kind.is_valid_for_field_type() && (other.is_bindable() || other.is_field()) {
-                    let other = other.follow_bindings();
-
-                    self.push_delayed_type_check(Box::new(move || {
-                        if other.is_field() || other.is_bindable() {
-                            Err(TypeCheckError::InvalidComparisonOnField { span })
-                        } else {
-                            Ok(())
-                        }
-                    }));
-                }
-
-                let mut bindings = TypeBindings::new();
-                if other
-                    .try_bind_to_polymorphic_int(
-                        int,
-                        &mut bindings,
-                        *int_kind == TypeVariableKind::Integer,
-                    )
-                    .is_ok()
-                    || other == &Type::Error
-                {
-                    Type::apply_type_bindings(bindings);
-                    Ok((Bool, false))
-                } else {
-                    Err(TypeCheckError::TypeMismatchWithSource {
-                        expected: lhs_type.clone(),
-                        actual: rhs_type.clone(),
-                        span,
-                        source: Source::Binary,
-                    })
-                }
+                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((Bool, false))
             }
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
@@ -1070,6 +1042,38 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    fn bind_type_variables_for_infix(
+        &mut self,
+        lhs_type: &Type,
+        op: &HirBinaryOp,
+        rhs_type: &Type,
+        span: Span,
+    ) {
+        self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
+            expected: lhs_type.clone(),
+            actual: rhs_type.clone(),
+            source: Source::Binary,
+            span,
+        });
+
+        // In addition to unifying both types, we also have to bind either
+        // the lhs or rhs to an integer type variable. This ensures if both lhs
+        // and rhs are type variables, that they will have the correct integer
+        // type variable kind instead of TypeVariableKind::Normal.
+        let target = if op.kind.is_valid_for_field_type() {
+            Type::polymorphic_integer_or_field(self.interner)
+        } else {
+            Type::polymorphic_integer(self.interner)
+        };
+
+        self.unify(lhs_type, &target, || TypeCheckError::TypeMismatchWithSource {
+            expected: lhs_type.clone(),
+            actual: rhs_type.clone(),
+            source: Source::Binary,
+            span,
+        });
+    }
+
     // Given a binary operator and another type. This method will produce the output type
     // and a boolean indicating whether to use the trait impl corresponding to the operator
     // or not. A value of false indicates the caller to use a primitive operation for this
@@ -1092,58 +1096,15 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
+            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-                if (op.is_modulo() || op.is_bitwise()) && (other.is_bindable() || other.is_field())
-                {
-                    let other = other.follow_bindings();
-                    let kind = op.kind;
-                    // This will be an error if these types later resolve to a Field, or stay
-                    // polymorphic as the bit size will be unknown. Delay this error until the function
-                    // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
-                    self.push_delayed_type_check(Box::new(move || {
-                        if other.is_field() {
-                            if kind == BinaryOpKind::Modulo {
-                                Err(TypeCheckError::FieldModulo { span })
-                            } else {
-                                Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
-                            }
-                        } else if other.is_bindable() {
-                            Err(TypeCheckError::AmbiguousBitWidth { span })
-                        } else if kind.is_bit_shift() && other.is_signed() {
-                            Err(TypeCheckError::TypeCannotBeUsed {
-                                typ: other,
-                                place: "bit shift",
-                                span,
-                            })
-                        } else {
-                            Ok(())
-                        }
-                    }));
-                }
 
-                let mut bindings = TypeBindings::new();
-                if other
-                    .try_bind_to_polymorphic_int(
-                        int,
-                        &mut bindings,
-                        *int_kind == TypeVariableKind::Integer,
-                    )
-                    .is_ok()
-                    || other == &Type::Error
-                {
-                    Type::apply_type_bindings(bindings);
-                    Ok((other.clone(), false))
-                } else {
-                    Err(TypeCheckError::TypeMismatchWithSource {
-                        expected: lhs_type.clone(),
-                        actual: rhs_type.clone(),
-                        source: Source::Binary,
-                        span,
-                    })
-                }
+                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+
+                // Both types are unified so the choice of which to return is arbitrary
+                Ok((other.clone(), false))
             }
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
@@ -1168,11 +1129,12 @@ impl<'interner> TypeChecker<'interner> {
             }
             // The result of two Fields is always a witness
             (FieldElement, FieldElement) => {
-                if op.is_bitwise() {
-                    return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
-                }
-                if op.is_modulo() {
-                    return Err(TypeCheckError::FieldModulo { span });
+                if !op.kind.is_valid_for_field_type() {
+                    if op.kind == BinaryOpKind::Modulo {
+                        return Err(TypeCheckError::FieldModulo { span });
+                    } else {
+                        return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                    }
                 }
                 Ok((FieldElement, false))
             }
@@ -1212,7 +1174,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
-                let expected = Type::polymorphic_integer(self.interner);
+                let expected = Type::polymorphic_integer_or_field(self.interner);
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,
