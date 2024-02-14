@@ -6,6 +6,7 @@ import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inpu
 import { type Barretenberg } from '@aztec/bb.js';
 
 export { publicInputsToWitnessMap } from './public_inputs.js';
+import { cpus } from "os";
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
@@ -24,7 +25,7 @@ export class BarretenbergBackend implements Backend {
 
   constructor(
     acirCircuit: CompiledCircuit,
-    private options: BackendOptions = { threads: 1 },
+    private options: BackendOptions = { threads: navigator ? navigator.hardwareConcurrency : cpus().length },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);

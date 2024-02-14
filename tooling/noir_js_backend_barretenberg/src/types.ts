@@ -5,5 +5,5 @@
 export type BackendOptions = {
   /** @description Number of threads */
   threads: number;
-  memory?: { initial?: number; maximum?: number };
+  memory?: { maximum: number };
 };
