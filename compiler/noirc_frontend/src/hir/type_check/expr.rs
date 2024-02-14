@@ -153,11 +153,10 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Call(call_expr) => {
                 // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
                 // These flags are later used to type check calls to unconstrained functions from constrained functions
-                let current_func = self
-                    .current_function
-                    .expect("Can only have call expression inside of a function body");
-                let func_mod = self.interner.function_modifiers(&current_func);
-                let is_current_func_constrained = !func_mod.is_unconstrained;
+                let current_func = self.current_function;
+                let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
+                let is_current_func_constrained =
+                    func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
                 let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
 
                 self.check_if_deprecated(&call_expr.func);
@@ -170,15 +169,14 @@ impl<'interner> TypeChecker<'interner> {
                 });
 
                 // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
-                for (typ, _, _) in args.iter() {
-                    if is_current_func_constrained
-                        && is_unconstrained_call
-                        && matches!(&typ, Type::MutableReference(_))
-                    {
-                        self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
-                            span: self.interner.expr_span(expr_id),
-                        });
-                        return Type::Error;
+                if is_current_func_constrained && is_unconstrained_call {
+                    for (typ, _, _) in args.iter() {
+                        if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                            self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
+                                span: self.interner.expr_span(expr_id),
+                            });
+                            return Type::Error;
+                        }
                     }
                 }
 
@@ -567,6 +565,7 @@ impl<'interner> TypeChecker<'interner> {
             Type::Integer(..)
             | Type::FieldElement
             | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(_, TypeVariableKind::Integer)
             | Type::Bool => (),
 
             Type::TypeVariable(_, _) => {
@@ -807,7 +806,7 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
@@ -825,7 +824,13 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                if other
+                    .try_bind_to_polymorphic_int(
+                        int,
+                        &mut bindings,
+                        *int_kind == TypeVariableKind::Integer,
+                    )
+                    .is_ok()
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);
@@ -838,6 +843,10 @@ impl<'interner> TypeChecker<'interner> {
                         source: Source::Binary,
                     })
                 }
+            }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.comparator_operand_type_rules(&alias, other, op, span)
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -1083,7 +1092,7 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
@@ -1116,7 +1125,13 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                if other
+                    .try_bind_to_polymorphic_int(
+                        int,
+                        &mut bindings,
+                        *int_kind == TypeVariableKind::Integer,
+                    )
+                    .is_ok()
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);
@@ -1129,6 +1144,10 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     })
                 }
+            }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.infix_operand_type_rules(&alias, op, other, span)
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {

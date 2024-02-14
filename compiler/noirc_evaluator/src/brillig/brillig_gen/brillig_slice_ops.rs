@@ -339,7 +339,7 @@ mod tests {
     use crate::brillig::brillig_ir::tests::{
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
-    use crate::brillig::brillig_ir::BrilligContext;
+    use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::map::Id;
@@ -378,11 +378,16 @@ mod tests {
             expected_return: Vec<Value>,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len(),
+                ),
+                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
-            let returns =
-                vec![BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() + 1)];
+            let returns = vec![BrilligParameter::Array(
+                vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                array.len() + 1,
+            )];
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -466,11 +471,16 @@ mod tests {
             expected_return_array: Vec<Value>,
             expected_return_item: Value,
         ) {
-            let arguments =
-                vec![BrilligParameter::Array(vec![BrilligParameter::Simple], array.len())];
+            let arguments = vec![BrilligParameter::Array(
+                vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                array.len(),
+            )];
             let returns = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() - 1),
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len() - 1,
+                ),
+                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
 
             let (_, mut function_context, mut context) = create_test_environment();
@@ -548,12 +558,17 @@ mod tests {
             expected_return: Vec<Value>,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
-                BrilligParameter::Simple,
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len(),
+                ),
+                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
-            let returns =
-                vec![BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() + 1)];
+            let returns = vec![BrilligParameter::Array(
+                vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                array.len() + 1,
+            )];
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -660,12 +675,18 @@ mod tests {
             expected_removed_item: Value,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len(),
+                ),
+                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let returns = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() - 1),
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len() - 1,
+                ),
+                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
 
             let (_, mut function_context, mut context) = create_test_environment();

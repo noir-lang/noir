@@ -1184,4 +1184,26 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         "#;
         assert_eq!(get_program_errors(src).len(), 1);
     }
+
+    #[test]
+    fn deny_cyclic_type_aliases() {
+        let src = r#"
+            type A = B;
+            type B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn ensure_nested_type_aliases_type_check() {
+        let src = r#"
+            type A = B;
+            type B = u8;
+            fn main() {
+                let _a: A = 0 as u16;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
 }
