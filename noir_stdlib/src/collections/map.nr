@@ -2,7 +2,6 @@ use crate::cmp::Eq;
 use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
-use crate::unsafe::zeroed;
 use crate::hash::{Hash, Hasher, BuildHasher};
 
 // We use load factor α_max = 0.75. 
