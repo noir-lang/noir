@@ -8,9 +8,17 @@ namespace toy(256);
     pol commit set_2_column_1;
     pol commit set_2_column_2;
     
-    // This is a column based tuple lookup
+    // This is a column based tuple lookup, one selector
     #[two_column_perm] // the name of the inverse
     q_tuple_set { set_1_column_1, set_1_column_2 } is { set_2_column_1, set_2_column_2 };
+
+
+    // Column based lookup, two selectors
+    pol commit sparse_column_1, sparse_column_2;
+    pol commit sparse_lhs, sparse_rhs;
+
+    #[two_column_sparse_perm] // the name of the inverse
+    sparse_lhs { sparse_column_1 } is sparse_rhs { sparse_column_2 };
 
     // Relation not used -> we currently require a single relation for codegen
     q_tuple_set * (1 - q_tuple_set) = 0;
@@ -46,3 +54,10 @@ namespace toy(256);
     // Note - we can also take advantage of pil creating the lookup columns for us here -> I may be able to do some codegen here !
     #[lookup_xor]
     q_xor { xor_a, xor_b, xor_c } in q_xor_table { table_xor_a, table_xor_b, table_xor_c };
+
+    // Minimum repro testing multiple lookups
+    pol commit q_err, q_err_check;
+    pol commit clk, m_clk;
+
+    #[lookup_err]
+    q_err_check {m_clk} in q_err {clk};

@@ -78,6 +78,8 @@ class AvmTraceBuilder {
     AvmMemTraceBuilder mem_trace_builder;
     AvmAluTraceBuilder alu_trace_builder;
 
+    void finalise_mem_trace_lookup_counts(std::map<uint32_t, uint32_t> const& tag_err_lookup_counts);
+
     uint32_t pc = 0;
     uint32_t internal_return_ptr = CALLSTACK_OFFSET;
     std::stack<uint32_t> internal_call_stack = {};

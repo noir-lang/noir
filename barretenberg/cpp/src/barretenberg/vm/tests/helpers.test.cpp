@@ -22,6 +22,8 @@ void validate_trace_proof(std::vector<Row>&& trace)
     auto verifier = composer.create_verifier(circuit_builder);
     bool verified = verifier.verify_proof(proof);
 
+    EXPECT_TRUE(verified);
+
     if (!verified) {
         avm_trace::log_avm_trace(circuit_builder.rows, 0, 10);
     }

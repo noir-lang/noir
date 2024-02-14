@@ -37,13 +37,13 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 69;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 71;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 85;
+    static constexpr size_t NUM_ALL_ENTITIES = 87;
 
-    using Relations = std::tuple<Avm_vm::avm_mem<FF>, Avm_vm::avm_main<FF>, Avm_vm::avm_alu<FF>>;
+    using Relations = std::tuple<Avm_vm::avm_mem<FF>, Avm_vm::avm_alu<FF>, Avm_vm::avm_main<FF>>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -145,7 +145,9 @@ class AvmFlavor {
                               avm_main_mem_idx_a,
                               avm_main_mem_idx_b,
                               avm_main_mem_idx_c,
-                              avm_main_last)
+                              avm_main_last,
+                              equiv_tag_err,
+                              equiv_tag_err_counts)
 
         RefVector<DataType> get_wires()
         {
@@ -217,7 +219,9 @@ class AvmFlavor {
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
-                     avm_main_last };
+                     avm_main_last,
+                     equiv_tag_err,
+                     equiv_tag_err_counts };
         };
         RefVector<DataType> get_sorted_polynomials() { return {}; };
     };
@@ -296,20 +300,22 @@ class AvmFlavor {
                               avm_main_mem_idx_b,
                               avm_main_mem_idx_c,
                               avm_main_last,
+                              equiv_tag_err,
+                              equiv_tag_err_counts,
                               avm_mem_m_rw_shift,
-                              avm_mem_m_tag_shift,
-                              avm_mem_m_val_shift,
                               avm_mem_m_addr_shift,
-                              avm_main_internal_return_ptr_shift,
-                              avm_main_pc_shift,
-                              avm_alu_alu_u16_r6_shift,
-                              avm_alu_alu_u16_r0_shift,
+                              avm_mem_m_val_shift,
+                              avm_mem_m_tag_shift,
                               avm_alu_alu_u16_r2_shift,
-                              avm_alu_alu_u16_r7_shift,
-                              avm_alu_alu_u16_r3_shift,
                               avm_alu_alu_u16_r1_shift,
                               avm_alu_alu_u16_r5_shift,
-                              avm_alu_alu_u16_r4_shift)
+                              avm_alu_alu_u16_r0_shift,
+                              avm_alu_alu_u16_r7_shift,
+                              avm_alu_alu_u16_r6_shift,
+                              avm_alu_alu_u16_r4_shift,
+                              avm_alu_alu_u16_r3_shift,
+                              avm_main_pc_shift,
+                              avm_main_internal_return_ptr_shift)
 
         RefVector<DataType> get_wires()
         {
@@ -384,20 +390,22 @@ class AvmFlavor {
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
                      avm_main_last,
+                     equiv_tag_err,
+                     equiv_tag_err_counts,
                      avm_mem_m_rw_shift,
-                     avm_mem_m_tag_shift,
-                     avm_mem_m_val_shift,
                      avm_mem_m_addr_shift,
-                     avm_main_internal_return_ptr_shift,
-                     avm_main_pc_shift,
-                     avm_alu_alu_u16_r6_shift,
-                     avm_alu_alu_u16_r0_shift,
+                     avm_mem_m_val_shift,
+                     avm_mem_m_tag_shift,
                      avm_alu_alu_u16_r2_shift,
-                     avm_alu_alu_u16_r7_shift,
-                     avm_alu_alu_u16_r3_shift,
                      avm_alu_alu_u16_r1_shift,
                      avm_alu_alu_u16_r5_shift,
-                     avm_alu_alu_u16_r4_shift };
+                     avm_alu_alu_u16_r0_shift,
+                     avm_alu_alu_u16_r7_shift,
+                     avm_alu_alu_u16_r6_shift,
+                     avm_alu_alu_u16_r4_shift,
+                     avm_alu_alu_u16_r3_shift,
+                     avm_main_pc_shift,
+                     avm_main_internal_return_ptr_shift };
         };
         RefVector<DataType> get_unshifted()
         {
@@ -471,41 +479,29 @@ class AvmFlavor {
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
-                     avm_main_last };
+                     avm_main_last,
+                     equiv_tag_err,
+                     equiv_tag_err_counts };
         };
         RefVector<DataType> get_to_be_shifted()
         {
-            return { avm_mem_m_rw,
-                     avm_mem_m_tag,
-                     avm_mem_m_val,
-                     avm_mem_m_addr,
-                     avm_main_internal_return_ptr,
-                     avm_main_pc,
-                     avm_alu_alu_u16_r6,
-                     avm_alu_alu_u16_r0,
-                     avm_alu_alu_u16_r2,
-                     avm_alu_alu_u16_r7,
-                     avm_alu_alu_u16_r3,
-                     avm_alu_alu_u16_r1,
-                     avm_alu_alu_u16_r5,
-                     avm_alu_alu_u16_r4 };
+            return { avm_mem_m_rw,       avm_mem_m_addr,
+                     avm_mem_m_val,      avm_mem_m_tag,
+                     avm_alu_alu_u16_r2, avm_alu_alu_u16_r1,
+                     avm_alu_alu_u16_r5, avm_alu_alu_u16_r0,
+                     avm_alu_alu_u16_r7, avm_alu_alu_u16_r6,
+                     avm_alu_alu_u16_r4, avm_alu_alu_u16_r3,
+                     avm_main_pc,        avm_main_internal_return_ptr };
         };
         RefVector<DataType> get_shifted()
         {
-            return { avm_mem_m_rw_shift,
-                     avm_mem_m_tag_shift,
-                     avm_mem_m_val_shift,
-                     avm_mem_m_addr_shift,
-                     avm_main_internal_return_ptr_shift,
-                     avm_main_pc_shift,
-                     avm_alu_alu_u16_r6_shift,
-                     avm_alu_alu_u16_r0_shift,
-                     avm_alu_alu_u16_r2_shift,
-                     avm_alu_alu_u16_r7_shift,
-                     avm_alu_alu_u16_r3_shift,
-                     avm_alu_alu_u16_r1_shift,
-                     avm_alu_alu_u16_r5_shift,
-                     avm_alu_alu_u16_r4_shift };
+            return { avm_mem_m_rw_shift,       avm_mem_m_addr_shift,
+                     avm_mem_m_val_shift,      avm_mem_m_tag_shift,
+                     avm_alu_alu_u16_r2_shift, avm_alu_alu_u16_r1_shift,
+                     avm_alu_alu_u16_r5_shift, avm_alu_alu_u16_r0_shift,
+                     avm_alu_alu_u16_r7_shift, avm_alu_alu_u16_r6_shift,
+                     avm_alu_alu_u16_r4_shift, avm_alu_alu_u16_r3_shift,
+                     avm_main_pc_shift,        avm_main_internal_return_ptr_shift };
         };
     };
 
@@ -518,20 +514,13 @@ class AvmFlavor {
 
         RefVector<DataType> get_to_be_shifted()
         {
-            return { avm_mem_m_rw,
-                     avm_mem_m_tag,
-                     avm_mem_m_val,
-                     avm_mem_m_addr,
-                     avm_main_internal_return_ptr,
-                     avm_main_pc,
-                     avm_alu_alu_u16_r6,
-                     avm_alu_alu_u16_r0,
-                     avm_alu_alu_u16_r2,
-                     avm_alu_alu_u16_r7,
-                     avm_alu_alu_u16_r3,
-                     avm_alu_alu_u16_r1,
-                     avm_alu_alu_u16_r5,
-                     avm_alu_alu_u16_r4 };
+            return { avm_mem_m_rw,       avm_mem_m_addr,
+                     avm_mem_m_val,      avm_mem_m_tag,
+                     avm_alu_alu_u16_r2, avm_alu_alu_u16_r1,
+                     avm_alu_alu_u16_r5, avm_alu_alu_u16_r0,
+                     avm_alu_alu_u16_r7, avm_alu_alu_u16_r6,
+                     avm_alu_alu_u16_r4, avm_alu_alu_u16_r3,
+                     avm_main_pc,        avm_main_internal_return_ptr };
         };
 
         // The plookup wires that store plookup read data.
@@ -679,6 +668,8 @@ class AvmFlavor {
             Base::avm_main_mem_idx_b = "AVM_MAIN_MEM_IDX_B";
             Base::avm_main_mem_idx_c = "AVM_MAIN_MEM_IDX_C";
             Base::avm_main_last = "AVM_MAIN_LAST";
+            Base::equiv_tag_err = "EQUIV_TAG_ERR";
+            Base::equiv_tag_err_counts = "EQUIV_TAG_ERR_COUNTS";
         };
     };
 
@@ -767,6 +758,8 @@ class AvmFlavor {
         Commitment avm_main_mem_idx_b;
         Commitment avm_main_mem_idx_c;
         Commitment avm_main_last;
+        Commitment equiv_tag_err;
+        Commitment equiv_tag_err_counts;
 
         std::vector<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>> sumcheck_univariates;
         std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
@@ -855,6 +848,8 @@ class AvmFlavor {
             avm_main_mem_idx_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_last = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            equiv_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            equiv_tag_err_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
 
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.emplace_back(
@@ -947,6 +942,8 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_mem_idx_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_c, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_last, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(equiv_tag_err, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(equiv_tag_err_counts, Transcript::proof_data);
 
             for (size_t i = 0; i < log_n; ++i) {
                 serialize_to_buffer(sumcheck_univariates[i], Transcript::proof_data);

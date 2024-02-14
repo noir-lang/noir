@@ -115,3 +115,100 @@ TEST(ToyAVMCircuitBuilder, BaseCase)
     circuit_builder.rows[2].toy_xor_a = tmp;
     EXPECT_EQ(circuit_builder.check_circuit(), true);
 }
+
+/**
+ * @brief Investigate circuit builder / proving issue
+ *
+ */
+TEST(ToyAVMCircuitBuilder, MultiLookup)
+{
+    using FF = ToyFlavor::FF;
+    using Builder = ToyCircuitBuilder;
+    using Row = Builder::Row;
+    Builder circuit_builder;
+
+    const size_t circuit_size = 16;
+    std::vector<Row> rows;
+    // init empty rows
+    for (size_t i = 0; i < circuit_size; i++) {
+        Row row{};
+        rows.push_back(row);
+    }
+
+    // LOOKUPS
+    // Create clk mem access lookup table;
+    // We only want to turn on the mem write when clk is 1
+    Row& row_1 = rows[0];
+    row_1.toy_q_err = FF(1);
+    row_1.toy_clk = FF(1);
+    // Below we lookup two occurances, so our counts is 2
+    row_1.lookup_err_counts = FF(2);
+
+    // Set the mem read on two different rows, we will then lookup into the clk
+    row_1.toy_m_clk = FF(1);
+    row_1.toy_q_err_check = FF(1);
+
+    Row& row_3 = rows[2];
+    row_3.toy_m_clk = FF(1);
+    row_3.toy_q_err_check = FF(1);
+
+    // Check circuit passes
+    circuit_builder.set_trace(std::move(rows));
+    EXPECT_EQ(circuit_builder.check_circuit(), true);
+
+    // Turn off row_3 lookup selector, expect failure
+    circuit_builder.rows[2].toy_m_clk = FF(0);
+    EXPECT_EQ(circuit_builder.check_circuit(), false);
+}
+
+TEST(ToyAVMCircuitBuilder, EmptyLookups)
+{
+    using Builder = ToyCircuitBuilder;
+    using Row = Builder::Row;
+    Builder circuit_builder;
+
+    const size_t circuit_size = 16;
+    std::vector<Row> rows;
+    // init empty rows
+    for (size_t i = 0; i < circuit_size; i++) {
+        Row row{};
+        rows.push_back(row);
+    }
+
+    circuit_builder.set_trace(std::move(rows));
+    EXPECT_EQ(circuit_builder.check_circuit(), true);
+}
+
+TEST(ToyAVMCircuitBuilder, SparsePermutation)
+{
+    // Test sparse permutation, where the permutation check is not active on all rows
+    using FF = ToyFlavor::FF;
+    using Builder = ToyCircuitBuilder;
+    using Row = Builder::Row;
+    Builder circuit_builder;
+
+    const size_t circuit_size = 16;
+    std::vector<Row> rows;
+    // init empty rows
+    for (size_t i = 0; i < circuit_size; i++) {
+        Row row{};
+        rows.push_back(row);
+    }
+
+    // Activate lhs on row 1
+    Row& row_1 = rows[0];
+    row_1.toy_sparse_lhs = FF(1);
+    row_1.toy_sparse_column_1 = FF(420);
+
+    // Activate rhs on row 5
+    Row& row_5 = rows[4];
+    row_5.toy_sparse_rhs = FF(1);
+    row_5.toy_sparse_column_2 = FF(420);
+
+    circuit_builder.set_trace(std::move(rows));
+    EXPECT_EQ(circuit_builder.check_circuit(), true);
+
+    // Expect it to break after changing row5
+    circuit_builder.rows[4].toy_sparse_column_2 = FF(421);
+    EXPECT_EQ(circuit_builder.check_circuit(), false);
+}

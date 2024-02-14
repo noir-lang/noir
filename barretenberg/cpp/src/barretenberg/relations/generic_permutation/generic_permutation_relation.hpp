@@ -81,6 +81,7 @@ template <typename Settings, typename FF_> class GenericPermutationRelationImpl 
 
     /**
      * @brief Get selector/wire switching on(1) or off(0) inverse computation
+     * We turn it on if either of the permutation contribution selectors are active
      *
      */
     template <typename Accumulator, typename AllEntities>
@@ -88,9 +89,16 @@ template <typename Settings, typename FF_> class GenericPermutationRelationImpl 
     {
         using View = typename Accumulator::View;
 
-        // WIRE/SELECTOR enabling the permutation used in the sumcheck computation. This affects the first subrelation
-        return Accumulator(
-            View(std::get<ENABLE_INVERSE_CORRECTNESS_CHECK_POLYNOMIAL_INDEX>(Settings::get_const_entities(in))));
+        // WIRE/SELECTOR enabling the permutation used in the sumcheck computation. This affects the first
+        // subrelation
+        Accumulator const& first_set_enabled = Accumulator(
+            View(std::get<FIRST_PERMUTATION_SET_ENABLE_POLYNOMIAL_INDEX>(Settings::get_const_entities(in))));
+
+        Accumulator const& second_set_enabled = Accumulator(
+            View(std::get<SECOND_PERMUTATION_SET_ENABLE_POLYNOMIAL_INDEX>(Settings::get_const_entities(in))));
+
+        // This has the truth table of a logical OR
+        return (first_set_enabled + second_set_enabled - (first_set_enabled * second_set_enabled));
     }
 
     /**

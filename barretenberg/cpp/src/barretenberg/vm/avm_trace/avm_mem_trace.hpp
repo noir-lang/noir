@@ -15,6 +15,10 @@ class AvmMemTraceBuilder {
     static const uint32_t SUB_CLK_STORE_B = 4;
     static const uint32_t SUB_CLK_STORE_C = 5;
 
+    // Keeps track of the number of times a mem tag err should appear in the trace
+    // clk -> count
+    std::map<uint32_t, uint32_t> m_tag_err_lookup_counts;
+
     struct MemoryTraceEntry {
         uint32_t m_clk{};
         uint32_t m_sub_clk{};

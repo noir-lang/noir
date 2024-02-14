@@ -192,6 +192,8 @@ namespace avm_main(256);
 
     // Inter-table Constraints
     
-    // TODO: tag_err {clk} IS avm_mem.m_tag_err {avm_mem.m_clk}
+    #[equiv_tag_err]
+    avm_mem.m_tag_err {avm_mem.m_clk} in tag_err {clk};
+
     // TODO: Map memory trace with intermediate register values whenever there is no tag error, sthg like:
     // mem_op_a * (1 - tag_err) {mem_idx_a, clk, ia, rwa} IS m_sub_clk == 0 && 1 - m_tag_err {m_addr, m_clk, m_val, m_rw}

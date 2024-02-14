@@ -9,10 +9,10 @@
 
 namespace bb {
 
-class two_column_perm_permutation_settings {
+class two_column_sparse_perm_permutation_settings {
   public:
     // This constant defines how many columns are bundled together to form each set.
-    constexpr static size_t COLUMNS_PER_SET = 2;
+    constexpr static size_t COLUMNS_PER_SET = 1;
 
     /**
      * @brief If this method returns true on a row of values, then the inverse polynomial at this index. Otherwise the
@@ -23,7 +23,7 @@ class two_column_perm_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.toy_q_tuple_set == 1 || in.toy_q_tuple_set == 1);
+        return (in.toy_sparse_lhs == 1 || in.toy_sparse_rhs == 1);
     }
 
     /**
@@ -46,14 +46,12 @@ class two_column_perm_permutation_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.two_column_perm,
-                                     in.toy_q_tuple_set,
-                                     in.toy_q_tuple_set,
-                                     in.toy_q_tuple_set,
-                                     in.toy_set_1_column_1,
-                                     in.toy_set_1_column_2,
-                                     in.toy_set_2_column_1,
-                                     in.toy_set_2_column_2);
+        return std::forward_as_tuple(in.two_column_sparse_perm,
+                                     in.toy_sparse_lhs,
+                                     in.toy_sparse_lhs,
+                                     in.toy_sparse_rhs,
+                                     in.toy_sparse_column_1,
+                                     in.toy_sparse_column_2);
     }
 
     /**
@@ -76,19 +74,18 @@ class two_column_perm_permutation_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.two_column_perm,
-                                     in.toy_q_tuple_set,
-                                     in.toy_q_tuple_set,
-                                     in.toy_q_tuple_set,
-                                     in.toy_set_1_column_1,
-                                     in.toy_set_1_column_2,
-                                     in.toy_set_2_column_1,
-                                     in.toy_set_2_column_2);
+        return std::forward_as_tuple(in.two_column_sparse_perm,
+                                     in.toy_sparse_lhs,
+                                     in.toy_sparse_lhs,
+                                     in.toy_sparse_rhs,
+                                     in.toy_sparse_column_1,
+                                     in.toy_sparse_column_2);
     }
 };
 
 template <typename FF_>
-using two_column_perm_relation = GenericPermutationRelation<two_column_perm_permutation_settings, FF_>;
-template <typename FF_> using two_column_perm = GenericPermutation<two_column_perm_permutation_settings, FF_>;
+using two_column_sparse_perm_relation = GenericPermutationRelation<two_column_sparse_perm_permutation_settings, FF_>;
+template <typename FF_>
+using two_column_sparse_perm = GenericPermutation<two_column_sparse_perm_permutation_settings, FF_>;
 
 } // namespace bb

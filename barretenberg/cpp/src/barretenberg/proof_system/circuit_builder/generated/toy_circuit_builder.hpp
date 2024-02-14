@@ -12,9 +12,11 @@
 #include "barretenberg/relations/generic_permutation/generic_permutation_relation.hpp"
 
 #include "barretenberg/flavor/generated/toy_flavor.hpp"
+#include "barretenberg/relations/generated/toy/lookup_err.hpp"
 #include "barretenberg/relations/generated/toy/lookup_xor.hpp"
 #include "barretenberg/relations/generated/toy/toy_avm.hpp"
 #include "barretenberg/relations/generated/toy/two_column_perm.hpp"
+#include "barretenberg/relations/generated/toy/two_column_sparse_perm.hpp"
 
 namespace bb {
 
@@ -25,6 +27,10 @@ template <typename FF> struct ToyFullRow {
     FF toy_set_1_column_2{};
     FF toy_set_2_column_1{};
     FF toy_set_2_column_2{};
+    FF toy_sparse_column_1{};
+    FF toy_sparse_column_2{};
+    FF toy_sparse_lhs{};
+    FF toy_sparse_rhs{};
     FF toy_xor_a{};
     FF toy_xor_b{};
     FF toy_xor_c{};
@@ -33,9 +39,16 @@ template <typename FF> struct ToyFullRow {
     FF toy_table_xor_c{};
     FF toy_q_xor{};
     FF toy_q_xor_table{};
+    FF toy_q_err{};
+    FF toy_q_err_check{};
+    FF toy_clk{};
+    FF toy_m_clk{};
     FF two_column_perm{};
+    FF two_column_sparse_perm{};
     FF lookup_xor{};
+    FF lookup_err{};
     FF lookup_xor_counts{};
+    FF lookup_err_counts{};
 };
 
 class ToyCircuitBuilder {
@@ -48,8 +61,8 @@ class ToyCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 17;
-    static constexpr size_t num_polys = 17;
+    static constexpr size_t num_fixed_columns = 28;
+    static constexpr size_t num_polys = 28;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -71,6 +84,10 @@ class ToyCircuitBuilder {
             polys.toy_set_1_column_2[i] = rows[i].toy_set_1_column_2;
             polys.toy_set_2_column_1[i] = rows[i].toy_set_2_column_1;
             polys.toy_set_2_column_2[i] = rows[i].toy_set_2_column_2;
+            polys.toy_sparse_column_1[i] = rows[i].toy_sparse_column_1;
+            polys.toy_sparse_column_2[i] = rows[i].toy_sparse_column_2;
+            polys.toy_sparse_lhs[i] = rows[i].toy_sparse_lhs;
+            polys.toy_sparse_rhs[i] = rows[i].toy_sparse_rhs;
             polys.toy_xor_a[i] = rows[i].toy_xor_a;
             polys.toy_xor_b[i] = rows[i].toy_xor_b;
             polys.toy_xor_c[i] = rows[i].toy_xor_c;
@@ -79,9 +96,16 @@ class ToyCircuitBuilder {
             polys.toy_table_xor_c[i] = rows[i].toy_table_xor_c;
             polys.toy_q_xor[i] = rows[i].toy_q_xor;
             polys.toy_q_xor_table[i] = rows[i].toy_q_xor_table;
+            polys.toy_q_err[i] = rows[i].toy_q_err;
+            polys.toy_q_err_check[i] = rows[i].toy_q_err_check;
+            polys.toy_clk[i] = rows[i].toy_clk;
+            polys.toy_m_clk[i] = rows[i].toy_m_clk;
             polys.two_column_perm[i] = rows[i].two_column_perm;
+            polys.two_column_sparse_perm[i] = rows[i].two_column_sparse_perm;
             polys.lookup_xor[i] = rows[i].lookup_xor;
+            polys.lookup_err[i] = rows[i].lookup_err;
             polys.lookup_xor_counts[i] = rows[i].lookup_xor_counts;
+            polys.lookup_err_counts[i] = rows[i].lookup_err_counts;
         }
 
         return polys;
@@ -162,7 +186,14 @@ class ToyCircuitBuilder {
         if (!evaluate_logderivative.template operator()<two_column_perm_relation<FF>>("two_column_perm")) {
             return false;
         }
+        if (!evaluate_logderivative.template operator()<two_column_sparse_perm_relation<FF>>(
+                "two_column_sparse_perm")) {
+            return false;
+        }
         if (!evaluate_logderivative.template operator()<lookup_xor_relation<FF>>("lookup_xor")) {
+            return false;
+        }
+        if (!evaluate_logderivative.template operator()<lookup_err_relation<FF>>("lookup_err")) {
             return false;
         }
 

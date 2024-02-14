@@ -170,6 +170,9 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_main_mem_idx_c =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_idx_c);
     commitments.avm_main_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_last);
+    commitments.equiv_tag_err = transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_tag_err);
+    commitments.equiv_tag_err_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_tag_err_counts);
 
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);
