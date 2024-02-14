@@ -146,7 +146,7 @@ fn test_hashmaps_equality(input: [Entry; HASHMAP_LEN]) {
     assert(hashmap_1 != hashmap_2, "HashMaps should not be equal.");
 }
 
-// Test Iter, Keys, Values.
+// Test entries, keys, values.
 fn test_iterators() {
     let mut hashmap = ALLOCATE_HASHMAP();
 
@@ -163,7 +163,7 @@ fn test_iterators() {
     assert(entries == [(2, 3), (5, 7), (11, 13)], "Got incorrect iteration of entries.");
 }
 
-// Test mutable Iter, Keys, Values.
+// Test mutable iteration over keys, values and entries.
 fn test_mut_iterators() {
     let mut hashmap = ALLOCATE_HASHMAP();
 
