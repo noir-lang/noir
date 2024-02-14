@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{token::SecondaryAttribute, Ident, GenericIdent, UnresolvedGenerics, UnresolvedType};
+use crate::{token::SecondaryAttribute, GenericIdent, Ident, UnresolvedGenerics, UnresolvedType};
 use iter_extended::vecmap;
 use noirc_errors::Span;
 

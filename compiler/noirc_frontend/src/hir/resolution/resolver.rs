@@ -831,11 +831,22 @@ impl<'a> Resolver<'a> {
         assert_eq!(names.len(), generics.len());
 
         for (name, typevar) in names.iter().zip(generics) {
-            self.add_existing_generic(&name.ident.0.contents, name.ident.0.span(), typevar.clone(), name.prevent_numeric);
+            self.add_existing_generic(
+                &name.ident.0.contents,
+                name.ident.0.span(),
+                typevar.clone(),
+                name.prevent_numeric,
+            );
         }
     }
 
-    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable, prevent_numeric: bool) {
+    pub fn add_existing_generic(
+        &mut self,
+        name: &str,
+        span: Span,
+        typevar: TypeVariable,
+        prevent_numeric: bool,
+    ) {
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.to_owned());
 
@@ -902,7 +913,6 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attributes().clone();
 
-        // TODO: prevent_numeric needed here?
         let mut generics = vecmap(&self.generics, |(_, typevar, _, _)| typevar.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
@@ -1065,13 +1075,11 @@ impl<'a> Resolver<'a> {
             if let Some((name, _, span, prevent_numeric)) =
                 self.generics.iter().find(|(name, _, _, _)| name.as_ref() == &name_to_find)
             {
-                if *prevent_numeric {
-                    panic!("declare_numeric_generics: TODO: likely do nothing here?")
+                if !*prevent_numeric {
+                    let ident = Ident::new(name.to_string(), *span);
+                    let definition = DefinitionKind::GenericType(type_variable);
+                    self.add_variable_decl_inner(ident, false, false, false, definition);
                 }
-
-                let ident = Ident::new(name.to_string(), *span);
-                let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident, false, false, false, definition);
             }
         }
     }
@@ -1137,8 +1145,8 @@ impl<'a> Resolver<'a> {
             }
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if alias.borrow().generic_is_numeric(i) {
+                    if let Type::NamedGeneric(type_variable, name, prevent_numeric) = generic {
+                        if !prevent_numeric && alias.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {

@@ -243,11 +243,7 @@ pub struct GenericIdent {
 
 impl Display for GenericIdent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let question_mark = if self.prevent_numeric {
-            "?"
-        } else {
-            ""
-        };
+        let question_mark = if self.prevent_numeric { "?" } else { "" };
         write!(f, "{}{}", self.ident, question_mark)
     }
 }

@@ -95,7 +95,7 @@ pub enum Type {
     /// never be bound over during type checking, but during monomorphization it
     /// will be and thus needs the full TypeVariable link.
     ///
-    /// TODO: before merge do we need N? here?
+    /// TODO: prevent_numeric before merge do we need N? here?
     Forall(Generics, Box<Type>),
 
     /// A type-level integer. Included to let an Array's size type variable
@@ -612,12 +612,14 @@ impl Type {
         // True if the given type is a NamedGeneric with the target_id
         let named_generic_id_matches_target = |typ: &Type| {
             if let Type::NamedGeneric(type_variable, _, prevent_numeric) = typ {
-                if prevent_numeric {
+                if *prevent_numeric {
                     false
                 } else {
                     match &*type_variable.borrow() {
                         TypeBinding::Bound(_) => {
-                            unreachable!("Named generics should not be bound until monomorphization")
+                            unreachable!(
+                                "Named generics should not be bound until monomorphization"
+                            )
                         }
                         TypeBinding::Unbound(id) => target_id == *id,
                     }
@@ -842,11 +844,16 @@ impl std::fmt::Display for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::NamedGeneric(binding, name) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.fmt(f),
-                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
-                TypeBinding::Unbound(_) => write!(f, "{name}"),
-            },
+            Type::NamedGeneric(binding, name, prevent_numeric) => {
+                let prevent_numeric_str = if *prevent_numeric { "?" } else { "" };
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.fmt(f),
+                    TypeBinding::Unbound(_) if name.is_empty() => {
+                        write!(f, "_{prevent_numeric_str}")
+                    }
+                    TypeBinding::Unbound(_) => write!(f, "{name}{prevent_numeric_str}"),
+                }
+            }
             Type::Constant(x) => x.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
@@ -1197,7 +1204,7 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
+            (NamedGeneric(binding, _, _), other) | (other, NamedGeneric(binding, _, _))
                 if !binding.borrow().is_unbound() =>
             {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
@@ -1207,7 +1214,7 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+            (NamedGeneric(binding_a, name_a, _), NamedGeneric(binding_b, name_b, _)) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
@@ -1499,7 +1506,7 @@ impl Type {
                 let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
-            Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
+            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding, _) => {
                 substitute_binding(binding)
             }
             // Do not substitute_helper fields, it can lead to infinite recursion
@@ -1568,7 +1575,7 @@ impl Type {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
+            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding, _) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(binding) => binding.occurs(target_id),
                     TypeBinding::Unbound(id) => *id == target_id,
@@ -1623,7 +1630,7 @@ impl Type {
                 def.borrow().get_type(args).follow_bindings()
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            TypeVariable(var, _) | NamedGeneric(var, _) => {
+            TypeVariable(var, _) | NamedGeneric(var, _, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
                 }
@@ -1839,7 +1846,10 @@ impl std::fmt::Debug for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::NamedGeneric(binding, name) => write!(f, "{}{:?}", name, binding),
+            Type::NamedGeneric(binding, name, prevent_numeric) => {
+                let prevent_numeric_str = if *prevent_numeric { "?" } else { "" };
+                write!(f, "{}{:?}{}", name, binding, prevent_numeric_str)
+            }
             Type::Constant(x) => x.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));

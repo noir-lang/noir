@@ -109,7 +109,7 @@ impl<'a> Lexer<'a> {
             Some('.') => self.glue(Token::Dot),
             Some(':') => self.glue(Token::Colon),
             Some('!') => self.glue(Token::Bang),
-            Some('?') => self.glue(Token::Question),
+            Some('?') => self.single_char_token(Token::Question),
             Some('-') => self.glue(Token::Minus),
             Some('&') => self.ampersand(),
             Some('|') => self.single_char_token(Token::Pipe),
@@ -589,7 +589,6 @@ mod tests {
 
         let expected = vec![
             Token::Bang,
-            Token::Question,
             Token::NotEqual,
             Token::Plus,
             Token::LeftParen,

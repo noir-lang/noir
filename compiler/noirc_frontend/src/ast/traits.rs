@@ -4,8 +4,8 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
-    node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, Ident, GenericIdent, NoirFunction,
-    Path, UnresolvedGenerics, UnresolvedType,
+    node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, GenericIdent, Ident,
+    NoirFunction, Path, UnresolvedGenerics, UnresolvedType,
 };
 
 /// AST node for trait definitions:

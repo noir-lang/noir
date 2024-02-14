@@ -38,11 +38,11 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
-    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident, GenericIdent,
-    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement,
-    TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility,
+    GenericIdent, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction,
+    NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -243,7 +243,10 @@ fn is_pub_crate() -> impl NoirParser<bool> {
 fn generics() -> impl NoirParser<Vec<GenericIdent>> {
     ident()
         .then(just(Token::Question).or_not())
-        .map(|(id, opt_question)| GenericIdent { ident: id, prevent_numeric: opt_question.is_some() })
+        .map(|(id, opt_question)| GenericIdent {
+            ident: id,
+            prevent_numeric: opt_question.is_some(),
+        })
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
