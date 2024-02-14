@@ -88,6 +88,8 @@ const std::unordered_map<OpCode, size_t> Bytecode::OPERANDS_NUM = {
     //// Gadgets
     //{ OpCode::KECCAK, },
     //{ OpCode::POSEIDON, },
+    //{ OpCode::SHA256, },
+    //{ OpCode::PEDERSEN, },
 };
 
 /**

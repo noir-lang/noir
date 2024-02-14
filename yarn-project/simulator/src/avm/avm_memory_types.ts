@@ -1,3 +1,4 @@
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 
 import { strict as assert } from 'assert';
@@ -18,6 +19,9 @@ export abstract class MemoryValue {
 
   // Use sparingly.
   public abstract toBigInt(): bigint;
+
+  // To Buffer
+  public abstract toBuffer(): Buffer;
 
   // To field
   public toFr(): Fr {
@@ -111,6 +115,10 @@ function UnsignedIntegerClassFactory(bits: number) {
     public toBigInt(): bigint {
       return this.n;
     }
+
+    public toBuffer(): Buffer {
+      return toBufferBE(this.n, bits / 8);
+    }
   };
 }
 
@@ -127,7 +135,7 @@ export class Field extends MemoryValue {
   public static readonly MODULUS: bigint = Fr.MODULUS;
   private readonly rep: Fr;
 
-  constructor(v: number | bigint | Fr) {
+  constructor(v: number | bigint | Fr | Buffer) {
     super();
     this.rep = new Fr(v);
   }
@@ -158,6 +166,10 @@ export class Field extends MemoryValue {
 
   public toBigInt(): bigint {
     return this.rep.toBigInt();
+  }
+
+  public toBuffer(): Buffer {
+    return this.rep.toBuffer();
   }
 }
 

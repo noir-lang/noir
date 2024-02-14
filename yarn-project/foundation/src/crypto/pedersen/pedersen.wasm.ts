@@ -19,7 +19,7 @@ export function pedersenCommit(input: Buffer[]) {
  * Create a pedersen hash (field) from an array of input fields.
  * Left pads any inputs less than 32 bytes.
  */
-export function pedersenHash(input: Buffer[], index = 0) {
+export function pedersenHash(input: Buffer[], index = 0): Buffer {
   if (!input.every(i => i.length <= 32)) {
     throw new Error('All Pedersen Hash input buffers must be <= 32 bytes.');
   }

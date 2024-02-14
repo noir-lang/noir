@@ -82,6 +82,8 @@ pub enum AvmOpcode {
     // Gadgets
     KECCAK,
     POSEIDON,
+    SHA256,
+    PEDERSEN,
 }
 
 impl AvmOpcode {
@@ -167,6 +169,8 @@ impl AvmOpcode {
             // Gadgets
             AvmOpcode::KECCAK => "KECCAK",
             AvmOpcode::POSEIDON => "POSEIDON",
+            AvmOpcode::SHA256 => "SHA256 ",
+            AvmOpcode::PEDERSEN => "PEDERSEN",
         }
     }
 }
