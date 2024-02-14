@@ -101,9 +101,14 @@ pub(crate) struct AcirDynamicArray {
     len: usize,
     /// An ACIR dynamic array is a flat structure, so we use
     /// the inner structure of an `AcirType::NumericType` directly.
-    /// Some usages of ACIR arrays (e.g. black box hashes) require the bit size
+    /// Some usages of ACIR arrays (e.g. black box functions) require the bit size
     /// of every value to be known, thus we store the types as part of the dynamic
     /// array definition.
+    ///
+    /// A dynamic non-homogenous array can potentially have values of differing types.
+    /// Thus, we store a vector of types rather than a single type, as a dynamic non-homogenous array
+    /// is still represented in ACIR by a single `AcirDynamicArray` structure.
+    ///
     /// The length of the value types vector must match the `len` field in this structure.
     value_types: Vec<NumericType>,
     /// Identification for the ACIR dynamic array
