@@ -12,8 +12,8 @@ type V = Field;
 
 // It is more convenient and readable to use structs as input.
 struct Entry{
-    key: K,
-    value: V
+    key: Field,
+    value: Field
 }
 
 global HASHMAP_CAP = 8;
