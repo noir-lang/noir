@@ -53,7 +53,6 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
   /**
    * Returns an execution request that represents this operation. Useful as a building
    * block for constructing batch requests.
-   * @param options - An optional object containing additional configuration for the transaction.
    * @returns An execution request wrapped in promise.
    */
   public request(): FunctionCall {

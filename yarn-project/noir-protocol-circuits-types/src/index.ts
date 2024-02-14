@@ -121,7 +121,6 @@ export async function executeInner(
   const params: InnerInputType = {
     input: mapPrivateKernelInnerCircuitPrivateInputsToNoir(privateKernelInnerCircuitPrivateInputs),
   };
-
   const returnType = await executePrivateKernelInnerWithACVM(params);
 
   return mapPrivateKernelInnerCircuitPublicInputsFromNoir(returnType);

@@ -8,7 +8,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { TypedOracle, toACVMWitness } from '../acvm/index.js';
 import { PackedArgsCache, SideEffectCounter } from '../common/index.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
-import { PublicExecution, PublicExecutionResult } from './execution.js';
+import { PublicExecution, PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { executePublicFunction } from './executor.js';
 import { ContractStorageActionsCollector } from './state_actions.js';
 
@@ -160,6 +160,7 @@ export class PublicExecutionContext extends TypedOracle {
     targetContractAddress: AztecAddress,
     functionSelector: FunctionSelector,
     argsHash: Fr,
+    isStaticCall: boolean,
   ) {
     const args = this.packedArgsCache.unpack(argsHash);
     this.log(`Public function call: addr=${targetContractAddress} selector=${functionSelector} args=${args.join(',')}`);
@@ -184,7 +185,7 @@ export class PublicExecutionContext extends TypedOracle {
       functionSelector,
       isContractDeployment: false,
       isDelegateCall: false,
-      isStaticCall: false,
+      isStaticCall,
       startSideEffectCounter: 0, // TODO use counters in public execution
     });
 
@@ -208,6 +209,16 @@ export class PublicExecutionContext extends TypedOracle {
     );
 
     const childExecutionResult = await executePublicFunction(context, acir);
+
+    if (isStaticCall) {
+      checkValidStaticCall(
+        childExecutionResult.newCommitments,
+        childExecutionResult.newNullifiers,
+        childExecutionResult.contractStorageUpdateRequests,
+        childExecutionResult.newL2ToL1Messages,
+        childExecutionResult.unencryptedLogs,
+      );
+    }
 
     this.nestedExecutions.push(childExecutionResult);
     this.log(`Returning from nested call: ret=${childExecutionResult.returnValues.join(', ')}`);

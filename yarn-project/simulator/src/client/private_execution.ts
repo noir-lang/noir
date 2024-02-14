@@ -24,7 +24,6 @@ export async function executePrivateFunction(
 ): Promise<ExecutionResult> {
   const functionSelector = functionData.selector;
   log(`Executing external function ${contractAddress}:${functionSelector}`);
-
   const acir = Buffer.from(artifact.bytecode, 'base64');
   const initialWitness = context.getInitialWitness(artifact);
   const acvmCallback = new Oracle(context);

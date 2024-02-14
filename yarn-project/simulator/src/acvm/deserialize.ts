@@ -24,6 +24,14 @@ export function frToNumber(fr: Fr): number {
 }
 
 /**
+ * Converts a field to a boolean.
+ * @param fr - The field to convert.
+ */
+export function frToBoolean(fr: Fr): boolean {
+  return fr.toBigInt() === BigInt(1);
+}
+
+/**
  * Extracts the return fields of a given partial witness.
  * @param acir - The bytecode of the function.
  * @param partialWitness - The witness to extract from.

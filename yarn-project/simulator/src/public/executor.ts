@@ -16,7 +16,7 @@ import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { AcirSimulator } from '../index.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
-import { PublicExecution, PublicExecutionResult } from './execution.js';
+import { PublicExecution, PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { PublicExecutionContext } from './public_execution_context.js';
 
 /**
@@ -124,11 +124,25 @@ export class PublicExecutor {
       this.commitmentsDb,
     );
 
+    let executionResult;
+
     try {
-      return await executePublicFunction(context, acir);
+      executionResult = await executePublicFunction(context, acir);
     } catch (err) {
       throw createSimulationError(err instanceof Error ? err : new Error('Unknown error during public execution'));
     }
+
+    if (executionResult.execution.callContext.isStaticCall) {
+      checkValidStaticCall(
+        executionResult.newCommitments,
+        executionResult.newNullifiers,
+        executionResult.contractStorageUpdateRequests,
+        executionResult.newL2ToL1Messages,
+        executionResult.unencryptedLogs,
+      );
+    }
+
+    return executionResult;
   }
 
   /**

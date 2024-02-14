@@ -194,6 +194,7 @@ export abstract class TypedOracle {
     _functionSelector: FunctionSelector,
     _argsHash: Fr,
     _sideffectCounter: number,
+    _isStaticCall: boolean,
   ): Promise<PrivateCallStackItem> {
     throw new Error('Not available.');
   }
@@ -202,6 +203,7 @@ export abstract class TypedOracle {
     _targetContractAddress: AztecAddress,
     _functionSelector: FunctionSelector,
     _argsHash: Fr,
+    _isStaticCall: boolean,
   ): Promise<Fr[]> {
     throw new Error('Not available.');
   }
@@ -211,6 +213,7 @@ export abstract class TypedOracle {
     _functionSelector: FunctionSelector,
     _argsHash: Fr,
     _sideffectCounter: number,
+    _isStaticCall: boolean,
   ): Promise<PublicCallRequest> {
     throw new Error('Not available.');
   }

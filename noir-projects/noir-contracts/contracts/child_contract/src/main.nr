@@ -3,13 +3,28 @@ contract Child {
     use dep::std::option::Option;
 
     use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context}, log::emit_unencrypted_log,
-        state_vars::public_state::PublicState
+        context::{PrivateContext, PublicContext, Context},
+        log::emit_unencrypted_log,
+        state_vars::{
+            public_state::PublicState,
+            set::Set
+        },
+        protocol_types::{
+            abis::{
+                function_selector::FunctionSelector,
+                call_context::CallContext
+            },
+            address::AztecAddress,
+        },
+        note::{
+            note_getter_options::NoteGetterOptions,
+        }
     };
-    use dep::aztec::protocol_types::{abis::{call_context::CallContext, function_selector::FunctionSelector}, address::AztecAddress};
+    use dep::value_note::value_note::ValueNote;
 
     struct Storage {
         current_value: PublicState<Field>,
+        a_private_value: Set<ValueNote>,
     }
 
     #[aztec(private)]
@@ -54,6 +69,20 @@ contract Child {
         emit_unencrypted_log(&mut context, new_value);
 
         new_value
+    }
+
+    #[aztec(private)]
+    fn privateSetValue(new_value: Field, owner: AztecAddress) -> Field {
+        let mut note = ValueNote::new(new_value, owner);
+        storage.a_private_value.insert(&mut note, true);
+        new_value
+    }
+
+    #[aztec(private)]
+    fn privateGetValue(amount: Field, owner: AztecAddress) -> Field {
+        let options = NoteGetterOptions::new().select(0, amount, Option::none()).select(1, owner.to_field(), Option::none()).set_limit(1);
+        let notes = storage.a_private_value.get_notes(options);
+        notes[0].unwrap_unchecked().value
     }
 
     // Increments `current_value` by `new_value`

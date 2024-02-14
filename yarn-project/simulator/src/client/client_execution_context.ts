@@ -307,12 +307,25 @@ export class ClientExecutionContext extends ViewDataOracle {
     this.log(`Emitted unencrypted log: "${text.length > 100 ? text.slice(0, 100) + '...' : text}"`);
   }
 
+  #checkValidStaticCall(childExecutionResult: ExecutionResult) {
+    if (
+      childExecutionResult.callStackItem.publicInputs.newCommitments.some(item => !item.isEmpty()) ||
+      childExecutionResult.callStackItem.publicInputs.newNullifiers.some(item => !item.isEmpty()) ||
+      childExecutionResult.callStackItem.publicInputs.newL2ToL1Msgs.some(item => !item.isZero()) ||
+      !childExecutionResult.callStackItem.publicInputs.encryptedLogPreimagesLength.equals(new Fr(4)) ||
+      !childExecutionResult.callStackItem.publicInputs.unencryptedLogPreimagesLength.equals(new Fr(4))
+    ) {
+      throw new Error(`Static call cannot create new notes, emit L2->L1 messages or generate logs`);
+    }
+  }
+
   /**
    * Calls a private function as a nested execution.
    * @param targetContractAddress - The address of the contract to call.
    * @param functionSelector - The function selector of the function to call.
    * @param argsHash - The packed arguments to pass to the function.
    * @param sideEffectCounter - The side effect counter at the start of the call.
+   * @param isStaticCall - Whether the call is a static call.
    * @returns The execution result.
    */
   async callPrivateFunction(
@@ -320,6 +333,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     functionSelector: FunctionSelector,
     argsHash: Fr,
     sideEffectCounter: number,
+    isStaticCall: boolean,
   ) {
     this.log(
       `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
@@ -342,7 +356,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       targetArtifact,
       sideEffectCounter,
       false,
-      false,
+      isStaticCall,
     );
 
     const context = new ClientExecutionContext(
@@ -366,6 +380,10 @@ export class ClientExecutionContext extends ViewDataOracle {
       targetFunctionData,
     );
 
+    if (isStaticCall) {
+      this.#checkValidStaticCall(childExecutionResult);
+    }
+
     this.nestedExecutions.push(childExecutionResult);
 
     return childExecutionResult.callStackItem;
@@ -379,6 +397,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param functionSelector - The function selector of the function to call.
    * @param argsHash - The packed arguments to pass to the function.
    * @param sideEffectCounter - The side effect counter at the start of the call.
+   * @param isStaticCall - Whether the call is a static call.
    * @returns The public call stack item with the request information.
    */
   public async enqueuePublicFunctionCall(
@@ -386,6 +405,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     functionSelector: FunctionSelector,
     argsHash: Fr,
     sideEffectCounter: number,
+    isStaticCall: boolean,
   ): Promise<PublicCallRequest> {
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
     const derivedCallContext = await this.deriveCallContext(
@@ -393,7 +413,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       targetArtifact,
       sideEffectCounter,
       false,
-      false,
+      isStaticCall,
     );
     const args = this.packedArgsCache.unpack(argsHash);
     const enqueuedRequest = PublicCallRequest.from({
