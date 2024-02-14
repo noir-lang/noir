@@ -1129,7 +1129,10 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
                         add_array_to_hasher(
                             &id,
                             &UnresolvedType {
-                                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, 32),
+                                typ: UnresolvedTypeData::Integer(
+                                    Signedness::Unsigned,
+                                    noirc_frontend::IntegerBitSize::ThirtyTwo,
+                                ),
                                 span: None,
                             },
                         )

@@ -91,6 +91,20 @@ fn main() {
 }
 ```
 
+Type aliases can even refer to other aliases. An error will be issued if they form a cycle:
+
+```rust
+// Ok!
+type A = B;
+type B = Field;
+
+type Bad1 = Bad2;
+
+// error: Dependency cycle found
+type Bad2 = Bad1;
+//   ^^^^^^^^^^^ 'Bad2' recursively depends on itself: Bad2 -> Bad1 -> Bad2
+```
+
 ### BigInt
 
 You can achieve BigInt functionality using the [Noir BigInt](https://github.com/shuklaayush/noir-bigint) library.
