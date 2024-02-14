@@ -74,7 +74,7 @@ impl FunctionContext {
     fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
             Type::Numeric(_) | Type::Reference(_) => {
-                BrilligParameter::Simple(get_bit_size_from_ssa_type(typ))
+                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
             }
             Type::Array(item_type, size) => BrilligParameter::Array(
                 vecmap(item_type.iter(), |item_typ| {
