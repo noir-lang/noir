@@ -3,23 +3,30 @@ mod utils;
 use dep::std::collections::map::HashMap;
 use dep::std::hash::BuildHasherDefault;
 use dep::std::hash::pedersen::PedersenHasher;
+use dep::std::cmp::Eq;
 
 use utils::cut;
 
+type K = Field;
+type V = Field;
+
+// It is more convenient and readable to use structs as input.
 struct Entry{
-    key: Field,
-    value: Field
+    key: K,
+    value: V
 }
 
 global HASHMAP_CAP = 8;
 global HASHMAP_LEN = 6;
 
 global FIELD_CMP = |a: Field, b: Field| a.lt(b);
-global PAIR_CMP = |a: (Field, Field), b: (Field, Field)| a.0.lt(b.0);
 
-fn allocate_hashmap() -> HashMap<Field, Field, HASHMAP_CAP, BuildHasherDefault<PedersenHasher>> {
-    HashMap::default()
-}
+global K_CMP = FIELD_CMP;
+global V_CMP = FIELD_CMP;
+global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
+
+global ALLOCATE_HASHMAP = || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<PedersenHasher>> 
+    HashMap::default();
 
 fn main(input: [Entry; HASHMAP_LEN]) {
     test_sequential(input[0].key, input[0].value);
@@ -33,8 +40,8 @@ fn main(input: [Entry; HASHMAP_LEN]) {
 }
 
 // Insert, get, remove.
-fn test_sequential(key: Field, value: Field) {
-    let mut hashmap = allocate_hashmap();
+fn test_sequential(key: K, value: V) {
+    let mut hashmap = ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New HashMap should be empty.");
 
     hashmap.insert(key, value);
@@ -52,8 +59,8 @@ fn test_sequential(key: Field, value: Field) {
 }
 
 // Insert same pair several times.
-fn test_multiple_equal_insert(key: Field, value: Field) {
-    let mut hashmap = allocate_hashmap();
+fn test_multiple_equal_insert(key: K, value: V) {
+    let mut hashmap = ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New HashMap should be empty.");
 
     for _ in 0..HASHMAP_LEN {
@@ -70,8 +77,8 @@ fn test_multiple_equal_insert(key: Field, value: Field) {
 }
 
 // Override value for existing pair.
-fn test_value_override(key: Field, value: Field, new_value: Field) {
-    let mut hashmap = allocate_hashmap();
+fn test_value_override(key: K, value: V, new_value: V) {
+    let mut hashmap = ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New hashmap should be empty.");
 
     hashmap.insert(key, value);
@@ -86,7 +93,7 @@ fn test_value_override(key: Field, value: Field, new_value: Field) {
 
 // Insert several distinct pairs and test auxiliary methods.
 fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
-    let mut hashmap = allocate_hashmap();
+    let mut hashmap = ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New HashMap should be empty.");
 
     for entry in input {
@@ -105,7 +112,7 @@ fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
 
 // Insert several pairs and test retaining.
 fn test_retain() {
-    let mut hashmap = allocate_hashmap();
+    let mut hashmap = ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New HashMap should be empty.");
 
     let (key, value) = (5, 11);
@@ -115,7 +122,7 @@ fn test_retain() {
     let (key, value) = (11, 5);
     hashmap.insert(key, value);
 
-    let predicate = |key: Field, value: Field| -> bool {key * value == 55};
+    let predicate = |key: K, value: V| -> bool {key * value == 55};
     hashmap.retain(predicate);
 
     assert(hashmap.len() == 2, "HashMap should have retained 2 elements.");
@@ -124,8 +131,8 @@ fn test_retain() {
 
 // Equality trait check.
 fn test_hashmaps_equality(input: [Entry; HASHMAP_LEN]) {
-    let mut hashmap_1 = allocate_hashmap();
-    let mut hashmap_2 = allocate_hashmap();
+    let mut hashmap_1 = ALLOCATE_HASHMAP();
+    let mut hashmap_2 = ALLOCATE_HASHMAP();
 
     for entry in input {
         hashmap_1.insert(entry.key, entry.value);
@@ -141,15 +148,15 @@ fn test_hashmaps_equality(input: [Entry; HASHMAP_LEN]) {
 
 // Test Iter, Keys, Values.
 fn test_iterators() {
-    let mut hashmap = allocate_hashmap();
+    let mut hashmap = ALLOCATE_HASHMAP();
 
     hashmap.insert(2, 3);
     hashmap.insert(5, 7);
     hashmap.insert(11, 13);
 
-    let keys: [Field; 3] = cut(hashmap.keys()).sort_via(FIELD_CMP);
-    let values: [Field; 3] = cut(hashmap.values()).sort_via(FIELD_CMP);
-    let entries: [(Field, Field); 3] = cut(hashmap.iter()).sort_via(PAIR_CMP);
+    let keys: [K; 3] = cut(hashmap.keys()).map(|k: Option<K>| k.unwrap_unchecked()).sort_via(K_CMP);
+    let values: [V; 3] = cut(hashmap.values()).map(|v: Option<V>| v.unwrap_unchecked()).sort_via(V_CMP);
+    let entries: [(K, V); 3] = cut(hashmap.entries()).map(|e: Option<(K, V)>| e.unwrap_unchecked()).sort_via(KV_CMP);
 
     assert(keys == [2, 5, 11], "Got incorrect iteration of keys.");
     assert(values == [3, 7, 13], "Got incorrect iteration of values.");
@@ -158,28 +165,28 @@ fn test_iterators() {
 
 // Test mutable Iter, Keys, Values.
 fn test_mut_iterators() {
-    let mut hashmap = allocate_hashmap();
+    let mut hashmap = ALLOCATE_HASHMAP();
 
     hashmap.insert(2, 3);
     hashmap.insert(5, 7);
     hashmap.insert(11, 13);
 
-    let f = |k: Field| -> Field{ k * 3};
-    hashmap.mut_keys(f);
+    let f = |k: K| -> K{ k * 3};
+    hashmap.iter_keys_mut(f);
 
-    let f = |v: Field| -> Field{ v * 5};
-    hashmap.mut_values(f);
+    let f = |v: V| -> V{ v * 5};
+    hashmap.iter_values_mut(f);
 
-    let keys: [Field; 3] = cut(hashmap.keys()).sort_via(FIELD_CMP);
-    let values: [Field; 3] = cut(hashmap.values()).sort_via(FIELD_CMP);
+    let keys: [K; 3] = cut(hashmap.keys()).map(|k: Option<K>| k.unwrap_unchecked()).sort_via(K_CMP);
+    let values: [V; 3] = cut(hashmap.values()).map(|v: Option<V>| v.unwrap_unchecked()).sort_via(V_CMP);
 
     assert(keys == [6, 15, 33], f"Got incorrect iteration of keys: {keys}");
     assert(values == [15, 35, 65], "Got incorrect iteration of values.");
 
-    let f = |k: Field, v: Field| -> (Field, Field){(k * 2, v * 2)};
+    let f = |k: K, v: V| -> (K, V){(k * 2, v * 2)};
     hashmap.iter_mut(f);
 
-    let entries: [(Field, Field); 3] = cut(hashmap.iter()).sort_via(PAIR_CMP);
+    let entries: [(K, V); 3] = cut(hashmap.entries()).map(|e: Option<(K, V)>| e.unwrap_unchecked()).sort_via(KV_CMP);
 
     assert(entries == [(12, 30), (30, 70), (66, 130)], "Got incorrect iteration of entries.");
 }
