@@ -554,6 +554,28 @@ jobs:
           name: "Test"
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_note_getter.test.ts
 
+  e2e-counter:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_counter_contract.test.ts
+
+  e2e-private-voting:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_private_voting_contract.test.ts
+
   e2e-multiple-accounts-1-enc-key:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1297,6 +1319,8 @@ workflows:
       - e2e-inclusion-proofs-contract: *e2e_test
       - e2e-pending-commitments-contract: *e2e_test
       - e2e-ordering: *e2e_test
+      - e2e-counter: *e2e_test
+      - e2e-private-voting: *e2e_test
       - uniswap-trade-on-l1-from-l2: *e2e_test
       - integration-l1-publisher: *e2e_test
       - integration-archiver-l1-to-l2: *e2e_test
@@ -1336,6 +1360,8 @@ workflows:
             - e2e-inclusion-proofs-contract
             - e2e-pending-commitments-contract
             - e2e-ordering
+            - e2e-counter
+            - e2e-private-voting
             - uniswap-trade-on-l1-from-l2
             - integration-l1-publisher
             - integration-archiver-l1-to-l2
