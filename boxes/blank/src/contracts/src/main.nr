@@ -1,31 +1,48 @@
 contract Blank {
     use dep::aztec::{
-        oracle::{
-            get_public_key::get_public_key,
+        protocol_types::address::AztecAddress,
+        state_vars::{singleton::Singleton, map::Map},
+        context::{PrivateContext, PublicContext, Context},
+        note::{
+            utils as note_utils,
+            note_interface::NoteInterface,
+            note_header::NoteHeader,
         },
-        protocol_types::address::AztecAddress
     };
 
-    #[aztec(private)]
-    fn constructor() {}
+    use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
 
+    struct Storage {
+        numbers: Map<AztecAddress, Singleton<ValueNote>>,
+    }
+    
     #[aztec(private)]
-    fn getPublicKey(address: AztecAddress) -> [Field; 2] {
-        let pub_key = get_public_key(address);
-
-        [pub_key.x, pub_key.y]
+    fn constructor(number: Field, owner: AztecAddress) {
+        let numbers = storage.numbers;
+        let mut new_number = ValueNote::new(number, owner);
+        numbers.at(owner).initialize(&mut new_number, true);
     }
 
-    // A function which needs to be implemented by every contract working with storage. Replace it's content with your
-    // own logic once you start working with private storage.
-    // TODO: Remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented.
+    #[aztec(private)]
+    fn setNumber(number: Field, owner: AztecAddress) {
+        let numbers = storage.numbers;
+        let mut new_number = ValueNote::new(number, owner);
+        numbers.at(owner).replace(&mut new_number, true);
+    }
+
+    unconstrained fn getNumber(owner: AztecAddress) -> pub ValueNote {
+        let numbers = storage.numbers;
+        numbers.at(owner).view_note()
+    }
+
     unconstrained fn compute_note_hash_and_nullifier(
         contract_address: AztecAddress,
         nonce: Field,
         storage_slot: Field,
         note_type_id: Field,
-        serialized_note: [Field; 0]
+        serialized_note: [Field; VALUE_NOTE_LEN]
     ) -> pub [Field; 4] {
-        [0, 0, 0, 0]
+        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+        note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
     }
 }
