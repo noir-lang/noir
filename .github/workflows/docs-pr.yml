@@ -116,7 +116,7 @@ jobs:
         timeout-minutes: 1
 
   add_comment:
-    needs: [deploy_preview]
+    # needs: [deploy_preview]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
