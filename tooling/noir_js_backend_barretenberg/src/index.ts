@@ -6,7 +6,7 @@ import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inpu
 import { type Barretenberg } from '@aztec/bb.js';
 
 export { publicInputsToWitnessMap } from './public_inputs.js';
-import { cpus } from "os";
+import { cpus } from 'os';
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
