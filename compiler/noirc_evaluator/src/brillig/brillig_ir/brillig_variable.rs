@@ -93,7 +93,7 @@ impl BrilligVariable {
         }
     }
 
-    pub(crate) fn to_register_or_memory(self) -> ValueOrArray {
+    pub(crate) fn to_value_or_array(self) -> ValueOrArray {
         match self {
             BrilligVariable::SingleAddr(single_addr) => {
                 ValueOrArray::MemoryAddress(single_addr.address)

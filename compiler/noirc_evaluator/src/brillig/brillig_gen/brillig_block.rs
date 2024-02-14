@@ -351,14 +351,14 @@ impl<'block> BrilligBlock<'block> {
                     let result_ids = dfg.instruction_results(instruction_id);
 
                     let input_registers = vecmap(arguments, |value_id| {
-                        self.convert_ssa_value(*value_id, dfg).to_register_or_memory()
+                        self.convert_ssa_value(*value_id, dfg).to_value_or_array()
                     });
                     let input_value_types = vecmap(arguments, |value_id| {
                         let value_type = dfg.type_of_value(*value_id);
                         type_to_heap_value_type(&value_type)
                     });
                     let output_registers = vecmap(result_ids, |value_id| {
-                        self.allocate_external_call_result(*value_id, dfg).to_register_or_memory()
+                        self.allocate_external_call_result(*value_id, dfg).to_value_or_array()
                     });
                     let output_value_types = vecmap(result_ids, |value_id| {
                         let value_type = dfg.type_of_value(*value_id);
