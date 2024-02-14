@@ -1712,7 +1712,8 @@ impl Context {
 
                 let value_types = new_slice_val.flat_numeric_types();
                 assert_eq!(
-                    value_types.len(), new_elem_size,
+                    value_types.len(),
+                    new_elem_size,
                     "ICE: Value types array must match new slice size"
                 );
 
@@ -1775,7 +1776,8 @@ impl Context {
 
                 let value_types = new_slice_val.flat_numeric_types();
                 assert_eq!(
-                    value_types.len(), new_slice_size,
+                    value_types.len(),
+                    new_slice_size,
                     "ICE: Value types array must match new slice size"
                 );
 
@@ -1988,7 +1990,8 @@ impl Context {
 
                 let value_types = slice.flat_numeric_types();
                 assert_eq!(
-                    value_types.len(), slice_size,
+                    value_types.len(),
+                    slice_size,
                     "ICE: Value types array must match new slice size"
                 );
 
@@ -2112,7 +2115,8 @@ impl Context {
 
                 let value_types = new_slice_val.flat_numeric_types();
                 assert_eq!(
-                    value_types.len(), slice_size,
+                    value_types.len(),
+                    slice_size,
                     "ICE: Value types array must match new slice size"
                 );
 
