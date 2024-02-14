@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::ssa::ir::types::Type;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+pub(crate) struct SimpleVariable {
+    pub(crate) address: MemoryAddress,
+    pub(crate) bit_size: u32,
+}
+
 /// The representation of a noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligArray {
@@ -52,15 +58,15 @@ impl BrilligVector {
 /// The representation of a noir value in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) enum BrilligVariable {
-    Simple(MemoryAddress),
+    Simple(SimpleVariable),
     BrilligArray(BrilligArray),
     BrilligVector(BrilligVector),
 }
 
 impl BrilligVariable {
-    pub(crate) fn extract_register(self) -> MemoryAddress {
+    pub(crate) fn extract_simple(self) -> SimpleVariable {
         match self {
-            BrilligVariable::Simple(register_index) => register_index,
+            BrilligVariable::Simple(simple) => simple,
             _ => unreachable!("ICE: Expected register, got {self:?}"),
         }
     }
@@ -81,7 +87,7 @@ impl BrilligVariable {
 
     pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
         match self {
-            BrilligVariable::Simple(register_index) => vec![register_index],
+            BrilligVariable::Simple(simple) => vec![simple.address],
             BrilligVariable::BrilligArray(array) => array.extract_registers(),
             BrilligVariable::BrilligVector(vector) => vector.extract_registers(),
         }
@@ -89,7 +95,7 @@ impl BrilligVariable {
 
     pub(crate) fn to_register_or_memory(self) -> ValueOrArray {
         match self {
-            BrilligVariable::Simple(register_index) => ValueOrArray::MemoryAddress(register_index),
+            BrilligVariable::Simple(simple) => ValueOrArray::MemoryAddress(simple.address),
             BrilligVariable::BrilligArray(array) => ValueOrArray::HeapArray(array.to_heap_array()),
             BrilligVariable::BrilligVector(vector) => {
                 ValueOrArray::HeapVector(vector.to_heap_vector())

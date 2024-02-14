@@ -61,7 +61,7 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 let mut message_vector = convert_array_or_vector(brillig_context, message, bb_func);
-                message_vector.size = *array_size;
+                message_vector.size = array_size.address;
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Keccak256 {
                     message: message_vector.to_heap_vector(),
@@ -98,7 +98,7 @@ pub(crate) fn convert_black_box_call(
                     public_key_x: public_key_x.to_heap_array(),
                     public_key_y: public_key_y.to_heap_array(),
                     signature: signature.to_heap_array(),
-                    result: *result_register,
+                    result: result_register.address,
                 });
             } else {
                 unreachable!(
@@ -119,7 +119,7 @@ pub(crate) fn convert_black_box_call(
                     public_key_x: public_key_x.to_heap_array(),
                     public_key_y: public_key_y.to_heap_array(),
                     signature: signature.to_heap_array(),
-                    result: *result_register,
+                    result: result_register.address,
                 });
             } else {
                 unreachable!(
@@ -137,7 +137,7 @@ pub(crate) fn convert_black_box_call(
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::PedersenCommitment {
                     inputs: message_vector.to_heap_vector(),
-                    domain_separator: *domain_separator,
+                    domain_separator: domain_separator.address,
                     output: result_array.to_heap_array(),
                 });
             } else {
@@ -153,8 +153,8 @@ pub(crate) fn convert_black_box_call(
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::PedersenHash {
                     inputs: message_vector.to_heap_vector(),
-                    domain_separator: *domain_separator,
-                    output: *result,
+                    domain_separator: domain_separator.address,
+                    output: result.address,
                 });
             } else {
                 unreachable!("ICE: Pedersen hash expects one array argument, a register for the domain separator, and one register result")
@@ -169,11 +169,11 @@ pub(crate) fn convert_black_box_call(
                 let message_hash = convert_array_or_vector(brillig_context, message, bb_func);
                 let signature = brillig_context.array_to_vector(signature);
                 brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
-                    public_key_x: *public_key_x,
-                    public_key_y: *public_key_y,
+                    public_key_x: public_key_x.address,
+                    public_key_y: public_key_y.address,
                     message: message_hash.to_heap_vector(),
                     signature: signature.to_heap_vector(),
-                    result: *result_register,
+                    result: result_register.address,
                 });
             } else {
                 unreachable!("ICE: Schnorr verify expects two registers for the public key, an array for signature, an array for the message hash and one result register")
@@ -186,8 +186,8 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::FixedBaseScalarMul {
-                    low: *low,
-                    high: *high,
+                    low: low.address,
+                    high: high.address,
                     result: result_array.to_heap_array(),
                 });
             } else {
@@ -203,10 +203,10 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveAdd {
-                    input1_x: *input1_x,
-                    input1_y: *input1_y,
-                    input2_x: *input2_x,
-                    input2_y: *input2_y,
+                    input1_x: input1_x.address,
+                    input1_y: input1_y.address,
+                    input2_x: input2_x.address,
+                    input2_y: input2_y.address,
                     result: result_array.to_heap_array(),
                 });
             } else {
@@ -234,9 +234,9 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntAdd {
-                    lhs: *lhs,
-                    rhs: *rhs,
-                    output: *output,
+                    lhs: lhs.address,
+                    rhs: rhs.address,
+                    output: output.address,
                 });
             } else {
                 unreachable!(
@@ -251,9 +251,9 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntSub {
-                    lhs: *lhs,
-                    rhs: *rhs,
-                    output: *output,
+                    lhs: lhs.address,
+                    rhs: rhs.address,
+                    output: output.address,
                 });
             } else {
                 unreachable!(
@@ -268,9 +268,9 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntMul {
-                    lhs: *lhs,
-                    rhs: *rhs,
-                    output: *output,
+                    lhs: lhs.address,
+                    rhs: rhs.address,
+                    output: output.address,
                 });
             } else {
                 unreachable!(
@@ -285,9 +285,9 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntDiv {
-                    lhs: *lhs,
-                    rhs: *rhs,
-                    output: *output,
+                    lhs: lhs.address,
+                    rhs: rhs.address,
+                    output: output.address,
                 });
             } else {
                 unreachable!(
@@ -304,7 +304,7 @@ pub(crate) fn convert_black_box_call(
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntFromLeBytes {
                     inputs: inputs_vector.to_heap_vector(),
                     modulus: modulus_vector.to_heap_vector(),
-                    output: *output,
+                    output: output.address,
                 });
             } else {
                 unreachable!(
@@ -319,7 +319,7 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntToLeBytes {
-                    input: *input,
+                    input: input.address,
                     output: result_vector.to_heap_vector(),
                 });
             } else {
@@ -338,7 +338,7 @@ pub(crate) fn convert_black_box_call(
                 brillig_context.black_box_op_instruction(BlackBoxOp::Poseidon2Permutation {
                     message: message_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
-                    len: *state_len,
+                    len: state_len.address,
                 });
             } else {
                 unreachable!("ICE: Poseidon2Permutation expects one array argument, a length and one array result")

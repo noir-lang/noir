@@ -1,6 +1,6 @@
 use super::{
     artifact::{BrilligArtifact, BrilligParameter},
-    brillig_variable::{BrilligArray, BrilligVariable},
+    brillig_variable::{BrilligArray, BrilligVariable, SimpleVariable},
     debug_show::DebugShow,
     registers::BrilligRegistersContext,
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -63,9 +63,12 @@ impl BrilligContext {
         let mut argument_variables: Vec<_> = arguments
             .iter()
             .map(|argument| match argument {
-                BrilligParameter::Simple(_) => {
+                BrilligParameter::Simple(bit_size) => {
                     let simple_address = self.allocate_register();
-                    let var = BrilligVariable::Simple(simple_address);
+                    let var = BrilligVariable::Simple(SimpleVariable {
+                        address: simple_address,
+                        bit_size: *bit_size,
+                    });
                     self.mov_instruction(simple_address, MemoryAddress(current_calldata_pointer));
                     current_calldata_pointer += 1;
                     var
@@ -279,7 +282,10 @@ impl BrilligContext {
         let returned_variables: Vec<_> = return_parameters
             .iter()
             .map(|return_parameter| match return_parameter {
-                BrilligParameter::Simple(_) => BrilligVariable::Simple(self.allocate_register()),
+                BrilligParameter::Simple(bit_size) => BrilligVariable::Simple(SimpleVariable {
+                    address: self.allocate_register(),
+                    bit_size: *bit_size,
+                }),
                 BrilligParameter::Array(item_types, item_count) => {
                     BrilligVariable::BrilligArray(BrilligArray {
                         pointer: self.allocate_register(),
@@ -304,7 +310,7 @@ impl BrilligContext {
                 BrilligParameter::Simple(_) => {
                     self.mov_instruction(
                         MemoryAddress(return_data_index),
-                        returned_variable.extract_register(),
+                        returned_variable.extract_simple().address,
                     );
                     return_data_index += 1;
                 }

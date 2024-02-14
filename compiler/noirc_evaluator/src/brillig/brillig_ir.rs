@@ -15,7 +15,7 @@ use crate::ssa::ir::dfg::CallStack;
 
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
-    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector},
+    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SimpleVariable},
     registers::BrilligRegistersContext,
 };
 use acvm::{
@@ -27,6 +27,7 @@ use acvm::{
     FieldElement,
 };
 use debug_show::DebugShow;
+use num_bigint::BigUint;
 
 /// Integer arithmetic in Brillig is limited to 127 bit
 /// integers.
@@ -626,8 +627,8 @@ impl BrilligContext {
         variable_pointer: MemoryAddress,
     ) {
         match destination {
-            BrilligVariable::Simple(register_index) => {
-                self.load_instruction(register_index, variable_pointer);
+            BrilligVariable::Simple(simple) => {
+                self.load_instruction(simple.address, variable_pointer);
             }
             BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.load_instruction(pointer, variable_pointer);
@@ -676,8 +677,8 @@ impl BrilligContext {
         source: BrilligVariable,
     ) {
         match source {
-            BrilligVariable::Simple(register_index) => {
-                self.store_instruction(variable_pointer, register_index);
+            BrilligVariable::Simple(simple) => {
+                self.store_instruction(variable_pointer, simple.address);
             }
             BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
@@ -717,31 +718,36 @@ impl BrilligContext {
     /// For Brillig, all integer operations will overflow as its cheap.
     pub(crate) fn truncate_instruction(
         &mut self,
-        destination_of_truncated_value: MemoryAddress,
-        value_to_truncate: MemoryAddress,
+        destination_of_truncated_value: SimpleVariable,
+        value_to_truncate: SimpleVariable,
         bit_size: u32,
     ) {
         self.debug_show.truncate_instruction(
-            destination_of_truncated_value,
-            value_to_truncate,
+            destination_of_truncated_value.address,
+            value_to_truncate.address,
             bit_size,
         );
         assert!(
-            bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-            "tried to truncate to a bit size greater than allowed {bit_size}"
+            bit_size <= value_to_truncate.bit_size,
+            "tried to truncate to a bit size {} greater than the variable size {}",
+            bit_size,
+            value_to_truncate.bit_size
         );
 
-        // The brillig VM performs all arithmetic operations modulo 2**bit_size
-        // So to truncate any value to a target bit size we can just issue a no-op arithmetic operation
-        // With bit size equal to target_bit_size
-        let zero_register = self.make_constant(Value::from(FieldElement::zero()), bit_size);
-        self.binary_instruction(
-            value_to_truncate,
-            zero_register,
-            destination_of_truncated_value,
-            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size },
+        let mask = BigUint::from(2_u32).pow(bit_size) - BigUint::from(1_u32);
+        let mask_constant = self.make_constant(
+            FieldElement::from_be_bytes_reduce(&mask.to_bytes_be()).into(),
+            value_to_truncate.bit_size,
         );
-        self.deallocate_register(zero_register);
+
+        self.binary_instruction(
+            value_to_truncate.address,
+            mask_constant,
+            destination_of_truncated_value.address,
+            BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: value_to_truncate.bit_size },
+        );
+
+        self.deallocate_register(mask_constant);
     }
 
     /// Emits a stop instruction
