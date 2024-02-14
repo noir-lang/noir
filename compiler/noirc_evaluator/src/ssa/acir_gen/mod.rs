@@ -1027,7 +1027,7 @@ impl Context {
 
         let value_types = self.convert_value(array_id, dfg).flat_numeric_types();
         // Compiler sanity check
-        assert!(value_types.len() == array_len, "ICE: The length of the flattened type array should match the length of the dynamic array");
+        assert_eq!(value_types.len(), array_len, "ICE: The length of the flattened type array should match the length of the dynamic array");
 
         let result_value = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
