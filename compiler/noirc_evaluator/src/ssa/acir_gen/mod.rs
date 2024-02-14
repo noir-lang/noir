@@ -1151,7 +1151,7 @@ impl Context {
                             }) => {
                                 if let Some(inner_elem_type_sizes) = inner_elem_type_sizes {
                                     if self.initialized_arrays.contains(inner_elem_type_sizes) {
-                                        let type_sizes_array_len = self.internal_mem_block_lengths.get(inner_elem_type_sizes).copied().ok_or_else(||
+                                        let type_sizes_array_len = *self.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
                                             InternalError::General {
                                                 message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
                                                 call_stack: self.acir_context.get_call_stack(),
@@ -1711,8 +1711,8 @@ impl Context {
                 };
 
                 let value_types = new_slice_val.flat_numeric_types();
-                assert!(
-                    value_types.len() == new_elem_size,
+                assert_eq!(
+                    value_types.len(), new_elem_size,
                     "ICE: Value types array must match new slice size"
                 );
 
@@ -1774,8 +1774,8 @@ impl Context {
                 };
 
                 let value_types = new_slice_val.flat_numeric_types();
-                assert!(
-                    value_types.len() == new_slice_size,
+                assert_eq!(
+                    value_types.len(), new_slice_size,
                     "ICE: Value types array must match new slice size"
                 );
 
@@ -1987,8 +1987,8 @@ impl Context {
                 };
 
                 let value_types = slice.flat_numeric_types();
-                assert!(
-                    value_types.len() == slice_size,
+                assert_eq!(
+                    value_types.len(), slice_size,
                     "ICE: Value types array must match new slice size"
                 );
 
@@ -2111,8 +2111,8 @@ impl Context {
                 };
 
                 let value_types = new_slice_val.flat_numeric_types();
-                assert!(
-                    value_types.len() == slice_size,
+                assert_eq!(
+                    value_types.len(), slice_size,
                     "ICE: Value types array must match new slice size"
                 );
 
