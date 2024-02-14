@@ -510,6 +510,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-blank-react
 
+  boxes-token:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-token
+
   end-to-end:
     machine:
       image: ubuntu-2204:2023.07.2
@@ -1284,6 +1295,10 @@ workflows:
           requires:
             - boxes
           <<: *defaults
+      - boxes-token:
+          requires:
+            - boxes
+          <<: *defaults
 
       # End to end tests.
       - e2e-join:
@@ -1370,6 +1385,7 @@ workflows:
             - pxe
             - boxes-blank
             - boxes-blank-react
+            - boxes-token
             - cli-docs-sandbox
             - guides-writing-an-account-contract
             - guides-dapp-testing
