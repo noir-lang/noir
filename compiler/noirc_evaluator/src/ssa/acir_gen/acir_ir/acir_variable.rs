@@ -67,6 +67,13 @@ impl AcirType {
     pub(crate) fn unsigned(bit_size: u32) -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size })
     }
+
+    pub(crate) fn to_numeric_type(&self) -> NumericType {
+        match self {
+            AcirType::NumericType(numeric_type) => *numeric_type,
+            AcirType::Array(_, _) => unreachable!("cannot fetch a numeric type for an array type"),
+        }
+    }
 }
 
 impl From<SsaType> for AcirType {
@@ -85,6 +92,12 @@ impl<'a> From<&'a SsaType> for AcirType {
             }
             _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }
+    }
+}
+
+impl From<NumericType> for AcirType {
+    fn from(value: NumericType) -> Self {
+        AcirType::NumericType(value)
     }
 }
 
@@ -1415,13 +1428,13 @@ impl AcirContext {
                 }
                 Ok(values)
             }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
                 try_vecmap(0..len, |i| {
                     let index_var = self.add_constant(i);
 
                     Ok::<(AcirVar, AcirType), InternalError>((
                         self.read_from_memory(block_id, &index_var)?,
-                        AcirType::field(),
+                        value_types[i].into(),
                     ))
                 })
             }
