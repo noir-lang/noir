@@ -2,7 +2,7 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     brillig::brillig_ir::{
-        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SimpleVariable},
+        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
         BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     },
     ssa::ir::{
@@ -70,15 +70,15 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(crate) fn define_simple_variable(
+    pub(crate) fn define_single_addr_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext,
         value: ValueId,
         dfg: &DataFlowGraph,
-    ) -> SimpleVariable {
+    ) -> SingleAddrVariable {
         let variable = self.define_variable(function_context, brillig_context, value, dfg);
-        variable.extract_simple()
+        variable.extract_single_addr()
     }
 
     /// Removes a variable so it's not used anymore within this block.
@@ -189,11 +189,11 @@ pub(crate) fn allocate_value(
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(numeric_type) => BrilligVariable::Simple(SimpleVariable {
+        Type::Numeric(numeric_type) => BrilligVariable::SingleAddr(SingleAddrVariable {
             address: brillig_context.allocate_register(),
             bit_size: numeric_type.bit_size(),
         }),
-        Type::Reference(_) => BrilligVariable::Simple(SimpleVariable {
+        Type::Reference(_) => BrilligVariable::SingleAddr(SingleAddrVariable {
             address: brillig_context.allocate_register(),
             bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
         }),
@@ -201,7 +201,7 @@ pub(crate) fn allocate_value(
             // NB. function references are converted to a constant when
             // translating from SSA to Brillig (to allow for debugger
             // instrumentation to work properly)
-            BrilligVariable::Simple(SimpleVariable {
+            BrilligVariable::SingleAddr(SingleAddrVariable {
                 address: brillig_context.allocate_register(),
                 bit_size: 32,
             })

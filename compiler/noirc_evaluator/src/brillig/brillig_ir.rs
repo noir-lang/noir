@@ -15,7 +15,7 @@ use crate::ssa::ir::dfg::CallStack;
 
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
-    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SimpleVariable},
+    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     registers::BrilligRegistersContext,
 };
 use acvm::{
@@ -190,7 +190,7 @@ impl BrilligContext {
         self.deallocate_register(size_register);
     }
 
-    pub(crate) fn allocate_simple_reference_instruction(
+    pub(crate) fn allocate_single_addr_reference_instruction(
         &mut self,
         pointer_register: MemoryAddress,
     ) {
@@ -297,7 +297,7 @@ impl BrilligContext {
 
         // Check if iterator < iteration_count
         let iterator_less_than_iterations =
-            SimpleVariable { address: self.allocate_register(), bit_size: 1 };
+            SingleAddrVariable { address: self.allocate_register(), bit_size: 1 };
 
         self.memory_op(
             iterator_register,
@@ -509,7 +509,11 @@ impl BrilligContext {
     }
 
     /// Cast truncates the value to the given bit size and converts the type of the value in memory to that bit size.
-    pub(crate) fn cast_instruction(&mut self, destination: SimpleVariable, source: SimpleVariable) {
+    pub(crate) fn cast_instruction(
+        &mut self,
+        destination: SingleAddrVariable,
+        source: SingleAddrVariable,
+    ) {
         self.debug_show.cast_instruction(destination.address, source.address, destination.bit_size);
         self.push_opcode(BrilligOpcode::Cast {
             destination: destination.address,
@@ -565,7 +569,11 @@ impl BrilligContext {
     ///
     /// Not is computed using a subtraction operation as there is no native not instruction
     /// in Brillig.
-    pub(crate) fn not_instruction(&mut self, input: SimpleVariable, result: SimpleVariable) {
+    pub(crate) fn not_instruction(
+        &mut self,
+        input: SingleAddrVariable,
+        result: SingleAddrVariable,
+    ) {
         self.debug_show.not_instruction(input.address, input.bit_size, result.address);
         // Compile !x as ((-1) - x)
         let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(input.bit_size as i128))
@@ -624,8 +632,8 @@ impl BrilligContext {
         variable_pointer: MemoryAddress,
     ) {
         match destination {
-            BrilligVariable::Simple(simple) => {
-                self.load_instruction(simple.address, variable_pointer);
+            BrilligVariable::SingleAddr(single_addr) => {
+                self.load_instruction(single_addr.address, variable_pointer);
             }
             BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.load_instruction(pointer, variable_pointer);
@@ -674,8 +682,8 @@ impl BrilligContext {
         source: BrilligVariable,
     ) {
         match source {
-            BrilligVariable::Simple(simple) => {
-                self.store_instruction(variable_pointer, simple.address);
+            BrilligVariable::SingleAddr(single_addr) => {
+                self.store_instruction(variable_pointer, single_addr.address);
             }
             BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
@@ -715,8 +723,8 @@ impl BrilligContext {
     /// For Brillig, all integer operations will overflow as its cheap.
     pub(crate) fn truncate_instruction(
         &mut self,
-        destination_of_truncated_value: SimpleVariable,
-        value_to_truncate: SimpleVariable,
+        destination_of_truncated_value: SingleAddrVariable,
+        value_to_truncate: SingleAddrVariable,
         bit_size: u32,
     ) {
         self.debug_show.truncate_instruction(

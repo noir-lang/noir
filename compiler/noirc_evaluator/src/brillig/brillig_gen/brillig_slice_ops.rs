@@ -334,7 +334,7 @@ mod tests {
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::BrilligParameter;
     use crate::brillig::brillig_ir::brillig_variable::{
-        BrilligArray, BrilligVariable, BrilligVector, SimpleVariable,
+        BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
     };
     use crate::brillig::brillig_ir::tests::{
         create_and_run_vm, create_context, create_entry_point_bytecode,
@@ -379,13 +379,13 @@ mod tests {
         ) {
             let arguments = vec![
                 BrilligParameter::Array(
-                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
-                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let returns = vec![BrilligParameter::Array(
-                vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                 array.len() + 1,
             )];
 
@@ -397,7 +397,7 @@ mod tests {
                 size: array.len(),
                 rc: context.allocate_register(),
             };
-            let item_to_insert = SimpleVariable {
+            let item_to_insert = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             };
@@ -418,13 +418,13 @@ mod tests {
                 block.slice_push_back_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(item_to_insert)],
+                    &[BrilligVariable::SingleAddr(item_to_insert)],
                 );
             } else {
                 block.slice_push_front_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(item_to_insert)],
+                    &[BrilligVariable::SingleAddr(item_to_insert)],
                 );
             }
 
@@ -475,15 +475,15 @@ mod tests {
             expected_return_item: Value,
         ) {
             let arguments = vec![BrilligParameter::Array(
-                vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                 array.len(),
             )];
             let returns = vec![
                 BrilligParameter::Array(
-                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len() - 1,
                 ),
-                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
 
             let (_, mut function_context, mut context) = create_test_environment();
@@ -504,7 +504,7 @@ mod tests {
                 size: context.allocate_register(),
                 rc: context.allocate_register(),
             };
-            let removed_item = SimpleVariable {
+            let removed_item = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             };
@@ -515,13 +515,13 @@ mod tests {
                 block.slice_pop_back_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(removed_item)],
+                    &[BrilligVariable::SingleAddr(removed_item)],
                 );
             } else {
                 block.slice_pop_front_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(removed_item)],
+                    &[BrilligVariable::SingleAddr(removed_item)],
                 );
             }
 
@@ -569,14 +569,14 @@ mod tests {
         ) {
             let arguments = vec![
                 BrilligParameter::Array(
-                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
-                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let returns = vec![BrilligParameter::Array(
-                vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                 array.len() + 1,
             )];
 
@@ -588,7 +588,7 @@ mod tests {
                 size: array.len(),
                 rc: context.allocate_register(),
             };
-            let item_to_insert = SimpleVariable {
+            let item_to_insert = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             };
@@ -610,7 +610,7 @@ mod tests {
                 target_vector,
                 source_vector,
                 index_to_insert,
-                &[BrilligVariable::Simple(item_to_insert)],
+                &[BrilligVariable::SingleAddr(item_to_insert)],
             );
 
             context.return_instruction(&[target_vector.pointer, target_vector.rc]);
@@ -689,17 +689,17 @@ mod tests {
         ) {
             let arguments = vec![
                 BrilligParameter::Array(
-                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len(),
                 ),
-                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let returns = vec![
                 BrilligParameter::Array(
-                    vec![BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
                     array.len() - 1,
                 ),
-                BrilligParameter::Simple(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
 
             let (_, mut function_context, mut context) = create_test_environment();
@@ -721,7 +721,7 @@ mod tests {
                 size: context.allocate_register(),
                 rc: context.allocate_register(),
             };
-            let removed_item = SimpleVariable {
+            let removed_item = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             };
@@ -732,7 +732,7 @@ mod tests {
                 target_vector,
                 source_vector,
                 index_to_insert,
-                &[BrilligVariable::Simple(removed_item)],
+                &[BrilligVariable::SingleAddr(removed_item)],
             );
 
             context.return_instruction(&[

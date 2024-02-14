@@ -56,7 +56,7 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Keccak256 => {
             if let (
-                [message, BrilligVariable::Simple(array_size)],
+                [message, BrilligVariable::SingleAddr(array_size)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
@@ -88,7 +88,7 @@ pub(crate) fn convert_black_box_call(
         BlackBoxFunc::EcdsaSecp256k1 => {
             if let (
                 [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
-                [BrilligVariable::Simple(result_register)],
+                [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
                 let message_hash_vector =
@@ -109,7 +109,7 @@ pub(crate) fn convert_black_box_call(
         BlackBoxFunc::EcdsaSecp256r1 => {
             if let (
                 [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
-                [BrilligVariable::Simple(result_register)],
+                [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
                 let message_hash_vector =
@@ -130,7 +130,7 @@ pub(crate) fn convert_black_box_call(
 
         BlackBoxFunc::PedersenCommitment => {
             if let (
-                [message, BrilligVariable::Simple(domain_separator)],
+                [message, BrilligVariable::SingleAddr(domain_separator)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
@@ -146,8 +146,8 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::PedersenHash => {
             if let (
-                [message, BrilligVariable::Simple(domain_separator)],
-                [BrilligVariable::Simple(result)],
+                [message, BrilligVariable::SingleAddr(domain_separator)],
+                [BrilligVariable::SingleAddr(result)],
             ) = (function_arguments, function_results)
             {
                 let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
@@ -162,8 +162,8 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::SchnorrVerify => {
             if let (
-                [BrilligVariable::Simple(public_key_x), BrilligVariable::Simple(public_key_y), BrilligVariable::BrilligArray(signature), message],
-                [BrilligVariable::Simple(result_register)],
+                [BrilligVariable::SingleAddr(public_key_x), BrilligVariable::SingleAddr(public_key_y), BrilligVariable::BrilligArray(signature), message],
+                [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
                 let message_hash = convert_array_or_vector(brillig_context, message, bb_func);
@@ -181,7 +181,7 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::FixedBaseScalarMul => {
             if let (
-                [BrilligVariable::Simple(low), BrilligVariable::Simple(high)],
+                [BrilligVariable::SingleAddr(low), BrilligVariable::SingleAddr(high)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
@@ -198,7 +198,7 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::EmbeddedCurveAdd => {
             if let (
-                [BrilligVariable::Simple(input1_x), BrilligVariable::Simple(input1_y), BrilligVariable::Simple(input2_x), BrilligVariable::Simple(input2_y)],
+                [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
@@ -229,8 +229,8 @@ pub(crate) fn convert_black_box_call(
         ),
         BlackBoxFunc::BigIntAdd => {
             if let (
-                [BrilligVariable::Simple(lhs), BrilligVariable::Simple(rhs)],
-                [BrilligVariable::Simple(output)],
+                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(rhs)],
+                [BrilligVariable::SingleAddr(output)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntAdd {
@@ -246,8 +246,8 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::BigIntSub => {
             if let (
-                [BrilligVariable::Simple(lhs), BrilligVariable::Simple(rhs)],
-                [BrilligVariable::Simple(output)],
+                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(rhs)],
+                [BrilligVariable::SingleAddr(output)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntSub {
@@ -263,8 +263,8 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::BigIntMul => {
             if let (
-                [BrilligVariable::Simple(lhs), BrilligVariable::Simple(rhs)],
-                [BrilligVariable::Simple(output)],
+                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(rhs)],
+                [BrilligVariable::SingleAddr(output)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntMul {
@@ -280,8 +280,8 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::BigIntDiv => {
             if let (
-                [BrilligVariable::Simple(lhs), BrilligVariable::Simple(rhs)],
-                [BrilligVariable::Simple(output)],
+                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(rhs)],
+                [BrilligVariable::SingleAddr(output)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntDiv {
@@ -296,7 +296,7 @@ pub(crate) fn convert_black_box_call(
             }
         }
         BlackBoxFunc::BigIntFromLeBytes => {
-            if let ([inputs, modulus], [BrilligVariable::Simple(output)]) =
+            if let ([inputs, modulus], [BrilligVariable::SingleAddr(output)]) =
                 (function_arguments, function_results)
             {
                 let inputs_vector = convert_array_or_vector(brillig_context, inputs, bb_func);
@@ -314,7 +314,7 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::BigIntToLeBytes => {
             if let (
-                [BrilligVariable::Simple(input)],
+                [BrilligVariable::SingleAddr(input)],
                 [BrilligVariable::BrilligVector(result_vector)],
             ) = (function_arguments, function_results)
             {
@@ -330,7 +330,7 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Poseidon2Permutation => {
             if let (
-                [message, BrilligVariable::Simple(state_len)],
+                [message, BrilligVariable::SingleAddr(state_len)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {

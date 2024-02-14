@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::ssa::ir::types::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
-pub(crate) struct SimpleVariable {
+pub(crate) struct SingleAddrVariable {
     pub(crate) address: MemoryAddress,
     pub(crate) bit_size: u32,
 }
@@ -58,15 +58,15 @@ impl BrilligVector {
 /// The representation of a noir value in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) enum BrilligVariable {
-    Simple(SimpleVariable),
+    SingleAddr(SingleAddrVariable),
     BrilligArray(BrilligArray),
     BrilligVector(BrilligVector),
 }
 
 impl BrilligVariable {
-    pub(crate) fn extract_simple(self) -> SimpleVariable {
+    pub(crate) fn extract_single_addr(self) -> SingleAddrVariable {
         match self {
-            BrilligVariable::Simple(simple) => simple,
+            BrilligVariable::SingleAddr(single_addr) => single_addr,
             _ => unreachable!("ICE: Expected register, got {self:?}"),
         }
     }
@@ -87,7 +87,7 @@ impl BrilligVariable {
 
     pub(crate) fn extract_registers(self) -> Vec<MemoryAddress> {
         match self {
-            BrilligVariable::Simple(simple) => vec![simple.address],
+            BrilligVariable::SingleAddr(single_addr) => vec![single_addr.address],
             BrilligVariable::BrilligArray(array) => array.extract_registers(),
             BrilligVariable::BrilligVector(vector) => vector.extract_registers(),
         }
@@ -95,7 +95,9 @@ impl BrilligVariable {
 
     pub(crate) fn to_register_or_memory(self) -> ValueOrArray {
         match self {
-            BrilligVariable::Simple(simple) => ValueOrArray::MemoryAddress(simple.address),
+            BrilligVariable::SingleAddr(single_addr) => {
+                ValueOrArray::MemoryAddress(single_addr.address)
+            }
             BrilligVariable::BrilligArray(array) => ValueOrArray::HeapArray(array.to_heap_array()),
             BrilligVariable::BrilligVector(vector) => {
                 ValueOrArray::HeapVector(vector.to_heap_vector())
