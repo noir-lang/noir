@@ -522,7 +522,7 @@ TEST_F(AvmArithmeticTestsFF, nonEquality)
     FF elem = FF::modulus - FF(1);
     trace_builder.calldata_copy(0, 3, 0, std::vector<FF>{ elem, elem + FF(1), 0 });
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q, 1,0..]
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, elem, FF(0), FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::FF);
@@ -684,7 +684,7 @@ TEST_F(AvmArithmeticTestsU8, equality)
     trace_builder.set(128, 0, AvmMemoryTag::U8);
     trace_builder.set(128, 1, AvmMemoryTag::U8);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U8); // Memory layout: [128,128,1,0,..,0]
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, FF(128), FF(128), FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -701,7 +701,7 @@ TEST_F(AvmArithmeticTestsU8, nonEquality)
     trace_builder.set(84, 0, AvmMemoryTag::U8);
     trace_builder.set(200, 1, AvmMemoryTag::U8);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U8); // Memory layout: [84,200,0,0,..,0]
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, 84, 200, FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -870,7 +870,7 @@ TEST_F(AvmArithmeticTestsU16, equality)
     trace_builder.set(35823, 0, AvmMemoryTag::U16);
     trace_builder.set(35823, 1, AvmMemoryTag::U16);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, FF(35823), FF(35823), FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::U16);
@@ -887,7 +887,7 @@ TEST_F(AvmArithmeticTestsU16, nonEquality)
     trace_builder.set(35'823, 0, AvmMemoryTag::U16);
     trace_builder.set(50'123, 1, AvmMemoryTag::U16);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, 35'823, 50'123, FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::U16);
@@ -1069,7 +1069,7 @@ TEST_F(AvmArithmeticTestsU32, equality)
     trace_builder.set(0xb435e9c1, 0, AvmMemoryTag::U32);
     trace_builder.set(0xb435e9c1, 1, AvmMemoryTag::U32);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index =
@@ -1087,7 +1087,7 @@ TEST_F(AvmArithmeticTestsU32, nonEquality)
     trace_builder.set(0xb435e9c1, 0, AvmMemoryTag::U32);
     trace_builder.set(0xb435e9c0, 1, AvmMemoryTag::U32);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index =
@@ -1294,7 +1294,7 @@ TEST_F(AvmArithmeticTestsU64, equality)
     trace_builder.set(0xffffffffffffffe0LLU, 0, AvmMemoryTag::U64);
     trace_builder.set(0xffffffffffffffe0LLU, 1, AvmMemoryTag::U64);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(
@@ -1312,7 +1312,7 @@ TEST_F(AvmArithmeticTestsU64, nonEquality)
     trace_builder.set(0xffffffffffffffe0LLU, 0, AvmMemoryTag::U64);
     trace_builder.set(0xffffffffffaeffe0LLU, 1, AvmMemoryTag::U64);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(
@@ -1589,7 +1589,7 @@ TEST_F(AvmArithmeticTestsU128, equality)
     trace_builder.set(elem, 0, AvmMemoryTag::U128);
     trace_builder.set(elem, 1, AvmMemoryTag::U128);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace,
@@ -1615,7 +1615,7 @@ TEST_F(AvmArithmeticTestsU128, nonEquality)
     trace_builder.set(a, 0, AvmMemoryTag::U128);
     trace_builder.set(b, 1, AvmMemoryTag::U128);
     trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 3);
+    trace_builder.return_op(0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace,
