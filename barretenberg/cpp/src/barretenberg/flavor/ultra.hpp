@@ -142,7 +142,7 @@ class UltraFlavor {
                               z_perm,       // column 5
                               z_lookup)     // column 6
 
-        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup }; };
+        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4 }; };
     };
 
     /**
