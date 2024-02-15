@@ -269,7 +269,7 @@ impl<'block> BrilligBlock<'block> {
                                 unreachable!("expected a call instruction")
                             };
 
-                            let Value::Function(func_id) =  &dfg[*func]  else {
+                            let Value::Function(func_id) = &dfg[*func] else {
                                 unreachable!("expected a function value")
                             };
 

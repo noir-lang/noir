@@ -115,7 +115,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             let source_location = source_locations[0];
             let span = source_location.span;
             let file_id = source_location.file;
-            let Ok(line_index) = &simple_files[&file_id].line_index((), span.start() as usize) else {
+            let Ok(line_index) = &simple_files[&file_id].line_index((), span.start() as usize)
+            else {
                 return;
             };
             let line_number = line_index + 1;
@@ -446,29 +447,31 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
 
         // compute breakpoints to set and return
         let mut breakpoints_to_set: Vec<(OpcodeLocation, i64)> = vec![];
-        let breakpoints: Vec<Breakpoint> = args.breakpoints.iter().map(|breakpoint| {
-            let Ok(location) = OpcodeLocation::from_str(breakpoint.instruction_reference.as_str()) else {
-                return Breakpoint {
-                    verified: false,
-                    message: Some(String::from("Missing instruction reference")),
-                    ..Breakpoint::default()
+        let breakpoints: Vec<Breakpoint> = args
+            .breakpoints
+            .iter()
+            .map(|breakpoint| {
+                let Ok(location) =
+                    OpcodeLocation::from_str(breakpoint.instruction_reference.as_str())
+                else {
+                    return Breakpoint {
+                        verified: false,
+                        message: Some(String::from("Missing instruction reference")),
+                        ..Breakpoint::default()
+                    };
                 };
-            };
-            if !self.context.is_valid_opcode_location(&location) {
-                return Breakpoint {
-                    verified: false,
-                    message: Some(String::from("Invalid opcode location")),
-                    ..Breakpoint::default()
-                };
-            }
-            let id = self.get_next_breakpoint_id();
-            breakpoints_to_set.push((location, id));
-            Breakpoint {
-                id: Some(id),
-                verified: true,
-                ..Breakpoint::default()
-            }
-        }).collect();
+                if !self.context.is_valid_opcode_location(&location) {
+                    return Breakpoint {
+                        verified: false,
+                        message: Some(String::from("Invalid opcode location")),
+                        ..Breakpoint::default()
+                    };
+                }
+                let id = self.get_next_breakpoint_id();
+                breakpoints_to_set.push((location, id));
+                Breakpoint { id: Some(id), verified: true, ..Breakpoint::default() }
+            })
+            .collect();
 
         // actually set the computed breakpoints
         self.instruction_breakpoints = breakpoints_to_set;
@@ -539,7 +542,9 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                 let Some(location) = self.find_opcode_for_source_location(&file_id, line) else {
                     return Breakpoint {
                         verified: false,
-                        message: Some(String::from("Source location cannot be matched to opcode location")),
+                        message: Some(String::from(
+                            "Source location cannot be matched to opcode location",
+                        )),
                         ..Breakpoint::default()
                     };
                 };

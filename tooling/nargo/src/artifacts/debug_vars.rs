@@ -18,13 +18,15 @@ impl DebugVars {
         self.active
             .iter()
             .filter_map(|var_id| {
-                self.variables
-                    .get(var_id)
-                    .and_then(|debug_var| {
-                        let Some(value) = self.values.get(var_id) else { return None; };
-                        let Some(ptype) = self.types.get(&debug_var.debug_type_id) else { return None; };
-                        Some((debug_var.name.as_str(), value, ptype))
-                    })
+                self.variables.get(var_id).and_then(|debug_var| {
+                    let Some(value) = self.values.get(var_id) else {
+                        return None;
+                    };
+                    let Some(ptype) = self.types.get(&debug_var.debug_type_id) else {
+                        return None;
+                    };
+                    Some((debug_var.name.as_str(), value, ptype))
+                })
             })
             .collect()
     }

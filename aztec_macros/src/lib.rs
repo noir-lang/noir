@@ -946,9 +946,7 @@ fn assign_storage_slots(
                 let slot_arg_expression = interner.expression(&new_call_expression.arguments[1]);
 
                 let current_storage_slot = match slot_arg_expression {
-                    HirExpression::Literal(HirLiteral::Integer(slot, _)) => {
-                        Ok(slot.to_u128())
-                    }
+                    HirExpression::Literal(HirLiteral::Integer(slot, _)) => Ok(slot.to_u128()),
                     _ => Err((
                         AztecMacroError::CouldNotAssignStorageSlots {
                             secondary_message: Some(

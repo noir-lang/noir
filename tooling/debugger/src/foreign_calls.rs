@@ -116,7 +116,11 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                         .collect();
                     let values: Vec<Value> = (0..n - 1 - arity)
                         .flat_map(|i| {
-                            foreign_call.inputs.get(1 + i).map(|fci| fci.values()).unwrap_or_default()
+                            foreign_call
+                                .inputs
+                                .get(1 + i)
+                                .map(|fci| fci.values())
+                                .unwrap_or_default()
                         })
                         .collect();
                     self.debug_vars.assign_field(var_id, indexes, &values);

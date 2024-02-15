@@ -2483,7 +2483,8 @@ mod test {
 
     #[test]
     fn return_validation() {
-        let cases = [Case {
+        let cases = [
+            Case {
                 source: "{ return 42; }",
                 expect: concat!("{\n", "    Error\n", "}",),
                 errors: 1,
@@ -2503,14 +2504,16 @@ mod test {
                 expect: concat!("{\n", "    Error\n", "}",),
                 errors: 2,
             },
-            Case { source: "{ return; }", expect: concat!("{\n", "    Error\n", "}",), errors: 1 }];
+            Case { source: "{ return; }", expect: concat!("{\n", "    Error\n", "}",), errors: 1 },
+        ];
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
 
     #[test]
     fn expr_no_constructors() {
-        let cases = [Case {
+        let cases = [
+            Case {
                 source: "{ if structure { a: 1 } {} }",
                 expect: concat!(
                     "{\n",
@@ -2555,7 +2558,8 @@ mod test {
                     "}",
                 ),
                 errors: 0,
-            }];
+            },
+        ];
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
