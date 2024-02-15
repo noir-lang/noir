@@ -35,8 +35,8 @@ RUN cmake -G Ninja -S llvm-project/runtimes -B llvm-project/build \
 RUN ninja -C llvm-project/build cxx cxxabi
 RUN ninja -C llvm-project/build install-cxx install-cxxabi
 
-ENV MSAN_CFLAGS="-std=c++20 -fsanitize=memory -nostdinc++ -I/opt/include -I/opt/include/c++/v1"
-ENV MSAN_LFLAGS="-fsanitize=memory -stdlib=libc++ -L/opt/lib -lc++abi -Wl,-rpath,/opt/lib"
+ENV MSAN_CFLAGS="-std=c++20 -fsanitize=memory -fsanitize-memory-track-origins -nostdinc++ -I/opt/include -I/opt/include/c++/v1"
+ENV MSAN_LFLAGS="-fsanitize=memory -fsanitize-memory-track-origins -stdlib=libc++ -L/opt/lib -lc++abi -Wl,-rpath,/opt/lib"
 
 WORKDIR /usr/src/barretenberg/cpp
 

@@ -5,9 +5,9 @@
 
 namespace bb::group_elements {
 template <class Fq, class Fr, class T>
-constexpr affine_element<Fq, Fr, T>::affine_element(const Fq& a, const Fq& b) noexcept
-    : x(a)
-    , y(b)
+constexpr affine_element<Fq, Fr, T>::affine_element(const Fq& x, const Fq& y) noexcept
+    : x(x)
+    , y(y)
 {}
 
 template <class Fq, class Fr, class T>
