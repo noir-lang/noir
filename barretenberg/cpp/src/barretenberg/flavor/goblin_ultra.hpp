@@ -510,6 +510,21 @@ class GoblinUltraFlavor {
             : NativeTranscript(proof)
         {}
 
+        static std::shared_ptr<Transcript_> prover_init_empty()
+        {
+            auto transcript = std::make_shared<Transcript_>();
+            constexpr uint32_t init{ 42 }; // arbitrary
+            transcript->send_to_verifier("Init", init);
+            return transcript;
+        };
+
+        static std::shared_ptr<Transcript_> verifier_init_empty(const std::shared_ptr<Transcript_>& transcript)
+        {
+            auto verifier_transcript = std::make_shared<Transcript_>(transcript->proof_data);
+            [[maybe_unused]] auto _ = verifier_transcript->template receive_from_prover<uint32_t>("Init");
+            return verifier_transcript;
+        };
+
         void deserialize_full_transcript()
         {
             // take current proof and put them into the struct

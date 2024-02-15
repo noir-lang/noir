@@ -11,8 +11,9 @@
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 namespace bb {
-template <IsUltraFlavor Flavor> class UltraComposer_ {
+template <IsUltraFlavor Flavor_> class UltraComposer_ {
   public:
+    using Flavor = Flavor_;
     using CircuitBuilder = typename Flavor::CircuitBuilder;
     using ProvingKey = typename Flavor::ProvingKey;
     using VerificationKey = typename Flavor::VerificationKey;

@@ -59,6 +59,18 @@
       }
     },
     {
+      "name": "clang16-dbg-fast",
+      "displayName": "Optimized debug build with Clang-16",
+      "description": "Build with globally installed Clang-16 in optimized debug mode",
+      "inherits": "clang16-dbg",
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CFLAGS": "-O2 -gdwarf",
+        "CXXFLAGS": "-O2 -gdwarf-4",
+        "LDFLAGS": "-O2 -gdwarf-4"
+      }
+    },
+    {
       "name": "asan",
       "displayName": "Debugging build with address sanitizer on Clang-16",
       "description": "Build with address sanitizer on clang16 with debugging information",
@@ -338,6 +350,11 @@
       "name": "clang16-dbg",
       "inherits": "default",
       "configurePreset": "clang16-dbg"
+    },
+    {
+      "name": "clang16-dbg-fast",
+      "inherits": "default",
+      "configurePreset": "clang16-dbg-fast"
     },
     {
       "name": "asan",

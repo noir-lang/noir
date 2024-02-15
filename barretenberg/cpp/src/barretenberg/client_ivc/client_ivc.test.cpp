@@ -34,10 +34,10 @@ class ClientIVCTests : public ::testing::Test {
      * @details Currently default sized to 2^16 to match kernel. (Note: op gates will bump size to next power of 2)
      *
      */
-    static Builder create_mock_circuit(ClientIVC& ivc, size_t num_gates = 1 << 15)
+    static Builder create_mock_circuit(ClientIVC& ivc, size_t log2_num_gates = 15)
     {
         Builder circuit{ ivc.goblin.op_queue };
-        GoblinMockCircuits::construct_arithmetic_circuit(circuit, num_gates);
+        GoblinMockCircuits::construct_arithmetic_circuit(circuit, log2_num_gates);
         GoblinMockCircuits::construct_goblin_ecc_op_circuit(circuit);
         return circuit;
     }

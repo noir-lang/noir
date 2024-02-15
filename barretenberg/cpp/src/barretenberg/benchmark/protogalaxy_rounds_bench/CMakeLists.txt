@@ -1,0 +1,1 @@
+barretenberg_module(protogalaxy_round_bench ultra_honk protogalaxy stdlib_primitives)
