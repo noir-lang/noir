@@ -91,8 +91,9 @@ mod tests {
         kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash}
     },
-        tests::{kernel_data_builder::PreviousKernelDataBuilder, private_call_data_builder::PrivateCallDataBuilder},
-        address::AztecAddress, hash::compute_logs_hash, utils::{arrays::array_length}
+        address::{AztecAddress, EthAddress}, hash::compute_logs_hash,
+        messaging::l2_to_l1_message::L2ToL1Message, utils::{arrays::array_length},
+        tests::{kernel_data_builder::PreviousKernelDataBuilder, private_call_data_builder::PrivateCallDataBuilder}
     };
 
     struct PrivateKernelInnerInputsBuilder {
@@ -500,7 +501,12 @@ mod tests {
     fn input_validation_malformed_arrays_new_l2_to_l1_msgs() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.public_inputs.new_l2_to_l1_msgs.extend_from_array([0, 888]);
+        builder.private_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(
+            [
+            L2ToL1Message::empty(),
+            L2ToL1Message { recipient: EthAddress::from_field(6), content: 888 }
+        ]
+        );
 
         builder.failed();
     }

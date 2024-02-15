@@ -311,7 +311,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     if (
       childExecutionResult.callStackItem.publicInputs.newCommitments.some(item => !item.isEmpty()) ||
       childExecutionResult.callStackItem.publicInputs.newNullifiers.some(item => !item.isEmpty()) ||
-      childExecutionResult.callStackItem.publicInputs.newL2ToL1Msgs.some(item => !item.isZero()) ||
+      childExecutionResult.callStackItem.publicInputs.newL2ToL1Msgs.some(item => !item.isEmpty()) ||
       !childExecutionResult.callStackItem.publicInputs.encryptedLogPreimagesLength.equals(new Fr(4)) ||
       !childExecutionResult.callStackItem.publicInputs.unencryptedLogPreimagesLength.equals(new Fr(4))
     ) {

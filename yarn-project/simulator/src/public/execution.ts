@@ -6,6 +6,7 @@ import {
   ContractStorageUpdateRequest,
   Fr,
   FunctionData,
+  L2ToL1Message,
   PublicDataRead,
   PublicDataUpdateRequest,
   SideEffect,
@@ -24,7 +25,7 @@ export interface PublicExecutionResult {
   /** The new commitments to be inserted into the commitments tree. */
   newCommitments: SideEffect[];
   /** The new l2 to l1 messages generated in this call. */
-  newL2ToL1Messages: Fr[];
+  newL2ToL1Messages: L2ToL1Message[];
   /** The new nullifiers to be inserted into the nullifier tree. */
   newNullifiers: SideEffectLinkedToNoteHash[];
   /** The contract storage reads performed by the function. */
@@ -145,7 +146,7 @@ export function checkValidStaticCall(
   newCommitments: SideEffect[],
   newNullifiers: SideEffectLinkedToNoteHash[],
   contractStorageUpdateRequests: ContractStorageUpdateRequest[],
-  newL2ToL1Messages: Fr[],
+  newL2ToL1Messages: L2ToL1Message[],
   unencryptedLogs: FunctionL2Logs,
 ) {
   if (

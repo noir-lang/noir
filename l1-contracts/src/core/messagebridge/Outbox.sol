@@ -47,7 +47,6 @@ contract Outbox is IOutbox {
 
   /**
    * @notice Consumes an entry from the Outbox
-   * @dev Only meaningfully callable by portals, otherwise should never hit an entry
    * @dev Emits the `MessageConsumed` event when consuming messages
    * @param _message - The L2 to L1 message
    * @return entryKey - The key of the entry removed

@@ -16,7 +16,7 @@ use dep::types::{
     MAX_PUBLIC_DATA_READS_PER_CALL, NUM_FIELDS_PER_SHA256
 },
     hash::{silo_commitment, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
-    utils::{arrays::{array_length, array_to_bounded_vec}}, traits::is_empty_array
+    utils::{arrays::{array_length, array_to_bounded_vec}}, traits::{is_empty, is_empty_array}
 };
 use crate::hash::{compute_public_data_tree_index, compute_public_data_tree_value};
 
@@ -240,14 +240,13 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
     let new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
     let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new(0);
     for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
-        let msg_is_zero = new_l2_to_l1_msgs[i] == 0;
-        if msg_is_zero == false {
+        let msg = new_l2_to_l1_msgs[i];
+        if !is_empty(msg) {
             let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
                 storage_contract_address,
                 public_inputs.constants.tx_context.version,
-                portal_contract_address,
                 public_inputs.constants.tx_context.chain_id,
-                new_l2_to_l1_msgs[i]
+                msg
             );
             new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
         }

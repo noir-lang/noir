@@ -26,7 +26,8 @@ use dep::protocol_types::{
     RETURN_VALUES_LENGTH
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
-    grumpkin_private_key::GrumpkinPrivateKey, hash::hash_args, header::Header, utils::reader::Reader
+    grumpkin_private_key::GrumpkinPrivateKey, hash::hash_args, header::Header,
+    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader
 };
 use dep::std::option::Option;
 
@@ -52,7 +53,7 @@ struct PrivateContext {
 
     private_call_stack_hashes : BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack_hashes : BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
-    new_l2_to_l1_msgs : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
+    new_l2_to_l1_msgs : BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
     // docs:end:private-context
 
     // Header of a block whose state is used during private execution (not the block the transaction is included in).
@@ -80,7 +81,7 @@ impl PrivateContext {
             historical_header: inputs.historical_header,
             private_call_stack_hashes: BoundedVec::new(0),
             public_call_stack_hashes: BoundedVec::new(0),
-            new_l2_to_l1_msgs: BoundedVec::new(0),
+            new_l2_to_l1_msgs: BoundedVec::new(L2ToL1Message::empty()),
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
             // encrypted_logs_preimages: Vec::new(),
             // unencrypted_logs_preimages: Vec::new(),
@@ -202,9 +203,10 @@ impl PrivateContext {
     }
 
     // docs:start:context_message_portal
-    pub fn message_portal(&mut self, content: Field) {
+    pub fn message_portal(&mut self, recipient: EthAddress, content: Field) {
         // docs:end:context_message_portal
-        self.new_l2_to_l1_msgs.push(content);
+        let message = L2ToL1Message { recipient, content };
+        self.new_l2_to_l1_msgs.push(message);
     }
 
     // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
@@ -388,7 +390,7 @@ impl PrivateContext {
                 public_call_stack_hashes: [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
                 new_commitments: [SideEffect::empty(); MAX_NEW_COMMITMENTS_PER_CALL],
                 new_nullifiers: [SideEffectLinkedToNoteHash::empty(); MAX_NEW_NULLIFIERS_PER_CALL],
-                new_l2_to_l1_msgs: [0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+                new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
                 unencrypted_logs_hash: [0; NUM_FIELDS_PER_SHA256],
                 unencrypted_log_preimages_length: 0,
                 historical_header: Header::empty(),

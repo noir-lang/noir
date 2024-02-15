@@ -93,7 +93,7 @@ contract Uniswap {
             canceller_for_L1_to_L2_message,
             caller_on_L1
         );
-        context.message_portal(content_hash);
+        context.message_portal(context.this_portal_address(), content_hash);
     }
     // docs:end:swap_public
 
@@ -164,7 +164,7 @@ contract Uniswap {
             canceller_for_L1_to_L2_message,
             caller_on_L1
         );
-        context.message_portal(content_hash);
+        context.message_portal(context.this_portal_address(), content_hash);
     }
     // docs:end:swap_private
 

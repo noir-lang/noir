@@ -6,6 +6,7 @@ import {
   GlobalVariables,
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
+  L2ToL1Message,
 } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/factories';
 import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
@@ -341,10 +342,12 @@ describe('ACIR public execution simulator', () => {
       )!;
       const args = encodeArguments(createL2ToL1MessagePublicArtifact, params);
 
+      const portalContractAddress = EthAddress.random();
+
       const callContext = CallContext.from({
         msgSender: AztecAddress.random(),
         storageContractAddress: contractAddress,
-        portalContractAddress: EthAddress.random(),
+        portalContractAddress,
         functionSelector: FunctionSelector.empty(),
         isContractDeployment: false,
         isDelegateCall: false,
@@ -360,8 +363,12 @@ describe('ACIR public execution simulator', () => {
       // Assert the l2 to l1 message was created
       expect(result.newL2ToL1Messages.length).toEqual(1);
 
-      const expectedNewMessageValue = pedersenHash(params.map(a => a.toBuffer()));
-      expect(result.newL2ToL1Messages[0].toBuffer()).toEqual(expectedNewMessageValue);
+      const expectedNewMessage = new L2ToL1Message(
+        portalContractAddress,
+        Fr.fromBuffer(pedersenHash(params.map(a => a.toBuffer()))),
+      );
+
+      expect(result.newL2ToL1Messages[0]).toEqual(expectedNewMessage);
     });
 
     it('Should be able to create a nullifier from the public context', async () => {

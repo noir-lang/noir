@@ -18,7 +18,7 @@ use dep::protocol_types::{
     RETURN_VALUES_LENGTH
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
-    hash::hash_args, header::Header, utils::reader::Reader
+    hash::hash_args, header::Header, messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader
 };
 
 struct PublicContext {
@@ -35,7 +35,7 @@ struct PublicContext {
     new_commitments: BoundedVec<SideEffect, MAX_NEW_COMMITMENTS_PER_CALL>,
     new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL>,
 
-    new_l2_to_l1_msgs: BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
+    new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
     unencrypted_logs_hash: BoundedVec<Field, NUM_FIELDS_PER_SHA256>,
     unencrypted_logs_preimages_length: Field,
@@ -60,7 +60,7 @@ impl PublicContext {
             public_call_stack_hashes: BoundedVec::new(0),
             new_commitments: BoundedVec::new(SideEffect::empty()),
             new_nullifiers: BoundedVec::new(SideEffectLinkedToNoteHash::empty()),
-            new_l2_to_l1_msgs: BoundedVec::new(0),
+            new_l2_to_l1_msgs: BoundedVec::new(L2ToL1Message::empty()),
             unencrypted_logs_hash: BoundedVec::new(0),
             unencrypted_logs_preimages_length: 0,
             historical_header: inputs.historical_header,
@@ -150,8 +150,9 @@ impl PublicContext {
         self.side_effect_counter = self.side_effect_counter + 1;
     }
 
-    pub fn message_portal(&mut self, content: Field) {
-        self.new_l2_to_l1_msgs.push(content);
+    pub fn message_portal(&mut self, recipient: EthAddress, content: Field) {
+        let message = L2ToL1Message { recipient, content };
+        self.new_l2_to_l1_msgs.push(message);
     }
 
     // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
@@ -193,28 +194,18 @@ impl PublicContext {
     ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args(args);
         assert(args_hash == arguments::pack_arguments(args));
-        call_public_function_internal(
-            contract_address,
-            function_selector,
-            args_hash,
-            false
-        )
+        call_public_function_internal(contract_address, function_selector, args_hash, false)
     }
 
     pub fn call_public_function_static<ARGS_COUNT>(
         _self: Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT],
+        args: [Field; ARGS_COUNT]
     ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args(args);
         assert(args_hash == arguments::pack_arguments(args));
-        call_public_function_internal(
-            contract_address,
-            function_selector,
-            args_hash,
-            true
-        )
+        call_public_function_internal(contract_address, function_selector, args_hash, true)
     }
 
     pub fn call_public_function_no_args(
@@ -222,24 +213,14 @@ impl PublicContext {
         contract_address: AztecAddress,
         function_selector: FunctionSelector
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        call_public_function_internal(
-            contract_address,
-            function_selector,
-            0,
-            false,
-        )
+        call_public_function_internal(contract_address, function_selector, 0, false)
     }
 
     pub fn call_public_function_no_args_static(
         _self: Self,
         contract_address: AztecAddress,
-        function_selector: FunctionSelector,
+        function_selector: FunctionSelector
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        call_public_function_internal(
-            contract_address,
-            function_selector,
-            0,
-            true,
-        )
+        call_public_function_internal(contract_address, function_selector, 0, true)
     }
 }

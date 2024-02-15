@@ -15,6 +15,7 @@ use crate::constants::{
     GENERATOR_INDEX__COMMITMENT_NONCE, GENERATOR_INDEX__UNIQUE_COMMITMENT,
     GENERATOR_INDEX__FUNCTION_ARGS
 };
+use crate::messaging::l2_to_l1_message::L2ToL1Message;
 
 use dep::std::hash::{pedersen_hash_with_separator, sha256};
 
@@ -196,14 +197,13 @@ pub fn compute_new_contract_address_hash(new_contract_address: AztecAddress) -> 
 pub fn compute_l2_to_l1_hash(
     contract_address: AztecAddress,
     rollup_version_id: Field,
-    portal_contract_address: EthAddress,
     chain_id: Field,
-    content: Field
+    message: L2ToL1Message
 ) -> Field {
     let mut bytes: BoundedVec<u8, 160> = BoundedVec::new(0);
 
     let inputs = [
-        contract_address.to_field(), rollup_version_id, portal_contract_address.to_field(), chain_id, content
+        contract_address.to_field(), rollup_version_id, message.recipient.to_field(), chain_id, message.content
     ];
     for i in 0..inputs.len() {
         // TODO are bytes be in fr.to_buffer() ?

@@ -74,6 +74,7 @@ library DataStructures {
    * @param sender - The sender of the message
    * @param recipient - The recipient of the message
    * @param content - The content of the message (application specific) padded to bytes32 or hashed if larger.
+   * @dev Not to be confused with L2ToL1Message in Noir circuits
    */
   struct L2ToL1Msg {
     DataStructures.L2Actor sender;

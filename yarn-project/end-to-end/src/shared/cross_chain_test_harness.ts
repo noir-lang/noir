@@ -86,14 +86,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   });
 
   // deploy l2 token
-  const deployTx = TokenContract.deploy(wallet, owner, 'TokenName', 'TokenSymbol', 18).send();
-
-  // now wait for the deploy txs to be mined. This way we send all tx in the same rollup.
-  const deployReceipt = await deployTx.wait();
-  if (deployReceipt.status !== TxStatus.MINED) {
-    throw new Error(`Deploy token tx status is ${deployReceipt.status}`);
-  }
-  const token = await TokenContract.at(deployReceipt.contractAddress!, wallet);
+  const token = await TokenContract.deploy(wallet, owner, 'TokenName', 'TokenSymbol', 18).send().deployed();
 
   // deploy l2 token bridge and attach to the portal
   const bridge = await TokenBridgeContract.deploy(wallet, token.address)
@@ -109,11 +102,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   }
 
   // make the bridge a minter on the token:
-  const makeMinterTx = token.methods.set_minter(bridge.address, true).send();
-  const makeMinterReceipt = await makeMinterTx.wait();
-  if (makeMinterReceipt.status !== TxStatus.MINED) {
-    throw new Error(`Make bridge a minter tx status is ${makeMinterReceipt.status}`);
-  }
+  await token.methods.set_minter(bridge.address, true).send().wait();
   if ((await token.methods.is_minter(bridge.address).view()) === 1n) {
     throw new Error(`Bridge is not a minter`);
   }
@@ -148,6 +137,7 @@ export class CrossChainTestHarness {
     const outbox = getContract({
       address: l1ContractAddresses.outboxAddress.toString(),
       abi: OutboxAbi,
+      walletClient,
       publicClient,
     });
 

@@ -25,6 +25,7 @@ import {
   GrumpkinPrivateKey,
   GrumpkinScalar,
   Header,
+  L2ToL1Message,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_COMMITMENTS_PER_TX_META,
   MAX_NEW_CONTRACTS_PER_TX,
@@ -92,6 +93,7 @@ import {
   FunctionLeafMembershipWitness as FunctionLeafMembershipWitnessNoir,
   FunctionSelector as FunctionSelectorNoir,
   GrumpkinPrivateKey as GrumpkinPrivateKeyNoir,
+  L2ToL1Message as L2ToL1MessageNoir,
   NewContractData as NewContractDataNoir,
   AztecAddress as NoirAztecAddress,
   ContractClassId as NoirContractClassId,
@@ -618,6 +620,18 @@ export function mapNullifierKeyValidationRequestContextFromNoir(
 }
 
 /**
+ * Maps a L2 to L1 message to a noir L2 to L1 message.
+ * @param message - The L2 to L1 message.
+ * @returns The noir L2 to L1 message.
+ */
+export function mapL2ToL1MessageToNoir(message: L2ToL1Message): L2ToL1MessageNoir {
+  return {
+    recipient: mapEthAddressToNoir(message.recipient),
+    content: mapFieldToNoir(message.content),
+  };
+}
+
+/**
  * Maps private circuit public inputs to noir private circuit public inputs.
  * @param privateCircuitPublicInputs - The private circuit public inputs.
  * @returns The noir private circuit public inputs.
@@ -638,7 +652,7 @@ export function mapPrivateCircuitPublicInputsToNoir(
     new_nullifiers: mapTuple(privateCircuitPublicInputs.newNullifiers, mapSideEffectLinkedToNoir),
     private_call_stack_hashes: mapTuple(privateCircuitPublicInputs.privateCallStackHashes, mapFieldToNoir),
     public_call_stack_hashes: mapTuple(privateCircuitPublicInputs.publicCallStackHashes, mapFieldToNoir),
-    new_l2_to_l1_msgs: mapTuple(privateCircuitPublicInputs.newL2ToL1Msgs, mapFieldToNoir),
+    new_l2_to_l1_msgs: mapTuple(privateCircuitPublicInputs.newL2ToL1Msgs, mapL2ToL1MessageToNoir),
     end_side_effect_counter: mapFieldToNoir(privateCircuitPublicInputs.endSideEffectCounter),
     encrypted_logs_hash: mapTuple(privateCircuitPublicInputs.encryptedLogsHash, mapFieldToNoir),
     unencrypted_logs_hash: mapTuple(privateCircuitPublicInputs.unencryptedLogsHash, mapFieldToNoir),
@@ -1274,7 +1288,7 @@ export function mapPublicCircuitPublicInputsToNoir(
     public_call_stack_hashes: mapTuple(publicInputs.publicCallStackHashes, mapFieldToNoir),
     new_commitments: mapTuple(publicInputs.newCommitments, mapSideEffectToNoir),
     new_nullifiers: mapTuple(publicInputs.newNullifiers, mapSideEffectLinkedToNoir),
-    new_l2_to_l1_msgs: mapTuple(publicInputs.newL2ToL1Msgs, mapFieldToNoir),
+    new_l2_to_l1_msgs: mapTuple(publicInputs.newL2ToL1Msgs, mapL2ToL1MessageToNoir),
     unencrypted_logs_hash: mapTuple(publicInputs.unencryptedLogsHash, mapFieldToNoir),
     unencrypted_log_preimages_length: mapFieldToNoir(publicInputs.unencryptedLogPreimagesLength),
     historical_header: mapHeaderToNoir(publicInputs.historicalHeader),

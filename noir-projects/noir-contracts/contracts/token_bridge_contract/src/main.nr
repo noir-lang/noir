@@ -56,7 +56,7 @@ contract TokenBridge {
     ) {
         // Send an L2 to L1 message
         let content = get_withdraw_content_hash(recipient, amount, callerOnL1);
-        context.message_portal(content);
+        context.message_portal(context.this_portal_address(), content);
 
         // Burn tokens
         Token::at(storage.token.read()).burn_public(context, context.msg_sender(), amount, nonce);
@@ -102,7 +102,7 @@ contract TokenBridge {
     ) {
         // Send an L2 to L1 message
         let content = get_withdraw_content_hash(recipient, amount, callerOnL1);
-        context.message_portal(content);
+        context.message_portal(context.this_portal_address(), content);
 
         // docs:start:call_assert_token_is_same
         // Assert that user provided token address is same as seen in storage.

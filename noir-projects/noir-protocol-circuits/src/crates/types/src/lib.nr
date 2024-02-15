@@ -11,6 +11,7 @@ mod abis;
 mod constants;
 mod contract_class;
 
+mod messaging;
 mod mocked;
 mod hash;
 mod traits;

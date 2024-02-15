@@ -258,18 +258,16 @@ pub fn update_end_values(
     public_inputs.end.public_call_stack.extend_from_bounded_vec(public_call_stack);
 
     // new l2 to l1 messages
-    let portal_contract_address = private_call.portal_contract_address;
     let new_l2_to_l1_msgs = private_call_public_inputs.new_l2_to_l1_msgs;
     let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new(0);
     for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
-        let msg_is_zero = new_l2_to_l1_msgs[i] == 0;
-        if msg_is_zero == false {
+        let msg = new_l2_to_l1_msgs[i];
+        if !is_empty(msg) {
             let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
                 storage_contract_address,
                 private_call_public_inputs.version,
-                portal_contract_address,
                 private_call_public_inputs.chain_id,
-                new_l2_to_l1_msgs[i]
+                msg
             );
             new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
         }

@@ -199,7 +199,19 @@ contract Test {
         let note = DummyNote::new(amount, secret_hash);
 
         // Public oracle call to emit new commitment.
-        context.message_portal(note.get_commitment());
+        context.message_portal(context.this_portal_address(), note.get_commitment());
+    }
+
+    #[aztec(public)]
+    fn create_l2_to_l1_message_arbitrary_recipient_public(content: Field, recipient: EthAddress) {
+        // Public oracle call to emit new commitment.
+        context.message_portal(recipient, content);
+    }
+
+    #[aztec(private)]
+    fn create_l2_to_l1_message_arbitrary_recipient_private(content: Field, recipient: EthAddress) {
+        // Public oracle call to emit new commitment.
+        context.message_portal(recipient, content);
     }
 
     // Purely exists for testing

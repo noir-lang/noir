@@ -116,6 +116,7 @@ global DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE = 0x85864497636cf755ae7bd
 // Move these constants to a noir file once the issue below is resolved:
 // https://github.com/noir-lang/noir/issues/1734
 global L1_TO_L2_MESSAGE_LENGTH: Field = 8;
+global L2_TO_L1_MESSAGE_LENGTH: Field = 2;
 global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: Field = 25;
 global MAX_NOTE_FIELDS_LENGTH: Field = 20;
 // GET_NOTE_ORACLE_RETURN_LENGT = MAX_NOTE_FIELDS_LENGTH + 1 + 2
@@ -135,12 +136,12 @@ global CONTRACT_DEPLOYMENT_DATA_LENGTH: Field = 6;
 // Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
 // In other words, if the structure/size of the public inputs of a function call changes then we should change this
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
-global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 207;
-global PRIVATE_CALL_STACK_ITEM_LENGTH: Field = 212;
+global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 209;
+global PRIVATE_CALL_STACK_ITEM_LENGTH: Field = 214;
 global CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH: Field = 2;
 global CONTRACT_STORAGE_READ_LENGTH: Field = 2;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
-global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 187;
+global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 189;
 global GET_NOTES_ORACLE_RETURN_LENGTH: Field = 674;
 global COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP: Field = 2048;
 global NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP: Field = 2048;

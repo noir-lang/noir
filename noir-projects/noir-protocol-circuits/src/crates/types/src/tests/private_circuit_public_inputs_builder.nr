@@ -6,7 +6,8 @@ use crate::{
 },
     address::{AztecAddress, compute_initialization_hash},
     contrakt::deployment_data::ContractDeploymentData, hash::{compute_constructor_hash, hash_args},
-    header::Header, tests::{fixtures, testing_harness::build_contract_deployment_data}
+    header::Header, messaging::l2_to_l1_message::L2ToL1Message,
+    tests::{fixtures, testing_harness::build_contract_deployment_data}
 };
 use crate::constants::{
     MAX_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
@@ -31,7 +32,7 @@ struct PrivateCircuitPublicInputsBuilder {
 
     private_call_stack_hashes: BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack_hashes: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
-    new_l2_to_l1_msgs: BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
+    new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
 
     encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],

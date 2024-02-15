@@ -7,7 +7,7 @@
     "prepare:check": "node ./yarn-project-base/scripts/update_package_jsons.mjs --check && workspaces-to-typescript-project-references --check --tsconfigPath tsconfig.json",
     "docs": "typedoc --out docs/dist && cd docs && yarn serve",
     "formatting": "FORCE_COLOR=true yarn workspaces foreach -p -j unlimited -v run formatting",
-    "formatting:fix": ".FORCE_COLOR=true yarn workspaces foreach -p -v run formatting:fix",
+    "formatting:fix": "FORCE_COLOR=true yarn workspaces foreach -p -v run formatting:fix",
     "lint": "yarn eslint --cache --ignore-pattern l1-artifacts .",
     "format": "yarn prettier --cache -w .",
     "test": "FORCE_COLOR=true yarn workspaces foreach --exclude @aztec/aztec3-packages --exclude @aztec/end-to-end --exclude private-token -p -j ${JOBS:-unlimited} -v run test",
