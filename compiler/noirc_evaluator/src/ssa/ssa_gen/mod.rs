@@ -472,13 +472,23 @@ impl<'a> FunctionContext<'a> {
 
         // this is the 'i' in `for i in start .. end { block }`
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
-        let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
+        let loop_index = self.builder.add_block_parameter(loop_entry, index_type.clone());
 
         self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
 
         self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+
+
+        eprintln!(
+            "Type of start index is {:?} type of iterator is {:?} type of end index is {:?}",
+            self.builder.type_of_value(start_index),
+            index_type,
+            self.builder.type_of_value(end_index)
+        );
+
+
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
