@@ -11,7 +11,7 @@ set -eu
 REPOSITORY=$1
 ARCH_LIST=$2
 
-ecr_login
+retry ecr_login
 
 CONTENT_HASH=$(calculate_content_hash $REPOSITORY)
 MULTIARCH_IMAGE_URI=$ECR_URL/$REPOSITORY:cache-$CONTENT_HASH

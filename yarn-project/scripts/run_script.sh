@@ -5,7 +5,7 @@ set -eu
 
 export PATH="$PATH:$(git rev-parse --show-toplevel)/build-system/scripts"
 
-ecr_login
+retry ecr_login
 
 REPO="yarn-project"
 retry docker pull $(calculate_image_uri $REPO)

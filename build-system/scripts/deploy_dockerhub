@@ -22,8 +22,8 @@ else
 fi
 
 # Login to dockerhub and ecr
-dockerhub_login
-ecr_login
+retry dockerhub_login
+retry ecr_login
 
 # Install skopeo, and immediately hack it to newer version.
 sudo apt install -y skopeo

@@ -17,7 +17,7 @@ if check_rebuild "cache-$CONTENT_HASH-$DEPLOY_TAG-deployed" $REPOSITORY; then
 fi
 
 # Login to pull our ecr images with docker.
-ecr_login
+retry ecr_login
 
 # Contract addresses will be saved in the serve directory
 mkdir -p serve

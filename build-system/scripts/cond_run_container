@@ -18,7 +18,7 @@ echo "Success tag: $SUCCESS_TAG"
 if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   IMAGE_URI=$(calculate_image_uri $REPOSITORY)
   # Login to pull our ecr images with docker.
-  ecr_login
+  retry ecr_login
   retry docker pull $IMAGE_URI
   docker run --rm -t $IMAGE_URI $@
   retry tag_remote_image $REPOSITORY $BASE_TAG $SUCCESS_TAG
