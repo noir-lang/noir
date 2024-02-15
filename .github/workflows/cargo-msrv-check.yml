@@ -1,0 +1,34 @@
+name: Check for pending MSRV issues
+
+# TL;DR https://github.com/noir-lang/noir/issues/4384
+#
+# This workflow acts to ensure that we can publish to crates.io, we need this extra check as libraries don't respect the Cargo.lock file committed in this repository.
+# We must then always be able to build the workspace using the latest versions of all of our dependencies, so we explicitly update them and build in this workflow. 
+
+on:
+  pull_request:
+
+jobs:
+  check-for-msrv-issues:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.71.1
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          save-if: false
+
+      - name: Update Cargo.lock
+        run: cargo update
+
+      - name: Build workspace tests
+        run: cargo build --tests --workspace
