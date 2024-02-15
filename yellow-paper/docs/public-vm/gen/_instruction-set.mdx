@@ -328,7 +328,7 @@ context.machineState.pc = loc`}
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.noteHashes.has({
     leafIndex: M[leafIndexOffset]
-    leaf: hash(context.environment.storageAddress, M[leafOffset]),
+    leaf: hash(context.environment.storageAddress, M[noteHashOffset]),
 })
 M[existsOffset] = exists`}
 	</CodeBlock></td>
@@ -1351,24 +1351,24 @@ Check whether a note hash exists in the note hash tree (as of the start of the c
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **leafOffset**: memory offset of the leaf
+	- **noteHashOffset**: memory offset of the note hash
 	- **leafIndexOffset**: memory offset of the leaf index
 	- **existsOffset**: memory offset specifying where to store operation's result (whether the note hash leaf exists)
 - **Expression**: 
 <CodeBlock language="jsx">
 {`exists = context.worldState.noteHashes.has({
     leafIndex: M[leafIndexOffset]
-    leaf: hash(context.environment.storageAddress, M[leafOffset]),
+    leaf: hash(context.environment.storageAddress, M[noteHashOffset]),
 })
 M[existsOffset] = exists`}
 </CodeBlock>
 - **World State access tracing**: 
 <CodeBlock language="jsx">
 {`context.worldStateAccessTrace.noteHashChecks.append(
-    TracedLeafCheck {
+    TracedNoteHashCheck {
         callPointer: context.environment.callPointer,
         leafIndex: M[leafIndexOffset]
-        leaf: M[leafOffset],
+        noteHash: M[noteHashOffset],
         exists: exists, // defined above
         counter: ++context.worldStateAccessTrace.accessCounter,
     }
@@ -1433,9 +1433,9 @@ M[existsOffset] = exists`}
 - **World State access tracing**: 
 <CodeBlock language="jsx">
 {`context.worldStateAccessTrace.nullifierChecks.append(
-    TracedIndexedLeafCheck {
+    TracedNullifierCheck {
         callPointer: context.environment.callPointer,
-        leaf: M[nullifierOffset],
+        nullifier: M[nullifierOffset],
         exists: exists, // defined above
         counter: ++context.worldStateAccessTrace.accessCounter,
     }

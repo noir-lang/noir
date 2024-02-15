@@ -77,9 +77,9 @@ Each entry in the world state access trace is listed below along with its type a
 | `contractCalls`       | Contracts         | `Vector<TracedContractCall>`       | [`*CALL`](./instruction-set#isa-section-call)            |
 | `publicStorageReads`  | Public Storage    | `Vector<TracedStorageRead>`        | [`SLOAD`](./instruction-set#isa-section-sload)           |
 | `publicStorageWrites` | Public Storage    | `Vector<TracedStorageWrite>`       | [`SSTORE`](./instruction-set#isa-section-sstore)          |
-| `noteHashChecks`      | Note Hashes       | `Vector<TracedLeafCheck>`          | [`NOTEHASHEXISTS`](./instruction-set#isa-section-notehashexists)  |
+| `noteHashChecks`      | Note Hashes       | `Vector<TracedNoteHashCheck>`      | [`NOTEHASHEXISTS`](./instruction-set#isa-section-notehashexists)  |
 | `newNoteHashes`       | Note Hashes       | `Vector<TracedNoteHash>`           | [`EMITNOTEHASH`](./instruction-set#isa-section-emitnotehash)    |
-| `nullifierChecks`     | Nullifiers        | `Vector<TracedIndexedLeafCheck>`   | [`NULLIFIERSEXISTS`](./instruction-set#isa-section-nullifierexists) |
+| `nullifierChecks`     | Nullifiers        | `Vector<TracedNullifierCheck>`     | [`NULLIFIERSEXISTS`](./instruction-set#isa-section-nullifierexists) |
 | `newNullifiers`       | Nullifiers        | `Vector<TracedNullifier>`          | [`EMITNULLIFIER`](./instruction-set#isa-section-emitnullifier)   |
 | `l1ToL2MessageReads`  | L1-To-L2 Messages | `Vector<TracedL1ToL2MessageRead>`  | [`READL1TOL2MSG`](./instruction-set#isa-section-readl1tol2msg)   |
 | `archiveChecks`       | Headers           | `Vector<TracedArchiveLeafCheck>`   | [`HEADERMEMBER`](./instruction-set#isa-section-headermember)    |

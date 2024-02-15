@@ -829,24 +829,24 @@ context.worldStateAccessTrace.publicStorageWrites.append(
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
         ],
         "Args": [
-            {"name": "leafOffset", "description": "memory offset of the leaf"},
+            {"name": "noteHashOffset", "description": "memory offset of the note hash"},
             {"name": "leafIndexOffset", "description": "memory offset of the leaf index"},
             {"name": "existsOffset", "description": "memory offset specifying where to store operation's result (whether the note hash leaf exists)"},
         ],
         "Expression": `
 exists = context.worldState.noteHashes.has({
     leafIndex: M[leafIndexOffset]
-    leaf: hash(context.environment.storageAddress, M[leafOffset]),
+    leaf: hash(context.environment.storageAddress, M[noteHashOffset]),
 })
 M[existsOffset] = exists
 `,
         "Summary": "Check whether a note hash exists in the note hash tree (as of the start of the current block)",
         "World State access tracing": `
 context.worldStateAccessTrace.noteHashChecks.append(
-    TracedLeafCheck {
+    TracedNoteHashCheck {
         callPointer: context.environment.callPointer,
         leafIndex: M[leafIndexOffset]
-        leaf: M[leafOffset],
+        noteHash: M[noteHashOffset],
         exists: exists, // defined above
         counter: ++context.worldStateAccessTrace.accessCounter,
     }
@@ -905,9 +905,9 @@ M[existsOffset] = exists
         "Summary": "Check whether a nullifier exists in the nullifier tree (including nullifiers from earlier in the current transaction or from earlier in the current block)",
         "World State access tracing": `
 context.worldStateAccessTrace.nullifierChecks.append(
-    TracedIndexedLeafCheck {
+    TracedNullifierCheck {
         callPointer: context.environment.callPointer,
-        leaf: M[nullifierOffset],
+        nullifier: M[nullifierOffset],
         exists: exists, // defined above
         counter: ++context.worldStateAccessTrace.accessCounter,
     }
