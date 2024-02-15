@@ -102,7 +102,7 @@ fn regression_2903() {
     let a = v[0];
     println(a); // will print `1`
 
-    let bytes = [ "a", "b", "c" ];
+    let bytes = [ "aaa", "bbb", "ccc" ];
     println(bytes);    
 }
 
