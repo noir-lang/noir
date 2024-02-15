@@ -8,7 +8,11 @@ Execution of an AVM program, within a provided [execution context](./context), i
 1. Execute the instruction at the index specified by the context's [program counter](#program-counter-and-control-flow)
     - Instruction execution will update the program counter
 
-This routine is represented with the syntax `execute(context)` in ["Nested execution"](./nested-calls#nested-execution) and other sections.
+The following shorthand syntax is used to refer to this execution routine in the ["Instruction Set"](./instruction-set), ["Nested execution"](./nested-calls#nested-execution), and other sections:
+
+```jsx
+execute(context)
+```
 
 ## Bytecode fetch and decode
 

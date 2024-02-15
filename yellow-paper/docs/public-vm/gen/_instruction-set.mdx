@@ -334,18 +334,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notehashexists'/><Markdown>[`NOTEHASHEXISTS`](#isa-section-notehashexists)</Markdown></td>
-	<td><Markdown>Check whether a note hash exists in the note hash tree (as of the start of the current block)</Markdown></td>
-	<td><CodeBlock language="jsx">
-{`exists = context.worldState.noteHashes.has({
-    leafIndex: M[leafIndexOffset]
-    leaf: hash(context.environment.storageAddress, M[leafOffset]),
-})
-M[existsOffset] = exists`}
-	</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
 	<td><Markdown>Emit a new note hash to be inserted into the note hash tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.noteHashes.append(
@@ -354,7 +343,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
 	<td><Markdown>Check whether a nullifier exists in the nullifier tree (including nullifiers from earlier in the current transaction or from earlier in the current block)</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.nullifiers.has(
@@ -364,7 +353,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
 	<td><Markdown>Emit a new nullifier to be inserted into the nullifier tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.nullifiers.append(
@@ -373,7 +362,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-readl1tol2msg'/><Markdown>[`READL1TOL2MSG`](#isa-section-readl1tol2msg)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-readl1tol2msg'/><Markdown>[`READL1TOL2MSG`](#isa-section-readl1tol2msg)</Markdown></td>
 	<td><Markdown>Check if a message exists in the L1-to-L2 message tree and reads it if so</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.l1ToL2Messages.has({
@@ -387,7 +376,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>[`HEADERMEMBER`](#isa-section-headermember)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>[`HEADERMEMBER`](#isa-section-headermember)</Markdown></td>
 	<td><Markdown>Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.header.has({
@@ -400,7 +389,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
 	<td><Markdown>Emit an unencrypted log</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.unencryptedLogs.append(
@@ -412,7 +401,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
 	<td><Markdown>Send an L2-to-L1 message</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.sentL2ToL1Messages.append(
@@ -425,7 +414,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
 	<td><Markdown>Call into another contract</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -440,7 +429,7 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
 	<td><Markdown>Call into another contract, disallowing World State and Accrued Substate modifications</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -455,7 +444,7 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x37</td>	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>[`DELEGATECALL`](#isa-section-delegatecall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>[`DELEGATECALL`](#isa-section-delegatecall)</Markdown></td>
 	<td><Markdown>Call into another contract, but keep the caller's `sender` and `storageAddress`</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -470,7 +459,7 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x38</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x37</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
 	<td><Markdown>Halt execution within this context (without revert), optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -478,7 +467,7 @@ halt`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x39</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x38</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
 	<td><Markdown>Halt execution within this context as `reverted`, optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -1364,7 +1353,7 @@ Check whether a note hash exists in the note hash tree (as of the start of the c
 - **Args**: 
 	- **leafOffset**: memory offset of the leaf
 	- **leafIndexOffset**: memory offset of the leaf index
-	- **existsOffset**: memory offset specifying where to store operation's result (whether the archive leaf exists)
+	- **existsOffset**: memory offset specifying where to store operation's result (whether the note hash leaf exists)
 - **Expression**: 
 <CodeBlock language="jsx">
 {`exists = context.worldState.noteHashes.has({
@@ -1385,43 +1374,6 @@ M[existsOffset] = exists`}
     }
 )`}
 </CodeBlock>
-- **Triggers downstream circuit operations**: Storage slot siloing (hash with contract address), public data tree update
-- **Tag updates**: T[existsOffset] = u8
-- **Bit-size**: 120
-
-
-### <a id='isa-section-notehashexists'/>`NOTEHASHEXISTS`
-Check whether a note hash exists in the note hash tree (as of the start of the current block)
-
-[See in table.](#isa-table-notehashexists)
-
-- **Opcode**: 0x2d
-- **Category**: World State - Notes & Nullifiers
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **leafOffset**: memory offset of the leaf
-	- **leafIndexOffset**: memory offset of the leaf index
-	- **existsOffset**: memory offset specifying where to store operation's result (whether the archive leaf exists)
-- **Expression**: 
-<CodeBlock language="jsx">
-{`exists = context.worldState.noteHashes.has({
-    leafIndex: M[leafIndexOffset]
-    leaf: hash(context.environment.storageAddress, M[leafOffset]),
-})
-M[existsOffset] = exists`}
-</CodeBlock>
-- **World State access tracing**: 
-<CodeBlock language="jsx">
-{`context.worldStateAccessTrace.noteHashChecks.append(
-    TracedLeafCheck {
-        callPointer: context.environment.callPointer,
-        leafIndex: M[leafIndexOffset]
-        leaf: M[leafOffset],
-        exists: exists, // defined above
-    }
-)`}
-</CodeBlock>
 - **Triggers downstream circuit operations**: Note hash siloing (hash with storage contract address), note hash tree membership check
 - **Tag updates**: `T[existsOffset] = u8`
 - **Bit-size**: 120
@@ -1432,7 +1384,7 @@ Emit a new note hash to be inserted into the note hash tree
 
 [See in table.](#isa-table-emitnotehash)
 
-- **Opcode**: 0x2e
+- **Opcode**: 0x2d
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1464,7 +1416,7 @@ Check whether a nullifier exists in the nullifier tree (including nullifiers fro
 
 [See in table.](#isa-table-nullifierexists)
 
-- **Opcode**: 0x2f
+- **Opcode**: 0x2e
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1499,7 +1451,7 @@ Emit a new nullifier to be inserted into the nullifier tree
 
 [See in table.](#isa-table-emitnullifier)
 
-- **Opcode**: 0x30
+- **Opcode**: 0x2f
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1531,7 +1483,7 @@ Check if a message exists in the L1-to-L2 message tree and reads it if so
 
 [See in table.](#isa-table-readl1tol2msg)
 
-- **Opcode**: 0x31
+- **Opcode**: 0x30
 - **Category**: World State - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1580,7 +1532,7 @@ Check if a header exists in the [archive tree](../state/archive) and retrieve th
 
 [See in table.](#isa-table-headermember)
 
-- **Opcode**: 0x32
+- **Opcode**: 0x31
 - **Category**: World State - Archive Tree & Headers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1623,7 +1575,7 @@ Emit an unencrypted log
 
 [See in table.](#isa-table-emitunencryptedlog)
 
-- **Opcode**: 0x33
+- **Opcode**: 0x32
 - **Category**: Accrued Substate - Logging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1648,7 +1600,7 @@ Send an L2-to-L1 message
 
 [See in table.](#isa-table-sendl2tol1msg)
 
-- **Opcode**: 0x34
+- **Opcode**: 0x33
 - **Category**: Accrued Substate - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1674,7 +1626,7 @@ Call into another contract
 
 [See in table.](#isa-table-call)
 
-- **Opcode**: 0x35
+- **Opcode**: 0x34
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1722,7 +1674,7 @@ Call into another contract, disallowing World State and Accrued Substate modific
 
 [See in table.](#isa-table-staticcall)
 
-- **Opcode**: 0x36
+- **Opcode**: 0x35
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1767,7 +1719,7 @@ Call into another contract, but keep the caller's `sender` and `storageAddress`
 
 [See in table.](#isa-table-delegatecall)
 
-- **Opcode**: 0x37
+- **Opcode**: 0x36
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1812,7 +1764,7 @@ Halt execution within this context (without revert), optionally returning some d
 
 [See in table.](#isa-table-return)
 
-- **Opcode**: 0x38
+- **Opcode**: 0x37
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1834,7 +1786,7 @@ Halt execution within this context as `reverted`, optionally returning some data
 
 [See in table.](#isa-table-revert)
 
-- **Opcode**: 0x39
+- **Opcode**: 0x38
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.

@@ -831,7 +831,7 @@ context.worldStateAccessTrace.publicStorageWrites.append(
         "Args": [
             {"name": "leafOffset", "description": "memory offset of the leaf"},
             {"name": "leafIndexOffset", "description": "memory offset of the leaf index"},
-            {"name": "existsOffset", "description": "memory offset specifying where to store operation's result (whether the archive leaf exists)"},
+            {"name": "existsOffset", "description": "memory offset specifying where to store operation's result (whether the note hash leaf exists)"},
         ],
         "Expression": `
 exists = context.worldState.noteHashes.has({
@@ -849,40 +849,6 @@ context.worldStateAccessTrace.noteHashChecks.append(
         leaf: M[leafOffset],
         exists: exists, // defined above
         counter: ++context.worldStateAccessTrace.accessCounter,
-    }
-)
-`,
-        "Triggers downstream circuit operations": "Storage slot siloing (hash with contract address), public data tree update",
-        "Tag checks": "",
-        "Tag updates": "T[existsOffset] = u8",
-    },
-    {
-        "id": "notehashexists",
-        "Name": "`NOTEHASHEXISTS`",
-        "Category": "World State - Notes & Nullifiers",
-        "Flags": [
-            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-        ],
-        "Args": [
-            {"name": "leafOffset", "description": "memory offset of the leaf"},
-            {"name": "leafIndexOffset", "description": "memory offset of the leaf index"},
-            {"name": "existsOffset", "description": "memory offset specifying where to store operation's result (whether the archive leaf exists)"},
-        ],
-        "Expression": `
-exists = context.worldState.noteHashes.has({
-    leafIndex: M[leafIndexOffset]
-    leaf: hash(context.environment.storageAddress, M[leafOffset]),
-})
-M[existsOffset] = exists
-`,
-        "Summary": "Check whether a note hash exists in the note hash tree (as of the start of the current block)",
-        "World State access tracing": `
-context.worldStateAccessTrace.noteHashChecks.append(
-    TracedLeafCheck {
-        callPointer: context.environment.callPointer,
-        leafIndex: M[leafIndexOffset]
-        leaf: M[leafOffset],
-        exists: exists, // defined above
     }
 )
 `,
