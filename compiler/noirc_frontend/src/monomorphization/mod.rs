@@ -714,7 +714,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let mutable = definition.mutable;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
-                let typ = self.interner.id_type(expr_id);
                 let definition = self.lookup_function(*func_id, expr_id, &typ, None);
                 let typ = self.convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
@@ -755,7 +754,8 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let value = FieldElement::from(value as u128);
                 let location = self.interner.id_location(expr_id);
-                ast::Expression::Literal(ast::Literal::Integer(value, ast::Type::Field, location))
+                let typ = self.convert_type(&typ);
+                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
             }
         }
     }
