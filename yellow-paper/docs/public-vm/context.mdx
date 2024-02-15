@@ -1,0 +1,125 @@
+# Execution Context
+
+:::note REMINDER
+Many terms and definitions here are borrowed from the [Ethereum Yellow Paper](https://ethereum.github.io/yellowpaper/paper.pdf).
+:::
+
+An **execution context** contains the information and state relevant to a contract call's execution. When a contract call is made, an execution context is [initialized](#context-initialization) before the contract code's execution begins.
+
+#### _AvmContext_
+| Field                                                     | Type                    |
+| ---                                                       | ---                     |
+| environment                                               | `ExecutionEnvironment`  |
+| [machineState](./state#machine-state)                     | `MachineState`          |
+| [worldState](./state#avm-world-state)                     | `AvmWorldState`         |
+| [worldStateAccessTrace](./state#world-state-access-trace) | `WorldStateAccessTrace` |
+| [accruedSubstate](./state#accrued-substate)               | `AccruedSubstate`       |
+| results                                                   | `ContractCallResults`   |
+
+## Execution Environment
+
+A context's **execution environment** remains constant throughout a contract call's execution. When a contract call initializes its execution context, it [fully specifies the execution environment](#context-initialization).
+
+### _ExecutionEnvironment_
+| Field                 | Type                         | Description |
+| ---                   | ---                          | ---         |
+| address               | `AztecAddress`               |  |
+| storageAddress        | `AztecAddress`               |  |
+| origin                | `AztecAddress`               |  |
+| sender                | `AztecAddress`               |  |
+| portal                | `EthAddress`                 |  |
+| feePerL1Gas           | `field`                      |  |
+| feePerL2Gas           | `field`                      |  |
+| feePerDaGas           | `field`                      |  |
+| contractCallDepth     | `field`                      | Depth of the current call (how many nested calls deep is it). |
+| contractCallPointer   | `field`                      | Uniquely identifies each contract call processed by an AVM session. An initial call is assigned pointer value of 1 (expanded on in the AVM circuit section's ["Call Pointer"](./avm-circuit#call-pointer) subsection). |
+| globals               | `PublicGlobalVariables`      |  |
+| isStaticCall          | `boolean`                    |  |
+| isDelegateCall        | `boolean`                    |  |
+| calldata              | `[field; <calldata-length>]` |  |
+
+## Contract Call Results
+
+When a contract call halts, it sets the context's **contract call results** to communicate results to the caller.
+
+### _ContractCallResults_
+| Field        | Type                       | Description |
+| ---          | ---                        | ---         |
+| reverted     | `boolean`                  |  |
+| output       | `[field; <output-length>]` |  |
+
+## Context initialization
+
+### Initial contract calls
+
+An **initial contract call** initializes a new execution context from a public execution request.
+
+```
+context = AvmContext {
+    environment = INITIAL_EXECUTION_ENVIRONMENT,
+    machineState = INITIAL_MACHINE_STATE,
+    worldState = <latest world state>,
+    worldStateAccessTrace = INITIAL_WORLD_STATE_ACCESS_TRACE,
+    accruedSubstate =  { [], ... [], }, // all substate vectors empty
+    results = INITIAL_CONTRACT_CALL_RESULTS,
+}
+```
+
+> Since world state persists between transactions, the latest state is injected into a new AVM context.
+
+Given a [`PublicCallRequest`](../transactions/tx-object#public-call-request) and its parent [`TxRequest`](../transactions/local-execution#execution-request), these above-listed "`INITIAL_*`" entries are defined as follows:
+
+```
+INITIAL_EXECUTION_ENVIRONMENT = ExecutionEnvironment {
+    address: PublicCallRequest.contractAddress,
+    storageAddress: PublicCallRequest.CallContext.storageContractAddress,
+    origin: TxRequest.origin,
+    sender: PublicCallRequest.CallContext.msgSender,
+    portal: PublicCallRequest.CallContext.portalContractAddress,
+    feePerL1Gas: TxRequest.feePerL1Gas,
+    feePerL2Gas: TxRequest.feePerL2Gas,
+    feePerDaGas: TxRequest.feePerDaGas,
+    contractCallDepth: 0,
+    contractCallPointer: 1,
+    globals: <current block's global variables>
+    isStaticCall: PublicCallRequest.CallContext.isStaticCall,
+    isDelegateCall: PublicCallRequest.CallContext.isDelegateCall,
+    calldata: PublicCallRequest.args,
+}
+
+INITIAL_MACHINE_STATE = MachineState {
+    l1GasLeft: TxRequest.l1GasLimit,
+    l2GasLeft: TxRequest.l2GasLimit,
+    daGasLeft: TxRequest.daGasLimit,
+    pc: 0,
+    internalCallStack: [], // initialized as empty
+    memory: [0, ..., 0],   // all 2^32 entries are initialized to zero
+}
+
+INITIAL_WORLD_STATE_ACCESS_TRACE = WorldStateAccessTrace {
+    accessCounter: 1,
+    contractCalls: [ // initial contract call is traced
+        TracedContractCall {
+            callPointer: nestedContext.environment.callPointer,
+            address: nestedContext.address,
+            storageAddress: nestedContext.storageAddress,
+            counter: 0,
+            endLifetime: 0, // The call's end-lifetime will be updated later if it or its caller reverts
+        }
+    ],
+    [], ... [], // remaining entries are empty
+},
+
+INITIAL_CONTRACT_CALL_RESULTS = ContractCallResults {
+    reverted = false,
+    output = [], // initialized as empty
+}
+```
+
+### Nested contract calls
+
+> See the dedicated ["Nested Contract Calls"](./nested-calls) page for a detailed explanation of nested contract calls.
+
+import NestedContext from "./_nested-context.md";
+
+<NestedContext />

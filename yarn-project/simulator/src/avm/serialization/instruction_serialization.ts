@@ -61,6 +61,7 @@ export enum Opcode {
   SENDL2TOL1MSG,
   CALL,
   STATICCALL,
+  DELEGATECALL,
   RETURN,
   REVERT,
   KECCAK,

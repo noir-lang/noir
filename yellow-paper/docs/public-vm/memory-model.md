@@ -1,4 +1,4 @@
-# Memory State Model
+# Memory Model
 
 This section describes the AVM memory model, and in particular specifies "internal" VM abstractions that can be mapped to the VM's circuit architecture.
 
@@ -15,7 +15,7 @@ All data regions are linear blocks of memory where each memory cell stores a fin
 Main memory stores the internal state of the current program being executed.
 Can be written to as well as read.
 
-The main memory region stores _type tags_ alongside data values. [Type tags are explained further on in this document](#type tags).
+The main memory region stores [_type tags_](#types-and-tagged-memory) alongside data values.
 
 #### Calldata
 

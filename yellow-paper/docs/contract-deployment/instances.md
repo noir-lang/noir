@@ -145,7 +145,7 @@ Specific to private functions:
 
 Specific to public functions:
 
-- The bytecode loaded by the [AVM](../public-vm/avm.md) for the contract matches the `bytecode_commitment` in the contract class, verified using the [bytecode validation circuit](../public-vm/bytecode-validation-circuit.md).
+- The bytecode loaded by the [AVM](../public-vm/intro) for the contract matches the `bytecode_commitment` in the contract class, verified using the [bytecode validation circuit](../public-vm/bytecode-validation-circuit).
 - The contract Deployment Nullifier has been emitted, or prove that it hasn't, in which case the transaction is expected to revert. This check is done via a merkle (non-)membership proof of the Deployment Nullifier. Note that a public function should be callable in the same transaction in which its contract Deployment Nullifier was emitted.
 
 Note that, since constructors are handled at the application level, the kernel circuit is not required to check the Initialization Nullifier before executing code.

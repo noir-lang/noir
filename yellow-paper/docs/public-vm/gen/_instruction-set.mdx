@@ -312,14 +312,14 @@ context.machineState.pc = loc`}
 	<td style={{'text-align': 'center'}}>0x2a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
 	<td><Markdown>Load a word from this contract's persistent public storage. Zero is loaded for unwritten slots.</Markdown></td>
 	<td><CodeBlock language="jsx">
-{`M[dstOffset] = context.worldState.publicStorage[context.environment.storageAddress][M[slotOffset]]`}
+{`M[dstOffset] = S[M[slotOffset]]`}
 	</CodeBlock></td>
 </tr>
 <tr>
 	<td style={{'text-align': 'center'}}>0x2b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
 	<td><Markdown>Write a word to this contract's persistent public storage</Markdown></td>
 	<td><CodeBlock language="jsx">
-{`context.worldState.publicStorage[context.environment.storageAddress][M[slotOffset]] = M[srcOffset]`}
+{`S[M[slotOffset]] = M[srcOffset]`}
 	</CodeBlock></td>
 </tr>
 <tr>
@@ -334,7 +334,18 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notehashexists'/><Markdown>[`NOTEHASHEXISTS`](#isa-section-notehashexists)</Markdown></td>
+	<td><Markdown>Check whether a note hash exists in the note hash tree (as of the start of the current block)</Markdown></td>
+	<td><CodeBlock language="jsx">
+{`exists = context.worldState.noteHashes.has({
+    leafIndex: M[leafIndexOffset]
+    leaf: hash(context.environment.storageAddress, M[leafOffset]),
+})
+M[existsOffset] = exists`}
+	</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
 	<td><Markdown>Emit a new note hash to be inserted into the note hash tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.noteHashes.append(
@@ -343,7 +354,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
 	<td><Markdown>Check whether a nullifier exists in the nullifier tree (including nullifiers from earlier in the current transaction or from earlier in the current block)</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.nullifiers.has(
@@ -353,7 +364,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
 	<td><Markdown>Emit a new nullifier to be inserted into the nullifier tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.nullifiers.append(
@@ -362,8 +373,8 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-readl1tol2msg'/><Markdown>[`READL1TOL2MSG`](#isa-section-readl1tol2msg)</Markdown></td>
-	<td><Markdown>Check if a message exists in the L1-to-L2 message tree and reads it if so.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-readl1tol2msg'/><Markdown>[`READL1TOL2MSG`](#isa-section-readl1tol2msg)</Markdown></td>
+	<td><Markdown>Check if a message exists in the L1-to-L2 message tree and reads it if so</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.l1ToL2Messages.has({
     leafIndex: M[msgLeafIndex], leaf: M[msgKeyOffset]
@@ -376,14 +387,20 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>[`HEADERMEMBER`](#isa-section-headermember)</Markdown></td>
-	<td><Markdown>Retrieve one member from a specified block's header. Revert if header does not yet exist. See ["Archive"](../state/archive) for more.</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>[`HEADERMEMBER`](#isa-section-headermember)</Markdown></td>
+	<td><Markdown>Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so</Markdown></td>
 	<td><CodeBlock language="jsx">
-{`M[dstOffset] = context.worldState.headers.get(M[blockIndexOffset])[M[memberIndexOffset]]`}
+{`exists = context.worldState.header.has({
+    leafIndex: M[blockIndexOffset], leaf: M[msgKeyOffset]
+})
+M[existsOffset] = exists
+if exists:
+    header = context.worldState.headers.get(M[blockIndexOffset])
+    M[dstOffset] = header[M[memberIndexOffset]] // member`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
 	<td><Markdown>Emit an unencrypted log</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.unencryptedLogs.append(
@@ -395,7 +412,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
 	<td><Markdown>Send an L2-to-L1 message</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.sentL2ToL1Messages.append(
@@ -408,29 +425,52 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
 	<td><Markdown>Call into another contract</Markdown></td>
 	<td><CodeBlock language="jsx">
-{`M[successOffset] = call(
-    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
-    M[addrOffset],
-    M[argsOffset], M[argsSize],
-    M[retOffset], M[retSize])`}
+{`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
+chargeGas(context,
+          l1GasCost=M[instr.args.gasOffset],
+          l2GasCost=M[instr.args.gasOffset+1],
+          daGasCost=M[instr.args.gasOffset+2])
+traceNestedCall(context, instr.args.addrOffset)
+nestedContext = deriveContext(context, instr.args, isStaticCall=false, isDelegateCall=false)
+execute(nestedContext)
+updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
 	<td><Markdown>Call into another contract, disallowing World State and Accrued Substate modifications</Markdown></td>
 	<td><CodeBlock language="jsx">
-{`M[successOffset] = staticcall(
-    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
-    M[addrOffset],
-    M[argsOffset], M[argsSize],
-    M[retOffset], M[retSize])`}
+{`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
+chargeGas(context,
+          l1GasCost=M[instr.args.gasOffset],
+          l2GasCost=M[instr.args.gasOffset+1],
+          daGasCost=M[instr.args.gasOffset+2])
+traceNestedCall(context, instr.args.addrOffset)
+nestedContext = deriveContext(context, instr.args, isStaticCall=true, isDelegateCall=false)
+execute(nestedContext)
+updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x37</td>	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>[`DELEGATECALL`](#isa-section-delegatecall)</Markdown></td>
+	<td><Markdown>Call into another contract, but keep the caller's `sender` and `storageAddress`</Markdown></td>
+	<td><CodeBlock language="jsx">
+{`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
+chargeGas(context,
+          l1GasCost=M[instr.args.gasOffset],
+          l2GasCost=M[instr.args.gasOffset+1],
+          daGasCost=M[instr.args.gasOffset+2])
+traceNestedCall(context, instr.args.addrOffset)
+nestedContext = deriveContext(context, instr.args, isStaticCall=false, isDelegateCall=true)
+execute(nestedContext)
+updateContextAfterNestedCall(context, instr.args, nestedContext)`}
+	</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x38</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
 	<td><Markdown>Halt execution within this context (without revert), optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -438,7 +478,7 @@ halt`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x37</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x39</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
 	<td><Markdown>Halt execution within this context as `reverted`, optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -1241,11 +1281,11 @@ Load a word from this contract's persistent public storage. Zero is loaded for u
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: 
 <CodeBlock language="jsx">
-{`M[dstOffset] = context.worldState.publicStorage[context.environment.storageAddress][M[slotOffset]]`}
+{`M[dstOffset] = S[M[slotOffset]]`}
 </CodeBlock>
 - **Details**: 
 <CodeBlock language="jsx">
-{`// Expression is short-hand for
+{`// Expression is shorthand for
 leafIndex = hash(context.environment.storageAddress, M[slotOffset])
 exists = context.worldState.publicStorage.has(leafIndex) // exists == previously-written
 if exists:
@@ -1262,7 +1302,7 @@ M[dstOffset] = value`}
         slot: M[slotOffset],
         exists: exists, // defined above
         value: value, // defined above
-        counter: clk,
+        counter: ++context.worldStateAccessTrace.accessCounter,
     }
 )`}
 </CodeBlock>
@@ -1286,11 +1326,11 @@ Write a word to this contract's persistent public storage
 	- **slotOffset**: memory offset containing the storage slot to store to
 - **Expression**: 
 <CodeBlock language="jsx">
-{`context.worldState.publicStorage[context.environment.storageAddress][M[slotOffset]] = M[srcOffset]`}
+{`S[M[slotOffset]] = M[srcOffset]`}
 </CodeBlock>
 - **Details**: 
 <CodeBlock language="jsx">
-{`// Expression is short-hand for
+{`// Expression is shorthand for
 context.worldState.publicStorage.set({
     leafIndex: hash(context.environment.storageAddress, M[slotOffset]),
     leaf: M[srcOffset],
@@ -1303,7 +1343,7 @@ context.worldState.publicStorage.set({
         callPointer: context.environment.callPointer,
         slot: M[slotOffset],
         value: M[srcOffset],
-        counter: clk,
+        counter: ++context.worldStateAccessTrace.accessCounter,
     }
 )`}
 </CodeBlock>
@@ -1341,12 +1381,49 @@ M[existsOffset] = exists`}
         leafIndex: M[leafIndexOffset]
         leaf: M[leafOffset],
         exists: exists, // defined above
-        counter: clk,
+        counter: ++context.worldStateAccessTrace.accessCounter,
+    }
+)`}
+</CodeBlock>
+- **Triggers downstream circuit operations**: Storage slot siloing (hash with contract address), public data tree update
+- **Tag updates**: T[existsOffset] = u8
+- **Bit-size**: 120
+
+
+### <a id='isa-section-notehashexists'/>`NOTEHASHEXISTS`
+Check whether a note hash exists in the note hash tree (as of the start of the current block)
+
+[See in table.](#isa-table-notehashexists)
+
+- **Opcode**: 0x2d
+- **Category**: World State - Notes & Nullifiers
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **leafOffset**: memory offset of the leaf
+	- **leafIndexOffset**: memory offset of the leaf index
+	- **existsOffset**: memory offset specifying where to store operation's result (whether the archive leaf exists)
+- **Expression**: 
+<CodeBlock language="jsx">
+{`exists = context.worldState.noteHashes.has({
+    leafIndex: M[leafIndexOffset]
+    leaf: hash(context.environment.storageAddress, M[leafOffset]),
+})
+M[existsOffset] = exists`}
+</CodeBlock>
+- **World State access tracing**: 
+<CodeBlock language="jsx">
+{`context.worldStateAccessTrace.noteHashChecks.append(
+    TracedLeafCheck {
+        callPointer: context.environment.callPointer,
+        leafIndex: M[leafIndexOffset]
+        leaf: M[leafOffset],
+        exists: exists, // defined above
     }
 )`}
 </CodeBlock>
 - **Triggers downstream circuit operations**: Note hash siloing (hash with storage contract address), note hash tree membership check
-- **Tag updates**: `T[dstOffset] = u8`
+- **Tag updates**: `T[existsOffset] = u8`
 - **Bit-size**: 120
 
 
@@ -1355,7 +1432,7 @@ Emit a new note hash to be inserted into the note hash tree
 
 [See in table.](#isa-table-emitnotehash)
 
-- **Opcode**: 0x2d
+- **Opcode**: 0x2e
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1373,7 +1450,7 @@ Emit a new note hash to be inserted into the note hash tree
     TracedNoteHash {
         callPointer: context.environment.callPointer,
         value: M[noteHashOffset], // unsiloed note hash
-        counter: clk,
+        counter: ++context.worldStateAccessTrace.accessCounter,
     }
 )`}
 </CodeBlock>
@@ -1387,7 +1464,7 @@ Check whether a nullifier exists in the nullifier tree (including nullifiers fro
 
 [See in table.](#isa-table-nullifierexists)
 
-- **Opcode**: 0x2e
+- **Opcode**: 0x2f
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1408,12 +1485,12 @@ M[existsOffset] = exists`}
         callPointer: context.environment.callPointer,
         leaf: M[nullifierOffset],
         exists: exists, // defined above
-        counter: clk,
+        counter: ++context.worldStateAccessTrace.accessCounter,
     }
 )`}
 </CodeBlock>
 - **Triggers downstream circuit operations**: Nullifier siloing (hash with storage contract address), nullifier tree membership check
-- **Tag updates**: `T[dstOffset] = u8`
+- **Tag updates**: `T[existsOffset] = u8`
 - **Bit-size**: 88
 
 
@@ -1422,7 +1499,7 @@ Emit a new nullifier to be inserted into the nullifier tree
 
 [See in table.](#isa-table-emitnullifier)
 
-- **Opcode**: 0x2f
+- **Opcode**: 0x30
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1440,7 +1517,7 @@ Emit a new nullifier to be inserted into the nullifier tree
     TracedNullifier {
         callPointer: context.environment.callPointer,
         value: M[nullifierOffset], // unsiloed nullifier
-        counter: clk,
+        counter: ++context.worldStateAccessTrace.accessCounter,
     }
 )`}
 </CodeBlock>
@@ -1450,11 +1527,11 @@ Emit a new nullifier to be inserted into the nullifier tree
 [![](./images/bit-formats/EMITNULLIFIER.png)](./images/bit-formats/EMITNULLIFIER.png)
 
 ### <a id='isa-section-readl1tol2msg'/>`READL1TOL2MSG`
-Check if a message exists in the L1-to-L2 message tree and reads it if so.
+Check if a message exists in the L1-to-L2 message tree and reads it if so
 
 [See in table.](#isa-table-readl1tol2msg)
 
-- **Opcode**: 0x30
+- **Opcode**: 0x31
 - **Category**: World State - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1489,41 +1566,56 @@ if exists:
 </CodeBlock>
 - **Additional AVM circuit checks**: `msgKey == sha256_to_field(msg)`
 - **Triggers downstream circuit operations**: L1-to-L2 message tree membership check
-- **Tag updates**: `T[dstOffset:dstOffset+msgSize] = field`
+- **Tag updates**: 
+<CodeBlock language="jsx">
+{`T[existsOffset] = u8,
+T[dstOffset:dstOffset+msgSize] = field`}
+</CodeBlock>
 - **Bit-size**: 184
 
 [![](./images/bit-formats/READL1TOL2MSG.png)](./images/bit-formats/READL1TOL2MSG.png)
 
 ### <a id='isa-section-headermember'/>`HEADERMEMBER`
-Retrieve one member from a specified block's header. Revert if header does not yet exist. See ["Archive"](../state/archive) for more.
+Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so
 
 [See in table.](#isa-table-headermember)
 
-- **Opcode**: 0x31
+- **Opcode**: 0x32
 - **Category**: World State - Archive Tree & Headers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **blockIndexOffset**: memory offset of the block index (same as archive tree leaf index) of the header to access
 	- **memberIndexOffset**: memory offset of the index of the member to retrieve from the header of the specified block
+	- **existsOffset**: memory offset specifying where to store operation's result (whether the leaf exists in the archive tree)
 	- **dstOffset**: memory offset specifying where to store operation's result (the retrieved header member)
 - **Expression**: 
 <CodeBlock language="jsx">
-{`M[dstOffset] = context.worldState.headers.get(M[blockIndexOffset])[M[memberIndexOffset]]`}
+{`exists = context.worldState.header.has({
+    leafIndex: M[blockIndexOffset], leaf: M[msgKeyOffset]
+})
+M[existsOffset] = exists
+if exists:
+    header = context.worldState.headers.get(M[blockIndexOffset])
+    M[dstOffset] = header[M[memberIndexOffset]] // member`}
 </CodeBlock>
 - **World State access tracing**: 
 <CodeBlock language="jsx">
 {`context.worldStateAccessTrace.archiveChecks.append(
     TracedArchiveLeafCheck {
         leafIndex: M[blockIndexOffset], // leafIndex == blockIndex
-        leaf: hash(context.worldState.headers.get(M[blockIndexOffset])),
+        leaf: exists ? hash(header) : 0, // "exists" defined above
     }
 )`}
 </CodeBlock>
 - **Additional AVM circuit checks**: Hashes entire header to archive leaf for tracing. Aggregates header accesses and so that a header need only be hashed once.
 - **Triggers downstream circuit operations**: Archive tree membership check
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 120
+- **Tag updates**: 
+<CodeBlock language="jsx">
+{`T[existsOffset] = u8
+T[dstOffset] = field`}
+</CodeBlock>
+- **Bit-size**: 152
 
 
 ### <a id='isa-section-emitunencryptedlog'/>`EMITUNENCRYPTEDLOG`
@@ -1531,7 +1623,7 @@ Emit an unencrypted log
 
 [See in table.](#isa-table-emitunencryptedlog)
 
-- **Opcode**: 0x32
+- **Opcode**: 0x33
 - **Category**: Accrued Substate - Logging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1556,7 +1648,7 @@ Send an L2-to-L1 message
 
 [See in table.](#isa-table-sendl2tol1msg)
 
-- **Opcode**: 0x33
+- **Opcode**: 0x34
 - **Category**: Accrued Substate - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1582,7 +1674,7 @@ Call into another contract
 
 [See in table.](#isa-table-call)
 
-- **Opcode**: 0x34
+- **Opcode**: 0x35
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1596,15 +1688,25 @@ Call into another contract
 	- **successOffset**: destination memory offset specifying where to store the call's success (0: failure, 1: success)
 - **Expression**: 
 <CodeBlock language="jsx">
-{`M[successOffset] = call(
-    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
-    M[addrOffset],
-    M[argsOffset], M[argsSize],
-    M[retOffset], M[retSize])`}
+{`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
+chargeGas(context,
+          l1GasCost=M[instr.args.gasOffset],
+          l2GasCost=M[instr.args.gasOffset+1],
+          daGasCost=M[instr.args.gasOffset+2])
+traceNestedCall(context, instr.args.addrOffset)
+nestedContext = deriveContext(context, instr.args, isStaticCall=false, isDelegateCall=false)
+execute(nestedContext)
+updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 </CodeBlock>
-- **Details**: Creates a new (nested) execution context and triggers execution within it until the nested context halts.
-                    Then resumes execution in the current/calling context. A non-existent contract or one with no code will return success.
-                    See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
+- **Details**: Creates a new (nested) execution context and triggers execution within that context.
+                    Execution proceeds in the nested context until it reaches a halt at which point
+                    execution resumes in the current/calling context.
+                    A non-existent contract or one with no code will return success. 
+    ["Nested contract calls"](./nested-calls) provides a full explanation of this
+    instruction along with the shorthand used in the expression above.
+    The explanation includes details on charging gas for nested calls,
+    nested context derivation, world state tracing, and updating the parent context
+    after the nested call halts.
 - **Tag checks**: `T[gasOffset] == T[gasOffset+1] == T[gasOffset+2] == u32`
 - **Tag updates**: 
 <CodeBlock language="jsx">
@@ -1620,7 +1722,7 @@ Call into another contract, disallowing World State and Accrued Substate modific
 
 [See in table.](#isa-table-staticcall)
 
-- **Opcode**: 0x35
+- **Opcode**: 0x36
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1634,13 +1736,22 @@ Call into another contract, disallowing World State and Accrued Substate modific
 	- **successOffset**: destination memory offset specifying where to store the call's success (0: failure, 1: success)
 - **Expression**: 
 <CodeBlock language="jsx">
-{`M[successOffset] = staticcall(
-    M[gasOffset], M[gasOffset+1], M[gasOffset+2],
-    M[addrOffset],
-    M[argsOffset], M[argsSize],
-    M[retOffset], M[retSize])`}
+{`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
+chargeGas(context,
+          l1GasCost=M[instr.args.gasOffset],
+          l2GasCost=M[instr.args.gasOffset+1],
+          daGasCost=M[instr.args.gasOffset+2])
+traceNestedCall(context, instr.args.addrOffset)
+nestedContext = deriveContext(context, instr.args, isStaticCall=true, isDelegateCall=false)
+execute(nestedContext)
+updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 </CodeBlock>
-- **Details**: Same as `CALL`, but disallows World State and Accrued Substate modifications. See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
+- **Details**: Same as `CALL`, but disallows World State and Accrued Substate modifications. 
+    ["Nested contract calls"](./nested-calls) provides a full explanation of this
+    instruction along with the shorthand used in the expression above.
+    The explanation includes details on charging gas for nested calls,
+    nested context derivation, world state tracing, and updating the parent context
+    after the nested call halts.
 - **Tag checks**: `T[gasOffset] == T[gasOffset+1] == T[gasOffset+2] == u32`
 - **Tag updates**: 
 <CodeBlock language="jsx">
@@ -1651,12 +1762,57 @@ T[retOffset:retOffset+retSize] = field`}
 
 [![](./images/bit-formats/STATICCALL.png)](./images/bit-formats/STATICCALL.png)
 
+### <a id='isa-section-delegatecall'/>`DELEGATECALL`
+Call into another contract, but keep the caller's `sender` and `storageAddress`
+
+[See in table.](#isa-table-delegatecall)
+
+- **Opcode**: 0x37
+- **Category**: Control Flow - Contract Calls
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **gasOffset**: offset to three words containing `{l1GasLeft, l2GasLeft, daGasLeft}`: amount of gas to provide to the callee
+	- **addrOffset**: address of the contract to call
+	- **argsOffset**: memory offset to args (will become the callee's calldata)
+	- **argsSize**: number of words to pass via callee's calldata
+	- **retOffset**: destination memory offset specifying where to store the data returned from the callee
+	- **retSize**: number of words to copy from data returned by callee
+	- **successOffset**: destination memory offset specifying where to store the call's success (0: failure, 1: success)
+- **Expression**: 
+<CodeBlock language="jsx">
+{`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
+chargeGas(context,
+          l1GasCost=M[instr.args.gasOffset],
+          l2GasCost=M[instr.args.gasOffset+1],
+          daGasCost=M[instr.args.gasOffset+2])
+traceNestedCall(context, instr.args.addrOffset)
+nestedContext = deriveContext(context, instr.args, isStaticCall=false, isDelegateCall=true)
+execute(nestedContext)
+updateContextAfterNestedCall(context, instr.args, nestedContext)`}
+</CodeBlock>
+- **Details**: Same as `CALL`, but `sender` and `storageAddress` remains
+                    the same in the nested call as they were in the caller. 
+    ["Nested contract calls"](./nested-calls) provides a full explanation of this
+    instruction along with the shorthand used in the expression above.
+    The explanation includes details on charging gas for nested calls,
+    nested context derivation, world state tracing, and updating the parent context
+    after the nested call halts.
+- **Tag checks**: `T[gasOffset] == T[gasOffset+1] == T[gasOffset+2] == u32`
+- **Tag updates**: 
+<CodeBlock language="jsx">
+{`T[successOffset] = u8
+T[retOffset:retOffset+retSize] = field`}
+</CodeBlock>
+- **Bit-size**: 248
+
+
 ### <a id='isa-section-return'/>`RETURN`
 Halt execution within this context (without revert), optionally returning some data
 
 [See in table.](#isa-table-return)
 
-- **Opcode**: 0x36
+- **Opcode**: 0x38
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1668,7 +1824,7 @@ Halt execution within this context (without revert), optionally returning some d
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
 halt`}
 </CodeBlock>
-- **Details**: Return control flow to the calling context/contract. Caller will accept World State and Accrued Substate modifications. See ["Halting"](./avm#halting) to learn more. See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
+- **Details**: Return control flow to the calling context/contract. Caller will accept World State and Accrued Substate modifications. See ["Halting"](./execution#halting) to learn more. See ["Nested contract calls"](./nested-calls) to see how the caller updates its context after the nested call halts.
 - **Bit-size**: 88
 
 [![](./images/bit-formats/RETURN.png)](./images/bit-formats/RETURN.png)
@@ -1678,7 +1834,7 @@ Halt execution within this context as `reverted`, optionally returning some data
 
 [See in table.](#isa-table-revert)
 
-- **Opcode**: 0x37
+- **Opcode**: 0x39
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1691,7 +1847,7 @@ Halt execution within this context as `reverted`, optionally returning some data
 context.contractCallResults.reverted = true
 halt`}
 </CodeBlock>
-- **Details**: Return control flow to the calling context/contract. Caller will reject World State and Accrued Substate modifications. See ["Halting"](./avm#halting) to learn more. See ["Nested contract calls"](./avm#nested-contract-calls) to see how the caller updates its context after the nested call halts.
+- **Details**: Return control flow to the calling context/contract. Caller will reject World State and Accrued Substate modifications. See ["Halting"](./execution#halting) to learn more. See ["Nested contract calls"](./nested-calls) to see how the caller updates its context after the nested call halts.
 - **Bit-size**: 88
 
 [![](./images/bit-formats/REVERT.png)](./images/bit-formats/REVERT.png)

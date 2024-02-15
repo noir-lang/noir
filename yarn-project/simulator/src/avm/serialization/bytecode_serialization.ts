@@ -125,6 +125,7 @@ const INSTRUCTION_SET = () =>
     // Control Flow - Contract Calls
     [Call.opcode, Call],
     [StaticCall.opcode, StaticCall],
+    //[DelegateCall.opcode, DelegateCall],
     [Return.opcode, Return],
     [Revert.opcode, Revert],
 

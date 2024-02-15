@@ -76,6 +76,7 @@ pub enum AvmOpcode {
     // Control Flow - Contract Calls
     CALL,
     STATICCALL,
+    DELEGATECALL,
     RETURN,
     REVERT,
 
@@ -163,6 +164,7 @@ impl AvmOpcode {
             // Control Flow - Contract Calls
             AvmOpcode::CALL => "CALL",
             AvmOpcode::STATICCALL => "STATICCALL",
+            AvmOpcode::DELEGATECALL => "DELEGATECALL",
             AvmOpcode::RETURN => "RETURN",
             AvmOpcode::REVERT => "REVERT",
 

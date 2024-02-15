@@ -118,7 +118,7 @@ async function generateInstructionSet() {
     const rootDir = path.join(__dirname, "../../../");
     const docsDir = path.join(rootDir, "docs", "docs");
 
-    const relPath = path.relative(docsDir, "docs/public-vm/gen/_InstructionSet.mdx");
+    const relPath = path.relative(docsDir, "docs/public-vm/gen/_instruction-set.mdx");
     const docsFilePath = path.resolve(docsDir, relPath);
     const docsDirName = path.dirname(docsFilePath);
     if (!fs.existsSync(docsDirName)) {

@@ -82,6 +82,7 @@ const std::unordered_map<OpCode, size_t> Bytecode::OPERANDS_NUM = {
     //// Control Flow - Contract Calls
     //{ OpCode::CALL, },
     //{ OpCode::STATICCALL, },
+    //{ OpCode::DELEGATECALL, },
     { OpCode::RETURN, 2 },
     // { OpCode::REVERT, },
 
