@@ -472,7 +472,7 @@ impl<'a> FunctionContext<'a> {
 
         // this is the 'i' in `for i in start .. end { block }`
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
-        let loop_index = self.builder.add_block_parameter(loop_entry, index_type.clone());
+        let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
         self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
