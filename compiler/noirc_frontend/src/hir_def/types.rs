@@ -984,7 +984,11 @@ impl Type {
 
         let this = self.substitute(bindings).follow_bindings();
         match &this {
-            Type::FieldElement | Type::Integer(..) => {
+            Type::Integer(..) => {
+                bindings.insert(target_id, (var.clone(), this));
+                Ok(())
+            }
+            Type::FieldElement if !only_integer => {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
