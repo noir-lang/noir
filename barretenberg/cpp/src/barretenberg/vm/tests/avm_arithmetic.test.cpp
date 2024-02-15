@@ -41,6 +41,10 @@ void common_validate_arithmetic_op(Row const& main_row,
     EXPECT_EQ(alu_row.avm_alu_alu_ia, a);
     EXPECT_EQ(alu_row.avm_alu_alu_ib, b);
     EXPECT_EQ(alu_row.avm_alu_alu_ic, c);
+
+    // Check that no error is raised
+    EXPECT_EQ(main_row.avm_main_tag_err, FF(0));
+    EXPECT_EQ(main_row.avm_main_op_err, FF(0));
 }
 
 Row common_validate_add(std::vector<Row> const& trace,
@@ -251,11 +255,7 @@ class AvmArithmeticTests : public ::testing::Test {
 
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override
-    {
-        srs::init_crs_factory("../srs_db/ignition");
-        trace_builder = AvmTraceBuilder(); // Clean instance for every run.
-    };
+    void SetUp() override { srs::init_crs_factory("../srs_db/ignition"); };
 };
 
 class AvmArithmeticTestsFF : public AvmArithmeticTests {};
@@ -303,7 +303,6 @@ class AvmArithmeticNegativeTestsU128 : public AvmArithmeticTests {};
 // Test on basic addition over finite field type.
 TEST_F(AvmArithmeticTestsFF, addition)
 {
-    // trace_builder
     trace_builder.calldata_copy(0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
     //                             Memory layout:    [37,4,11,0,0,0,....]
