@@ -733,7 +733,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             DefinitionKind::Global(global_id) => {
                 let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
-                    unreachable!("Globals should have a corresponding let statement by monomorphization")
+                    unreachable!(
+                        "Globals should have a corresponding let statement by monomorphization"
+                    )
                 };
                 self.expr(let_.expression)
             }

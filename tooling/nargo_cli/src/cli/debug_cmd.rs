@@ -147,8 +147,7 @@ fn instrument_package_files(
     let entry_path_parent = package
         .entry_path
         .parent()
-        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path))
-        .clone();
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
     let mut debug_instrumenter = DebugInstrumenter::default();
 
