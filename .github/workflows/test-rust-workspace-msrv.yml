@@ -35,7 +35,9 @@ jobs:
       # We force the ACVM crate and all of its dependencies to update their dependencies
       # This ensures that we'll be able to build the crates when they're being published. 
       - name: Update Cargo.lock
-        run: cargo update --package acvm --aggressive
+        run: |
+          cargo update --package acvm --aggressive
+          cargo update --package bn254_blackbox_solver --aggressive
 
       - uses: Swatinem/rust-cache@v2
         with:
