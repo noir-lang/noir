@@ -3,13 +3,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::{
     compiler::optimizers::GeneralOptimizer,
     pwg::{
-        arithmetic::ExpressionSolver, directives::solve_directives, BrilligSolver,
-        BrilligSolverStatus,
+        arithmetic::ExpressionSolver, blackbox::solve_range_opcode, directives::solve_directives,
+        BrilligSolver, BrilligSolverStatus,
     },
 };
 use acir::{
     circuit::{
-        brillig::{Brillig, BrilligInputs},
+        brillig::{Brillig, BrilligInputs, BrilligOutputs},
         directives::Directive,
         opcodes::BlackBoxFuncCall,
         Circuit, Opcode,
@@ -34,7 +34,7 @@ impl ConstantBackpropagationOptimizer {
         Self { circuit }
     }
 
-    fn gather_known_witnesses(&self) -> WitnessMap {
+    fn gather_known_witnesses(&self) -> (WitnessMap, BTreeSet<Witness>) {
         // We do not want to affect the circuit's interface so avoid optimizing away these witnesses.
         let mut required_witnesses: BTreeSet<Witness> = self
             .circuit
@@ -82,7 +82,7 @@ impl ConstantBackpropagationOptimizer {
             .filter(|(witness, _)| !required_witnesses.contains(witness))
             .collect();
 
-        known_witnesses.into()
+        (known_witnesses.into(), required_witnesses)
     }
 
     /// Returns a `Circuit` where with any constant witnesses replaced with the constant they resolve to.
@@ -109,7 +109,7 @@ impl ConstantBackpropagationOptimizer {
         mut self,
         order_list: Vec<usize>,
     ) -> (Circuit, Vec<usize>) {
-        let mut known_witnesses = self.gather_known_witnesses();
+        let (mut known_witnesses, required_witnesses) = self.gather_known_witnesses();
 
         let opcodes = std::mem::take(&mut self.circuit.opcodes);
 
@@ -167,7 +167,21 @@ impl ConstantBackpropagationOptimizer {
                         ..brillig
                     };
 
-                    if let Ok(mut solver) = BrilligSolver::new(
+                    let brillig_output_is_required_witness =
+                        new_brillig.outputs.iter().any(|output| match output {
+                            BrilligOutputs::Simple(witness) => required_witnesses.contains(witness),
+                            BrilligOutputs::Array(witness_array) => witness_array
+                                .iter()
+                                .any(|witness| required_witnesses.contains(witness)),
+                        });
+
+                    if brillig_output_is_required_witness {
+                        // If one of the brillig opcode's outputs is a required witness then we can't remove the opcode. In this case we can't replace
+                        // all of the uses of this witness with the calculated constant so we'll be attempting to use an uninitialized witness.
+                        //
+                        // We then do not attempt execution of this opcode and just simplify the inputs.
+                        Opcode::Brillig(new_brillig)
+                    } else if let Ok(mut solver) = BrilligSolver::new(
                         &known_witnesses,
                         &HashMap::new(),
                         &new_brillig,
@@ -181,14 +195,17 @@ impl ConstantBackpropagationOptimizer {
                                     Ok(()) => {
                                         // If we've managed to execute the brillig opcode at compile time, we can now just write in the
                                         // results as constants for the rest of the circuit.
-                                        //
-                                        // TODO: what if these are required to be witnesses e.g. inputs to black box functions + array get/set?
-                                        continue
-                                    },
+                                        continue;
+                                    }
                                     _ => Opcode::Brillig(new_brillig),
                                 }
                             }
-                            _ => Opcode::Brillig(new_brillig),
+                            Ok(BrilligSolverStatus::InProgress) => unreachable!(
+                                "Solver should either finish, block on foreign call, or error."
+                            ),
+                            Ok(BrilligSolverStatus::ForeignCallWait(_)) | Err(_) => {
+                                Opcode::Brillig(new_brillig)
+                            }
                         }
                     } else {
                         Opcode::Brillig(new_brillig)
@@ -198,27 +215,32 @@ impl ConstantBackpropagationOptimizer {
                 Opcode::Directive(Directive::ToLeRadix { a, b, radix }) => {
                     if b.iter().all(|output| known_witnesses.contains_key(output)) {
                         continue;
-                    } else {
-                        let directive = Directive::ToLeRadix { a, b, radix };
+                    } else if b.iter().any(|witness| required_witnesses.contains(witness)) {
+                        // If one of the brillig opcode's outputs is a required witness then we can't remove the opcode. In this case we can't replace
+                        // all of the uses of this witness with the calculated constant so we'll be attempting to use an uninitialized witness.
+                        //
+                        // We then do not attempt execution of this opcode and just simplify the inputs.
+                        Opcode::Directive(Directive::ToLeRadix {
+                            a: remap_expression(&known_witnesses, a),
+                            b,
+                            radix,
+                        })
+                    }else {
+                        let directive = Directive::ToLeRadix { a:remap_expression(&known_witnesses, a), b, radix };
                         let result = solve_directives(&mut known_witnesses, &directive);
-                        let Directive::ToLeRadix { a, b, radix } = directive;
+
                         match result {
                             Ok(()) => continue,
-                            Err(_) => Opcode::Directive(Directive::ToLeRadix {
-                                a: remap_expression(&known_witnesses, a),
-                                b,
-                                radix,
-                            }),
+                            Err(_) => Opcode::Directive(directive),
                         }
                     }
                 }
 
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                    match known_witnesses.get(&input.witness) {
-                        Some(known_value) if known_value.num_bits() <= input.num_bits => {
-                            continue;
-                        }
-                        _ => opcode,
+                    if solve_range_opcode(&known_witnesses, &input).is_ok() {
+                        continue;
+                    } else {
+                        opcode
                     }
                 }
 
@@ -234,5 +256,72 @@ impl ConstantBackpropagationOptimizer {
         self.circuit.opcodes = new_opcodes;
 
         (self.circuit, new_order_list)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use crate::compiler::optimizers::constant_backpropagation::ConstantBackpropagationOptimizer;
+    use acir::{
+        brillig::MemoryAddress,
+        circuit::{
+            brillig::{Brillig, BrilligOutputs},
+            opcodes::{BlackBoxFuncCall, FunctionInput},
+            Circuit, ExpressionWidth, Opcode, PublicInputs,
+        },
+        native_types::Witness,
+    };
+    use brillig_vm::brillig::Opcode as BrilligOpcode;
+
+    fn test_circuit(opcodes: Vec<Opcode>) -> Circuit {
+        Circuit {
+            current_witness_index: 1,
+            expression_width: ExpressionWidth::Bounded { width: 3 },
+            opcodes,
+            private_parameters: BTreeSet::new(),
+            public_parameters: PublicInputs::default(),
+            return_values: PublicInputs::default(),
+            assert_messages: Default::default(),
+            recursive: false,
+        }
+    }
+
+    #[test]
+    fn retain_brillig_with_required_witness_outputs() {
+        let brillig_opcode = Opcode::Brillig(Brillig {
+            inputs: Vec::new(),
+            outputs: vec![BrilligOutputs::Simple(Witness(1))],
+            bytecode: vec![
+                BrilligOpcode::Const {
+                    destination: MemoryAddress(0),
+                    bit_size: 32,
+                    value: 1u128.into(),
+                },
+                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 1 },
+            ],
+            predicate: None,
+        });
+        let blackbox_opcode = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
+            lhs: FunctionInput { witness: Witness(1), num_bits: 64 },
+            rhs: FunctionInput { witness: Witness(2), num_bits: 64 },
+            output: Witness(3),
+        });
+
+        let opcodes = vec![brillig_opcode, blackbox_opcode];
+        // The optimizer should keep the lowest bit size range constraint
+        let circuit = test_circuit(opcodes);
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let optimizer = ConstantBackpropagationOptimizer::new(circuit);
+
+        let (optimized_circuit, _) =
+            optimizer.backpropagate_constants_iteration(acir_opcode_positions);
+
+        assert_eq!(
+            optimized_circuit.opcodes.len(),
+            2,
+            "The brillig opcode should not be removed as the output is needed as a witness"
+        );
     }
 }
