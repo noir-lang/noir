@@ -510,7 +510,12 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         };
         let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
             Ok(index) => line_to_opcodes[index].1,
-            Err(index) => line_to_opcodes[index].1,
+            Err(index) => {
+                if index >= line_to_opcodes.len() {
+                    return None;
+                }
+                line_to_opcodes[index].1
+            }
         };
         Some(found_index)
     }
