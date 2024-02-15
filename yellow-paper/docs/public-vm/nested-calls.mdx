@@ -136,7 +136,7 @@ if nestedContext.results.reverted:
 
 > A world state access that was made in a deeper nested _reverted_ context will already have its end-lifetime initialized. The caller does _not_ overwrite this access' end-lifetime here as it already has a narrower lifetime.
 
-Regardless of whether the nested call reverted, the caller accepts its updated world state access trace (with updated lifetimes).
+Regardless of whether the nested call reverted, the caller accepts its updated world state access trace (with updated end-lifetimes).
 ```jsx
 context.worldStateAccessTrace = nestedContext.worldStateAccessTrace
 ```

@@ -24,11 +24,11 @@ A **caller** is a contract call's initiator. The caller of an initial contract c
 - [**Execution**](#execution): control flow, gas tracking, normal halting, and exceptional halting
 - [**Nested contract calls**](./nested-calls): the initiation of a contract call from an instruction as well as the processing of nested execution results, gas refunds, and state reverts
 - [**Instruction set**](./instruction-set): the list of all instructions supported by the AVM
-- [**AVM Circuit**](./avm-circuit)**: the AVM as a SNARK circuit for proving execution
+- [**AVM Circuit**](./avm-circuit): the AVM as a SNARK circuit for proving execution
 
 > The sections prior to the "AVM Circuit" are meant to provide a high-level definition of the Aztec Virtual Machine as opposed to a specification of its SNARK implementation. They therefore mostly omit SNARK or circuit-centric verbiage except when particularly relevant to the high-level architecture.
 
-> Refer to the ["AVM Bytecode"](../bytecode#avm-bytecode) section of ["Bytecode"](../bytecode) for an explanation of the AVM's bytecode.
+> For an explanation of the AVM's bytecode, refer to ["AVM Bytecode"](../bytecode#avm-bytecode).
 
 ## Public contract bytecode
 
