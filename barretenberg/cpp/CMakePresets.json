@@ -159,11 +159,15 @@
       "description": "Build with thread sanitizer on clang16 with debugging information",
       "inherits": "clang16-dbg",
       "binaryDir": "build-msan",
-      "generator": "Unix Makefiles",
       "environment": {
         "CFLAGS": "-fsanitize=memory",
         "CXXFLAGS": "-fsanitize=memory",
         "LDFLAGS": "-fsanitize=memory"
+      },
+      "cacheVariables": {
+        "HAVE_STD_REGEX": "ON",
+        "CMAKE_CXX_FLAGS": "$env{MSAN_CFLAGS}",
+        "CMAKE_EXE_LINKER_FLAGS": "$env{MSAN_LFLAGS}"
       }
     },
     {

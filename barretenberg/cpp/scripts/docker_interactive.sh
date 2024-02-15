@@ -9,7 +9,7 @@
 # Enter script directory.
 set -eu
 cd $(dirname $0)
-# allows for 'alpine' or 'ubuntu'
+# allows for 'alpine', 'ubuntu' or 'msan.ubuntu'
 ENVIRONMENT_KIND="${1:-alpine}"
 DOCKERFILE="../dockerfiles/interactive/Dockerfile.$ENVIRONMENT_KIND"
 docker build -t "env-$ENVIRONMENT_KIND" -f "$DOCKERFILE" .

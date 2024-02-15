@@ -1,0 +1,43 @@
+FROM ubuntu:lunar
+
+RUN apt update && apt install -y \
+  build-essential \
+  curl \
+  git \
+  cmake \
+  lsb-release \
+  wget \
+  software-properties-common \
+  gnupg \
+  ninja-build \
+  npm \
+  libssl-dev \
+  jq \
+  bash \
+  libstdc++6
+
+RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16
+
+ENV CXX=clang++-16
+ENV CC=clang-16
+
+RUN git clone --depth 1 -b release/16.x https://github.com/llvm/llvm-project
+
+RUN cd llvm-project
+
+RUN mkdir llvm-project/build
+
+RUN cmake -G Ninja -S llvm-project/runtimes -B llvm-project/build \
+  -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
+  -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+  -DCMAKE_INSTALL_PREFIX=/opt
+
+RUN ninja -C llvm-project/build cxx cxxabi
+RUN ninja -C llvm-project/build install-cxx install-cxxabi
+
+ENV MSAN_CFLAGS="-std=c++20 -fsanitize=memory -nostdinc++ -I/opt/include -I/opt/include/c++/v1"
+ENV MSAN_LFLAGS="-fsanitize=memory -stdlib=libc++ -L/opt/lib -lc++abi -Wl,-rpath,/opt/lib"
+
+WORKDIR /usr/src/barretenberg/cpp
+
+CMD ["/bin/bash"]
