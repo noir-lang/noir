@@ -85,6 +85,6 @@ yarn slither
 
 When this command is run in CI, it will fail if the markdown file generated in docker don't match the one in the repository. 
 
-We assume that you already have slither installed. You can install it with `pip3 install slither-analyzer slitherin`. It is kept out of the bootstrap script as it is not a requirement for people who just want to run tests or are uninterested in the contracts.
+We assume that you already have slither installed. You can install it with `pip3 install slither-analyzer==0.10.0 slitherin==0.5.0`. It is kept out of the bootstrap script as it is not a requirement for people who just want to run tests or are uninterested in the contracts.
 
 > We are not running the `naming-convention` detector because we have our own rules for naming which is enforced by the linter.
