@@ -320,7 +320,7 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
         cache_misses
             .into_iter()
             .map(|(id, _, _, parse_results)| (id, parse_results))
-            .chain(cache_hits.into_iter())
+            .chain(cache_hits)
             .collect()
     } else {
         parse_all(file_manager)

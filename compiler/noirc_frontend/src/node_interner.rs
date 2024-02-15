@@ -1147,7 +1147,7 @@ impl NodeInterner {
                     })
                     .collect()
             })
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1670,7 +1670,7 @@ impl Methods {
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _) => {
-                    if let Some(object) = args.get(0) {
+                    if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
                         if object.try_unify(typ, &mut bindings).is_ok() {

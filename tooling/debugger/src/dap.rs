@@ -143,7 +143,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     pub fn run_loop(&mut self) -> Result<(), ServerError> {
         self.running = self.context.get_current_opcode_location().is_some();
 
-        if self.running && matches!(self.context.get_current_source_location(), None) {
+        if self.running && self.context.get_current_source_location().is_none() {
             // TODO: remove this? This is to ensure that the tool has a proper
             // source location to show when first starting the debugger, but
             // maybe the default behavior should be to start executing until the
@@ -297,7 +297,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             }
         }
         // the actual opcodes
-        while count > 0 && !matches!(opcode_location, None) {
+        while count > 0 && opcode_location.is_some() {
             instructions.push(DisassembledInstruction {
                 address: format!("{}", opcode_location.unwrap()),
                 instruction: self.context.render_opcode_at_location(&opcode_location),

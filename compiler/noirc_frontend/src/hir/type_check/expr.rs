@@ -64,8 +64,7 @@ impl<'interner> TypeChecker<'interner> {
                     HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
                         let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
 
-                        let first_elem_type = elem_types
-                            .get(0)
+                        let first_elem_type = elem_types.first()
                             .cloned()
                             .unwrap_or_else(|| self.interner.next_type_variable());
 

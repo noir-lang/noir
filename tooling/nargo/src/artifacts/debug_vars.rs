@@ -30,11 +30,11 @@ impl DebugVars {
     }
 
     pub fn insert_variables(&mut self, vars: &DebugVariables) {
-        self.variables.extend(vars.clone().into_iter());
+        self.variables.extend(vars.clone());
     }
 
     pub fn insert_types(&mut self, types: &DebugTypes) {
-        self.types.extend(types.clone().into_iter());
+        self.types.extend(types.clone());
     }
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[Value]) {

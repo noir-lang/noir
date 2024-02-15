@@ -809,7 +809,7 @@ fn get_serialized_length(
 ) -> Result<u64, AztecMacroError> {
     let (struct_name, maybe_stored_in_state) = match typ {
         Type::Struct(struct_type, generics) => {
-            Ok((struct_type.borrow().name.0.contents.clone(), generics.get(0)))
+            Ok((struct_type.borrow().name.0.contents.clone(), generics.first()))
         }
         _ => Err(AztecMacroError::CouldNotAssignStorageSlots {
             secondary_message: Some("State storage variable must be a struct".to_string()),
@@ -859,7 +859,7 @@ fn get_serialized_length(
     let serialized_trait_impl_shared = interner.get_trait_implementation(*serialized_trait_impl_id);
     let serialized_trait_impl = serialized_trait_impl_shared.borrow();
 
-    match serialized_trait_impl.trait_generics.get(0).unwrap() {
+    match serialized_trait_impl.trait_generics.first().unwrap() {
         Type::Constant(value) => Ok(*value),
         _ => Err(AztecMacroError::CouldNotAssignStorageSlots { secondary_message: None }),
     }
@@ -947,7 +947,7 @@ fn assign_storage_slots(
 
                 let current_storage_slot = match slot_arg_expression {
                     HirExpression::Literal(HirLiteral::Integer(slot, _)) => {
-                        Ok(slot.borrow().to_u128())
+                        Ok(slot.to_u128())
                     }
                     _ => Err((
                         AztecMacroError::CouldNotAssignStorageSlots {
