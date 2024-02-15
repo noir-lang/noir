@@ -7,7 +7,7 @@ impl<T, N> [T; N] {
     pub fn len(self) -> Field {}
 
     pub fn sort(self) -> Self where T: Ord {
-        self.sort_via(|a, b| a <= b)
+        self.sort_via(|a: T, b: T| a <= b)
     }
 
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
