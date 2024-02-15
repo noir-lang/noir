@@ -6,15 +6,26 @@ This guide explains how to send a transaction using [Aztec.js](../main.md).
 
 To do this from the CLI, go [here](../../sandbox/references/cli-commands.md#sending-a-transaction).
 
-```typescript
-import { Contract } from "@aztec/aztec.js";
+## Prerequisites
 
-const contract = await Contract.at(contractAddress, MyContractArtifact, wallet);
-const tx = await contract.methods
-  .transfer(amount, recipientAddress)
-  .send()
-  .wait();
-console.log(
-  `Transferred ${amount} to ${recipientAddress} on block ${tx.blockNumber}`
-);
-```
+You should have a wallet to act as the transaction sender, and a contract that has been deployed.
+
+You can learn how to create wallets from [this guide](./create_account.md).
+
+You can learn how to deploy a contract [here](./deploy_contract.md).
+
+## Relevant imports
+
+You will need to import this library:
+
+#include_code import_contract yarn-project/end-to-end/src/docs_examples.test.ts typescript
+
+## Define contract
+
+Get a previously deployed contract like this:
+
+#include_code get_contract yarn-project/end-to-end/src/docs_examples.test.ts typescript
+
+## Call method
+
+#include_code send_transaction yarn-project/end-to-end/src/docs_examples.test.ts typescript
