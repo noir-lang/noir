@@ -5,7 +5,8 @@ use root_rollup_public_inputs::RootRollupPublicInputs;
 use dep::types::{
     abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
     constants::{NUM_FIELDS_PER_SHA256, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, L1_TO_L2_MSG_SUBTREE_HEIGHT},
-    header::Header, state_reference::StateReference, utils::uint256::U256
+    header::Header, content_commitment::ContentCommitment, state_reference::StateReference,
+    utils::uint256::U256
 };
 use crate::components;
 use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
@@ -39,9 +40,17 @@ impl RootRollupInputs {
 
         let state = StateReference { l1_to_l2_message_tree: new_l1_to_l2_message_tree_snapshot, partial: right.end };
 
+        // TODO: in_hash: #4633 and out_hash: #4561
+        let content_commitment = ContentCommitment {
+            tx_tree_height: right.height_in_block_tree + 1,
+            txs_hash: components::compute_calldata_hash(self.previous_rollup_data),
+            in_hash: [0, 0],
+            out_hash: [0, 0]
+        };
+
         let header = Header {
             last_archive: left.constants.last_archive,
-            body_hash: components::compute_calldata_hash(self.previous_rollup_data),
+            content_commitment,
             state,
             global_variables: left.constants.global_variables
         };
@@ -139,7 +148,7 @@ mod tests {
         let outputs = inputs.root_rollup_circuit();
 
         // check calldata hash
-        assert_eq(outputs.header.body_hash, expected_calldata_hash);
+        assert_eq(outputs.header.content_commitment.txs_hash, expected_calldata_hash);
         // Check messages hash
         assert_eq(outputs.l1_to_l2_messages_hash, expected_messages_hash);
     }

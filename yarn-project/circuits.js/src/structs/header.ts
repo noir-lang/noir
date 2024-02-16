@@ -1,13 +1,12 @@
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, FieldReader, from2Fields, serializeToBuffer, to2Fields } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { GeneratorIndex, HEADER_LENGTH } from '../constants.gen.js';
+import { ContentCommitment } from './content_commitment.js';
 import { GlobalVariables } from './global_variables.js';
 import { AppendOnlyTreeSnapshot } from './rollup/append_only_tree_snapshot.js';
 import { StateReference } from './state_reference.js';
-
-export const NUM_BYTES_PER_SHA256 = 32;
 
 /** A header of an L2 block. */
 export class Header {
@@ -15,27 +14,23 @@ export class Header {
     /** Snapshot of archive before the block is applied. */
     public lastArchive: AppendOnlyTreeSnapshot,
     /** Hash of the body of an L2 block. */
-    public bodyHash: Buffer,
+    public contentCommitment: ContentCommitment,
     /** State reference. */
     public state: StateReference,
     /** Global variables of an L2 block. */
     public globalVariables: GlobalVariables,
-  ) {
-    if (bodyHash.length !== 32) {
-      throw new Error('Body hash buffer must be 32 bytes');
-    }
-  }
+  ) {}
 
   toBuffer() {
     // Note: The order here must match the order in the HeaderLib solidity library.
-    return serializeToBuffer(this.lastArchive, this.bodyHash, this.state, this.globalVariables);
+    return serializeToBuffer(this.lastArchive, this.contentCommitment, this.state, this.globalVariables);
   }
 
   toFields(): Fr[] {
     // Note: The order here must match the order in header.nr
     const serialized = [
       ...this.lastArchive.toFields(),
-      ...to2Fields(this.bodyHash),
+      ...this.contentCommitment.toFields(),
       ...this.state.toFields(),
       ...this.globalVariables.toFields(),
     ];
@@ -50,7 +45,7 @@ export class Header {
 
     return new Header(
       reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readBytes(NUM_BYTES_PER_SHA256),
+      reader.readObject(ContentCommitment),
       reader.readObject(StateReference),
       reader.readObject(GlobalVariables),
     );
@@ -60,17 +55,17 @@ export class Header {
     const reader = FieldReader.asReader(fields);
 
     const lastArchive = new AppendOnlyTreeSnapshot(reader.readField(), Number(reader.readField().toBigInt()));
-    const bodyHash = from2Fields(reader.readField(), reader.readField());
+    const contentCommitment = ContentCommitment.fromFields(reader);
     const state = StateReference.fromFields(reader);
     const globalVariables = GlobalVariables.fromFields(reader);
 
-    return new Header(lastArchive, bodyHash, state, globalVariables);
+    return new Header(lastArchive, contentCommitment, state, globalVariables);
   }
 
   static empty(): Header {
     return new Header(
       AppendOnlyTreeSnapshot.zero(),
-      Buffer.alloc(NUM_BYTES_PER_SHA256),
+      ContentCommitment.empty(),
       StateReference.empty(),
       GlobalVariables.empty(),
     );
@@ -79,7 +74,7 @@ export class Header {
   isEmpty(): boolean {
     return (
       this.lastArchive.isZero() &&
-      this.bodyHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256)) &&
+      this.contentCommitment.isEmpty() &&
       this.state.isEmpty() &&
       this.globalVariables.isEmpty()
     );

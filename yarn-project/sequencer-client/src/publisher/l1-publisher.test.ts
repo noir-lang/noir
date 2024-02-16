@@ -56,7 +56,7 @@ describe('L1Publisher', () => {
     const result = await publisher.processL2Block(l2Block);
 
     expect(result).toEqual(true);
-    expect(txSender.sendProcessTx).toHaveBeenCalledWith({ header, archive, txsHash, body, proof });
+    expect(txSender.sendProcessTx).toHaveBeenCalledWith({ header, archive, body, proof });
     expect(txSender.getTransactionReceipt).toHaveBeenCalledWith(processTxHash);
   });
 

@@ -111,8 +111,9 @@ import {
   computePublicBytecodeCommitment,
   packBytecode,
 } from '../index.js';
+import { ContentCommitment, NUM_BYTES_PER_SHA256 } from '../structs/content_commitment.js';
 import { GlobalVariables } from '../structs/global_variables.js';
-import { Header, NUM_BYTES_PER_SHA256 } from '../structs/header.js';
+import { Header } from '../structs/header.js';
 import { PrivateKernelInitCircuitPrivateInputs } from '../structs/kernel/private_kernel_init_circuit_private_inputs.js';
 import { PrivateKernelInnerCircuitPrivateInputs } from '../structs/kernel/private_kernel_inner_circuit_private_inputs.js';
 
@@ -955,14 +956,26 @@ export function makeRootRollupPublicInputs(
 }
 
 /**
+ * Makes content commitment
+ */
+export function makeContentCommitment(seed = 0): ContentCommitment {
+  return new ContentCommitment(
+    new Fr(seed),
+    toBufferBE(BigInt(seed + 0x100), NUM_BYTES_PER_SHA256),
+    toBufferBE(BigInt(seed + 0x200), NUM_BYTES_PER_SHA256),
+    toBufferBE(BigInt(seed + 0x300), NUM_BYTES_PER_SHA256),
+  );
+}
+
+/**
  * Makes header.
  */
 export function makeHeader(seed = 0, blockNumber: number | undefined = undefined): Header {
   return new Header(
     makeAppendOnlyTreeSnapshot(seed + 0x100),
-    toBufferBE(BigInt(seed + 0x200), NUM_BYTES_PER_SHA256),
-    makeStateReference(seed + 0x300),
-    makeGlobalVariables((seed += 0x400), blockNumber),
+    makeContentCommitment(seed + 0x200),
+    makeStateReference(seed + 0x600),
+    makeGlobalVariables((seed += 0x700), blockNumber),
   );
 }
 

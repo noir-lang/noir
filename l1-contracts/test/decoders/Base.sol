@@ -4,6 +4,10 @@ pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 
+// Many of the structs in here match what you see in `header` but with very important exceptions!
+// The order of variables is sorted alphabetically in the structs in here to work with the
+// JSON cheatcodes.
+
 contract DecoderBase is Test {
   struct AppendOnlyTreeSnapshot {
     uint32 nextAvailableLeafIndex;
@@ -40,7 +44,7 @@ contract DecoderBase is Test {
   }
 
   struct DecodedHeader {
-    bytes32 bodyHash;
+    ContentCommitment contentCommitment;
     GlobalVariables globalVariables;
     AppendOnlyTreeSnapshot lastArchive;
     StateReference stateReference;
@@ -58,6 +62,13 @@ contract DecoderBase is Test {
   struct StateReference {
     AppendOnlyTreeSnapshot l1ToL2MessageTree;
     PartialStateReference partialStateReference;
+  }
+
+  struct ContentCommitment {
+    bytes32 inHash;
+    bytes32 outHash;
+    uint256 txTreeHeight;
+    bytes32 txsHash;
   }
 
   struct PartialStateReference {

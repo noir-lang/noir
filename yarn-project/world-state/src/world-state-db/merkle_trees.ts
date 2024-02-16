@@ -3,6 +3,7 @@ import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
   CONTRACT_TREE_HEIGHT,
+  ContentCommitment,
   Fr,
   GlobalVariables,
   Header,
@@ -148,7 +149,7 @@ export class MerkleTrees implements MerkleTreeDb {
 
   public async buildInitialHeader(includeUncommitted: boolean): Promise<Header> {
     const state = await this.getStateReference(includeUncommitted);
-    return new Header(AppendOnlyTreeSnapshot.zero(), Buffer.alloc(32, 0), state, GlobalVariables.empty());
+    return new Header(AppendOnlyTreeSnapshot.zero(), ContentCommitment.empty(), state, GlobalVariables.empty());
   }
 
   /**

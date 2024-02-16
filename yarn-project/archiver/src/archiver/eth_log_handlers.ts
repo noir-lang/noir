@@ -107,7 +107,7 @@ async function getBlockFromCallData(
   if (functionName !== 'process') {
     throw new Error(`Unexpected method called ${functionName}`);
   }
-  const [headerHex, archiveRootHex, , bodyHex] = args! as [Hex, Hex, Hex, Hex, Hex];
+  const [headerHex, archiveRootHex, bodyHex] = args! as [Hex, Hex, Hex, Hex];
   const blockBuffer = Buffer.concat([
     Buffer.from(hexToBytes(headerHex)),
     Buffer.from(hexToBytes(archiveRootHex)), // L2Block.archive.root

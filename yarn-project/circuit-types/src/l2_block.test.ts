@@ -8,9 +8,6 @@ describe('L2Block', () => {
     const buffer = block.toBufferWithLogs();
     const recovered = L2Block.fromBufferWithLogs(buffer);
 
-    // TODO(#3868): encoding and decoding is currently hacked and bodyHash is not recovered yet
-    recovered.header.bodyHash = block.header.bodyHash;
-
     expect(recovered).toEqual(block);
   });
 
@@ -19,11 +16,19 @@ describe('L2Block', () => {
     block.newEncryptedLogs = undefined;
     block.newUnencryptedLogs = undefined;
 
+    const serialized = block.toBuffer();
+    const recovered = L2Block.fromBuffer(serialized);
+
+    expect(recovered).toEqual(block);
+  });
+
+  it('can serialize an L2 block without logs to a string and back', () => {
+    const block = L2Block.random(42);
+    block.newEncryptedLogs = undefined;
+    block.newUnencryptedLogs = undefined;
+
     const serialized = block.toString();
     const recovered = L2Block.fromString(serialized);
-
-    // TODO(#3868): encoding and decoding is currently hacked and bodyHash is not recovered yet
-    recovered.header.bodyHash = block.header.bodyHash;
 
     expect(recovered).toEqual(block);
   });

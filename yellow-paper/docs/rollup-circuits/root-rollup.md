@@ -200,7 +200,7 @@ def RootRollupCircuit(
         last_archive = left.public_inputs.constants.last_archive,
         content_commitment: ContentCommitment(
             tx_tree_height = left.public_inputs.height_in_block_tree + 1,
-            tsx_hash = SHA256(left.public_inputs.txs_hash | right.public_inputs.txs_hash),
+            txs_hash = SHA256(left.public_inputs.txs_hash | right.public_inputs.txs_hash),
             in_hash = l1_to_l2_roots.sha_root,
             out_hash = SHA256(left.public_inputs.out_hash | right.public_inputs.out_hash),
         ),

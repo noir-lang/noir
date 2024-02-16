@@ -12,6 +12,7 @@ import {
   CombinedAccumulatedData,
   CombinedConstantData,
   ConstantRollupData,
+  ContentCommitment,
   ContractDeploymentData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -150,6 +151,7 @@ import {
   AppendOnlyTreeSnapshot as AppendOnlyTreeSnapshotNoir,
   BaseOrMergeRollupPublicInputs as BaseOrMergeRollupPublicInputsNoir,
   ConstantRollupData as ConstantRollupDataNoir,
+  ContentCommitment as ContentCommitmentNoir,
   Field,
   FixedLengthArray,
   GlobalVariables as GlobalVariablesNoir,
@@ -1467,7 +1469,7 @@ export function mapRootRollupPublicInputsFromNoir(
 export function mapHeaderToNoir(header: Header): HeaderNoir {
   return {
     last_archive: mapAppendOnlyTreeSnapshotToNoir(header.lastArchive),
-    body_hash: mapSha256HashToNoir(header.bodyHash),
+    content_commitment: mapContentCommitmentToNoir(header.contentCommitment),
     state: mapStateReferenceToNoir(header.state),
     global_variables: mapGlobalVariablesToNoir(header.globalVariables),
   };
@@ -1481,9 +1483,35 @@ export function mapHeaderToNoir(header: Header): HeaderNoir {
 export function mapHeaderFromNoir(header: HeaderNoir): Header {
   return new Header(
     mapAppendOnlyTreeSnapshotFromNoir(header.last_archive),
-    mapSha256HashFromNoir(header.body_hash),
+    mapContentCommitmentFromNoir(header.content_commitment),
     mapStateReferenceFromNoir(header.state),
     mapGlobalVariablesFromNoir(header.global_variables),
+  );
+}
+
+/**
+ * Maps a content commitment to Noir
+ *
+ */
+export function mapContentCommitmentToNoir(contentCommitment: ContentCommitment): ContentCommitmentNoir {
+  return {
+    tx_tree_height: mapFieldToNoir(contentCommitment.txTreeHeight),
+    txs_hash: mapSha256HashToNoir(contentCommitment.txsHash),
+    in_hash: mapSha256HashToNoir(contentCommitment.inHash),
+    out_hash: mapSha256HashToNoir(contentCommitment.outHash),
+  };
+}
+
+/**
+ * Maps a content commitment to Noir
+ *
+ */
+export function mapContentCommitmentFromNoir(contentCommitment: ContentCommitmentNoir): ContentCommitment {
+  return new ContentCommitment(
+    mapFieldFromNoir(contentCommitment.tx_tree_height),
+    mapSha256HashFromNoir(contentCommitment.txs_hash),
+    mapSha256HashFromNoir(contentCommitment.in_hash),
+    mapSha256HashFromNoir(contentCommitment.out_hash),
   );
 }
 

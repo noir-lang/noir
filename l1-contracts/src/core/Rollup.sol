@@ -47,14 +47,12 @@ contract Rollup is IRollup {
    * @notice Process an incoming L2 block and progress the state
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
-   * @param _txsHash - Transactions hash.
    * @param _body - The L2 block body
    * @param _proof - The proof of correct execution
    */
   function process(
     bytes calldata _header,
     bytes32 _archive,
-    bytes32 _txsHash, // TODO(#3938) Update this to be actual txs hash and not the old block calldata hash.
     bytes calldata _body, // TODO(#3938) Update this to pass in only th messages and not the whole body.
     bytes memory _proof
   ) external override(IRollup) {
@@ -63,16 +61,15 @@ contract Rollup is IRollup {
     HeaderLib.validate(header, VERSION, lastBlockTs, archive);
 
     // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
-    if (!AVAILABILITY_ORACLE.isAvailable(_txsHash)) {
-      revert Errors.Rollup__UnavailableTxs(_txsHash);
+    if (!AVAILABILITY_ORACLE.isAvailable(header.contentCommitment.txsHash)) {
+      revert Errors.Rollup__UnavailableTxs(header.contentCommitment.txsHash);
     }
 
-    // Decode the cross-chain messages
-    (bytes32 inHash,, bytes32[] memory l1ToL2Msgs, bytes32[] memory l2ToL1Msgs) =
-      MessagesDecoder.decode(_body);
+    // Decode the cross-chain messages (Will be removed as part of message model change)
+    (,, bytes32[] memory l1ToL2Msgs, bytes32[] memory l2ToL1Msgs) = MessagesDecoder.decode(_body);
 
     bytes32[] memory publicInputs = new bytes32[](1);
-    publicInputs[0] = _computePublicInputHash(_header, _txsHash, inHash);
+    publicInputs[0] = _computePublicInputHash(_header, _archive);
 
     // @todo @benesjan We will need `nextAvailableLeafIndex` of archive to verify the proof. This value is equal to
     // current block number which is stored in the header (header.globalVariables.blockNumber).
@@ -93,11 +90,11 @@ contract Rollup is IRollup {
     emit L2BlockProcessed(header.globalVariables.blockNumber);
   }
 
-  function _computePublicInputHash(bytes calldata _header, bytes32 _txsHash, bytes32 _inHash)
+  function _computePublicInputHash(bytes calldata _header, bytes32 _archive)
     internal
     pure
     returns (bytes32)
   {
-    return Hash.sha256ToField(bytes.concat(_header, _txsHash, _inHash));
+    return Hash.sha256ToField(bytes.concat(_header, _archive));
   }
 }

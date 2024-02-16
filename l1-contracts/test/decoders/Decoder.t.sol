@@ -77,6 +77,20 @@ contract DecoderTest is DecoderBase {
         );
       }
 
+      // ContentCommitment
+      {
+        DecoderBase.ContentCommitment memory contentCommitment = referenceHeader.contentCommitment;
+
+        assertEq(
+          header.contentCommitment.txTreeHeight,
+          contentCommitment.txTreeHeight,
+          "Invalid txTreeSize"
+        );
+        assertEq(header.contentCommitment.txsHash, contentCommitment.txsHash, "Invalid txsHash");
+        assertEq(header.contentCommitment.inHash, contentCommitment.inHash, "Invalid inHash");
+        assertEq(header.contentCommitment.outHash, contentCommitment.outHash, "Invalid outHash");
+      }
+
       // StateReference
       {
         DecoderBase.StateReference memory stateReference = referenceHeader.stateReference;
@@ -156,7 +170,6 @@ contract DecoderTest is DecoderBase {
       assertEq(
         header.lastArchive.root, referenceHeader.lastArchive.root, "Invalid lastArchive.root"
       );
-      assertEq(header.bodyHash, referenceHeader.bodyHash, "Invalid body hash");
     }
 
     // Messages

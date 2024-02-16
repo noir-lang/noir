@@ -268,7 +268,12 @@ describe('L1Publisher integration', () => {
         body: `0x${block.bodyToBuffer().toString('hex')}`,
         calldataHash: `0x${block.getCalldataHash().toString('hex').padStart(64, '0')}`,
         decodedHeader: {
-          bodyHash: `0x${block.header.bodyHash.toString('hex').padStart(64, '0')}`,
+          contentCommitment: {
+            inHash: `0x${block.header.contentCommitment.inHash.toString('hex').padStart(64, '0')}`,
+            outHash: `0x${block.header.contentCommitment.outHash.toString('hex').padStart(64, '0')}`,
+            txTreeHeight: Number(block.header.contentCommitment.txTreeHeight.toBigInt()),
+            txsHash: `0x${block.header.contentCommitment.txsHash.toString('hex').padStart(64, '0')}`,
+          },
           globalVariables: {
             blockNumber: block.number,
             chainId: Number(block.header.globalVariables.chainId.toBigInt()),
@@ -417,7 +422,6 @@ describe('L1Publisher integration', () => {
         args: [
           `0x${block.header.toBuffer().toString('hex')}`,
           `0x${block.archive.root.toBuffer().toString('hex')}`,
-          `0x${block.getCalldataHash().toString('hex')}`,
           `0x${block.bodyToBuffer().toString('hex')}`,
           `0x${l2Proof.toString('hex')}`,
         ],
@@ -489,7 +493,6 @@ describe('L1Publisher integration', () => {
         args: [
           `0x${block.header.toBuffer().toString('hex')}`,
           `0x${block.archive.root.toBuffer().toString('hex')}`,
-          `0x${block.getCalldataHash().toString('hex')}`,
           `0x${block.bodyToBuffer().toString('hex')}`,
           `0x${l2Proof.toString('hex')}`,
         ],

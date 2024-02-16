@@ -139,11 +139,11 @@ export class SoloBlockBuilder implements BlockBuilder {
       newUnencryptedLogs,
     });
 
-    if (!l2Block.getCalldataHash().equals(circuitsOutput.header.bodyHash)) {
+    if (!l2Block.getCalldataHash().equals(circuitsOutput.header.contentCommitment.txsHash)) {
       throw new Error(
         `Calldata hash mismatch, ${l2Block
           .getCalldataHash()
-          .toString('hex')} == ${circuitsOutput.header.bodyHash.toString('hex')} `,
+          .toString('hex')} == ${circuitsOutput.header.contentCommitment.txsHash.toString('hex')} `,
       );
     }
 

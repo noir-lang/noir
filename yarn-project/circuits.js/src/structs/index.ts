@@ -9,6 +9,7 @@ export * from './contract_storage_update_request.js';
 export * from './function_data.js';
 export * from './function_leaf_preimage.js';
 export * from './global_variables.js';
+export * from './content_commitment.js';
 export * from './header.js';
 export * from './kernel/combined_accumulated_data.js';
 export * from './kernel/combined_constant_data.js';
