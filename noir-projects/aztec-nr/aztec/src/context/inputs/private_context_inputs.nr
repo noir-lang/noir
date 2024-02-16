@@ -1,4 +1,7 @@
-use dep::protocol_types::{abis::call_context::CallContext, contrakt::deployment_data::ContractDeploymentData, header::Header};
+use dep::protocol_types::{
+    abis::call_context::CallContext, contrakt::contract_deployment_data::ContractDeploymentData,
+    header::Header
+};
 use crate::context::globals::private_global_variables::PrivateGlobalVariables;
 
 // PrivateContextInputs are expected to be provided to each private function

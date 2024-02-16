@@ -1,6 +1,8 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { CONTRACT_STORAGE_READ_LENGTH } from '../constants.gen.js';
+
 /**
  * Contract storage read operation on a specific contract.
  *
@@ -63,7 +65,13 @@ export class ContractStorageRead {
   }
 
   toFields(): Fr[] {
-    return [this.storageSlot, this.currentValue];
+    const fields = [this.storageSlot, this.currentValue];
+    if (fields.length !== CONTRACT_STORAGE_READ_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for ContractStorageRead. Expected ${CONTRACT_STORAGE_READ_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   static fromFields(fields: Fr[] | FieldReader): ContractStorageRead {

@@ -1,90 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ContractAddress computeContractAddressFromInstance 1`] = `
-AztecAddress {
-  "asBigInt": 3883883889294466972222695990544651254433869677543312058555575694285817356088n,
-  "asBuffer": {
-    "data": [
-      8,
-      150,
-      51,
-      76,
-      27,
-      117,
-      237,
-      233,
-      137,
-      38,
-      191,
-      74,
-      188,
-      215,
-      31,
-      48,
-      171,
-      201,
-      98,
-      17,
-      7,
-      12,
-      250,
-      148,
-      232,
-      140,
-      94,
-      129,
-      3,
-      105,
-      159,
-      56,
-    ],
-    "type": "Buffer",
-  },
-}
-`;
+exports[`ContractAddress Address from partial matches Noir 1`] = `"0x0447f893197175723deb223696e2e96dbba1e707ee8507766373558877e74197"`;
 
-exports[`ContractAddress computeContractAddressFromPartial 1`] = `
-AztecAddress {
-  "asBigInt": 21497883470428896497848272622467250633298383505675808099366629400564707993275n,
-  "asBuffer": {
-    "data": [
-      47,
-      135,
-      94,
-      239,
-      243,
-      232,
-      72,
-      120,
-      213,
-      116,
-      228,
-      154,
-      136,
-      109,
-      14,
-      128,
-      44,
-      244,
-      1,
-      8,
-      118,
-      28,
-      224,
-      83,
-      57,
-      99,
-      133,
-      163,
-      33,
-      177,
-      166,
-      187,
-    ],
-    "type": "Buffer",
-  },
-}
-`;
+exports[`ContractAddress Public key hash matches Noir 1`] = `"0x1923a6246e305720b6aaf751fde0342613e93c82e455c3831e28375c16dd40d8"`;
+
+exports[`ContractAddress computeContractAddressFromInstance 1`] = `"0x2fd71a4f0742364f194dd16d0ae32d2f47845ddc7f5d328f37d4148b565c4123"`;
 
 exports[`ContractAddress computeInitializationHash 1`] = `
 Fr {
@@ -130,49 +50,6 @@ Fr {
 `;
 
 exports[`ContractAddress computePartialAddress 1`] = `
-Fr {
-  "asBigInt": 11370807533904788559065519582196668367978392224620203970943957018221100220632n,
-  "asBuffer": {
-    "data": [
-      25,
-      35,
-      166,
-      36,
-      110,
-      48,
-      87,
-      32,
-      182,
-      170,
-      247,
-      81,
-      253,
-      224,
-      52,
-      38,
-      19,
-      233,
-      60,
-      130,
-      228,
-      85,
-      195,
-      131,
-      30,
-      40,
-      55,
-      92,
-      22,
-      221,
-      64,
-      216,
-    ],
-    "type": "Buffer",
-  },
-}
-`;
-
-exports[`ContractAddress computePublicKeysHash 1`] = `
 Fr {
   "asBigInt": 11370807533904788559065519582196668367978392224620203970943957018221100220632n,
   "asBuffer": {

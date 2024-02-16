@@ -2,6 +2,8 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { L2_TO_L1_MESSAGE_LENGTH } from '../constants.gen.js';
+
 export class L2ToL1Message {
   constructor(public recipient: EthAddress, public content: Fr) {}
 
@@ -35,7 +37,13 @@ export class L2ToL1Message {
    * @returns An array of fields representing the serialized message.
    */
   toFields(): Fr[] {
-    return [this.recipient.toField(), this.content];
+    const fields = [this.recipient.toField(), this.content];
+    if (fields.length !== L2_TO_L1_MESSAGE_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for L2ToL1Message. Expected ${L2_TO_L1_MESSAGE_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   /**

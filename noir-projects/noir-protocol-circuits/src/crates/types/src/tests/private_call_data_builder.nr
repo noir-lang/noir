@@ -12,7 +12,7 @@ use crate::{
     fixtures, private_circuit_public_inputs_builder::PrivateCircuitPublicInputsBuilder,
     testing_harness::build_tx_context
 },
-    transaction::{request::TxRequest}
+    transaction::{tx_request::TxRequest}
 };
 use crate::constants::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,

@@ -2,6 +2,7 @@
   "name": "@aztec/noir-contracts",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "exports": {
     "./target/*": "./target/*.json"
   },

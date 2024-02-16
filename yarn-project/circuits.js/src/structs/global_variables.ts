@@ -2,6 +2,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
+import { GLOBAL_VARIABLES_LENGTH } from '../constants.gen.js';
 import { AztecAddress, EthAddress } from './index.js';
 
 /**
@@ -84,7 +85,13 @@ export class GlobalVariables {
   }
 
   toFields() {
-    return serializeToFields(...GlobalVariables.getFields(this));
+    const fields = serializeToFields(...GlobalVariables.getFields(this));
+    if (fields.length !== GLOBAL_VARIABLES_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for GlobalVariables. Expected ${GLOBAL_VARIABLES_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   toJSON() {

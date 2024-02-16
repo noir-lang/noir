@@ -1,6 +1,6 @@
 import { AztecNode, Note } from '@aztec/circuit-types';
 import { CompleteAddress } from '@aztec/circuits.js';
-import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
+import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/hash';
 import { ABIParameterVisibility, FunctionArtifactWithDebugMetadata, getFunctionArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';

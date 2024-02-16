@@ -18,8 +18,8 @@ import {
   SideEffect,
   TxContext,
 } from '@aztec/circuits.js';
-import { computePublicDataTreeLeafSlot, computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { computePublicDataTreeLeafSlot, computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/hash';
 import { FunctionAbi, FunctionArtifact, countArgumentsSize } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';

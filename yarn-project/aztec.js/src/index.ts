@@ -37,7 +37,6 @@ export {
   generatePublicKey,
   FieldLike,
   EthAddressLike,
-  computeMessageSecretHash,
   CheatCodes,
   AztecAddressLike,
   FunctionSelectorLike,
@@ -71,6 +70,8 @@ export {
   getContractInstanceFromDeployParams,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
+
+export { computeMessageSecretHash } from '@aztec/circuits.js/hash';
 
 export { Grumpkin, Schnorr } from '@aztec/circuits.js/barretenberg';
 

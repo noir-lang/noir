@@ -1,68 +1,27 @@
 import { times } from '@aztec/foundation/collection';
 
-import {
-  AztecAddress,
-  EthAddress,
-  Fr,
-  FunctionData,
-  FunctionLeafPreimage,
-  FunctionSelector,
-  NewContractData,
-  PublicCallStackItem,
-  SideEffect,
-  SideEffectLinkedToNoteHash,
-} from '../index.js';
-import {
-  makeAztecAddress,
-  makeEthAddress,
-  makePublicCallStackItem,
-  makeTxRequest,
-  makeVerificationKey,
-} from '../tests/factories.js';
+import { AztecAddress, Fr, FunctionData, FunctionSelector, SideEffect, SideEffectLinkedToNoteHash } from '../index.js';
+import { makeAztecAddress, makeVerificationKey } from '../tests/factories.js';
 import {
   computeCommitmentNonce,
   computeCommitmentsHash,
-  computeContractLeaf,
-  computeFunctionLeaf,
-  computeFunctionSelector,
   computeFunctionTreeRoot,
+  computeMessageSecretHash,
   computeNullifierHash,
-  computePublicCallStackItemHash,
   computePublicDataTreeLeafSlot,
   computePublicDataTreeValue,
-  computeSecretMessageHash,
-  computeTxHash,
   computeUniqueCommitment,
   computeVarArgsHash,
   hashConstructor,
-  hashTxRequest,
   hashVK,
   siloCommitment,
   siloNullifier,
-} from './abis.js';
+} from './hash.js';
 
-describe('abis', () => {
-  it('hashes a tx request', () => {
-    const txRequest = makeTxRequest();
-    const hash = hashTxRequest(txRequest);
-    expect(hash).toMatchSnapshot();
-  });
-
-  it('computes a function selector', () => {
-    const funcSig = 'transfer(address,uint256)';
-    const res = computeFunctionSelector(funcSig);
-    expect(res).toMatchSnapshot();
-  });
-
+describe('hash', () => {
   it('hashes VK', () => {
     const vk = makeVerificationKey();
     const res = hashVK(vk.toBuffer());
-    expect(res).toMatchSnapshot();
-  });
-
-  it('computes a function leaf', () => {
-    const leaf = new FunctionLeafPreimage(new FunctionSelector(7837), false, true, Fr.ZERO, Fr.ZERO);
-    const res = computeFunctionLeaf(leaf);
     expect(res).toMatchSnapshot();
   });
 
@@ -137,33 +96,9 @@ describe('abis', () => {
     expect(res).toMatchSnapshot();
   });
 
-  it('computes contract leaf', () => {
-    const cd = new NewContractData(makeAztecAddress(), makeEthAddress(), new Fr(3n));
-    const res = computeContractLeaf(cd);
-    expect(res).toMatchSnapshot();
-  });
-
-  it('computes zero contract leaf', () => {
-    const cd = new NewContractData(AztecAddress.ZERO, EthAddress.ZERO, new Fr(0n));
-    const res = computeContractLeaf(cd);
-    expect(res).toMatchSnapshot();
-  });
-
-  it('compute tx hash', () => {
-    const txRequest = makeTxRequest();
-    const hash = computeTxHash(txRequest);
-    expect(hash).toMatchSnapshot();
-  });
-
-  it('compute public call stack item hash', () => {
-    const item = makePublicCallStackItem();
-    const hash = computePublicCallStackItemHash(item);
-    expect(hash).toMatchSnapshot();
-  });
-
   it('compute secret message hash', () => {
     const value = new Fr(8n);
-    const hash = computeSecretMessageHash(value);
+    const hash = computeMessageSecretHash(value);
     expect(hash).toMatchSnapshot();
   });
 
@@ -180,32 +115,12 @@ describe('abis', () => {
     expect(emptyHash).toMatchSnapshot();
   });
 
-  it('Computes a callstack item request hash', () => {
-    const callStack = PublicCallStackItem.empty();
+  it('Var args hash matches noir', () => {
+    const args = times(800, i => new Fr(i));
+    const res = computeVarArgsHash(args);
+    expect(res).toMatchSnapshot();
 
-    callStack.contractAddress = AztecAddress.fromField(new Fr(1));
-    callStack.functionData = new FunctionData(new FunctionSelector(2), false, false, false);
-    callStack.isExecutionRequest = true;
-    callStack.publicInputs.newCommitments[0] = new SideEffect(new Fr(1), new Fr(0));
-
-    const hash = callStack.hash();
-    expect(hash.toString()).toMatchSnapshot();
-
-    // Value used in compute_call_stack_item_hash test in noir circuits
-    // console.log("hash", hash.toString());
-  });
-
-  it('Computes a callstack item hash', () => {
-    const callStack = PublicCallStackItem.empty();
-
-    callStack.contractAddress = AztecAddress.fromField(new Fr(1));
-    callStack.functionData = new FunctionData(new FunctionSelector(2), false, false, false);
-    callStack.publicInputs.newCommitments[0] = new SideEffect(new Fr(1), new Fr(0));
-
-    const hash = callStack.hash();
-    expect(hash.toString()).toMatchSnapshot();
-
-    // Value used in compute_call_stack_item_request_hash test in noir circuits
-    // console.log("hash", hash.toString());
+    // Value used in "compute_var_args_hash" test in hash.nr
+    // console.log("hash", hash);
   });
 });

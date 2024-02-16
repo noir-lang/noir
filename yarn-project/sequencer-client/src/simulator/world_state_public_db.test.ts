@@ -1,6 +1,6 @@
 import { MerkleTreeId } from '@aztec/circuit-types';
 import { AztecAddress, Fr, PublicDataTreeLeafPreimage } from '@aztec/circuits.js';
-import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/abis';
+import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { MerkleTreeOperations } from '@aztec/world-state';
 

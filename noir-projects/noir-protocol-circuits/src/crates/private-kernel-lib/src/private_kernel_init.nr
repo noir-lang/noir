@@ -10,7 +10,7 @@ use dep::types::{
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::{AztecAddress, PublicKeysHash, compute_initialization_hash},
-    mocked::{Proof, verify_previous_kernel_state}, transaction::request::TxRequest,
+    mocked::{Proof, verify_previous_kernel_state}, transaction::tx_request::TxRequest,
     traits::is_empty_array
 };
 
@@ -133,7 +133,7 @@ mod tests {
         grumpkin_private_key::GrumpkinPrivateKey,
         hash::{compute_constructor_hash, compute_logs_hash, stdlib_recursion_verification_key_compress_native_vk},
         messaging::l2_to_l1_message::L2ToL1Message,
-        tests::private_call_data_builder::PrivateCallDataBuilder, transaction::request::TxRequest,
+        tests::private_call_data_builder::PrivateCallDataBuilder, transaction::tx_request::TxRequest,
         utils::arrays::array_length
     };
 

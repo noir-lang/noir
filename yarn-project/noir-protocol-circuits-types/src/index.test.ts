@@ -1,25 +1,8 @@
 import {
-  AztecAddress,
-  ContractDeploymentData,
-  EthAddress,
-  FunctionData,
-  FunctionSelector,
-  Point,
   PrivateKernelInitCircuitPrivateInputs,
   PrivateKernelInnerCircuitPrivateInputs,
   PrivateKernelTailCircuitPrivateInputs,
-  PublicCallStackItem,
-  PublicCircuitPublicInputs,
-  SideEffect,
-  TxContext,
-  TxRequest,
-  computeContractAddressFromInstance,
-  computeContractAddressFromPartial,
-  computePublicKeysHash,
 } from '@aztec/circuits.js';
-import { computeTxHash, computeVarArgsHash } from '@aztec/circuits.js/abis';
-import { times } from '@aztec/foundation/collection';
-import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 
@@ -86,106 +69,5 @@ describe('Private kernel', () => {
     const kernelOutputs = await executeTail(kernelInputs);
 
     expect(kernelOutputs).toMatchSnapshot();
-  });
-});
-
-describe('Noir compatibility tests (interop_testing.nr)', () => {
-  // Tests in this file are to check that what we are computing in Noir
-  // is equivalent to what we were computing in circuits.js/the typescript implementation
-  // This is to ensure that we have not introduced any bugs in the transition from circuits.js to Noir
-
-  it('Address matches Noir', () => {
-    const publicKey = new Point(new Fr(1n), new Fr(2n));
-    const salt = new Fr(3n);
-    const contractClassId = new Fr(4n);
-    const initializationHash = new Fr(5n);
-    const portalContractAddress = EthAddress.fromField(new Fr(6n));
-
-    const address = computeContractAddressFromInstance({
-      publicKeysHash: computePublicKeysHash(publicKey),
-      salt,
-      contractClassId,
-      initializationHash,
-      portalContractAddress,
-      version: 1,
-    });
-
-    expect(address.toString()).toMatchSnapshot();
-  });
-
-  it('Public key hash matches Noir', () => {
-    const publicKey = new Point(new Fr(1n), new Fr(2n));
-    expect(computePublicKeysHash(publicKey).toString()).toMatchSnapshot();
-  });
-
-  it('Address from partial matches Noir', () => {
-    const publicKey = new Point(new Fr(1n), new Fr(2n));
-    const partialAddress = new Fr(3n);
-    const address = computeContractAddressFromPartial({ publicKey, partialAddress });
-    expect(address.toString()).toMatchSnapshot();
-  });
-
-  it('TxRequest Hash matches Noir', () => {
-    const deploymentData = new ContractDeploymentData(
-      new Point(new Fr(1), new Fr(2)),
-      new Fr(1),
-      new Fr(2),
-      new Fr(3),
-      EthAddress.fromField(new Fr(1)),
-    );
-    const txRequest = TxRequest.from({
-      origin: AztecAddress.fromBigInt(1n),
-      functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), false, true, true),
-      argsHash: new Fr(3),
-      txContext: new TxContext(false, false, true, deploymentData, Fr.ZERO, Fr.ZERO),
-    });
-    const hash = computeTxHash(txRequest);
-
-    expect(hash.toString()).toMatchSnapshot();
-  });
-
-  it('ComputeContractAddressFromPartial matches Noir', () => {
-    const deploymentData = new ContractDeploymentData(
-      new Point(new Fr(1), new Fr(2)),
-      new Fr(1),
-      new Fr(2),
-      new Fr(3),
-      EthAddress.fromField(new Fr(1)),
-    );
-    const txRequest = TxRequest.from({
-      origin: AztecAddress.fromBigInt(1n),
-      functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), false, true, true),
-      argsHash: new Fr(3),
-      txContext: new TxContext(false, false, true, deploymentData, Fr.ZERO, Fr.ZERO),
-    });
-    const hash = computeTxHash(txRequest);
-
-    expect(hash.toString()).toMatchSnapshot();
-  });
-
-  it('Public call stack item matches noir', () => {
-    const contractAddress = AztecAddress.fromBigInt(1n);
-    const functionData = new FunctionData(new FunctionSelector(2), false, false, false);
-    const appPublicInputs = PublicCircuitPublicInputs.empty();
-    appPublicInputs.newCommitments[0] = new SideEffect(new Fr(1), Fr.ZERO);
-
-    const publicCallStackItem = new PublicCallStackItem(contractAddress, functionData, appPublicInputs, false);
-    expect(publicCallStackItem.hash().toString()).toMatchSnapshot();
-  });
-
-  it('Public call stack item request matches noir', () => {
-    const contractAddress = AztecAddress.fromBigInt(1n);
-    const functionData = new FunctionData(new FunctionSelector(2), false, false, false);
-    const appPublicInputs = PublicCircuitPublicInputs.empty();
-    appPublicInputs.newCommitments[0] = new SideEffect(new Fr(1), Fr.ZERO);
-
-    const publicCallStackItem = new PublicCallStackItem(contractAddress, functionData, appPublicInputs, true);
-    expect(publicCallStackItem.hash().toString()).toMatchSnapshot();
-  });
-
-  it('Var args hash matches noir', () => {
-    const args = times(800, i => new Fr(i));
-    const res = computeVarArgsHash(args);
-    expect(res).toMatchSnapshot();
   });
 });

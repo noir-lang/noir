@@ -41,7 +41,7 @@ import {
   computeSaltedInitializationHash,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
-import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
+import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/hash';
 import { DecodedReturn, encodeArguments } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';

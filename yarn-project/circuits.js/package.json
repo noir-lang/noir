@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./abis": "./dest/abis/index.js",
+    "./hash": "./dest/hash/index.js",
     "./barretenberg": "./dest/barretenberg/index.js",
     "./factories": "./dest/tests/factories.js",
     "./utils": "./dest/utils/index.js",

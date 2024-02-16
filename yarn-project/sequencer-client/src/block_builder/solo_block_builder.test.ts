@@ -36,7 +36,6 @@ import {
   SideEffectLinkedToNoteHash,
   StateReference,
 } from '@aztec/circuits.js';
-import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
   fr,
   makeBaseOrMergeRollupPublicInputs,
@@ -132,7 +131,7 @@ describe('sequencer/solo_block_builder', () => {
 
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: ProcessedTx[]) => {
-    const newContracts = txs.flatMap(tx => tx.data.end.newContracts.map(n => computeContractLeaf(n)));
+    const newContracts = txs.flatMap(tx => tx.data.end.newContracts.map(cd => cd.computeLeaf()));
     for (const [tree, leaves] of [
       [MerkleTreeId.NOTE_HASH_TREE, txs.flatMap(tx => tx.data.end.newCommitments.map(l => l.value.toBuffer()))],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
@@ -216,7 +215,7 @@ describe('sequencer/solo_block_builder', () => {
 
     const newNullifiers = txs.flatMap(tx => tx.data.end.newNullifiers);
     const newCommitments = txs.flatMap(tx => tx.data.end.newCommitments);
-    const newContracts = txs.flatMap(tx => tx.data.end.newContracts).map(cd => computeContractLeaf(cd));
+    const newContracts = txs.flatMap(tx => tx.data.end.newContracts).map(cd => cd.computeLeaf());
     const newContractData = txs
       .flatMap(tx => tx.data.end.newContracts)
       .map(n => new ContractData(n.contractAddress, n.portalContractAddress));

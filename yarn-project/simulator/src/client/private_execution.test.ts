@@ -19,13 +19,13 @@ import {
   nonEmptySideEffects,
   sideEffectArrayToValueArray,
 } from '@aztec/circuits.js';
+import { makeContractDeploymentData, makeHeader } from '@aztec/circuits.js/factories';
 import {
   computeCommitmentNonce,
-  computeSecretMessageHash,
+  computeMessageSecretHash,
   computeVarArgsHash,
   siloCommitment,
-} from '@aztec/circuits.js/abis';
-import { makeContractDeploymentData, makeHeader } from '@aztec/circuits.js/factories';
+} from '@aztec/circuits.js/hash';
 import {
   FunctionArtifact,
   FunctionSelector,
@@ -792,7 +792,7 @@ describe('Private Execution test suite', () => {
       const artifact = getFunctionArtifact(TokenContractArtifact, 'redeem_shield');
 
       const secret = new Fr(1n);
-      const secretHash = computeSecretMessageHash(secret);
+      const secretHash = computeMessageSecretHash(secret);
       const note = new Note([new Fr(amount), secretHash]);
       const noteHash = hashFields(note.items);
       const storageSlot = new Fr(5);

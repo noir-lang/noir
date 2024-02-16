@@ -1,9 +1,10 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
-import { computePublicCallStackItemHash } from '../abis/abis.js';
+import { GeneratorIndex } from '../constants.gen.js';
 import { CallRequest, CallerContext } from './call_request.js';
 import { FunctionData } from './function_data.js';
 import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
@@ -37,10 +38,6 @@ export class PublicCallStackItem {
 
   toBuffer() {
     return serializeToBuffer(...PublicCallStackItem.getFields(this));
-  }
-
-  toFields(): Fr[] {
-    return serializeToFields(...PublicCallStackItem.getFields(this));
   }
 
   /**
@@ -91,7 +88,19 @@ export class PublicCallStackItem {
    * @returns Hash.
    */
   public hash() {
-    return computePublicCallStackItemHash(this);
+    if (this.isExecutionRequest) {
+      const { callContext, argsHash } = this.publicInputs;
+      this.publicInputs = PublicCircuitPublicInputs.empty();
+      this.publicInputs.callContext = callContext;
+      this.publicInputs.argsHash = argsHash;
+    }
+
+    return Fr.fromBuffer(
+      pedersenHash(
+        [this.contractAddress, this.functionData.hash(), this.publicInputs.hash()].map(f => f.toBuffer()),
+        GeneratorIndex.CALL_STACK_ITEM,
+      ),
+    );
   }
 
   /**

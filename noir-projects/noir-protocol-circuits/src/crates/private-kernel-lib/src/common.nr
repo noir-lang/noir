@@ -11,7 +11,7 @@ use dep::types::{
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::{AztecAddress, EthAddress, PartialAddress, compute_initialization_hash},
-    contract_class::ContractClassId, contrakt::deployment_data::ContractDeploymentData,
+    contract_class::ContractClassId, contrakt::contract_deployment_data::ContractDeploymentData,
     constants::{
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_COMMITMENTS_PER_CALL,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_READ_REQUESTS_PER_CALL,

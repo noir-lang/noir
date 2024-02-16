@@ -10,7 +10,7 @@ import {
   Wallet,
   toBigInt,
 } from '@aztec/aztec.js';
-import { siloNullifier } from '@aztec/circuits.js/abis';
+import { siloNullifier } from '@aztec/circuits.js/hash';
 import { TestContract } from '@aztec/noir-contracts.js/Test';
 
 import { setup } from './fixtures/utils.js';

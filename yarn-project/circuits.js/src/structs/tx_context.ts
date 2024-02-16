@@ -1,7 +1,9 @@
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
+import { GeneratorIndex, TX_CONTEXT_DATA_LENGTH } from '../constants.gen.js';
 import { ContractDeploymentData } from '../structs/contract_deployment_data.js';
 
 /**
@@ -47,14 +49,17 @@ export class TxContext {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(
-      this.isFeePaymentTx,
-      this.isRebatePaymentTx,
-      this.isContractDeploymentTx,
-      this.contractDeploymentData,
-      this.chainId,
-      this.version,
-    );
+    return serializeToBuffer(...TxContext.getFields(this));
+  }
+
+  toFields(): Fr[] {
+    const fields = serializeToFields(...TxContext.getFields(this));
+    if (fields.length !== TX_CONTEXT_DATA_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for TxContext. Expected ${TX_CONTEXT_DATA_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   /**
@@ -112,5 +117,14 @@ export class TxContext {
       fields.chainId,
       fields.version,
     ] as const;
+  }
+
+  hash(): Fr {
+    return Fr.fromBuffer(
+      pedersenHash(
+        this.toFields().map(f => f.toBuffer()),
+        GeneratorIndex.TX_CONTEXT,
+      ),
+    );
   }
 }

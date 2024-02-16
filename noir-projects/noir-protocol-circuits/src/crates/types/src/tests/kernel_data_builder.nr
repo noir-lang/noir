@@ -13,7 +13,7 @@ use crate::{
 },
     address::{AztecAddress, EthAddress}, header::Header,
     mocked::{AggregationObject, Proof, VerificationKey},
-    tests::{fixtures, testing_harness::build_tx_context}, transaction::context::TxContext
+    tests::{fixtures, testing_harness::build_tx_context}, transaction::tx_context::TxContext
 };
 use crate::constants::{
     MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX,

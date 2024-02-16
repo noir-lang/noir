@@ -15,7 +15,7 @@ export function isAddressStruct(abiType: ABIType) {
  * @returns Boolean.
  */
 export function isEthAddressStruct(abiType: ABIType) {
-  return abiType.kind === 'struct' && abiType.path.endsWith('types::address::EthAddress');
+  return abiType.kind === 'struct' && abiType.path.endsWith('address::EthAddress');
 }
 
 /**
@@ -24,7 +24,7 @@ export function isEthAddressStruct(abiType: ABIType) {
  * @returns Boolean.
  */
 export function isAztecAddressStruct(abiType: ABIType) {
-  return abiType.kind === 'struct' && abiType.path.endsWith('types::address::AztecAddress');
+  return abiType.kind === 'struct' && abiType.path.endsWith('address::AztecAddress');
 }
 
 /**

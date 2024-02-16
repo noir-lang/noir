@@ -1,4 +1,4 @@
-import { siloNullifier } from '@aztec/circuits.js/abis';
+import { siloNullifier } from '@aztec/circuits.js/hash';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 

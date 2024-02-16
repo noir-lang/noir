@@ -15,6 +15,7 @@ import {
   MAX_PUBLIC_DATA_READS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   NUM_FIELDS_PER_SHA256,
+  PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
   RETURN_VALUES_LENGTH,
 } from '../constants.gen.js';
 import { CallContext } from './call_context.js';
@@ -173,7 +174,13 @@ export class PublicCircuitPublicInputs {
   }
 
   toFields(): Fr[] {
-    return serializeToFields(...PublicCircuitPublicInputs.getFields(this));
+    const fields = serializeToFields(...PublicCircuitPublicInputs.getFields(this));
+    if (fields.length !== PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for PublicCircuitPublicInputs. Expected ${PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   /**

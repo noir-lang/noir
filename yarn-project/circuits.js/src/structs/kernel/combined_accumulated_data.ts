@@ -1,6 +1,4 @@
 import { makeTuple } from '@aztec/foundation/array';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -24,46 +22,7 @@ import {
 import { CallRequest } from '../call_request.js';
 import { NullifierKeyValidationRequestContext } from '../nullifier_key_validation_request.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
-
-/**
- * The information assembled after the contract deployment was processed by the private kernel circuit.
- *
- * Note: Not to be confused with `ContractDeploymentData`.
- */
-export class NewContractData {
-  constructor(
-    /**
-     * Aztec address of the contract.
-     */
-    public contractAddress: AztecAddress,
-    /**
-     * Ethereum address of the portal contract on L1.
-     */
-    public portalContractAddress: EthAddress,
-    /**
-     * Contract class id.
-     */
-    public contractClassId: Fr,
-  ) {}
-
-  toBuffer() {
-    return serializeToBuffer(this.contractAddress, this.portalContractAddress, this.contractClassId);
-  }
-
-  /**
-   * Deserializes from a buffer or reader, corresponding to a write in cpp.
-   * @param buffer - Buffer or reader to read from.
-   * @returns The deserialized `NewContractData`.
-   */
-  static fromBuffer(buffer: Buffer | BufferReader): NewContractData {
-    const reader = BufferReader.asReader(buffer);
-    return new NewContractData(reader.readObject(AztecAddress), reader.readObject(EthAddress), Fr.fromBuffer(reader));
-  }
-
-  static empty() {
-    return new NewContractData(AztecAddress.ZERO, EthAddress.ZERO, Fr.ZERO);
-  }
-}
+import { NewContractData } from './new_contract_data.js';
 
 /**
  * Read operations from the public state tree.

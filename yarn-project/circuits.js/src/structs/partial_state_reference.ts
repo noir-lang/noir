@@ -1,6 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { PARTIAL_STATE_REFERENCE_LENGTH } from '../constants.gen.js';
 import { AppendOnlyTreeSnapshot } from './rollup/append_only_tree_snapshot.js';
 
 /**
@@ -53,12 +54,18 @@ export class PartialStateReference {
   }
 
   toFields() {
-    return [
+    const fields = [
       ...this.noteHashTree.toFields(),
       ...this.nullifierTree.toFields(),
       ...this.contractTree.toFields(),
       ...this.publicDataTree.toFields(),
     ];
+    if (fields.length !== PARTIAL_STATE_REFERENCE_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for PartialStateReference. Expected ${PARTIAL_STATE_REFERENCE_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   isEmpty(): boolean {

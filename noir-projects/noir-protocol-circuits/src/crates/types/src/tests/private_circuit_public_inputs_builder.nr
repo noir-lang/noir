@@ -5,8 +5,9 @@ use crate::{
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::{AztecAddress, compute_initialization_hash},
-    contrakt::deployment_data::ContractDeploymentData, hash::{compute_constructor_hash, hash_args},
-    header::Header, messaging::l2_to_l1_message::L2ToL1Message,
+    contrakt::contract_deployment_data::ContractDeploymentData,
+    hash::{compute_constructor_hash, hash_args}, header::Header,
+    messaging::l2_to_l1_message::L2ToL1Message,
     tests::{fixtures, testing_harness::build_contract_deployment_data}
 };
 use crate::constants::{

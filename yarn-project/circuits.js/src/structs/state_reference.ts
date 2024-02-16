@@ -1,6 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { STATE_REFERENCE_LENGTH } from '../constants.gen.js';
 import { PartialStateReference } from './partial_state_reference.js';
 import { AppendOnlyTreeSnapshot } from './rollup/append_only_tree_snapshot.js';
 
@@ -21,7 +22,13 @@ export class StateReference {
   }
 
   toFields(): Fr[] {
-    return [...this.l1ToL2MessageTree.toFields(), ...this.partial.toFields()];
+    const fields = [...this.l1ToL2MessageTree.toFields(), ...this.partial.toFields()];
+    if (fields.length !== STATE_REFERENCE_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for StateReference. Expected ${STATE_REFERENCE_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): StateReference {

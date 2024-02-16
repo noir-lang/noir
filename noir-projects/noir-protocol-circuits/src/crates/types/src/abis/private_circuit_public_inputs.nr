@@ -10,7 +10,7 @@ use crate::{
     RETURN_VALUES_LENGTH, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
     GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS
 },
-    contrakt::deployment_data::ContractDeploymentData, header::Header, hash::pedersen_hash,
+    contrakt::contract_deployment_data::ContractDeploymentData, header::Header, hash::pedersen_hash,
     messaging::l2_to_l1_message::L2ToL1Message, traits::{Deserialize, Hash, Serialize},
     utils::reader::Reader
 };
@@ -165,11 +165,12 @@ fn serialization_of_empty() {
     assert(pcpi.eq(deserialized));
 }
 
+// TODO(#4619): Hash non-empty
 #[test]
 fn empty_hash() {
     let inputs: PrivateCircuitPublicInputs = dep::std::unsafe::zeroed();
     let hash = inputs.hash();
 
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    assert_eq(hash, 0x2745ec62624afeb19b86af3d440db1f8c3432e1d17a074c75cb8f44999fd3fae);
+    assert_eq(hash, 0x1d45bdd12fe635c85eedd27300524378c35be3aafb3501632a408bbe9db2e1d9);
 }

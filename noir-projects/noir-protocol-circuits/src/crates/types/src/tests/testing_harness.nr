@@ -1,6 +1,6 @@
 use crate::{
-    contrakt::deployment_data::ContractDeploymentData, tests::fixtures, transaction::context::TxContext,
-    address::compute_initialization_hash
+    contrakt::contract_deployment_data::ContractDeploymentData, tests::fixtures,
+    transaction::tx_context::TxContext, address::compute_initialization_hash
 };
 
 pub fn build_contract_deployment_data(is_constructor: bool, args_hash: Field) -> ContractDeploymentData {

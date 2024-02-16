@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`TxRequest compute hash 1`] = `"0x05e3f67a5e787faf63c85c28169a9d616b594c9799d9785b4f167d9cd7a71e9e"`;

@@ -9,7 +9,7 @@ import {
   Proof,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { siloCommitment } from '@aztec/circuits.js/abis';
+import { siloCommitment } from '@aztec/circuits.js/hash';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';

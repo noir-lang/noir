@@ -66,14 +66,7 @@ contract Lending {
         let last_updated_ts = context.timestamp() as u120;
         let loan_to_value = loan_to_value as u120;
 
-        asset_loc.write(
-            Asset {
-            interest_accumulator: 1000000000,
-            last_updated_ts,
-            loan_to_value,
-            oracle
-        }
-        );
+        asset_loc.write(Asset { interest_accumulator: 1000000000, last_updated_ts, loan_to_value, oracle });
 
         storage.collateral_asset.write(collateral_asset);
         storage.stable_coin.write(stable_coin);

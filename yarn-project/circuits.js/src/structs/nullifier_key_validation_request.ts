@@ -2,6 +2,10 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import {
+  NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH,
+  NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH,
+} from '../constants.gen.js';
 import { GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
 
 /**
@@ -29,7 +33,13 @@ export class NullifierKeyValidationRequest {
   }
 
   toFields(): Fr[] {
-    return [this.publicKey.toFields(), this.secretKey.high, this.secretKey.low].flat();
+    const fields = [this.publicKey.toFields(), this.secretKey.high, this.secretKey.low].flat();
+    if (fields.length !== NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for NullifierKeyValidationRequest. Expected ${NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   static fromFields(fields: Fr[] | FieldReader): NullifierKeyValidationRequest {
@@ -79,7 +89,13 @@ export class NullifierKeyValidationRequestContext {
   }
 
   toFields(): Fr[] {
-    return [this.publicKey.toFields(), this.secretKey.high, this.secretKey.low, this.contractAddress].flat();
+    const fields = [this.publicKey.toFields(), this.secretKey.high, this.secretKey.low, this.contractAddress].flat();
+    if (fields.length !== NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for NullifierKeyValidationRequestContext. Expected ${NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   static fromFields(fields: Fr[] | FieldReader): NullifierKeyValidationRequestContext {

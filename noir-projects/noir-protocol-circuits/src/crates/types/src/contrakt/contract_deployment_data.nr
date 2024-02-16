@@ -75,3 +75,13 @@ fn serialization_of_empty() {
     let deserialized = ContractDeploymentData::deserialize(serialized);
     assert(data.eq(deserialized));
 }
+
+// TODO(#4619): Hash non-empty
+#[test]
+fn empty_hash() {
+    let data: ContractDeploymentData = dep::std::unsafe::zeroed();
+    let hash = data.hash();
+
+    // Value from contract_deployment_data.test.ts "computes empty item hash" test
+    assert_eq(hash, 0x0e7babf59de8dfc7f5992cd34fb0066105d07ce67f68fc33d4a0a6a933a30405);
+}

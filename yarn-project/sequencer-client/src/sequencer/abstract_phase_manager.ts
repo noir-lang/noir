@@ -33,7 +33,7 @@ import {
   SideEffectLinkedToNoteHash,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { computeVarArgsHash } from '@aztec/circuits.js/abis';
+import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';

@@ -8,7 +8,7 @@ import {
   PublicDataWitness,
 } from '@aztec/circuit-types';
 import { Header } from '@aztec/circuits.js';
-import { siloNullifier } from '@aztec/circuits.js/abis';
+import { siloNullifier } from '@aztec/circuits.js/hash';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';

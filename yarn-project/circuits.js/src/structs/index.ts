@@ -13,6 +13,7 @@ export * from './content_commitment.js';
 export * from './header.js';
 export * from './kernel/combined_accumulated_data.js';
 export * from './kernel/combined_constant_data.js';
+export * from './kernel/new_contract_data.js';
 export * from './kernel/private_call_data.js';
 export * from './kernel/private_kernel_init_circuit_private_inputs.js';
 export * from './kernel/private_kernel_inner_circuit_private_inputs.js';

@@ -4,8 +4,6 @@ global BOOL_SERIALIZED_LEN: Field = 1;
 global U32_SERIALIZED_LEN: Field = 1;
 global U8_SERIALIZED_LEN: Field = 1;
 global FIELD_SERIALIZED_LEN: Field = 1;
-global AZTEC_ADDRESS_SERIALIZED_LEN = 1;
-global ETH_ADDRESS_SERIALIZED_LEN = 1;
 
 impl Serialize<U32_SERIALIZED_LEN> for u32 {
     fn serialize(self) -> [Field; U32_SERIALIZED_LEN] {

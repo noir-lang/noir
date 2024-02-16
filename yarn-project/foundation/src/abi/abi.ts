@@ -1,6 +1,6 @@
 import { inflate } from 'pako';
 
-import { type FunctionSelector } from './selector.js';
+import { type FunctionSelector } from './function_selector.js';
 
 /**
  * A named type.

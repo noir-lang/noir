@@ -1,10 +1,13 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
+import { FieldsOf } from '@aztec/foundation/types';
+
+import { FUNCTION_LEAF_PREIMAGE_LENGTH, GeneratorIndex } from '../constants.gen.js';
 
 /**
  * A class representing the "preimage" of a function tree leaf.
- * @see abis/function_leaf_preimage.hpp
  */
 export class FunctionLeafPreimage {
   constructor(
@@ -30,12 +33,26 @@ export class FunctionLeafPreimage {
     public acirHash: Fr,
   ) {}
 
+  static getFields(fields: FieldsOf<FunctionLeafPreimage>) {
+    return [fields.functionSelector, fields.isInternal, fields.isPrivate, fields.vkHash, fields.acirHash] as const;
+  }
+
   /**
    * Serialize this as a buffer.
    * @returns The buffer.
    */
   toBuffer(): Buffer {
-    return serializeToBuffer(this.functionSelector, this.isInternal, this.isPrivate, this.vkHash, this.acirHash);
+    return serializeToBuffer(...FunctionLeafPreimage.getFields(this));
+  }
+
+  toFields(): Fr[] {
+    const fields = serializeToFields(...FunctionLeafPreimage.getFields(this));
+    if (fields.length !== FUNCTION_LEAF_PREIMAGE_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for FunctionLeafPreimage. Expected ${FUNCTION_LEAF_PREIMAGE_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   /**
@@ -51,6 +68,15 @@ export class FunctionLeafPreimage {
       reader.readBoolean(),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
+    );
+  }
+
+  hash(): Fr {
+    return Fr.fromBuffer(
+      pedersenHash(
+        this.toFields().map(field => field.toBuffer()),
+        GeneratorIndex.FUNCTION_LEAF,
+      ),
     );
   }
 }

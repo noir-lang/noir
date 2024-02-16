@@ -1,1 +1,1 @@
-export * from './sibling-path.js';
+export * from './sibling_path.js';

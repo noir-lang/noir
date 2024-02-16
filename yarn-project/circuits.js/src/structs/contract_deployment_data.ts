@@ -1,7 +1,10 @@
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
+import { FieldsOf } from '@aztec/foundation/types';
 
+import { CONTRACT_DEPLOYMENT_DATA_LENGTH, GeneratorIndex } from '../constants.gen.js';
 import { PublicKey } from '../types/public_key.js';
 
 /**
@@ -22,24 +25,28 @@ export class ContractDeploymentData {
     public portalContractAddress: EthAddress,
   ) {}
 
+  static getFields(fields: FieldsOf<ContractDeploymentData>) {
+    return [
+      fields.publicKey,
+      fields.initializationHash,
+      fields.contractClassId,
+      fields.contractAddressSalt,
+      fields.portalContractAddress,
+    ] as const;
+  }
+
   toBuffer() {
-    return serializeToBuffer(
-      this.publicKey,
-      this.initializationHash,
-      this.contractClassId,
-      this.contractAddressSalt,
-      this.portalContractAddress,
-    );
+    return serializeToBuffer(...ContractDeploymentData.getFields(this));
   }
 
   toFields(): Fr[] {
-    return [
-      ...this.publicKey.toFields(),
-      this.initializationHash,
-      this.contractClassId,
-      this.contractAddressSalt,
-      this.portalContractAddress.toField(),
-    ];
+    const fields = serializeToFields(...ContractDeploymentData.getFields(this));
+    if (fields.length !== CONTRACT_DEPLOYMENT_DATA_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for ContractDeploymentData. Expected ${CONTRACT_DEPLOYMENT_DATA_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   /**
@@ -51,13 +58,7 @@ export class ContractDeploymentData {
   }
 
   isEmpty() {
-    return (
-      this.publicKey.isZero() &&
-      this.initializationHash.isZero() &&
-      this.contractClassId.isZero() &&
-      this.contractAddressSalt.isZero() &&
-      this.portalContractAddress.isZero()
-    );
+    return ContractDeploymentData.getFields(this).every(f => f.isZero());
   }
 
   /**
@@ -78,19 +79,21 @@ export class ContractDeploymentData {
 
   static fromFields(fields: Fr[] | FieldReader): ContractDeploymentData {
     const reader = FieldReader.asReader(fields);
-
-    const publicKey = reader.readObject(Point);
-    const initializationHash = reader.readField();
-    const contractClassId = reader.readField();
-    const contractAddressSalt = reader.readField();
-    const portalContractAddress = reader.readObject(EthAddress);
-
     return new ContractDeploymentData(
-      publicKey,
-      initializationHash,
-      contractClassId,
-      contractAddressSalt,
-      portalContractAddress,
+      reader.readObject(Point),
+      reader.readField(),
+      reader.readField(),
+      reader.readField(),
+      reader.readObject(EthAddress),
+    );
+  }
+
+  hash(): Fr {
+    return Fr.fromBuffer(
+      pedersenHash(
+        this.toFields().map(f => f.toBuffer()),
+        GeneratorIndex.CONTRACT_DEPLOYMENT_DATA,
+      ),
     );
   }
 }

@@ -5,6 +5,8 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
+import { CALL_CONTEXT_LENGTH } from '../constants.gen.js';
+
 /**
  * Call context.
  */
@@ -99,7 +101,13 @@ export class CallContext {
   }
 
   toFields(): Fr[] {
-    return serializeToFields(...CallContext.getFields(this));
+    const fields = serializeToFields(...CallContext.getFields(this));
+    if (fields.length !== CALL_CONTEXT_LENGTH) {
+      throw new Error(
+        `Invalid number of fields for CallContext. Expected ${CALL_CONTEXT_LENGTH}, got ${fields.length}`,
+      );
+    }
+    return fields;
   }
 
   /**

@@ -11,14 +11,20 @@ describe('ContractDeploymentData', () => {
     expect(res.isEmpty()).toBe(false);
   });
 
-  it(`initializes an empty ContractDeploymentData`, () => {
-    const target = ContractDeploymentData.empty();
-    expect(target.isEmpty()).toBe(true);
-  });
-
   it('number of fields matches constant', () => {
     const target = makeContractDeploymentData(327);
     const fields = target.toFields();
     expect(fields.length).toBe(CONTRACT_DEPLOYMENT_DATA_LENGTH);
+  });
+
+  it('computes empty hash', () => {
+    const cd = ContractDeploymentData.empty();
+    expect(cd.isEmpty()).toBe(true);
+
+    const hash = cd.hash();
+    expect(hash).toMatchSnapshot();
+
+    // Value used in empty_hash test in contract_deployment_data.nr
+    // console.log("hash", hash.toString());
   });
 });

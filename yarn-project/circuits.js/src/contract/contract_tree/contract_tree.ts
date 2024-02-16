@@ -1,6 +1,7 @@
 import { ContractFunctionDao, Fr, FunctionData, FunctionLeafPreimage } from '@aztec/circuits.js';
-import { computeFunctionLeaf, hashVK } from '@aztec/circuits.js/abis';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+
+import { hashVK } from '../../hash/hash.js';
 
 /**
  * Computes the hash of a hex-encoded string representation of a verification key (vk).
@@ -86,7 +87,7 @@ export function generateFunctionLeaves(functions: ContractFunctionDao[]) {
       Fr.fromBuffer(vkHash),
       Fr.fromBuffer(acirHash),
     );
-    const fnLeaf = computeFunctionLeaf(fnLeafPreimage);
+    const fnLeaf = fnLeafPreimage.hash();
     result.push(fnLeaf);
   }
   return result;

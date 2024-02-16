@@ -28,16 +28,16 @@ export class Header {
 
   toFields(): Fr[] {
     // Note: The order here must match the order in header.nr
-    const serialized = [
+    const fields = [
       ...this.lastArchive.toFields(),
       ...this.contentCommitment.toFields(),
       ...this.state.toFields(),
       ...this.globalVariables.toFields(),
     ];
-    if (serialized.length !== HEADER_LENGTH) {
-      throw new Error(`Expected header to have ${HEADER_LENGTH} fields, but it has ${serialized.length} fields`);
+    if (fields.length !== HEADER_LENGTH) {
+      throw new Error(`Invalid number of fields for Header. Expected ${HEADER_LENGTH}, got ${fields.length}`);
     }
-    return serialized;
+    return fields;
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): Header {

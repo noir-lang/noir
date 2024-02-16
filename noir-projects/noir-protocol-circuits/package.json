@@ -2,6 +2,7 @@
   "name": "@aztec/noir-protocol-circuits",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "exports": {
     ".": "./dest/index.js",
     "./types": "./dest/types/index.js"

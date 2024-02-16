@@ -1,14 +1,15 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
+import { GeneratorIndex, TX_REQUEST_LENGTH } from '../constants.gen.js';
 import { FunctionData } from './function_data.js';
 import { TxContext } from './tx_context.js';
 
 /**
  * Transaction request.
- * @see cpp/src/aztec3/circuits/abis/tx_request.hpp.
  */
 export class TxRequest {
   constructor(
@@ -43,8 +44,15 @@ export class TxRequest {
    * @returns The buffer.
    */
   toBuffer() {
-    const fields = TxRequest.getFields(this);
-    return serializeToBuffer([...fields]);
+    return serializeToBuffer([...TxRequest.getFields(this)]);
+  }
+
+  toFields(): Fr[] {
+    const fields = serializeToFields(...TxRequest.getFields(this));
+    if (fields.length !== TX_REQUEST_LENGTH) {
+      throw new Error(`Invalid number of fields for TxRequest. Expected ${TX_REQUEST_LENGTH}, got ${fields.length}`);
+    }
+    return fields;
   }
 
   /**
@@ -60,5 +68,22 @@ export class TxRequest {
       Fr.fromBuffer(reader),
       reader.readObject(TxContext),
     );
+  }
+
+  hash() {
+    return Fr.fromBuffer(
+      pedersenHash(
+        this.toFields().map(field => field.toBuffer()),
+        GeneratorIndex.TX_REQUEST,
+      ),
+    );
+  }
+
+  static empty() {
+    return new TxRequest(AztecAddress.ZERO, FunctionData.empty(), Fr.zero(), TxContext.empty());
+  }
+
+  isEmpty() {
+    return this.origin.isZero() && this.functionData.isEmpty() && this.argsHash.isZero() && this.txContext.isEmpty();
   }
 }

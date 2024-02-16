@@ -20,8 +20,6 @@ mod type_serialization;
 mod content_commitment;
 mod header;
 
-mod interop_testing;
-
 mod tests;
 
 mod state_reference;

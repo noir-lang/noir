@@ -61,6 +61,7 @@ fn serialization_of_empty() {
     assert(data.eq(deserialized));
 }
 
+// TODO(#4619): Hash non-empty
 #[test]
 fn empty_hash() {
     let data: FunctionData = dep::std::unsafe::zeroed();

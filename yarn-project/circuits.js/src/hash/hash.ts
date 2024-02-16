@@ -1,8 +1,8 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { keccak, pedersenHash, pedersenHashBuffer } from '@aztec/foundation/crypto';
+import { pedersenHash, pedersenHashBuffer } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { boolToBuffer, numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/serialize';
+import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/serialize';
 
 import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
@@ -10,42 +10,12 @@ import chunk from 'lodash.chunk';
 import {
   ARGS_HASH_CHUNK_COUNT,
   ARGS_HASH_CHUNK_LENGTH,
-  FUNCTION_SELECTOR_NUM_BYTES,
   FUNCTION_TREE_HEIGHT,
   GeneratorIndex,
 } from '../constants.gen.js';
 import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
-import type {
-  ContractDeploymentData,
-  FunctionData,
-  FunctionLeafPreimage,
-  NewContractData,
-  PublicCallStackItem,
-  SideEffect,
-  SideEffectLinkedToNoteHash,
-  TxContext,
-  TxRequest,
-} from '../structs/index.js';
-import { PublicCircuitPublicInputs } from '../structs/public_circuit_public_inputs.js';
+import type { FunctionData, SideEffect, SideEffectLinkedToNoteHash } from '../structs/index.js';
 import { VerificationKey } from '../structs/verification_key.js';
-
-/**
- * Computes a hash of a transaction request.
- * @param txRequest - The transaction request.
- * @returns The hash of the transaction request.
- */
-export function hashTxRequest(txRequest: TxRequest): Buffer {
-  return computeTxHash(txRequest).toBuffer();
-}
-
-/**
- * Computes a function selector from a given function signature.
- * @param funcSig - The function signature.
- * @returns The function selector.
- */
-export function computeFunctionSelector(funcSig: string): Buffer {
-  return keccak(Buffer.from(funcSig)).subarray(0, FUNCTION_SELECTOR_NUM_BYTES);
-}
 
 /**
  * Computes a hash of a given verification key.
@@ -87,26 +57,6 @@ export function hashVK(vkBuf: Buffer) {
   // write(preimage_data, eval_domain.root);  // fr::one()
 
   // return crypto::pedersen_hash::hash_buffer(preimage_data, hash_index);
-}
-
-/**
- * Computes a function leaf from a given preimage.
- * @param fnLeaf - The function leaf preimage.
- * @returns The function leaf.
- */
-export function computeFunctionLeaf(fnLeaf: FunctionLeafPreimage): Fr {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [
-        numToUInt32BE(fnLeaf.functionSelector.value, 32),
-        boolToBuffer(fnLeaf.isInternal, 32),
-        boolToBuffer(fnLeaf.isPrivate, 32),
-        fnLeaf.vkHash.toBuffer(),
-        fnLeaf.acirHash.toBuffer(),
-      ],
-      GeneratorIndex.FUNCTION_LEAF,
-    ),
-  );
 }
 
 let functionTreeRootCalculator: MerkleTreeCalculator | undefined;
@@ -263,74 +213,6 @@ export function computeVarArgsHash(args: Fr[]) {
   );
 }
 
-/**
- * Computes a contract leaf of the given contract.
- * @param cd - The contract data of the deployed contract.
- * @returns The contract leaf.
- */
-export function computeContractLeaf(cd: NewContractData): Fr {
-  if (cd.contractAddress.isZero() && cd.portalContractAddress.isZero() && cd.contractClassId.isZero()) {
-    return new Fr(0);
-  }
-  return Fr.fromBuffer(
-    pedersenHash(
-      [cd.contractAddress.toBuffer(), cd.portalContractAddress.toBuffer(), cd.contractClassId.toBuffer()],
-      GeneratorIndex.CONTRACT_LEAF,
-    ),
-  );
-}
-
-/**
- * Computes tx hash of a given transaction request.
- * @param txRequest - The signed transaction request.
- * @returns The transaction hash.
- */
-export function computeTxHash(txRequest: TxRequest): Fr {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [
-        txRequest.origin.toBuffer(),
-        txRequest.functionData.hash().toBuffer(),
-        txRequest.argsHash.toBuffer(),
-        computeTxContextHash(txRequest.txContext).toBuffer(),
-      ],
-      GeneratorIndex.TX_REQUEST,
-    ),
-  );
-}
-
-function computeTxContextHash(txContext: TxContext): Fr {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [
-        new Fr(txContext.isFeePaymentTx).toBuffer(),
-        new Fr(txContext.isRebatePaymentTx).toBuffer(),
-        new Fr(txContext.isContractDeploymentTx).toBuffer(),
-        computeContractDeploymentDataHash(txContext.contractDeploymentData).toBuffer(),
-        txContext.chainId.toBuffer(),
-        txContext.version.toBuffer(),
-      ],
-      GeneratorIndex.TX_CONTEXT,
-    ),
-  );
-}
-
-function computeContractDeploymentDataHash(data: ContractDeploymentData): Fr {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [
-        data.publicKey.x.toBuffer(),
-        data.publicKey.y.toBuffer(),
-        data.initializationHash.toBuffer(),
-        data.contractClassId.toBuffer(),
-        data.contractAddressSalt.toBuffer(),
-        data.portalContractAddress.toBuffer(),
-      ],
-      GeneratorIndex.CONTRACT_DEPLOYMENT_DATA,
-    ),
-  );
-}
-
 export function computeCommitmentsHash(input: SideEffect) {
   return pedersenHash([input.value.toBuffer(), input.counter.toBuffer()], GeneratorIndex.SIDE_EFFECT);
 }
@@ -343,36 +225,10 @@ export function computeNullifierHash(input: SideEffectLinkedToNoteHash) {
 }
 
 /**
- * Computes a call stack item hash.
- * @param callStackItem - The call stack item.
- * @returns The call stack item hash.
+ * Given a secret, it computes its pedersen hash - used to send l1 to l2 messages
+ * @param secret - the secret to hash - secret could be generated however you want e.g. `Fr.random()`
+ * @returns the hash
  */
-export function computePublicCallStackItemHash({
-  contractAddress,
-  functionData,
-  publicInputs,
-  isExecutionRequest,
-}: PublicCallStackItem): Fr {
-  if (isExecutionRequest) {
-    const { callContext, argsHash } = publicInputs;
-    publicInputs = PublicCircuitPublicInputs.empty();
-    publicInputs.callContext = callContext;
-    publicInputs.argsHash = argsHash;
-  }
-
-  return Fr.fromBuffer(
-    pedersenHash(
-      [contractAddress, functionData.hash(), publicInputs.hash()].map(f => f.toBuffer()),
-      GeneratorIndex.CALL_STACK_ITEM,
-    ),
-  );
-}
-
-/**
- * Computes a secret message hash for sending secret l1 to l2 messages.
- * @param secretMessage - The secret message.
- * @returns
- */
-export function computeSecretMessageHash(secretMessage: Fr) {
+export function computeMessageSecretHash(secretMessage: Fr) {
   return Fr.fromBuffer(pedersenHash([secretMessage.toBuffer()], GeneratorIndex.L1_TO_L2_MESSAGE_SECRET));
 }
