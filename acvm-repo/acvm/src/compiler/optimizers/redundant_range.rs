@@ -72,12 +72,9 @@ impl RangeOptimizer {
                     }
                 }
 
-
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
                     input: FunctionInput { witness, num_bits },
-                }) => {
-                    Some((*witness, *num_bits))
-                }
+                }) => Some((*witness, *num_bits)),
 
                 _ => None,
             }) else {

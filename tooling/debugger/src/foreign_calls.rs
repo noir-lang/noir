@@ -100,7 +100,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                 Ok(ForeignCallResult::default().into())
             }
             Some(DebugForeignCall::MemberAssign(arity)) => {
-                if let Some(ForeignCallParam::Single(var_id_value)) = foreign_call.inputs.get(0) {
+                if let Some(ForeignCallParam::Single(var_id_value)) = foreign_call.inputs.first() {
                     let arity = arity as usize;
                     let var_id = debug_var_id(var_id_value);
                     let n = foreign_call.inputs.len();
@@ -116,7 +116,11 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                         .collect();
                     let values: Vec<Value> = (0..n - 1 - arity)
                         .flat_map(|i| {
-                            foreign_call.inputs.get(1 + i).map(|fci| fci.values()).unwrap_or(vec![])
+                            foreign_call
+                                .inputs
+                                .get(1 + i)
+                                .map(|fci| fci.values())
+                                .unwrap_or_default()
                         })
                         .collect();
                     self.debug_vars.assign_field(var_id, indexes, &values);
