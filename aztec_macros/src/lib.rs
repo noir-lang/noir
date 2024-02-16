@@ -763,11 +763,11 @@ fn transform_event(
         HirExpression::Literal(HirLiteral::Str(signature))
             if signature == SIGNATURE_PLACEHOLDER =>
         {
-            let selector_literal_id = first_arg_id;
+            let selector_literal_id = *first_arg_id;
 
             let structure = interner.get_struct(struct_id);
             let signature = event_signature(&structure.borrow());
-            interner.update_expression(*selector_literal_id, |expr| {
+            interner.update_expression(selector_literal_id, |expr| {
                 *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
             });
 
@@ -833,7 +833,7 @@ fn get_serialized_length(
 
     let serialized_trait_impl_kind = traits
         .iter()
-        .filter_map(|&trait_id| {
+        .find_map(|&trait_id| {
             let r#trait = interner.get_trait(trait_id);
             if r#trait.borrow().name.0.contents == "Serialize"
                 && r#trait.borrow().generics.len() == 1
@@ -846,7 +846,6 @@ fn get_serialized_length(
                 None
             }
         })
-        .next()
         .ok_or(AztecMacroError::CouldNotAssignStorageSlots {
             secondary_message: Some("Stored data must implement Serialize trait".to_string()),
         })?;
