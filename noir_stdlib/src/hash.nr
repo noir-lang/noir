@@ -1,5 +1,6 @@
 mod poseidon;
 mod mimc;
+mod poseidon2;
 
 #[foreign(sha256)]
 // docs:start:sha256
@@ -70,7 +71,7 @@ pub fn keccak256<N>(input: [u8; N], message_size: u32) -> [u8; 32]
 {}
 
 #[foreign(poseidon2_permutation)]
-pub fn poseidon2_permutation<N>(_input: [u8; N], _state_length: u32) -> [u8; N] {}
+pub fn poseidon2_permutation<N>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
 #[foreign(sha256_compression)]
 pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
