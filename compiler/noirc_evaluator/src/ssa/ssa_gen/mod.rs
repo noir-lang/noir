@@ -684,9 +684,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         assert_message: &Option<Box<Expression>>,
     ) -> Result<Option<Box<ConstrainError>>, RuntimeError> {
-        let Some(assert_message_expr) = assert_message else {
-            return Ok(None)
-        };
+        let Some(assert_message_expr) = assert_message else { return Ok(None) };
 
         if let ast::Expression::Literal(ast::Literal::Str(assert_message)) =
             assert_message_expr.as_ref()

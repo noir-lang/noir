@@ -429,63 +429,6 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn and() {
-        let max = 10_000u32;
-
-        let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
-
-        for x in 0..max {
-            let x = crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(x as i128);
-            let res = x.and(&x, num_bits);
-            assert_eq!(res.to_be_bytes(), x.to_be_bytes());
-        }
-    }
-
-    #[test]
-    fn serialize_fixed_test_vectors() {
-        // Serialized field elements from of 0, -1, -2, -3
-        let hex_strings = vec![
-            "0000000000000000000000000000000000000000000000000000000000000000",
-            "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000",
-            "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffff",
-            "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593effffffe",
-        ];
-
-        for (i, string) in hex_strings.into_iter().enumerate() {
-            let minus_i_field_element =
-                -crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
-            assert_eq!(minus_i_field_element.to_hex(), string);
-        }
-    }
-
-    #[test]
-    fn deserialize_even_and_odd_length_hex() {
-        // Test cases of (odd, even) length hex strings
-        let hex_strings =
-            vec![("0x0", "0x00"), ("0x1", "0x01"), ("0x002", "0x0002"), ("0x00003", "0x000003")];
-        for (i, case) in hex_strings.into_iter().enumerate() {
-            let i_field_element =
-                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
-            let odd_field_element =
-                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.0).unwrap();
-            let even_field_element =
-                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.1).unwrap();
-
-            assert_eq!(i_field_element, odd_field_element);
-            assert_eq!(odd_field_element, even_field_element);
-        }
-    }
-
-    #[test]
-    fn max_num_bits_smoke() {
-        let max_num_bits_bn254 = crate::generic_ark::FieldElement::<ark_bn254::Fr>::max_num_bits();
-        assert_eq!(max_num_bits_bn254, 254);
-    }
-}
-
 fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
     // reverse to big endian format
     bytes.reverse();
@@ -541,5 +484,62 @@ fn superscript(n: u64) -> String {
         superscript(n / 10) + &superscript(n % 10)
     } else {
         panic!("{}", n.to_string() + " can't be converted to superscript.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn and() {
+        let max = 10_000u32;
+
+        let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
+
+        for x in 0..max {
+            let x = crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(x as i128);
+            let res = x.and(&x, num_bits);
+            assert_eq!(res.to_be_bytes(), x.to_be_bytes());
+        }
+    }
+
+    #[test]
+    fn serialize_fixed_test_vectors() {
+        // Serialized field elements from of 0, -1, -2, -3
+        let hex_strings = vec![
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000",
+            "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffff",
+            "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593effffffe",
+        ];
+
+        for (i, string) in hex_strings.into_iter().enumerate() {
+            let minus_i_field_element =
+                -crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
+            assert_eq!(minus_i_field_element.to_hex(), string);
+        }
+    }
+
+    #[test]
+    fn deserialize_even_and_odd_length_hex() {
+        // Test cases of (odd, even) length hex strings
+        let hex_strings =
+            vec![("0x0", "0x00"), ("0x1", "0x01"), ("0x002", "0x0002"), ("0x00003", "0x000003")];
+        for (i, case) in hex_strings.into_iter().enumerate() {
+            let i_field_element =
+                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
+            let odd_field_element =
+                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.0).unwrap();
+            let even_field_element =
+                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.1).unwrap();
+
+            assert_eq!(i_field_element, odd_field_element);
+            assert_eq!(odd_field_element, even_field_element);
+        }
+    }
+
+    #[test]
+    fn max_num_bits_smoke() {
+        let max_num_bits_bn254 = crate::generic_ark::FieldElement::<ark_bn254::Fr>::max_num_bits();
+        assert_eq!(max_num_bits_bn254, 254);
     }
 }

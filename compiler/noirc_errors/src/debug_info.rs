@@ -90,7 +90,7 @@ impl DebugInfo {
 
         for (opcode_location, locations) in self.locations.iter() {
             for location in locations.iter() {
-                let opcodes = accumulator.entry(*location).or_insert(Vec::new());
+                let opcodes = accumulator.entry(*location).or_default();
                 opcodes.push(opcode_location);
             }
         }
