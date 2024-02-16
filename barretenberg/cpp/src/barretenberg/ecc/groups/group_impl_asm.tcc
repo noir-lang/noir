@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef DISABLE_SHENANIGANS
+#ifndef DISABLE_ASM
 
 #include "barretenberg/ecc/groups/group.hpp"
 #include <cstdint>

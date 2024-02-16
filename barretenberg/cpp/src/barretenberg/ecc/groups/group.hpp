@@ -122,7 +122,7 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
 
 } // namespace bb
 
-#ifdef DISABLE_SHENANIGANS
+#ifdef DISABLE_ASM
 #include "group_impl_int128.tcc"
 #else
 #include "group_impl_asm.tcc"

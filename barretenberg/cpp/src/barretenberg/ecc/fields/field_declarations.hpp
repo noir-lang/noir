@@ -10,7 +10,7 @@
 #include <random>
 #include <span>
 
-#ifndef DISABLE_SHENANIGANS
+#ifndef DISABLE_ASM
 #ifdef __BMI2__
 #define BBERG_NO_ASM 0
 #else
