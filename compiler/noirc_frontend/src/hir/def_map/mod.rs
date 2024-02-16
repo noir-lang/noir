@@ -31,7 +31,7 @@ pub struct LocalModuleId(pub Index);
 
 impl LocalModuleId {
     pub fn dummy_id() -> LocalModuleId {
-        LocalModuleId(Index(std::usize::MAX))
+        LocalModuleId(Index::dummy())
     }
 }
 

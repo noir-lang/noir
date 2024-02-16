@@ -696,7 +696,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mutable = definition.mutable;
 
         let definition = self.lookup_local(ident.id)?;
-        let typ = self.convert_type(&self.interner.id_type(ident.id));
+        let typ = self.convert_type(&self.interner.definition_type(ident.id));
 
         Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
     }
@@ -1038,7 +1038,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) {
         match hir_argument {
             HirExpression::Ident(ident) => {
-                let typ = self.interner.id_type(ident.id);
+                let typ = self.interner.definition_type(ident.id);
                 let typ: Type = typ.follow_bindings();
                 let is_fmt_str = match typ {
                     // A format string has many different possible types that need to be handled.

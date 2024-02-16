@@ -4,7 +4,26 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-pub struct Index(pub usize);
+pub struct Index(usize);
+
+impl Index {
+    #[cfg(test)]
+    pub fn test_new(index: usize) -> Index {
+        Self(index)
+    }
+
+    /// Return a dummy index (max value internally).
+    /// This should be avoided over `Option<Index>` if possible.
+    pub fn dummy() -> Self {
+        Self(usize::MAX)
+    }
+
+    /// Return the zeroed index. This is unsafe since we don't know
+    /// if this is a valid index for any particular map yet.
+    pub fn unsafe_zeroed() -> Self {
+        Self(0)
+    }
+}
 
 // #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 #[derive(Debug, Clone)]
