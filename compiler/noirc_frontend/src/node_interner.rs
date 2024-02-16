@@ -398,7 +398,7 @@ into_index!(StmtId);
 /// We use one Arena for all types that can be interned as that has better cache locality
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub(crate) enum Node {
     Function(HirFunction),
     Statement(HirStatement),

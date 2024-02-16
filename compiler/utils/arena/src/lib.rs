@@ -25,8 +25,7 @@ impl Index {
     }
 }
 
-// #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Arena<T> {
     pub vec: Vec<T>,
 }
@@ -71,14 +70,10 @@ impl<'a, T> IntoIterator for &'a Arena<T> {
     }
 }
 
-// TODO: remove Clone
 impl<T> Arena<T> {
-    pub fn insert(&mut self, item: T) -> Index
-    where
-        T: Clone,
-    {
+    pub fn insert(&mut self, item: T) -> Index {
         let index = self.vec.len();
-        self.vec.push(item.clone());
+        self.vec.push(item);
         Index(index)
     }
 

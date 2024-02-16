@@ -14,7 +14,7 @@ use super::types::{StructType, Type};
 /// references other HIR nodes indirectly via IDs rather than directly via
 /// boxing. Variables in HirExpressions are tagged with their DefinitionId
 /// from the definition that refers to them so there is no ambiguity with names.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum HirExpression {
     Ident(HirIdent),
     Literal(HirLiteral),
@@ -109,7 +109,7 @@ impl HirBinaryOp {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
     Bool(bool),
@@ -119,19 +119,19 @@ pub enum HirLiteral {
     Unit,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum HirArrayLiteral {
     Standard(Vec<ExprId>),
     Repeated { repeated_element: ExprId, length: Type },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirPrefixExpression {
     pub operator: UnaryOp,
     pub rhs: ExprId,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirInfixExpression {
     pub lhs: ExprId,
     pub operator: HirBinaryOp,
@@ -146,7 +146,7 @@ pub struct HirInfixExpression {
 
 /// This is always a struct field access `my_struct.field`
 /// and never a method call. The later is represented by HirMethodCallExpression.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirMemberAccess {
     pub lhs: ExprId,
     // This field is not an IdentId since the rhs of a field
@@ -160,7 +160,7 @@ pub struct HirMemberAccess {
     pub is_offset: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirIfExpression {
     pub condition: ExprId,
     pub consequence: ExprId,
@@ -168,13 +168,13 @@ pub struct HirIfExpression {
 }
 
 // `lhs as type` in the source code
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirCastExpression {
     pub lhs: ExprId,
     pub r#type: Type,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirCallExpression {
     pub func: ExprId,
     pub arguments: Vec<ExprId>,
@@ -185,7 +185,7 @@ pub struct HirCallExpression {
 /// lowered into HirCallExpression nodes
 /// after type checking resolves the object
 /// type and the method it calls.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
@@ -239,7 +239,7 @@ impl HirMethodCallExpression {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
     pub r#type: Shared<StructType>,
     pub struct_generics: Vec<Type>,
@@ -253,13 +253,13 @@ pub struct HirConstructorExpression {
 }
 
 /// Indexing, as in `array[index]`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirIndexExpression {
     pub collection: ExprId,
     pub index: ExprId,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirBlockExpression(pub Vec<StmtId>);
 
 impl HirBlockExpression {
@@ -269,7 +269,7 @@ impl HirBlockExpression {
 }
 
 /// A variable captured inside a closure
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirCapturedVar {
     pub ident: HirIdent,
 
@@ -283,7 +283,7 @@ pub struct HirCapturedVar {
     pub transitive_capture_index: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirLambda {
     pub parameters: Vec<(HirPattern, Type)>,
     pub return_type: Type,

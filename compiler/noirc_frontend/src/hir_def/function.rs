@@ -10,7 +10,7 @@ use crate::{Distinctness, FunctionReturnType, Type, Visibility};
 
 /// A Hir function is a block expression
 /// with a list of statements
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HirFunction(ExprId);
 
 impl HirFunction {

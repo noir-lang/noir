@@ -12,7 +12,7 @@ pub enum Visibility {
     Public,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
     types: HashMap<Ident, Scope>,
     values: HashMap<Ident, Scope>,
