@@ -156,6 +156,7 @@ const sidebars = {
       type: "category",
       link: { type: "doc", id: "decentralization/governance" },
       items: [
+        "decentralization/actors",
         "decentralization/governance",
         "decentralization/block-production",
         "decentralization/p2p-network",
