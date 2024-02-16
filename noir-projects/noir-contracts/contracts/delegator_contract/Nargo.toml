@@ -1,0 +1,9 @@
+[package]
+name = "delegator_contract"
+type = "contract"
+authors = [""]
+compiler_version = ">=0.23.0"
+
+[dependencies]
+aztec = { path = "../../../aztec-nr/aztec" }
+value_note = { path = "../../../aztec-nr/value-note" }

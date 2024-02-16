@@ -873,6 +873,16 @@ describe('Private Execution test suite', () => {
           isStaticCall: false,
           startSideEffectCounter: 2,
         }),
+        parentCallContext: CallContext.from({
+          msgSender: parentAddress,
+          storageContractAddress: parentAddress,
+          portalContractAddress: EthAddress.ZERO,
+          functionSelector: FunctionSelector.fromNameAndParameters(parentArtifact.name, parentArtifact.parameters),
+          isContractDeployment: false,
+          isDelegateCall: false,
+          isStaticCall: false,
+          startSideEffectCounter: 2,
+        }),
       });
 
       const publicCallRequestHash = publicCallRequest.toPublicCallStackItem().hash();

@@ -74,7 +74,7 @@ export function isPublicExecutionResult(
  */
 export function collectPublicDataReads(execResult: PublicExecutionResult): PublicDataRead[] {
   // HACK(#1622): part of temporary hack - may be able to remove this function after public state ordering is fixed
-  const contractAddress = execResult.execution.contractAddress;
+  const contractAddress = execResult.execution.callContext.storageContractAddress;
 
   const thisExecPublicDataReads = execResult.contractStorageReads.map(read =>
     contractStorageReadToPublicDataRead(read, contractAddress),
@@ -94,7 +94,7 @@ export function collectPublicDataReads(execResult: PublicExecutionResult): Publi
  */
 export function collectPublicDataUpdateRequests(execResult: PublicExecutionResult): PublicDataUpdateRequest[] {
   // HACK(#1622): part of temporary hack - may be able to remove this function after public state ordering is fixed
-  const contractAddress = execResult.execution.contractAddress;
+  const contractAddress = execResult.execution.callContext.storageContractAddress;
 
   const thisExecPublicDataUpdateRequests = execResult.contractStorageUpdateRequests.map(update =>
     contractStorageUpdateRequestToPublicDataUpdateRequest(update, contractAddress),

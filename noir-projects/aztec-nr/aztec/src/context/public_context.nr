@@ -194,10 +194,10 @@ impl PublicContext {
     ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args(args);
         assert(args_hash == arguments::pack_arguments(args));
-        call_public_function_internal(contract_address, function_selector, args_hash, false)
+        call_public_function_internal(contract_address, function_selector, args_hash, false, false)
     }
 
-    pub fn call_public_function_static<ARGS_COUNT>(
+    pub fn static_call_public_function<ARGS_COUNT>(
         _self: Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -205,7 +205,18 @@ impl PublicContext {
     ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args(args);
         assert(args_hash == arguments::pack_arguments(args));
-        call_public_function_internal(contract_address, function_selector, args_hash, true)
+        call_public_function_internal(contract_address, function_selector, args_hash, true, false)
+    }
+
+    pub fn delegate_call_public_function<ARGS_COUNT>(
+        _self: Self,
+        contract_address: AztecAddress,
+        function_selector: FunctionSelector,
+        args: [Field; ARGS_COUNT]
+    ) -> [Field; RETURN_VALUES_LENGTH] {
+        let args_hash = hash_args(args);
+        assert(args_hash == arguments::pack_arguments(args));
+        call_public_function_internal(contract_address, function_selector, args_hash, false, true)
     }
 
     pub fn call_public_function_no_args(
@@ -213,14 +224,22 @@ impl PublicContext {
         contract_address: AztecAddress,
         function_selector: FunctionSelector
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        call_public_function_internal(contract_address, function_selector, 0, false)
+        call_public_function_internal(contract_address, function_selector, 0, false, false)
     }
 
-    pub fn call_public_function_no_args_static(
+    pub fn static_call_public_function_no_args(
         _self: Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        call_public_function_internal(contract_address, function_selector, 0, true)
+        call_public_function_internal(contract_address, function_selector, 0, true, false)
+    }
+
+    pub fn delegate_call_public_function_no_args(
+        _self: Self,
+        contract_address: AztecAddress,
+        function_selector: FunctionSelector
+    ) -> [Field; RETURN_VALUES_LENGTH] {
+        call_public_function_internal(contract_address, function_selector, 0, false, true)
     }
 }

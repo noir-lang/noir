@@ -96,8 +96,10 @@ fn perform_static_call_checks(public_call: PublicCallData) {
 
 fn is_valid_caller(request: CallRequest, public_call: PublicCallData) -> bool {
     let call_context = public_call.call_stack_item.public_inputs.call_context;
+
     let valid_caller_context = request.caller_context.msg_sender.eq(call_context.msg_sender)
         & request.caller_context.storage_contract_address.eq(call_context.storage_contract_address);
+
     request.caller_contract_address.eq(public_call.call_stack_item.contract_address)
         & (request.caller_context.is_empty() | valid_caller_context)
 }
@@ -147,7 +149,7 @@ fn propagate_valid_public_data_update_requests(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
-    let contract_address = public_call.call_stack_item.contract_address;
+    let contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
     let update_requests = public_call.call_stack_item.public_inputs.contract_storage_update_requests;
 
     let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new(PublicDataUpdateRequest::empty());
@@ -167,7 +169,7 @@ fn propagate_valid_public_data_update_requests(
 }
 
 fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
-    let contract_address = public_call.call_stack_item.contract_address;
+    let contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
     let read_requests = public_call.call_stack_item.public_inputs.contract_storage_reads;
 
     let mut public_data_reads : BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_CALL> = BoundedVec::new(PublicDataRead::empty());

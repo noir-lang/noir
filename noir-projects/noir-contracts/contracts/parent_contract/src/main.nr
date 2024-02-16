@@ -143,7 +143,7 @@ contract Parent {
         args: [Field; 2]
     ) -> Field {
         // Call the target private function
-        let return_values = context.call_private_function_static(targetContract, targetSelector, args);
+        let return_values = context.static_call_private_function(targetContract, targetSelector, args);
 
         // Copy the return value from the call to this function's return values
         return_values[0]
@@ -156,7 +156,7 @@ contract Parent {
         targetSelector: FunctionSelector,
         args: [Field; 1]
     ) -> Field {
-        let return_values = context.call_public_function_static(targetContract, targetSelector, args);
+        let return_values = context.static_call_public_function(targetContract, targetSelector, args);
 
         return_values[0]
     }
@@ -169,6 +169,6 @@ contract Parent {
         args: [Field; 1]
     ) {
         // Call the target private function
-        context.call_public_function_static(targetContract, targetSelector, args);
+        context.static_call_public_function(targetContract, targetSelector, args);
     }
 }

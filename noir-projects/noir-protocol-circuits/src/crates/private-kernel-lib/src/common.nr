@@ -137,12 +137,14 @@ fn perform_static_call_checks(private_call: PrivateCallData) {
     }
 }
 
-fn is_valid_caller(request: CallRequest, private_call: PrivateCallData) -> bool {
-    let call_context = private_call.call_stack_item.public_inputs.call_context;
-    let valid_caller_context = request.caller_context.msg_sender.eq(call_context.msg_sender)
-        & request.caller_context.storage_contract_address.eq(call_context.storage_contract_address);
-    request.caller_contract_address.eq(private_call.call_stack_item.contract_address)
-        & (request.caller_context.is_empty() | valid_caller_context)
+fn is_valid_caller(request_from_stack: CallRequest, fn_being_verified: PrivateCallData) -> bool {
+    let call_context = fn_being_verified.call_stack_item.public_inputs.call_context;
+
+    let valid_caller_context = request_from_stack.caller_context.msg_sender.eq(call_context.msg_sender)
+        & request_from_stack.caller_context.storage_contract_address.eq(call_context.storage_contract_address);
+
+    request_from_stack.caller_contract_address.eq(fn_being_verified.call_stack_item.contract_address)
+        & (request_from_stack.caller_context.is_empty() | valid_caller_context)
 }
 
 fn validate_call_requests<N>(

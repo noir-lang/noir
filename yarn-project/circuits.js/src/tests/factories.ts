@@ -433,10 +433,22 @@ export function makePrivateKernelTailCircuitPublicInputs(seed = 1, full = true):
  * @returns Public call request.
  */
 export function makePublicCallRequest(seed = 1): PublicCallRequest {
+  const childCallContext = makeCallContext(seed + 0x2, makeAztecAddress(seed));
+  const parentCallContext = CallContext.from({
+    msgSender: makeAztecAddress(seed + 0x3),
+    storageContractAddress: childCallContext.msgSender,
+    portalContractAddress: makeEthAddress(seed + 2),
+    functionSelector: makeSelector(seed + 3),
+    isStaticCall: false,
+    isDelegateCall: false,
+    isContractDeployment: false,
+    startSideEffectCounter: 0,
+  });
   return new PublicCallRequest(
     makeAztecAddress(seed),
     new FunctionData(makeSelector(seed + 0x1), false, false, false),
-    makeCallContext(seed + 0x2, makeAztecAddress(seed)),
+    childCallContext,
+    parentCallContext,
     makeTuple(ARGS_LENGTH, fr, seed + 0x10),
   );
 }

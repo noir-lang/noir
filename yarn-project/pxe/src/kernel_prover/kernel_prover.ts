@@ -100,7 +100,9 @@ export class KernelProver {
       const currentExecution = executionStack.pop()!;
       executionStack.push(...currentExecution.nestedExecutions);
 
-      const privateCallRequests = currentExecution.nestedExecutions.map(result => result.callStackItem.toCallRequest());
+      const privateCallRequests = currentExecution.nestedExecutions.map(result =>
+        result.callStackItem.toCallRequest(currentExecution.callStackItem.publicInputs.callContext),
+      );
       const publicCallRequests = currentExecution.enqueuedPublicFunctionCalls.map(result => result.toCallRequest());
 
       // Start with the partially filled in read request witnesses from the simulator

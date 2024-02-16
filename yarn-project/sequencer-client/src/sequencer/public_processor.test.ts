@@ -155,23 +155,23 @@ describe('public_processor', () => {
       });
 
     it('runs a tx with enqueued public calls', async function () {
-      const callRequests: PublicCallRequest[] = [makePublicCallRequest(0x100), makePublicCallRequest(0x100)];
-      const callStackItems = callRequests.map(call => call.toCallRequest());
+      const publicCallRequests: PublicCallRequest[] = [makePublicCallRequest(0x100), makePublicCallRequest(0x100)];
+      const callRequests = publicCallRequests.map(call => call.toCallRequest());
 
       const kernelOutput = makePrivateKernelTailCircuitPublicInputs(0x10);
       kernelOutput.end.publicCallStack = padArrayEnd(
-        callStackItems,
+        callRequests,
         CallRequest.empty(),
         MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
       );
       kernelOutput.end.privateCallStack = padArrayEnd([], CallRequest.empty(), MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
 
-      const tx = new Tx(kernelOutput, proof, TxL2Logs.random(2, 3), TxL2Logs.random(3, 2), callRequests, [
+      const tx = new Tx(kernelOutput, proof, TxL2Logs.random(2, 3), TxL2Logs.random(3, 2), publicCallRequests, [
         ExtendedContractData.random(),
       ]);
 
       publicExecutor.simulate.mockImplementation(execution => {
-        for (const request of callRequests) {
+        for (const request of publicCallRequests) {
           if (execution.contractAddress.equals(request.contractAddress)) {
             return Promise.resolve(makePublicExecutionResultFromRequest(request));
           }

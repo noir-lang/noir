@@ -3,24 +3,12 @@ contract Child {
     use dep::std::option::Option;
 
     use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context},
-        log::emit_unencrypted_log,
-        state_vars::{
-            public_state::PublicState,
-            set::Set
-        },
-        protocol_types::{
-            abis::{
-                function_selector::FunctionSelector,
-                call_context::CallContext
-            },
-            address::AztecAddress,
-        },
-        note::{
-            note_getter_options::NoteGetterOptions,
-        }
+        context::{PrivateContext, PublicContext, Context}, log::emit_unencrypted_log,
+        state_vars::{public_state::PublicState, set::Set},
+        protocol_types::{abis::{function_selector::FunctionSelector, call_context::CallContext}, address::AztecAddress},
+        note::{note_getter_options::NoteGetterOptions}
     };
-    use dep::value_note::value_note::ValueNote;
+    use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
 
     struct Storage {
         current_value: PublicState<Field>,

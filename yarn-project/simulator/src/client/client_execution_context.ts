@@ -209,10 +209,10 @@ export class ClientExecutionContext extends ViewDataOracle {
     status: NoteStatus,
   ): Promise<NoteData[]> {
     // Nullified pending notes are already removed from the list.
-    const pendingNotes = this.noteCache.getNotes(this.contractAddress, storageSlot);
+    const pendingNotes = this.noteCache.getNotes(this.callContext.storageContractAddress, storageSlot);
 
-    const pendingNullifiers = this.noteCache.getNullifiers(this.contractAddress);
-    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot, status);
+    const pendingNullifiers = this.noteCache.getNullifiers(this.callContext.storageContractAddress);
+    const dbNotes = await this.db.getNotes(this.callContext.storageContractAddress, storageSlot, status);
     const dbNotesFiltered = dbNotes.filter(n => !pendingNullifiers.has((n.siloedNullifier as Fr).value));
 
     const notes = pickNotes<NoteData>([...dbNotesFiltered, ...pendingNotes], {
@@ -225,7 +225,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     });
 
     this.log(
-      `Returning ${notes.length} notes for ${this.contractAddress} at ${storageSlot}: ${notes
+      `Returning ${notes.length} notes for ${this.callContext.storageContractAddress} at ${storageSlot}: ${notes
         .map(n => `${n.nonce.toString()}:[${n.note.items.map(i => i.toString()).join(',')}]`)
         .join(', ')}`,
     );
@@ -257,7 +257,7 @@ export class ClientExecutionContext extends ViewDataOracle {
   public notifyCreatedNote(storageSlot: Fr, noteTypeId: Fr, noteItems: Fr[], innerNoteHash: Fr) {
     const note = new Note(noteItems);
     this.noteCache.addNewNote({
-      contractAddress: this.contractAddress,
+      contractAddress: this.callContext.storageContractAddress,
       storageSlot,
       nonce: Fr.ZERO, // Nonce cannot be known during private execution.
       note,
@@ -278,7 +278,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param innerNoteHash - The inner note hash of the new note.
    */
   public notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr) {
-    this.noteCache.nullifyNote(this.contractAddress, innerNullifier, innerNoteHash);
+    this.noteCache.nullifyNote(this.callContext.storageContractAddress, innerNullifier, innerNoteHash);
     return Promise.resolve();
   }
 
@@ -326,6 +326,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param argsHash - The packed arguments to pass to the function.
    * @param sideEffectCounter - The side effect counter at the start of the call.
    * @param isStaticCall - Whether the call is a static call.
+   * @param isStaticCall - Whether the call is a delegate call.
    * @returns The execution result.
    */
   async callPrivateFunction(
@@ -334,6 +335,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     argsHash: Fr,
     sideEffectCounter: number,
     isStaticCall: boolean,
+    isDelegateCall: boolean,
   ) {
     this.log(
       `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
@@ -355,7 +357,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       targetContractAddress,
       targetArtifact,
       sideEffectCounter,
-      false,
+      isDelegateCall,
       isStaticCall,
     );
 
@@ -406,19 +408,21 @@ export class ClientExecutionContext extends ViewDataOracle {
     argsHash: Fr,
     sideEffectCounter: number,
     isStaticCall: boolean,
+    isDelegateCall: boolean,
   ): Promise<PublicCallRequest> {
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
     const derivedCallContext = await this.deriveCallContext(
       targetContractAddress,
       targetArtifact,
       sideEffectCounter,
-      false,
+      isDelegateCall,
       isStaticCall,
     );
     const args = this.packedArgsCache.unpack(argsHash);
     const enqueuedRequest = PublicCallRequest.from({
       args,
       callContext: derivedCallContext,
+      parentCallContext: this.callContext,
       functionData: FunctionData.fromAbi(targetArtifact),
       contractAddress: targetContractAddress,
     });
@@ -454,8 +458,8 @@ export class ClientExecutionContext extends ViewDataOracle {
   ) {
     const portalContractAddress = await this.db.getPortalContractAddress(targetContractAddress);
     return new CallContext(
-      this.contractAddress,
-      targetContractAddress,
+      isDelegateCall ? this.callContext.msgSender : this.contractAddress,
+      isDelegateCall ? this.contractAddress : targetContractAddress,
       portalContractAddress,
       FunctionSelector.fromNameAndParameters(targetArtifact.name, targetArtifact.parameters),
       isDelegateCall,
@@ -478,7 +482,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     const values = [];
     for (let i = 0n; i < numberOfElements; i++) {
       const storageSlot = new Fr(startStorageSlot.value + i);
-      const leafSlot = computePublicDataTreeLeafSlot(this.contractAddress, storageSlot);
+      const leafSlot = computePublicDataTreeLeafSlot(this.callContext.storageContractAddress, storageSlot);
       const witness = await this.db.getPublicDataTreeWitness(bn, leafSlot);
       if (!witness) {
         throw new Error(`No witness for slot ${storageSlot.toString()}`);
