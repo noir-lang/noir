@@ -99,7 +99,7 @@ The index is built by the node as it receives new blocks from the network.
 
 If the node have the full index it can serve any user that wants to retrieve their notes. This will be elaborated further in [responding to queries](#responding-to-queries).
 A node could be configured to only build and serve the index for a subset of the tags and notes. 
-For example, a personal node could be configured to only build the index for the notes that belong to the owner based on their [tag derivation](./../private-message-delivery/note-discovery.md).
+For example, a personal node could be configured to only build the index for the notes that belong to the owner based on their [tag derivation](./../private-message-delivery/private-msg-delivery.md#note-tagging).
 
 If the node is intended only for block production, it can skip the index entirely.
 

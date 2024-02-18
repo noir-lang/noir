@@ -44,6 +44,6 @@ public_keys_hash = pedersen([
 ], GENERATOR__PUBLIC_KEYS)
 ```
 
-This recommended hash format is compatible with the [encryption precompiles](./precompiles.md#encryption-and-tagging-precompiles) initially defined in the protocol and advertised in the canonical [registry](../private-message-delivery/registry.md) for private message delivery. An address that chooses to use a different format for its keys will not be compatible with apps that rely on the registry for note encryption. Nevertheless, new precompiles introduced in future versions of the protocol could use different public keys formats.
+This recommended hash format is compatible with the [encryption precompiles](./precompiles.md#encryption-and-tagging-precompiles) initially defined in the protocol and advertised in the canonical [registry](../pre-compiled-contracts/registry.md) for private message delivery. An address that chooses to use a different format for its keys will not be compatible with apps that rely on the registry for note encryption. Nevertheless, new precompiles introduced in future versions of the protocol could use different public keys formats.
 
 <!-- TODO(cryptography): Can we restrict "x" components of public keys to all be the same sign, so we don't need to encode "y"'s signs? -->

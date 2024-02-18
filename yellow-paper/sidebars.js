@@ -131,14 +131,19 @@ const sidebars = {
       items: [],
     },
     {
+      label: "Pre-compiled Contracts",
+      type: "category",
+      link: { type: "doc", id: "pre-compiled-contracts/index" },
+      items: [
+        "pre-compiled-contracts/registry",
+      ],
+    },
+    {
       label: "Private Message Delivery",
       type: "category",
       link: { type: "doc", id: "private-message-delivery/index" },
       items: [
         "private-message-delivery/private-msg-delivery", // renamed to avoid routing problems
-        "private-message-delivery/note-discovery",
-        "private-message-delivery/encryption-and-decryption",
-        "private-message-delivery/registry",
         "private-message-delivery/send-note-guidelines",
       ],
     },
