@@ -28,7 +28,7 @@ pub enum ManifestError {
     #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
     MalformedFile(#[from] toml::de::Error),
 
-    #[error("Unexpected workspace definition found in {0}")]
+    #[error("Unexpected workspace definition found in {0}. If you're attempting to load this as a dependency, you may need to add a `directory` field to your `Nargo.toml` to show which package within the workspace to use")]
     UnexpectedWorkspace(PathBuf),
 
     #[error("Cannot find file {entry} which was specified as the `entry` field in {toml}")]
